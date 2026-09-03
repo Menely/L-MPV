@@ -33,6 +33,17 @@ jobs:
       - name: Установка npm-зависимостей
         run: npm ci
 
+      - name: Загрузка и распаковка внешних библиотек (libmpv-2.dll и ffmpeg.exe)
+        shell: pwsh
+        run: |
+          Write-Host "Скачивание библиотек из релиза deps-v1..."
+          Invoke-WebRequest -Uri "https://github.com/Menely/L-MPV/releases/download/deps-v1/mpv_libs.zip" -OutFile "mpv_libs.zip"
+          Write-Host "Распаковка в src-tauri..."
+          Expand-Archive -Path mpv_libs.zip -DestinationPath src-tauri/ -Force
+          Write-Host "Распаковка в корень..."
+          Expand-Archive -Path mpv_libs.zip -DestinationPath ./ -Force
+          Remove-Item mpv_libs.zip -Force
+
       - name: Сборка и публикация релиза Tauri
         uses: tauri-apps/tauri-action@v0
         env:
@@ -40,6 +51,6 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'L-MPV ${{ github.ref_name }}'
-          releaseBody: 'Автоматический релиз медиаплеера L-MPV.'
+          releaseBody: 'Автоматический релиз медиаплеера L-MPV на базе libmpv.'
           releaseDraft: false
           prerelease: false
