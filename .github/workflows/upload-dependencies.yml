@@ -14,22 +14,23 @@ jobs:
       - name: Проверка исходного кода
         uses: actions/checkout@v4
 
-      - name: Загрузка и архивация нативных библиотек shinchiro
+      - name: Загрузка и архивация нативных библиотек
         shell: pwsh
         run: |
-          Write-Host "1. Скачивание libmpv и ffmpeg от shinchiro..."
+          Write-Host "1. Скачивание libmpv-2.dll от shinchiro..."
           $mpvUrl = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260903/mpv-dev-x86_64-20260903-git-69e63f425a.7z"
-          $ffmpegUrl = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260903/ffmpeg-x86_64-git-9fc8c785e.7z"
-          
           Invoke-WebRequest -Uri $mpvUrl -OutFile "mpv-dev.7z"
+          
+          Write-Host "2. Скачивание ffmpeg.exe от gyan.dev..."
+          $ffmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z"
           Invoke-WebRequest -Uri $ffmpegUrl -OutFile "ffmpeg.7z"
           
-          Write-Host "2. Распаковка..."
+          Write-Host "3. Распаковка..."
           New-Item -ItemType Directory -Force -Path temp_ext
           tar -xf mpv-dev.7z -C temp_ext
           tar -xf ffmpeg.7z -C temp_ext
           
-          Write-Host "3. Подготовка папки бинарников..."
+          Write-Host "4. Подготовка папки бинарников..."
           $dll = Get-ChildItem -Path temp_ext -Recurse -Filter "libmpv-2.dll" | Select-Object -First 1
           if (-not $dll) { $dll = Get-ChildItem -Path temp_ext -Recurse -Filter "mpv-2.dll" | Select-Object -First 1 }
           $exe = Get-ChildItem -Path temp_ext -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
@@ -38,7 +39,7 @@ jobs:
           Copy-Item -Path $dll.FullName -Destination "dist_libs/libmpv-2.dll"
           Copy-Item -Path $exe.FullName -Destination "dist_libs/ffmpeg.exe"
           
-          Write-Host "4. Создание mpv_libs.zip..."
+          Write-Host "5. Создание mpv_libs.zip..."
           Compress-Archive -Path "dist_libs/*" -DestinationPath "mpv_libs.zip" -Force
 
       - name: Публикация/Обновление релиза deps-v1 на GitHub
@@ -46,7 +47,7 @@ jobs:
         with:
           tag_name: deps-v1
           name: "L-MPV Build Dependencies v1"
-          body: "Автоматически собранные нативные библиотеки libmpv-2.dll и ffmpeg.exe от shinchiro для сборки L-MPV."
+          body: "Автоматически собранные нативные библиотеки libmpv-2.dll (от shinchiro) и ffmpeg.exe (от gyan.dev) для сборки L-MPV."
           files: mpv_libs.zip
           draft: false
           prerelease: false
