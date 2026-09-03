@@ -1,0 +1,45 @@
+name: "Автоматический релиз L-MPV"
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+
+    steps:
+      - name: Проверка исходного кода
+        uses: actions/checkout@v4
+
+      - name: Настройка Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Настройка Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Кэширование сборок Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Установка npm-зависимостей
+        run: npm ci
+
+      - name: Сборка и публикация релиза Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'L-MPV ${{ github.ref_name }}'
+          releaseBody: 'Автоматический релиз медиаплеера L-MPV.'
+          releaseDraft: false
+          prerelease: false
