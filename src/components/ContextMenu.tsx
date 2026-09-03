@@ -1,0 +1,456 @@
+import { useEffect, useCallback, useRef, useState } from "react";
+import { usePlayerState } from "../contexts/PlayerStateContext";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+import {
+  FolderOpen,
+  AudioLines,
+  Subtitles,
+  BookOpen,
+  Monitor,
+  RotateCw,
+  Zap,
+  Pin,
+  Info,
+  Check,
+  ChevronRight,
+  Settings,
+  Camera,
+  Repeat,
+  Shuffle
+} from "lucide-react";
+
+interface ContextMenuProps {
+  /** Координата X для отображения меню. */
+  x: number;
+  /** Координата Y для отображения меню. */
+  y: number;
+  /** Обработчик закрытия меню. */
+  onClose: () => void;
+  /** Открытие файла. */
+  onOpenFile?: () => void;
+  /** Открытие модального окна информации о файле. */
+  onShowMediaInfo: () => void;
+  /** Открытие панели глав. */
+  onShowChapters: () => void;
+  /** Открытие модального окна настроек. */
+  onShowSettings: () => void;
+}
+
+interface TrackInfo {
+  id: number;
+  track_type: string;
+  title: string;
+  lang: string;
+  selected: boolean;
+  codec: string;
+}
+
+interface MenuItem {
+  type: "item" | "divider" | "submenu";
+  icon?: React.ReactNode;
+  label?: string;
+  shortcut?: string;
+  action?: () => void;
+  active?: boolean;
+  children?: MenuItem[];
+}
+
+export function ContextMenu({
+  x,
+  y,
+  onClose,
+  onOpenFile,
+  onShowMediaInfo,
+  onShowChapters,
+  onShowSettings,
+}: ContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+
+  const { mediaInfo } = usePlayerState();
+  const [tracks, setTracks] = useState<TrackInfo[]>([]);
+  const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
+
+  // Позиционирование меню с учётом границ экрана
+  const [adjustedPos, setAdjustedPos] = useState({ x, y });
+
+  useEffect(() => {
+    if (menuRef.current) {
+      const zoomStr = getComputedStyle(document.documentElement).getPropertyValue('--ui-scale').trim();
+      const zoom = zoomStr ? parseFloat(zoomStr) : 1;
+
+      const rect = menuRef.current.getBoundingClientRect();
+      const cssWidth = rect.width / zoom;
+      const cssHeight = rect.height / zoom;
+      
+      const cssX = x / zoom;
+      const cssY = y / zoom;
+      
+      const cssInnerWidth = window.innerWidth / zoom;
+      const cssInnerHeight = window.innerHeight / zoom;
+
+      const newX = cssX + cssWidth > cssInnerWidth ? cssX - cssWidth : cssX;
+      const newY = cssY + cssHeight > cssInnerHeight ? cssY - cssHeight : cssY;
+
+      setAdjustedPos({
+        x: Math.max(0, newX),
+        y: Math.max(0, newY),
+      });
+    }
+  }, [x, y]);
+
+  // Загрузка дорожек
+  useEffect(() => {
+    const loadState = async () => {
+      try {
+        const list = await invoke<TrackInfo[]>("get_tracks");
+        setTracks(list);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadState();
+  }, []);
+
+  // Инициализация скорости из стейта
+  useEffect(() => {
+    if (mediaInfo) {
+      setCurrentSpeed(mediaInfo.speed || 1.0);
+    }
+  }, [mediaInfo]);
+
+  // Закрытие по клику вне меню или по Escape
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [onClose]);
+
+  // ─── Обработчики команд ───────────────────────────
+  const handleSelectAudio = async (id: number) => {
+    try {
+      await invoke("set_audio_track", { trackId: id });
+    } catch (e) { console.error(e); }
+    onClose();
+  };
+
+  const handleSelectSub = async (id: number) => {
+    try {
+      await invoke("set_subtitle_track", { trackId: id });
+    } catch (e) { console.error(e); }
+    onClose();
+  };
+
+  const handleDisableSubs = async () => {
+    try {
+      await invoke("disable_subtitles");
+    } catch (e) { console.error(e); }
+    onClose();
+  };
+
+  const handleLoadSubFile = async () => {
+    try {
+      const file = await open({
+        multiple: false,
+        filters: [{ name: "Subtitles", extensions: ["srt", "ass", "vtt", "sub"] }],
+      });
+      if (file) {
+        await invoke("load_subtitle_file", { path: file });
+      }
+    } catch (e) { console.error(e); }
+    onClose();
+  };
+
+  const handleSetSpeed = async (speed: number) => {
+    try {
+      await invoke("set_speed", { speed });
+      setCurrentSpeed(speed);
+    } catch (e) { console.error(e); }
+    onClose();
+  };
+
+  const handleSetAspect = async (ratio: string) => {
+    try {
+      await invoke("set_aspect_ratio", { ratio });
+    } catch (e) { console.error(e); }
+    onClose();
+  };
+
+  const handleSetRotation = async (degrees: number) => {
+    try {
+      await invoke("set_rotation", { degrees });
+    } catch (e) { console.error(e); }
+    onClose();
+  };
+
+  const audioTracks = tracks.filter((t) => t.track_type === "audio");
+  const subTracks = tracks.filter((t) => t.track_type === "sub");
+
+
+  // ─── Определение пунктов меню ─────────────────────
+  const menuItems: MenuItem[] = [
+    {
+      type: "item",
+      icon: <FolderOpen size={15} />,
+      label: "Открыть файл...",
+      shortcut: "Ctrl+O",
+      action: () => {
+        if (onOpenFile) onOpenFile();
+        onClose();
+      },
+    },
+    { type: "divider" },
+    {
+      type: "submenu",
+      icon: <AudioLines size={15} />,
+      label: "Аудиодорожка",
+      children: audioTracks.length > 0 ? (
+        audioTracks.map((t) => ({
+          type: "item",
+          label: `${t.title || `Дорожка ${t.id}`} ${t.lang ? `(${t.lang})` : ""}`,
+          active: t.selected,
+          action: () => handleSelectAudio(t.id),
+        }))
+      ) : (
+        [{ type: "item", label: "Нет доступных аудиодорожек" }]
+      ),
+    },
+    {
+      type: "submenu",
+      icon: <Subtitles size={15} />,
+      label: "Субтитры",
+      children: [
+        {
+          type: "item",
+          label: "Выключить субтитры",
+          active: !subTracks.some((t) => t.selected),
+          action: handleDisableSubs,
+        },
+        ...subTracks.map((t) => ({
+          type: "item" as const,
+          label: `${t.title || `Субтитры ${t.id}`} ${t.lang ? `(${t.lang})` : ""}`,
+          active: t.selected,
+          action: () => handleSelectSub(t.id),
+        })),
+        { type: "divider" },
+        {
+          type: "item",
+          icon: <FolderOpen size={14} />,
+          label: "Загрузить субтитры...",
+          action: handleLoadSubFile,
+        },
+      ],
+    },
+    { type: "divider" },
+    {
+      type: "item",
+      icon: <BookOpen size={15} />,
+      label: "Главы",
+      action: () => {
+        onShowChapters();
+        onClose();
+      },
+    },
+    { type: "divider" },
+    {
+      type: "submenu",
+      icon: <Monitor size={15} />,
+      label: "Соотношение сторон",
+      children: [
+        { type: "item", label: "Оригинальное", action: () => handleSetAspect("no") },
+        { type: "item", label: "16:9", action: () => handleSetAspect("16:9") },
+        { type: "item", label: "21:9 (CinemaScope)", action: () => handleSetAspect("21:9") },
+        { type: "item", label: "4:3", action: () => handleSetAspect("4:3") },
+      ],
+    },
+    {
+      type: "submenu",
+      icon: <RotateCw size={15} />,
+      label: "Поворот видео",
+      children: [
+        { type: "item", label: "0° (исходное)", action: () => handleSetRotation(0) },
+        { type: "item", label: "90° по часовой", action: () => handleSetRotation(90) },
+        { type: "item", label: "180°", action: () => handleSetRotation(180) },
+        { type: "item", label: "270° по часовой", action: () => handleSetRotation(270) },
+      ],
+    },
+    {
+      type: "submenu",
+      icon: <Zap size={15} />,
+      label: "Скорость воспроизведения",
+      children: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => ({
+        type: "item",
+        label: `${s}x${s === 1.0 ? " (Нормальная)" : ""}`,
+        active: currentSpeed === s,
+        action: () => handleSetSpeed(s),
+      })),
+    },
+    { type: "divider" },
+    {
+      type: "submenu",
+      icon: <Repeat size={15} />,
+      label: "Режим повтора",
+      children: [
+        { type: "item", label: "Без повтора", action: () => { invoke("set_repeat_mode", { mode: 0 }); onClose(); } },
+        { type: "item", label: "Повтор одного файла", action: () => { invoke("set_repeat_mode", { mode: 1 }); onClose(); } },
+        { type: "item", label: "Повтор всего плейлиста", action: () => { invoke("set_repeat_mode", { mode: 2 }); onClose(); } },
+      ],
+    },
+    {
+      type: "item",
+      icon: <Shuffle size={15} />,
+      label: "Случайный порядок (Shuffle)",
+      action: () => { invoke("toggle_shuffle"); onClose(); },
+    },
+    { type: "divider" },
+    {
+      type: "item",
+      icon: <Pin size={15} />,
+      label: "Поверх всех окон",
+      action: async () => {
+        try {
+          const appWindow = (await import("@tauri-apps/api/window")).getCurrentWindow();
+          const isTop = await appWindow.isAlwaysOnTop();
+          await appWindow.setAlwaysOnTop(!isTop);
+        } catch (e) { console.error(e); }
+        onClose();
+      },
+    },
+    {
+      type: "item",
+      icon: <Camera size={15} />,
+      label: "Сохранить кадр",
+      shortcut: "S",
+      action: async () => {
+        try {
+          await invoke("take_screenshot");
+          window.dispatchEvent(new CustomEvent("show-osd", { detail: "Кадр сохранён" }));
+        } catch (e) { console.error(e); }
+        onClose();
+      },
+    },
+    {
+      type: "item",
+      icon: <Info size={15} />,
+      label: "Информация о файле...",
+      shortcut: "I",
+      action: () => {
+        onShowMediaInfo();
+        onClose();
+      },
+    },
+    {
+      type: "item",
+      icon: <Settings size={15} />,
+      label: "Настройки...",
+      action: () => {
+        onShowSettings();
+        onClose();
+      },
+    },
+  ];
+
+  // ─── Рендеринг пункта меню ────────────────────────
+  const renderItem = useCallback(
+    (item: MenuItem, index: number) => {
+      if (item.type === "divider") {
+        return (
+          <div
+            key={`divider-${index}`}
+            className="context-menu__divider"
+          />
+        );
+      }
+
+      if (item.type === "submenu") {
+        const submenuId = `submenu-${index}`;
+        return (
+          <div
+            key={submenuId}
+            style={{ position: "relative" }}
+            onMouseEnter={() => {
+              if (closeTimerRef.current !== null) {
+                window.clearTimeout(closeTimerRef.current);
+                closeTimerRef.current = null;
+              }
+              setActiveSubmenu(submenuId);
+            }}
+            onMouseLeave={() => {
+              closeTimerRef.current = window.setTimeout(() => {
+                setActiveSubmenu(null);
+              }, 300); // 300ms delay to prevent accidental closing
+            }}
+          >
+            <button className="context-menu__item">
+              <span className="context-menu__item-icon">
+                {item.icon}
+              </span>
+              <span className="context-menu__item-label">
+                {item.label}
+              </span>
+              <ChevronRight size={14} style={{ opacity: 0.5 }} />
+            </button>
+
+            {activeSubmenu === submenuId && item.children && (
+              <div className="context-menu context-menu__submenu">
+                {item.children.map((child, ci) => renderItem(child, ci))}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      return (
+        <button
+          key={`item-${index}`}
+          className={`context-menu__item ${
+            item.active ? "context-menu__item--active" : ""
+          }`}
+          onClick={item.action}
+        >
+          {item.icon && (
+            <span className="context-menu__item-icon">
+              {item.icon}
+            </span>
+          )}
+          <span className="context-menu__item-label">
+            {item.label}
+          </span>
+          {item.active && <Check size={14} style={{ marginLeft: 6 }} />}
+          {item.shortcut && (
+            <span className="context-menu__item-shortcut">
+              {item.shortcut}
+            </span>
+          )}
+        </button>
+      );
+    },
+    [activeSubmenu]
+  );
+
+  return (
+    <div
+      ref={menuRef}
+      className="context-menu"
+      style={{
+        left: adjustedPos.x,
+        top: adjustedPos.y,
+      }}
+    >
+      {menuItems.map((item, index) => renderItem(item, index))}
+    </div>
+  );
+}

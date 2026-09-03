@@ -1,0 +1,1316 @@
+/* ─── L-MPV Design System v2 ─────────────────────────── */
+/* Современная минималистичная тёмная тема с glassmorphism  */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ─── CSS Переменные (Design Tokens) ─────────────────── */
+:root {
+  /* Палитра на базе #7fc7ff */
+  --accent:       #7fc7ff;
+  --accent-hover: #99d4ff;
+  --accent-dim:   #5ba8e6;
+  --accent-dark:  #3a7cb8;
+  --accent-glow:  rgba(127, 199, 255, 0.30);
+  --accent-glass: rgba(127, 199, 255, 0.08);
+
+  /* Фоны */
+  --ui-opacity: 0.88;
+  --ui-blur: 24px;
+  --ui-backdrop: blur(24px) saturate(1.6);
+  --ui-backdrop-heavy: blur(24px) saturate(1.8);
+  --bg-primary:  #0b0d12;
+  --bg-surface:  #13161d;
+  --bg-glass:    rgba(16, 19, 28, var(--ui-opacity));
+  --bg-hover:    rgba(127, 199, 255, 0.08);
+  --bg-active:   rgba(127, 199, 255, 0.14);
+  --bg-pill:     rgba(10, 12, 18, var(--ui-opacity));
+
+  /* Текст */
+  --text-primary:   rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.55);
+  --text-muted:     rgba(255, 255, 255, 0.28);
+
+  /* Бордеры */
+  --border:       rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --border-pill:  rgba(127, 199, 255, 0.10);
+
+  /* Тени */
+  --shadow-sm:   0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-md:   0 4px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg:   0 8px 40px rgba(0, 0, 0, 0.55);
+  --shadow-glow: 0 0 16px var(--accent-glow);
+  --shadow-pill: 0 4px 30px rgba(0, 0, 0, 0.50),
+                 0 0 1px rgba(127, 199, 255, 0.15);
+
+  /* Скругления */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-pill: 50px;
+
+  /* Анимации */
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth:   cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast:        150ms;
+  --t-base:        250ms;
+  --t-slow:        400ms;
+
+  /* Типографика */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont,
+                 'Segoe UI', sans-serif;
+  --fs-xs:   0.68rem;
+  --fs-sm:   0.78rem;
+  --fs-base: 0.88rem;
+  --fs-lg:   1.0rem;
+  --fs-xl:   1.2rem;
+  
+  /* Масштабирование UI для больших экранов */
+  --ui-scale: 1;
+}
+
+/* ─── Адаптивность для больших экранов ───────────────── */
+@media (min-width: 1600px) {
+  :root { --ui-scale: 1.05; }
+}
+
+@media (min-width: 1920px) { /* Full HD */
+  :root { --ui-scale: 1.1; }
+}
+
+@media (min-width: 2560px) { /* 1440p / 2K */
+  :root { --ui-scale: 1.25; }
+}
+
+@media (min-width: 3840px) { /* 4K */
+  :root { --ui-scale: 1.5; }
+}
+
+/* ─── Глобальный сброс ───────────────────────────────── */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-family);
+  font-size: var(--fs-base);
+  color: var(--text-primary);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+/* ─── Контейнер приложения ───────────────────────────── */
+.app-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: transparent;
+  cursor: default;
+  zoom: var(--ui-scale);
+}
+
+/* Класс idle — скрывает UI после бездействия мыши */
+.app-container--idle .titlebar,
+.app-container--idle .player-controls-wrapper {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-container--idle {
+  cursor: none;
+}
+
+/* ─── Режим Mini Player (PiP) ─── */
+.app-container--mini .titlebar,
+.app-container--mini .player-controls-wrapper {
+  opacity: 0;
+  pointer-events: none;
+}
+.app-container--mini:hover .player-controls-wrapper {
+  opacity: 1;
+  pointer-events: auto;
+}
+.app-container--mini .player-controls {
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+.app-container--mini .controls-row__left .control-btn,
+.app-container--mini .controls-row__right .control-btn {
+  display: none; /* Скрываем второстепенные кнопки в мини-плеере */
+}
+.app-container--mini .controls-row__right #btn-speed,
+.app-container--mini .controls-row__right button[title="Поверх всех окон (PiP)"],
+.app-container--mini .controls-row__right button[title="Mini Player (PiP режим)"] {
+  display: flex; /* Оставляем только важные кнопки */
+}
+
+/* OSD отображения кадров в левом верхнем углу */
+.frame-osd {
+  position: fixed;
+  top: 48px;
+  left: 24px;
+  z-index: 1000;
+  background: rgba(10, 12, 18, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 8px 18px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.8px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: fadeIn 150ms var(--ease-out);
+}
+
+/* ─── Всплывающая плашка времени на таймлайне ─── */
+.timeline-preview-card {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  background: rgba(10, 12, 18, 0.90);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  z-index: 1000;
+  white-space: nowrap;
+  animation: previewFadeIn var(--t-fast) var(--ease-out);
+}
+
+@keyframes previewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.timeline-preview-card__time {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.4px;
+}
+
+.timeline-preview-card__chapter {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Кастомный Titlebar ─────────────────────────────── */
+.titlebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px 0 14px;
+  z-index: 1000;
+  border: none;
+  box-shadow: none;
+  transition: opacity var(--t-slow) var(--ease-smooth);
+}
+
+.titlebar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 84px;
+  z-index: -1;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.55) 45%,
+    rgba(0, 0, 0, 0.2) 75%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  pointer-events: none;
+}
+
+.titlebar__left {
+  display: flex;
+  align-items: center;
+}
+
+.titlebar__center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 260px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.titlebar__filename {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.titlebar__title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.titlebar__controls {
+  display: flex;
+  gap: 2px;
+}
+
+.titlebar__btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.titlebar__btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.titlebar__btn:active {
+  transform: scale(0.90);
+}
+
+.titlebar__btn--close:hover {
+  background: rgba(232, 65, 65, 0.85);
+  color: white;
+}
+
+/* ─── Область видео ──────────────────────────────────── */
+.video-area {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.video-area--empty {
+  background: var(--bg-primary);
+}
+
+.video-area__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  color: var(--text-muted);
+  animation: placeholderPulse 3s ease-in-out infinite;
+}
+
+@keyframes placeholderPulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1;   }
+}
+
+.video-area__placeholder-icon {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-glass);
+  border: 1px solid var(--border-pill);
+  color: var(--accent-dim);
+}
+
+.video-area__placeholder-text {
+  font-size: var(--fs-xl);
+  font-weight: 300;
+  letter-spacing: 2px;
+  color: var(--text-secondary);
+}
+
+.video-area__placeholder-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* ─── Обертка панели управления (Floating Pill Full-Width) ── */
+.player-controls-wrapper {
+  position: fixed;
+  bottom: 12px;
+  left: 14px;
+  right: 14px;
+  z-index: 500;
+  width: calc(100% - 28px);
+  max-width: none;
+  transition: opacity var(--t-slow) var(--ease-smooth),
+              transform var(--t-slow) var(--ease-out);
+}
+
+/* ─── Таблетка управления ─────────────────────────────── */
+.player-controls {
+  background: var(--bg-pill);
+  backdrop-filter: var(--ui-backdrop);
+  -webkit-backdrop-filter: var(--ui-backdrop);
+  border: 1px solid var(--border-pill);
+  border-radius: 16px;
+  padding: 4px 16px 6px;
+  box-shadow: var(--shadow-pill);
+  transition: transform var(--t-base) var(--ease-smooth),
+              box-shadow var(--t-base) var(--ease-smooth);
+}
+
+.player-controls:hover {
+  box-shadow: var(--shadow-pill),
+              0 0 20px rgba(127, 199, 255, 0.06);
+}
+
+/* ─── Таймлайн ───────────────────────────────────────── */
+.timeline {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+
+.timeline__track {
+  width: 100%;
+  height: 5px;
+  position: relative;
+  transition: height var(--t-fast) var(--ease-smooth);
+}
+
+.timeline:hover .timeline__track {
+  height: 8px;
+}
+
+.timeline__segment-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.timeline__segment-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: none;
+  will-change: width;
+}
+
+.timeline__thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: var(--shadow-glow);
+  transition: transform var(--t-fast) var(--ease-out);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.timeline:hover .timeline__thumb {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Всплывающее превью времени при наведении */
+.timeline-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  background: rgba(10, 12, 18, 0.90);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
+}
+
+/* ─── Кнопки управления (Grid с математическим центрированием) ── */
+.controls-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+}
+
+.controls-row__left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+}
+
+.controls-row__center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: center;
+}
+
+.controls-row__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: end;
+}
+
+.control-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all var(--t-fast) var(--ease-smooth);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.control-btn--with-label {
+  width: auto;
+  min-width: 34px;
+  padding: 0 8px;
+  border-radius: 12px;
+  gap: 5px;
+}
+
+.control-btn__label {
+  font-size: 0.73rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-primary);
+  user-select: none;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.control-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.25;
+}
+
+.control-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  transform: scale(1.08);
+}
+
+.control-btn:active {
+  transform: scale(0.92);
+}
+
+/* Кнопка Play крупнее остальных */
+.control-btn--play {
+  width: 40px;
+  height: 40px;
+  color: var(--accent);
+}
+
+.control-btn--play svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.4;
+}
+
+.control-btn--play:hover {
+  color: var(--accent-hover);
+  background: var(--bg-active);
+  transform: scale(1.12);
+}
+
+.control-btn--active {
+  color: var(--accent);
+}
+
+/* ─── Текстовые метки (время, кадры) ─────────────────── */
+.time-display {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 0 4px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.frame-display {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 0 2px;
+}
+
+/* ─── Слайдер громкости ──────────────────────────────── */
+.volume-slider {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+}
+
+.volume-slider__input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 56px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease-smooth);
+  accent-color: var(--accent);
+}
+
+.volume-slider__input:hover {
+  filter: brightness(1.15);
+}
+
+.volume-slider__input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: transform var(--t-fast) var(--ease-out);
+}
+
+.volume-slider__input:hover::-webkit-slider-thumb {
+  transform: scale(1.3);
+  box-shadow: var(--shadow-glow);
+}
+
+/* ─── Контекстное меню ───────────────────────────────── */
+.context-menu {
+  position: fixed;
+  min-width: 220px;
+  background: var(--bg-glass);
+  backdrop-filter: var(--ui-backdrop);
+  -webkit-backdrop-filter: var(--ui-backdrop);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 5px;
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  animation: contextMenuIn 120ms var(--ease-out);
+}
+
+@keyframes contextMenuIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.context-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-family: var(--font-family);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  width: 100%;
+  text-align: left;
+  transition: background var(--t-fast) var(--ease-smooth);
+  position: relative;
+}
+
+.context-menu__item:hover {
+  background: var(--bg-hover);
+}
+
+.context-menu__item--active {
+  color: var(--accent);
+}
+
+.context-menu__item-icon {
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.context-menu__item-icon svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+}
+
+.context-menu__item-label {
+  flex: 1;
+}
+
+.context-menu__item-shortcut {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-left: 16px;
+}
+
+.context-menu__item-arrow {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.context-menu__divider {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 10px;
+}
+
+/* Подменю */
+.context-menu__submenu {
+  position: absolute;
+  left: calc(100% + 4px);
+  top: -6px;
+}
+
+/* ─── Модальное окно ─────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 200ms var(--ease-smooth);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal {
+  width: 460px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-glass);
+  backdrop-filter: var(--ui-backdrop-heavy);
+  -webkit-backdrop-filter: var(--ui-backdrop-heavy);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), 0 0 30px rgba(127, 199, 255, 0.05);
+  overflow: hidden;
+  animation: modalIn 250ms var(--ease-out);
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.modal__title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal__close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.modal__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.modal__body {
+  padding: 14px 18px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.modal__section {
+  margin-bottom: 14px;
+}
+
+.modal__section-title {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+}
+
+.modal__row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: var(--fs-sm);
+}
+
+.modal__row-label {
+  color: var(--text-secondary);
+}
+
+.modal__row-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Боковая панель (главы) ─────────────────────────── */
+.side-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 280px;
+  background: var(--bg-glass);
+  backdrop-filter: var(--ui-backdrop);
+  -webkit-backdrop-filter: var(--ui-backdrop);
+  border-left: 1px solid var(--border);
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  animation: slidePanelIn 250ms var(--ease-out);
+}
+
+@keyframes slidePanelIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.side-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.side-panel__title {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.side-panel__close {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.side-panel__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.side-panel__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.side-panel__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-family: var(--font-family);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  width: 100%;
+  text-align: left;
+  transition: background var(--t-fast) var(--ease-smooth);
+}
+
+.side-panel__item:hover {
+  background: var(--bg-hover);
+}
+
+.side-panel__item--active {
+  background: var(--bg-active);
+  color: var(--accent);
+}
+
+.side-panel__item-time {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* ─── Всплывающие меню выбора дорожек ──────────────── */
+.track-popover {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 0;
+  min-width: 260px;
+  max-width: 380px;
+  background: var(--bg-pill);
+  backdrop-filter: var(--ui-backdrop-heavy);
+  -webkit-backdrop-filter: var(--ui-backdrop-heavy);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: popoverIn 150ms var(--ease-out);
+}
+
+.track-popover--speed {
+  min-width: 140px;
+  left: auto;
+  right: 120px;
+}
+
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.track-popover__title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.track-popover__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-base);
+  font-family: var(--font-family);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  text-align: left;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.track-popover__item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.track-popover__item--active {
+  background: var(--bg-active);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ─── Drag & Drop overlay ────────────────────────────── */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  animation: fadeIn 150ms var(--ease-smooth);
+}
+
+.drop-overlay__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 60px;
+  border: 2px dashed var(--accent-dim);
+  border-radius: var(--radius-xl);
+  color: var(--accent);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+/* ─── Скроллбар ──────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* --- Media Info Overlay --- */
+.media-info-overlay {
+  position: fixed;
+  bottom: 94px;
+  left: 14px;
+  max-height: calc(100vh - 154px);
+  overflow-y: auto;
+  background: var(--bg-pill);
+  backdrop-filter: var(--ui-backdrop);
+  -webkit-backdrop-filter: var(--ui-backdrop);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  color: var(--text-primary);
+  z-index: 450;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
+  font-size: var(--fs-sm);
+  min-width: min(360px, calc(100vw - 28px));
+  max-width: min(420px, calc(100vw - 28px));
+  pointer-events: auto;
+}
+
+.media-info__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  padding-bottom: 10px;
+}
+
+.media-info__section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.media-info__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.media-info__label {
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 400;
+}
+
+.media-info__value {
+  font-weight: 500;
+  color: #ffffff;
+  text-align: right;
+}
+
+/* ─── Playlist Drawer (Floating Card Overlay) ────────────────── */
+.playlist-drawer {
+  position: fixed;
+  bottom: 94px;
+  right: 14px;
+  max-height: calc(100vh - 154px);
+  width: min(360px, calc(100vw - 28px));
+  background: var(--bg-pill);
+  backdrop-filter: var(--ui-backdrop);
+  -webkit-backdrop-filter: var(--ui-backdrop);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
+  z-index: 450;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: fadeIn 150ms var(--ease-smooth);
+}
+
+.playlist-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.playlist-drawer__title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.playlist-drawer__close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.playlist-drawer__search {
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.playlist-drawer__search-icon {
+  position: absolute;
+  left: 28px;
+  color: var(--text-secondary);
+}
+
+.playlist-drawer__search-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 10px 8px 36px;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer__search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.playlist-drawer__search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.playlist-drawer__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: calc(100vh - 260px);
+}
+
+.playlist-drawer__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.playlist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-smooth);
+  background: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+  width: 100%;
+}
+
+.playlist-item:hover {
+  background: var(--bg-hover);
+}
+
+.playlist-item--current {
+  background: var(--bg-active);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.playlist-item__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.playlist-item--current .playlist-item__icon {
+  color: var(--accent);
+}
+
+.playlist-item__title {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playlist-item--current .playlist-item__title {
+  color: var(--accent);
+  font-weight: 600;
+}
