@@ -12,6 +12,8 @@ import {
   Link,
   Terminal,
   AudioLines,
+  ExternalLink,
+  Trash2,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -568,34 +570,96 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 <Link size={16} /> Ассоциации файлов (Windows)
               </div>
               <div style={{ fontSize: "0.86rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
-                Зарегистрируйте плеер в системе, чтобы видеофайлы (.mp4, .mkv, .avi и др.) открывались в L-MPV по двойному клику.
+                Настройте ассоциации видео- и аудиофайлов с L-MPV. Это позволит открывать файлы напрямую по двойному клику в Проводнике Windows.
               </div>
               
-              <button
-                onClick={async () => {
-                  try {
-                    const logs = await invoke<string[]>("register_file_associations");
-                    setIntegrationLogs(logs);
-                  } catch (e) {
-                    setIntegrationLogs([`[ERROR] Не удалось зарегистрировать: ${e}`]);
-                  }
-                }}
-                className="control-btn"
-                style={{
-                  width: "100%",
-                  height: 40,
-                  borderRadius: "var(--radius-md)",
-                  background: "var(--accent-glass)",
-                  border: "1px solid var(--border-pill)",
-                  color: "var(--accent)",
-                  fontSize: "0.9rem",
-                  fontWeight: 600,
-                  gap: 8,
-                  marginBottom: 16,
-                }}
-              >
-                <Terminal size={18} /> Зарегистрировать ассоциации файлов
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+                <button
+                  onClick={async () => {
+                    try {
+                      const logs = await invoke<string[]>("register_file_associations");
+                      setIntegrationLogs(logs);
+                    } catch (e) {
+                      setIntegrationLogs([`[ERROR] Не удалось зарегистрировать: ${e}`]);
+                    }
+                  }}
+                  className="control-btn"
+                  style={{
+                    width: "100%",
+                    height: 38,
+                    borderRadius: "var(--radius-md)",
+                    background: "var(--accent-glass)",
+                    border: "1px solid var(--border-pill)",
+                    color: "var(--accent)",
+                    fontSize: "0.88rem",
+                    fontWeight: 600,
+                    gap: 8,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Terminal size={17} /> Связать медиафайлы с L-MPV
+                </button>
+
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await invoke("open_default_apps_settings");
+                        setIntegrationLogs((prev) => [
+                          ...prev,
+                          "[INFO] Открыто системное окно Windows 'Приложения по умолчанию'",
+                        ]);
+                      } catch (e) {
+                        setIntegrationLogs((prev) => [
+                          ...prev,
+                          `[ERROR] Не удалось открыть настройки: ${e}`,
+                        ]);
+                      }
+                    }}
+                    className="control-btn"
+                    style={{
+                      flex: 1,
+                      height: 36,
+                      borderRadius: "var(--radius-md)",
+                      background: "rgba(255, 255, 255, 0.06)",
+                      border: "1px solid var(--border)",
+                      color: "var(--text-main)",
+                      fontSize: "0.82rem",
+                      fontWeight: 500,
+                      gap: 6,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <ExternalLink size={15} /> Настройки Windows
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      try {
+                        const logs = await invoke<string[]>("unregister_file_associations");
+                        setIntegrationLogs(logs);
+                      } catch (e) {
+                        setIntegrationLogs([`[ERROR] Не удалось удалить: ${e}`]);
+                      }
+                    }}
+                    className="control-btn"
+                    style={{
+                      flex: 1,
+                      height: 36,
+                      borderRadius: "var(--radius-md)",
+                      background: "rgba(244, 67, 54, 0.08)",
+                      border: "1px solid rgba(244, 67, 54, 0.25)",
+                      color: "#f87171",
+                      fontSize: "0.82rem",
+                      fontWeight: 500,
+                      gap: 6,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Trash2 size={15} /> Удалить ассоциации
+                  </button>
+                </div>
+              </div>
 
               <div
                 style={{

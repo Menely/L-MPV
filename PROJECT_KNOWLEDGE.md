@@ -68,13 +68,13 @@ L-MPV/
 
 ### 3.2. `lib.rs`
 - Извлекает HWND окна Tauri v2 и передает его в mpv через свойство `"wid"`, связывая видеопоток с поверхностью окна Webview2.
-- Регистрирует все **36 IPC-команд** в `tauri::Builder`.
+- Регистрирует все **38 IPC-команд** в `tauri::Builder`.
 
 ---
 
 ## 4. Полный Реестр IPC-Команд Rust (`commands.rs`)
 
-В бэкенде зарегистрировано **36 IPC-команд**:
+В бэкенде зарегистрировано **38 IPC-команд**:
 
 | Категория | IPC Команда | Параметры | Возвращает | Описание |
 | :--- | :--- | :--- | :--- | :--- |
@@ -104,6 +104,9 @@ L-MPV/
 | **Скриншоты** | `take_screenshot` | — | `Result<(), String>` | Сохранение текущего кадра без OSD (`screenshot video`) |
 | | `get_screenshot_dir` | — | `Result<String, String>` | Чтение текущей директории для скриншотов |
 | | `set_screenshot_dir` | `path: String` | `Result<(), String>` | Изменение пути скриншотов с записью в `settings.json` |
+| **Интеграция с Windows** | `register_file_associations` | — | `Result<Vec<String>, String>` | Регистрация плеера, ассоциаций видео/аудио файлов и Capabilities в Windows |
+| | `unregister_file_associations` | — | `Result<Vec<String>, String>` | Полное удаление ассоциаций файлов и записей L-MPV из реестра Windows |
+| | `open_default_apps_settings` | — | `Result<(), String>` | Открытие системных параметров Windows «Приложения по умолчанию» (`ms-settings:defaultapps`) |
 | **Главы** | `get_chapters` | — | `Result<Vec<ChapterInfo>, String>` | Получение списка всех глав текущего медиафайла |
 | | `seek_chapter` | `index: i64` | `Result<(), String>` | Переход к главе по индексу (`chapter`) |
 | **Метаданные и Поллинг** | `get_playback_state` | — | `Result<PlaybackState, String>` | Легкий динамический статус плеера (позиция, кадр, пауза, громкость, битрейт, пропуски) |

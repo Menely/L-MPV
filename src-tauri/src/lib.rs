@@ -102,6 +102,8 @@ pub fn run() {
             commands::get_video_dimensions,
             commands::get_windows_accent_color,
             commands::register_file_associations,
+            commands::unregister_file_associations,
+            commands::open_default_apps_settings,
             commands::get_playlist,
             commands::play_playlist_item,
             // Новые команды

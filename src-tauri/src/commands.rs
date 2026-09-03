@@ -843,7 +843,7 @@ pub fn get_windows_accent_color() -> Result<String, String> {
     Ok("#7fc7ff".to_string())
 }
 
-/// Регистрация ассоциаций файлов в Windows (Portable).
+/// Регистрация ассоциаций файлов в Windows (Portable и установленная версия).
 #[tauri::command]
 pub fn register_file_associations() -> Result<Vec<String>, String> {
     let mut logs = Vec::new();
@@ -855,52 +855,134 @@ pub fn register_file_associations() -> Result<Vec<String>, String> {
         let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
         let exe_path_str = exe_path.to_str().unwrap_or_default();
         
-        logs.push(format!("[INFO] Определен путь к исполняемому файлу: {}", exe_path_str));
+        logs.push(format!("[INFO] Путь к исполняемому файлу: {}", exe_path_str));
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         let classes = match hkcu.open_subkey_with_flags("Software\\Classes", KEY_ALL_ACCESS) {
             Ok(key) => key,
             Err(e) => {
-                logs.push(format!("[ERROR] Ошибка открытия Software\\Classes: {}", e));
+                logs.push(format!("[ERROR] Ошибка доступа к Software\\Classes: {}", e));
                 return Ok(logs);
             }
         };
 
-        let prog_id = "L-MPV.Video";
+        let video_prog_id = "L-MPV.Video";
+        let audio_prog_id = "L-MPV.Audio";
         
-        // 1. Создаем ProgID
-        match classes.create_subkey(prog_id) {
+        // 1. Создаем ProgID для видео
+        match classes.create_subkey(video_prog_id) {
             Ok((prog_key, _)) => {
-                let _ = prog_key.set_value("", &"Медиафайл L-MPV");
+                let _ = prog_key.set_value("", &"Видеофайл L-MPV");
                 if let Ok((icon_key, _)) = prog_key.create_subkey("DefaultIcon") {
                     let _ = icon_key.set_value("", &format!("{},0", exe_path_str));
                 }
                 if let Ok((cmd_key, _)) = prog_key.create_subkey("shell\\open\\command") {
                     let _ = cmd_key.set_value("", &format!("\"{}\" \"%1\"", exe_path_str));
                 }
-                logs.push(format!("[OK] Создан ProgID: {}", prog_id));
+                logs.push(format!("[OK] Зарегистрирован ProgID видео: {}", video_prog_id));
             }
             Err(e) => {
-                logs.push(format!("[ERROR] Не удалось создать ProgID: {}", e));
+                logs.push(format!("[ERROR] Ошибка создания ProgID видео: {}", e));
                 return Ok(logs);
             }
         }
 
-        // 2. Ассоциируем расширения
-        let extensions = vec![".mp4", ".mkv", ".avi", ".mov", ".webm", ".ts", ".m4v", ".flv"];
-        for ext in extensions {
+        // 2. Создаем ProgID для аудио
+        match classes.create_subkey(audio_prog_id) {
+            Ok((prog_key, _)) => {
+                let _ = prog_key.set_value("", &"Аудиофайл L-MPV");
+                if let Ok((icon_key, _)) = prog_key.create_subkey("DefaultIcon") {
+                    let _ = icon_key.set_value("", &format!("{},0", exe_path_str));
+                }
+                if let Ok((cmd_key, _)) = prog_key.create_subkey("shell\\open\\command") {
+                    let _ = cmd_key.set_value("", &format!("\"{}\" \"%1\"", exe_path_str));
+                }
+                logs.push(format!("[OK] Зарегистрирован ProgID аудио: {}", audio_prog_id));
+            }
+            Err(e) => {
+                logs.push(format!("[ERROR] Ошибка создания ProgID аудио: {}", e));
+            }
+        }
+
+        // 3. Регистрация Capabilities для системных настроек Windows 10/11
+        if let Ok((software, _)) = hkcu.create_subkey("Software") {
+            if let Ok((lmpv_key, _)) = software.create_subkey("L-MPV") {
+                if let Ok((cap_key, _)) = lmpv_key.create_subkey("Capabilities") {
+                    let _ = cap_key.set_value("ApplicationName", &"L-MPV");
+                    let _ = cap_key.set_value("ApplicationDescription", &"Современный медиаплеер L-MPV");
+                    if let Ok((assoc_key, _)) = cap_key.create_subkey("FileAssociations") {
+                        let video_exts = [
+                            ".mp4", ".mkv", ".avi", ".mov", ".webm", ".ts", ".m4v", ".flv", ".wmv", ".3gp",
+                            ".mpeg", ".mpg",
+                        ];
+                        for ext in video_exts {
+                            let _ = assoc_key.set_value(ext, &video_prog_id);
+                        }
+                        let audio_exts = [
+                            ".mp3", ".flac", ".wav", ".aac", ".ogg", ".m4a", ".opus", ".wma",
+                        ];
+                        for ext in audio_exts {
+                            let _ = assoc_key.set_value(ext, &audio_prog_id);
+                        }
+                    }
+                }
+            }
+            if let Ok((reg_apps, _)) = software.create_subkey("RegisteredApplications") {
+                let _ = reg_apps.set_value("L-MPV", &"Software\\L-MPV\\Capabilities");
+                logs.push("[OK] Зарегистрировано в 'Приложениях по умолчанию' Windows".to_string());
+            }
+        }
+
+        // 4. Привязка видеоформатов
+        let video_extensions = vec![
+            ".mp4", ".mkv", ".avi", ".mov", ".webm", ".ts", ".m4v", ".flv", ".wmv", ".3gp",
+            ".mpeg", ".mpg",
+        ];
+        for ext in video_extensions {
             match classes.create_subkey(ext) {
                 Ok((ext_key, _)) => {
-                    let _ = ext_key.set_value("", &prog_id);
-                    logs.push(format!("[OK] Привязано расширение: {}", ext));
+                    let _ = ext_key.set_value("", &video_prog_id);
+                    if let Ok((open_with, _)) = ext_key.create_subkey("OpenWithProgids") {
+                        let _ = open_with.set_value(video_prog_id, &"");
+                    }
+                    logs.push(format!("[OK] Привязано видео: {}", ext));
                 }
                 Err(e) => {
                     logs.push(format!("[WARN] Ошибка привязки {}: {}", ext, e));
                 }
             }
         }
-        
-        logs.push("[DONE] Все ассоциации успешно зарегистрированы!".to_string());
+
+        // 5. Привязка аудиоформатов
+        let audio_extensions = vec![
+            ".mp3", ".flac", ".wav", ".aac", ".ogg", ".m4a", ".opus", ".wma",
+        ];
+        for ext in audio_extensions {
+            match classes.create_subkey(ext) {
+                Ok((ext_key, _)) => {
+                    let _ = ext_key.set_value("", &audio_prog_id);
+                    if let Ok((open_with, _)) = ext_key.create_subkey("OpenWithProgids") {
+                        let _ = open_with.set_value(audio_prog_id, &"");
+                    }
+                    logs.push(format!("[OK] Привязано аудио: {}", ext));
+                }
+                Err(e) => {
+                    logs.push(format!("[WARN] Ошибка привязки {}: {}", ext, e));
+                }
+            }
+        }
+
+        // 6. Оповещение Windows Shell об обновлении ассоциаций и иконок
+        unsafe {
+            windows::Win32::UI::Shell::SHChangeNotify(
+                windows::Win32::UI::Shell::SHCNE_ASSOCCHANGED,
+                windows::Win32::UI::Shell::SHCNF_IDLIST,
+                None,
+                None,
+            );
+        }
+        logs.push("[OK] Кэш иконок Windows Explorer обновлен".to_string());
+        logs.push("[DONE] Все ассоциации файлов успешно зарегистрированы!".to_string());
     }
     
     #[cfg(not(target_os = "windows"))]
@@ -909,6 +991,86 @@ pub fn register_file_associations() -> Result<Vec<String>, String> {
     }
 
     Ok(logs)
+}
+
+/// Удаление ассоциаций файлов в Windows (очистка реестра).
+#[tauri::command]
+pub fn unregister_file_associations() -> Result<Vec<String>, String> {
+    let mut logs = Vec::new();
+    #[cfg(target_os = "windows")]
+    {
+        use winreg::enums::*;
+        use winreg::RegKey;
+
+        logs.push("[INFO] Начало процесса удаления ассоциаций файлов...".to_string());
+
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        if let Ok(classes) = hkcu.open_subkey_with_flags("Software\\Classes", KEY_ALL_ACCESS) {
+            let _ = classes.delete_subkey_all("L-MPV.Video");
+            let _ = classes.delete_subkey_all("L-MPV.Audio");
+            logs.push("[OK] ProgID L-MPV.Video и L-MPV.Audio удалены".to_string());
+
+            let all_extensions = vec![
+                ".mp4", ".mkv", ".avi", ".mov", ".webm", ".ts", ".m4v", ".flv", ".wmv", ".3gp",
+                ".mpeg", ".mpg", ".mp3", ".flac", ".wav", ".aac", ".ogg", ".m4a", ".opus", ".wma",
+            ];
+
+            for ext in all_extensions {
+                if let Ok(ext_key) = classes.open_subkey_with_flags(ext, KEY_ALL_ACCESS) {
+                    if let Ok(val) = ext_key.get_value::<String, _>("") {
+                        if val == "L-MPV.Video" || val == "L-MPV.Audio" {
+                            let _ = ext_key.delete_value("");
+                        }
+                    }
+                    if let Ok(open_with) = ext_key.open_subkey_with_flags("OpenWithProgids", KEY_ALL_ACCESS) {
+                        let _ = open_with.delete_value("L-MPV.Video");
+                        let _ = open_with.delete_value("L-MPV.Audio");
+                    }
+                    logs.push(format!("[OK] Очищено расширение: {}", ext));
+                }
+            }
+        }
+
+        if let Ok(software) = hkcu.open_subkey_with_flags("Software", KEY_ALL_ACCESS) {
+            let _ = software.delete_subkey_all("L-MPV");
+            if let Ok(reg_apps) = software.open_subkey_with_flags("RegisteredApplications", KEY_ALL_ACCESS) {
+                let _ = reg_apps.delete_value("L-MPV");
+            }
+            logs.push("[OK] Записи RegisteredApplications удалены".to_string());
+        }
+
+        // Оповещение оболочки Windows
+        unsafe {
+            windows::Win32::UI::Shell::SHChangeNotify(
+                windows::Win32::UI::Shell::SHCNE_ASSOCCHANGED,
+                windows::Win32::UI::Shell::SHCNF_IDLIST,
+                None,
+                None,
+            );
+        }
+        logs.push("[OK] Кэш иконок Windows Explorer обновлен".to_string());
+        logs.push("[DONE] Ассоциации файлов полностью удалены из системы!".to_string());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        logs.push("[WARN] Поддерживается только в Windows.".to_string());
+    }
+
+    Ok(logs)
+}
+
+/// Открытие окна системных настроек Windows "Приложения по умолчанию".
+#[tauri::command]
+pub fn open_default_apps_settings() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", "start", "ms-settings:defaultapps"])
+            .spawn()
+            .map_err(|e| format!("Не удалось открыть системные настройки: {}", e))?;
+    }
+    Ok(())
 }
 
 // ─── Новые функции (Shuffle, Repeat, Clipboard, Taskbar, History, MiniPlayer) ───
