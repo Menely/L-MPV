@@ -115,6 +115,10 @@ pub struct PlaybackState {
     pub video_width: i64,
     /// Высота видео
     pub video_height: i64,
+    /// Текущая активная аудиодорожка
+    pub current_aid: String,
+    /// Текущая активная дорожка субтитров
+    pub current_sid: String,
 }
 
 /// Функция экранирования путей для команд mpv.
@@ -130,6 +134,7 @@ pub struct TrackInfo {
     /// Идентификатор дорожки.
     pub id: i64,
     /// Тип дорожки: "audio", "sub", "video".
+    #[serde(rename = "type")]
     pub track_type: String,
     /// Название дорожки.
     pub title: String,
@@ -390,6 +395,10 @@ pub fn get_tracks(
     let count = mpv.get_property_double("track-list/count").unwrap_or(0.0) as i64;
     let mut tracks = Vec::new();
 
+    let current_aid = mpv.get_property_string("aid").unwrap_or_default();
+    let current_sid = mpv.get_property_string("sid").unwrap_or_default();
+    let current_vid = mpv.get_property_string("vid").unwrap_or_default();
+
     for i in 0..count {
         let track_type = mpv
             .get_property_string(&format!("track-list/{}/type", i))
@@ -403,10 +412,45 @@ pub fn get_tracks(
         let lang = mpv
             .get_property_string(&format!("track-list/{}/lang", i))
             .unwrap_or_default();
-        let selected = mpv
+        
+        let is_selected_by_list = mpv
             .get_property_string(&format!("track-list/{}/selected", i))
             .unwrap_or_default()
             == "yes";
+
+        // Синхронизация статуса активности с актуальными свойствами aid/sid/vid плеера,
+        // чтобы исключить задержку обновления track-list при смене дорожки демуксером.
+        let selected = match track_type.as_str() {
+            "audio" => {
+                if current_aid == "no" {
+                    false
+                } else if let Ok(aid_id) = current_aid.parse::<i64>() {
+                    id == aid_id
+                } else {
+                    is_selected_by_list
+                }
+            }
+            "sub" => {
+                if current_sid == "no" {
+                    false
+                } else if let Ok(sid_id) = current_sid.parse::<i64>() {
+                    id == sid_id
+                } else {
+                    is_selected_by_list
+                }
+            }
+            "video" => {
+                if current_vid == "no" {
+                    false
+                } else if let Ok(vid_id) = current_vid.parse::<i64>() {
+                    id == vid_id
+                } else {
+                    is_selected_by_list
+                }
+            }
+            _ => is_selected_by_list,
+        };
+
         let codec = mpv
             .get_property_string(&format!("track-list/{}/codec", i))
             .unwrap_or_default();
@@ -718,6 +762,8 @@ pub fn get_playback_state(
         path: mpv.get_property_string("path").unwrap_or_default(),
         video_width: mpv.get_property_double("video-params/dw").unwrap_or_else(|_| mpv.get_property_double("width").unwrap_or(0.0)) as i64,
         video_height: mpv.get_property_double("video-params/dh").unwrap_or_else(|_| mpv.get_property_double("height").unwrap_or(0.0)) as i64,
+        current_aid: mpv.get_property_string("aid").unwrap_or_default(),
+        current_sid: mpv.get_property_string("sid").unwrap_or_default(),
     })
 }
 

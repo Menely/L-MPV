@@ -191,14 +191,21 @@ L-MPV/
 
 Для компиляции и перегрузки готового исполняемого файла используются следующие команды:
 
-1. **Компиляция проекта:**
+1. **Компиляция проекта (Быстрое обновление только `.exe`):**
+   ```bash
+   npm run tauri build -- --no-bundle
+   ```
+   *Результат сборки создается в папке:* `src-tauri/target/release/l-mpv.exe`
+
+2. **Полная компиляция с созданием инсталляторов (MSI/NSIS):**
    ```bash
    npm run tauri build
    ```
-   *Результат сборки создается в папке:* `d:\My-programs\L-MPV\src-tauri\target\release\l-mpv.exe`
 
-2. **Копирование в портативную папку:**
+3. **Копирование в портативную папку:**
    ```powershell
-   Copy-Item -Path "D:\My-programs\L-MPV\src-tauri\target\release\l-mpv.exe" -Destination "D:\My-programs\L-MPV\Portable-L-MPV\L-MPV.exe" -Force
+   Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MPV/L-MPV.exe" -Force
    ```
    *(Если файл заблокирован запущенным плеером, сначала завершите процесс через `Stop-Process -Name "L-MPV" -Force`).*
+
+

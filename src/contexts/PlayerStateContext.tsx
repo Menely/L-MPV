@@ -37,12 +37,23 @@ export interface PlaybackState {
   path: string;
   video_width: number;
   video_height: number;
+  current_aid: string;
+  current_sid: string;
 }
 
 export interface Chapter {
   index: number;
   title: string;
   time: number;
+}
+
+export interface TrackInfo {
+  id: number;
+  type: string;
+  title: string;
+  lang: string;
+  selected: boolean;
+  codec: string;
 }
 
 interface PlayerStateContextType {
@@ -57,6 +68,13 @@ interface PlayerStateContextType {
   seekTo: (seconds: number) => Promise<void>;
   togglePause: () => Promise<void>;
   setVolume: (vol: number) => void;
+  tracks: TrackInfo[];
+  loadTracks: () => Promise<void>;
+  selectAudioTrack: (trackId: number) => Promise<void>;
+  selectSubTrack: (trackId: number) => Promise<void>;
+  disableSubtitles: () => Promise<void>;
+  cycleAudioTrack: () => Promise<void>;
+  cycleSubTrack: () => Promise<void>;
 }
 
 const PlayerStateContext = createContext<PlayerStateContextType>({
@@ -71,6 +89,13 @@ const PlayerStateContext = createContext<PlayerStateContextType>({
   seekTo: async () => {},
   togglePause: async () => {},
   setVolume: () => {},
+  tracks: [],
+  loadTracks: async () => {},
+  selectAudioTrack: async () => {},
+  selectSubTrack: async () => {},
+  disableSubtitles: async () => {},
+  cycleAudioTrack: async () => {},
+  cycleSubTrack: async () => {},
 });
 
 export function PlayerStateProvider({ children }: { children: ReactNode }) {
@@ -81,10 +106,33 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [seekTarget, setSeekTarget] = useState<number | null>(null);
+  const [tracks, setTracks] = useState<TrackInfo[]>([]);
   const seekingRef = useRef(false);
   const seekTargetRef = useRef<number | null>(null);
   const idleTimer = useRef<number | null>(null);
   const currentPathRef = useRef<string>("");
+  const currentAidRef = useRef<string>("");
+  const currentSidRef = useRef<string>("");
+
+  const loadTracks = useCallback(async () => {
+    try {
+      const t = await invoke<TrackInfo[]>("get_tracks");
+      setTracks(t);
+    } catch (e) {
+      console.error("Ошибка загрузки дорожек", e);
+    }
+  }, []);
+
+  // Вызывается при загрузке нового файла или изменении стейта hasMedia
+  useEffect(() => {
+    if (hasMedia) {
+      loadTracks();
+    } else {
+      setTracks([]);
+      currentAidRef.current = "";
+      currentSidRef.current = "";
+    }
+  }, [hasMedia, loadTracks]);
 
   // Обработка idle (бездействия мыши)
   useEffect(() => {
@@ -177,6 +225,13 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             nextDelay = 1000;
           }
         } else {
+          // Отслеживаем изменения выбранных дорожек через поллинг
+          if (dynState.current_aid !== currentAidRef.current || dynState.current_sid !== currentSidRef.current) {
+            currentAidRef.current = dynState.current_aid;
+            currentSidRef.current = dynState.current_sid;
+            loadTracks();
+          }
+
           // Проверяем, доехал ли mpv до цели seek
           if (seekingRef.current && seekTargetRef.current !== null) {
             if (Math.abs(dynState.position - seekTargetRef.current) < 1.0) {
@@ -286,7 +341,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     }
   }, [mediaInfo?.position, mediaInfo?.paused, mediaInfo?.duration]);
 
-  // ─── Автосохранение истории просмотров ───
+  // Автосохранение истории просмотров ───
   const lastSavedPositionRef = useRef<number>(0);
   useEffect(() => {
     if (mediaInfo && mediaInfo.path && !mediaInfo.paused) {
@@ -300,8 +355,68 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     }
   }, [mediaInfo?.position, mediaInfo?.path, mediaInfo?.paused]);
 
+  const selectAudioTrack = useCallback(async (trackId: number) => {
+    try {
+      setTracks(prev => prev.map(t => t.type === "audio" ? { ...t, selected: t.id === trackId } : t));
+      await invoke("set_audio_track", { trackId });
+      const t = tracks.find(x => x.type === "audio" && x.id === trackId);
+      if (t) {
+         invoke("show_osd", { text: `Аудио: ${t.title || t.lang || ('Дорожка ' + t.id)}` }).catch(() => {});
+      }
+      await loadTracks();
+    } catch (e) {
+      console.error("Ошибка при выборе аудиодорожки", e);
+    }
+  }, [tracks, loadTracks]);
+  
+  const selectSubTrack = useCallback(async (trackId: number) => {
+    try {
+      setTracks(prev => prev.map(t => t.type === "sub" ? { ...t, selected: t.id === trackId } : t));
+      await invoke("set_subtitle_track", { trackId });
+      const t = tracks.find(x => x.type === "sub" && x.id === trackId);
+      if (t) {
+         invoke("show_osd", { text: `Субтитры: ${t.title || t.lang || ('Дорожка ' + t.id)}` }).catch(() => {});
+      }
+      await loadTracks();
+    } catch (e) {
+      console.error("Ошибка при выборе дорожки субтитров", e);
+    }
+  }, [tracks, loadTracks]);
+  
+  const disableSubtitles = useCallback(async () => {
+    try {
+      setTracks(prev => prev.map(t => t.type === "sub" ? { ...t, selected: false } : t));
+      await invoke("disable_subtitles");
+      invoke("show_osd", { text: "Субтитры: Выкл" }).catch(() => {});
+      await loadTracks();
+    } catch (e) {
+      console.error("Ошибка при отключении субтитров", e);
+    }
+  }, [loadTracks]);
+  
+  const cycleAudioTrack = useCallback(async () => {
+    const audioTracks = tracks.filter((t) => t.type === "audio");
+    if (audioTracks.length === 0) return;
+    const currentIdx = audioTracks.findIndex((t) => t.selected);
+    const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % audioTracks.length;
+    await selectAudioTrack(audioTracks[nextIdx].id);
+  }, [tracks, selectAudioTrack]);
+
+  const cycleSubTrack = useCallback(async () => {
+    const subTracks = tracks.filter((t) => t.type === "sub");
+    if (subTracks.length === 0) return;
+    const currentIdx = subTracks.findIndex((t) => t.selected);
+    const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % (subTracks.length + 1); // +1 для состояния "отключено"
+    
+    if (nextIdx === subTracks.length) {
+      await disableSubtitles();
+    } else {
+      await selectSubTrack(subTracks[nextIdx].id);
+    }
+  }, [tracks, selectSubTrack, disableSubtitles]);
+
   return (
-    <PlayerStateContext.Provider value={{ mediaInfo, hasMedia, isIdle, chapters, isPlaylistOpen, setIsPlaylistOpen, seeking, seekTarget, seekTo, togglePause, setVolume }}>
+    <PlayerStateContext.Provider value={{ mediaInfo, hasMedia, isIdle, chapters, isPlaylistOpen, setIsPlaylistOpen, seeking, seekTarget, seekTo, togglePause, setVolume, tracks, loadTracks, selectAudioTrack, selectSubTrack, disableSubtitles, cycleAudioTrack, cycleSubTrack }}>
       {children}
     </PlayerStateContext.Provider>
   );

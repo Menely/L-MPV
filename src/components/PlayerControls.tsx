@@ -28,15 +28,6 @@ import {
 import { formatTime } from "../utils/timeUtils";
 import { Timeline } from "./Timeline";
 
-interface TrackInfo {
-  id: number;
-  track_type: string;
-  title: string;
-  lang: string;
-  selected: boolean;
-  codec: string;
-}
-
 
 
 export function PlayerControls({
@@ -60,16 +51,14 @@ export function PlayerControls({
   const duration = mediaInfo?.duration || 0;
   const paused = mediaInfo?.paused ?? true;
   const contextVolume = mediaInfo?.volume ?? 100;
-  const mediaPath = mediaInfo?.path || "";
 
-  const { togglePause, setVolume } = usePlayerState();
+  const { togglePause, setVolume, tracks, loadTracks, selectAudioTrack, selectSubTrack, disableSubtitles, cycleAudioTrack, cycleSubTrack } = usePlayerState();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const volume = localVolume !== null ? localVolume : contextVolume;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Состояния для всплывающих окон дорожек и скорости
-  const [tracks, setTracks] = useState<TrackInfo[]>([]);
   const [activePopover, setActivePopover] = useState<"audio" | "sub" | "speed" | null>(null);
 
   const [repeatMode, setRepeatMode] = useState<0 | 1 | 2>(0); // 0=None, 1=File, 2=Playlist
@@ -104,29 +93,11 @@ export function PlayerControls({
     return () => window.removeEventListener('l-mpv-settings-changed', updateSetting);
   }, []);
 
-  // ─── Загрузка списка дорожек ─────
-  const loadTracks = useCallback(async () => {
-    try {
-      const list = await invoke<TrackInfo[]>("get_tracks");
-      setTracks(list);
-    } catch (e) {
-      console.error("Ошибка загрузки дорожек:", e);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (mediaPath) {
-      loadTracks();
-    } else {
-      setTracks([]);
-    }
-  }, [mediaPath, loadTracks]);
-
-  const activeAudioTrack = useMemo(() => tracks.find(t => t.track_type === "audio" && t.selected), [tracks]);
-  const activeSubTrack = useMemo(() => tracks.find(t => t.track_type === "sub" && t.selected), [tracks]);
+  const activeAudioTrack = useMemo(() => tracks.find(t => t.type === "audio" && t.selected), [tracks]);
+  const activeSubTrack = useMemo(() => tracks.find(t => t.type === "sub" && t.selected), [tracks]);
 
   const audioLabel = useMemo(() => {
-    const audioTracksList = tracks.filter(t => t.track_type === "audio");
+    const audioTracksList = tracks.filter(t => t.type === "audio");
     if (audioTracksList.length === 0) return null;
     if (!activeAudioTrack) return "AUD";
     if (activeAudioTrack.title && activeAudioTrack.title.trim().length > 0) {
@@ -137,7 +108,7 @@ export function PlayerControls({
   }, [tracks, activeAudioTrack]);
 
   const subLabel = useMemo(() => {
-    const subTracksList = tracks.filter(t => t.track_type === "sub");
+    const subTracksList = tracks.filter(t => t.type === "sub");
     if (subTracksList.length === 0) return null;
     if (!activeSubTrack) return "ВЫКЛ";
     if (activeSubTrack.title && activeSubTrack.title.trim().length > 0) {
@@ -189,44 +160,6 @@ export function PlayerControls({
       if (unlistenFn) unlistenFn();
     };
   }, []);
-
-  // ─── Быстрое циклическое переключение дорожек ──────
-  const handleCycleAudioTrack = async () => {
-    const audioList = tracks.filter(t => t.track_type === "audio");
-    if (audioList.length === 0) return;
-    const currentIdx = audioList.findIndex(t => t.selected);
-    const nextIdx = currentIdx < 0 ? 0 : (currentIdx + 1) % audioList.length;
-    const nextTrack = audioList[nextIdx];
-    try {
-      await invoke("set_audio_track", { trackId: nextTrack.id });
-      await loadTracks();
-    } catch (e) {
-      console.error("Ошибка переключения аудиодорожки:", e);
-    }
-  };
-
-  const handleCycleSubTrack = async () => {
-    const subList = tracks.filter(t => t.track_type === "sub");
-    if (subList.length === 0) return;
-    const currentIdx = subList.findIndex(t => t.selected);
-    if (currentIdx === subList.length - 1) {
-      try {
-        await invoke("disable_subtitles");
-        await loadTracks();
-      } catch (e) {
-        console.error("Ошибка отключения субтитров:", e);
-      }
-    } else {
-      const nextIdx = currentIdx < 0 ? 0 : currentIdx + 1;
-      const nextTrack = subList[nextIdx];
-      try {
-        await invoke("set_subtitle_track", { trackId: nextTrack.id });
-        await loadTracks();
-      } catch (e) {
-        console.error("Ошибка переключения субтитров:", e);
-      }
-    }
-  };
 
   // ─── Закрытие всплывающих меню при клике вне ──────
   useEffect(() => {
@@ -348,36 +281,9 @@ export function PlayerControls({
     }
   };
 
-  // ─── Переключение дорожек ─────────────────────────
-  const handleSelectAudioTrack = async (id: number) => {
-    try {
-      await invoke("set_audio_track", { trackId: id });
-      setActivePopover(null);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  const audioTracks = tracks.filter((t) => t.type === "audio");
+  const subTracks = tracks.filter((t) => t.type === "sub");
 
-  const handleSelectSubTrack = async (id: number) => {
-    try {
-      await invoke("set_subtitle_track", { trackId: id });
-      setActivePopover(null);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleDisableSubs = async () => {
-    try {
-      await invoke("disable_subtitles");
-      setActivePopover(null);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const audioTracks = tracks.filter((t) => t.track_type === "audio");
-  const subTracks = tracks.filter((t) => t.track_type === "sub");
 
   return (
     <div className="player-controls-wrapper">
@@ -395,7 +301,10 @@ export function PlayerControls({
                     key={t.id}
                     className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""
                       }`}
-                    onClick={() => handleSelectAudioTrack(t.id)}
+                    onClick={() => {
+                      selectAudioTrack(t.id);
+                      setActivePopover(null);
+                    }}
                   >
                     <span>
                       {t.title || `Дорожка ${t.id}`} {t.lang ? `(${t.lang})` : ""}
@@ -416,7 +325,10 @@ export function PlayerControls({
                       ? "track-popover__item--active"
                       : ""
                     }`}
-                  onClick={handleDisableSubs}
+                  onClick={() => {
+                    disableSubtitles();
+                    setActivePopover(null);
+                  }}
                 >
                   <span>Выключить субтитры</span>
                   {!subTracks.some((t) => t.selected) && <Check size={14} />}
@@ -426,7 +338,10 @@ export function PlayerControls({
                     key={t.id}
                     className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""
                       }`}
-                    onClick={() => handleSelectSubTrack(t.id)}
+                    onClick={() => {
+                      selectSubTrack(t.id);
+                      setActivePopover(null);
+                    }}
                   >
                     <span>
                       {t.title || `Субтитры ${t.id}`} {t.lang ? `(${t.lang})` : ""}
@@ -468,7 +383,7 @@ export function PlayerControls({
             <button
               className={`control-btn ${activePopover === "audio" ? "control-btn--active" : ""} ${showTrackNames && audioLabel ? "control-btn--with-label" : ""}`}
               onClick={() => {
-                handleCycleAudioTrack();
+                cycleAudioTrack();
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -493,7 +408,7 @@ export function PlayerControls({
             <button
               className={`control-btn ${activePopover === "sub" ? "control-btn--active" : ""} ${showTrackNames && subLabel ? "control-btn--with-label" : ""}`}
               onClick={() => {
-                handleCycleSubTrack();
+                cycleSubTrack();
               }}
               onContextMenu={(e) => {
                 e.preventDefault();

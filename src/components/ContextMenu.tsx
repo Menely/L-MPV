@@ -37,15 +37,6 @@ interface ContextMenuProps {
   onShowSettings: () => void;
 }
 
-interface TrackInfo {
-  id: number;
-  track_type: string;
-  title: string;
-  lang: string;
-  selected: boolean;
-  codec: string;
-}
-
 interface MenuItem {
   type: "item" | "divider" | "submenu";
   icon?: React.ReactNode;
@@ -69,8 +60,7 @@ export function ContextMenu({
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const closeTimerRef = useRef<number | null>(null);
 
-  const { mediaInfo } = usePlayerState();
-  const [tracks, setTracks] = useState<TrackInfo[]>([]);
+  const { mediaInfo, tracks, selectAudioTrack, selectSubTrack, disableSubtitles } = usePlayerState();
   const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
 
   // Позиционирование меню с учётом границ экрана
@@ -101,19 +91,6 @@ export function ContextMenu({
     }
   }, [x, y]);
 
-  // Загрузка дорожек
-  useEffect(() => {
-    const loadState = async () => {
-      try {
-        const list = await invoke<TrackInfo[]>("get_tracks");
-        setTracks(list);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    loadState();
-  }, []);
-
   // Инициализация скорости из стейта
   useEffect(() => {
     if (mediaInfo) {
@@ -141,23 +118,17 @@ export function ContextMenu({
 
   // ─── Обработчики команд ───────────────────────────
   const handleSelectAudio = async (id: number) => {
-    try {
-      await invoke("set_audio_track", { trackId: id });
-    } catch (e) { console.error(e); }
+    await selectAudioTrack(id);
     onClose();
   };
 
   const handleSelectSub = async (id: number) => {
-    try {
-      await invoke("set_subtitle_track", { trackId: id });
-    } catch (e) { console.error(e); }
+    await selectSubTrack(id);
     onClose();
   };
 
   const handleDisableSubs = async () => {
-    try {
-      await invoke("disable_subtitles");
-    } catch (e) { console.error(e); }
+    await disableSubtitles();
     onClose();
   };
 
@@ -196,8 +167,8 @@ export function ContextMenu({
     onClose();
   };
 
-  const audioTracks = tracks.filter((t) => t.track_type === "audio");
-  const subTracks = tracks.filter((t) => t.track_type === "sub");
+  const audioTracks = tracks.filter((t) => t.type === "audio");
+  const subTracks = tracks.filter((t) => t.type === "sub");
 
 
   // ─── Определение пунктов меню ─────────────────────
