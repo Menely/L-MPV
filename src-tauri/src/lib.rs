@@ -46,15 +46,22 @@ pub fn run() {
         mpv: Arc::new(mpv),
     };
 
+    let settings = commands::AppSettings::load(&exe_dir);
+
     println!("[L-MPV] Инициализация Tauri Builder...");
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+    let mut builder = tauri::Builder::default();
+    
+    if !settings.allow_multi_instance {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             use tauri::Emitter;
             if args.len() > 1 {
                 let _ = app.emit("open-file-cli", &args[1]);
             }
-        }))
+        }));
+    }
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(player_state)
@@ -84,10 +91,12 @@ pub fn run() {
             commands::set_rotation,
             commands::set_video_zoom_and_pan,
             commands::get_video_zoom,
-            // Скриншоты
+            // Скриншоты & Настройки
             commands::take_screenshot,
             commands::get_screenshot_dir,
             commands::set_screenshot_dir,
+            commands::get_multi_instance,
+            commands::set_multi_instance,
             // Главы
             commands::seek_chapter,
             commands::get_chapters,
@@ -148,7 +157,15 @@ pub fn run() {
                 let state = app.state::<PlayerState>();
                 if let Err(e) = commands::open_file_internal(&*state, &args[1]) {
                     println!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
+                    window.show().ok();
+                } else {
+                    // Уведомляем фронтенд, что файл начал загружаться
+                    use tauri::Emitter;
+                    let _ = app.emit("file-loading", &args[1]);
                 }
+            } else {
+                // Нет аргумента файла — показываем окно сразу (стартовая страница)
+                window.show().ok();
             }
             
             println!("[L-MPV] Tauri Setup завершен! Окно должно открыться.");

@@ -17,6 +17,12 @@
     "core:window:allow-set-always-on-top",
     "core:window:allow-is-always-on-top",
     "core:window:allow-set-size",
-    "core:window:allow-set-position"
+    "core:window:allow-set-position",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-is-visible",
+    "core:window:allow-is-fullscreen",
+    "core:window:allow-is-maximized",
+    "core:window:allow-scale-factor"
   ]
 }

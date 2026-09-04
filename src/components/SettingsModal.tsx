@@ -33,10 +33,11 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [uiOpacity, setUiOpacity] = useState<number>(0.88);
   const [activeColor, setActiveColor] = useState<string>("#7fc7ff");
   const [showTrackNames, setShowTrackNames] = useState<boolean>(true);
+  const [multiInstance, setMultiInstance] = useState<boolean>(false);
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string>>(getCustomHotkeys());
   const [recordingAction, setRecordingAction] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"general" | "hotkeys" | "integration">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "hotkeys" | "integration">("general");
   const [integrationLogs, setIntegrationLogs] = useState<string[]>([]);
 
   // Загружаем текущий путь к скриншотам из mpv
@@ -50,7 +51,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       }
     };
     loadDir();
-    
+
     // Загрузка прозрачности
     const savedOpacity = localStorage.getItem('l-mpv-ui-opacity');
     if (savedOpacity) {
@@ -71,6 +72,16 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     if (savedBtns) {
       setVisibleButtons(JSON.parse(savedBtns));
     }
+
+    const loadMultiInstance = async () => {
+      try {
+        const val = await invoke<boolean>("get_multi_instance");
+        setMultiInstance(val);
+      } catch (e) {
+        console.error("Ошибка загрузки multi_instance:", e);
+      }
+    };
+    loadMultiInstance();
   }, []);
 
   // Выбор папки скриншотов через диалог Tauri
@@ -141,7 +152,26 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               transition: "all var(--t-fast) var(--ease-smooth)",
             }}
           >
-            <Camera size={17} /> Основные / Скриншоты
+            <SlidersHorizontal size={17} /> Общие
+          </button>
+          <button
+            onClick={() => setActiveTab("appearance")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "12px 18px",
+              background: "transparent",
+              border: "none",
+              borderBottom: activeTab === "appearance" ? "2px solid var(--accent)" : "2px solid transparent",
+              color: activeTab === "appearance" ? "var(--text-primary)" : "var(--text-secondary)",
+              fontSize: "0.92rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all var(--t-fast) var(--ease-smooth)",
+            }}
+          >
+            <Palette size={17} /> Кастом
           </button>
           <button
             onClick={() => setActiveTab("hotkeys")}
@@ -251,82 +281,28 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                     <RotateCcw size={16} />
                   </button>
                 </div>
-                
-                {/* Настройка прозрачности */}
-                <div
-                  className="modal__section-title"
-                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 10, justifyContent: 'space-between' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <SlidersHorizontal size={16} /> Прозрачность интерфейса
-                  </div>
-                  <button
-                    onClick={() => {
-                      setUiOpacity(0.88);
-                      localStorage.setItem('l-mpv-ui-opacity', '0.88');
-                      document.documentElement.style.setProperty('--ui-opacity', '0.88');
-                    }}
-                    className="control-btn"
-                    title="Сбросить на значение по умолчанию"
-                    style={{
-                      width: "auto",
-                      height: 28,
-                      padding: "0 10px",
-                      borderRadius: "var(--radius-md)",
-                      background: "rgba(255, 255, 255, 0.05)",
-                      border: "1px solid var(--border)",
-                      color: "var(--text-secondary)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: "0.75rem"
-                    }}
-                  >
-                    <RotateCcw size={14} />
-                  </button>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 14 }}>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="1.0"
-                    step="0.01"
-                    value={uiOpacity}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setUiOpacity(val);
-                      localStorage.setItem('l-mpv-ui-opacity', val.toString());
-                      document.documentElement.style.setProperty('--ui-opacity', val.toString());
-                    }}
-                    style={{ flex: 1, cursor: "pointer", accentColor: "var(--accent)" }}
-                  />
-                  <div style={{ width: "45px", fontSize: "0.9rem", color: "var(--text-secondary)", textAlign: "right" }}>
-                    {Math.round(uiOpacity * 100)}%
-                  </div>
-                </div>
 
-                <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: "1.4", marginTop: 20 }}>
-                  По умолчанию скриншоты сохраняются в папку <code>screenshots</code> рядом с портативным файлом плеера.
-                </div>
-
-                {/* Настройка отображения названий дорожек */}
+                {/* Настройка Multi-instance */}
                 <div
                   className="modal__section-title"
                   style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <AudioLines size={16} /> Названия дорожек на панели
+                    <Monitor size={16} /> Режим нескольких окон (Multi-instance)
                   </div>
                 </div>
                 <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
-                    checked={showTrackNames}
-                    onChange={(e) => {
+                    checked={multiInstance}
+                    onChange={async (e) => {
                       const val = e.target.checked;
-                      setShowTrackNames(val);
-                      localStorage.setItem('l-mpv-show-track-names', val ? 'true' : 'false');
-                      window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                      setMultiInstance(val);
+                      try {
+                        await invoke("set_multi_instance", { allow: val });
+                      } catch (err) {
+                        console.error(err);
+                      }
                     }}
                     style={{
                       width: 18,
@@ -335,66 +311,32 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                       cursor: "pointer"
                     }}
                   />
-                  <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                    Отображать короткое название выбранной аудиодорожки и субтитров рядом с иконками
-                  </span>
-                </label>
-
-                {/* Настройка кнопок на панели управления */}
-                <div
-                  className="modal__section-title"
-                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <SlidersHorizontal size={16} /> Видимость кнопок панели управления
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                      Разрешить открытие нескольких копий плеера одновременно
+                    </span>
+                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
+                      (Изменение вступит в силу после полного перезапуска приложения)
+                    </span>
                   </div>
-                </div>
-                
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
-                  {[
-                    { id: 'repeat', label: 'Повтор' },
-                    { id: 'shuffle', label: 'Случайный порядок' },
-                    { id: 'alwaysOnTop', label: 'Поверх всех окон' },
-                    { id: 'info', label: 'Информация о файле' },
-                    { id: 'screenshot', label: 'Сделать скриншот' },
-                    { id: 'playlist', label: 'Плейлист' },
-                    { id: 'fullscreen', label: 'Полный экран' }
-                  ].map(btn => (
-                    <label key={btn.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", userSelect: "none" }}>
-                      <input
-                        type="checkbox"
-                        checked={visibleButtons[btn.id] !== false}
-                        onChange={(e) => {
-                          const val = e.target.checked;
-                          const updated = { ...visibleButtons, [btn.id]: val };
-                          setVisibleButtons(updated);
-                          localStorage.setItem('l-mpv-visible-buttons', JSON.stringify(updated));
-                          window.dispatchEvent(new Event('l-mpv-settings-changed'));
-                        }}
-                        style={{
-                          width: 16,
-                          height: 16,
-                          accentColor: "var(--accent)",
-                          cursor: "pointer"
-                        }}
-                      />
-                      <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                        {btn.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
+                </label>
+              </div>
+            </div>
+          )}
 
+          {activeTab === "appearance" && (
+            <div className="modal__section">
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {/* Настройка акцентного цвета */}
                 <div
                   className="modal__section-title"
-                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", justifyContent: 'space-between' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Palette size={16} /> Акцентный цвет
                   </div>
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 4 }}>
                   <button
                     onClick={async () => {
                       try {
@@ -443,6 +385,135 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                         transition: "all var(--t-fast) var(--ease-smooth)",
                       }}
                     />
+                  ))}
+                </div>
+
+                {/* Настройка прозрачности */}
+                <div
+                  className="modal__section-title"
+                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 20, justifyContent: 'space-between' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <SlidersHorizontal size={16} /> Прозрачность интерфейса
+                  </div>
+                  <button
+                    onClick={() => {
+                      setUiOpacity(0.88);
+                      localStorage.setItem('l-mpv-ui-opacity', '0.88');
+                      document.documentElement.style.setProperty('--ui-opacity', '0.88');
+                    }}
+                    className="control-btn"
+                    title="Сбросить на значение по умолчанию"
+                    style={{
+                      width: "auto",
+                      height: 28,
+                      padding: "0 10px",
+                      borderRadius: "var(--radius-md)",
+                      background: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid var(--border)",
+                      color: "var(--text-secondary)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: "0.75rem"
+                    }}
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 4 }}>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.01"
+                    value={uiOpacity}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setUiOpacity(val);
+                      localStorage.setItem('l-mpv-ui-opacity', val.toString());
+                      document.documentElement.style.setProperty('--ui-opacity', val.toString());
+                    }}
+                    style={{ flex: 1, cursor: "pointer", accentColor: "var(--accent)" }}
+                  />
+                  <div style={{ width: "45px", fontSize: "0.9rem", color: "var(--text-secondary)", textAlign: "right" }}>
+                    {Math.round(uiOpacity * 100)}%
+                  </div>
+                </div>
+
+                {/* Настройка отображения названий дорожек */}
+                <div
+                  className="modal__section-title"
+                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <AudioLines size={16} /> Названия дорожек на панели
+                  </div>
+                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4, cursor: "pointer", userSelect: "none" }}>
+                  <input
+                    type="checkbox"
+                    checked={showTrackNames}
+                    onChange={(e) => {
+                      const val = e.target.checked;
+                      setShowTrackNames(val);
+                      localStorage.setItem('l-mpv-show-track-names', val ? 'true' : 'false');
+                      window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                    }}
+                    style={{
+                      width: 18,
+                      height: 18,
+                      accentColor: "var(--accent)",
+                      cursor: "pointer"
+                    }}
+                  />
+                  <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                    Отображать короткое название выбранной аудиодорожки и субтитров рядом с иконками
+                  </span>
+                </label>
+
+                {/* Настройка кнопок на панели управления */}
+                <div
+                  className="modal__section-title"
+                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <SlidersHorizontal size={16} /> Видимость кнопок панели управления
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4 }}>
+                  {[
+                    { id: 'repeat', label: 'Повтор' },
+                    { id: 'shuffle', label: 'Случайный порядок' },
+                    { id: 'alwaysOnTop', label: 'Поверх всех окон' },
+                    { id: 'info', label: 'Информация о файле' },
+                    { id: 'screenshot', label: 'Сделать скриншот' },
+                    { id: 'playlist', label: 'Плейлист' },
+                    { id: 'fullscreen', label: 'Полный экран' }
+                  ].map(btn => (
+                    <label key={btn.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", userSelect: "none" }}>
+                      <input
+                        type="checkbox"
+                        checked={visibleButtons[btn.id] !== false}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          const updated = { ...visibleButtons, [btn.id]: val };
+                          setVisibleButtons(updated);
+                          localStorage.setItem('l-mpv-visible-buttons', JSON.stringify(updated));
+                          window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                        }}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          accentColor: "var(--accent)",
+                          cursor: "pointer"
+                        }}
+                      />
+                      <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                        {btn.label}
+                      </span>
+                    </label>
                   ))}
                 </div>
 
@@ -572,7 +643,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               <div style={{ fontSize: "0.86rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
                 Настройте ассоциации видео- и аудиофайлов с L-MPV. Это позволит открывать файлы напрямую по двойному клику в Проводнике Windows.
               </div>
-              
+
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
                 <button
                   onClick={async () => {

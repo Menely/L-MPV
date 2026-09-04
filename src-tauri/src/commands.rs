@@ -13,6 +13,8 @@ use tauri::State;
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AppSettings {
     pub screenshot_directory: Option<String>,
+    #[serde(default)]
+    pub allow_multi_instance: bool,
 }
 
 impl AppSettings {
@@ -545,6 +547,36 @@ pub fn set_screenshot_dir(
         } else {
             settings.screenshot_directory = Some(target_path);
         }
+        settings.save(&p_dir).ok();
+    }
+
+    Ok(())
+}
+
+/// Получить настройку multi-instance.
+#[tauri::command]
+pub fn get_multi_instance() -> Result<bool, String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+        
+    if let Some(p_dir) = exe_dir {
+        let settings = AppSettings::load(&p_dir);
+        return Ok(settings.allow_multi_instance);
+    }
+    Ok(false)
+}
+
+/// Установить настройку multi-instance.
+#[tauri::command]
+pub fn set_multi_instance(allow: bool) -> Result<(), String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    if let Some(p_dir) = exe_dir {
+        let mut settings = AppSettings::load(&p_dir);
+        settings.allow_multi_instance = allow;
         settings.save(&p_dir).ok();
     }
 
