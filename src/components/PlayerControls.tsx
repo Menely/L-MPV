@@ -537,38 +537,30 @@ export function PlayerControls({
                   <Volume2 size={18} />
                 )}
               </button>
-              <input
-                type="range"
-                className="volume-slider__input"
-                min="0"
-                max="100"
-                value={volume}
-                style={{
-                  background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${volume}%, rgba(255, 255, 255, 0.12) ${volume}%, rgba(255, 255, 255, 0.12) 100%)`
-                }}
-                onChange={(e) =>
-                  handleVolumeChange(Number(e.target.value), false)
-                }
-                onMouseUp={(e) => 
-                  handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
-                }
-                onTouchEnd={(e) => 
-                  handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
-                }
-                title={`Громкость: ${volume}%`}
-                id="slider-volume"
-              />
-              <span
-                style={{
-                  fontSize: "var(--fs-xs)",
-                  color: "var(--text-secondary)",
-                  minWidth: "28px",
-                  textAlign: "right",
-                  fontVariantNumeric: "tabular-nums",
-                  fontWeight: 500,
-                  marginLeft: "2px",
-                }}
-              >
+              <div className="volume-slider__expandable">
+                <input
+                  type="range"
+                  className="volume-slider__input"
+                  min="0"
+                  max="100"
+                  value={volume}
+                  style={{
+                    background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${volume}%, rgba(255, 255, 255, 0.12) ${volume}%, rgba(255, 255, 255, 0.12) 100%)`
+                  }}
+                  onChange={(e) =>
+                    handleVolumeChange(Number(e.target.value), false)
+                  }
+                  onMouseUp={(e) => 
+                    handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
+                  }
+                  onTouchEnd={(e) => 
+                    handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
+                  }
+                  title={`Громкость: ${volume}%`}
+                  id="slider-volume"
+                />
+              </div>
+              <span className="volume-slider__value">
                 {Math.round(volume)}%
               </span>
             </div>

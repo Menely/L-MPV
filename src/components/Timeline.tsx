@@ -119,6 +119,15 @@ export const Timeline = React.memo(() => {
               }
             }
 
+            let segGhostProgress = 0;
+            if (hoverInfo && segDuration > 0) {
+              if (hoverInfo.time >= seg.end) {
+                segGhostProgress = 100;
+              } else if (hoverInfo.time > seg.start) {
+                segGhostProgress = ((hoverInfo.time - seg.start) / segDuration) * 100;
+              }
+            }
+
             return (
               <div
                 key={i}
@@ -131,6 +140,15 @@ export const Timeline = React.memo(() => {
                 }}
               >
                 <div className="timeline__segment-bg" />
+                {segGhostProgress > 0 && (
+                  <div
+                    className="timeline__segment-ghost"
+                    style={{
+                      width: `${segGhostProgress}%`,
+                      borderRadius: '4px'
+                    }}
+                  />
+                )}
                 {segProgress > 0 && (
                   <div
                     className="timeline__segment-progress"
