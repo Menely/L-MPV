@@ -866,17 +866,21 @@ pub fn get_playlist(
         let filename = mpv
             .get_property_string(&format!("playlist/{}/filename", i))
             .unwrap_or_default();
-            
-        let title = mpv
-            .get_property_string(&format!("playlist/{}/title", i))
-            .unwrap_or_else(|_| {
-                // Если title нет, пробуем получить из имени файла
-                std::path::Path::new(&filename)
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned()
-            });
+
+        // Всегда используем чистое имя файла с расширением из файловой системы Windows,
+        // чтобы названия в плейлисте были строго однородными и не перекрывались
+        // внутренними тегами контейнера при воспроизведении файла.
+        let file_name = std::path::Path::new(&filename)
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+
+        let title = if !file_name.is_empty() {
+            file_name
+        } else {
+            mpv.get_property_string(&format!("playlist/{}/title", i))
+                .unwrap_or_else(|_| filename.clone())
+        };
 
         let current = mpv
             .get_property_string(&format!("playlist/{}/current", i))
