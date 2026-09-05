@@ -643,6 +643,11 @@ html, body, #root {
   width: auto;
 }
 
+.volume-slider #btn-volume {
+  width: 28px;
+  height: 28px;
+}
+
 .volume-slider__expandable {
   display: flex;
   align-items: center;
@@ -658,8 +663,8 @@ html, body, #root {
 
 .volume-slider:hover .volume-slider__expandable,
 .volume-slider__expandable:focus-within {
-  width: 68px;
-  padding: 0 6px;
+  width: 58px;
+  padding: 0 1px;
   opacity: 1;
   pointer-events: auto;
   margin-left: 2px;
@@ -669,12 +674,12 @@ html, body, #root {
 .volume-slider__value {
   font-size: var(--fs-xs);
   color: var(--text-secondary);
-  min-width: 28px;
-  text-align: right;
+  min-width: 24px;
+  text-align: left;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   user-select: none;
-  margin-left: 4px;
+  margin-left: 2px;
 }
 
 .volume-slider__input {

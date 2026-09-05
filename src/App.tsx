@@ -23,7 +23,17 @@ import { applyAccentColor } from "./utils/colorUtils";
 import { getCustomHotkeys } from "./utils/hotkeyUtils";
 
 function App() {
-  const { hasMedia, isIdle, mediaInfo, isPlaylistOpen, setIsPlaylistOpen, togglePause, setVolume } = usePlayerState();
+  const {
+    hasMedia,
+    isIdle,
+    mediaInfo,
+    isPlaylistOpen,
+    setIsPlaylistOpen,
+    togglePause,
+    setVolume,
+    isFullscreen,
+    toggleFullscreen,
+  } = usePlayerState();
   
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -223,25 +233,6 @@ function App() {
     setContextMenu(null);
   }, []);
 
-  // ─── Обработка переключения полноэкранного режима ──
-  const toggleFullscreen = useCallback(async () => {
-    try {
-      const appWindow = getCurrentWindow();
-      const fs = await appWindow.isFullscreen();
-      // Скрываем контент на время перехода DWM,
-      // чтобы не было видно промежуточного положения окна
-      document.documentElement.style.opacity = '0';
-      await appWindow.setFullscreen(!fs);
-      // Даём Windows DWM завершить анимацию перехода
-      setTimeout(() => {
-        document.documentElement.style.opacity = '1';
-      }, 60);
-    } catch (e) {
-      document.documentElement.style.opacity = '1';
-      console.error(e);
-    }
-  }, []);
-
   // ─── Разделение одиночного и двойного кликов мыши ──
   const handleVideoAreaClick = useCallback(
     (e: React.MouseEvent) => {
@@ -323,6 +314,11 @@ function App() {
       } else if (matchKey("fullscreen", ["KeyF", "F11"], ["f", "а"])) {
         e.preventDefault();
         toggleFullscreen();
+      } else if (e.code === "Escape") {
+        if (isFullscreen) {
+          e.preventDefault();
+          toggleFullscreen();
+        }
       } else if (matchKey("frameBack", ["Comma"], ["б", ","])) {
         e.preventDefault();
         if (isSteppingRef.current) return;
@@ -392,7 +388,7 @@ function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [triggerFrameOsd, isPlaylistOpen, setIsPlaylistOpen, hotkeys, mediaInfo, setVolume, toggleFullscreen]);
+  }, [triggerFrameOsd, isPlaylistOpen, setIsPlaylistOpen, hotkeys, mediaInfo, setVolume, toggleFullscreen, isFullscreen]);
 
   // ─── Обработка перетаскивания (Drag & Drop) ─────────
   useEffect(() => {

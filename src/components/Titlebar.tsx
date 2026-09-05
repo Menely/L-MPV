@@ -5,6 +5,7 @@ import {
   Square,
   X,
 } from "lucide-react";
+import { usePlayerState } from "../contexts/PlayerStateContext";
 
 interface TitlebarProps {
   /** Заголовок окна плеера. */
@@ -22,39 +23,46 @@ interface TitlebarProps {
  */
 export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarProps) {
   const appWindow = useMemo(() => getCurrentWindow(), []);
+  const { isFullscreen, toggleFullscreen } = usePlayerState();
 
   const handleMinimize = useCallback(() => {
     appWindow.minimize();
   }, [appWindow]);
 
   const handleMaximize = useCallback(async () => {
+    if (isFullscreen) {
+      await toggleFullscreen();
+      return;
+    }
     const isMaximized = await appWindow.isMaximized();
     if (isMaximized) {
-      appWindow.unmaximize();
+      await appWindow.unmaximize();
     } else {
-      appWindow.maximize();
+      await appWindow.maximize();
     }
-  }, [appWindow]);
+  }, [appWindow, isFullscreen, toggleFullscreen]);
 
   const handleClose = useCallback(() => {
     appWindow.close();
   }, [appWindow]);
 
+  const dragAttr = !isFullscreen ? true : undefined;
+
   return (
-    <div className="titlebar" data-tauri-drag-region>
+    <div className="titlebar" data-tauri-drag-region={dragAttr}>
       {/* Левая часть: логотип L-MPV */}
-      <div className="titlebar__left" data-tauri-drag-region>
-        <span className="titlebar__title" data-tauri-drag-region>
+      <div className="titlebar__left" data-tauri-drag-region={dragAttr}>
+        <span className="titlebar__title" data-tauri-drag-region={dragAttr}>
           {title}
         </span>
       </div>
 
       {/* Центральная часть: Название видеофайла */}
       {mediaTitle && (
-        <div className="titlebar__center" data-tauri-drag-region>
+        <div className="titlebar__center" data-tauri-drag-region={dragAttr}>
           <span
             className="titlebar__filename"
-            data-tauri-drag-region
+            data-tauri-drag-region={dragAttr}
             title={mediaTitle}
           >
             {mediaTitle}

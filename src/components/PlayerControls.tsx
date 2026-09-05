@@ -52,11 +52,21 @@ export function PlayerControls({
   const paused = mediaInfo?.paused ?? true;
   const contextVolume = mediaInfo?.volume ?? 100;
 
-  const { togglePause, setVolume, tracks, loadTracks, selectAudioTrack, selectSubTrack, disableSubtitles, cycleAudioTrack, cycleSubTrack } = usePlayerState();
+  const {
+    togglePause,
+    setVolume,
+    tracks,
+    loadTracks,
+    selectAudioTrack,
+    selectSubTrack,
+    disableSubtitles,
+    cycleAudioTrack,
+    cycleSubTrack,
+    isFullscreen,
+    toggleFullscreen,
+  } = usePlayerState();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const volume = localVolume !== null ? localVolume : contextVolume;
-
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Состояния для всплывающих окон дорожек и скорости
   const [activePopover, setActivePopover] = useState<"audio" | "sub" | "speed" | null>(null);
@@ -122,44 +132,13 @@ export function PlayerControls({
   useEffect(() => {
     (async () => {
       try {
-        const appWindow = (await import("@tauri-apps/api/window")).getCurrentWindow();
+        const appWindow = getCurrentWindow();
         setIsAlwaysOnTop(await appWindow.isAlwaysOnTop());
       } catch (e) { console.error(e); }
     })();
   }, []);
 
   const popoverRef = useRef<HTMLDivElement>(null);
-
-  // ─── Отслеживание полноэкранного режима по событию ──
-  useEffect(() => {
-    let unlistenFn: (() => void) | undefined;
-
-    const checkFullscreen = async () => {
-      try {
-        const appWindow = getCurrentWindow();
-        const fs = await appWindow.isFullscreen();
-        setIsFullscreen(fs);
-      } catch (e) { }
-    };
-
-    checkFullscreen();
-
-    const initListener = async () => {
-      try {
-        const appWindow = getCurrentWindow();
-        const unlisten = await appWindow.onResized(() => {
-          checkFullscreen();
-        });
-        unlistenFn = unlisten;
-      } catch (e) { }
-    };
-
-    initListener();
-
-    return () => {
-      if (unlistenFn) unlistenFn();
-    };
-  }, []);
 
   // ─── Закрытие всплывающих меню при клике вне ──────
   useEffect(() => {
@@ -225,24 +204,6 @@ export function PlayerControls({
       setLocalVolume(newVol);
     }
   };
-
-  const handleFullscreen = useCallback(async () => {
-    try {
-      const appWindow = (await import("@tauri-apps/api/window")).getCurrentWindow();
-      const fs = await appWindow.isFullscreen();
-      // Скрываем контент на время перехода DWM
-      document.documentElement.style.opacity = '0';
-      await appWindow.setFullscreen(!fs);
-      setIsFullscreen(!fs);
-      // Даём Windows DWM завершить анимацию перехода
-      setTimeout(() => {
-        document.documentElement.style.opacity = '1';
-      }, 60);
-    } catch (e) {
-      document.documentElement.style.opacity = '1';
-      console.error(e);
-    }
-  }, []);
 
   const handleSetSpeed = useCallback(async (s: number) => {
     try {
@@ -617,7 +578,7 @@ export function PlayerControls({
             {visibleButtons.fullscreen !== false && (
               <button
                 className="control-btn"
-                onClick={handleFullscreen}
+                onClick={toggleFullscreen}
                 id="btn-fullscreen"
               >
                 {isFullscreen ? (

@@ -77,6 +77,10 @@ interface PlayerStateContextType {
   disableSubtitles: () => Promise<void>;
   cycleAudioTrack: () => Promise<void>;
   cycleSubTrack: () => Promise<void>;
+  /** Находится ли окно в полноэкранном режиме. */
+  isFullscreen: boolean;
+  /** Безопасное переключение полноэкранного режима с учётом развёрнутого окна. */
+  toggleFullscreen: () => Promise<void>;
 }
 
 const PlayerStateContext = createContext<PlayerStateContextType>({
@@ -98,6 +102,8 @@ const PlayerStateContext = createContext<PlayerStateContextType>({
   disableSubtitles: async () => {},
   cycleAudioTrack: async () => {},
   cycleSubTrack: async () => {},
+  isFullscreen: false,
+  toggleFullscreen: async () => {},
 });
 
 export function PlayerStateProvider({ children }: { children: ReactNode }) {
@@ -440,8 +446,84 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     }
   }, [tracks, selectSubTrack, disableSubtitles]);
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const wasMaximizedBeforeFullscreenRef = useRef(false);
+
+  // Синхронизация состояния полноэкранного режима при системных изменениях размера окна
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    let isMounted = true;
+
+    const checkFs = async () => {
+      try {
+        const fs = await appWindow.isFullscreen();
+        if (isMounted) {
+          setIsFullscreen(fs);
+        }
+      } catch (e) {
+        console.error("Ошибка при проверке полноэкранного режима окна:", e);
+      }
+    };
+
+    checkFs();
+    const unlistenResize = appWindow.onResized(() => {
+      checkFs();
+    });
+
+    return () => {
+      isMounted = false;
+      unlistenResize.then((f) => f());
+    };
+  }, []);
+
+  // ─── Безопасное переключение полноэкранного режима ──
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      const appWindow = getCurrentWindow();
+      const isFs = await appWindow.isFullscreen();
+
+      // Скрываем контент на время анимации DWM для исключения мерцания
+      document.documentElement.style.opacity = "0";
+
+      if (!isFs) {
+        // Переход в полноэкранный режим
+        const isMax = await appWindow.isMaximized();
+        if (isMax) {
+          // Если окно развёрнуто (maximized), Windows Win32 блокирует
+          // корректное перекрытие панели задач (Taskbar) стилем WS_MAXIMIZE.
+          // Сначала восстанавливаем окно, сбрасывая стиль максимизации:
+          wasMaximizedBeforeFullscreenRef.current = true;
+          await appWindow.unmaximize();
+          // Небольшая задержка, чтобы системная очередь оконных сообщений обработала SW_RESTORE
+          await new Promise((resolve) => setTimeout(resolve, 40));
+        } else {
+          wasMaximizedBeforeFullscreenRef.current = false;
+        }
+        await appWindow.setFullscreen(true);
+        setIsFullscreen(true);
+      } else {
+        // Выход из полноэкранного режима
+        await appWindow.setFullscreen(false);
+        setIsFullscreen(false);
+        if (wasMaximizedBeforeFullscreenRef.current) {
+          wasMaximizedBeforeFullscreenRef.current = false;
+          // Даём окну восстановиться в оконный режим перед повторной максимизацией
+          await new Promise((resolve) => setTimeout(resolve, 40));
+          await appWindow.maximize();
+        }
+      }
+
+      setTimeout(() => {
+        document.documentElement.style.opacity = "1";
+      }, 80);
+    } catch (e) {
+      document.documentElement.style.opacity = "1";
+      console.error("Ошибка при переключении полноэкранного режима:", e);
+    }
+  }, []);
+
   return (
-    <PlayerStateContext.Provider value={{ mediaInfo, hasMedia, isIdle, chapters, isPlaylistOpen, setIsPlaylistOpen, seeking, seekTarget, seekTo, togglePause, setVolume, tracks, loadTracks, selectAudioTrack, selectSubTrack, disableSubtitles, cycleAudioTrack, cycleSubTrack }}>
+    <PlayerStateContext.Provider value={{ mediaInfo, hasMedia, isIdle, chapters, isPlaylistOpen, setIsPlaylistOpen, seeking, seekTarget, seekTo, togglePause, setVolume, tracks, loadTracks, selectAudioTrack, selectSubTrack, disableSubtitles, cycleAudioTrack, cycleSubTrack, isFullscreen, toggleFullscreen }}>
       {children}
     </PlayerStateContext.Provider>
   );
