@@ -310,7 +310,10 @@ export function ContextMenu({
         try {
           await invoke("take_screenshot");
           window.dispatchEvent(new CustomEvent("show-osd", { detail: "Кадр сохранён" }));
-        } catch (e) { console.error(e); }
+        } catch (e) {
+          console.error("Ошибка при сохранении кадра:", e);
+          window.dispatchEvent(new CustomEvent("show-osd", { detail: "Ошибка сохранения кадра" }));
+        }
         onClose();
       },
     },

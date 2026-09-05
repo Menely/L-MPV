@@ -183,6 +183,62 @@ fn is_video_extension(ext: &str) -> bool {
     )
 }
 
+/// Функция естественного сравнения строк (Natural Sort).
+/// Корректно упорядочивает числа внутри названий файлов (например, "Серия 2" идет перед "Серия 10")
+/// и не учитывает регистр символов Unicode.
+fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    let mut a_chars = a.chars().peekable();
+    let mut b_chars = b.chars().peekable();
+
+    loop {
+        match (a_chars.peek(), b_chars.peek()) {
+            (None, None) => return std::cmp::Ordering::Equal,
+            (None, Some(_)) => return std::cmp::Ordering::Less,
+            (Some(_), None) => return std::cmp::Ordering::Greater,
+            (Some(ca), Some(cb)) if ca.is_ascii_digit() && cb.is_ascii_digit() => {
+                let mut na_str = String::new();
+                while let Some(d) = a_chars.peek() {
+                    if d.is_ascii_digit() {
+                        na_str.push(a_chars.next().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+                let mut nb_str = String::new();
+                while let Some(d) = b_chars.peek() {
+                    if d.is_ascii_digit() {
+                        nb_str.push(b_chars.next().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+
+                let na = na_str.parse::<u128>().unwrap_or(0);
+                let nb = nb_str.parse::<u128>().unwrap_or(0);
+
+                match na.cmp(&nb) {
+                    std::cmp::Ordering::Equal => match na_str.len().cmp(&nb_str.len()) {
+                        std::cmp::Ordering::Equal => continue,
+                        ord => return ord,
+                    },
+                    ord => return ord,
+                }
+            }
+            (Some(_), Some(_)) => {
+                let ca = a_chars.next().unwrap();
+                let cb = b_chars.next().unwrap();
+                let ca_lower = ca.to_lowercase().collect::<Vec<_>>();
+                let cb_lower = cb.to_lowercase().collect::<Vec<_>>();
+
+                match ca_lower.cmp(&cb_lower) {
+                    std::cmp::Ordering::Equal => continue,
+                    ord => return ord,
+                }
+            }
+        }
+    }
+}
+
 /// Открытие медиафайла для воспроизведения.
 #[tauri::command]
 pub fn open_file(
@@ -223,37 +279,39 @@ pub fn open_file_internal(
                 .filter_map(|e| e.ok())
                 .map(|e| e.path())
                 .filter(|p| {
-                    p.is_file() && p.extension().and_then(|ext| ext.to_str()).map_or(false, is_video_extension)
+                    p.is_file()
+                        && p.extension()
+                            .and_then(|ext| ext.to_str())
+                            .map_or(false, is_video_extension)
                 })
                 .collect();
 
+            // Сортировка файлов по естественному алфавитному порядку (Natural Sort)
             video_files.sort_by(|a, b| {
-                a.file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_lowercase()
-                    .cmp(&b.file_name().unwrap_or_default().to_string_lossy().to_lowercase())
+                let name_a = a.file_name().unwrap_or_default().to_string_lossy();
+                let name_b = b.file_name().unwrap_or_default().to_string_lossy();
+                natural_cmp(&name_a, &name_b)
             });
 
             if video_files.len() > 1 {
-                let target_name = target_path
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_lowercase();
+                let target_canonical = target_path
+                    .canonicalize()
+                    .unwrap_or_else(|_| target_path.clone());
+
                 if let Some(target_idx) = video_files.iter().position(|p| {
-                    p.file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_lowercase() == target_name
+                    p.canonicalize().unwrap_or_else(|_| p.clone()) == target_canonical
                 }) {
-                    // Добавляем файлы, которые идут ПОСЛЕ текущего
-                    for f in &video_files[(target_idx + 1)..] {
+                    // Файлы, идущие ДО текущего по алфавиту, добавляем и перемещаем в начало плейлиста,
+                    // сдвигая текущий файл на его корректный алфавитный индекс
+                    for (k, f) in video_files[..target_idx].iter().enumerate() {
                         let safe_f = escape_mpv_path(&f.to_string_lossy());
                         let _ = state.mpv.command(&format!("loadfile \"{}\" append", safe_f));
+                        let last_idx = k + 1;
+                        let _ = state.mpv.command(&format!("playlist-move {} {}", last_idx, k));
                     }
-                    // Добавляем файлы, которые идут ДО текущего
-                    for f in &video_files[..target_idx] {
+
+                    // Файлы, идущие ПОСЛЕ текущего по алфавиту, добавляем в конец плейлиста
+                    for f in &video_files[(target_idx + 1)..] {
                         let safe_f = escape_mpv_path(&f.to_string_lossy());
                         let _ = state.mpv.command(&format!("loadfile \"{}\" append", safe_f));
                     }

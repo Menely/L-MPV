@@ -362,8 +362,14 @@ function App() {
         e.preventDefault();
         try {
           await invoke("take_screenshot");
+          setOsdText("Кадр сохранён");
+          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
         } catch (err) {
           console.error("Ошибка скриншота:", err);
+          setOsdText("Ошибка сохранения кадра");
+          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
         }
       } else if (
         !e.ctrlKey && !e.altKey &&

@@ -227,8 +227,10 @@ export function PlayerControls({
   const handleTakeScreenshot = useCallback(async () => {
     try {
       await invoke("take_screenshot");
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Кадр сохранён" }));
     } catch (e) {
       console.error("Ошибка при создании скриншота:", e);
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Ошибка сохранения кадра" }));
     }
   }, []);
 
