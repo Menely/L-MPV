@@ -126,10 +126,14 @@ pub fn run() {
             commands::toggle_fullscreen,
             commands::extract_track,
         ])
-        .on_window_event(|_window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { .. } => {
                 commands::save_history_to_disk();
             }
+            tauri::WindowEvent::Focused(focused) => {
+                commands::handle_window_focus(window, *focused);
+            }
+            _ => {}
         })
         .setup(|app| {
             use tauri::Manager;

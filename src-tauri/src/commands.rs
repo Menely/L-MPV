@@ -1565,23 +1565,12 @@ pub async fn toggle_fullscreen(window: tauri::WebviewWindow) -> Result<bool, Str
                         WAS_ALWAYS_ON_TOP_BEFORE_FS.load(Ordering::SeqCst);
 
                     if !is_fs {
-                        // В полноэкранном режиме:
-                        // Если пользователь явно включил режим "Поверх всех окон"
-                        // (was_ontop == true), сохраняем окно как HWND_TOPMOST.
-                        // Если этот режим отключен, окно должно быть обычным (HWND_NOTOPMOST),
-                        // чтобы сторонние приложения (браузер, блокнот, мессенджеры и т.д.)
-                        // могли свободно открываться поверх плеера при переключении фокуса (Alt+Tab).
-                        // Панель задач Windows скрывается автоматически благодаря
-                        // системному вызову ITaskbarList2::MarkFullscreenWindow выше.
-                        let insert_after = if was_ontop {
-                            HWND_TOPMOST
-                        } else {
-                            HWND_NOTOPMOST
-                        };
-
+                        // В полноэкранном режиме окно ВСЕГДА устанавливается как HWND_TOPMOST,
+                        // чтобы системная панель задач Windows (Shell_TrayWnd) гарантированно
+                        // находилась под окном плеера и физически не могла перекрывать видео.
                         let _ = SetWindowPos(
                             hwnd,
-                            insert_after,
+                            HWND_TOPMOST,
                             0,
                             0,
                             0,
@@ -1617,6 +1606,51 @@ pub async fn toggle_fullscreen(window: tauri::WebviewWindow) -> Result<bool, Str
     let new_state = !is_fs;
     window.set_fullscreen(new_state).map_err(|e| e.to_string())?;
     Ok(new_state)
+}
+
+/// Обработка изменения фокуса окна для динамического управления Z-порядком в полноэкранном режиме.
+///
+/// Когда плеер в полноэкранном режиме активен (имеет фокус ввода), он удерживает статус HWND_TOPMOST,
+/// полностью скрывая системную панель задач Windows. При переключении пользователя на другое
+/// приложение (Alt+Tab или потеря фокуса) статус HWND_TOPMOST временно снимается, позволяя сторонним
+/// окнам отображаться поверх плеера. При возврате фокуса плееру статус HWND_TOPMOST немедленно восстанавливается.
+pub fn handle_window_focus(window: &tauri::Window, focused: bool) {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::{
+            SetWindowPos, HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE,
+        };
+
+        if let Ok(is_fs) = window.is_fullscreen() {
+            if is_fs {
+                let was_ontop = WAS_ALWAYS_ON_TOP_BEFORE_FS.load(Ordering::SeqCst);
+                // Если режим "Поверх всех окон" не был включен принудительно пользователем,
+                // динамически переключаем Z-порядок в зависимости от наличия системного фокуса
+                if !was_ontop {
+                    if let Ok(hwnd_obj) = window.hwnd() {
+                        let hwnd = HWND(hwnd_obj.0 as _);
+                        let target = if focused {
+                            HWND_TOPMOST
+                        } else {
+                            HWND_NOTOPMOST
+                        };
+                        unsafe {
+                            let _ = SetWindowPos(
+                                hwnd,
+                                target,
+                                0,
+                                0,
+                                0,
+                                0,
+                                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Извлечение аудиодорожки или субтитров в отдельный файл с помощью встроенного FFmpeg.
