@@ -163,8 +163,15 @@ impl MpvManager {
             Self::set_option(&api, handle, "hr-seek-framedrop", "yes"); // Использовать drop кадров при перемотке для снижения RAM
             Self::set_option(&api, handle, "cache-pause", "no"); // Не ставить на паузу при буферизации локальных файлов
             
-            // ─── Оптимизация аудио ──────────────────────
-            Self::set_option(&api, handle, "audio-buffer", "0.2"); // Ограничить размер аудио буфера
+            // ─── Максимальное качество аудио ────────────
+            Self::set_option(&api, handle, "ao", "wasapi"); // Высококачественный драйвер Windows WASAPI
+            Self::set_option(&api, handle, "audio-buffer", "0.2"); // Отзывчивый размер буфера для плавной перемотки
+            Self::set_option(&api, handle, "audio-channels", "auto-safe"); // Автоопределение каналов оборудования без искажений
+            Self::set_option(&api, handle, "audio-pitch-correction", "yes"); // Сохранение тональности при изменении скорости (scaletempo2)
+            Self::set_option(&api, handle, "audio-resample-filter-size", "32"); // Студийное качество sinc-интерполяции ресемплера (32 taps)
+            Self::set_option(&api, handle, "audio-resample-phase-shift", "14"); // Высокоточный фазовый сдвиг (16384 фаз) для ресемплера
+            Self::set_option(&api, handle, "audio-resample-linear", "yes"); // Линейная интерполяция между отсчётами фильтра
+            Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от перегруза и клиппинга при сведении многоканального звука в стерео
 
             // ─── Субтитры ───────────────────────────────
             Self::set_option(&api, handle, "demuxer-mkv-subtitle-preroll", "yes");

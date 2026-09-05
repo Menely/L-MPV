@@ -1726,6 +1726,8 @@ pub async fn extract_track(
             &video_path,
             "-map",
             &stream_specifier,
+            "-threads",
+            "0",
             &target_path,
         ]);
         #[cfg(target_os = "windows")]

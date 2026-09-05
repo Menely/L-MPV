@@ -1113,8 +1113,9 @@ html, body, #root {
   position: absolute;
   bottom: calc(100% + 14px);
   left: 0;
-  min-width: 260px;
-  max-width: 380px;
+  min-width: 280px;
+  max-width: min(400px, 90vw);
+  width: max-content;
   background: var(--bg-pill);
   backdrop-filter: var(--ui-backdrop-heavy);
   -webkit-backdrop-filter: var(--ui-backdrop-heavy);
@@ -1131,6 +1132,8 @@ html, body, #root {
 
 .track-popover--speed {
   min-width: 140px;
+  max-width: 180px;
+  width: auto;
   left: auto;
   right: 120px;
 }
@@ -1157,14 +1160,22 @@ html, body, #root {
   margin-bottom: 4px;
 }
 
+.track-popover__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
 .track-popover__item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 9px 12px;
-  width: 100%;
-  border: none;
+  gap: 10px;
+  padding: 8px 12px;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-primary);
   font-size: var(--fs-base);
@@ -1184,6 +1195,23 @@ html, body, #root {
   background: var(--bg-active);
   color: var(--accent);
   font-weight: 500;
+  border-color: var(--border-pill);
+}
+
+.track-popover__item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-popover__item-check {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* ─── Кнопка скачивания дорожки в попапе ──────────────── */
@@ -1191,11 +1219,11 @@ html, body, #root {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  background: transparent;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-pill);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--t-fast) var(--ease-smooth);
@@ -1207,11 +1235,13 @@ html, body, #root {
 .track-download-btn:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--accent);
-  border-color: var(--border-pill);
+  border-color: var(--accent);
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
 }
 
 .track-download-btn:active:not(:disabled) {
-  transform: scale(0.92);
+  transform: scale(0.95);
 }
 
 .track-download-btn:disabled {

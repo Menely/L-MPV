@@ -268,6 +268,8 @@ export function PlayerControls({
   const subTracks = useMemo(() => tracks.filter((t) => t.type === "sub"), [tracks]);
 
   const [downloadingTrackKey, setDownloadingTrackKey] = useState<string | null>(null);
+  const isAudioDownloading = downloadingTrackKey?.startsWith("audio-") ?? false;
+  const isSubDownloading = downloadingTrackKey?.startsWith("sub-") ?? false;
 
   const getExtensionForTrack = useCallback((track: TrackInfo): string => {
     const c = (track.codec || "").toLowerCase();
@@ -382,35 +384,38 @@ export function PlayerControls({
             {activePopover === "audio" &&
               (audioTracks.length > 0 ? (
                 audioTracks.map((t) => (
-                  <div
-                    key={t.id}
-                    className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
-                    onClick={() => {
-                      selectAudioTrack(t.id);
-                      setActivePopover(null);
-                    }}
-                  >
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                      {t.title || `Дорожка ${t.id}`} {t.lang ? `(${t.lang})` : ""}
-                    </span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                      <button
-                        className="track-download-btn"
-                        title="Скачать аудиодорожку"
-                        disabled={downloadingTrackKey === `audio-${t.id}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadTrack(t);
-                        }}
-                      >
-                        {downloadingTrackKey === `audio-${t.id}` ? (
-                          <Loader2 size={13} className="spin-animation" />
-                        ) : (
-                          <Download size={13} />
-                        )}
-                      </button>
-                      {t.selected && <Check size={14} />}
-                    </div>
+                  <div key={t.id} className="track-popover__row">
+                    <button
+                      type="button"
+                      className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
+                      onClick={() => {
+                        selectAudioTrack(t.id);
+                        setActivePopover(null);
+                      }}
+                    >
+                      <span className="track-popover__item-title">
+                        {t.title || `Дорожка ${t.id}`} {t.lang ? `(${t.lang})` : ""}
+                      </span>
+                      <span className="track-popover__item-check">
+                        {t.selected && <Check size={15} />}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="track-download-btn"
+                      title="Скачать аудиодорожку"
+                      disabled={downloadingTrackKey === `audio-${t.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadTrack(t);
+                      }}
+                    >
+                      {downloadingTrackKey === `audio-${t.id}` ? (
+                        <Loader2 size={14} className="spin-animation" />
+                      ) : (
+                        <Download size={14} />
+                      )}
+                    </button>
                   </div>
                 ))
               ) : (
@@ -421,49 +426,59 @@ export function PlayerControls({
 
             {activePopover === "sub" && (
               <>
-                <button
-                  className={`track-popover__item ${!subTracks.some((t) => t.selected)
-                      ? "track-popover__item--active"
-                      : ""
+                <div className="track-popover__row">
+                  <button
+                    type="button"
+                    className={`track-popover__item ${
+                      !subTracks.some((t) => t.selected)
+                        ? "track-popover__item--active"
+                        : ""
                     }`}
-                  onClick={() => {
-                    disableSubtitles();
-                    setActivePopover(null);
-                  }}
-                >
-                  <span>Выключить субтитры</span>
-                  {!subTracks.some((t) => t.selected) && <Check size={14} />}
-                </button>
-                {subTracks.map((t) => (
-                  <div
-                    key={t.id}
-                    className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
+                    style={{ width: "100%" }}
                     onClick={() => {
-                      selectSubTrack(t.id);
+                      disableSubtitles();
                       setActivePopover(null);
                     }}
                   >
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                      {t.title || `Субтитры ${t.id}`} {t.lang ? `(${t.lang})` : ""}
+                    <span className="track-popover__item-title">Выключить субтитры</span>
+                    <span className="track-popover__item-check">
+                      {!subTracks.some((t) => t.selected) && <Check size={15} />}
                     </span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                      <button
-                        className="track-download-btn"
-                        title="Скачать субтитры"
-                        disabled={downloadingTrackKey === `sub-${t.id}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadTrack(t);
-                        }}
-                      >
-                        {downloadingTrackKey === `sub-${t.id}` ? (
-                          <Loader2 size={13} className="spin-animation" />
-                        ) : (
-                          <Download size={13} />
-                        )}
-                      </button>
-                      {t.selected && <Check size={14} />}
-                    </div>
+                  </button>
+                </div>
+                {subTracks.map((t) => (
+                  <div key={t.id} className="track-popover__row">
+                    <button
+                      type="button"
+                      className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
+                      onClick={() => {
+                        selectSubTrack(t.id);
+                        setActivePopover(null);
+                      }}
+                    >
+                      <span className="track-popover__item-title">
+                        {t.title || `Субтитры ${t.id}`} {t.lang ? `(${t.lang})` : ""}
+                      </span>
+                      <span className="track-popover__item-check">
+                        {t.selected && <Check size={15} />}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="track-download-btn"
+                      title="Скачать субтитры"
+                      disabled={downloadingTrackKey === `sub-${t.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadTrack(t);
+                      }}
+                    >
+                      {downloadingTrackKey === `sub-${t.id}` ? (
+                        <Loader2 size={14} className="spin-animation" />
+                      ) : (
+                        <Download size={14} />
+                      )}
+                    </button>
                   </div>
                 ))}
               </>
@@ -498,7 +513,9 @@ export function PlayerControls({
           {/* Левый блок: Аудио, Субтитры, Громкость, Время */}
           <div className="controls-row__left">
             <button
-              className={`control-btn ${activePopover === "audio" ? "control-btn--active" : ""} ${showTrackNames && audioLabel ? "control-btn--with-label" : ""}`}
+              className={`control-btn ${activePopover === "audio" ? "control-btn--active" : ""} ${
+                (showTrackNames && audioLabel) || isAudioDownloading ? "control-btn--with-label" : ""
+              }`}
               onClick={() => {
                 cycleAudioTrack();
               }}
@@ -514,15 +531,21 @@ export function PlayerControls({
                 }
               }}
               id="btn-audio-tracks"
+              title={isAudioDownloading ? "Идёт скачивание аудиодорожки..." : undefined}
             >
               <AudioLines size={18} />
               {showTrackNames && audioLabel && (
                 <span className="control-btn__label">{audioLabel}</span>
               )}
+              {isAudioDownloading && (
+                <Loader2 size={13} className="spin-animation" style={{ flexShrink: 0, color: "var(--accent)" }} />
+              )}
             </button>
 
             <button
-              className={`control-btn ${activePopover === "sub" ? "control-btn--active" : ""} ${showTrackNames && subLabel ? "control-btn--with-label" : ""}`}
+              className={`control-btn ${activePopover === "sub" ? "control-btn--active" : ""} ${
+                (showTrackNames && subLabel) || isSubDownloading ? "control-btn--with-label" : ""
+              }`}
               onClick={() => {
                 cycleSubTrack();
               }}
@@ -538,10 +561,14 @@ export function PlayerControls({
                 }
               }}
               id="btn-sub-tracks"
+              title={isSubDownloading ? "Идёт скачивание субтитров..." : undefined}
             >
               <Subtitles size={18} />
               {showTrackNames && subLabel && (
                 <span className="control-btn__label">{subLabel}</span>
+              )}
+              {isSubDownloading && (
+                <Loader2 size={13} className="spin-animation" style={{ flexShrink: 0, color: "var(--accent)" }} />
               )}
             </button>
 
