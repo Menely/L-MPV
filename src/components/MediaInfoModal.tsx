@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { usePlayerState, PlaybackState } from "../contexts/PlayerStateContext";
+import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
 
 interface MediaInfoModalProps {
   /** Обработчик закрытия модального окна. */
@@ -26,8 +25,8 @@ import { formatTime } from "../utils/timeUtils";
 export function MediaInfoModal({
   onClose,
 }: MediaInfoModalProps) {
-  const { mediaInfo } = usePlayerState();
-  const [liveState, setLiveState] = useState<PlaybackState | null>(null);
+  const { mediaInfo, liveState } = usePlayerState();
+  const { position, frame } = usePlayerProgress();
 
   // Выборка имени файла
   const filename = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() : "—";
@@ -37,53 +36,41 @@ export function MediaInfoModal({
   const historyRef = useRef<{ time: number; pos: number }[]>([]);
   const lastUiUpdateRef = useRef<number>(0);
 
-  // Высокочастотный опрос (каждые 100 мс) только пока открыто окно информации
+  // Расчет битрейта на основе централизованных данных контекста (без дублирования поллинга)
   useEffect(() => {
-    const fetchLiveState = async () => {
-      try {
-        const state = await invoke<PlaybackState>("get_playback_state");
-        setLiveState(state);
+    if (!liveState?.stream_pos) return;
+    const now = performance.now();
+    const history = historyRef.current;
+    
+    // Добавляем текущую точку
+    history.push({ time: now, pos: liveState.stream_pos });
+    
+    // Удаляем точки старше 3 секунд
+    while (history.length > 0 && now - history[0].time > 3000) {
+      history.shift();
+    }
+    
+    // Обновляем UI каждые 250 мс для плавности
+    if (now - lastUiUpdateRef.current >= 250) {
+      if (liveState.paused || history.length < 2) {
+        setInstantBitrate(0);
+      } else {
+        const oldest = history[0];
+        const newest = history[history.length - 1];
+        const deltaT = (newest.time - oldest.time) / 1000;
+        const deltaBytes = newest.pos - oldest.pos;
         
-        if (state.stream_pos) {
-          const now = performance.now();
-          const history = historyRef.current;
-          
-          // Добавляем текущую точку
-          history.push({ time: now, pos: state.stream_pos });
-          
-          // Удаляем точки старше 3 секунд
-          while (history.length > 0 && now - history[0].time > 3000) {
-            history.shift();
-          }
-          
-          // Обновляем UI каждые 250 мс для плавности
-          if (now - lastUiUpdateRef.current >= 250) {
-            if (state.paused || history.length < 2) {
-                setInstantBitrate(0);
-            } else {
-                const oldest = history[0];
-                const newest = history[history.length - 1];
-                const deltaT = (newest.time - oldest.time) / 1000;
-                const deltaBytes = newest.pos - oldest.pos;
-                
-                if (deltaT > 0 && deltaBytes >= 0) {
-                    setInstantBitrate((deltaBytes * 8) / deltaT);
-                }
-            }
-            lastUiUpdateRef.current = now;
-          }
+        if (deltaT > 0 && deltaBytes >= 0) {
+          setInstantBitrate((deltaBytes * 8) / deltaT);
         }
-      } catch (e) {}
-    };
+      }
+      lastUiUpdateRef.current = now;
+    }
+  }, [liveState?.stream_pos, liveState?.paused]);
 
-    fetchLiveState();
-    const interval = setInterval(fetchLiveState, 100);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Итоговые значения (быстрый liveState или фоновый mediaInfo)
-  const currentPos = liveState?.position ?? mediaInfo?.position ?? 0;
-  const currentFrame = liveState?.frame ?? mediaInfo?.frame ?? 0;
+  // Итоговые значения
+  const currentPos = position || mediaInfo?.position || 0;
+  const currentFrame = frame || mediaInfo?.frame || 0;
   const videoBitrate = liveState?.video_bitrate ?? mediaInfo?.video_bitrate ?? 0;
   const audioBitrate = liveState?.audio_bitrate ?? mediaInfo?.audio_bitrate ?? 0;
   const droppedFrames = liveState?.dropped_frames ?? mediaInfo?.dropped_frames ?? 0;

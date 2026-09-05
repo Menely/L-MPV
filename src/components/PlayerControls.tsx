@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { usePlayerState } from "../contexts/PlayerStateContext";
+import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   Undo,
@@ -30,6 +30,15 @@ import { Timeline } from "./Timeline";
 
 
 
+function TimeDisplay() {
+  const { position, duration } = usePlayerProgress();
+  return (
+    <span className="time-display" style={{ marginLeft: "12px" }}>
+      {formatTime(position)} / {formatTime(duration)}
+    </span>
+  );
+}
+
 export function PlayerControls({
   onShowMediaInfo,
   onToggleMediaInfo,
@@ -45,10 +54,8 @@ export function PlayerControls({
   isMiniPlayer?: boolean;
   onToggleMiniPlayer?: () => Promise<void>;
 }) {
-  const { mediaInfo, isPlaylistOpen, setIsPlaylistOpen, seekTo } = usePlayerState();
+  const { mediaInfo, isPlaylistOpen, setIsPlaylistOpen } = usePlayerState();
 
-  const position = mediaInfo?.position || 0;
-  const duration = mediaInfo?.duration || 0;
   const paused = mediaInfo?.paused ?? true;
   const contextVolume = mediaInfo?.volume ?? 100;
 
@@ -176,9 +183,12 @@ export function PlayerControls({
   }, [togglePause]);
 
   const handleSeek = useCallback(async (seconds: number) => {
-    const newPos = Math.max(0, Math.min(position + seconds, duration));
-    await seekTo(newPos);
-  }, [position, duration, seekTo]);
+    try {
+      await invoke("seek", { seconds });
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   const handlePlaylistPrev = useCallback(async () => {
     try {
@@ -446,9 +456,7 @@ export function PlayerControls({
               </span>
             </div>
             
-            <span className="time-display" style={{ marginLeft: "12px" }}>
-              {formatTime(position)} / {formatTime(duration)}
-            </span>
+            <TimeDisplay />
           </div>
 
           {/* Центральный блок: Пред. видео, -10с, Play/Pause, +10с, Сл. видео */}
@@ -524,7 +532,7 @@ export function PlayerControls({
                 id="btn-always-on-top"
                 onClick={async () => {
                   try {
-                    const appWindow = (await import("@tauri-apps/api/window")).getCurrentWindow();
+                    const appWindow = getCurrentWindow();
                     const current = await appWindow.isAlwaysOnTop();
                     await appWindow.setAlwaysOnTop(!current);
                     setIsAlwaysOnTop(!current);

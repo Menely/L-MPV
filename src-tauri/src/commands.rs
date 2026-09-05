@@ -6,6 +6,7 @@
 use crate::mpv_manager::MpvManager;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::HashMap;
 use tauri::State;
 
@@ -235,9 +236,16 @@ pub fn open_file_internal(
             });
 
             if video_files.len() > 1 {
-                let target_canonical = target_path.canonicalize().unwrap_or_else(|_| target_path.clone());
+                let target_name = target_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_lowercase();
                 if let Some(target_idx) = video_files.iter().position(|p| {
-                    p.canonicalize().unwrap_or_else(|_| p.clone()) == target_canonical
+                    p.file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_lowercase() == target_name
                 }) {
                     // Добавляем файлы, которые идут ПОСЛЕ текущего
                     for f in &video_files[(target_idx + 1)..] {
@@ -759,44 +767,7 @@ pub fn get_media_info(
 pub fn get_playback_state(
     state: State<'_, PlayerState>,
 ) -> Result<PlaybackState, String> {
-    let mpv = &state.mpv;
-    let path = mpv.get_property_string("path").unwrap_or_default();
-    let position = mpv.get_property_double("time-pos").unwrap_or(0.0);
-    let duration = mpv.get_property_double("duration").unwrap_or(0.0);
-
-    if !path.is_empty() && position > 2.0 {
-        update_history_position(&path, position, duration);
-    }
-
-    Ok(PlaybackState {
-        position,
-        frame: mpv
-            .get_property_double("estimated-frame-number")
-            .unwrap_or(0.0) as i64,
-        paused: mpv
-            .get_property_string("pause")
-            .unwrap_or_default()
-            == "yes",
-        speed: mpv.get_property_double("speed").unwrap_or(1.0),
-        volume: mpv.get_property_double("volume").unwrap_or(100.0),
-        audio_bitrate: {
-            let ab = mpv.get_property_double("packet-audio-bitrate").unwrap_or(0.0);
-            if ab > 0.0 { ab } else { mpv.get_property_double("audio-bitrate").unwrap_or(0.0) }
-        },
-        video_bitrate: {
-            let vb = mpv.get_property_double("packet-video-bitrate").unwrap_or(0.0);
-            if vb > 0.0 { vb } else { mpv.get_property_double("video-bitrate").unwrap_or(0.0) }
-        },
-        dropped_frames: mpv
-            .get_property_double("vo-delayed-frame-count")
-            .unwrap_or(0.0) as i64,
-        stream_pos: mpv.get_property_double("stream-pos").unwrap_or(0.0),
-        path: mpv.get_property_string("path").unwrap_or_default(),
-        video_width: mpv.get_property_double("video-params/dw").unwrap_or_else(|_| mpv.get_property_double("width").unwrap_or(0.0)) as i64,
-        video_height: mpv.get_property_double("video-params/dh").unwrap_or_else(|_| mpv.get_property_double("height").unwrap_or(0.0)) as i64,
-        current_aid: mpv.get_property_string("aid").unwrap_or_default(),
-        current_sid: mpv.get_property_string("sid").unwrap_or_default(),
-    })
+    state.mpv.get_playback_state_snapshot()
 }
 
 /// Получение только точных размеров видео
@@ -1315,20 +1286,37 @@ pub fn get_last_position(path: String) -> Result<f64, String> {
 }
 
 #[tauri::command]
-pub fn save_position(path: String, position: f64) -> Result<(), String> {
+pub fn save_position(path: String, position: f64, duration: Option<f64>) -> Result<(), String> {
     if path.is_empty() { return Ok(()); }
-    update_history_position(&path, position, 0.0);
+    update_history_position(&path, position, duration.unwrap_or(0.0));
     save_history_to_disk();
     Ok(())
 }
+
+static LAST_TASKBAR_UPDATE: Mutex<(i32, bool)> = Mutex::new((-1, false));
 
 // ─── Интеграция с Taskbar Windows ───
 #[tauri::command]
 pub fn update_taskbar_progress(progress: f64, paused: bool, app: tauri::AppHandle) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        use windows::Win32::UI::Shell::{ITaskbarList3, TaskbarList, TBPF_NORMAL, TBPF_PAUSED, TBPF_NOPROGRESS};
+        // Дискретный шаг (0 - 1000, т.е. с точностью до 0.1%)
+        let discrete_progress = if progress <= 0.001 {
+            0
+        } else if progress >= 0.999 {
+            1000
+        } else {
+            (progress * 1000.0) as i32
+        };
 
+        if let Ok(mut last) = LAST_TASKBAR_UPDATE.lock() {
+            if last.0 == discrete_progress && last.1 == paused {
+                return Ok(());
+            }
+            *last = (discrete_progress, paused);
+        }
+
+        use windows::Win32::UI::Shell::{ITaskbarList3, TaskbarList, TBPF_NORMAL, TBPF_PAUSED, TBPF_NOPROGRESS};
         use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
         use tauri::Manager;
         
@@ -1341,7 +1329,7 @@ pub fn update_taskbar_progress(progress: f64, paused: bool, app: tauri::AppHandl
                 let max = 10000;
                 let current = (progress * max as f64) as u64;
                 
-                if progress <= 0.001 || progress >= 0.999 {
+                if discrete_progress == 0 || discrete_progress == 1000 {
                     let _ = taskbar.SetProgressState(hwnd, TBPF_NOPROGRESS);
                 } else {
                     let state = if paused { TBPF_PAUSED } else { TBPF_NORMAL };
@@ -1354,3 +1342,168 @@ pub fn update_taskbar_progress(progress: f64, paused: bool, app: tauri::AppHandl
     Ok(())
 }
 
+/// Флаг предотвращения повторного параллельного вызова переключения полноэкранного режима
+static IS_TRANSITIONING_FS: AtomicBool = AtomicBool::new(false);
+
+/// Флаг отслеживания состояния окна до перехода в полноэкранный режим.
+static WAS_MAXIMIZED_BEFORE_FS: AtomicBool = AtomicBool::new(false);
+
+/// Флаг отслеживания режима "поверх всех окон" до перехода в полноэкранный режим.
+static WAS_ALWAYS_ON_TOP_BEFORE_FS: AtomicBool = AtomicBool::new(false);
+
+/// Атомарное бесшовное переключение полноэкранного режима без визуальных артефактов.
+///
+/// На платформе Windows использует системный DWM-клоакинг (DWMWA_CLOAK)
+/// для временного исключения окна из вывода композитора на время смены геометрии (85 мс).
+/// В сочетании с ITaskbarList2::MarkFullscreenWindow и HWND_TOPMOST гарантирует,
+/// что системная панель задач Windows полностью скрывается под окном плеера,
+/// а сам плеер мгновенно и бесшовно разворачивается на полный экран.
+#[tauri::command]
+pub async fn toggle_fullscreen(window: tauri::WebviewWindow) -> Result<bool, String> {
+    // Защита от параллельных вызовов при многократном нажатии
+    if IS_TRANSITIONING_FS
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return window.is_fullscreen().map_err(|e| e.to_string());
+    }
+
+    struct TransitionGuard;
+    impl Drop for TransitionGuard {
+        fn drop(&mut self) {
+            IS_TRANSITIONING_FS.store(false, Ordering::SeqCst);
+        }
+    }
+    let _guard = TransitionGuard;
+
+    let is_fs = window.is_fullscreen().map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::{BOOL, HWND};
+        use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_CLOAK};
+        use windows::Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED,
+        };
+        use windows::Win32::UI::Shell::{ITaskbarList2, TaskbarList};
+        use windows::Win32::UI::WindowsAndMessaging::{
+            BringWindowToTop, SetForegroundWindow, SetWindowPos,
+            HWND_NOTOPMOST, HWND_TOPMOST, SWP_FRAMECHANGED, SWP_NOMOVE,
+            SWP_NOSIZE, SWP_SHOWWINDOW,
+        };
+
+        let hwnd_isize = window.hwnd().ok().map(|h| h.0 as isize);
+
+        if let Some(hwnd_val) = hwnd_isize {
+            // Клоакинг окна через Win32 DWM API.
+            // Скрывает окно из композитора DWM на время смены геометрии,
+            // что полностью исключает отрисовку промежуточных кадров
+            // (включая артефакт смещения 50%-окна в левый верхний угол (0, 0)).
+            {
+                let hwnd = HWND(hwnd_val as _);
+                let cloak = BOOL(1);
+                unsafe {
+                    let _ = DwmSetWindowAttribute(
+                        hwnd,
+                        DWMWA_CLOAK,
+                        &cloak as *const _ as _,
+                        std::mem::size_of::<BOOL>() as u32,
+                    );
+                }
+            }
+
+            if !is_fs {
+                // Запоминаем состояния до перехода в полноэкранный режим
+                let is_max = window.is_maximized().unwrap_or(false);
+                let is_ontop = window.is_always_on_top().unwrap_or(false);
+                WAS_MAXIMIZED_BEFORE_FS.store(is_max, Ordering::SeqCst);
+                WAS_ALWAYS_ON_TOP_BEFORE_FS.store(is_ontop, Ordering::SeqCst);
+
+                if is_max {
+                    // Сбрасываем максимизацию, чтобы исключить смещение границ
+                    // и наложение системной панели задач
+                    let _ = window.unmaximize();
+                }
+
+                window.set_fullscreen(true).map_err(|e| e.to_string())?;
+            } else {
+                // Выход из полноэкранного режима
+                window.set_fullscreen(false).map_err(|e| e.to_string())?;
+
+                // Восстанавливаем максимизацию, если окно было максимизировано
+                if WAS_MAXIMIZED_BEFORE_FS.load(Ordering::SeqCst) {
+                    let _ = window.maximize();
+                }
+            }
+
+            // Даем асинхронной очереди сообщений Windows, WebView2 и MPV
+            // время перестроить swapchain под новые физические границы (85 мс)
+            tokio::time::sleep(std::time::Duration::from_millis(85)).await;
+
+            // Возвращаем окно в видимую композицию DWM уже в целевом размере
+            {
+                let hwnd = HWND(hwnd_val as _);
+                let uncloak = BOOL(0);
+                unsafe {
+                    let _ = DwmSetWindowAttribute(
+                        hwnd,
+                        DWMWA_CLOAK,
+                        &uncloak as *const _ as _,
+                        std::mem::size_of::<BOOL>() as u32,
+                    );
+
+                    // Уведомляем оболочку Windows (Explorer/Taskbar) о полноэкранном режиме окна
+                    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+                    if let Ok(tbl) = CoCreateInstance::<_, ITaskbarList2>(
+                        &TaskbarList,
+                        None,
+                        CLSCTX_ALL,
+                    ) {
+                        let _ = tbl.HrInit();
+                        let _ = tbl.MarkFullscreenWindow(hwnd, !is_fs);
+                    }
+
+                    if !is_fs {
+                        // В полноэкранном режиме помещаем окно поверх всех окон (HWND_TOPMOST),
+                        // гарантируя, что системная панель задач не отображается поверх плеера
+                        let _ = SetWindowPos(
+                            hwnd,
+                            HWND_TOPMOST,
+                            0,
+                            0,
+                            0,
+                            0,
+                            SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED | SWP_SHOWWINDOW,
+                        );
+                    } else {
+                        // При выходе из полного экрана возвращаем обычный порядок наложения,
+                        // если пользователь не активировал вручную опцию "Поверх всех окон"
+                        let was_ontop =
+                            WAS_ALWAYS_ON_TOP_BEFORE_FS.load(Ordering::SeqCst);
+                        if !was_ontop {
+                            let _ = SetWindowPos(
+                                hwnd,
+                                HWND_NOTOPMOST,
+                                0,
+                                0,
+                                0,
+                                0,
+                                SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED,
+                            );
+                        }
+                    }
+
+                    let _ = BringWindowToTop(hwnd);
+                    let _ = SetForegroundWindow(hwnd);
+                }
+            }
+
+            let _ = window.set_focus();
+            return Ok(!is_fs);
+        }
+    }
+
+    let new_state = !is_fs;
+    window.set_fullscreen(new_state).map_err(|e| e.to_string())?;
+    Ok(new_state)
+}

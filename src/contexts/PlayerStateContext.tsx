@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -58,8 +58,29 @@ export interface TrackInfo {
   codec: string;
 }
 
+export interface PlayerProgress {
+  position: number;
+  duration: number;
+  frame: number;
+  seeking: boolean;
+  seekTarget: number | null;
+}
+
+const PlayerProgressContext = createContext<PlayerProgress>({
+  position: 0,
+  duration: 0,
+  frame: 0,
+  seeking: false,
+  seekTarget: null,
+});
+
+export function usePlayerProgress() {
+  return useContext(PlayerProgressContext);
+}
+
 interface PlayerStateContextType {
   mediaInfo: MediaInfo | null;
+  liveState: PlaybackState | null;
   hasMedia: boolean;
   isIdle: boolean;
   chapters: Chapter[];
@@ -85,6 +106,7 @@ interface PlayerStateContextType {
 
 const PlayerStateContext = createContext<PlayerStateContextType>({
   mediaInfo: null,
+  liveState: null,
   hasMedia: false,
   isIdle: false,
   chapters: [],
@@ -108,6 +130,14 @@ const PlayerStateContext = createContext<PlayerStateContextType>({
 
 export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const [mediaInfo, setMediaInfo] = useState<MediaInfo | null>(null);
+  const [liveState, setLiveState] = useState<PlaybackState | null>(null);
+  const [progress, setProgress] = useState<PlayerProgress>({
+    position: 0,
+    duration: 0,
+    frame: 0,
+    seeking: false,
+    seekTarget: null,
+  });
   const [hasMedia, setHasMedia] = useState(false);
   const [isIdle, setIsIdle] = useState(false);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -121,6 +151,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const currentPathRef = useRef<string>("");
   const currentAidRef = useRef<string>("");
   const currentSidRef = useRef<string>("");
+  const mediaInfoRef = useRef<MediaInfo | null>(null);
 
   const loadTracks = useCallback(async () => {
     try {
@@ -225,8 +256,16 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             currentPathRef.current = fullInfo.path;
             hasMediaInfoRef.current = true;
             fileLoadingRef.current = false;
+            mediaInfoRef.current = fullInfo;
             setMediaInfo(fullInfo);
             setHasMedia(true);
+            setProgress({
+              position: fullInfo.position,
+              duration: fullInfo.duration,
+              frame: fullInfo.frame,
+              seeking: false,
+              seekTarget: null,
+            });
             const chaps = await invoke<Chapter[]>("get_chapters").catch(() => []);
             setChapters(chaps);
             if (fullInfo.paused) nextDelay = 1000;
@@ -251,9 +290,17 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           } else {
             currentPathRef.current = "";
             hasMediaInfoRef.current = false;
+            mediaInfoRef.current = null;
             setMediaInfo(null);
             setHasMedia(false);
             setChapters([]);
+            setProgress({
+              position: 0,
+              duration: 0,
+              frame: 0,
+              seeking: false,
+              seekTarget: null,
+            });
           }
         } else {
           // Отслеживаем изменения выбранных дорожек через поллинг
@@ -273,23 +320,50 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             }
           }
 
-          setMediaInfo((prev) => {
-            if (!prev) return null;
-            return {
-              ...prev,
-              width: dynState.video_width > 0 ? dynState.video_width : prev.width,
-              height: dynState.video_height > 0 ? dynState.video_height : prev.height,
-              // Не обновляем position пока идёт seek
-              position: seekingRef.current ? prev.position : dynState.position,
-              frame: dynState.frame,
-              paused: dynState.paused,
-              speed: dynState.speed,
-              volume: dynState.volume,
-              audio_bitrate: dynState.audio_bitrate,
-              video_bitrate: dynState.video_bitrate,
-              dropped_frames: dynState.dropped_frames,
-            };
+          setLiveState(dynState);
+
+          const curPos = seekingRef.current && seekTargetRef.current !== null
+            ? seekTargetRef.current
+            : dynState.position;
+
+          const curDur = mediaInfoRef.current?.duration || 0;
+
+          setProgress({
+            position: curPos,
+            duration: curDur,
+            frame: dynState.frame,
+            seeking: seekingRef.current,
+            seekTarget: seekTargetRef.current,
           });
+
+          // Обновляем mediaInfo только если изменились значимые свойства (пауза, скорость, громкость, разрешение)
+          const currentMedia = mediaInfoRef.current;
+          if (currentMedia) {
+            const isPausedChanged = currentMedia.paused !== dynState.paused;
+            const isSpeedChanged = currentMedia.speed !== dynState.speed;
+            const isVolumeChanged = currentMedia.volume !== dynState.volume;
+            const isSizeChanged =
+              (dynState.video_width > 0 && dynState.video_width !== currentMedia.width) ||
+              (dynState.video_height > 0 && dynState.video_height !== currentMedia.height);
+
+            if (isPausedChanged || isSpeedChanged || isVolumeChanged || isSizeChanged) {
+              const updated: MediaInfo = {
+                ...currentMedia,
+                paused: dynState.paused,
+                speed: dynState.speed,
+                volume: dynState.volume,
+                width: dynState.video_width > 0 ? dynState.video_width : currentMedia.width,
+                height: dynState.video_height > 0 ? dynState.video_height : currentMedia.height,
+                audio_bitrate: dynState.audio_bitrate,
+                video_bitrate: dynState.video_bitrate,
+                dropped_frames: dynState.dropped_frames,
+                position: curPos,
+                frame: dynState.frame,
+              };
+              mediaInfoRef.current = updated;
+              setMediaInfo(updated);
+            }
+          }
         }
       } catch (err) {
         nextDelay = 1000;
@@ -316,7 +390,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       if (timerId !== null) window.clearTimeout(timerId);
       window.removeEventListener("l-mpv-force-poll", handleForcePoll);
     };
-  }, []);
+  }, [loadTracks]);
 
   // ─── Единая точка входа для seek ───
   const seekTo = useCallback(async (seconds: number) => {
@@ -324,6 +398,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     seekTargetRef.current = seconds;
     setSeeking(true);
     setSeekTarget(seconds);
+    setProgress(prev => ({ ...prev, position: seconds, seeking: true, seekTarget: seconds }));
     try {
       await invoke("seek_absolute", { seconds });
     } catch (e) {
@@ -332,13 +407,19 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       seekTargetRef.current = null;
       setSeeking(false);
       setSeekTarget(null);
+      setProgress(prev => ({ ...prev, seeking: false, seekTarget: null }));
     }
   }, []);
 
   // ─── Переключение паузы ───
   const togglePause = useCallback(async () => {
     // Мгновенно обновляем UI локально (оптимистично)
-    setMediaInfo(prev => prev ? { ...prev, paused: !prev.paused } : null);
+    setMediaInfo(prev => {
+      if (!prev) return null;
+      const next = { ...prev, paused: !prev.paused };
+      mediaInfoRef.current = next;
+      return next;
+    });
     try {
       await invoke("toggle_pause");
       // Пробуждаем цикл поллинга от 1-секундной "спячки"
@@ -351,40 +432,57 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   // ─── Оптимистичное изменение громкости ───
   const setVolume = useCallback((vol: number) => {
     // Мгновенное обновление UI
-    setMediaInfo(prev => prev ? { ...prev, volume: vol } : null);
+    setMediaInfo(prev => {
+      if (!prev) return null;
+      const next = { ...prev, volume: vol };
+      mediaInfoRef.current = next;
+      return next;
+    });
     try {
       localStorage.setItem("l-mpv-volume", vol.toString());
       invoke("set_volume", { volume: vol });
-      // Можно было бы будить поллинг, но для громкости это не обязательно,
-      // так как слайдер плавно двигается за счет оптимистичного стейта.
     } catch (e) {
       console.error(e);
     }
   }, []);
 
-  // ─── Интеграция с Taskbar Windows ───
+  // ─── Интеграция с Taskbar Windows с фильтрацией шага ───
+  const lastTaskbarRef = useRef<{ discrete: number; paused: boolean }>({ discrete: -1, paused: false });
   useEffect(() => {
-    if (mediaInfo && mediaInfo.duration > 0) {
-      const progress = mediaInfo.position / mediaInfo.duration;
-      invoke("update_taskbar_progress", { progress, paused: mediaInfo.paused }).catch(() => {});
+    const curPos = progress.position;
+    const curDur = progress.duration;
+    const isPaused = mediaInfo?.paused ?? true;
+    if (curDur > 0) {
+      const prog = curPos / curDur;
+      const discrete = Math.round(prog * 500); // Дискретность 0.2%
+      if (discrete !== lastTaskbarRef.current.discrete || isPaused !== lastTaskbarRef.current.paused) {
+        lastTaskbarRef.current = { discrete, paused: isPaused };
+        invoke("update_taskbar_progress", { progress: prog, paused: isPaused }).catch(() => {});
+      }
     } else {
-      invoke("update_taskbar_progress", { progress: 0.0, paused: true }).catch(() => {});
+      if (lastTaskbarRef.current.discrete !== 0 || !lastTaskbarRef.current.paused) {
+        lastTaskbarRef.current = { discrete: 0, paused: true };
+        invoke("update_taskbar_progress", { progress: 0.0, paused: true }).catch(() => {});
+      }
     }
-  }, [mediaInfo?.position, mediaInfo?.paused, mediaInfo?.duration]);
+  }, [progress.position, progress.duration, mediaInfo?.paused]);
 
-  // Автосохранение истории просмотров ───
+  // ─── Автосохранение истории просмотров с передачей duration ───
   const lastSavedPositionRef = useRef<number>(0);
   useEffect(() => {
-    if (mediaInfo && mediaInfo.path && !mediaInfo.paused) {
+    const curPos = progress.position;
+    const curDur = progress.duration;
+    const isPaused = mediaInfo?.paused ?? true;
+    if (mediaInfo && mediaInfo.path && !isPaused && curDur > 0) {
       // Сохраняем каждые 5 секунд прогресса
-      if (Math.abs(mediaInfo.position - lastSavedPositionRef.current) >= 5.0) {
-        lastSavedPositionRef.current = mediaInfo.position;
-        invoke("save_position", { path: mediaInfo.path, position: mediaInfo.position }).catch(() => {});
+      if (Math.abs(curPos - lastSavedPositionRef.current) >= 5.0) {
+        lastSavedPositionRef.current = curPos;
+        invoke("save_position", { path: mediaInfo.path, position: curPos, duration: curDur }).catch(() => {});
       }
     } else if (!mediaInfo) {
       lastSavedPositionRef.current = 0;
     }
-  }, [mediaInfo?.position, mediaInfo?.path, mediaInfo?.paused]);
+  }, [progress.position, progress.duration, mediaInfo?.path, mediaInfo?.paused]);
 
   const selectAudioTrack = useCallback(async (trackId: number) => {
     try {
@@ -447,7 +545,6 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   }, [tracks, selectSubTrack, disableSubtitles]);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const wasMaximizedBeforeFullscreenRef = useRef(false);
 
   // Синхронизация состояния полноэкранного режима при системных изменениях размера окна
   useEffect(() => {
@@ -476,56 +573,78 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // ─── Безопасное переключение полноэкранного режима ──
+  // ─── Безопасное нативное переключение полноэкранного режима ──
   const toggleFullscreen = useCallback(async () => {
     try {
-      const appWindow = getCurrentWindow();
-      const isFs = await appWindow.isFullscreen();
-
-      // Скрываем контент на время анимации DWM для исключения мерцания
-      document.documentElement.style.opacity = "0";
-
-      if (!isFs) {
-        // Переход в полноэкранный режим
-        const isMax = await appWindow.isMaximized();
-        if (isMax) {
-          // Если окно развёрнуто (maximized), Windows Win32 блокирует
-          // корректное перекрытие панели задач (Taskbar) стилем WS_MAXIMIZE.
-          // Сначала восстанавливаем окно, сбрасывая стиль максимизации:
-          wasMaximizedBeforeFullscreenRef.current = true;
-          await appWindow.unmaximize();
-          // Небольшая задержка, чтобы системная очередь оконных сообщений обработала SW_RESTORE
-          await new Promise((resolve) => setTimeout(resolve, 40));
-        } else {
-          wasMaximizedBeforeFullscreenRef.current = false;
-        }
-        await appWindow.setFullscreen(true);
-        setIsFullscreen(true);
-      } else {
-        // Выход из полноэкранного режима
-        await appWindow.setFullscreen(false);
-        setIsFullscreen(false);
-        if (wasMaximizedBeforeFullscreenRef.current) {
-          wasMaximizedBeforeFullscreenRef.current = false;
-          // Даём окну восстановиться в оконный режим перед повторной максимизацией
-          await new Promise((resolve) => setTimeout(resolve, 40));
-          await appWindow.maximize();
-        }
-      }
-
-      setTimeout(() => {
-        document.documentElement.style.opacity = "1";
-      }, 80);
+      // Вызываем нативную бэкенд-команду, которая атомарно управляет
+      // стилями WS_MAXIMIZE, предотвращая сжатие и смещение плеера в угол (0, 0)
+      const newFs = await invoke<boolean>("toggle_fullscreen");
+      setIsFullscreen(newFs);
     } catch (e) {
-      document.documentElement.style.opacity = "1";
-      console.error("Ошибка при переключении полноэкранного режима:", e);
+      console.error("Ошибка при переключении полноэкранного режима через бэкенд:", e);
+      // Запасное переключение через стандартный API окна Tauri
+      try {
+        const appWindow = getCurrentWindow();
+        const fs = await appWindow.isFullscreen();
+        await appWindow.setFullscreen(!fs);
+        setIsFullscreen(!fs);
+      } catch (fallbackError) {
+        console.error("Ошибка запасного переключения полноэкранного режима:", fallbackError);
+      }
     }
   }, []);
 
+  const contextValue = useMemo<PlayerStateContextType>(() => ({
+    mediaInfo,
+    liveState,
+    hasMedia,
+    isIdle,
+    chapters,
+    isPlaylistOpen,
+    setIsPlaylistOpen,
+    seeking,
+    seekTarget,
+    seekTo,
+    togglePause,
+    setVolume,
+    tracks,
+    loadTracks,
+    selectAudioTrack,
+    selectSubTrack,
+    disableSubtitles,
+    cycleAudioTrack,
+    cycleSubTrack,
+    isFullscreen,
+    toggleFullscreen,
+  }), [
+    mediaInfo,
+    liveState,
+    hasMedia,
+    isIdle,
+    chapters,
+    isPlaylistOpen,
+    seeking,
+    seekTarget,
+    seekTo,
+    togglePause,
+    setVolume,
+    tracks,
+    loadTracks,
+    selectAudioTrack,
+    selectSubTrack,
+    disableSubtitles,
+    cycleAudioTrack,
+    cycleSubTrack,
+    isFullscreen,
+    toggleFullscreen,
+  ]);
+
   return (
-    <PlayerStateContext.Provider value={{ mediaInfo, hasMedia, isIdle, chapters, isPlaylistOpen, setIsPlaylistOpen, seeking, seekTarget, seekTo, togglePause, setVolume, tracks, loadTracks, selectAudioTrack, selectSubTrack, disableSubtitles, cycleAudioTrack, cycleSubTrack, isFullscreen, toggleFullscreen }}>
-      {children}
-    </PlayerStateContext.Provider>
+    <PlayerProgressContext.Provider value={progress}>
+      <PlayerStateContext.Provider value={contextValue}>
+        {children}
+      </PlayerStateContext.Provider>
+    </PlayerProgressContext.Provider>
   );
 }
 

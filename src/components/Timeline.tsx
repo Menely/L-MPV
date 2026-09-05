@@ -1,12 +1,11 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
-import { usePlayerState } from "../contexts/PlayerStateContext";
+import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
 import { formatTime } from "../utils/timeUtils";
 
 export const Timeline = React.memo(() => {
-  const { mediaInfo, chapters, seeking, seekTarget, seekTo } = usePlayerState();
+  const { mediaInfo, chapters, seekTo } = usePlayerState();
+  const { position, duration, seeking, seekTarget } = usePlayerProgress();
   const mediaPath = mediaInfo?.path || "";
-  const duration = mediaInfo?.duration || 0;
-  const position = mediaInfo?.position || 0;
 
   // Локальная позиция мыши — только во время drag
   const [mousePosition, setMousePosition] = useState<number | null>(null);

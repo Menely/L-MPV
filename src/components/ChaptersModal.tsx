@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { usePlayerState } from "../contexts/PlayerStateContext";
+import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
 
 interface ChaptersModalProps {
   /** Обработчик закрытия панели. */
@@ -24,8 +24,8 @@ function formatChapterTime(seconds: number): string {
  * Окно со списком глав.
  */
 export function ChaptersModal({ onClose }: ChaptersModalProps) {
-  const { mediaInfo, chapters } = usePlayerState();
-  const position = mediaInfo?.position || 0;
+  const { chapters } = usePlayerState();
+  const { position } = usePlayerProgress();
 
   // Определение активной главы
   let activeIndex = -1;

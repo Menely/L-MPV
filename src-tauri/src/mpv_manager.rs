@@ -304,6 +304,112 @@ impl MpvManager {
             }
         })
     }
+
+    #[inline]
+    unsafe fn get_double_raw(api: &MpvApi, handle: *mut MpvHandle, name: &CStr) -> f64 {
+        let mut value: c_double = 0.0;
+        let err = (api.get_property)(
+            handle,
+            name.as_ptr(),
+            MpvFormat::Double,
+            &mut value as *mut c_double as *mut c_void,
+        );
+        if err >= 0 {
+            value
+        } else {
+            0.0
+        }
+    }
+
+    #[inline]
+    unsafe fn get_flag_raw(api: &MpvApi, handle: *mut MpvHandle, name: &CStr) -> bool {
+        let mut value: c_int = 0;
+        let err = (api.get_property)(
+            handle,
+            name.as_ptr(),
+            MpvFormat::Flag,
+            &mut value as *mut c_int as *mut c_void,
+        );
+        err >= 0 && value != 0
+    }
+
+    #[inline]
+    unsafe fn get_string_raw(api: &MpvApi, handle: *mut MpvHandle, name: &CStr) -> String {
+        let result = (api.get_property_string)(handle, name.as_ptr());
+        if result.is_null() {
+            return String::new();
+        }
+        let value = CStr::from_ptr(result).to_string_lossy().into_owned();
+        (api.free)(result as *mut c_void);
+        value
+    }
+
+    /// Пакетный сбор динамического состояния плеера за один захват мьютекса
+    /// со статическими C-строками без повторных блокировок и лишних аллокаций.
+    pub fn get_playback_state_snapshot(&self) -> Result<crate::commands::PlaybackState, String> {
+        self.with_handle(|handle| {
+            unsafe {
+                let path = Self::get_string_raw(&self.api, handle, c"path");
+                let position = Self::get_double_raw(&self.api, handle, c"time-pos");
+                let frame = Self::get_double_raw(&self.api, handle, c"estimated-frame-number") as i64;
+                let paused = Self::get_flag_raw(&self.api, handle, c"pause");
+                let speed_raw = Self::get_double_raw(&self.api, handle, c"speed");
+                let speed = if speed_raw <= 0.0 { 1.0 } else { speed_raw };
+                let volume = Self::get_double_raw(&self.api, handle, c"volume");
+
+                let ab = Self::get_double_raw(&self.api, handle, c"packet-audio-bitrate");
+                let audio_bitrate = if ab > 0.0 {
+                    ab
+                } else {
+                    Self::get_double_raw(&self.api, handle, c"audio-bitrate")
+                };
+
+                let vb = Self::get_double_raw(&self.api, handle, c"packet-video-bitrate");
+                let video_bitrate = if vb > 0.0 {
+                    vb
+                } else {
+                    Self::get_double_raw(&self.api, handle, c"video-bitrate")
+                };
+
+                let dropped_frames = Self::get_double_raw(&self.api, handle, c"vo-delayed-frame-count") as i64;
+                let stream_pos = Self::get_double_raw(&self.api, handle, c"stream-pos");
+
+                let dw = Self::get_double_raw(&self.api, handle, c"video-params/dw");
+                let video_width = if dw > 0.0 {
+                    dw as i64
+                } else {
+                    Self::get_double_raw(&self.api, handle, c"width") as i64
+                };
+
+                let dh = Self::get_double_raw(&self.api, handle, c"video-params/dh");
+                let video_height = if dh > 0.0 {
+                    dh as i64
+                } else {
+                    Self::get_double_raw(&self.api, handle, c"height") as i64
+                };
+
+                let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
+                let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
+
+                Ok(crate::commands::PlaybackState {
+                    position,
+                    frame,
+                    paused,
+                    speed,
+                    volume,
+                    audio_bitrate,
+                    video_bitrate,
+                    dropped_frames,
+                    stream_pos,
+                    path,
+                    video_width,
+                    video_height,
+                    current_aid,
+                    current_sid,
+                })
+            }
+        })
+    }
 }
 
 impl Drop for MpvManager {
