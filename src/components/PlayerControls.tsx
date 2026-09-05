@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
+import { usePlayerState, usePlayerProgress, TrackInfo } from "../contexts/PlayerStateContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { save } from "@tauri-apps/plugin-dialog";
 import {
   Undo,
   Redo,
@@ -23,7 +24,9 @@ import {
   Repeat,
   Repeat1,
   Shuffle,
-  Pin
+  Pin,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { formatTime } from "../utils/timeUtils";
 import { Timeline } from "./Timeline";
@@ -261,8 +264,110 @@ export function PlayerControls({
     }
   };
 
-  const audioTracks = tracks.filter((t) => t.type === "audio");
-  const subTracks = tracks.filter((t) => t.type === "sub");
+  const audioTracks = useMemo(() => tracks.filter((t) => t.type === "audio"), [tracks]);
+  const subTracks = useMemo(() => tracks.filter((t) => t.type === "sub"), [tracks]);
+
+  const [downloadingTrackKey, setDownloadingTrackKey] = useState<string | null>(null);
+
+  const getExtensionForTrack = useCallback((track: TrackInfo): string => {
+    const c = (track.codec || "").toLowerCase();
+    if (track.type === "audio") {
+      if (c.includes("flac")) return "flac";
+      if (c.includes("mp3")) return "mp3";
+      if (c.includes("opus")) return "opus";
+      if (c.includes("vorbis") || c.includes("ogg")) return "ogg";
+      if (c.includes("eac3") || c.includes("ac3")) return "ac3";
+      if (c.includes("dts")) return "dts";
+      if (c.includes("truehd")) return "thd";
+      if (c.includes("wav") || c.includes("pcm")) return "wav";
+      return "aac";
+    } else {
+      if (c.includes("ass") || c.includes("ssa")) return "ass";
+      if (c.includes("vtt")) return "vtt";
+      if (c.includes("pgs")) return "sup";
+      return "srt";
+    }
+  }, []);
+
+  const handleDownloadTrack = useCallback(async (track: TrackInfo) => {
+    if (!mediaInfo?.path) {
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Нет активного видео для извлечения" }));
+      return;
+    }
+
+    const trackKey = `${track.type}-${track.id}`;
+    setDownloadingTrackKey(trackKey);
+
+    try {
+      const ext = getExtensionForTrack(track);
+
+      // Формируем имя файла из названия дорожки с очисткой от недопустимых символов Windows
+      let cleanTrackName = (track.title || "").trim().replace(/[\x00-\x1f\\/:*?"<>|]/g, "_").trim();
+      if (!cleanTrackName) {
+        cleanTrackName = track.lang
+          ? `${track.type === "audio" ? "Аудио" : "Субтитры"}_${track.lang.toUpperCase()}`
+          : `${track.type === "audio" ? "Аудио" : "Субтитры"}_${track.id}`;
+      }
+
+      // Итоговое имя файла совпадает с названием дорожки
+      const defaultFileName = `${cleanTrackName}.${ext}`;
+
+      // Базовый путь директории с видео (только для локальных файлов)
+      const videoFullPath = mediaInfo.path;
+      const isRemote = videoFullPath.startsWith("http://") || videoFullPath.startsWith("https://");
+      const normalizedPath = videoFullPath.replace(/\\/g, "/");
+      const lastSlashIdx = normalizedPath.lastIndexOf("/");
+      const videoDir = (!isRemote && lastSlashIdx !== -1) ? normalizedPath.substring(0, lastSlashIdx) : "";
+
+      // Читаем настройку: сохранять в папку с видео или вызывать диалог
+      const saveToVideoDir = localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false";
+
+      let finalTargetPath: string | null = null;
+
+      if (saveToVideoDir && videoDir) {
+        finalTargetPath = `${videoDir}/${defaultFileName}`;
+      } else {
+        finalTargetPath = await save({
+          title: `Сохранить ${track.type === "audio" ? "аудиодорожку" : "субтитры"}`,
+          defaultPath: videoDir ? `${videoDir}/${defaultFileName}` : defaultFileName,
+          filters: [
+            {
+              name: track.type === "audio" ? "Аудиофайл" : "Субтитры",
+              extensions: [ext],
+            },
+          ],
+        });
+      }
+
+      if (!finalTargetPath) {
+        // Пользователь отменил диалог проводника
+        setDownloadingTrackKey(null);
+        return;
+      }
+
+      const typeTracks = track.type === "audio" ? audioTracks : subTracks;
+      const trackIdx = typeTracks.findIndex((t) => t.id === track.id);
+      const streamIndex = trackIdx >= 0 ? trackIdx : Math.max(0, track.id - 1);
+
+      await invoke<string>("extract_track", {
+        videoPath: videoFullPath,
+        trackType: track.type,
+        trackIndex: streamIndex,
+        ffIndex: track.ff_index !== undefined ? track.ff_index : null,
+        externalFilename: track.external_filename || null,
+        targetPath: finalTargetPath,
+      });
+
+      const successLabel = track.type === "audio" ? "Аудиодорожка сохранена" : "Субтитры сохранены";
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: `${successLabel}: ${cleanTrackName}.${ext}` }));
+    } catch (err) {
+      console.error("Ошибка при извлечении дорожки:", err);
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Ошибка извлечения дорожки" }));
+    } finally {
+      setDownloadingTrackKey(null);
+    }
+  }, [mediaInfo, getExtensionForTrack, audioTracks, subTracks]);
+
 
 
   return (
@@ -277,20 +382,36 @@ export function PlayerControls({
             {activePopover === "audio" &&
               (audioTracks.length > 0 ? (
                 audioTracks.map((t) => (
-                  <button
+                  <div
                     key={t.id}
-                    className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""
-                      }`}
+                    className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
                     onClick={() => {
                       selectAudioTrack(t.id);
                       setActivePopover(null);
                     }}
                   >
-                    <span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
                       {t.title || `Дорожка ${t.id}`} {t.lang ? `(${t.lang})` : ""}
                     </span>
-                    {t.selected && <Check size={14} />}
-                  </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                      <button
+                        className="track-download-btn"
+                        title="Скачать аудиодорожку"
+                        disabled={downloadingTrackKey === `audio-${t.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadTrack(t);
+                        }}
+                      >
+                        {downloadingTrackKey === `audio-${t.id}` ? (
+                          <Loader2 size={13} className="spin-animation" />
+                        ) : (
+                          <Download size={13} />
+                        )}
+                      </button>
+                      {t.selected && <Check size={14} />}
+                    </div>
+                  </div>
                 ))
               ) : (
                 <div className="track-popover__item" style={{ opacity: 0.6 }}>
@@ -314,20 +435,36 @@ export function PlayerControls({
                   {!subTracks.some((t) => t.selected) && <Check size={14} />}
                 </button>
                 {subTracks.map((t) => (
-                  <button
+                  <div
                     key={t.id}
-                    className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""
-                      }`}
+                    className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
                     onClick={() => {
                       selectSubTrack(t.id);
                       setActivePopover(null);
                     }}
                   >
-                    <span>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
                       {t.title || `Субтитры ${t.id}`} {t.lang ? `(${t.lang})` : ""}
                     </span>
-                    {t.selected && <Check size={14} />}
-                  </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                      <button
+                        className="track-download-btn"
+                        title="Скачать субтитры"
+                        disabled={downloadingTrackKey === `sub-${t.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadTrack(t);
+                        }}
+                      >
+                        {downloadingTrackKey === `sub-${t.id}` ? (
+                          <Loader2 size={13} className="spin-animation" />
+                        ) : (
+                          <Download size={13} />
+                        )}
+                      </button>
+                      {t.selected && <Check size={14} />}
+                    </div>
+                  </div>
                 ))}
               </>
             )}

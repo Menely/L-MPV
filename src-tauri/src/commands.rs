@@ -147,6 +147,12 @@ pub struct TrackInfo {
     pub selected: bool,
     /// Кодек дорожки.
     pub codec: String,
+    /// Является ли дорожка внешним файлом.
+    pub external: bool,
+    /// Путь к внешнему файлу.
+    pub external_filename: String,
+    /// Индекс потока в FFmpeg (-1 если недоступен).
+    pub ff_index: i64,
 }
 
 /// Информация о главе.
@@ -523,6 +529,23 @@ pub fn get_tracks(
             .get_property_string(&format!("track-list/{}/codec", i))
             .unwrap_or_default();
 
+        let external = mpv
+            .get_property_string(&format!("track-list/{}/external", i))
+            .unwrap_or_default()
+            == "yes";
+
+        let external_filename = if external {
+            mpv.get_property_string(&format!("track-list/{}/external-filename", i))
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+
+        let ff_index = mpv
+            .get_property_double(&format!("track-list/{}/ff-index", i))
+            .map(|f| f as i64)
+            .unwrap_or(-1);
+
         tracks.push(TrackInfo {
             id,
             track_type,
@@ -530,6 +553,9 @@ pub fn get_tracks(
             lang,
             selected,
             codec,
+            external,
+            external_filename,
+            ff_index,
         });
     }
 
@@ -1592,3 +1618,140 @@ pub async fn toggle_fullscreen(window: tauri::WebviewWindow) -> Result<bool, Str
     window.set_fullscreen(new_state).map_err(|e| e.to_string())?;
     Ok(new_state)
 }
+
+/// Извлечение аудиодорожки или субтитров в отдельный файл с помощью встроенного FFmpeg.
+#[tauri::command]
+pub async fn extract_track(
+    video_path: String,
+    track_type: String,
+    track_index: i64,
+    ff_index: Option<i64>,
+    external_filename: Option<String>,
+    target_path: String,
+) -> Result<String, String> {
+    // 1. Проверка внешнего файла: если дорожка уже из внешнего файла, копируем напрямую
+    if let Some(ref ext_path) = external_filename {
+        if !ext_path.is_empty() {
+            let src = std::path::Path::new(ext_path);
+            if src.exists() {
+                if let Some(parent) = std::path::Path::new(&target_path).parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                std::fs::copy(src, &target_path)
+                    .map_err(|e| format!("Ошибка копирования внешнего файла: {}", e))?;
+                return Ok(target_path);
+            }
+        }
+    }
+
+    // 2. Проверка локального видеофайла (если это не сетевой стрим http/https)
+    let is_remote = video_path.starts_with("http://") || video_path.starts_with("https://");
+    if !is_remote {
+        let vpath = std::path::Path::new(&video_path);
+        if !vpath.exists() {
+            return Err(format!("Исходный видеофайл не найден: {}", video_path));
+        }
+    }
+
+    // Определение пути к встроенному исполняемому файлу ffmpeg
+    let exe_dir = std::env::current_exe()
+        .map_err(|e| e.to_string())?
+        .parent()
+        .ok_or_else(|| "Не удалось определить каталог приложения L-MPV".to_string())?
+        .to_path_buf();
+
+    let mut ffmpeg_path = exe_dir.join("ffmpeg.exe");
+    if !ffmpeg_path.exists() {
+        if std::path::Path::new("ffmpeg.exe").exists() {
+            ffmpeg_path = std::path::PathBuf::from("ffmpeg.exe");
+        } else if std::path::Path::new("Portable-L-MPV/ffmpeg.exe").exists() {
+            ffmpeg_path = std::path::PathBuf::from("Portable-L-MPV/ffmpeg.exe");
+        } else {
+            ffmpeg_path = std::path::PathBuf::from("ffmpeg");
+        }
+    }
+
+    // Спецификатор потока для FFmpeg: используем точный ff_index (если доступен), иначе тип:индекс
+    let stream_specifier = if let Some(ffi) = ff_index {
+        if ffi >= 0 {
+            format!("0:{}", ffi)
+        } else if track_type == "audio" {
+            format!("0:a:{}", track_index.max(0))
+        } else {
+            format!("0:s:{}", track_index.max(0))
+        }
+    } else if track_type == "audio" {
+        format!("0:a:{}", track_index.max(0))
+    } else {
+        format!("0:s:{}", track_index.max(0))
+    };
+
+    // Создание родительской директории, если она отсутствует
+    if let Some(parent) = std::path::Path::new(&target_path).parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    // Попытка 1: Прямое копирование потока (-c copy)
+    let mut cmd = std::process::Command::new(&ffmpeg_path);
+    cmd.args([
+        "-y",
+        "-i",
+        &video_path,
+        "-map",
+        &stream_specifier,
+        "-c",
+        "copy",
+        &target_path,
+    ]);
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut output = tokio::task::spawn_blocking(move || cmd.output())
+        .await
+        .map_err(|e| format!("Сбой задачи извлечения дорожки: {}", e))?
+        .map_err(|e| format!("Не удалось запустить FFmpeg: {}", e))?;
+
+    // Попытка 2 (Fallback): Если прямое копирование потока завершилось ошибкой,
+    // пробуем извлечь с автоматической конвертацией FFmpeg
+    if !output.status.success() {
+        let mut retry_cmd = std::process::Command::new(&ffmpeg_path);
+        retry_cmd.args([
+            "-y",
+            "-i",
+            &video_path,
+            "-map",
+            &stream_specifier,
+            &target_path,
+        ]);
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            retry_cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+
+        if let Ok(Ok(retry_output)) = tokio::task::spawn_blocking(move || retry_cmd.output()).await {
+            if retry_output.status.success() {
+                output = retry_output;
+            }
+        }
+    }
+
+    if !output.status.success() {
+        let err_log = String::from_utf8_lossy(&output.stderr);
+        let last_err = err_log
+            .lines()
+            .rev()
+            .find(|l| l.contains("Error") || l.contains("error") || l.contains("Invalid") || l.contains("Could not"))
+            .unwrap_or("Неизвестная ошибка извлечения потока через FFmpeg");
+        return Err(format!("Ошибка FFmpeg: {}", last_err));
+    }
+
+    Ok(target_path)
+}
+

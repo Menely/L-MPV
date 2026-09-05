@@ -12,6 +12,7 @@ import {
   Link,
   Link2,
   Loader2,
+  Download,
   AudioLines,
   ExternalLink,
   Trash2,
@@ -35,6 +36,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [activeColor, setActiveColor] = useState<string>("#7fc7ff");
   const [showTrackNames, setShowTrackNames] = useState<boolean>(true);
   const [multiInstance, setMultiInstance] = useState<boolean>(false);
+  const [saveTracksToVideoDir, setSaveTracksToVideoDir] = useState<boolean>(true);
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string>>(getCustomHotkeys());
   const [recordingAction, setRecordingAction] = useState<string | null>(null);
@@ -74,6 +76,11 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     const savedBtns = localStorage.getItem('l-mpv-visible-buttons');
     if (savedBtns) {
       setVisibleButtons(JSON.parse(savedBtns));
+    }
+
+    const savedTrackDirSetting = localStorage.getItem('l-mpv-save-tracks-to-video-dir');
+    if (savedTrackDirSetting !== null) {
+      setSaveTracksToVideoDir(savedTrackDirSetting === 'true');
     }
 
     const loadMultiInstance = async () => {
@@ -320,6 +327,41 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                     </span>
                     <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
                       (Изменение вступит в силу после полного перезапуска приложения)
+                    </span>
+                  </div>
+                </label>
+
+                {/* Настройка скачивания дорожек */}
+                <div
+                  className="modal__section-title"
+                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Download size={16} /> Извлечение аудио и субтитров
+                  </div>
+                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
+                  <input
+                    type="checkbox"
+                    checked={saveTracksToVideoDir}
+                    onChange={(e) => {
+                      const val = e.target.checked;
+                      setSaveTracksToVideoDir(val);
+                      localStorage.setItem('l-mpv-save-tracks-to-video-dir', val ? 'true' : 'false');
+                    }}
+                    style={{
+                      width: 18,
+                      height: 18,
+                      accentColor: "var(--accent)",
+                      cursor: "pointer"
+                    }}
+                  />
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                      Скачивать дорожки в ту же папку, где находится видео
+                    </span>
+                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
+                      Если отключено, при нажатии «Скачать» будет открываться диалоговое окно Проводника с выбором папки
                     </span>
                   </div>
                 </label>

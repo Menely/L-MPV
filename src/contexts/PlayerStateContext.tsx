@@ -56,6 +56,9 @@ export interface TrackInfo {
   lang: string;
   selected: boolean;
   codec: string;
+  external?: boolean;
+  external_filename?: string;
+  ff_index?: number;
 }
 
 export interface PlayerProgress {

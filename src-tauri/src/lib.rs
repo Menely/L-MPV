@@ -124,6 +124,7 @@ pub fn run() {
             commands::save_position,
             commands::update_taskbar_progress,
             commands::toggle_fullscreen,
+            commands::extract_track,
         ])
         .on_window_event(|_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

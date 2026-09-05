@@ -1186,6 +1186,39 @@ html, body, #root {
   font-weight: 500;
 }
 
+/* ─── Кнопка скачивания дорожки в попапе ──────────────── */
+.track-download-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-smooth);
+  flex-shrink: 0;
+  padding: 0;
+  outline: none;
+}
+
+.track-download-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--accent);
+  border-color: var(--border-pill);
+}
+
+.track-download-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.track-download-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 /* ─── Drag & Drop overlay ────────────────────────────── */
 .drop-overlay {
   position: fixed;
