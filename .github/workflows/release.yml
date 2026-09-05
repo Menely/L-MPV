@@ -44,6 +44,20 @@ jobs:
           Expand-Archive -Path mpv_libs.zip -DestinationPath ./ -Force
           Remove-Item mpv_libs.zip -Force
 
+      - name: Синхронизация версии из Git-тега в package.json и Cargo.toml
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag -replace '^v', ''
+          if ($ver -match '^\d+\.\d+\.\d+') {
+            Write-Host "Установка версии $ver из тега $tag..."
+            $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+            $pkg.version = $ver
+            $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json
+
+            (Get-Content src-tauri/Cargo.toml) -replace '^version = ".*?"', "version = `"$ver`"" | Set-Content src-tauri/Cargo.toml
+          }
+
       - name: Сборка и публикация релиза Tauri
         uses: tauri-apps/tauri-action@v0
         env:
