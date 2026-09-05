@@ -810,6 +810,74 @@ html, body, #root {
   top: -6px;
 }
 
+.context-menu__submenu--left {
+  left: auto;
+  right: calc(100% + 4px);
+}
+
+.context-menu__submenu--tracks {
+  min-width: 280px;
+  max-width: min(400px, 90vw);
+  width: max-content;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.context-menu__track-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.context-menu__track-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 12px;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-family: var(--font-family);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  text-align: left;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.context-menu__track-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.context-menu__track-btn--active {
+  background: var(--bg-active);
+  color: var(--accent);
+  font-weight: 500;
+  border-color: var(--border-pill);
+}
+
+.context-menu__track-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-menu__track-check {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 /* ─── Модальное окно ─────────────────────────────────── */
 .modal-overlay {
   position: fixed;

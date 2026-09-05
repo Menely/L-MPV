@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useRef, useC
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { save } from "@tauri-apps/plugin-dialog";
 
 export interface MediaInfo {
   path: string;
@@ -105,6 +106,14 @@ interface PlayerStateContextType {
   isFullscreen: boolean;
   /** Безопасное переключение полноэкранного режима с учётом развёрнутого окна. */
   toggleFullscreen: () => Promise<void>;
+  /** Ключ дорожки, которая сейчас извлекается (напр. 'audio-1' или 'sub-2'). */
+  downloadingTrackKey: string | null;
+  /** Скачивается ли в данный момент аудиодорожка. */
+  isAudioDownloading: boolean;
+  /** Скачиваются ли в данный момент субтитры. */
+  isSubDownloading: boolean;
+  /** Функция скачивания (извлечения) выбранной дорожки в файл. */
+  handleDownloadTrack: (track: TrackInfo) => Promise<void>;
 }
 
 const PlayerStateContext = createContext<PlayerStateContextType>({
@@ -129,6 +138,10 @@ const PlayerStateContext = createContext<PlayerStateContextType>({
   cycleSubTrack: async () => {},
   isFullscreen: false,
   toggleFullscreen: async () => {},
+  downloadingTrackKey: null,
+  isAudioDownloading: false,
+  isSubDownloading: false,
+  handleDownloadTrack: async () => {},
 });
 
 export function PlayerStateProvider({ children }: { children: ReactNode }) {
@@ -597,6 +610,133 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // ─── Скачивание и извлечение аудиодорожек и субтитров ────────
+  const [downloadingTrackKey, setDownloadingTrackKey] = useState<string | null>(null);
+  const isAudioDownloading = useMemo(
+    () => downloadingTrackKey?.startsWith("audio-") ?? false,
+    [downloadingTrackKey]
+  );
+  const isSubDownloading = useMemo(
+    () => downloadingTrackKey?.startsWith("sub-") ?? false,
+    [downloadingTrackKey]
+  );
+
+  const getExtensionForTrack = useCallback((track: TrackInfo): string => {
+    const c = (track.codec || "").toLowerCase();
+    if (track.type === "audio") {
+      if (c.includes("flac")) return "flac";
+      if (c.includes("mp3")) return "mp3";
+      if (c.includes("opus")) return "opus";
+      if (c.includes("vorbis") || c.includes("ogg")) return "ogg";
+      if (c.includes("eac3") || c.includes("ac3")) return "ac3";
+      if (c.includes("dts")) return "dts";
+      if (c.includes("truehd")) return "thd";
+      if (c.includes("wav") || c.includes("pcm")) return "wav";
+      return "aac";
+    } else {
+      if (c.includes("ass") || c.includes("ssa")) return "ass";
+      if (c.includes("vtt")) return "vtt";
+      if (c.includes("pgs")) return "sup";
+      return "srt";
+    }
+  }, []);
+
+  const handleDownloadTrack = useCallback(async (track: TrackInfo) => {
+    if (!mediaInfo?.path) {
+      window.dispatchEvent(
+        new CustomEvent("show-osd", { detail: "Нет активного видео для извлечения" })
+      );
+      return;
+    }
+
+    const trackKey = `${track.type}-${track.id}`;
+    setDownloadingTrackKey(trackKey);
+
+    try {
+      const ext = getExtensionForTrack(track);
+
+      // Формируем имя файла из названия дорожки с очисткой от недопустимых символов Windows
+      let cleanTrackName = (track.title || "")
+        .trim()
+        .replace(/[\x00-\x1f\\/:*?"<>|]/g, "_")
+        .trim();
+      if (!cleanTrackName) {
+        cleanTrackName = track.lang
+          ? `${track.type === "audio" ? "Аудио" : "Субтитры"}_${track.lang.toUpperCase()}`
+          : `${track.type === "audio" ? "Аудио" : "Субтитры"}_${track.id}`;
+      }
+
+      // Итоговое имя файла совпадает с названием дорожки
+      const defaultFileName = `${cleanTrackName}.${ext}`;
+
+      // Базовый путь директории с видео (только для локальных файлов)
+      const videoFullPath = mediaInfo.path;
+      const isRemote =
+        videoFullPath.startsWith("http://") || videoFullPath.startsWith("https://");
+      const normalizedPath = videoFullPath.replace(/\\/g, "/");
+      const lastSlashIdx = normalizedPath.lastIndexOf("/");
+      const videoDir =
+        !isRemote && lastSlashIdx !== -1
+          ? normalizedPath.substring(0, lastSlashIdx)
+          : "";
+
+      // Читаем настройку: сохранять в папку с видео или вызывать диалог
+      const saveToVideoDir =
+        localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false";
+
+      let finalTargetPath: string | null = null;
+
+      if (saveToVideoDir && videoDir) {
+        finalTargetPath = `${videoDir}/${defaultFileName}`;
+      } else {
+        finalTargetPath = await save({
+          title: `Сохранить ${track.type === "audio" ? "аудиодорожку" : "субтитры"}`,
+          defaultPath: videoDir ? `${videoDir}/${defaultFileName}` : defaultFileName,
+          filters: [
+            {
+              name: track.type === "audio" ? "Аудиофайл" : "Субтитры",
+              extensions: [ext],
+            },
+          ],
+        });
+      }
+
+      if (!finalTargetPath) {
+        // Пользователь отменил диалог проводника
+        setDownloadingTrackKey(null);
+        return;
+      }
+
+      const typeTracks = tracks.filter((t) => t.type === track.type);
+      const trackIdx = typeTracks.findIndex((t) => t.id === track.id);
+      const streamIndex = trackIdx >= 0 ? trackIdx : Math.max(0, track.id - 1);
+
+      await invoke<string>("extract_track", {
+        videoPath: videoFullPath,
+        trackType: track.type,
+        trackIndex: streamIndex,
+        ffIndex: track.ff_index !== undefined ? track.ff_index : null,
+        externalFilename: track.external_filename || null,
+        targetPath: finalTargetPath,
+      });
+
+      const successLabel =
+        track.type === "audio" ? "Аудиодорожка сохранена" : "Субтитры сохранены";
+      window.dispatchEvent(
+        new CustomEvent("show-osd", {
+          detail: `${successLabel}: ${cleanTrackName}.${ext}`,
+        })
+      );
+    } catch (err) {
+      console.error("Ошибка при извлечении дорожки:", err);
+      window.dispatchEvent(
+        new CustomEvent("show-osd", { detail: "Ошибка извлечения дорожки" })
+      );
+    } finally {
+      setDownloadingTrackKey(null);
+    }
+  }, [mediaInfo?.path, getExtensionForTrack, tracks]);
+
   const contextValue = useMemo<PlayerStateContextType>(() => ({
     mediaInfo,
     liveState,
@@ -619,6 +759,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     cycleSubTrack,
     isFullscreen,
     toggleFullscreen,
+    downloadingTrackKey,
+    isAudioDownloading,
+    isSubDownloading,
+    handleDownloadTrack,
   }), [
     mediaInfo,
     liveState,
@@ -640,6 +784,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     cycleSubTrack,
     isFullscreen,
     toggleFullscreen,
+    downloadingTrackKey,
+    isAudioDownloading,
+    isSubDownloading,
+    handleDownloadTrack,
   ]);
 
   return (

@@ -1,5 +1,5 @@
-import { useEffect, useCallback, useRef, useState } from "react";
-import { usePlayerState } from "../contexts/PlayerStateContext";
+import { useEffect, useCallback, useRef, useState, useMemo } from "react";
+import { usePlayerState, TrackInfo } from "../contexts/PlayerStateContext";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -18,7 +18,9 @@ import {
   Settings,
   Camera,
   Repeat,
-  Shuffle
+  Shuffle,
+  Download,
+  Loader2,
 } from "lucide-react";
 
 interface ContextMenuProps {
@@ -39,13 +41,18 @@ interface ContextMenuProps {
 }
 
 interface MenuItem {
-  type: "item" | "divider" | "submenu";
+  type: "item" | "divider" | "submenu" | "track";
   icon?: React.ReactNode;
   label?: string;
   shortcut?: string;
   action?: () => void;
   active?: boolean;
   children?: MenuItem[];
+  submenuClassName?: string;
+  track?: TrackInfo;
+  onDownload?: () => void;
+  isDownloading?: boolean;
+  downloadTitle?: string;
 }
 
 export function ContextMenu({
@@ -61,7 +68,15 @@ export function ContextMenu({
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const closeTimerRef = useRef<number | null>(null);
 
-  const { mediaInfo, tracks, selectAudioTrack, selectSubTrack, disableSubtitles } = usePlayerState();
+  const {
+    mediaInfo,
+    tracks,
+    selectAudioTrack,
+    selectSubTrack,
+    disableSubtitles,
+    downloadingTrackKey,
+    handleDownloadTrack,
+  } = usePlayerState();
   const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
 
   // Позиционирование меню с учётом границ экрана
@@ -189,12 +204,17 @@ export function ContextMenu({
       type: "submenu",
       icon: <AudioLines size={15} />,
       label: "Аудиодорожка",
+      submenuClassName: "context-menu__submenu--tracks",
       children: audioTracks.length > 0 ? (
         audioTracks.map((t) => ({
-          type: "item",
+          type: "track" as const,
+          track: t,
           label: `${t.title || `Дорожка ${t.id}`} ${t.lang ? `(${t.lang})` : ""}`,
           active: t.selected,
           action: () => handleSelectAudio(t.id),
+          onDownload: () => handleDownloadTrack(t),
+          isDownloading: downloadingTrackKey === `audio-${t.id}`,
+          downloadTitle: "Скачать аудиодорожку",
         }))
       ) : (
         [{ type: "item", label: "Нет доступных аудиодорожек" }]
@@ -204,18 +224,23 @@ export function ContextMenu({
       type: "submenu",
       icon: <Subtitles size={15} />,
       label: "Субтитры",
+      submenuClassName: "context-menu__submenu--tracks",
       children: [
         {
-          type: "item",
+          type: "track" as const,
           label: "Выключить субтитры",
           active: !subTracks.some((t) => t.selected),
           action: handleDisableSubs,
         },
         ...subTracks.map((t) => ({
-          type: "item" as const,
+          type: "track" as const,
+          track: t,
           label: `${t.title || `Субтитры ${t.id}`} ${t.lang ? `(${t.lang})` : ""}`,
           active: t.selected,
           action: () => handleSelectSub(t.id),
+          onDownload: () => handleDownloadTrack(t),
+          isDownloading: downloadingTrackKey === `sub-${t.id}`,
+          downloadTitle: "Скачать субтитры",
         })),
         { type: "divider" },
         {
@@ -338,6 +363,14 @@ export function ContextMenu({
     },
   ];
 
+  // Проверка близости к правому краю для открытия подменю влево
+  const isRightScreenEdge = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const zoomStr = getComputedStyle(document.documentElement).getPropertyValue('--ui-scale').trim();
+    const zoom = zoomStr ? parseFloat(zoomStr) : 1;
+    return adjustedPos.x + 220 + 380 > (window.innerWidth / (zoom || 1));
+  }, [adjustedPos.x]);
+
   // ─── Рендеринг пункта меню ────────────────────────
   const renderItem = useCallback(
     (item: MenuItem, index: number) => {
@@ -347,6 +380,44 @@ export function ContextMenu({
             key={`divider-${index}`}
             className="context-menu__divider"
           />
+        );
+      }
+
+      if (item.type === "track") {
+        return (
+          <div key={`track-${index}`} className="context-menu__track-row">
+            <button
+              type="button"
+              className={`context-menu__track-btn ${
+                item.active ? "context-menu__track-btn--active" : ""
+              }`}
+              onClick={item.action}
+              title={item.label}
+            >
+              <span className="context-menu__track-title">{item.label}</span>
+              <span className="context-menu__track-check">
+                {item.active && <Check size={14} />}
+              </span>
+            </button>
+            {item.onDownload && (
+              <button
+                type="button"
+                className="track-download-btn"
+                title={item.downloadTitle || "Скачать"}
+                disabled={item.isDownloading}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  item.onDownload?.();
+                }}
+              >
+                {item.isDownloading ? (
+                  <Loader2 size={13} className="spin-animation" />
+                ) : (
+                  <Download size={13} />
+                )}
+              </button>
+            )}
+          </div>
         );
       }
 
@@ -380,7 +451,11 @@ export function ContextMenu({
             </button>
 
             {activeSubmenu === submenuId && item.children && (
-              <div className="context-menu context-menu__submenu">
+              <div
+                className={`context-menu context-menu__submenu ${
+                  item.submenuClassName || ""
+                } ${isRightScreenEdge ? "context-menu__submenu--left" : ""}`}
+              >
                 {item.children.map((child, ci) => renderItem(child, ci))}
               </div>
             )}
@@ -413,7 +488,7 @@ export function ContextMenu({
         </button>
       );
     },
-    [activeSubmenu]
+    [activeSubmenu, isRightScreenEdge]
   );
 
   return (
