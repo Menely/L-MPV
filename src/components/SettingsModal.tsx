@@ -22,7 +22,7 @@ import {
   resetCustomHotkeys,
   getKeyDisplay,
 } from "../utils/hotkeyUtils";
-import { PASTEL_PRESETS, applyAccentColor } from "../utils/colorUtils";
+import { PASTEL_PRESETS, VIBRANT_PRESETS, GRADIENT_PRESETS, applyAccentColor } from "../utils/colorUtils";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -336,56 +336,113 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                     <Palette size={16} /> Акцентный цвет
                   </div>
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 4 }}>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const winColor = await invoke<string>("get_windows_accent_color");
-                        applyAccentColor(winColor);
-                        setActiveColor("windows");
-                        localStorage.setItem('l-mpv-accent-color', 'windows');
-                      } catch (e) {
-                        console.error("Ошибка получения цвета Windows", e);
-                      }
-                    }}
-                    title="Использовать цвет Windows"
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      background: "rgba(255,255,255,0.1)",
-                      border: activeColor === "windows" ? "2px solid white" : "2px solid transparent",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "white",
-                      transition: "all var(--t-fast) var(--ease-smooth)",
-                    }}
-                  >
-                    <Monitor size={16} />
-                  </button>
-                  {PASTEL_PRESETS.map((hex) => (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 4 }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Пастельные цвета
+                  </span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                     <button
-                      key={hex}
-                      onClick={() => {
-                        applyAccentColor(hex);
-                        setActiveColor(hex);
-                        localStorage.setItem('l-mpv-accent-color', hex);
+                      onClick={async () => {
+                        try {
+                          const winColor = await invoke<string>("get_windows_accent_color");
+                          applyAccentColor(winColor);
+                          setActiveColor("windows");
+                          localStorage.setItem('l-mpv-accent-color', 'windows');
+                        } catch (e) {
+                          console.error("Ошибка получения цвета Windows", e);
+                        }
                       }}
-                      title={hex}
+                      title="Использовать цвет Windows"
                       style={{
                         width: 32,
                         height: 32,
                         borderRadius: "50%",
-                        backgroundColor: hex,
-                        border: activeColor === hex ? "2px solid white" : "2px solid transparent",
+                        background: "rgba(255,255,255,0.1)",
+                        border: activeColor === "windows" ? "2px solid white" : "2px solid transparent",
                         cursor: "pointer",
-                        boxShadow: activeColor === hex ? `0 0 12px ${hex}80` : "none",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "white",
                         transition: "all var(--t-fast) var(--ease-smooth)",
                       }}
-                    />
-                  ))}
+                    >
+                      <Monitor size={16} />
+                    </button>
+                    {PASTEL_PRESETS.map((hex) => (
+                      <button
+                        key={hex}
+                        onClick={() => {
+                          applyAccentColor(hex);
+                          setActiveColor(hex);
+                          localStorage.setItem('l-mpv-accent-color', hex);
+                        }}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          backgroundColor: hex,
+                          border: activeColor === hex ? "2px solid white" : "2px solid transparent",
+                          cursor: "pointer",
+                          boxShadow: activeColor === hex ? `0 0 12px ${hex}80` : "none",
+                          transition: "all var(--t-fast) var(--ease-smooth)",
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Однотонные
+                  </span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    {VIBRANT_PRESETS.map((hex) => (
+                      <button
+                        key={hex}
+                        onClick={() => {
+                          applyAccentColor(hex);
+                          setActiveColor(hex);
+                          localStorage.setItem('l-mpv-accent-color', hex);
+                        }}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          backgroundColor: hex,
+                          border: activeColor === hex ? "2px solid white" : "2px solid transparent",
+                          cursor: "pointer",
+                          boxShadow: activeColor === hex ? `0 0 14px ${hex}A0` : "none",
+                          transition: "all var(--t-fast) var(--ease-smooth)",
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Многоцветные градиенты
+                  </span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    {GRADIENT_PRESETS.map((grad) => (
+                      <button
+                        key={grad.id}
+                        onClick={() => {
+                          applyAccentColor(grad.id);
+                          setActiveColor(grad.id);
+                          localStorage.setItem('l-mpv-accent-color', grad.id);
+                        }}
+                        title={grad.name}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          background: grad.gradient,
+                          border: activeColor === grad.id ? "2px solid white" : "2px solid transparent",
+                          cursor: "pointer",
+                          boxShadow: activeColor === grad.id ? `0 0 14px ${grad.baseColor}B0` : "none",
+                          transition: "all var(--t-fast) var(--ease-smooth)",
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
 
                 {/* Настройка прозрачности */}

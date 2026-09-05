@@ -228,8 +228,16 @@ function App() {
     try {
       const appWindow = getCurrentWindow();
       const fs = await appWindow.isFullscreen();
+      // Скрываем контент на время перехода DWM,
+      // чтобы не было видно промежуточного положения окна
+      document.documentElement.style.opacity = '0';
       await appWindow.setFullscreen(!fs);
+      // Даём Windows DWM завершить анимацию перехода
+      setTimeout(() => {
+        document.documentElement.style.opacity = '1';
+      }, 60);
     } catch (e) {
+      document.documentElement.style.opacity = '1';
       console.error(e);
     }
   }, []);
@@ -565,7 +573,7 @@ function App() {
         )}
       </div>
 
-      {hasMedia && !isIdle && (
+      {hasMedia && (
         <div className="player-controls-wrapper">
           <PlayerControls
             showMediaInfo={showMediaInfo}

@@ -67,7 +67,6 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
         <button
           className="titlebar__btn"
           onClick={handleMinimize}
-          title="Свернуть"
           id="titlebar-minimize"
         >
           <Minus size={14} strokeWidth={1.5} />
@@ -75,7 +74,6 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
         <button
           className="titlebar__btn"
           onClick={handleMaximize}
-          title="Развернуть"
           id="titlebar-maximize"
         >
           <Square size={12} strokeWidth={1.5} />
@@ -83,7 +81,6 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
         <button
           className="titlebar__btn titlebar__btn--close"
           onClick={handleClose}
-          title="Закрыть"
           id="titlebar-close"
         >
           <X size={14} strokeWidth={1.5} />

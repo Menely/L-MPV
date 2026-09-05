@@ -6,12 +6,13 @@
 /* ─── CSS Переменные (Design Tokens) ─────────────────── */
 :root {
   /* Палитра на базе #7fc7ff */
-  --accent:       #7fc7ff;
-  --accent-hover: #99d4ff;
-  --accent-dim:   #5ba8e6;
-  --accent-dark:  #3a7cb8;
-  --accent-glow:  rgba(127, 199, 255, 0.30);
-  --accent-glass: rgba(127, 199, 255, 0.08);
+  --accent:          #7fc7ff;
+  --accent-gradient: linear-gradient(90deg, #7fc7ff, #7fc7ff);
+  --accent-hover:    #99d4ff;
+  --accent-dim:      #5ba8e6;
+  --accent-dark:     #3a7cb8;
+  --accent-glow:     rgba(127, 199, 255, 0.30);
+  --accent-glass:    rgba(127, 199, 255, 0.08);
 
   /* Фоны */
   --ui-opacity: 0.88;
@@ -151,8 +152,7 @@ html, body, #root {
   display: none; /* Скрываем второстепенные кнопки в мини-плеере */
 }
 .app-container--mini .controls-row__right #btn-speed,
-.app-container--mini .controls-row__right button[title="Поверх всех окон (PiP)"],
-.app-container--mini .controls-row__right button[title="Mini Player (PiP режим)"] {
+.app-container--mini .controls-row__right #btn-always-on-top {
   display: flex; /* Оставляем только важные кнопки */
 }
 
@@ -389,7 +389,7 @@ html, body, #root {
 
 /* ─── Обертка панели управления (Floating Pill Full-Width) ── */
 .player-controls-wrapper {
-  position: fixed;
+  position: absolute;
   bottom: 12px;
   left: 14px;
   right: 14px;
@@ -466,7 +466,7 @@ html, body, #root {
   top: 0;
   left: 0;
   height: 100%;
-  background: var(--accent);
+  background: var(--accent-gradient, var(--accent));
   border-radius: 4px;
   transition: none;
   will-change: width;
@@ -682,11 +682,10 @@ html, body, #root {
   appearance: none;
   width: 56px;
   height: 3px;
-  background: rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.12);
   border-radius: 3px;
   outline: none;
   cursor: pointer;
-  transition: background var(--t-fast) var(--ease-smooth);
   accent-color: var(--accent);
 }
 

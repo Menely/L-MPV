@@ -230,9 +230,16 @@ export function PlayerControls({
     try {
       const appWindow = (await import("@tauri-apps/api/window")).getCurrentWindow();
       const fs = await appWindow.isFullscreen();
+      // Скрываем контент на время перехода DWM
+      document.documentElement.style.opacity = '0';
       await appWindow.setFullscreen(!fs);
       setIsFullscreen(!fs);
+      // Даём Windows DWM завершить анимацию перехода
+      setTimeout(() => {
+        document.documentElement.style.opacity = '1';
+      }, 60);
     } catch (e) {
+      document.documentElement.style.opacity = '1';
       console.error(e);
     }
   }, []);
@@ -396,7 +403,6 @@ export function PlayerControls({
                   setActivePopover("audio");
                 }
               }}
-              title={activeAudioTrack ? `Аудио: ${activeAudioTrack.title || activeAudioTrack.lang || activeAudioTrack.id} (ЛКМ - сменить, ПКМ - меню)` : "Аудиодорожки (ЛКМ - сменить, ПКМ - меню)"}
               id="btn-audio-tracks"
             >
               <AudioLines size={18} />
@@ -421,7 +427,6 @@ export function PlayerControls({
                   setActivePopover("sub");
                 }
               }}
-              title={activeSubTrack ? `Субтитры: ${activeSubTrack.title || activeSubTrack.lang || activeSubTrack.id} (ЛКМ - сменить, ПКМ - меню)` : "Субтитры (ЛКМ - сменить, ПКМ - меню)"}
               id="btn-sub-tracks"
             >
               <Subtitles size={18} />
@@ -441,7 +446,6 @@ export function PlayerControls({
               <button
                 className="control-btn"
                 onClick={() => handleVolumeChange(volume > 0 ? 0 : 100)}
-                title="Громкость"
                 id="btn-volume"
               >
                 {volume === 0 ? (
@@ -460,7 +464,9 @@ export function PlayerControls({
                   max="100"
                   value={volume}
                   style={{
-                    background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${volume}%, rgba(255, 255, 255, 0.12) ${volume}%, rgba(255, 255, 255, 0.12) 100%)`
+                    backgroundImage: "var(--accent-gradient, var(--accent))",
+                    backgroundSize: `${volume}% 100%`,
+                    backgroundRepeat: "no-repeat",
                   }}
                   onChange={(e) =>
                     handleVolumeChange(Number(e.target.value), false)
@@ -471,7 +477,6 @@ export function PlayerControls({
                   onTouchEnd={(e) => 
                     handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
                   }
-                  title={`Громкость: ${volume}%`}
                   id="slider-volume"
                 />
               </div>
@@ -491,7 +496,6 @@ export function PlayerControls({
               <button
                 className={`control-btn ${repeatMode !== 0 ? "control-btn--active" : ""}`}
                 onClick={handleToggleRepeat}
-                title={repeatMode === 0 ? "Повтор: выключен" : repeatMode === 1 ? "Повтор: один файл" : "Повтор: плейлист"}
               >
                 {repeatMode === 1 ? <Repeat1 size={16} /> : <Repeat size={16} />}
               </button>
@@ -500,7 +504,6 @@ export function PlayerControls({
             <button
               className="control-btn"
               onClick={handlePlaylistPrev}
-              title="Предыдущее видео"
               id="btn-playlist-prev"
             >
               <SkipBack size={18} />
@@ -509,7 +512,6 @@ export function PlayerControls({
             <button
               className="control-btn"
               onClick={() => handleSeek(-10)}
-              title="Перемотка -10 сек"
               id="btn-seek-back-10"
             >
               <Undo size={18} />
@@ -518,7 +520,6 @@ export function PlayerControls({
             <button
               className="control-btn control-btn--play"
               onClick={handleTogglePause}
-              title={paused ? "Воспроизвести" : "Пауза"}
               id="btn-play-pause"
             >
               {paused ? (
@@ -531,7 +532,6 @@ export function PlayerControls({
             <button
               className="control-btn"
               onClick={() => handleSeek(10)}
-              title="Перемотка +10 сек"
               id="btn-seek-forward-10"
             >
               <Redo size={18} />
@@ -540,7 +540,6 @@ export function PlayerControls({
             <button
               className="control-btn"
               onClick={handlePlaylistNext}
-              title="Следующее видео"
               id="btn-playlist-next"
             >
               <SkipForward size={18} />
@@ -550,7 +549,6 @@ export function PlayerControls({
               <button
                 className="control-btn"
                 onClick={handleShuffle}
-                title="Случайный порядок"
               >
                 <Shuffle size={16} />
               </button>
@@ -562,6 +560,7 @@ export function PlayerControls({
             {visibleButtons.alwaysOnTop !== false && (
               <button
                 className={`control-btn ${isAlwaysOnTop ? "control-btn--active" : ""}`}
+                id="btn-always-on-top"
                 onClick={async () => {
                   try {
                     const appWindow = (await import("@tauri-apps/api/window")).getCurrentWindow();
@@ -570,7 +569,6 @@ export function PlayerControls({
                     setIsAlwaysOnTop(!current);
                   } catch (e) { console.error(e); }
                 }}
-                title={isAlwaysOnTop ? "Открепить" : "Поверх всех окон"}
               >
                 <Pin size={18} />
               </button>
@@ -588,7 +586,6 @@ export function PlayerControls({
                     onShowMediaInfo();
                   }
                 }}
-                title="Информация о файле"
               >
                 <Info size={18} />
               </button>
@@ -601,7 +598,6 @@ export function PlayerControls({
                   e.stopPropagation();
                   setIsPlaylistOpen(!isPlaylistOpen);
                 }}
-                title="Плейлист (L)"
                 id="btn-playlist-drawer"
               >
                 <ListVideo size={18} />
@@ -612,7 +608,6 @@ export function PlayerControls({
               <button
                 className="control-btn"
                 onClick={handleTakeScreenshot}
-                title="Сделать скриншот (s)"
                 id="btn-screenshot"
               >
                 <Camera size={18} />
@@ -623,7 +618,6 @@ export function PlayerControls({
               <button
                 className="control-btn"
                 onClick={handleFullscreen}
-                title="Полный экран"
                 id="btn-fullscreen"
               >
                 {isFullscreen ? (

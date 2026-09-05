@@ -175,9 +175,10 @@ impl MpvManager {
                 &api, handle, "keep-open", "always",
             );
 
-            // ─── Масштабирование ────────────────────────
-            Self::set_option(&api, handle, "scale", "ewa_lanczossharp");
-            Self::set_option(&api, handle, "cscale", "mitchell");
+            // ─── Масштабирование и поведение окна ──────
+            Self::set_option(&api, handle, "auto-window-resize", "no");
+            Self::set_option(&api, handle, "scale", "spline36");
+            Self::set_option(&api, handle, "cscale", "spline36");
 
             // Без встроенного OSC (мы делаем свой UI)
             Self::set_option(&api, handle, "osc", "no");
