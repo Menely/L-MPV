@@ -368,7 +368,7 @@ export function ContextMenu({
     if (typeof window === "undefined") return false;
     const zoomStr = getComputedStyle(document.documentElement).getPropertyValue('--ui-scale').trim();
     const zoom = zoomStr ? parseFloat(zoomStr) : 1;
-    return adjustedPos.x + 220 + 380 > (window.innerWidth / (zoom || 1));
+    return adjustedPos.x + 220 + 220 > (window.innerWidth / (zoom || 1));
   }, [adjustedPos.x]);
 
   // ─── Рендеринг пункта меню ────────────────────────
