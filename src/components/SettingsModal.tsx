@@ -10,7 +10,8 @@ import {
   Palette,
   Monitor,
   Link,
-  Terminal,
+  Link2,
+  Loader2,
   AudioLines,
   ExternalLink,
   Trash2,
@@ -39,6 +40,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [recordingAction, setRecordingAction] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "hotkeys" | "integration">("general");
   const [integrationLogs, setIntegrationLogs] = useState<string[]>([]);
+  const [isRegistering, setIsRegistering] = useState<boolean>(false);
+  const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
 
   // Загружаем текущий путь к скриншотам из mpv
   useEffect(() => {
@@ -703,29 +706,33 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
                 <button
+                  disabled={isRegistering || isUnregistering}
                   onClick={async () => {
+                    setIsRegistering(true);
                     try {
                       const logs = await invoke<string[]>("register_file_associations");
                       setIntegrationLogs(logs);
                     } catch (e) {
                       setIntegrationLogs([`[ERROR] Не удалось зарегистрировать: ${e}`]);
+                    } finally {
+                      setIsRegistering(false);
                     }
                   }}
-                  className="control-btn"
-                  style={{
-                    width: "100%",
-                    height: 38,
-                    borderRadius: "var(--radius-md)",
-                    background: "var(--accent-glass)",
-                    border: "1px solid var(--border-pill)",
-                    color: "var(--accent)",
-                    fontSize: "0.88rem",
-                    fontWeight: 600,
-                    gap: 8,
-                    cursor: "pointer",
-                  }}
+                  className="settings-action-btn settings-action-btn--primary"
+                  title="Зарегистрировать ассоциации всех поддерживаемых видео- и аудиоформатов с L-MPV"
+                  style={{ width: "100%" }}
                 >
-                  <Terminal size={17} /> Связать медиафайлы с L-MPV
+                  {isRegistering ? (
+                    <>
+                      <Loader2 size={16} className="spin-animation" />
+                      Связывание файлов...
+                    </>
+                  ) : (
+                    <>
+                      <Link2 size={16} />
+                      Связать медиафайлы с L-MPV
+                    </>
+                  )}
                 </button>
 
                 <div style={{ display: "flex", gap: 10 }}>
@@ -744,47 +751,40 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                         ]);
                       }
                     }}
-                    className="control-btn"
-                    style={{
-                      flex: 1,
-                      height: 36,
-                      borderRadius: "var(--radius-md)",
-                      background: "rgba(255, 255, 255, 0.06)",
-                      border: "1px solid var(--border)",
-                      color: "var(--text-main)",
-                      fontSize: "0.82rem",
-                      fontWeight: 500,
-                      gap: 6,
-                      cursor: "pointer",
-                    }}
+                    className="settings-action-btn settings-action-btn--secondary"
+                    title="Открыть системные параметры Windows 'Приложения по умолчанию'"
+                    style={{ flex: 1 }}
                   >
                     <ExternalLink size={15} /> Настройки Windows
                   </button>
 
                   <button
+                    disabled={isRegistering || isUnregistering}
                     onClick={async () => {
+                      setIsUnregistering(true);
                       try {
                         const logs = await invoke<string[]>("unregister_file_associations");
                         setIntegrationLogs(logs);
                       } catch (e) {
                         setIntegrationLogs([`[ERROR] Не удалось удалить: ${e}`]);
+                      } finally {
+                        setIsUnregistering(false);
                       }
                     }}
-                    className="control-btn"
-                    style={{
-                      flex: 1,
-                      height: 36,
-                      borderRadius: "var(--radius-md)",
-                      background: "rgba(244, 67, 54, 0.08)",
-                      border: "1px solid rgba(244, 67, 54, 0.25)",
-                      color: "#f87171",
-                      fontSize: "0.82rem",
-                      fontWeight: 500,
-                      gap: 6,
-                      cursor: "pointer",
-                    }}
+                    className="settings-action-btn settings-action-btn--danger"
+                    title="Удалить привязку медиаформатов к L-MPV из реестра Windows"
+                    style={{ flex: 1 }}
                   >
-                    <Trash2 size={15} /> Удалить ассоциации
+                    {isUnregistering ? (
+                      <>
+                        <Loader2 size={15} className="spin-animation" />
+                        Удаление...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 size={15} /> Удалить ассоциации
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

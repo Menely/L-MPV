@@ -1114,10 +1114,20 @@ pub fn unregister_file_associations() -> Result<Vec<String>, String> {
 pub fn open_default_apps_settings() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("cmd")
-            .args(["/c", "start", "ms-settings:defaultapps"])
-            .spawn()
-            .map_err(|e| format!("Не удалось открыть системные настройки: {}", e))?;
+        use windows::core::w;
+        use windows::Win32::UI::Shell::ShellExecuteW;
+        use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+        unsafe {
+            ShellExecuteW(
+                None,
+                w!("open"),
+                w!("ms-settings:defaultapps"),
+                None,
+                None,
+                SW_SHOWNORMAL,
+            );
+        }
     }
     Ok(())
 }
@@ -1463,12 +1473,27 @@ pub async fn toggle_fullscreen(window: tauri::WebviewWindow) -> Result<bool, Str
                         let _ = tbl.MarkFullscreenWindow(hwnd, !is_fs);
                     }
 
+                    let was_ontop =
+                        WAS_ALWAYS_ON_TOP_BEFORE_FS.load(Ordering::SeqCst);
+
                     if !is_fs {
-                        // В полноэкранном режиме помещаем окно поверх всех окон (HWND_TOPMOST),
-                        // гарантируя, что системная панель задач не отображается поверх плеера
+                        // В полноэкранном режиме:
+                        // Если пользователь явно включил режим "Поверх всех окон"
+                        // (was_ontop == true), сохраняем окно как HWND_TOPMOST.
+                        // Если этот режим отключен, окно должно быть обычным (HWND_NOTOPMOST),
+                        // чтобы сторонние приложения (браузер, блокнот, мессенджеры и т.д.)
+                        // могли свободно открываться поверх плеера при переключении фокуса (Alt+Tab).
+                        // Панель задач Windows скрывается автоматически благодаря
+                        // системному вызову ITaskbarList2::MarkFullscreenWindow выше.
+                        let insert_after = if was_ontop {
+                            HWND_TOPMOST
+                        } else {
+                            HWND_NOTOPMOST
+                        };
+
                         let _ = SetWindowPos(
                             hwnd,
-                            HWND_TOPMOST,
+                            insert_after,
                             0,
                             0,
                             0,
@@ -1476,10 +1501,8 @@ pub async fn toggle_fullscreen(window: tauri::WebviewWindow) -> Result<bool, Str
                             SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED | SWP_SHOWWINDOW,
                         );
                     } else {
-                        // При выходе из полного экрана возвращаем обычный порядок наложения,
-                        // если пользователь не активировал вручную опцию "Поверх всех окон"
-                        let was_ontop =
-                            WAS_ALWAYS_ON_TOP_BEFORE_FS.load(Ordering::SeqCst);
+                        // При выходе из полноэкранного режима возвращаем нормальный Z-order,
+                        // если опция "Поверх всех окон" изначально не была активирована пользователем.
                         if !was_ontop {
                             let _ = SetWindowPos(
                                 hwnd,

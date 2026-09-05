@@ -928,6 +928,86 @@ html, body, #root {
   font-variant-numeric: tabular-nums;
 }
 
+/* ─── Кнопки действий в модальных окнах ───────────────── */
+.settings-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.86rem;
+  font-weight: 500;
+  gap: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--t-fast) var(--ease-smooth);
+  user-select: none;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.settings-action-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.settings-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-action-btn--primary {
+  background: var(--accent-glass);
+  border-color: var(--border-pill);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.settings-action-btn--primary:hover:not(:disabled) {
+  background: var(--accent);
+  color: #0b0d12;
+  box-shadow: 0 0 16px var(--accent-glow);
+  border-color: var(--accent);
+}
+
+.settings-action-btn--secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.settings-action-btn--secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-hover);
+  color: #ffffff;
+}
+
+.settings-action-btn--danger {
+  background: rgba(244, 67, 54, 0.08);
+  border-color: rgba(244, 67, 54, 0.25);
+  color: #f87171;
+}
+
+.settings-action-btn--danger:hover:not(:disabled) {
+  background: rgba(244, 67, 54, 0.18);
+  border-color: rgba(244, 67, 54, 0.45);
+  color: #fca5a5;
+  box-shadow: 0 0 14px rgba(244, 67, 54, 0.25);
+}
+
+.spin-animation {
+  animation: spinAround 1s linear infinite;
+}
+
+@keyframes spinAround {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ─── Боковая панель (главы) ─────────────────────────── */
 .side-panel {
   position: absolute;
