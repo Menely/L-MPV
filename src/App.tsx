@@ -33,6 +33,8 @@ function App() {
     setVolume,
     isFullscreen,
     toggleFullscreen,
+    cycleAudioTrack,
+    cycleSubTrack,
   } = usePlayerState();
   
   const [contextMenu, setContextMenu] = useState<{
@@ -120,11 +122,13 @@ function App() {
     };
   }, []);
 
+  const isWindowRevealedRef = useRef(false);
+
   // ─── Автоматическая подгонка окна под размер и пропорции видео ───
   const resizeWindowForVideo = useCallback(async (w: number, h: number) => {
     try {
+      const appWindow = getCurrentWindow();
       if (w > 0 && h > 0) {
-        const appWindow = getCurrentWindow();
         const isFs = await appWindow.isFullscreen();
         const isMax = await appWindow.isMaximized();
         if (!isFs && !isMax) {
@@ -135,8 +139,7 @@ function App() {
           let targetWidth = w / scaleFactor;
           let targetHeight = h / scaleFactor;
           
-          // 1. Ограничиваем сверху (чтобы окно не вылезало за экран и не было огромным)
-          // Ограничиваем максимальный размер до комфортного значения (не более 1280x720 или 50% экрана)
+          // Ограничиваем сверху (чтобы окно не вылезало за экран и не было огромным)
           const MAX_COMFORTABLE_WIDTH = 1280;
           const MAX_COMFORTABLE_HEIGHT = 720;
 
@@ -149,7 +152,7 @@ function App() {
             targetHeight = targetHeight * ratio;
           }
           
-          // 2. Ограничиваем снизу (учитываем minWidth и minHeight из tauri.conf)
+          // Ограничиваем снизу
           const MIN_WIDTH = 320;
           const MIN_HEIGHT = 180;
           
@@ -159,17 +162,26 @@ function App() {
             targetHeight = targetHeight * ratio;
           }
           
-          // 3. Высчитываем физический размер с идеальным соотношением сторон,
-          //    чтобы избежать субпиксельных артефактов и черных полос.
           const physWidth = Math.round(targetWidth * scaleFactor);
           const physHeight = Math.round(physWidth / videoAspect);
           
           await appWindow.setSize(new PhysicalSize(physWidth, physHeight));
-          return true; // Успешно изменили размер
+          await appWindow.center();
         }
       }
+
+      // Показываем окно строго ПОСЛЕ изменения размера и готовности первого кадра
+      if (!isWindowRevealedRef.current) {
+        isWindowRevealedRef.current = true;
+        await appWindow.show();
+      }
+      return true;
     } catch (e) {
       console.error("Ошибка при изменении размера окна:", e);
+      if (!isWindowRevealedRef.current) {
+        isWindowRevealedRef.current = true;
+        getCurrentWindow().show().catch(() => {});
+      }
     }
     return false;
   }, []);
@@ -177,10 +189,6 @@ function App() {
   const lastResizedVideoRef = useRef<{ path: string; w: number; h: number } | null>(null);
 
   useEffect(() => {
-    // Вызываем изменение размера, если:
-    // 1. Появился новый файл (изменился путь)
-    // 2. Или если обновились реальные размеры видео (mpv закончил подгрузку нового трека)
-    // Это полностью устраняет гонку при переключении между mkv/mp4 файлами с разным разрешением
     if (mediaInfo?.path && mediaInfo.width > 0 && mediaInfo.height > 0) {
       if (
         lastResizedVideoRef.current?.path !== mediaInfo.path ||
@@ -194,16 +202,31 @@ function App() {
         };
         resizeWindowForVideo(mediaInfo.width, mediaInfo.height);
       }
+    } else if (mediaInfo?.path) {
+      // Аудиофайл или файл без видеоряда
+      if (!isWindowRevealedRef.current) {
+        isWindowRevealedRef.current = true;
+        getCurrentWindow().show().catch(() => {});
+      }
     } else if (!mediaInfo?.path) {
-      // Сбрасываем флаг при закрытии медиа
       lastResizedVideoRef.current = null;
     }
   }, [mediaInfo?.path, mediaInfo?.width, mediaInfo?.height, resizeWindowForVideo]);
 
+  // Защитный таймер безопасности (на случай долгого ответа декодера или ошибок)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isWindowRevealedRef.current) {
+        isWindowRevealedRef.current = true;
+        getCurrentWindow().show().catch(() => {});
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
   // ─── Отображение OSD кадра в левом верхнем углу ────
   const triggerFrameOsd = useCallback(async () => {
     try {
-      // Небольшая задержка, чтобы MPV успел обновить estimated-frame-number после шага
       await new Promise(r => setTimeout(r, 60));
       const frame = await invoke<number>("get_frame_number");
       const count = await invoke<number>("get_frame_count");
@@ -219,49 +242,318 @@ function App() {
     }
   }, []);
 
-
-
-  const handleContextMenu = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      setContextMenu({ x: e.clientX, y: e.clientY });
-    },
-    []
-  );
-
   const closeContextMenu = useCallback(() => {
     setContextMenu(null);
   }, []);
 
-  // ─── Разделение одиночного и двойного кликов мыши ──
-  const handleVideoAreaClick = useCallback(
+  const [hotkeys, setHotkeys] = useState(getCustomHotkeys());
+
+  const latestRef = useRef({
+    hasMedia,
+    mediaInfo,
+    isFullscreen,
+    togglePause,
+    setVolume,
+    toggleFullscreen,
+    cycleAudioTrack,
+    cycleSubTrack,
+    isPlaylistOpen,
+    setIsPlaylistOpen,
+    hotkeys,
+  });
+
+  latestRef.current = {
+    hasMedia,
+    mediaInfo,
+    isFullscreen,
+    togglePause,
+    setVolume,
+    toggleFullscreen,
+    cycleAudioTrack,
+    cycleSubTrack,
+    isPlaylistOpen,
+    setIsPlaylistOpen,
+    hotkeys,
+  };
+
+  const handleOpenFile = useCallback(async () => {
+    try {
+      const file = await open({
+        multiple: false,
+        directory: false,
+        filters: [
+          {
+            name: "Video",
+            extensions: [
+              "mkv",
+              "mp4",
+              "avi",
+              "mov",
+              "webm",
+            ],
+          },
+        ],
+      });
+      if (file) {
+        await invoke("open_file", { path: file });
+      }
+    } catch (err) {
+      console.error("Ошибка открытия файла:", err);
+    }
+  }, []);
+
+  const executeAction = useCallback(async (actionId: string, coords?: { x: number; y: number }) => {
+    const {
+      hasMedia: curHasMedia,
+      mediaInfo: curMediaInfo,
+      togglePause: curTogglePause,
+      setVolume: curSetVolume,
+      toggleFullscreen: curToggleFullscreen,
+      cycleAudioTrack: curCycleAudioTrack,
+      cycleSubTrack: curCycleSubTrack,
+      isPlaylistOpen: curIsPlaylistOpen,
+      setIsPlaylistOpen: curSetIsPlaylistOpen,
+    } = latestRef.current;
+
+    switch (actionId) {
+      case "togglePause":
+        if (curHasMedia) {
+          try {
+            await curTogglePause();
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        break;
+      case "seekBack":
+        await invoke("seek", { seconds: -5 });
+        break;
+      case "seekForward":
+        await invoke("seek", { seconds: 5 });
+        break;
+      case "seekBack10":
+        await invoke("seek", { seconds: -10 });
+        break;
+      case "seekForward10":
+        await invoke("seek", { seconds: 10 });
+        break;
+      case "volumeUp":
+        if (curMediaInfo) curSetVolume(Math.min(100, (curMediaInfo.volume ?? 100) + 5));
+        break;
+      case "volumeDown":
+        if (curMediaInfo) curSetVolume(Math.max(0, (curMediaInfo.volume ?? 100) - 5));
+        break;
+      case "toggleMute":
+        if (curMediaInfo) curSetVolume(curMediaInfo.volume === 0 ? 100 : 0);
+        break;
+      case "fullscreen":
+        curToggleFullscreen();
+        break;
+      case "frameBack":
+        if (isSteppingRef.current) return;
+        isSteppingRef.current = true;
+        try {
+          await invoke("frame_back_step");
+          triggerFrameOsd();
+        } finally {
+          isSteppingRef.current = false;
+        }
+        break;
+      case "frameForward":
+        if (isSteppingRef.current) return;
+        isSteppingRef.current = true;
+        try {
+          await invoke("frame_step");
+          triggerFrameOsd();
+        } finally {
+          isSteppingRef.current = false;
+        }
+        break;
+      case "openFile":
+        handleOpenFile();
+        break;
+      case "copyFrame":
+        try {
+          await invoke("copy_frame_to_clipboard");
+          setOsdText("Кадр скопирован в буфер обмена");
+          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+        } catch (err) {
+          console.error(err);
+        }
+        break;
+      case "screenshot":
+        try {
+          await invoke("take_screenshot");
+          setOsdText("Кадр сохранён");
+          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+        } catch (err) {
+          console.error(err);
+        }
+        break;
+      case "fileInfo":
+        setShowMediaInfo((v) => !v);
+        break;
+      case "resetZoom":
+        videoZoomRef.current = 0;
+        videoPanXRef.current = 0;
+        videoPanYRef.current = 0;
+        invoke("set_video_zoom_and_pan", { zoom: 0, panX: 0, panY: 0 }).catch(console.error);
+        setOsdText("Масштаб: 100% (Исходный)");
+        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        break;
+      case "playlist":
+        curSetIsPlaylistOpen(!curIsPlaylistOpen);
+        break;
+      case "openContextMenu":
+        if (coords) {
+          setContextMenu({ x: coords.x, y: coords.y });
+        } else {
+          setContextMenu({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+        }
+        break;
+      case "cycleAudioTrack":
+        curCycleAudioTrack();
+        break;
+      case "cycleSubTrack":
+        curCycleSubTrack();
+        break;
+      case "playlistPrev":
+        invoke("playlist_prev").catch(console.error);
+        break;
+      case "playlistNext":
+        invoke("playlist_next").catch(console.error);
+        break;
+      case "speedUp":
+        if (curMediaInfo) {
+          const newSpeed = Math.min(4.0, (curMediaInfo.speed || 1.0) + 0.25);
+          invoke("set_speed", { speed: newSpeed }).catch(console.error);
+        }
+        break;
+      case "speedDown":
+        if (curMediaInfo) {
+          const newSpeed = Math.max(0.25, (curMediaInfo.speed || 1.0) - 0.25);
+          invoke("set_speed", { speed: newSpeed }).catch(console.error);
+        }
+        break;
+      case "speedReset":
+        invoke("set_speed", { speed: 1.0 }).catch(console.error);
+        break;
+      case "toggleShuffle":
+        invoke("toggle_shuffle").catch(console.error);
+        break;
+      case "alwaysOnTop":
+        try {
+          const appWindow = getCurrentWindow();
+          const current = await appWindow.isAlwaysOnTop();
+          await appWindow.setAlwaysOnTop(!current);
+          window.dispatchEvent(new CustomEvent("l-mpv-action", { detail: actionId }));
+        } catch (e) { console.error(e); }
+        break;
+      case "toggleRepeat":
+        window.dispatchEvent(new CustomEvent("l-mpv-action", { detail: actionId }));
+        break;
+    }
+  }, [handleOpenFile, triggerFrameOsd]);
+
+  const handleVideoClick = useCallback(
     (e: React.MouseEvent) => {
       if (e.button !== 0) return;
       closeContextMenu();
+      if (latestRef.current.isPlaylistOpen) {
+        latestRef.current.setIsPlaylistOpen(false);
+      }
 
-      if (clickTimerRef.current !== null) {
-        // Двойной клик ЛКМ -> Полноэкранный режим
-        window.clearTimeout(clickTimerRef.current);
-        clickTimerRef.current = null;
-        toggleFullscreen();
-      } else {
-        // Одиночный клик ЛКМ -> Воспроизведение / Пауза
-        clickTimerRef.current = window.setTimeout(async () => {
+      const curHotkeys = latestRef.current.hotkeys;
+      let singleClickAction: string | null = null;
+      let doubleClickAction: string | null = null;
+
+      for (const [actionId, codes] of Object.entries(curHotkeys)) {
+        if (codes.includes("MouseLeft")) {
+          singleClickAction = actionId;
+        }
+        if (codes.includes("MouseLeftDoubleClick")) {
+          doubleClickAction = actionId;
+        }
+      }
+
+      // Безусловный дефолт, если привязка отсутствует в конфиге
+      if (!singleClickAction) {
+        singleClickAction = "togglePause";
+      }
+      if (!doubleClickAction) {
+        doubleClickAction = "fullscreen";
+      }
+
+      const coords = { x: e.clientX, y: e.clientY };
+
+      if (doubleClickAction) {
+        if (clickTimerRef.current !== null) {
+          window.clearTimeout(clickTimerRef.current);
           clickTimerRef.current = null;
-          if (hasMediaRef.current) {
-            try {
-              await togglePause();
-            } catch (err) {
-              console.error(err);
+          executeAction(doubleClickAction, coords);
+        } else {
+          clickTimerRef.current = window.setTimeout(() => {
+            clickTimerRef.current = null;
+            if (singleClickAction) {
+              executeAction(singleClickAction, coords);
             }
-          }
-        }, 220);
+          }, 220);
+        }
+      } else if (singleClickAction) {
+        executeAction(singleClickAction, coords);
       }
     },
-    [toggleFullscreen, closeContextMenu]
+    [closeContextMenu, executeAction]
   );
 
-  const [hotkeys, setHotkeys] = useState(getCustomHotkeys());
+  const handleVideoContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      if (latestRef.current.isPlaylistOpen) {
+        latestRef.current.setIsPlaylistOpen(false);
+      }
+
+      const curHotkeys = latestRef.current.hotkeys;
+      let action: string | null = null;
+      for (const [actionId, codes] of Object.entries(curHotkeys)) {
+        if (codes.includes("MouseRight")) {
+          action = actionId;
+          break;
+        }
+      }
+
+      const coords = { x: e.clientX, y: e.clientY };
+      if (action) {
+        executeAction(action, coords);
+      } else {
+        setContextMenu(coords);
+      }
+    },
+    [executeAction]
+  );
+
+  const handleVideoAuxClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.button === 1) {
+        e.preventDefault();
+        const curHotkeys = latestRef.current.hotkeys;
+        let action: string | null = null;
+        for (const [actionId, codes] of Object.entries(curHotkeys)) {
+          if (codes.includes("MouseMiddle")) {
+            action = actionId;
+            break;
+          }
+        }
+        if (action) {
+          executeAction(action, { x: e.clientX, y: e.clientY });
+        }
+      }
+    },
+    [executeAction]
+  );
 
   useEffect(() => {
     const updateHotkeys = () => setHotkeys(getCustomHotkeys());
@@ -279,122 +571,36 @@ function App() {
         return;
       }
 
-      const matchKey = (actionId: string, defaultCodes: string[], defaultKeys: string[] = []) => {
-        const custom = hotkeys[actionId];
-        if (custom) {
-          if (e.code === custom || e.key.toLowerCase() === custom.toLowerCase()) return true;
-        }
-        return defaultCodes.includes(e.code) || defaultKeys.includes(e.key.toLowerCase());
-      };
+      if (e.code === "Escape" && latestRef.current.isFullscreen) {
+        e.preventDefault();
+        latestRef.current.toggleFullscreen();
+        return;
+      }
 
-      if (matchKey("togglePause", ["Space"])) {
-        e.preventDefault();
-        invoke("toggle_pause");
-      } else if (matchKey("seekBack", ["ArrowLeft"])) {
-        e.preventDefault();
-        await invoke("seek", { seconds: -5 });
-      } else if (matchKey("seekForward", ["ArrowRight"])) {
-        e.preventDefault();
-        await invoke("seek", { seconds: 5 });
-      } else if (matchKey("volumeUp", ["ArrowUp"])) {
-        e.preventDefault();
-        if (mediaInfo) {
-          setVolume(Math.min(100, (mediaInfo.volume ?? 100) + 5));
-        }
-      } else if (matchKey("volumeDown", ["ArrowDown"])) {
-        e.preventDefault();
-        if (mediaInfo) {
-          setVolume(Math.max(0, (mediaInfo.volume ?? 100) - 5));
-        }
-      } else if (matchKey("toggleMute", ["KeyM"], ["m", "ь"])) {
-        e.preventDefault();
-        if (mediaInfo) {
-          setVolume(mediaInfo.volume === 0 ? 100 : 0);
-        }
-      } else if (matchKey("fullscreen", ["KeyF", "F11"], ["f", "а"])) {
-        e.preventDefault();
-        toggleFullscreen();
-      } else if (e.code === "Escape") {
-        if (isFullscreen) {
+      const curHotkeys = latestRef.current.hotkeys;
+      for (const actionId of Object.keys(curHotkeys)) {
+        const customCodes = curHotkeys[actionId] || [];
+        const isMatch = customCodes.some(c => 
+          e.code === c || 
+          (e.key && e.key.toLowerCase() === c.toLowerCase()) ||
+          (c === "Comma" && (e.key === "б" || e.key === "Б" || e.key === ",")) ||
+          (c === "Period" && (e.key === "ю" || e.key === "Ю" || e.key === ".")) ||
+          (c === "BracketLeft" && (e.key === "х" || e.key === "Х" || e.key === "[")) ||
+          (c === "BracketRight" && (e.key === "ъ" || e.key === "Ъ" || e.key === "]"))
+        );
+        
+        if (isMatch) {
           e.preventDefault();
-          toggleFullscreen();
+          executeAction(actionId);
+          return;
         }
-      } else if (matchKey("frameBack", ["Comma"], ["б", ","])) {
-        e.preventDefault();
-        if (isSteppingRef.current) return;
-        isSteppingRef.current = true;
-        try {
-          await invoke("frame_back_step");
-          triggerFrameOsd();
-        } finally {
-          isSteppingRef.current = false;
-        }
-      } else if (matchKey("frameForward", ["Period"], ["ю", "."])) {
-        e.preventDefault();
-        if (isSteppingRef.current) return;
-        isSteppingRef.current = true;
-        try {
-          await invoke("frame_step");
-          triggerFrameOsd();
-        } finally {
-          isSteppingRef.current = false;
-        }
-      } else if (e.ctrlKey && matchKey("openFile", ["KeyO"], ["о"])) {
-        e.preventDefault();
-        handleOpenFile();
-      } else if (matchKey("copyFrame", ["KeyC"], ["c", "с"]) || (e.ctrlKey && e.code === "KeyC")) {
-        e.preventDefault();
-        try {
-          await invoke("copy_frame_to_clipboard");
-          setOsdText("Кадр скопирован в буфер обмена");
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
-        } catch (err) {
-          console.error("Ошибка копирования:", err);
-          setOsdText("Ошибка копирования в буфер");
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
-        }
-      } else if (
-        !e.ctrlKey && !e.altKey &&
-        matchKey("screenshot", ["KeyS"], ["s", "ы"])
-      ) {
-        e.preventDefault();
-        try {
-          await invoke("take_screenshot");
-          setOsdText("Кадр сохранён");
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
-        } catch (err) {
-          console.error("Ошибка скриншота:", err);
-          setOsdText("Ошибка сохранения кадра");
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
-        }
-      } else if (
-        !e.ctrlKey && !e.altKey &&
-        matchKey("fileInfo", ["KeyI"], ["i", "ш"])
-      ) {
-        e.preventDefault();
-        setShowMediaInfo((v) => !v);
-      } else if (e.ctrlKey && matchKey("resetZoom", ["Digit0", "Numpad0"])) {
-        e.preventDefault();
-        videoZoomRef.current = 0;
-        videoPanXRef.current = 0;
-        videoPanYRef.current = 0;
-        invoke("set_video_zoom_and_pan", { zoom: 0, panX: 0, panY: 0 }).catch(console.error);
-        setOsdText("Масштаб: 100% (Исходный)");
-        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
-      } else if (matchKey("playlist", ["KeyL", "KeyP"], ["l", "p", "д", "з"])) {
-        setIsPlaylistOpen(!isPlaylistOpen);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [triggerFrameOsd, isPlaylistOpen, setIsPlaylistOpen, hotkeys, mediaInfo, setVolume, toggleFullscreen, isFullscreen]);
+  }, [executeAction]);
 
   // ─── Обработка перетаскивания (Drag & Drop) ─────────
   useEffect(() => {
@@ -442,33 +648,6 @@ function App() {
     e.preventDefault();
   }, []);
 
-  // ─── Открытие файла ────────────────────────────────
-  const handleOpenFile = async () => {
-    try {
-      const file = await open({
-        multiple: false,
-        directory: false,
-        filters: [
-          {
-            name: "Video",
-            extensions: [
-              "mkv",
-              "mp4",
-              "avi",
-              "mov",
-              "webm",
-            ],
-          },
-        ],
-      });
-      if (file) {
-        await invoke("open_file", { path: file });
-      }
-    } catch (err) {
-      console.error("Ошибка открытия файла:", err);
-    }
-  };
-
   return (
     <div
       className={`app-container ${
@@ -487,15 +666,11 @@ function App() {
       )}
 
       <div
-        className={`video-area ${
-          !hasMedia ? "video-area--empty" : ""
-        }`}
+        className={`video-area ${!hasMedia ? "video-area--empty" : ""}`}
         data-tauri-drag-region={undefined}
-        onContextMenu={handleContextMenu}
-        onClick={(e) => {
-          if (isPlaylistOpen) setIsPlaylistOpen(false);
-          handleVideoAreaClick(e);
-        }}
+        onClick={handleVideoClick}
+        onContextMenu={handleVideoContextMenu}
+        onAuxClick={handleVideoAuxClick}
         onWheel={(e) => {
           if (hasMedia && mediaInfo) {
             if (e.ctrlKey) {

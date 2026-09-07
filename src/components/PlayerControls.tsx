@@ -240,7 +240,7 @@ export function PlayerControls({
     }
   }, []);
 
-  const handleToggleRepeat = async () => {
+  const handleToggleRepeat = useCallback(async () => {
     const nextMode = (repeatMode + 1) % 3 as 0 | 1 | 2;
     setRepeatMode(nextMode);
     try {
@@ -257,7 +257,22 @@ export function PlayerControls({
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [repeatMode]);
+
+  useEffect(() => {
+    const handleAction = async (e: Event) => {
+      const action = (e as CustomEvent).detail;
+      if (action === "toggleRepeat") handleToggleRepeat();
+      if (action === "alwaysOnTop") {
+        try {
+          const appWindow = getCurrentWindow();
+          setIsAlwaysOnTop(await appWindow.isAlwaysOnTop());
+        } catch (err) { console.error(err); }
+      }
+    };
+    window.addEventListener("l-mpv-action", handleAction);
+    return () => window.removeEventListener("l-mpv-action", handleAction);
+  }, [handleToggleRepeat]);
 
   const handleShuffle = async () => {
     try {

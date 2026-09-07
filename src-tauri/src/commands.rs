@@ -792,12 +792,32 @@ pub fn get_media_info(
         fps: mpv
             .get_property_double("container-fps")
             .unwrap_or(0.0),
-        width: mpv
-            .get_property_double("width")
-            .unwrap_or(0.0) as i64,
-        height: mpv
-            .get_property_double("height")
-            .unwrap_or(0.0) as i64,
+        width: {
+            let dw = mpv.get_property_double("video-params/dw").unwrap_or(0.0);
+            if dw > 0.0 {
+                dw as i64
+            } else {
+                let dwidth = mpv.get_property_double("dwidth").unwrap_or(0.0);
+                if dwidth > 0.0 {
+                    dwidth as i64
+                } else {
+                    mpv.get_property_double("width").unwrap_or(0.0) as i64
+                }
+            }
+        },
+        height: {
+            let dh = mpv.get_property_double("video-params/dh").unwrap_or(0.0);
+            if dh > 0.0 {
+                dh as i64
+            } else {
+                let dheight = mpv.get_property_double("dheight").unwrap_or(0.0);
+                if dheight > 0.0 {
+                    dheight as i64
+                } else {
+                    mpv.get_property_double("height").unwrap_or(0.0) as i64
+                }
+            }
+        },
         video_codec: mpv
             .get_property_string("video-codec")
             .unwrap_or_default(),

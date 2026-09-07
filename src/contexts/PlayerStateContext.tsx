@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
 
@@ -236,15 +235,6 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const hasMediaInfoRef = useRef(false);
-  const fileLoadingRef = useRef(false);
-
-  // Слушаем событие от бэкенда: файл начал загружаться
-  useEffect(() => {
-    const unlisten = listen<string>("file-loading", () => {
-      fileLoadingRef.current = true;
-    });
-    return () => { unlisten.then(f => f()); };
-  }, []);
 
   // Оптимизированный цикл поллинга
   useEffect(() => {
@@ -259,19 +249,14 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         if (dynState.paused) {
           nextDelay = 1000;
         } else if (dynState.path === "") {
-          // Файл ещё не загружен:
-          // — если бэкенд сообщил о загрузке → быстрый опрос (100мс)
-          // — иначе плеер просто простаивает → медленный опрос (1000мс)
-          nextDelay = fileLoadingRef.current ? 100 : 1000;
+          nextDelay = hasMediaInfoRef.current ? 1000 : 150;
         }
         
         if (!hasMediaInfoRef.current || dynState.path !== currentPathRef.current) {
           const fullInfo = await invoke<MediaInfo>("get_media_info");
           if (fullInfo.path !== "") {
-            const wasFirstLoad = !hasMediaInfoRef.current;
             currentPathRef.current = fullInfo.path;
             hasMediaInfoRef.current = true;
-            fileLoadingRef.current = false;
             mediaInfoRef.current = fullInfo;
             setMediaInfo(fullInfo);
             setHasMedia(true);
@@ -285,14 +270,6 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             const chaps = await invoke<Chapter[]>("get_chapters").catch(() => []);
             setChapters(chaps);
             if (fullInfo.paused) nextDelay = 1000;
-
-            // Показываем окно при первой загрузке видео
-            // (окно было скрыто для устранения мерцания стартовой страницы)
-            if (wasFirstLoad) {
-              try {
-                await getCurrentWindow().show();
-              } catch (_) { /* окно уже видимо */ }
-            }
 
             // Проверяем историю и переходим на сохраненную позицию
             try {
