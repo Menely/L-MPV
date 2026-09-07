@@ -420,6 +420,12 @@ function App() {
       case "cycleSubTrack":
         curCycleSubTrack();
         break;
+      case "toggleAudioMenu":
+        window.dispatchEvent(new CustomEvent("l-mpv-toggle-popover", { detail: { type: "audio" } }));
+        break;
+      case "toggleSubMenu":
+        window.dispatchEvent(new CustomEvent("l-mpv-toggle-popover", { detail: { type: "sub" } }));
+        break;
       case "playlistPrev":
         invoke("playlist_prev").catch(console.error);
         break;

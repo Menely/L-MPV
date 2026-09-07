@@ -113,8 +113,28 @@ export function PlayerControls({
       if (savedBtns) setVisibleButtons(JSON.parse(savedBtns));
     };
     window.addEventListener('l-mpv-settings-changed', updateSetting);
-    return () => window.removeEventListener('l-mpv-settings-changed', updateSetting);
-  }, []);
+
+    const handleTogglePopover = (e: Event) => {
+      const type = (e as CustomEvent).detail?.type;
+      if (type === "audio") {
+        setActivePopover(prev => prev === "audio" ? null : "audio");
+        loadTracks();
+        if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
+        if (onCloseChapters) onCloseChapters();
+      } else if (type === "sub") {
+        setActivePopover(prev => prev === "sub" ? null : "sub");
+        loadTracks();
+        if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
+        if (onCloseChapters) onCloseChapters();
+      }
+    };
+    window.addEventListener('l-mpv-toggle-popover', handleTogglePopover);
+
+    return () => {
+      window.removeEventListener('l-mpv-settings-changed', updateSetting);
+      window.removeEventListener('l-mpv-toggle-popover', handleTogglePopover);
+    };
+  }, [loadTracks, showMediaInfo, onToggleMediaInfo, onCloseChapters]);
 
   const activeAudioTrack = useMemo(() => tracks.find(t => t.type === "audio" && t.selected), [tracks]);
   const activeSubTrack = useMemo(() => tracks.find(t => t.type === "sub" && t.selected), [tracks]);
