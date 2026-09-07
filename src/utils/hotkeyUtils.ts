@@ -15,15 +15,17 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   frameBack: ["Comma"],
   frameForward: ["Period"],
   screenshot: ["KeyS"],
-  copyFrame: ["KeyC"],
+  copyFrame: ["Ctrl+KeyC"],
   fileInfo: ["KeyI"],
   playlist: ["KeyL"],
   fullscreen: ["KeyF", "F11", "MouseLeftDoubleClick"],
-  openFile: ["KeyO"],
+  openFile: ["Ctrl+KeyO", "KeyO"],
   resetZoom: ["Digit0"],
   openContextMenu: ["MouseRight"],
-  cycleAudioTrack: ["KeyA"],
-  cycleSubTrack: ["KeyV"],
+  cycleAudioTrack: ["KeyA", "MouseLeft"],
+  toggleAudioMenu: ["MouseRight"],
+  cycleSubTrack: ["KeyV", "MouseLeft"],
+  toggleSubMenu: ["MouseRight"],
   playlistPrev: ["PageUp"],
   playlistNext: ["PageDown"],
   seekBack10: [],
@@ -34,8 +36,6 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   speedUp: ["BracketRight"],
   speedDown: ["BracketLeft"],
   speedReset: ["Backspace"],
-  toggleAudioMenu: [],
-  toggleSubMenu: [],
 };
 
 export const HOTKEY_ACTIONS: HotkeyAction[] = [
@@ -52,12 +52,16 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "frameBack", label: "Кадр назад", defaultKeys: DEFAULT_HOTKEYS["frameBack"], category: "Перемотка" },
   { id: "frameForward", label: "Кадр вперед", defaultKeys: DEFAULT_HOTKEYS["frameForward"], category: "Перемотка" },
 
-  // Аудио и Субтитры
-  { id: "volumeUp", label: "Громкость +5%", defaultKeys: DEFAULT_HOTKEYS["volumeUp"], category: "Аудио и Субтитры" },
-  { id: "volumeDown", label: "Громкость -5%", defaultKeys: DEFAULT_HOTKEYS["volumeDown"], category: "Аудио и Субтитры" },
-  { id: "toggleMute", label: "Включить / отключить звук", defaultKeys: DEFAULT_HOTKEYS["toggleMute"], category: "Аудио и Субтитры" },
-  { id: "cycleAudioTrack", label: "Смена аудиодорожки", defaultKeys: DEFAULT_HOTKEYS["cycleAudioTrack"], category: "Аудио и Субтитры" },
-  { id: "cycleSubTrack", label: "Смена субтитров", defaultKeys: DEFAULT_HOTKEYS["cycleSubTrack"], category: "Аудио и Субтитры" },
+  // Аудио
+  { id: "volumeUp", label: "Громкость +5%", defaultKeys: DEFAULT_HOTKEYS["volumeUp"], category: "Аудио" },
+  { id: "volumeDown", label: "Громкость -5%", defaultKeys: DEFAULT_HOTKEYS["volumeDown"], category: "Аудио" },
+  { id: "toggleMute", label: "Включить / отключить звук", defaultKeys: DEFAULT_HOTKEYS["toggleMute"], category: "Аудио" },
+  { id: "cycleAudioTrack", label: "Смена аудиодорожки", defaultKeys: DEFAULT_HOTKEYS["cycleAudioTrack"], category: "Аудио" },
+  { id: "toggleAudioMenu", label: "Меню аудиодорожек", defaultKeys: DEFAULT_HOTKEYS["toggleAudioMenu"], category: "Аудио" },
+
+  // Субтитры
+  { id: "cycleSubTrack", label: "Смена субтитров", defaultKeys: DEFAULT_HOTKEYS["cycleSubTrack"], category: "Субтитры" },
+  { id: "toggleSubMenu", label: "Меню субтитров", defaultKeys: DEFAULT_HOTKEYS["toggleSubMenu"], category: "Субтитры" },
 
   // Скорость
   { id: "speedUp", label: "Увеличить скорость", defaultKeys: DEFAULT_HOTKEYS["speedUp"], category: "Скорость" },
@@ -100,6 +104,30 @@ export function getCustomHotkeys(): Record<string, string[]> {
         } else {
           migrated[key] = [...DEFAULT_HOTKEYS[key]];
         }
+      }
+
+      // Миграция устаревшего бинда KeyC на Ctrl+KeyC для copyFrame
+      if (migrated["copyFrame"]?.length === 1 && migrated["copyFrame"][0] === "KeyC") {
+        migrated["copyFrame"] = ["Ctrl+KeyC"];
+      }
+
+      // Миграция устаревшего бинда KeyO на Ctrl+KeyO для openFile
+      if (migrated["openFile"]?.length === 1 && migrated["openFile"][0] === "KeyO") {
+        migrated["openFile"] = ["Ctrl+KeyO", "KeyO"];
+      }
+
+      // Инициализация мышиных биндов для аудио и субтитров, если они были пустыми
+      if (!migrated["toggleAudioMenu"] || migrated["toggleAudioMenu"].length === 0) {
+        migrated["toggleAudioMenu"] = ["MouseRight"];
+      }
+      if (!migrated["toggleSubMenu"] || migrated["toggleSubMenu"].length === 0) {
+        migrated["toggleSubMenu"] = ["MouseRight"];
+      }
+      if (migrated["cycleAudioTrack"] && !migrated["cycleAudioTrack"].includes("MouseLeft")) {
+        migrated["cycleAudioTrack"] = [...migrated["cycleAudioTrack"], "MouseLeft"];
+      }
+      if (migrated["cycleSubTrack"] && !migrated["cycleSubTrack"].includes("MouseLeft")) {
+        migrated["cycleSubTrack"] = [...migrated["cycleSubTrack"], "MouseLeft"];
       }
 
       // Гарантируем наличие базовых мышиных действий, если конфиг был сохранен
@@ -158,34 +186,71 @@ export function resetSingleHotkey(actionId: string, currentHotkeys: Record<strin
   return updated;
 }
 
+function formatSingleKey(part: string): string {
+  if (!part) return "";
+  if (part === "MouseLeft") return "ЛКМ";
+  if (part === "MouseRight") return "ПКМ";
+  if (part === "MouseMiddle") return "СКМ";
+  if (part === "MouseLeftDoubleClick") return "ЛКМ 2x";
+  
+  if (part.startsWith("MouseButton")) {
+    return "Мышь " + part.replace("MouseButton", "");
+  }
+  if (part.startsWith("Key")) {
+    return part.replace("Key", "");
+  }
+  if (part.startsWith("Digit")) {
+    return part.replace("Digit", "");
+  }
+  if (part === "Space") return "Пробел";
+  if (part === "ArrowLeft") return "←";
+  if (part === "ArrowRight") return "→";
+  if (part === "ArrowUp") return "↑";
+  if (part === "ArrowDown") return "↓";
+  if (part === "Comma") return ",";
+  if (part === "Period") return ".";
+  if (part === "BracketLeft") return "[";
+  if (part === "BracketRight") return "]";
+  if (part === "Backspace") return "Backspace";
+  if (part === "PageUp") return "Page Up";
+  if (part === "PageDown") return "Page Down";
+  if (part === "ControlLeft" || part === "ControlRight" || part === "Ctrl") return "Ctrl";
+  if (part === "ShiftLeft" || part === "ShiftRight" || part === "Shift") return "Shift";
+  if (part === "AltLeft" || part === "AltRight" || part === "Alt") return "Alt";
+  if (part === "MetaLeft" || part === "MetaRight" || part === "Win") return "Win";
+  
+  return part;
+}
+
 export function getKeyDisplay(currentCode: string): string {
   if (!currentCode) return "—";
-  if (currentCode === "MouseLeft") return "ЛКМ";
-  if (currentCode === "MouseRight") return "ПКМ";
-  if (currentCode === "MouseMiddle") return "СКМ (Колесо)";
-  if (currentCode === "MouseLeftDoubleClick") return "Двойной клик ЛКМ";
-  
-  if (currentCode.startsWith("MouseButton")) {
-    return "Кнопка мыши " + currentCode.replace("MouseButton", "");
-  }
-  if (currentCode.startsWith("Key")) {
-    return currentCode.replace("Key", "");
-  }
-  if (currentCode.startsWith("Digit")) {
-    return currentCode.replace("Digit", "");
-  }
-  if (currentCode === "Space") return "Пробел";
-  if (currentCode === "ArrowLeft") return "←";
-  if (currentCode === "ArrowRight") return "→";
-  if (currentCode === "ArrowUp") return "↑";
-  if (currentCode === "ArrowDown") return "↓";
-  if (currentCode === "Comma") return "Запятая (,)";
-  if (currentCode === "Period") return "Точка (.)";
-  if (currentCode === "BracketLeft") return "[";
-  if (currentCode === "BracketRight") return "]";
-  if (currentCode === "Backspace") return "Backspace";
-  if (currentCode === "PageUp") return "Page Up";
-  if (currentCode === "PageDown") return "Page Down";
-  
-  return currentCode;
+  const parts = currentCode.split("+");
+  return parts.map(formatSingleKey).join(" + ");
+}
+
+/**
+ * Проверка нажатия события клавиши на соответствие строке бинда (с учетом Ctrl, Shift, Alt).
+ */
+export function isKeyboardEventMatch(e: KeyboardEvent, bindCode: string): boolean {
+  if (bindCode.startsWith("Mouse")) return false;
+
+  const parts = bindCode.split("+");
+  const mainKey = parts[parts.length - 1];
+  const reqCtrl = parts.includes("Ctrl");
+  const reqShift = parts.includes("Shift");
+  const reqAlt = parts.includes("Alt");
+
+  const ctrlPressed = e.ctrlKey || e.metaKey;
+  if (reqCtrl !== ctrlPressed) return false;
+  if (reqShift !== e.shiftKey) return false;
+  if (reqAlt !== e.altKey) return false;
+
+  return (
+    e.code === mainKey ||
+    (Boolean(e.key) && e.key.toLowerCase() === mainKey.toLowerCase()) ||
+    (mainKey === "Comma" && (e.key === "б" || e.key === "Б" || e.key === ",")) ||
+    (mainKey === "Period" && (e.key === "ю" || e.key === "Ю" || e.key === ".")) ||
+    (mainKey === "BracketLeft" && (e.key === "х" || e.key === "Х" || e.key === "[")) ||
+    (mainKey === "BracketRight" && (e.key === "ъ" || e.key === "Ъ" || e.key === "]"))
+  );
 }

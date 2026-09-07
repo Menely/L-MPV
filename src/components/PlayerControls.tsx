@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { formatTime } from "../utils/timeUtils";
 import { Timeline } from "./Timeline";
+import { getCustomHotkeys } from "../utils/hotkeyUtils";
 
 
 
@@ -105,12 +106,15 @@ export function PlayerControls({
     };
   });
 
+  const [hotkeys, setHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
+
   useEffect(() => {
     const updateSetting = () => {
       const saved = localStorage.getItem('l-mpv-show-track-names');
       setShowTrackNames(saved !== null ? saved === 'true' : true);
       const savedBtns = localStorage.getItem('l-mpv-visible-buttons');
       if (savedBtns) setVisibleButtons(JSON.parse(savedBtns));
+      setHotkeys(getCustomHotkeys());
     };
     window.addEventListener('l-mpv-settings-changed', updateSetting);
 
@@ -199,6 +203,42 @@ export function PlayerControls({
     }
   }, [showMediaInfo, showChapters]);
 
+
+  const handleAudioButtonClick = useCallback((mouseBtn: "MouseLeft" | "MouseRight") => {
+    const cycleBinds = hotkeys["cycleAudioTrack"] || [];
+    const menuBinds = hotkeys["toggleAudioMenu"] || [];
+
+    if (menuBinds.includes(mouseBtn)) {
+      if (activePopover === "audio") {
+        setActivePopover(null);
+      } else {
+        if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
+        if (onCloseChapters) onCloseChapters();
+        loadTracks();
+        setActivePopover("audio");
+      }
+    } else if (cycleBinds.includes(mouseBtn)) {
+      cycleAudioTrack();
+    }
+  }, [hotkeys, activePopover, showMediaInfo, onToggleMediaInfo, onCloseChapters, loadTracks, cycleAudioTrack]);
+
+  const handleSubButtonClick = useCallback((mouseBtn: "MouseLeft" | "MouseRight") => {
+    const cycleBinds = hotkeys["cycleSubTrack"] || [];
+    const menuBinds = hotkeys["toggleSubMenu"] || [];
+
+    if (menuBinds.includes(mouseBtn)) {
+      if (activePopover === "sub") {
+        setActivePopover(null);
+      } else {
+        if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
+        if (onCloseChapters) onCloseChapters();
+        loadTracks();
+        setActivePopover("sub");
+      }
+    } else if (cycleBinds.includes(mouseBtn)) {
+      cycleSubTrack();
+    }
+  }, [hotkeys, activePopover, showMediaInfo, onToggleMediaInfo, onCloseChapters, loadTracks, cycleSubTrack]);
 
   const handleTogglePause = useCallback(async () => {
     try {
@@ -451,19 +491,10 @@ export function PlayerControls({
               className={`control-btn ${activePopover === "audio" ? "control-btn--active" : ""} ${
                 (showTrackNames && audioLabel) || isAudioDownloading ? "control-btn--with-label" : ""
               }`}
-              onClick={() => {
-                cycleAudioTrack();
-              }}
+              onClick={() => handleAudioButtonClick("MouseLeft")}
               onContextMenu={(e) => {
                 e.preventDefault();
-                if (activePopover === "audio") {
-                  setActivePopover(null);
-                } else {
-                  if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
-                  if (onCloseChapters) onCloseChapters();
-                  loadTracks();
-                  setActivePopover("audio");
-                }
+                handleAudioButtonClick("MouseRight");
               }}
               id="btn-audio-tracks"
               title={isAudioDownloading ? "Идёт скачивание аудиодорожки..." : undefined}
@@ -481,19 +512,10 @@ export function PlayerControls({
               className={`control-btn ${activePopover === "sub" ? "control-btn--active" : ""} ${
                 (showTrackNames && subLabel) || isSubDownloading ? "control-btn--with-label" : ""
               }`}
-              onClick={() => {
-                cycleSubTrack();
-              }}
+              onClick={() => handleSubButtonClick("MouseLeft")}
               onContextMenu={(e) => {
                 e.preventDefault();
-                if (activePopover === "sub") {
-                  setActivePopover(null);
-                } else {
-                  if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
-                  if (onCloseChapters) onCloseChapters();
-                  loadTracks();
-                  setActivePopover("sub");
-                }
+                handleSubButtonClick("MouseRight");
               }}
               id="btn-sub-tracks"
               title={isSubDownloading ? "Идёт скачивание субтитров..." : undefined}

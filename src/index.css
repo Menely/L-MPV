@@ -1375,6 +1375,7 @@ html, body, #root {
   left: 14px;
   max-height: calc(100vh - 154px);
   overflow-y: auto;
+  overflow-x: hidden;
   background: var(--bg-pill);
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
@@ -1391,6 +1392,7 @@ html, body, #root {
   min-width: min(360px, calc(100vw - 28px));
   max-width: min(420px, calc(100vw - 28px));
   pointer-events: auto;
+  box-sizing: border-box;
 }
 
 .media-info__section {
@@ -1409,18 +1411,30 @@ html, body, #root {
 .media-info__row {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  align-items: flex-start;
+  gap: 16px;
 }
 
 .media-info__label {
   color: rgba(255, 255, 255, 0.75);
   font-weight: 400;
+  flex-shrink: 0;
+  line-height: 1.4;
 }
 
 .media-info__value {
   font-weight: 500;
   color: #ffffff;
   text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.media-info__value--filename {
+  text-align: left;
+  flex: 1;
 }
 
 /* ─── Playlist Drawer (Floating Card Overlay) ────────────────── */

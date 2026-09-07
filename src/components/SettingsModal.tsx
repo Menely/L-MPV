@@ -125,7 +125,17 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ width: 600, maxWidth: "90vw", maxHeight: "80vh", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        style={{
+          width: 650,
+          maxWidth: "92vw",
+          maxHeight: "75vh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Шапка модального окна */}
         <div className="modal__header" style={{ padding: "16px 20px", flexShrink: 0 }}>
           <h2 className="modal__title" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "1.15rem" }}>
@@ -706,7 +716,21 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                                           if (isRecording) {
                                             e.preventDefault();
                                             e.stopPropagation();
-                                            const newCode = e.code || e.key;
+                                            if (
+                                              e.key === "Control" ||
+                                              e.key === "Shift" ||
+                                              e.key === "Alt" ||
+                                              e.key === "Meta"
+                                            ) {
+                                              return;
+                                            }
+                                            const parts: string[] = [];
+                                            if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
+                                            if (e.shiftKey) parts.push("Shift");
+                                            if (e.altKey) parts.push("Alt");
+                                            parts.push(e.code || e.key);
+                                            const newCode = parts.join("+");
+
                                             const newCodes = [...currentCodes];
                                             newCodes[idx] = newCode;
                                             const updated = { ...customHotkeys, [item.id]: newCodes };
@@ -783,14 +807,30 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                                     return (
                                       <button
                                           onKeyDown={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            const newCode = e.code || e.key;
-                                            const newCodes = [...currentCodes, newCode];
-                                            const updated = { ...customHotkeys, [item.id]: newCodes };
-                                            setCustomHotkeys(updated);
-                                            saveCustomHotkeys(updated);
-                                            setRecordingAction(null);
+                                            if (isRecordingNew) {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              if (
+                                                e.key === "Control" ||
+                                                e.key === "Shift" ||
+                                                e.key === "Alt" ||
+                                                e.key === "Meta"
+                                              ) {
+                                                return;
+                                              }
+                                              const parts: string[] = [];
+                                              if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
+                                              if (e.shiftKey) parts.push("Shift");
+                                              if (e.altKey) parts.push("Alt");
+                                              parts.push(e.code || e.key);
+                                              const newCode = parts.join("+");
+
+                                              const newCodes = [...currentCodes, newCode];
+                                              const updated = { ...customHotkeys, [item.id]: newCodes };
+                                              setCustomHotkeys(updated);
+                                              saveCustomHotkeys(updated);
+                                              setRecordingAction(null);
+                                            }
                                           }}
                                           onMouseDown={(e) => {
                                             e.preventDefault();

@@ -20,7 +20,7 @@ import { ChaptersModal } from "./components/ChaptersModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { PlaylistDrawer } from "./components/PlaylistDrawer";
 import { applyAccentColor } from "./utils/colorUtils";
-import { getCustomHotkeys } from "./utils/hotkeyUtils";
+import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
 
 function App() {
   const {
@@ -476,7 +476,21 @@ function App() {
       let singleClickAction: string | null = null;
       let doubleClickAction: string | null = null;
 
-      for (const [actionId, codes] of Object.entries(curHotkeys)) {
+      // Действия, которые разрешены для клика непосредственно по видео
+      const allowedVideoActions = [
+        "togglePause",
+        "fullscreen",
+        "openContextMenu",
+        "fileInfo",
+        "screenshot",
+        "resetZoom",
+        "copyFrame",
+        "toggleRepeat",
+        "playlist",
+      ];
+
+      for (const actionId of allowedVideoActions) {
+        const codes = curHotkeys[actionId] || [];
         if (codes.includes("MouseLeft")) {
           singleClickAction = actionId;
         }
@@ -485,7 +499,7 @@ function App() {
         }
       }
 
-      // Безусловный дефолт, если привязка отсутствует в конфиге
+      // Безусловный дефолт для клика по видео
       if (!singleClickAction) {
         singleClickAction = "togglePause";
       }
@@ -524,7 +538,9 @@ function App() {
 
       const curHotkeys = latestRef.current.hotkeys;
       let action: string | null = null;
-      for (const [actionId, codes] of Object.entries(curHotkeys)) {
+      const allowedContextMenuActions = ["openContextMenu", "fileInfo", "togglePause", "fullscreen"];
+      for (const actionId of allowedContextMenuActions) {
+        const codes = curHotkeys[actionId] || [];
         if (codes.includes("MouseRight")) {
           action = actionId;
           break;
@@ -586,14 +602,7 @@ function App() {
       const curHotkeys = latestRef.current.hotkeys;
       for (const actionId of Object.keys(curHotkeys)) {
         const customCodes = curHotkeys[actionId] || [];
-        const isMatch = customCodes.some(c => 
-          e.code === c || 
-          (e.key && e.key.toLowerCase() === c.toLowerCase()) ||
-          (c === "Comma" && (e.key === "б" || e.key === "Б" || e.key === ",")) ||
-          (c === "Period" && (e.key === "ю" || e.key === "Ю" || e.key === ".")) ||
-          (c === "BracketLeft" && (e.key === "х" || e.key === "Х" || e.key === "[")) ||
-          (c === "BracketRight" && (e.key === "ъ" || e.key === "Ъ" || e.key === "]"))
-        );
+        const isMatch = customCodes.some(c => isKeyboardEventMatch(e, c));
         
         if (isMatch) {
           e.preventDefault();
