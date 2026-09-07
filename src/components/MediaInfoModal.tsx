@@ -80,9 +80,14 @@ export function MediaInfoModal({
     <div className="media-info-overlay" onClick={onClose}>
       {/* Общие данные */}
       <div className="media-info__section">
-        <div className="media-info__row">
+        <div className="media-info__row media-info__row--filename">
           <span className="media-info__label">Файл:</span>
-          <span className="media-info__value">{filename}</span>
+          <span
+            className="media-info__value media-info__value--filename"
+            title={filename}
+          >
+            {filename}
+          </span>
         </div>
         <div className="media-info__row">
           <span className="media-info__label">Размер:</span>

@@ -22,9 +22,10 @@ import {
   getCustomHotkeys,
   saveCustomHotkeys,
   resetCustomHotkeys,
+  resetSingleHotkey,
   getKeyDisplay,
 } from "../utils/hotkeyUtils";
-import { PASTEL_PRESETS, VIBRANT_PRESETS, GRADIENT_PRESETS, applyAccentColor } from "../utils/colorUtils";
+import { PASTEL_PRESETS, VIBRANT_PRESETS, applyAccentColor } from "../utils/colorUtils";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -38,8 +39,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [multiInstance, setMultiInstance] = useState<boolean>(false);
   const [saveTracksToVideoDir, setSaveTracksToVideoDir] = useState<boolean>(true);
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
-  const [customHotkeys, setCustomHotkeys] = useState<Record<string, string>>(getCustomHotkeys());
-  const [recordingAction, setRecordingAction] = useState<string | null>(null);
+  const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(getCustomHotkeys());
+  const [recordingAction, setRecordingAction] = useState<{ id: string, index: number } | null>(null);
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "hotkeys" | "integration">("general");
   const [integrationLogs, setIntegrationLogs] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
@@ -124,7 +125,17 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ width: 600, maxWidth: "90vw", maxHeight: "80vh", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        style={{
+          width: 650,
+          maxWidth: "92vw",
+          maxHeight: "75vh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Шапка модального окна */}
         <div className="modal__header" style={{ padding: "16px 20px", flexShrink: 0 }}>
           <h2 className="modal__title" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "1.15rem" }}>
@@ -462,32 +473,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                     ))}
                   </div>
 
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Многоцветные градиенты
-                  </span>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                    {GRADIENT_PRESETS.map((grad) => (
-                      <button
-                        key={grad.id}
-                        onClick={() => {
-                          applyAccentColor(grad.id);
-                          setActiveColor(grad.id);
-                          localStorage.setItem('l-mpv-accent-color', grad.id);
-                        }}
-                        title={grad.name}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          background: grad.gradient,
-                          border: activeColor === grad.id ? "2px solid white" : "2px solid transparent",
-                          cursor: "pointer",
-                          boxShadow: activeColor === grad.id ? `0 0 14px ${grad.baseColor}B0` : "none",
-                          transition: "all var(--t-fast) var(--ease-smooth)",
-                        }}
-                      />
-                    ))}
-                  </div>
+
                 </div>
 
                 {/* Настройка прозрачности */}
@@ -673,63 +659,266 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 Назначения горячих клавиш
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {HOTKEY_ACTIONS.map((item) => {
-                  const currentCode = customHotkeys[item.id] || item.defaultKey;
-                  const isRecording = recordingAction === item.id;
-                  const keyText = getKeyDisplay(item.id, currentCode);
+              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                {(() => {
+                  const categorizedHotkeys = HOTKEY_ACTIONS.reduce((acc, item) => {
+                    if (!acc[item.category]) acc[item.category] = [];
+                    acc[item.category].push(item);
+                    return acc;
+                  }, {} as Record<string, typeof HOTKEY_ACTIONS>);
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="modal__row"
-                      style={{
-                        padding: "10px 14px",
-                        background: "rgba(255, 255, 255, 0.03)",
-                        border: "1px solid rgba(255, 255, 255, 0.04)",
-                        borderRadius: "var(--radius-md)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <span style={{ color: "var(--text-primary)", fontSize: "0.9rem", fontWeight: 500 }}>
-                        {item.label}
-                      </span>
-                      <button
-                        onClick={() => {
-                          setRecordingAction(item.id);
-                        }}
-                        onKeyDown={(e) => {
-                          if (isRecording) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const newCode = e.code || e.key;
-                            const updated = { ...customHotkeys, [item.id]: newCode };
-                            setCustomHotkeys(updated);
-                            saveCustomHotkeys(updated);
-                            setRecordingAction(null);
-                          }
-                        }}
+                  return Object.entries(categorizedHotkeys).map(([category, items]) => (
+                    <div key={category} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div
                         style={{
-                          padding: "4px 12px",
-                          background: isRecording ? "var(--accent)" : "rgba(127, 199, 255, 0.12)",
-                          border: isRecording ? "1px solid white" : "1px solid rgba(127, 199, 255, 0.2)",
-                          borderRadius: "var(--radius-sm)",
-                          fontFamily: "monospace",
-                          fontSize: "0.84rem",
+                          fontSize: "0.95rem",
+                          color: "var(--accent)",
                           fontWeight: 600,
-                          color: isRecording ? "#000" : "var(--accent)",
-                          cursor: "pointer",
-                          outline: "none",
-                          transition: "all var(--t-fast) var(--ease-smooth)",
+                          paddingBottom: 6,
+                          borderBottom: "1px solid rgba(255,255,255,0.06)",
+                          marginBottom: 4,
                         }}
                       >
-                        {isRecording ? "Нажмите клавишу..." : keyText}
-                      </button>
+                        {category}
+                      </div>
+                      
+                      {items.map((item) => {
+                        const currentCodes = customHotkeys[item.id] || [];
+
+                        return (
+                          <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div
+                              className="modal__row"
+                              style={{
+                                flex: 1,
+                                padding: "10px 14px",
+                                background: "rgba(255, 255, 255, 0.03)",
+                                border: "1px solid rgba(255, 255, 255, 0.04)",
+                                borderRadius: "var(--radius-md)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                flexWrap: "wrap",
+                                gap: 10,
+                              }}
+                            >
+                              <span style={{ color: "var(--text-primary)", fontSize: "0.9rem", fontWeight: 500, flex: 1, minWidth: 200 }}>
+                                {item.label}
+                              </span>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                {currentCodes.map((code, idx) => {
+                                  const isRecording = recordingAction?.id === item.id && recordingAction.index === idx;
+                                  return (
+                                    <div key={idx} style={{ display: "flex", alignItems: "center" }}>
+                                      <button
+                                        onClick={() => setRecordingAction({ id: item.id, index: idx })}
+                                        onKeyDown={(e) => {
+                                          if (isRecording) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            if (
+                                              e.key === "Control" ||
+                                              e.key === "Shift" ||
+                                              e.key === "Alt" ||
+                                              e.key === "Meta"
+                                            ) {
+                                              return;
+                                            }
+                                            const parts: string[] = [];
+                                            if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
+                                            if (e.shiftKey) parts.push("Shift");
+                                            if (e.altKey) parts.push("Alt");
+                                            parts.push(e.code || e.key);
+                                            const newCode = parts.join("+");
+
+                                            const newCodes = [...currentCodes];
+                                            newCodes[idx] = newCode;
+                                            const updated = { ...customHotkeys, [item.id]: newCodes };
+                                            setCustomHotkeys(updated);
+                                            saveCustomHotkeys(updated);
+                                            setRecordingAction(null);
+                                          }
+                                        }}
+                                        onMouseDown={(e) => {
+                                          if (isRecording) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
+                                            const newCode = btnMap[e.button] || `MouseButton${e.button}`;
+                                            const newCodes = [...currentCodes];
+                                            newCodes[idx] = newCode;
+                                            const updated = { ...customHotkeys, [item.id]: newCodes };
+                                            setCustomHotkeys(updated);
+                                            saveCustomHotkeys(updated);
+                                            setRecordingAction(null);
+                                          }
+                                        }}
+                                        onContextMenu={(e) => {
+                                          if (isRecording) e.preventDefault();
+                                        }}
+                                        style={{
+                                          padding: "4px 10px",
+                                          background: isRecording ? "var(--accent)" : "rgba(127, 199, 255, 0.12)",
+                                          border: isRecording ? "1px solid white" : "1px solid rgba(127, 199, 255, 0.2)",
+                                          borderRadius: "var(--radius-sm)",
+                                          fontFamily: "monospace",
+                                          fontSize: "0.84rem",
+                                          fontWeight: 600,
+                                          color: isRecording ? "#000" : "var(--accent)",
+                                          cursor: "pointer",
+                                          outline: "none",
+                                          borderTopRightRadius: 0,
+                                          borderBottomRightRadius: 0,
+                                        }}
+                                      >
+                                        {isRecording ? "Нажмите..." : getKeyDisplay(code)}
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          const newCodes = currentCodes.filter((_, i) => i !== idx);
+                                          const updated = { ...customHotkeys, [item.id]: newCodes };
+                                          setCustomHotkeys(updated);
+                                          saveCustomHotkeys(updated);
+                                        }}
+                                        title="Удалить"
+                                        style={{
+                                          padding: "4px 6px",
+                                          background: "rgba(255, 50, 50, 0.15)",
+                                          border: "1px solid rgba(255, 50, 50, 0.3)",
+                                          borderLeft: "none",
+                                          borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
+                                          color: "#ff8888",
+                                          cursor: "pointer",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                        }}
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                                
+                                {/* Кнопка добавления нового бинда */}
+                                {(() => {
+                                  const isRecordingNew = recordingAction?.id === item.id && recordingAction.index === currentCodes.length;
+                                  if (isRecordingNew) {
+                                    return (
+                                      <button
+                                          onKeyDown={(e) => {
+                                            if (isRecordingNew) {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              if (
+                                                e.key === "Control" ||
+                                                e.key === "Shift" ||
+                                                e.key === "Alt" ||
+                                                e.key === "Meta"
+                                              ) {
+                                                return;
+                                              }
+                                              const parts: string[] = [];
+                                              if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
+                                              if (e.shiftKey) parts.push("Shift");
+                                              if (e.altKey) parts.push("Alt");
+                                              parts.push(e.code || e.key);
+                                              const newCode = parts.join("+");
+
+                                              const newCodes = [...currentCodes, newCode];
+                                              const updated = { ...customHotkeys, [item.id]: newCodes };
+                                              setCustomHotkeys(updated);
+                                              saveCustomHotkeys(updated);
+                                              setRecordingAction(null);
+                                            }
+                                          }}
+                                          onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
+                                            const newCode = btnMap[e.button] || `MouseButton${e.button}`;
+                                            const newCodes = [...currentCodes, newCode];
+                                            const updated = { ...customHotkeys, [item.id]: newCodes };
+                                            setCustomHotkeys(updated);
+                                            saveCustomHotkeys(updated);
+                                            setRecordingAction(null);
+                                          }}
+                                          onContextMenu={(e) => e.preventDefault()}
+                                          style={{
+                                            padding: "4px 10px",
+                                            background: "var(--accent)",
+                                            border: "1px solid white",
+                                            borderRadius: "var(--radius-sm)",
+                                            fontFamily: "monospace",
+                                            fontSize: "0.84rem",
+                                            fontWeight: 600,
+                                            color: "#000",
+                                            outline: "none",
+                                          }}
+                                      >
+                                        Нажмите...
+                                      </button>
+                                    );
+                                  }
+                                  
+                                  return (
+                                    <button
+                                      onClick={() => setRecordingAction({ id: item.id, index: currentCodes.length })}
+                                      title="Добавить клавишу"
+                                      style={{
+                                        padding: "4px 8px",
+                                        background: "rgba(255, 255, 255, 0.05)",
+                                        border: "1px dashed rgba(255, 255, 255, 0.2)",
+                                        borderRadius: "var(--radius-sm)",
+                                        color: "var(--text-secondary)",
+                                        cursor: "pointer",
+                                        fontSize: "1rem",
+                                        lineHeight: 1,
+                                      }}
+                                    >
+                                      +
+                                    </button>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                            
+                            <button
+                              onClick={() => {
+                                const updated = resetSingleHotkey(item.id, customHotkeys);
+                                setCustomHotkeys(updated);
+                              }}
+                              title="По умолчанию"
+                              style={{
+                                padding: "10px",
+                                background: "rgba(255, 255, 255, 0.03)",
+                                border: "1px solid rgba(255, 255, 255, 0.04)",
+                                borderRadius: "var(--radius-md)",
+                                color: "var(--text-muted)",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                                transition: "all 0.15s ease",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.color = "var(--text-primary)";
+                                e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.color = "var(--text-muted)";
+                                e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+                              }}
+                            >
+                              <RotateCcw size={16} />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  ));
+                })()}
               </div>
             </div>
           )}

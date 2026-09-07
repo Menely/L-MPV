@@ -55,8 +55,14 @@ pub fn run() {
     if !settings.allow_multi_instance {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             use tauri::Emitter;
+            use tauri::Manager;
             if args.len() > 1 {
                 let _ = app.emit("open-file-cli", &args[1]);
+            }
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
             }
         }));
     }
@@ -148,8 +154,6 @@ pub fn run() {
                 let state = app.state::<PlayerState>();
                 
                 // Передаем HWND в mpv как Window ID (wid)
-                // Hwnd в Tauri v2 имеет метод .0 или приводится к isize.
-                // Получаем значение как isize
                 let hwnd_value = hwnd.0 as isize; 
                 if let Err(e) = state.mpv.set_property_string("wid", &hwnd_value.to_string()) {
                     println!("[L-MPV] Ошибка привязки HWND к mpv: {}", e);
@@ -164,17 +168,13 @@ pub fn run() {
                 if let Err(e) = commands::open_file_internal(&*state, &args[1]) {
                     println!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
                     window.show().ok();
-                } else {
-                    // Уведомляем фронтенд, что файл начал загружаться
-                    use tauri::Emitter;
-                    let _ = app.emit("file-loading", &args[1]);
                 }
             } else {
-                // Нет аргумента файла — показываем окно сразу (стартовая страница)
+                // Нет аргумента файла — показываем окно сразу со стартовой страницей
                 window.show().ok();
             }
             
-            println!("[L-MPV] Tauri Setup завершен! Окно должно открыться.");
+            println!("[L-MPV] Tauri Setup завершен!");
             Ok(())
         })
         .run(tauri::generate_context!())
