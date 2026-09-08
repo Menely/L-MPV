@@ -10,6 +10,7 @@ mod mpv_manager;
 use commands::PlayerState;
 use mpv_manager::MpvManager;
 use std::sync::Arc;
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -136,6 +137,7 @@ pub fn run() {
             commands::copy_frame_to_clipboard,
             commands::get_last_position,
             commands::save_position,
+            commands::save_current_position,
             commands::update_taskbar_progress,
             commands::toggle_fullscreen,
             commands::extract_track,
@@ -147,7 +149,8 @@ pub fn run() {
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { .. } => {
-                commands::save_history_to_disk();
+                let state = window.state::<PlayerState>();
+                commands::save_current_playback_position(&state);
             }
             tauri::WindowEvent::Focused(focused) => {
                 commands::handle_window_focus(window, *focused);
@@ -155,7 +158,6 @@ pub fn run() {
             _ => {}
         })
         .setup(|app| {
-            use tauri::Manager;
             let window = app.get_webview_window("main").unwrap();
 
             #[cfg(target_os = "windows")]
@@ -202,6 +204,12 @@ pub fn run() {
             println!("[L-MPV] Tauri Setup завершен!");
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("Ошибка запуска приложения L-MPV");
+        .build(tauri::generate_context!())
+        .expect("Ошибка сборки приложения L-MPV")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                let state = app_handle.state::<PlayerState>();
+                commands::save_current_playback_position(&state);
+            }
+        });
 }

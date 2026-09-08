@@ -1,4 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useMemo, memo } from "react";
 import {
   Minus,
@@ -42,7 +43,9 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
     }
   }, [appWindow, isFullscreen, toggleFullscreen]);
 
-  const handleClose = useCallback(() => {
+  const handleClose = useCallback(async () => {
+    // Сохраняем актуальную позицию воспроизведения из MPV на диск перед закрытием
+    await invoke("save_current_position").catch(() => {});
     appWindow.close();
   }, [appWindow]);
 

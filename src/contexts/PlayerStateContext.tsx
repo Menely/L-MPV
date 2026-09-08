@@ -235,6 +235,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const hasMediaInfoRef = useRef(false);
+  const isResumingRef = useRef(false);
+  const lastSavedPositionRef = useRef<number>(0);
+  const lastSavedPausedRef = useRef<boolean>(true);
+  const lastSaveTimeRef = useRef<number>(0);
 
   // Оптимизированный цикл поллинга
   useEffect(() => {
@@ -273,12 +277,21 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
             // Проверяем историю и переходим на сохраненную позицию
             try {
+              isResumingRef.current = true;
               const lastPos = await invoke<number>("get_last_position", { path: fullInfo.path });
               if (lastPos > 5.0 && fullInfo.position < 3.0) {
                 await invoke("seek_absolute", { seconds: lastPos });
+                lastSavedPositionRef.current = lastPos;
+              } else {
+                lastSavedPositionRef.current = fullInfo.position;
               }
             } catch (e) {
               console.error("Ошибка авто-перехода к позиции истории:", e);
+            } finally {
+              // Предотвращаем ложное срабатывание автосохранения во время инициализации
+              setTimeout(() => {
+                isResumingRef.current = false;
+              }, 300);
             }
           } else {
             currentPathRef.current = "";
@@ -461,21 +474,58 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   }, [progress.position, progress.duration, mediaInfo?.paused]);
 
   // ─── Автосохранение истории просмотров с передачей duration ───
-  const lastSavedPositionRef = useRef<number>(0);
   useEffect(() => {
     const curPos = progress.position;
     const curDur = progress.duration;
     const isPaused = mediaInfo?.paused ?? true;
-    if (mediaInfo && mediaInfo.path && !isPaused && curDur > 0) {
-      // Сохраняем каждые 5 секунд прогресса
-      if (Math.abs(curPos - lastSavedPositionRef.current) >= 5.0) {
-        lastSavedPositionRef.current = curPos;
-        invoke("save_position", { path: mediaInfo.path, position: curPos, duration: curDur }).catch(() => {});
+    const path = mediaInfo?.path;
+
+    if (!path || curDur <= 0 || isResumingRef.current) {
+      if (!path) {
+        lastSavedPositionRef.current = 0;
+        lastSavedPausedRef.current = true;
       }
-    } else if (!mediaInfo) {
-      lastSavedPositionRef.current = 0;
+      return;
+    }
+
+    const now = Date.now();
+    const posDiff = Math.abs(curPos - lastSavedPositionRef.current);
+    const justPaused = isPaused && !lastSavedPausedRef.current;
+    lastSavedPausedRef.current = isPaused;
+
+    // Автосохранение срабатывает:
+    // 1. При переходе на паузу (justPaused)
+    // 2. При перемотке на паузе со смещением не менее 0.5 секунды
+    // 3. Во время воспроизведения каждые 3 секунды или при смещении не менее 3 секунд
+    const shouldSave =
+      justPaused ||
+      (isPaused && posDiff >= 0.5) ||
+      (!isPaused && (posDiff >= 3.0 || (now - lastSaveTimeRef.current >= 3000 && posDiff >= 0.5)));
+
+    if (shouldSave) {
+      lastSavedPositionRef.current = curPos;
+      lastSaveTimeRef.current = now;
+      invoke("save_position", { path, position: curPos, duration: curDur }).catch(() => {});
     }
   }, [progress.position, progress.duration, mediaInfo?.path, mediaInfo?.paused]);
+
+  // Гарантированное сохранение позиции перед выгрузкой страницы или закрытием окна
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const curMedia = mediaInfoRef.current;
+      if (curMedia && curMedia.path && curMedia.duration > 0) {
+        invoke("save_position", {
+          path: curMedia.path,
+          position: curMedia.position,
+          duration: curMedia.duration,
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
 
   const selectAudioTrack = useCallback(async (trackId: number) => {
     try {

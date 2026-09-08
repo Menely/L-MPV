@@ -263,6 +263,9 @@ pub fn open_file_internal(
     state: &PlayerState,
     path: &str,
 ) -> Result<(), String> {
+    // Сохраняем текущую позицию предыдущего проигрываемого медиафайла перед открытием нового
+    save_current_playback_position(state);
+
     let target_path = std::path::PathBuf::from(path);
     let safe_target = escape_mpv_path(path);
 
@@ -282,6 +285,9 @@ pub fn open_file_internal(
 
     // 1. Мгновенно запускаем воспроизведение выбранного файла
     state.mpv.command(&format!("loadfile \"{}\" replace", safe_target))?;
+
+    // Сбрасываем параметр "start" в "none", чтобы следующие треки плейлиста стартовали с начала
+    let _ = state.mpv.set_property_string("start", "none");
 
     // 2. Фоново формируем плейлист из остальных файлов в той же папке
     if let Some(parent) = target_path.parent() {
@@ -959,6 +965,7 @@ pub fn get_video_dimensions(state: State<'_, PlayerState>) -> Result<(i64, i64),
 pub fn playlist_prev(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    save_current_playback_position(&state);
     state.mpv.command("playlist-prev")
 }
 
@@ -967,6 +974,7 @@ pub fn playlist_prev(
 pub fn playlist_next(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    save_current_playback_position(&state);
     state.mpv.command("playlist-next")
 }
 
@@ -1020,6 +1028,7 @@ pub fn play_playlist_item(
     state: State<'_, PlayerState>,
     index: i64,
 ) -> Result<(), String> {
+    save_current_playback_position(&state);
     state.mpv.set_property_string("playlist-pos", &index.to_string())
 }
 
@@ -1389,7 +1398,19 @@ static WATCH_HISTORY: OnceLock<Mutex<HashMap<String, WatchHistoryItem>>> = OnceL
 static LAST_DISK_SAVE: OnceLock<Mutex<u64>> = OnceLock::new();
 
 pub fn normalize_history_path(path: &str) -> String {
-    path.replace('\\', "/").to_lowercase()
+    let mut clean = path.trim().replace('\\', "/");
+    if clean.starts_with("file:///") {
+        clean = clean[8..].to_string();
+    } else if clean.starts_with("file://") {
+        clean = clean[7..].to_string();
+    }
+    if clean.starts_with("//?/") {
+        clean = clean[4..].to_string();
+    }
+    if clean.len() > 3 && clean.ends_with('/') {
+        clean.pop();
+    }
+    clean.to_lowercase()
 }
 
 fn get_history_map() -> &'static Mutex<HashMap<String, WatchHistoryItem>> {
@@ -1427,14 +1448,16 @@ pub fn save_history_to_disk() {
 }
 
 pub fn update_history_position(path: &str, position: f64, duration: f64) {
-    if path.is_empty() || position < 3.0 {
+    if path.trim().is_empty() {
         return;
     }
     use std::time::{SystemTime, UNIX_EPOCH};
     let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     let key = normalize_history_path(path);
 
-    let target_pos = if duration > 15.0 && position >= (duration - 10.0) {
+    // Если видео находится в самом начале (< 3.0 сек) или просмотрено почти до конца (за 10 сек до конца при длительности > 15 сек),
+    // сохраняем 0.0, чтобы при последующем открытии видео начиналось с самого начала.
+    let target_pos = if position < 3.0 || (duration > 15.0 && position >= (duration - 10.0)) {
         0.0
     } else {
         position
@@ -1443,7 +1466,7 @@ pub fn update_history_position(path: &str, position: f64, duration: f64) {
     if let Ok(mut map) = get_history_map().lock() {
         map.insert(key, WatchHistoryItem { position: target_pos, timestamp: now });
         
-        if map.len() > 50 {
+        if map.len() > 100 {
             let mut items: Vec<_> = map.iter().map(|(k, v)| (k.clone(), v.timestamp)).collect();
             items.sort_by_key(|i| i.1);
             if let Some(oldest) = items.first() {
@@ -1453,11 +1476,24 @@ pub fn update_history_position(path: &str, position: f64, duration: f64) {
         }
     }
 
-    // Сохраняем на диск не чаще раз в 5 секунд
+    // Сохраняем на диск не чаще раз в 5 секунд при фоновом обновлении
     let last_save_mutex = LAST_DISK_SAVE.get_or_init(|| Mutex::new(0));
     if let Ok(mut last_save) = last_save_mutex.lock() {
         if now.saturating_sub(*last_save) >= 5 {
             *last_save = now;
+            save_history_to_disk();
+        }
+    }
+}
+
+/// Сохраняет текущую позицию воспроизведения активного медиафайла напрямую из состояния MPV на диск.
+pub fn save_current_playback_position(state: &PlayerState) {
+    let mpv = &state.mpv;
+    if let Ok(current_path) = mpv.get_property_string("path") {
+        if !current_path.trim().is_empty() {
+            let position = mpv.get_property_double("time-pos").unwrap_or(0.0);
+            let duration = mpv.get_property_double("duration").unwrap_or(0.0);
+            update_history_position(&current_path, position, duration);
             save_history_to_disk();
         }
     }
@@ -1476,9 +1512,16 @@ pub fn get_last_position(path: String) -> Result<f64, String> {
 
 #[tauri::command]
 pub fn save_position(path: String, position: f64, duration: Option<f64>) -> Result<(), String> {
-    if path.is_empty() { return Ok(()); }
+    if path.trim().is_empty() { return Ok(()); }
     update_history_position(&path, position, duration.unwrap_or(0.0));
     save_history_to_disk();
+    Ok(())
+}
+
+/// Принудительное синхронное сохранение текущей позиции активного медиафайла напрямую из состояния MPV на диск.
+#[tauri::command]
+pub fn save_current_position(state: State<'_, PlayerState>) -> Result<(), String> {
+    save_current_playback_position(&state);
     Ok(())
 }
 
