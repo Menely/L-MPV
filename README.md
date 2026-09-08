@@ -85,7 +85,7 @@
   <tr>
     <td width="50%" align="center">
       <b>🌌 Аппаратная Подсветка Полос</b><br>
-      <sub>Шейдерное размытие краев видео для устранения черных полос</sub><br><br>
+      <sub>Шейдерное размытие краев видео (Ambient)</sub><br><br>
       <a href="./assets/ambient-light-demo.png"><img src="./assets/ambient-light-demo.png" alt="Ambient Light" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
@@ -97,7 +97,7 @@
   <tr>
     <td width="50%" align="center">
       <b>🎧 Управление Дорожками и Экспорт в 1 Клик</b><br>
-      <sub>Быстрая смена аудио/субтитров и мгновенное скачивание через FFmpeg</sub><br><br>
+      <sub>Быстрая смена аудио/субтитров и скачивание</sub><br><br>
       <a href="./assets/audio-window.png"><img src="./assets/audio-window.png" alt="Audio & Subtitles" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
