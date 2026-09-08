@@ -3,6 +3,7 @@
 //! Инициализирует Tauri-приложение, менеджер libmpv
 //! и регистрирует все IPC-команды для фронтенда.
 
+mod ambient;
 mod commands;
 mod mpv_manager;
 
@@ -131,6 +132,10 @@ pub fn run() {
             commands::update_taskbar_progress,
             commands::toggle_fullscreen,
             commands::extract_track,
+            // Подсветка полос (Ambient Light)
+            commands::get_ambient_settings,
+            commands::set_ambient_settings,
+            commands::toggle_ambient_mode,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { .. } => {
@@ -159,6 +164,18 @@ pub fn run() {
                     println!("[L-MPV] Ошибка привязки HWND к mpv: {}", e);
                 } else {
                     println!("[L-MPV] Успешная привязка HWND к mpv: {}", hwnd_value);
+                }
+
+                // Применяем сохранённые настройки подсветки полос (Ambient Light)
+                if let Ok(exe_p) = std::env::current_exe() {
+                    if let Some(p_dir) = exe_p.parent() {
+                        let saved_cfg = commands::AppSettings::load(p_dir);
+                        if let Err(e) = ambient::AmbientController::apply(&state.mpv, &saved_cfg.ambient) {
+                            println!("[L-MPV] Ошибка инициализации Ambient Light: {}", e);
+                        } else {
+                            println!("[L-MPV] Режим Ambient Light инициализирован: {:?}", saved_cfg.ambient.mode);
+                        }
+                    }
                 }
             }
 

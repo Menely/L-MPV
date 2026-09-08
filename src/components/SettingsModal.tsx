@@ -16,6 +16,7 @@ import {
   AudioLines,
   ExternalLink,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -26,6 +27,12 @@ import {
   getKeyDisplay,
 } from "../utils/hotkeyUtils";
 import { PASTEL_PRESETS, VIBRANT_PRESETS, applyAccentColor } from "../utils/colorUtils";
+
+interface AmbientSettings {
+  mode: "off" | "blur" | "color";
+  blur_radius: number;
+  color: string;
+}
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -45,6 +52,11 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [integrationLogs, setIntegrationLogs] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
   const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
+  const [ambientSettings, setAmbientSettings] = useState<AmbientSettings>({
+    mode: "off",
+    blur_radius: 100,
+    color: "#7fc7ff",
+  });
 
   // Загружаем текущий путь к скриншотам из mpv
   useEffect(() => {
@@ -93,7 +105,28 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       }
     };
     loadMultiInstance();
+
+    const loadAmbient = async () => {
+      try {
+        const val = await invoke<AmbientSettings>("get_ambient_settings");
+        setAmbientSettings(val);
+      } catch (e) {
+        console.error("Ошибка загрузки настроек Ambient Light:", e);
+      }
+    };
+    loadAmbient();
   }, []);
+
+  const updateAmbient = async (newSettings: Partial<AmbientSettings>) => {
+    const updated = { ...ambientSettings, ...newSettings };
+    setAmbientSettings(updated);
+    try {
+      await invoke("set_ambient_settings", { settings: updated });
+      window.dispatchEvent(new Event('l-mpv-ambient-changed'));
+    } catch (err) {
+      console.error("Ошибка сохранения настроек Ambient Light:", err);
+    }
+  };
 
   // Выбор папки скриншотов через диалог Tauri
   const handlePickFolder = async () => {
@@ -603,6 +636,204 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                       </span>
                     </label>
                   ))}
+                </div>
+
+                {/* Настройка подсветки полос (Ambient Light / GPU Blur) */}
+                <div
+                  className="modal__section-title"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: "0.95rem",
+                    color: "var(--accent)",
+                    fontWeight: 600,
+                    textTransform: "none",
+                    letterSpacing: "normal",
+                    marginTop: 24,
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Sparkles size={16} /> Подсветка черных полос (Ambient Light)
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 4 }}>
+                  <span style={{ fontSize: "0.80rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                    Заполняет пустые области экрана (letterbox/pillarbox) при просмотре широкоформатных видео или в полноэкранном режиме.
+                  </span>
+
+                  {/* Переключатель режимов */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gap: 8,
+                      padding: 4,
+                      background: "rgba(255, 255, 255, 0.03)",
+                      borderRadius: "var(--radius-md)",
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    {[
+                      { id: "off", label: "Выключено", desc: "Черные полосы" },
+                      { id: "blur", label: "Размытие (GPU)", desc: "Шейдерный Blur" },
+                      { id: "color", label: "Цветной фон", desc: "Свечение цветом" },
+                    ].map((item) => {
+                      const isSel = ambientSettings.mode === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => updateAmbient({ mode: item.id as "off" | "blur" | "color" })}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 3,
+                            padding: "8px 6px",
+                            borderRadius: "var(--radius-sm)",
+                            border: "none",
+                            cursor: "pointer",
+                            background: isSel ? "var(--accent-glow)" : "transparent",
+                            color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+                            boxShadow: isSel
+                              ? "0 0 12px var(--accent-glow), inset 0 0 0 1px var(--accent)"
+                              : "none",
+                            transition: "all var(--t-fast) var(--ease-smooth)",
+                          }}
+                        >
+                          <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>{item.label}</span>
+                          <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
+                            {item.desc}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Настройка радиуса размытия (только для режима blur) */}
+                  {ambientSettings.mode === "blur" && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        padding: "12px 14px",
+                        borderRadius: "var(--radius-md)",
+                        background: "rgba(255, 255, 255, 0.03)",
+                        border: "1px solid var(--border)",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)", fontWeight: 500 }}>
+                          Радиус аппаратного размытия (Blur Radius)
+                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: "0.85rem", color: "var(--accent)", fontWeight: 600 }}>
+                            {ambientSettings.blur_radius} px
+                          </span>
+                          <button
+                            onClick={() => updateAmbient({ blur_radius: 100 })}
+                            className="control-btn"
+                            title="Сбросить на 100px"
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: "var(--radius-sm)",
+                              background: "rgba(255, 255, 255, 0.05)",
+                              border: "1px solid var(--border)",
+                              color: "var(--text-secondary)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <RotateCcw size={12} />
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="150"
+                        step="5"
+                        value={ambientSettings.blur_radius}
+                        onChange={(e) => updateAmbient({ blur_radius: parseInt(e.target.value, 10) })}
+                        style={{ width: "100%", cursor: "pointer", accentColor: "var(--accent)" }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Настройка цвета (только для режима color) */}
+                  {ambientSettings.mode === "color" && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                        padding: "12px 14px",
+                        borderRadius: "var(--radius-md)",
+                        background: "rgba(255, 255, 255, 0.03)",
+                        border: "1px solid var(--border)",
+                      }}
+                    >
+                      <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)", fontWeight: 500 }}>
+                        Цвет подсветки черных полос
+                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => updateAmbient({ color: activeColor === "windows" ? "#7fc7ff" : activeColor })}
+                          title="Использовать текущий акцент плеера"
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: "var(--radius-sm)",
+                            border: "1px solid var(--border)",
+                            background: "var(--accent-glass)",
+                            color: "var(--accent)",
+                            fontSize: "0.78rem",
+                            fontWeight: 500,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Как в теме ({activeColor === "windows" ? "Windows" : activeColor})
+                        </button>
+
+                        {["#141923", "#1f2937", "#241e38", "#2d1c24", "#132a24", "#0a192f"].map((hex) => (
+                          <button
+                            key={hex}
+                            onClick={() => updateAmbient({ color: hex })}
+                            style={{
+                              width: 26,
+                              height: 26,
+                              borderRadius: "50%",
+                              backgroundColor: hex,
+                              border: ambientSettings.color === hex ? "2px solid white" : "1px solid var(--border)",
+                              cursor: "pointer",
+                              boxShadow: ambientSettings.color === hex ? `0 0 10px ${hex}` : "none",
+                              transition: "all var(--t-fast) var(--ease-smooth)",
+                            }}
+                          />
+                        ))}
+
+                        <input
+                          type="color"
+                          value={ambientSettings.color.startsWith("#") ? ambientSettings.color : "#7fc7ff"}
+                          onChange={(e) => updateAmbient({ color: e.target.value })}
+                          title="Выбрать произвольный цвет"
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: "50%",
+                            border: "none",
+                            cursor: "pointer",
+                            background: "none",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
               </div>

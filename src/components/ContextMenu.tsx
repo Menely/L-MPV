@@ -21,6 +21,7 @@ import {
   Shuffle,
   Download,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 
 interface ContextMenuProps {
@@ -78,6 +79,13 @@ export function ContextMenu({
     handleDownloadTrack,
   } = usePlayerState();
   const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
+  const [ambientMode, setAmbientMode] = useState<string>("off");
+
+  useEffect(() => {
+    invoke<{ mode: string }>("get_ambient_settings")
+      .then((cfg) => setAmbientMode(cfg.mode))
+      .catch(console.error);
+  }, []);
 
   // Позиционирование меню с учётом границ экрана
   const [adjustedPos, setAdjustedPos] = useState({ x, y });
@@ -183,6 +191,25 @@ export function ContextMenu({
     onClose();
   };
 
+  const handleSetAmbientMode = async (mode: "off" | "blur" | "color") => {
+    try {
+      const cfg = await invoke<{ mode: string; blur_radius: number; color: string }>("get_ambient_settings");
+      const updated = { ...cfg, mode };
+      await invoke("set_ambient_settings", { settings: updated });
+      setAmbientMode(mode);
+      const labels: Record<string, string> = {
+        off: "Выкл",
+        blur: "Размытие (GPU)",
+        color: "Цветной Ambient",
+      };
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: `Подсветка полос: ${labels[mode] || mode}` }));
+      window.dispatchEvent(new Event("l-mpv-ambient-changed"));
+    } catch (e) {
+      console.error("Ошибка смены режима подсветки полос:", e);
+    }
+    onClose();
+  };
+
   const audioTracks = tracks.filter((t) => t.type === "audio");
   const subTracks = tracks.filter((t) => t.type === "sub");
 
@@ -282,6 +309,31 @@ export function ContextMenu({
         { type: "item", label: "90° по часовой", action: () => handleSetRotation(90) },
         { type: "item", label: "180°", action: () => handleSetRotation(180) },
         { type: "item", label: "270° по часовой", action: () => handleSetRotation(270) },
+      ],
+    },
+    {
+      type: "submenu",
+      icon: <Sparkles size={15} />,
+      label: "Подсветка полос",
+      children: [
+        {
+          type: "item",
+          label: "Выключено",
+          active: ambientMode === "off",
+          action: () => handleSetAmbientMode("off"),
+        },
+        {
+          type: "item",
+          label: "Размытие видео (GPU Blur)",
+          active: ambientMode === "blur",
+          action: () => handleSetAmbientMode("blur"),
+        },
+        {
+          type: "item",
+          label: "Цветной Ambient",
+          active: ambientMode === "color",
+          action: () => handleSetAmbientMode("color"),
+        },
       ],
     },
     {

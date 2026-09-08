@@ -1,6 +1,6 @@
 # L-MPV — Архитектура проекта и База Знаний
 
-Данный документ содержит полную и актуальную информацию об устройстве медиаплеера **L-MPV** (версия **1.2.8**), его архитектуре, технологическом стеке, структуре файлов, взаимодействии Rust и React, детальном реестре IPC-команд и всех пользовательских функциях плеера.
+Данный документ содержит полную и актуальную информацию об устройстве медиаплеера **L-MPV** (версия **1.3.0**), его архитектуре, технологическом стеке, структуре файлов, взаимодействии Rust и React, детальном реестре IPC-команд и всех пользовательских функциях плеера.
 
 ---
 
@@ -48,9 +48,10 @@ L-MPV/
 │   ├── capabilities/default.json         # Разрешения Tauri (окна, opener, dialog)
 │   ├── src/
 │   │   ├── main.rs                       # Входная точка
-│   │   ├── lib.rs                        # Настройка Tauri, привязка HWND (`wid`), фокус окна, регистрация 51 IPC-команды
-│   │   ├── mpv_manager.rs                # FFI-обертчик libmpv (WASAPI, D3D11, HWDEC auto-safe, HDR, 32-tap sinc resampler, demuxer-cache)
-│   │   └── commands.rs                   # 51 IPC #[tauri::command] функция, извлечение дорожек FFmpeg, персистентность AppSettings
+│   │   ├── lib.rs                        # Настройка Tauri, привязка HWND (`wid`), фокус окна, регистрация 54 IPC-команд
+│   │   ├── ambient.rs                    # Контроллер подсветки черных полос (Ambient Light: GPU Blur / Color / Off)
+│   │   ├── mpv_manager.rs                # FFI-обертчик libmpv (vo=gpu-next, WASAPI, D3D11, HWDEC auto-safe, HDR, 32-tap sinc resampler)
+│   │   └── commands.rs                   # 54 IPC #[tauri::command] функции, извлечение дорожек FFmpeg, персистентность AppSettings
 │   ├── Cargo.toml                        # Зависимости Rust (tauri, libloading, serde, base64, tokio, windows-sys)
 │   └── tauri.conf.json                   # Конфигурация приложения Tauri (версия синхронизирована с package.json)
 └── Portable-L-MPV/                       # Готовая портативная папка для тестирования и релиза
@@ -62,7 +63,7 @@ L-MPV/
 
 ### 3.1. `mpv_manager.rs`
 - Динамически загружает `mpv-2.dll` (или `libmpv-2.dll` / `mpv-1.dll`) через `libloading`.
-- **Рендеринг и видео:** Профиль `profile=gpu-hq`, `gpu-api=d3d11`, `hwdec=auto-safe`, `scale=spline36`, `cscale=spline36`, `auto-window-resize=no`.
+- **Рендеринг и видео:** Профиль `vo=gpu-next`, `profile=gpu-hq`, `gpu-api=d3d11`, `hwdec=auto-safe`, `scale=spline36`, `cscale=spline36`, `auto-window-resize=no`.
 - **HDR & Color Management:** `target-colorspace-hint=yes`, `tone-mapping=auto`, `hdr-compute-peak=yes`.
 - **Студийное аудио (Audiophile Profile):**
   - Драйвер Windows WASAPI: `ao=wasapi`, `audio-buffer=0.2`.
@@ -79,16 +80,24 @@ L-MPV/
 - **Отключение встроенного UI:** `osc=no`, `osd-level=0`, `input-default-bindings=no`, `input-vo-keyboard=no`.
 - **Скриншоты:** Принудительный чистый формат PNG (`screenshot-format=png`).
 
-### 3.2. `lib.rs`
+### 3.2. `ambient.rs` (Подсветка полос / Ambient Light)
+- Управляет состоянием подсветки областей letterbox/pillarbox (соотношения сторон 21:9, 4:3, нестандартные форматы, полноэкранный режим).
+- Режимы работы:
+  - **`Off`**: классические черные полосы (`border-background=color`, `background-color=#000000`).
+  - **`Blur`**: аппаратный шейдерный GPU Blur видеокадра в пустых областях без нагрузки на процессор (`border-background=blur`, `background-blur-radius=10..120`).
+  - **`Color`**: мягкая подсветка акцентным цветом темы или кастомным HEX (`border-background=color`, `background-color=#RRGGBB`).
+- Поддержка быстрого циклического переключения через горячую клавишу `B` и ПКМ-меню.
+
+### 3.3. `lib.rs`
 - Извлекает HWND окна Tauri v2 и передает его в mpv через свойство `"wid"`, связывая видеопоток с поверхностью окна Webview2.
 - Обрабатывает событие `WindowEvent::Focused` для динамического управления Z-порядком в полноэкранном режиме (автоматическое снятие Topmost для корректного `Alt+Tab` и возврат при активации плеера).
-- Регистрирует все **51 IPC-команду** в `tauri::Builder`.
+- Регистрирует все **54 IPC-команды** в `tauri::Builder`.
 
 ---
 
 ## 4. Полный Реестр IPC-Команд Rust (`commands.rs`)
 
-В бэкенде зарегистрирована **51 IPC-команда**:
+В бэкенде зарегистрирована **54 IPC-команды**:
 
 | Категория | IPC Команда | Параметры | Возвращает | Описание |
 | :--- | :--- | :--- | :--- | :--- |
@@ -143,6 +152,9 @@ L-MPV/
 | | `get_multi_instance` | — | `Result<bool, String>` | Проверка разрешения одновременного запуска нескольких окон плеера |
 | | `set_multi_instance` | `enabled: bool` | `Result<(), String>` | Включение/выключение режима нескольких экземпляров |
 | | `update_taskbar_progress` | `progress: f64, state: String` | `Result<(), String>` | Отображение прогресса видео на иконке панели задач Windows |
+| **Подсветка полос (Ambient Light)** | `get_ambient_settings` | — | `Result<AmbientSettings, String>` | Получение текущего режима, радиуса размытия и цвета подсветки |
+| | `set_ambient_settings` | `settings: AmbientSettings` | `Result<(), String>` | Применение и сохранение настроек подсветки черных полос |
+| | `toggle_ambient_mode` | — | `Result<AmbientSettings, String>` | Циклическое быстрое переключение режима (Off -> Blur -> Color -> Off) |
 
 ---
 
@@ -235,6 +247,11 @@ L-MPV/
   - Быстрый переход в параметры Windows «Приложения по умолчанию».
 - **Запоминание позиции (Resume Playback):** автоматическое сохранение позиции воспроизведения в локальную историю просмотров.
 - **Окно информации о видео (MediaInfo):** подробные технические параметры медиафайла с корректным левосторонним переносом длинных названий без горизонтального скролла.
+- **Подсветка черных полос (Ambient Light / GPU Blur):**
+  - **Аппаратное шейдерное размытие (GPU Blur):** при просмотре видео с соотношением сторон, отличным от монитора (например, 21:9 на 16:9 экране или 4:3), либо в полноэкранном режиме края видеокадра аппаратно проецируются и размываются в пустых черных полосах letterbox и pillarbox на базе `vo=gpu-next` и `libplacebo` без нагрузки на процессор.
+  - **Регулировка радиуса:** ползунок радиуса размытия (от 10px до 150px) с кнопкой сброса на 100px (значение по умолчанию).
+  - **Цветовой Ambient (Color):** мягкая подсветка акцентным цветом плеера (включая системный Windows Accent) или любым кастомным оттенком HEX.
+  - **Быстрое управление:** переключение в *Настройках* (*Внешний вид*), через контекстное меню (ПКМ -> *Подсветка полос*) и глобальную горячую клавишу `B` с OSD-уведомлениями. Сохранение состояния в `config/settings.json`.
 
 ---
 

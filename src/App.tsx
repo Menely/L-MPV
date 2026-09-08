@@ -461,6 +461,22 @@ function App() {
       case "toggleRepeat":
         window.dispatchEvent(new CustomEvent("l-mpv-action", { detail: actionId }));
         break;
+      case "toggleAmbient":
+        try {
+          const res = await invoke<{ mode: string }>("toggle_ambient_mode");
+          const labels: Record<string, string> = {
+            off: "Выкл",
+            blur: "Размытие (GPU)",
+            color: "Цветной Ambient",
+          };
+          setOsdText(`Подсветка полос: ${labels[res.mode] || res.mode}`);
+          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+          window.dispatchEvent(new Event("l-mpv-ambient-changed"));
+        } catch (e) {
+          console.error("Ошибка переключения подсветки полос:", e);
+        }
+        break;
     }
   }, [handleOpenFile, triggerFrameOsd]);
 

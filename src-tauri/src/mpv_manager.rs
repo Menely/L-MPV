@@ -145,7 +145,8 @@ impl MpvManager {
             Self::set_option(&api, handle, "screenshot-directory", &screenshots_dir);
             Self::set_option(&api, handle, "screenshot-format", "png");
 
-            // ─── Настройки рендеринга 4K / HDR ─────────
+            // ─── Настройки рендеринга 4K / HDR / GPU-Next ─────────
+            Self::set_option(&api, handle, "vo", "gpu-next");
             Self::set_option(&api, handle, "gpu-api", "d3d11");
             Self::set_option(&api, handle, "hwdec", "auto-safe");
             Self::set_option(&api, handle, "profile", "gpu-hq");
@@ -155,8 +156,9 @@ impl MpvManager {
             Self::set_option(&api, handle, "tone-mapping", "auto");
             Self::set_option(&api, handle, "hdr-compute-peak", "yes");
 
-            // ─── Оптимизация буфера ─────────────────────
-            Self::set_option(&api, handle, "background", "#000000");
+            // ─── Оптимизация фона и буфера ────────────────
+            Self::set_option(&api, handle, "background-color", "#000000");
+            Self::set_option(&api, handle, "border-background", "color");
             Self::set_option(&api, handle, "demuxer-max-bytes", "32MiB");
             Self::set_option(&api, handle, "demuxer-readahead-secs", "2");
             Self::set_option(&api, handle, "demuxer-max-back-bytes", "16MiB");

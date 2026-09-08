@@ -3,6 +3,7 @@
 //! Каждая команда помечена атрибутом `#[tauri::command]`
 //! и доступна из JavaScript/TypeScript через `invoke()`.
 
+use crate::ambient::{AmbientController, AmbientSettings};
 use crate::mpv_manager::MpvManager;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -16,6 +17,8 @@ pub struct AppSettings {
     pub screenshot_directory: Option<String>,
     #[serde(default)]
     pub allow_multi_instance: bool,
+    #[serde(default)]
+    pub ambient: AmbientSettings,
 }
 
 impl AppSettings {
@@ -673,6 +676,62 @@ pub fn set_multi_instance(allow: bool) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+// ─── Подсветка полос (Ambient Light / GPU Blur) ─────────
+
+/// Получение текущих настроек подсветки полос (Ambient Light).
+#[tauri::command]
+pub fn get_ambient_settings() -> Result<AmbientSettings, String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .ok_or_else(|| "Не удалось определить путь к директории приложения".to_string())?;
+
+    let settings = AppSettings::load(&exe_dir);
+    Ok(settings.ambient)
+}
+
+/// Установка и сохранение настроек подсветки полос (Ambient Light).
+#[tauri::command]
+pub fn set_ambient_settings(
+    state: State<'_, PlayerState>,
+    settings: AmbientSettings,
+) -> Result<(), String> {
+    AmbientController::apply(&state.mpv, &settings)?;
+
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .ok_or_else(|| "Не удалось определить путь к директории приложения".to_string())?;
+
+    let mut current_settings = AppSettings::load(&exe_dir);
+    current_settings.ambient = settings;
+    current_settings.save(&exe_dir).map_err(|e| {
+        format!("Не удалось сохранить настройки подсветки полос: {}", e)
+    })?;
+
+    Ok(())
+}
+
+/// Быстрое циклическое переключение режима подсветки полос (Off -> Blur -> Color -> Off).
+#[tauri::command]
+pub fn toggle_ambient_mode(
+    state: State<'_, PlayerState>,
+) -> Result<AmbientSettings, String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .ok_or_else(|| "Не удалось определить путь к директории приложения".to_string())?;
+
+    let mut current_settings = AppSettings::load(&exe_dir);
+    current_settings.ambient.mode = AmbientController::cycle_mode(&current_settings.ambient.mode);
+    AmbientController::apply(&state.mpv, &current_settings.ambient)?;
+    current_settings.save(&exe_dir).map_err(|e| {
+        format!("Не удалось сохранить настройки подсветки полос: {}", e)
+    })?;
+
+    Ok(current_settings.ambient)
 }
 
 // ─── Навигация по главам ────────────────────────────────

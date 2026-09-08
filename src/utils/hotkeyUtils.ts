@@ -36,6 +36,7 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   speedUp: ["BracketRight"],
   speedDown: ["BracketLeft"],
   speedReset: ["Backspace"],
+  toggleAmbient: ["KeyB"],
 };
 
 export const HOTKEY_ACTIONS: HotkeyAction[] = [
@@ -76,6 +77,7 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "resetZoom", label: "Сброс масштаба видео (100%)", defaultKeys: DEFAULT_HOTKEYS["resetZoom"], category: "Интерфейс" },
   { id: "screenshot", label: "Сохранить кадр", defaultKeys: DEFAULT_HOTKEYS["screenshot"], category: "Интерфейс" },
   { id: "copyFrame", label: "Копировать кадр в буфер", defaultKeys: DEFAULT_HOTKEYS["copyFrame"], category: "Интерфейс" },
+  { id: "toggleAmbient", label: "Подсветка полос (Ambient Light)", defaultKeys: DEFAULT_HOTKEYS["toggleAmbient"], category: "Интерфейс" },
 
   // Плейлист
   { id: "playlist", label: "Боковая панель плейлиста", defaultKeys: DEFAULT_HOTKEYS["playlist"], category: "Плейлист" },
