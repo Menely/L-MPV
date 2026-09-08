@@ -31,7 +31,6 @@ import { PASTEL_PRESETS, VIBRANT_PRESETS, applyAccentColor } from "../utils/colo
 interface AmbientSettings {
   mode: "off" | "blur" | "color";
   blur_radius: number;
-  corner_rounding: number;
   color: string;
 }
 
@@ -56,7 +55,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [ambientSettings, setAmbientSettings] = useState<AmbientSettings>({
     mode: "off",
     blur_radius: 100,
-    corner_rounding: 0.0,
     color: "#7fc7ff",
   });
 
@@ -821,64 +819,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                         step="5"
                         value={ambientSettings.blur_radius}
                         onChange={(e) => updateAmbient({ blur_radius: parseInt(e.target.value, 10) }, false)}
-                        style={{ width: "100%", cursor: "pointer", accentColor: "var(--accent)" }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Настройка скругления углов видеокадра (для режимов blur и color) */}
-                  {(ambientSettings.mode === "blur" || ambientSettings.mode === "color") && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                        padding: "12px 14px",
-                        borderRadius: "var(--radius-md)",
-                        background: "rgba(255, 255, 255, 0.03)",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                          <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)", fontWeight: 500 }}>
-                            Скругление углов видеокадра (Corner Rounding)
-                          </span>
-                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                            Аппаратное сглаживание переходов между видео и подсветкой
-                          </span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: "0.85rem", color: "var(--accent)", fontWeight: 600 }}>
-                            {Math.round((ambientSettings.corner_rounding ?? 0) * 100)}%
-                          </span>
-                          <button
-                            onClick={() => updateAmbient({ corner_rounding: 0.0 }, true)}
-                            className="control-btn"
-                            title="Сбросить на 0% (прямоугольные углы)"
-                            style={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: "var(--radius-sm)",
-                              background: "rgba(255, 255, 255, 0.05)",
-                              border: "1px solid var(--border)",
-                              color: "var(--text-secondary)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <RotateCcw size={12} />
-                          </button>
-                        </div>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="40"
-                        step="1"
-                        value={Math.round((ambientSettings.corner_rounding ?? 0) * 100)}
-                        onChange={(e) => updateAmbient({ corner_rounding: parseInt(e.target.value, 10) / 100.0 }, false)}
                         style={{ width: "100%", cursor: "pointer", accentColor: "var(--accent)" }}
                       />
                     </div>

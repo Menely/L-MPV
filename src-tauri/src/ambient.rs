@@ -2,8 +2,7 @@
 //!
 //! Обеспечивает аппаратное шейдерное размытие видеокадра в областях
 //! letterbox и pillarbox на GPU с нулевой нагрузкой на процессор,
-//! мягкую цветовую подсветку, а также нативное скругление углов
-//! видеокадра на базе видеорендерера gpu-next и библиотеки libplacebo.
+//! либо мягкую цветовую подсветку на базе видеорендерера gpu-next.
 
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -34,9 +33,6 @@ pub struct AmbientSettings {
     pub mode: AmbientMode,
     /// Радиус размытия в пикселях для режима Blur (от 5 до 150).
     pub blur_radius: u32,
-    /// Скругление углов видеокадра в диапазоне от 0.0 до 1.0 (например, 0.08 = 8%).
-    #[serde(default)]
-    pub corner_rounding: f64,
     /// Цвет заливки в формате HEX (например, "#7fc7ff" или "#000000").
     pub color: String,
 }
@@ -46,7 +42,6 @@ impl Default for AmbientSettings {
         Self {
             mode: AmbientMode::Off,
             blur_radius: 100,
-            corner_rounding: 0.0,
             color: "#7fc7ff".to_string(),
         }
     }
@@ -96,6 +91,7 @@ impl AmbientController {
             None => true,
         };
 
+
         match settings.mode {
             AmbientMode::Off => {
                 if mode_changed {
@@ -138,26 +134,6 @@ impl AmbientController {
                     };
                     self.mpv.set_property_string("background-color", valid_color)?;
                 }
-            }
-        }
-
-        // Обработка нативного скругления углов видеокадра (corner-rounding)
-        let rounding_changed = match &prev {
-            Some(p) => mode_changed || (p.corner_rounding - settings.corner_rounding).abs() > 0.0001,
-            None => true,
-        };
-
-        if rounding_changed {
-            // В режиме Off углы оставляем резкими (0.0) для классического отображения,
-            // либо применяем заданное пользователем скругление в режимах Blur и Color.
-            let rounding_value = match settings.mode {
-                AmbientMode::Off => 0.0,
-                AmbientMode::Blur | AmbientMode::Color => settings.corner_rounding.clamp(0.0, 1.0),
-            };
-
-            let rounding_str = format!("{:.3}", rounding_value);
-            if let Err(e) = self.mpv.set_property_string("corner-rounding", &rounding_str) {
-                eprintln!("[L-MPV] Предупреждение: свойство corner-rounding не применилось: {}", e);
             }
         }
 
