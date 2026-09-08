@@ -43,7 +43,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
         position: 'fixed',
         bottom: '94px',
         right: '14px',
-        maxHeight: 'calc(100vh - 154px)',
+        maxHeight: 'calc(100% - 154px)',
         width: 'min(350px, calc(100vw - 28px))',
         pointerEvents: 'none',
         zIndex: 450,
@@ -56,6 +56,8 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
         style={{ 
           display: 'flex',
           flexDirection: 'column',
+          maxHeight: '100%',
+          overflow: 'hidden',
           background: 'var(--bg-pill)',
           backdropFilter: 'blur(var(--ui-blur)) saturate(1.6)',
           WebkitBackdropFilter: 'blur(var(--ui-blur)) saturate(1.6)',
@@ -103,6 +105,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
 
         <div style={{
           flex: 1,
+          minHeight: 0,
           overflowY: 'auto',
           display: 'flex', 
           flexDirection: 'column', 

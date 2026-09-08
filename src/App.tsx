@@ -782,23 +782,21 @@ function App() {
       </div>
 
       {hasMedia && (
-        <div className="player-controls-wrapper">
-          <PlayerControls
-            showMediaInfo={showMediaInfo}
-            showChapters={showChapters}
-            onShowMediaInfo={() => {
-              setIsPlaylistOpen(false);
-              setShowChapters(false);
-              setShowMediaInfo(true);
-            }}
-            onToggleMediaInfo={() => {
-              setIsPlaylistOpen(false);
-              setShowChapters(false);
-              setShowMediaInfo((v) => !v);
-            }}
-            onCloseChapters={() => setShowChapters(false)}
-          />
-        </div>
+        <PlayerControls
+          showMediaInfo={showMediaInfo}
+          showChapters={showChapters}
+          onShowMediaInfo={() => {
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(true);
+          }}
+          onToggleMediaInfo={() => {
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo((v) => !v);
+          }}
+          onCloseChapters={() => setShowChapters(false)}
+        />
       )}
 
       {contextMenu && (
