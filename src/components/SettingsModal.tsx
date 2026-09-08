@@ -60,12 +60,21 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     color: "#7fc7ff",
   });
 
+  const ambientSettingsRef = useRef<AmbientSettings>(ambientSettings);
+  ambientSettingsRef.current = ambientSettings;
+  const isAmbientDirtyRef = useRef<boolean>(false);
   const ambientSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Сброс несохраненных изменений на диск при закрытии/размонтировании модального окна
   useEffect(() => {
     return () => {
       if (ambientSaveTimeoutRef.current) {
         clearTimeout(ambientSaveTimeoutRef.current);
+        ambientSaveTimeoutRef.current = null;
+      }
+      if (isAmbientDirtyRef.current) {
+        isAmbientDirtyRef.current = false;
+        invoke("set_ambient_settings", { settings: ambientSettingsRef.current }).catch(console.error);
       }
     };
   }, []);
@@ -127,11 +136,21 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       }
     };
     loadAmbient();
+
+    const handleAmbientChanged = () => {
+      loadAmbient();
+    };
+    window.addEventListener("l-mpv-ambient-changed", handleAmbientChanged);
+
+    return () => {
+      window.removeEventListener("l-mpv-ambient-changed", handleAmbientChanged);
+    };
   }, []);
 
   // Оптимизированное применение: мгновенный шейдерный preview на GPU + отложенное сохранение на диск (Debounce 400ms)
   const updateAmbient = async (newSettings: Partial<AmbientSettings>, immediateSave: boolean = false) => {
-    const updated = { ...ambientSettings, ...newSettings };
+    const updated = { ...ambientSettingsRef.current, ...newSettings };
+    ambientSettingsRef.current = updated;
     setAmbientSettings(updated);
 
     // 1. Мгновенное применение шейдеров в mpv без блокирующего дискового ввода-вывода
@@ -148,6 +167,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     }
 
     if (immediateSave) {
+      isAmbientDirtyRef.current = false;
       try {
         await invoke("set_ambient_settings", { settings: updated });
         window.dispatchEvent(new Event('l-mpv-ambient-changed'));
@@ -155,7 +175,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
         console.error("Ошибка сохранения настроек Ambient Light:", err);
       }
     } else {
+      isAmbientDirtyRef.current = true;
       ambientSaveTimeoutRef.current = setTimeout(async () => {
+        isAmbientDirtyRef.current = false;
         try {
           await invoke("set_ambient_settings", { settings: updated });
           window.dispatchEvent(new Event('l-mpv-ambient-changed'));

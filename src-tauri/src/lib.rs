@@ -43,15 +43,18 @@ pub fn run() {
         Err(e) => panic!("[L-MPV] Ошибка создания MpvManager: {}", e),
     };
 
+    let settings = commands::AppSettings::load(&exe_dir);
+
     let mpv_arc = Arc::new(mpv);
-    let ambient_controller = Arc::new(ambient::AmbientController::new(mpv_arc.clone()));
+    let ambient_controller = Arc::new(ambient::AmbientController::new(
+        mpv_arc.clone(),
+        settings.ambient.clone(),
+    ));
 
     let player_state = commands::PlayerState {
         mpv: mpv_arc,
         ambient_controller,
     };
-
-    let settings = commands::AppSettings::load(&exe_dir);
 
     println!("[L-MPV] Инициализация Tauri Builder...");
 

@@ -193,7 +193,7 @@ export function ContextMenu({
 
   const handleSetAmbientMode = async (mode: "off" | "blur" | "color") => {
     try {
-      const cfg = await invoke<{ mode: string; blur_radius: number; color: string }>("get_ambient_settings");
+      const cfg = await invoke<{ mode: string; blur_radius: number; corner_rounding?: number; color: string }>("get_ambient_settings");
       const updated = { ...cfg, mode };
       await invoke("set_ambient_settings", { settings: updated });
       setAmbientMode(mode);

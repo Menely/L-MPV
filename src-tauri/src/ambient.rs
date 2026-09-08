@@ -53,21 +53,33 @@ impl Default for AmbientSettings {
 }
 
 /// Контроллер для применения и оптимизированного переключения настроек Ambient в mpv.
-/// Инкапсулирует состояние видеорендерера и предотвращает дублирующие вызовы свойств.
+/// Инкапсулирует состояние видеорендерера, хранит актуальные параметры в памяти
+/// и предотвращает дублирующие вызовы свойств mpv на GPU.
 pub struct AmbientController {
     /// Ссылка на менеджер ядра mpv.
     mpv: Arc<MpvManager>,
     /// Кэш последнего примененного состояния для устранения избыточных вызовов GPU-пайплайна.
     last_applied: Mutex<Option<AmbientSettings>>,
+    /// Текущие актуальные настройки Ambient Light в оперативной памяти (Single Source of Truth).
+    current_settings: Mutex<AmbientSettings>,
 }
 
 impl AmbientController {
-    /// Создание нового экземпляра контроллера Ambient.
-    pub fn new(mpv: Arc<MpvManager>) -> Self {
+    /// Создание нового экземпляра контроллера Ambient с начальными настройками.
+    pub fn new(mpv: Arc<MpvManager>, initial: AmbientSettings) -> Self {
         Self {
             mpv,
             last_applied: Mutex::new(None),
+            current_settings: Mutex::new(initial),
         }
+    }
+
+    /// Получение текущих настроек Ambient из оперативной памяти без дискового I/O.
+    pub fn get_settings(&self) -> AmbientSettings {
+        self.current_settings
+            .lock()
+            .map(|g| g.clone())
+            .unwrap_or_default()
     }
 
     /// Применение настроек Ambient к контексту mpv с дедупликацией команд.
@@ -144,11 +156,17 @@ impl AmbientController {
             };
 
             let rounding_str = format!("{:.3}", rounding_value);
-            self.mpv.set_property_string("corner-rounding", &rounding_str)?;
+            if let Err(e) = self.mpv.set_property_string("corner-rounding", &rounding_str) {
+                eprintln!("[L-MPV] Предупреждение: свойство corner-rounding не применилось: {}", e);
+            }
         }
 
-        // Обновляем кэш примененного состояния
+        // Обновляем кэш примененного состояния и оперативной памяти
         *last_guard = Some(settings.clone());
+        if let Ok(mut cur) = self.current_settings.lock() {
+            *cur = settings.clone();
+        }
+
         Ok(())
     }
 

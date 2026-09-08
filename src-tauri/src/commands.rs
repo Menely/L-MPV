@@ -682,16 +682,12 @@ pub fn set_multi_instance(allow: bool) -> Result<(), String> {
 
 // ─── Подсветка полос (Ambient Light / GPU Blur) ─────────
 
-/// Получение текущих настроек подсветки полос (Ambient Light).
+/// Получение текущих настроек подсветки полос (Ambient Light) из оперативной памяти без дискового I/O.
 #[tauri::command]
-pub fn get_ambient_settings() -> Result<AmbientSettings, String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .ok_or_else(|| "Не удалось определить путь к директории приложения".to_string())?;
-
-    let settings = AppSettings::load(&exe_dir);
-    Ok(settings.ambient)
+pub fn get_ambient_settings(
+    state: State<'_, PlayerState>,
+) -> Result<AmbientSettings, String> {
+    Ok(state.ambient_controller.get_settings())
 }
 
 /// Мгновенное применение настроек подсветки полос (Ambient Light) на GPU без записи на диск.
@@ -731,20 +727,24 @@ pub fn set_ambient_settings(
 pub fn toggle_ambient_mode(
     state: State<'_, PlayerState>,
 ) -> Result<AmbientSettings, String> {
+    let mut current = state.ambient_controller.get_settings();
+    current.mode = AmbientController::cycle_mode(&current.mode);
+    state.ambient_controller.apply(&current)?;
+
     let exe_dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .ok_or_else(|| "Не удалось определить путь к директории приложения".to_string())?;
 
     let mut current_settings = AppSettings::load(&exe_dir);
-    current_settings.ambient.mode = AmbientController::cycle_mode(&current_settings.ambient.mode);
-    state.ambient_controller.apply(&current_settings.ambient)?;
+    current_settings.ambient = current.clone();
     current_settings.save(&exe_dir).map_err(|e| {
         format!("Не удалось сохранить настройки подсветки полос: {}", e)
     })?;
 
-    Ok(current_settings.ambient)
+    Ok(current)
 }
+
 
 // ─── Навигация по главам ────────────────────────────────
 
