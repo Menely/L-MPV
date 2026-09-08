@@ -2,10 +2,11 @@
 //!
 //! Обеспечивает аппаратное шейдерное размытие видеокадра в областях
 //! letterbox и pillarbox на GPU с нулевой нагрузкой на процессор,
-//! либо мягкую цветовую подсветку на базе видеорендерера gpu-next.
+//! мягкую цветовую подсветку, а также нативное скругление углов
+//! видеокадра на базе видеорендерера gpu-next и библиотеки libplacebo.
 
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use crate::mpv_manager::MpvManager;
 
 /// Режим работы подсветки черных полос.
@@ -27,12 +28,15 @@ impl Default for AmbientMode {
 }
 
 /// Пользовательские настройки подсветки полос.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct AmbientSettings {
     /// Текущий режим работы.
     pub mode: AmbientMode,
-    /// Радиус размытия в пикселях для режима Blur (от 10 до 100).
+    /// Радиус размытия в пикселях для режима Blur (от 5 до 150).
     pub blur_radius: u32,
+    /// Скругление углов видеокадра в диапазоне от 0.0 до 1.0 (например, 0.08 = 8%).
+    #[serde(default)]
+    pub corner_rounding: f64,
     /// Цвет заливки в формате HEX (например, "#7fc7ff" или "#000000").
     pub color: String,
 }
@@ -42,41 +46,109 @@ impl Default for AmbientSettings {
         Self {
             mode: AmbientMode::Off,
             blur_radius: 100,
+            corner_rounding: 0.0,
             color: "#7fc7ff".to_string(),
         }
     }
 }
 
-/// Контроллер для применения и переключения настроек Ambient в mpv.
-pub struct AmbientController;
+/// Контроллер для применения и оптимизированного переключения настроек Ambient в mpv.
+/// Инкапсулирует состояние видеорендерера и предотвращает дублирующие вызовы свойств.
+pub struct AmbientController {
+    /// Ссылка на менеджер ядра mpv.
+    mpv: Arc<MpvManager>,
+    /// Кэш последнего примененного состояния для устранения избыточных вызовов GPU-пайплайна.
+    last_applied: Mutex<Option<AmbientSettings>>,
+}
 
 impl AmbientController {
-    /// Применение настроек Ambient к контексту mpv через свойства видеорендерера.
-    pub fn apply(mpv: &Arc<MpvManager>, settings: &AmbientSettings) -> Result<(), String> {
+    /// Создание нового экземпляра контроллера Ambient.
+    pub fn new(mpv: Arc<MpvManager>) -> Self {
+        Self {
+            mpv,
+            last_applied: Mutex::new(None),
+        }
+    }
+
+    /// Применение настроек Ambient к контексту mpv с дедупликацией команд.
+    pub fn apply(&self, settings: &AmbientSettings) -> Result<(), String> {
+        let mut last_guard = self.last_applied.lock().map_err(|e| {
+            format!("Ошибка блокировки кэша настроек Ambient: {}", e)
+        })?;
+
+        let prev = last_guard.clone();
+
+        // Проверяем, изменился ли режим работы
+        let mode_changed = match &prev {
+            Some(p) => p.mode != settings.mode,
+            None => true,
+        };
+
         match settings.mode {
             AmbientMode::Off => {
-                // Возврат к стандартным черным полосам
-                mpv.set_property_string("border-background", "color")?;
-                mpv.set_property_string("background-color", "#000000")?;
+                if mode_changed {
+                    self.mpv.set_property_string("border-background", "color")?;
+                    self.mpv.set_property_string("background-color", "#000000")?;
+                }
             }
             AmbientMode::Blur => {
-                // Включение нативного аппаратного шейдерного размытия видео
-                mpv.set_property_string("border-background", "blur")?;
-                // Ограничение диапазона радиуса для стабильности и производительности GPU
-                let radius = settings.blur_radius.clamp(5, 150);
-                mpv.set_property_string("background-blur-radius", &radius.to_string())?;
+                if mode_changed {
+                    self.mpv.set_property_string("border-background", "blur")?;
+                }
+
+                // Проверяем, изменился ли радиус размытия
+                let radius_changed = match &prev {
+                    Some(p) => mode_changed || p.blur_radius != settings.blur_radius,
+                    None => true,
+                };
+
+                if radius_changed {
+                    let radius = settings.blur_radius.clamp(5, 150);
+                    self.mpv.set_property_string("background-blur-radius", &radius.to_string())?;
+                }
             }
             AmbientMode::Color => {
-                // Включение цветовой заливки полос
-                mpv.set_property_string("border-background", "color")?;
-                let valid_color = if settings.color.starts_with('#') && settings.color.len() == 7 {
-                    settings.color.as_str()
-                } else {
-                    "#000000"
+                if mode_changed {
+                    self.mpv.set_property_string("border-background", "color")?;
+                }
+
+                // Проверяем, изменился ли цвет
+                let color_changed = match &prev {
+                    Some(p) => mode_changed || p.color != settings.color,
+                    None => true,
                 };
-                mpv.set_property_string("background-color", valid_color)?;
+
+                if color_changed {
+                    let valid_color = if settings.color.starts_with('#') && settings.color.len() == 7 {
+                        settings.color.as_str()
+                    } else {
+                        "#000000"
+                    };
+                    self.mpv.set_property_string("background-color", valid_color)?;
+                }
             }
         }
+
+        // Обработка нативного скругления углов видеокадра (corner-rounding)
+        let rounding_changed = match &prev {
+            Some(p) => mode_changed || (p.corner_rounding - settings.corner_rounding).abs() > 0.0001,
+            None => true,
+        };
+
+        if rounding_changed {
+            // В режиме Off углы оставляем резкими (0.0) для классического отображения,
+            // либо применяем заданное пользователем скругление в режимах Blur и Color.
+            let rounding_value = match settings.mode {
+                AmbientMode::Off => 0.0,
+                AmbientMode::Blur | AmbientMode::Color => settings.corner_rounding.clamp(0.0, 1.0),
+            };
+
+            let rounding_str = format!("{:.3}", rounding_value);
+            self.mpv.set_property_string("corner-rounding", &rounding_str)?;
+        }
+
+        // Обновляем кэш примененного состояния
+        *last_guard = Some(settings.clone());
         Ok(())
     }
 

@@ -47,6 +47,8 @@ impl AppSettings {
 pub struct PlayerState {
     /// Главный контекст mpv.
     pub mpv: Arc<MpvManager>,
+    /// Контроллер подсветки полос (Ambient Light).
+    pub ambient_controller: Arc<crate::ambient::AmbientController>,
 }
 
 /// Информация о текущем медиафайле.
@@ -692,13 +694,23 @@ pub fn get_ambient_settings() -> Result<AmbientSettings, String> {
     Ok(settings.ambient)
 }
 
+/// Мгновенное применение настроек подсветки полос (Ambient Light) на GPU без записи на диск.
+/// Обеспечивает плавный 60fps отклик при перетаскивании ползунков в интерфейсе.
+#[tauri::command]
+pub fn apply_ambient_preview(
+    state: State<'_, PlayerState>,
+    settings: AmbientSettings,
+) -> Result<(), String> {
+    state.ambient_controller.apply(&settings)
+}
+
 /// Установка и сохранение настроек подсветки полос (Ambient Light).
 #[tauri::command]
 pub fn set_ambient_settings(
     state: State<'_, PlayerState>,
     settings: AmbientSettings,
 ) -> Result<(), String> {
-    AmbientController::apply(&state.mpv, &settings)?;
+    state.ambient_controller.apply(&settings)?;
 
     let exe_dir = std::env::current_exe()
         .ok()
@@ -726,7 +738,7 @@ pub fn toggle_ambient_mode(
 
     let mut current_settings = AppSettings::load(&exe_dir);
     current_settings.ambient.mode = AmbientController::cycle_mode(&current_settings.ambient.mode);
-    AmbientController::apply(&state.mpv, &current_settings.ambient)?;
+    state.ambient_controller.apply(&current_settings.ambient)?;
     current_settings.save(&exe_dir).map_err(|e| {
         format!("Не удалось сохранить настройки подсветки полос: {}", e)
     })?;

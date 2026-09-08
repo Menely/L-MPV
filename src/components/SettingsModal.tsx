@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
@@ -31,6 +31,7 @@ import { PASTEL_PRESETS, VIBRANT_PRESETS, applyAccentColor } from "../utils/colo
 interface AmbientSettings {
   mode: "off" | "blur" | "color";
   blur_radius: number;
+  corner_rounding: number;
   color: string;
 }
 
@@ -55,8 +56,19 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [ambientSettings, setAmbientSettings] = useState<AmbientSettings>({
     mode: "off",
     blur_radius: 100,
+    corner_rounding: 0.0,
     color: "#7fc7ff",
   });
+
+  const ambientSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (ambientSaveTimeoutRef.current) {
+        clearTimeout(ambientSaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Загружаем текущий путь к скриншотам из mpv
   useEffect(() => {
@@ -117,14 +129,40 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     loadAmbient();
   }, []);
 
-  const updateAmbient = async (newSettings: Partial<AmbientSettings>) => {
+  // Оптимизированное применение: мгновенный шейдерный preview на GPU + отложенное сохранение на диск (Debounce 400ms)
+  const updateAmbient = async (newSettings: Partial<AmbientSettings>, immediateSave: boolean = false) => {
     const updated = { ...ambientSettings, ...newSettings };
     setAmbientSettings(updated);
+
+    // 1. Мгновенное применение шейдеров в mpv без блокирующего дискового ввода-вывода
     try {
-      await invoke("set_ambient_settings", { settings: updated });
-      window.dispatchEvent(new Event('l-mpv-ambient-changed'));
+      await invoke("apply_ambient_preview", { settings: updated });
     } catch (err) {
-      console.error("Ошибка сохранения настроек Ambient Light:", err);
+      console.error("Ошибка предпросмотра Ambient Light:", err);
+    }
+
+    // 2. Дебаунсинг сохранения настроек в файл config/settings.json
+    if (ambientSaveTimeoutRef.current) {
+      clearTimeout(ambientSaveTimeoutRef.current);
+      ambientSaveTimeoutRef.current = null;
+    }
+
+    if (immediateSave) {
+      try {
+        await invoke("set_ambient_settings", { settings: updated });
+        window.dispatchEvent(new Event('l-mpv-ambient-changed'));
+      } catch (err) {
+        console.error("Ошибка сохранения настроек Ambient Light:", err);
+      }
+    } else {
+      ambientSaveTimeoutRef.current = setTimeout(async () => {
+        try {
+          await invoke("set_ambient_settings", { settings: updated });
+          window.dispatchEvent(new Event('l-mpv-ambient-changed'));
+        } catch (err) {
+          console.error("Ошибка отложенного сохранения настроек Ambient Light:", err);
+        }
+      }, 400);
     }
   };
 
@@ -685,7 +723,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                       return (
                         <button
                           key={item.id}
-                          onClick={() => updateAmbient({ mode: item.id as "off" | "blur" | "color" })}
+                          onClick={() => updateAmbient({ mode: item.id as "off" | "blur" | "color" }, true)}
                           style={{
                             display: "flex",
                             flexDirection: "column",
@@ -735,7 +773,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                             {ambientSettings.blur_radius} px
                           </span>
                           <button
-                            onClick={() => updateAmbient({ blur_radius: 100 })}
+                            onClick={() => updateAmbient({ blur_radius: 100 }, true)}
                             className="control-btn"
                             title="Сбросить на 100px"
                             style={{
@@ -760,7 +798,65 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                         max="150"
                         step="5"
                         value={ambientSettings.blur_radius}
-                        onChange={(e) => updateAmbient({ blur_radius: parseInt(e.target.value, 10) })}
+                        onChange={(e) => updateAmbient({ blur_radius: parseInt(e.target.value, 10) }, false)}
+                        style={{ width: "100%", cursor: "pointer", accentColor: "var(--accent)" }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Настройка скругления углов видеокадра (для режимов blur и color) */}
+                  {(ambientSettings.mode === "blur" || ambientSettings.mode === "color") && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                        padding: "12px 14px",
+                        borderRadius: "var(--radius-md)",
+                        background: "rgba(255, 255, 255, 0.03)",
+                        border: "1px solid var(--border)",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)", fontWeight: 500 }}>
+                            Скругление углов видеокадра (Corner Rounding)
+                          </span>
+                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                            Аппаратное сглаживание переходов между видео и подсветкой
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: "0.85rem", color: "var(--accent)", fontWeight: 600 }}>
+                            {Math.round((ambientSettings.corner_rounding ?? 0) * 100)}%
+                          </span>
+                          <button
+                            onClick={() => updateAmbient({ corner_rounding: 0.0 }, true)}
+                            className="control-btn"
+                            title="Сбросить на 0% (прямоугольные углы)"
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: "var(--radius-sm)",
+                              background: "rgba(255, 255, 255, 0.05)",
+                              border: "1px solid var(--border)",
+                              color: "var(--text-secondary)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <RotateCcw size={12} />
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="40"
+                        step="1"
+                        value={Math.round((ambientSettings.corner_rounding ?? 0) * 100)}
+                        onChange={(e) => updateAmbient({ corner_rounding: parseInt(e.target.value, 10) / 100.0 }, false)}
                         style={{ width: "100%", cursor: "pointer", accentColor: "var(--accent)" }}
                       />
                     </div>
@@ -784,7 +880,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                       </span>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         <button
-                          onClick={() => updateAmbient({ color: activeColor === "windows" ? "#7fc7ff" : activeColor })}
+                          onClick={() => updateAmbient({ color: activeColor === "windows" ? "#7fc7ff" : activeColor }, true)}
                           title="Использовать текущий акцент плеера"
                           style={{
                             padding: "6px 12px",
@@ -803,7 +899,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                         {["#141923", "#1f2937", "#241e38", "#2d1c24", "#132a24", "#0a192f"].map((hex) => (
                           <button
                             key={hex}
-                            onClick={() => updateAmbient({ color: hex })}
+                            onClick={() => updateAmbient({ color: hex }, true)}
                             style={{
                               width: 26,
                               height: 26,
@@ -820,7 +916,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                         <input
                           type="color"
                           value={ambientSettings.color.startsWith("#") ? ambientSettings.color : "#7fc7ff"}
-                          onChange={(e) => updateAmbient({ color: e.target.value })}
+                          onChange={(e) => updateAmbient({ color: e.target.value }, false)}
                           title="Выбрать произвольный цвет"
                           style={{
                             width: 28,
