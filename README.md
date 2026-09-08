@@ -84,12 +84,12 @@
 <table width="100%">
   <tr>
     <td width="50%" align="center">
-      <b>🌌 Аппаратная Подсветка Полос (Ambient Light)</b><br>
+      <b>🌌 Аппаратная Подсветка Полос</b><br>
       <sub>Шейдерное размытие краев видео для устранения черных полос</sub><br><br>
       <a href="./assets/ambient-light-demo.png"><img src="./assets/ambient-light-demo.png" alt="Ambient Light" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
-      <b>📑 Выдвижная Панель Плейлиста (Playlist Drawer)</b><br>
+      <b>📑 Выдвижная Панель Плейлиста</b><br>
       <sub>Автоматическое сканирование каталога, фильтрация и живой поиск</sub><br><br>
       <a href="./assets/playlist-drawer.png"><img src="./assets/playlist-drawer.png" alt="Playlist Drawer" style="border-radius: 8px;"></a>
     </td>
@@ -108,12 +108,12 @@
   </tr>
   <tr>
     <td width="50%" align="center">
-      <b>⚙️ Центр Настроек (General Settings)</b><br>
+      <b>⚙️ Центр Настроек</b><br>
       <sub>Управление скриншотами, режимом окон и системными ассоциациями</sub><br><br>
       <a href="./assets/settings-general-player.png"><img src="./assets/settings-general-player.png" alt="General Settings" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
-      <b>🎨 Кастомизация и Горячие Клавиши</b><br>
+      <b>🎨 Кастомизация</b><br>
       <sub>Выбор акцентных цветов интерфейса и индивидуальная настройка хоткеев</sub><br><br>
       <a href="./assets/settings-customization-player.png"><img src="./assets/settings-customization-player.png" alt="Customization & Hotkeys" style="border-radius: 8px;"></a>
     </td>
