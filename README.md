@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./L-MPV%20-%20Banner%20U.png" alt="L-MPV Banner" width="100%" style="border-radius: 12px;">
+  <img src="./assets/banner.png" alt="L-MPV Banner" width="100%" style="border-radius: 12px;">
 </p>
 
 <h1 align="center">🎬 L-MPV — Modern & Portable Media Player</h1>
@@ -25,6 +25,10 @@
 **L-MPV** сочетает в себе всю мощь нативного аппаратно-ускоренного видео-рендеринга **MPV** (`gpu-hq`, `d3d11`, HDR, `ewa_lanczossharp`) и современный элегантный интерфейс в стиле **Glassmorphism**, созданный на **React 19** и **TypeScript**.
 
 Приложение разработано по концепции **Zero-Install Portable Architecture**: плеер абсолютно отвязан от системного реестра и внешних папок Windows. Все конфигурации, скриншоты и нативные бинарные библиотеки хранятся локально в одной папке.
+
+<p align="center">
+  <img src="./assets/interface-player.png" alt="L-MPV Player Interface" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
+</p>
 
 ---
 
@@ -61,9 +65,60 @@
 - 📸 **Чистые Скриншоты**:
   - Мгновенное сохранение исходного кадра в высоком качестве (PNG) без OSD по нажатию `S`.
 
+- 🌌 **Аппаратная Подсветка Полос (Ambient Light / GPU Blur)**:
+  - Устранение черных полос (letterbox/pillarbox) аппаратным размытием краев видео на базе шейдеров `libplacebo` в реальном времени.
+  - 3 режима работы: `Off` (выключено), `Blur` (размытие с регулировкой радиуса) и `Color` (заливка акцентным цветом).
+  - Мгновенное переключение по горячей клавише `B` или через контекстное меню (ПКМ).
+
+- 📥 **Прямой Экспорт Дорожек (Track Extraction)**:
+  - Быстрое извлечение звуковых дорожек и субтитров в один клик без потери качества (`-c copy`) через встроенный FFmpeg.
+
 - ⚙️ **Кастомизация Горячих Клавиш и Ассоциаций**:
   - Модальное окно настроек `SettingsModal` с возможностью перепривязки любой горячей клавиши и сбросом по умолчанию.
   - Быстрая регистрация и удаление ассоциаций видео/аудио файлов в Windows в один клик.
+
+---
+
+## 📸 Скриншоты Интерфейса
+
+<table width="100%">
+  <tr>
+    <td width="50%" align="center">
+      <b>🌌 Аппаратная Подсветка Полос (Ambient Light)</b><br>
+      <sub>Шейдерное размытие краев видео для устранения черных полос</sub><br><br>
+      <a href="./assets/ambient-light-demo.png"><img src="./assets/ambient-light-demo.png" alt="Ambient Light" style="border-radius: 8px;"></a>
+    </td>
+    <td width="50%" align="center">
+      <b>📑 Выдвижная Панель Плейлиста (Playlist Drawer)</b><br>
+      <sub>Автоматическое сканирование каталога, фильтрация и живой поиск</sub><br><br>
+      <a href="./assets/playlist-drawer.png"><img src="./assets/playlist-drawer.png" alt="Playlist Drawer" style="border-radius: 8px;"></a>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>🎧 Управление Дорожками и Экспорт в 1 Клик</b><br>
+      <sub>Быстрая смена аудио/субтитров и мгновенное скачивание через FFmpeg</sub><br><br>
+      <a href="./assets/audio-window.png"><img src="./assets/audio-window.png" alt="Audio & Subtitles" style="border-radius: 8px;"></a>
+    </td>
+    <td width="50%" align="center">
+      <b>🔖 Интерактивная Навигация по Главам</b><br>
+      <sub>Список глав с таймкодами и подсветкой активной части видео</sub><br><br>
+      <a href="./assets/interface-chapter-player.png"><img src="./assets/interface-chapter-player.png" alt="Chapters Modal" style="border-radius: 8px;"></a>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>⚙️ Центр Настроек (General Settings)</b><br>
+      <sub>Управление скриншотами, режимом окон и системными ассоциациями</sub><br><br>
+      <a href="./assets/settings-general-player.png"><img src="./assets/settings-general-player.png" alt="General Settings" style="border-radius: 8px;"></a>
+    </td>
+    <td width="50%" align="center">
+      <b>🎨 Кастомизация и Горячие Клавиши</b><br>
+      <sub>Выбор акцентных цветов интерфейса и индивидуальная настройка хоткеев</sub><br><br>
+      <a href="./assets/settings-customization-player.png"><img src="./assets/settings-customization-player.png" alt="Customization & Hotkeys" style="border-radius: 8px;"></a>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -98,7 +153,16 @@
 
 ```text
 L-MPV/
-├── L-MPV - Banner U.png                 # Главный баннер проекта
+├── assets/                               # Изображения, баннеры и скриншоты проекта
+│   ├── banner.png                        # Главный промо-баннер проекта
+│   ├── app-icon.png                      # Мастер-иконка приложения
+│   ├── interface-player.png              # Основной интерфейс воспроизведения
+│   ├── ambient-light-demo.png            # Аппаратный Ambient Light (GPU Blur)
+│   ├── playlist-drawer.png               # Боковая панель плейлиста
+│   ├── audio-window.png                  # Меню выбора и экспорта дорожек
+│   ├── interface-chapter-player.png      # Окно навигации по главам
+│   ├── settings-general-player.png       # Общие настройки плеера
+│   └── settings-customization-player.png # Настройки кастомизации и хоткеев
 ├── src/                                  # Фронтенд (React 19 + TypeScript)
 │   ├── components/                       # UI Компоненты
 │   │   ├── Titlebar.tsx                  # Кастомная шапка окна
