@@ -828,19 +828,56 @@ pub fn disable_subtitles(
     state.mpv.set_property_string("sid", "no")
 }
 
-/// Загрузка внешнего файла субтитров.
+/// Загрузка внешнего файла субтитров (Хотлоад).
+///
+/// Двухшаговый подход: sub-add cached + ручное переключение sid.
 #[tauri::command]
 pub fn load_subtitle_file(
     state: State<'_, PlayerState>,
     path: String,
 ) -> Result<(), String> {
     let safe_path = escape_mpv_path(&path);
+
+    // Шаг 1: добавляем субтитры без немедленного переключения
     state
         .mpv
-        .command(&format!("sub-add \"{}\" select", safe_path))
+        .command(&format!("sub-add \"{}\" cached", safe_path))?;
+
+    // Шаг 2: находим ID только что добавленных субтитров и активируем их
+    let updated_count = state
+        .mpv
+        .get_property_double("track-list/count")
+        .unwrap_or(0.0) as i64;
+
+    for i in (0..updated_count).rev() {
+        let t_type = state
+            .mpv
+            .get_property_string(&format!("track-list/{}/type", i))
+            .unwrap_or_default();
+        if t_type == "sub" {
+            if let Ok(id) = state
+                .mpv
+                .get_property_double(&format!("track-list/{}/id", i))
+            {
+                let _ = state
+                    .mpv
+                    .set_property_string("sid", &(id as i64).to_string());
+                break;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Горячее подключение внешнего аудиофайла (hotload audio) с автоматическим выбором.
+///
+/// Используем двухшаговый подход (аналогично load_external_tracks_internal):
+/// 1. Добавляем аудиодорожку с флагом `cached` — это НЕ сбрасывает видеоконвейер.
+/// 2. Находим ID добавленной дорожки в track-list и переключаем `aid` вручную.
+///
+/// Флаг `select` вызывает полную пересборку демультиплексора в режиме wid,
+/// что приводит к потере видеоизображения.
 #[tauri::command]
 pub fn load_audio_file(
     state: State<'_, PlayerState>,
@@ -848,9 +885,41 @@ pub fn load_audio_file(
 ) -> Result<(), String> {
     println!("[L-MPV] Вызван load_audio_file с путем: {}", path);
     let safe_path = escape_mpv_path(&path);
+
+    // Шаг 1: добавляем дорожку без немедленного переключения
     state
         .mpv
-        .command(&format!("audio-add \"{}\" select", safe_path))
+        .command(&format!("audio-add \"{}\" cached", safe_path))?;
+
+    // Шаг 2: находим ID только что добавленной дорожки и активируем её
+    let updated_count = state
+        .mpv
+        .get_property_double("track-list/count")
+        .unwrap_or(0.0) as i64;
+
+    for i in (0..updated_count).rev() {
+        let t_type = state
+            .mpv
+            .get_property_string(&format!("track-list/{}/type", i))
+            .unwrap_or_default();
+        if t_type == "audio" {
+            if let Ok(id) = state
+                .mpv
+                .get_property_double(&format!("track-list/{}/id", i))
+            {
+                let _ = state
+                    .mpv
+                    .set_property_string("aid", &(id as i64).to_string());
+                println!(
+                    "[L-MPV] Хотлоад: переключено на аудиодорожку id={}",
+                    id as i64
+                );
+                break;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Переключение видеодорожки по ID.
