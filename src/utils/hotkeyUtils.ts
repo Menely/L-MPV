@@ -30,6 +30,7 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   playlistNext: ["PageDown"],
   seekBack10: [],
   seekForward10: [],
+  skipOpening: [],
   toggleRepeat: ["KeyR"],
   toggleShuffle: [],
   alwaysOnTop: ["KeyT"],
@@ -50,6 +51,7 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "seekForward", label: "Перемотка вперед (+5 сек)", defaultKeys: DEFAULT_HOTKEYS["seekForward"], category: "Перемотка" },
   { id: "seekBack10", label: "Перемотка назад (-10 сек)", defaultKeys: DEFAULT_HOTKEYS["seekBack10"], category: "Перемотка" },
   { id: "seekForward10", label: "Перемотка вперед (+10 сек)", defaultKeys: DEFAULT_HOTKEYS["seekForward10"], category: "Перемотка" },
+  { id: "skipOpening", label: "Перемотка опенинга", defaultKeys: DEFAULT_HOTKEYS["skipOpening"], category: "Перемотка" },
   { id: "frameBack", label: "Кадр назад", defaultKeys: DEFAULT_HOTKEYS["frameBack"], category: "Перемотка" },
   { id: "frameForward", label: "Кадр вперед", defaultKeys: DEFAULT_HOTKEYS["frameForward"], category: "Перемотка" },
 

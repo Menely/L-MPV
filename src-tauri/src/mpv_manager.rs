@@ -189,11 +189,12 @@ impl MpvManager {
             Self::set_option(&api, handle, "scale", "spline36");
             Self::set_option(&api, handle, "cscale", "spline36");
 
-            // Без встроенного OSC (мы делаем свой UI)
+            // Отключаем встроенный OSC и обработку ввода (мы используем свой UI)
             Self::set_option(&api, handle, "osc", "no");
             Self::set_option(&api, handle, "osd-level", "0");
             Self::set_option(&api, handle, "input-default-bindings", "no");
             Self::set_option(&api, handle, "input-vo-keyboard", "no");
+            Self::set_option(&api, handle, "input-drag-and-drop", "no");
 
             // Инициализация контекста mpv
             let err = (api.initialize)(handle);

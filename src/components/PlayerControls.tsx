@@ -26,6 +26,7 @@ import {
   Pin,
   Download,
   Loader2,
+  FastForward,
 } from "lucide-react";
 import { formatTime } from "../utils/timeUtils";
 import { Timeline } from "./Timeline";
@@ -102,8 +103,13 @@ export function PlayerControls({
       info: true,
       screenshot: true,
       playlist: true,
-      fullscreen: true
+      fullscreen: true,
+      skipOpening: false
     };
+  });
+
+  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => {
+    return Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90);
   });
 
   const [hotkeys, setHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
@@ -114,6 +120,7 @@ export function PlayerControls({
       setShowTrackNames(saved !== null ? saved === 'true' : true);
       const savedBtns = localStorage.getItem('l-mpv-visible-buttons');
       if (savedBtns) setVisibleButtons(JSON.parse(savedBtns));
+      setSkipOpeningSeconds(Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
       setHotkeys(getCustomHotkeys());
     };
     window.addEventListener('l-mpv-settings-changed', updateSetting);
@@ -649,6 +656,21 @@ export function PlayerControls({
 
           {/* Правый блок: Полный экран и новые кнопки */}
           <div className="controls-row__right">
+            {visibleButtons.skipOpening === true && (
+              <button
+                className="control-btn control-btn--with-label"
+                onClick={() => handleSeek(skipOpeningSeconds)}
+                id="btn-skip-opening"
+                title={`Перемотать опенинг (+${skipOpeningSeconds}с)`}
+                style={{ padding: "0 8px", gap: 3 }}
+              >
+                <FastForward size={16} />
+                <span className="control-btn__label" style={{ fontSize: "0.75rem", fontWeight: 600 }}>
+                  +{skipOpeningSeconds}с
+                </span>
+              </button>
+            )}
+
             {visibleButtons.alwaysOnTop !== false && (
               <button
                 className={`control-btn ${isAlwaysOnTop ? "control-btn--active" : ""}`}

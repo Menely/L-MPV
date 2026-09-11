@@ -99,6 +99,7 @@ pub fn run() {
             commands::set_subtitle_track,
             commands::disable_subtitles,
             commands::load_subtitle_file,
+            commands::load_audio_file,
             commands::set_video_track,
             commands::get_tracks,
             // Вид

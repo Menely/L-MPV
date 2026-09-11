@@ -52,6 +52,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [appVersion, setAppVersion] = useState<string>("1.3.1");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
+  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
+  const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(getCustomHotkeys());
   const [recordingAction, setRecordingAction] = useState<{ id: string, index: number } | null>(null);
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "hotkeys" | "integration">("general");
@@ -617,6 +619,42 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     </div>
                   </label>
                 )}
+
+                {/* Настройка Хотлоада дорожек перетаскиванием (Drag & Drop) */}
+                <div
+                  className="modal__section-title"
+                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Sparkles size={16} /> Хотлоад дорожек (Drag & Drop)
+                  </div>
+                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
+                  <input
+                    type="checkbox"
+                    checked={hotloadEnabled}
+                    onChange={(e) => {
+                      const val = e.target.checked;
+                      setHotloadEnabled(val);
+                      localStorage.setItem('l-mpv-hotload-enabled', val ? 'true' : 'false');
+                      window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                    }}
+                    style={{
+                      width: 18,
+                      height: 18,
+                      accentColor: "var(--accent)",
+                      cursor: "pointer"
+                    }}
+                  />
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                      Подключать перетаскиваемые файлы к видео на лету (Хотлоад)
+                    </span>
+                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
+                      Если включено, перетаскивание аудиофайла или субтитров в окно плеера во время воспроизведения подключит их к текущему видео вместо открытия нового файла
+                    </span>
+                  </div>
+                </label>
               </div>
             </div>
           )}
@@ -811,39 +849,90 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "210px max-content", columnGap: 28, rowGap: 8, marginTop: 4 }}>
                   {[
-                    { id: 'repeat', label: 'Повтор' },
-                    { id: 'shuffle', label: 'Случайный порядок' },
-                    { id: 'alwaysOnTop', label: 'Поверх всех окон' },
-                    { id: 'info', label: 'Информация о файле' },
-                    { id: 'screenshot', label: 'Сделать скриншот' },
-                    { id: 'playlist', label: 'Плейлист' },
-                    { id: 'fullscreen', label: 'Полный экран' }
-                  ].map(btn => (
-                    <label key={btn.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", userSelect: "none" }}>
-                      <input
-                        type="checkbox"
-                        checked={visibleButtons[btn.id] !== false}
-                        onChange={(e) => {
-                          const val = e.target.checked;
-                          const updated = { ...visibleButtons, [btn.id]: val };
-                          setVisibleButtons(updated);
-                          localStorage.setItem('l-mpv-visible-buttons', JSON.stringify(updated));
-                          window.dispatchEvent(new Event('l-mpv-settings-changed'));
-                        }}
-                        style={{
-                          width: 16,
-                          height: 16,
-                          accentColor: "var(--accent)",
-                          cursor: "pointer"
-                        }}
-                      />
-                      <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                        {btn.label}
-                      </span>
-                    </label>
-                  ))}
+                    { id: 'repeat', label: 'Повтор', defaultChecked: true },
+                    { id: 'shuffle', label: 'Случайный порядок', defaultChecked: true },
+                    { id: 'alwaysOnTop', label: 'Поверх всех окон', defaultChecked: true },
+                    { id: 'info', label: 'Информация о файле', defaultChecked: true },
+                    { id: 'screenshot', label: 'Сделать скриншот', defaultChecked: true },
+                    { id: 'playlist', label: 'Плейлист', defaultChecked: true },
+                    { id: 'fullscreen', label: 'Полный экран', defaultChecked: true },
+                    { id: 'skipOpening', label: 'Перемотка опенинга', defaultChecked: false }
+                  ].map(btn => {
+                    const isChecked = visibleButtons[btn.id] !== undefined 
+                      ? visibleButtons[btn.id] 
+                      : btn.defaultChecked;
+                    return (
+                      <label key={btn.id} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 24, height: 24, cursor: "pointer", userSelect: "none", boxSizing: "border-box" }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            const updated = { ...visibleButtons, [btn.id]: val };
+                            setVisibleButtons(updated);
+                            localStorage.setItem('l-mpv-visible-buttons', JSON.stringify(updated));
+                            window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                          }}
+                          style={{
+                            width: 16,
+                            height: 16,
+                            accentColor: "var(--accent)",
+                            cursor: "pointer"
+                          }}
+                        />
+                        <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500, lineHeight: 1 }}>
+                          {btn.label}
+                        </span>
+                        {btn.id === 'skipOpening' && isChecked && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 4, height: 20 }}
+                          >
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              className="no-spin-input"
+                              value={skipOpeningSeconds}
+                              onChange={(e) => {
+                                const rawVal = e.target.value.replace(/\D/g, "");
+                                const num = rawVal === "" ? 0 : Number(rawVal);
+                                const val = num > 600 ? 600 : num;
+                                setSkipOpeningSeconds(val);
+                                if (val > 0) {
+                                  localStorage.setItem('l-mpv-skip-opening-seconds', val.toString());
+                                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                                }
+                              }}
+                              onBlur={() => {
+                                if (skipOpeningSeconds <= 0) {
+                                  setSkipOpeningSeconds(90);
+                                  localStorage.setItem('l-mpv-skip-opening-seconds', '90');
+                                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                                }
+                              }}
+                              style={{
+                                width: 44,
+                                height: 20,
+                                padding: "0 4px",
+                                background: "rgba(0, 0, 0, 0.4)",
+                                border: "1px solid var(--border)",
+                                borderRadius: "var(--radius-sm)",
+                                color: "var(--text-primary)",
+                                fontSize: "0.78rem",
+                                textAlign: "center",
+                                fontWeight: 600,
+                                boxSizing: "border-box",
+                                outline: "none"
+                              }}
+                            />
+                            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1 }}>сек</span>
+                          </div>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
 
                 {/* Настройка подсветки полос (Ambient Light / GPU Blur) */}

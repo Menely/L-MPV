@@ -36,6 +36,7 @@ function App() {
     toggleFullscreen,
     cycleAudioTrack,
     cycleSubTrack,
+    loadTracks,
   } = usePlayerState();
   
   const [contextMenu, setContextMenu] = useState<{
@@ -272,6 +273,7 @@ function App() {
     toggleFullscreen,
     cycleAudioTrack,
     cycleSubTrack,
+    loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
     hotkeys,
@@ -286,6 +288,7 @@ function App() {
     toggleFullscreen,
     cycleAudioTrack,
     cycleSubTrack,
+    loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
     hotkeys,
@@ -352,6 +355,11 @@ function App() {
       case "seekForward10":
         await invoke("seek", { seconds: 10 });
         break;
+      case "skipOpening": {
+        const seconds = Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90);
+        await invoke("seek", { seconds });
+        break;
+      }
       case "volumeUp":
         if (curMediaInfo) curSetVolume(Math.min(100, (curMediaInfo.volume ?? 100) + 5));
         break;
@@ -648,9 +656,19 @@ function App() {
     };
   }, [executeAction]);
 
-  // ─── Обработка перетаскивания (Drag & Drop) ─────────
+  // ─── Обработка перетаскивания (Drag & Drop / Хотлоад) ─────────
   useEffect(() => {
     let unlistenFn: (() => void) | undefined;
+
+    const isAudioFile = (p: string) => {
+      const ext = p.split('.').pop()?.toLowerCase() || '';
+      return ['mka', 'm4a', 'aac', 'mp3', 'ogg', 'opus', 'flac', 'wav', 'ac3', 'eac3', 'dts', 'thd', 'wma', 'aiff', 'ape'].includes(ext);
+    };
+
+    const isSubtitleFile = (p: string) => {
+      const ext = p.split('.').pop()?.toLowerCase() || '';
+      return ['srt', 'ass', 'ssa', 'vtt', 'sub', 'idx', 'sup'].includes(ext);
+    };
 
     const setupDragDrop = async () => {
       const webview = getCurrentWebview();
@@ -661,12 +679,37 @@ function App() {
             event.payload.paths.length > 0
           ) {
             const file = event.payload.paths[0];
-            try {
-              await invoke("open_file", { path: file });
-            } catch (err) {
-              console.error(
-                "Ошибка открытия файла:", err
-              );
+            const curHasMedia = latestRef.current.hasMedia;
+            const hotloadEnabled = localStorage.getItem('l-mpv-hotload-enabled') === 'true';
+
+            if (hotloadEnabled && curHasMedia && isAudioFile(file)) {
+              try {
+                await invoke("load_audio_file", { path: file });
+                await latestRef.current.loadTracks();
+                const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
+                window.dispatchEvent(
+                  new CustomEvent("show-osd", { detail: `Подключена аудиодорожка: ${fileName}` })
+                );
+              } catch (err) {
+                console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
+              }
+            } else if (hotloadEnabled && curHasMedia && isSubtitleFile(file)) {
+              try {
+                await invoke("load_subtitle_file", { path: file });
+                await latestRef.current.loadTracks();
+                const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
+                window.dispatchEvent(
+                  new CustomEvent("show-osd", { detail: `Подключены субтитры: ${fileName}` })
+                );
+              } catch (err) {
+                console.error("Ошибка подключения субтитров (Хотлоад):", err);
+              }
+            } else {
+              try {
+                await invoke("open_file", { path: file });
+              } catch (err) {
+                console.error("Ошибка открытия файла:", err);
+              }
             }
           }
         }

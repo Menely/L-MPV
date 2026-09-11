@@ -97,6 +97,17 @@
   box-sizing: border-box;
 }
 
+/* Отключение стрелок спиннера у числовых полей ввода */
+.no-spin-input::-webkit-outer-spin-button,
+.no-spin-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spin-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 html, body, #root {
   width: 100%;
   height: 100%;

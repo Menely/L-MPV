@@ -837,7 +837,19 @@ pub fn load_subtitle_file(
     let safe_path = escape_mpv_path(&path);
     state
         .mpv
-        .command(&format!("sub-add \"{}\"", safe_path))
+        .command(&format!("sub-add \"{}\" select", safe_path))
+}
+
+/// Горячее подключение внешнего аудиофайла (hotload audio) с автоматическим выбором.
+#[tauri::command]
+pub fn load_audio_file(
+    state: State<'_, PlayerState>,
+    path: String,
+) -> Result<(), String> {
+    let safe_path = escape_mpv_path(&path);
+    state
+        .mpv
+        .command(&format!("audio-add \"{}\" select", safe_path))
 }
 
 /// Переключение видеодорожки по ID.
@@ -2252,29 +2264,12 @@ pub async fn extract_track(
     external_filename: Option<String>,
     target_path: String,
 ) -> Result<String, String> {
-    // 1. Проверка внешнего файла: если дорожка уже из внешнего файла, копируем напрямую
-    if let Some(ref ext_path) = external_filename {
-        if !ext_path.is_empty() {
-            let src = std::path::Path::new(ext_path);
-            if src.exists() {
-                if let Some(parent) = std::path::Path::new(&target_path).parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                }
-                std::fs::copy(src, &target_path)
-                    .map_err(|e| format!("Ошибка копирования внешнего файла: {}", e))?;
-                return Ok(target_path);
-            }
-        }
-    }
-
-    // 2. Проверка локального видеофайла (если это не сетевой стрим http/https)
-    let is_remote = video_path.starts_with("http://") || video_path.starts_with("https://");
-    if !is_remote {
-        let vpath = std::path::Path::new(&video_path);
-        if !vpath.exists() {
-            return Err(format!("Исходный видеофайл не найден: {}", video_path));
-        }
-    }
+    // Если извлекается аудиодорожка с расширением .aac, автоматически упаковываем в контейнер .m4a
+    let effective_target_path = if track_type == "audio" && target_path.to_lowercase().ends_with(".aac") {
+        format!("{}.m4a", &target_path[..target_path.len() - 4])
+    } else {
+        target_path
+    };
 
     // Определение пути к встроенному исполняемому файлу ffmpeg
     let exe_dir = std::env::current_exe()
@@ -2294,6 +2289,51 @@ pub async fn extract_track(
         }
     }
 
+    // Создание родительской директории, если она отсутствует
+    if let Some(parent) = std::path::Path::new(&effective_target_path).parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    // 1. Проверка внешнего файла: если дорожка уже из внешнего файла
+    if let Some(ref ext_path) = external_filename {
+        if !ext_path.is_empty() {
+            let src = std::path::Path::new(ext_path);
+            if src.exists() {
+                // Если исходный файл aac, а целевой контейнер m4a — упаковываем через FFmpeg
+                if ext_path.to_lowercase().ends_with(".aac") && effective_target_path.to_lowercase().ends_with(".m4a") {
+                    let mut cmd = std::process::Command::new(&ffmpeg_path);
+                    cmd.args(["-y", "-i", ext_path, "-c", "copy", &effective_target_path]);
+                    #[cfg(target_os = "windows")]
+                    {
+                        use std::os::windows::process::CommandExt;
+                        const CREATE_NO_WINDOW: u32 = 0x08000000;
+                        cmd.creation_flags(CREATE_NO_WINDOW);
+                    }
+                    let out = tokio::task::spawn_blocking(move || cmd.output())
+                        .await
+                        .map_err(|e| format!("Сбой задачи упаковки AAC в M4A: {}", e))?
+                        .map_err(|e| format!("Не удалось запустить FFmpeg: {}", e))?;
+                    if out.status.success() {
+                        return Ok(effective_target_path);
+                    }
+                }
+
+                std::fs::copy(src, &effective_target_path)
+                    .map_err(|e| format!("Ошибка копирования внешнего файла: {}", e))?;
+                return Ok(effective_target_path);
+            }
+        }
+    }
+
+    // 2. Проверка локального видеофайла (если это не сетевой стрим http/https)
+    let is_remote = video_path.starts_with("http://") || video_path.starts_with("https://");
+    if !is_remote {
+        let vpath = std::path::Path::new(&video_path);
+        if !vpath.exists() {
+            return Err(format!("Исходный видеофайл не найден: {}", video_path));
+        }
+    }
+
     // Спецификатор потока для FFmpeg: используем точный ff_index (если доступен), иначе тип:индекс
     let stream_specifier = if let Some(ffi) = ff_index {
         if ffi >= 0 {
@@ -2309,11 +2349,6 @@ pub async fn extract_track(
         format!("0:s:{}", track_index.max(0))
     };
 
-    // Создание родительской директории, если она отсутствует
-    if let Some(parent) = std::path::Path::new(&target_path).parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-
     // Попытка 1: Прямое копирование потока (-c copy)
     let mut cmd = std::process::Command::new(&ffmpeg_path);
     cmd.args([
@@ -2324,7 +2359,7 @@ pub async fn extract_track(
         &stream_specifier,
         "-c",
         "copy",
-        &target_path,
+        &effective_target_path,
     ]);
 
     #[cfg(target_os = "windows")]
@@ -2351,7 +2386,7 @@ pub async fn extract_track(
             &stream_specifier,
             "-threads",
             "0",
-            &target_path,
+            &effective_target_path,
         ]);
         #[cfg(target_os = "windows")]
         {
@@ -2377,7 +2412,7 @@ pub async fn extract_track(
         return Err(format!("Ошибка FFmpeg: {}", last_err));
     }
 
-    Ok(target_path)
+    Ok(effective_target_path)
 }
 
 // ============================================================================

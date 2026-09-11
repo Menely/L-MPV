@@ -662,7 +662,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       if (c.includes("dts")) return "dts";
       if (c.includes("truehd")) return "thd";
       if (c.includes("wav") || c.includes("pcm")) return "wav";
-      return "aac";
+      if (c.includes("aac")) return "m4a";
+      return "m4a";
     } else {
       if (c.includes("ass") || c.includes("ssa")) return "ass";
       if (c.includes("vtt")) return "vtt";
