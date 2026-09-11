@@ -180,12 +180,20 @@ pub fn run() {
                 // Получаем доступ к mpv из Tauri State
                 let state = app.state::<PlayerState>();
                 
-                // Передаем HWND в mpv как Window ID (wid)
+                // Привязка HWND к mpv (Window ID)
                 let hwnd_value = hwnd.0 as isize; 
                 if let Err(e) = state.mpv.set_property_string("wid", &hwnd_value.to_string()) {
                     println!("[L-MPV] Ошибка привязки HWND к mpv: {}", e);
                 } else {
-                    println!("[L-MPV] Успешная привязка HWND к mpv: {}", hwnd_value);
+                    println!("[L-MPV] Успешно привязан HWND к mpv: {}", hwnd_value);
+                    #[cfg(windows)]
+                    unsafe {
+                        use windows::Win32::UI::Shell::DragAcceptFiles;
+                        use windows::Win32::Foundation::HWND;
+                        // Отключаем нативный WM_DROPFILES, так как libmpv его перехватывает и игнорирует input-drag-and-drop=no
+                        // Tauri WebView2 имеет свой собственный OLE IDropTarget, поэтому Drag & Drop в React продолжит работать.
+                        DragAcceptFiles(HWND(hwnd.0 as _), false);
+                    }
                 }
 
                 // Применяем сохранённые настройки подсветки полос (Ambient Light)

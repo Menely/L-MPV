@@ -846,6 +846,7 @@ pub fn load_audio_file(
     state: State<'_, PlayerState>,
     path: String,
 ) -> Result<(), String> {
+    println!("[L-MPV] Вызван load_audio_file с путем: {}", path);
     let safe_path = escape_mpv_path(&path);
     state
         .mpv
