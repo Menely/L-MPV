@@ -23,7 +23,8 @@ base64 = "0.22"
 tauri-plugin-single-instance = "2"
 arboard = "3"
 image = "0.25"
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1", features = ["time", "fs", "io-util"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"

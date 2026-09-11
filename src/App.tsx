@@ -19,6 +19,7 @@ import { MediaInfoModal } from "./components/MediaInfoModal";
 import { ChaptersModal } from "./components/ChaptersModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { PlaylistDrawer } from "./components/PlaylistDrawer";
+import { UpdateModal, UpdateInfo } from "./components/UpdateModal";
 import { applyAccentColor } from "./utils/colorUtils";
 import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
 
@@ -45,6 +46,8 @@ function App() {
   const [showMediaInfo, setShowMediaInfo] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [osdText, setOsdText] = useState<string | null>(null);
   
   const mediaTitle = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "";
@@ -97,6 +100,18 @@ function App() {
         applyAccentColor(savedAccent);
       }
     }
+
+    // Фоновая проверка обновлений (срабатывает на каждый 5-й запуск плеера)
+    invoke<UpdateInfo | null>("check_launch_and_update")
+      .then((info) => {
+        if (info && info.has_update) {
+          setPendingUpdate(info);
+          setShowUpdateModal(true);
+        }
+      })
+      .catch((err) => {
+        console.warn("Фоновая проверка обновлений пропущена:", err);
+      });
   }, []);
 
   useEffect(() => {
@@ -840,6 +855,17 @@ function App() {
       {showSettings && (
         <SettingsModal
           onClose={() => setShowSettings(false)}
+          onShowUpdate={(info) => {
+            setPendingUpdate(info);
+            setShowUpdateModal(true);
+          }}
+        />
+      )}
+
+      {showUpdateModal && pendingUpdate && (
+        <UpdateModal
+          updateInfo={pendingUpdate}
+          onClose={() => setShowUpdateModal(false)}
         />
       )}
 

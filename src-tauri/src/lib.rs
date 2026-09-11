@@ -146,6 +146,17 @@ pub fn run() {
             commands::apply_ambient_preview,
             commands::set_ambient_settings,
             commands::toggle_ambient_mode,
+            // Автоподхват дорожек и метаданные
+            commands::get_auto_load_tracks,
+            commands::set_auto_load_tracks,
+            commands::get_auto_select_external_audio,
+            commands::set_auto_select_external_audio,
+            commands::load_external_tracks_for_file,
+            commands::get_app_version,
+            // Автообновление
+            commands::check_launch_and_update,
+            commands::check_for_updates,
+            commands::download_and_install_update,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { .. } => {

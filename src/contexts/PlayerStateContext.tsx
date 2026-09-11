@@ -264,6 +264,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             mediaInfoRef.current = fullInfo;
             setMediaInfo(fullInfo);
             setHasMedia(true);
+            // Подгружаем внешние дорожки и субтитры (если опция активна в настройках)
+            await invoke("load_external_tracks_for_file", { path: fullInfo.path }).catch(() => {});
+            loadTracks();
             setProgress({
               position: fullInfo.position,
               duration: fullInfo.duration,

@@ -8,8 +8,9 @@ use crate::mpv_manager::MpvManager;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::collections::HashMap;
-use tauri::State;
+use std::collections::{HashMap, HashSet};
+use tauri::{Emitter, State};
+use tokio::io::AsyncWriteExt;
 
 /// Конфигурация приложения, сохраняемая в config/settings.json.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -19,6 +20,15 @@ pub struct AppSettings {
     pub allow_multi_instance: bool,
     #[serde(default)]
     pub ambient: AmbientSettings,
+    /// Флаг автоматического поиска и подхвата внешних аудиодорожек и субтитров.
+    #[serde(default)]
+    pub auto_load_tracks: bool,
+    /// Флаг автоматического переключения звука на внешнюю аудиодорожку при её обнаружении (по умолчанию выключен).
+    #[serde(default)]
+    pub auto_select_external_audio: bool,
+    /// Счётчик запусков приложения для периодической фоновой проверки обновлений.
+    #[serde(default)]
+    pub launch_count: u64,
 }
 
 impl AppSettings {
@@ -194,6 +204,373 @@ fn is_video_extension(ext: &str) -> bool {
     )
 }
 
+/// Проверка поддерживаемых расширений аудиофайлов.
+fn is_audio_extension(ext: &str) -> bool {
+    matches!(
+        ext.to_lowercase().as_str(),
+        "mka" | "ac3" | "eac3" | "dts" | "dtshd" | "truehd" | "thd" | "flac" | "wav" | "aac" | "mp3" | "ogg" | "opus" | "m4a" | "wma"
+    )
+}
+
+/// Проверка поддерживаемых расширений субтитров.
+fn is_subtitle_extension(ext: &str) -> bool {
+    matches!(
+        ext.to_lowercase().as_str(),
+        "srt" | "ass" | "ssa" | "vtt" | "sub" | "sup" | "idx" | "lrc"
+    )
+}
+
+/// Идентификатор сезона и серии для сопоставления видео с внешними дорожками.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct EpisodeKey {
+    season: Option<u32>,
+    episode: u32,
+}
+
+/// Извлечение идентификатора сезона и серии из названия файла.
+/// Поддерживает паттерны: sXXeYY, sXX.eYY, XXxYY, epXX, eXX, а также изолированные номера серий.
+fn extract_episode_key(name: &str) -> Option<EpisodeKey> {
+    let s = name.to_lowercase();
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+
+    // 1. Паттерн sXXeYY / sXX.eYY / sXX_eYY
+    let mut i = 0;
+    while i < len {
+        if bytes[i] == b's' {
+            let mut j = i + 1;
+            while j < len && bytes[j].is_ascii_digit() {
+                j += 1;
+            }
+            let season_digits = &s[(i + 1)..j];
+            if !season_digits.is_empty() && season_digits.len() <= 3 {
+                let mut k = j;
+                if k < len && matches!(bytes[k], b'.' | b'_' | b'-' | b' ') {
+                    k += 1;
+                }
+                if k < len && bytes[k] == b'e' {
+                    let mut m = k + 1;
+                    while m < len && bytes[m].is_ascii_digit() {
+                        m += 1;
+                    }
+                    let ep_digits = &s[(k + 1)..m];
+                    if !ep_digits.is_empty() && ep_digits.len() <= 4 {
+                        let boundary_ok = m == len || !bytes[m].is_ascii_alphabetic();
+                        if boundary_ok {
+                            if let (Ok(season), Ok(episode)) = (season_digits.parse::<u32>(), ep_digits.parse::<u32>()) {
+                                return Some(EpisodeKey { season: Some(season), episode });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+
+    // 2. Паттерн XXxYY (например, 01x05)
+    i = 0;
+    while i < len {
+        if bytes[i] == b'x' && i > 0 {
+            let mut j = i;
+            while j > 0 && bytes[j - 1].is_ascii_digit() {
+                j -= 1;
+            }
+            let season_digits = &s[j..i];
+            if !season_digits.is_empty() && season_digits.len() <= 2 {
+                let mut k = i + 1;
+                while k < len && bytes[k].is_ascii_digit() {
+                    k += 1;
+                }
+                let ep_digits = &s[(i + 1)..k];
+                if !ep_digits.is_empty() && ep_digits.len() <= 4 {
+                    let boundary_left = j == 0 || !bytes[j - 1].is_ascii_alphabetic();
+                    let boundary_right = k == len || !bytes[k].is_ascii_alphabetic();
+                    if boundary_left && boundary_right {
+                        if let (Ok(season), Ok(episode)) = (season_digits.parse::<u32>(), ep_digits.parse::<u32>()) {
+                            return Some(EpisodeKey { season: Some(season), episode });
+                        }
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+
+    // 3. Паттерн epXX или eXX (например, ep05 или e05)
+    i = 0;
+    while i < len {
+        let is_e = bytes[i] == b'e';
+        let is_ep = bytes[i] == b'e' && i + 1 < len && bytes[i + 1] == b'p';
+        if is_e || is_ep {
+            let boundary_left = i == 0 || !bytes[i - 1].is_ascii_alphanumeric();
+            if boundary_left {
+                let offset = if is_ep { 2 } else { 1 };
+                let mut j = i + offset;
+                while j < len && bytes[j].is_ascii_digit() {
+                    j += 1;
+                }
+                let ep_digits = &s[(i + offset)..j];
+                if !ep_digits.is_empty() && ep_digits.len() <= 4 {
+                    let boundary_right = j == len || !bytes[j].is_ascii_alphabetic();
+                    if boundary_right {
+                        if let Ok(episode) = ep_digits.parse::<u32>() {
+                            return Some(EpisodeKey { season: None, episode });
+                        }
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+
+    // 4. Паттерн изолированного номера серии в квадратных скобках [05] или пробелах " - 05 "
+    i = 0;
+    while i < len {
+        if (bytes[i] == b'[' || (i > 0 && bytes[i - 1] == b'-' && bytes[i] == b' ')) && i + 1 < len {
+            let start = i + 1;
+            let mut j = start;
+            while j < len && bytes[j].is_ascii_digit() {
+                j += 1;
+            }
+            let digits = &s[start..j];
+            if !digits.is_empty() && digits.len() <= 4 {
+                let is_bracket = bytes[i] == b'[' && j < len && bytes[j] == b']';
+                let is_dash = bytes[i] == b' ' && j < len && (bytes[j] == b' ' || bytes[j] == b'[' || bytes[j] == b'.');
+                if is_bracket || is_dash {
+                    if let Ok(episode) = digits.parse::<u32>() {
+                        return Some(EpisodeKey { season: None, episode });
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+
+    None
+}
+
+/// Сопоставление названия дорожки с текущим видеофайлом.
+/// Обеспечивает строгую привязку к серии: дорожки от других серий отсекаются.
+fn is_track_matching_video(video_stem: &str, track_stem: &str) -> bool {
+    let v_lower = video_stem.to_lowercase();
+    let t_lower = track_stem.to_lowercase();
+
+    // Быстрая проверка: полное совпадение или дорожка начинается с названия видео
+    if t_lower == v_lower || t_lower.starts_with(&v_lower) {
+        return true;
+    }
+
+    // Обратная проверка: имя видео начинается с имени дорожки (если в видео добавлены теги качества/рипа)
+    if v_lower.starts_with(&t_lower) && t_lower.len() >= 4 {
+        return true;
+    }
+
+    let v_ep = extract_episode_key(&v_lower);
+    let t_ep = extract_episode_key(&t_lower);
+
+    match (v_ep, t_ep) {
+        (Some(ve), Some(te)) => {
+            if let (Some(vs), Some(ts)) = (ve.season, te.season) {
+                vs == ts && ve.episode == te.episode
+            } else {
+                ve.episode == te.episode
+            }
+        }
+        (Some(_), None) => {
+            t_lower.contains(&v_lower) || (v_lower.contains(&t_lower) && t_lower.len() >= 4)
+        }
+        (None, Some(_)) => {
+            false
+        }
+        (None, None) => {
+            t_lower.contains(&v_lower) || (v_lower.contains(&t_lower) && t_lower.len() >= 4)
+        }
+    }
+}
+
+/// Сканирование родительской директории видео (уровень 0) и прямых дочерних папок (уровень 1).
+/// Не спускается глубже 1 уровня вложенности («дальше в подпапку лезть не надо»).
+fn scan_external_tracks(video_path: &std::path::Path) -> (Vec<std::path::PathBuf>, Vec<std::path::PathBuf>) {
+    let mut audio_files = Vec::new();
+    let mut subtitle_files = Vec::new();
+
+    let parent = match video_path.parent() {
+        Some(p) => p,
+        None => return (audio_files, subtitle_files),
+    };
+
+    let video_canonical = video_path.canonicalize().unwrap_or_else(|_| video_path.to_path_buf());
+    let video_stem = match video_path.file_stem().and_then(|s| s.to_str()) {
+        Some(s) => s,
+        None => return (audio_files, subtitle_files),
+    };
+
+    let mut direct_subdirs = Vec::new();
+
+    // 1. Уровень 0: каталог рядом с видеофайлом
+    if let Ok(entries) = std::fs::read_dir(parent) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_file() {
+                if path.canonicalize().unwrap_or_else(|_| path.clone()) == video_canonical {
+                    continue;
+                }
+
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    let track_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                    if is_track_matching_video(video_stem, track_stem) {
+                        if is_audio_extension(ext) {
+                            audio_files.push(path);
+                        } else if is_subtitle_extension(ext) {
+                            subtitle_files.push(path);
+                        }
+                    }
+                }
+            } else if path.is_dir() {
+                direct_subdirs.push(path);
+            }
+        }
+    }
+
+    // 2. Уровень 1: прямые подкаталоги (например, Subs, Audio, Subtitles и др.), без рекурсии дальше
+    for subdir in direct_subdirs {
+        if let Ok(entries) = std::fs::read_dir(&subdir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                        let track_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                        if is_track_matching_video(video_stem, track_stem) {
+                            if is_audio_extension(ext) {
+                                audio_files.push(path);
+                            } else if is_subtitle_extension(ext) {
+                                subtitle_files.push(path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Сортировка естественным порядком (Natural Sort)
+    audio_files.sort_by(|a, b| {
+        let na = a.file_name().unwrap_or_default().to_string_lossy();
+        let nb = b.file_name().unwrap_or_default().to_string_lossy();
+        natural_cmp(&na, &nb)
+    });
+    subtitle_files.sort_by(|a, b| {
+        let na = a.file_name().unwrap_or_default().to_string_lossy();
+        let nb = b.file_name().unwrap_or_default().to_string_lossy();
+        natural_cmp(&na, &nb)
+    });
+
+    (audio_files, subtitle_files)
+}
+
+/// Внутренняя функция автоподхвата внешних дорожек и субтитров для медиафайла.
+pub fn load_external_tracks_internal(
+    state: &PlayerState,
+    video_path: &std::path::Path,
+) -> Result<(), String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    let (auto_load, auto_select_audio) = if let Some(ref p_dir) = exe_dir {
+        let settings = AppSettings::load(p_dir);
+        (settings.auto_load_tracks, settings.auto_select_external_audio)
+    } else {
+        (false, false)
+    };
+
+    if !auto_load {
+        return Ok(());
+    }
+
+    let (audio_files, subtitle_files) = scan_external_tracks(video_path);
+
+    if audio_files.is_empty() && subtitle_files.is_empty() {
+        return Ok(());
+    }
+
+    // Запоминаем текущую активную аудиодорожку перед добавлением внешних файлов
+    let original_aid = state.mpv.get_property_string("aid").unwrap_or_default();
+
+    // Собираем уже загруженные внешние файлы для предотвращения повторной загрузки
+    let track_count = state.mpv.get_property_double("track-list/count").unwrap_or(0.0) as i64;
+    let mut existing_external_files = HashSet::new();
+    for i in 0..track_count {
+        if let Ok(ext_fn) = state.mpv.get_property_string(&format!("track-list/{}/external-filename", i)) {
+            if !ext_fn.is_empty() {
+                let norm = ext_fn.replace('\\', "/").to_lowercase();
+                existing_external_files.insert(norm);
+            }
+        }
+    }
+
+    let mut newly_added_audio = false;
+
+    // Подключение найденных внешних аудиодорожек
+    for audio_path in audio_files {
+        let path_str = audio_path.to_string_lossy();
+        let safe_path = escape_mpv_path(&path_str);
+        let norm_path = safe_path.to_lowercase();
+
+        if !existing_external_files.contains(&norm_path) {
+            let cmd = format!("audio-add \"{}\" cached", safe_path);
+            if let Err(e) = state.mpv.command(&cmd) {
+                eprintln!("Не удалось подключить внешнюю аудиодорожку {}: {}", path_str, e);
+            } else {
+                existing_external_files.insert(norm_path);
+                newly_added_audio = true;
+            }
+        }
+    }
+
+    // Если подключена внешняя аудиодорожка:
+    // Если автовыбор ВЫКЛЮЧЕН (по умолчанию), принудительно восстанавливаем исходную дорожку видео.
+    // Если автовыбор ВКЛЮЧЕН, переключаем на последнюю внешнюю дорожку.
+    if newly_added_audio {
+        if !auto_select_audio {
+            if !original_aid.is_empty() {
+                let _ = state.mpv.set_property_string("aid", &original_aid);
+            }
+        } else {
+            // Переключаемся на подхваченную аудиодорожку (последний добавившийся ID в track-list)
+            let updated_count = state.mpv.get_property_double("track-list/count").unwrap_or(0.0) as i64;
+            for i in (0..updated_count).rev() {
+                let t_type = state.mpv.get_property_string(&format!("track-list/{}/type", i)).unwrap_or_default();
+                if t_type == "audio" {
+                    if let Ok(id) = state.mpv.get_property_double(&format!("track-list/{}/id", i)) {
+                        let _ = state.mpv.set_property_string("aid", &(id as i64).to_string());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Подключение найденных внешних субтитров с флагом "cached" (без принудительной активации)
+    for sub_path in subtitle_files {
+        let path_str = sub_path.to_string_lossy();
+        let safe_path = escape_mpv_path(&path_str);
+        let norm_path = safe_path.to_lowercase();
+
+        if !existing_external_files.contains(&norm_path) {
+            let cmd = format!("sub-add \"{}\" cached", safe_path);
+            if let Err(e) = state.mpv.command(&cmd) {
+                eprintln!("Не удалось подключить внешние субтитры {}: {}", path_str, e);
+            } else {
+                existing_external_files.insert(norm_path);
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Функция естественного сравнения строк (Natural Sort).
 /// Корректно упорядочивает числа внутри названий файлов (например, "Серия 2" идет перед "Серия 10")
 /// и не учитывает регистр символов Unicode.
@@ -288,6 +665,9 @@ pub fn open_file_internal(
 
     // Сбрасываем параметр "start" в "none", чтобы следующие треки плейлиста стартовали с начала
     let _ = state.mpv.set_property_string("start", "none");
+
+    // Подгружаем внешние дорожки и субтитры для текущего файла (если опция активна в настройках)
+    let _ = load_external_tracks_internal(state, &target_path);
 
     // 2. Фоново формируем плейлист из остальных файлов в той же папке
     if let Some(parent) = target_path.parent() {
@@ -684,6 +1064,81 @@ pub fn set_multi_instance(allow: bool) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+/// Получить текущий статус настройки автоматического подхвата внешних дорожек.
+#[tauri::command]
+pub fn get_auto_load_tracks() -> Result<bool, String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+        
+    if let Some(p_dir) = exe_dir {
+        let settings = AppSettings::load(&p_dir);
+        return Ok(settings.auto_load_tracks);
+    }
+    Ok(false)
+}
+
+/// Установить статус настройки автоматического подхвата внешних дорожек с сохранением в settings.json.
+#[tauri::command]
+pub fn set_auto_load_tracks(enabled: bool) -> Result<(), String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    if let Some(p_dir) = exe_dir {
+        let mut settings = AppSettings::load(&p_dir);
+        settings.auto_load_tracks = enabled;
+        settings.save(&p_dir).ok();
+        return Ok(());
+    }
+    Err("Не удалось определить директорию приложения для сохранения настроек".to_string())
+}
+
+/// Получить текущий статус настройки автоматического переключения звука на внешнюю аудиодорожку.
+#[tauri::command]
+pub fn get_auto_select_external_audio() -> Result<bool, String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+        
+    if let Some(p_dir) = exe_dir {
+        let settings = AppSettings::load(&p_dir);
+        return Ok(settings.auto_select_external_audio);
+    }
+    Ok(false)
+}
+
+/// Установить статус настройки автоматического переключения звука на внешнюю аудиодорожку.
+#[tauri::command]
+pub fn set_auto_select_external_audio(enabled: bool) -> Result<(), String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    if let Some(p_dir) = exe_dir {
+        let mut settings = AppSettings::load(&p_dir);
+        settings.auto_select_external_audio = enabled;
+        settings.save(&p_dir).ok();
+        return Ok(());
+    }
+    Err("Не удалось определить директорию приложения для сохранения настроек".to_string())
+}
+
+/// Сканирование и загрузка внешних дорожек и субтитров для указанного медиафайла.
+#[tauri::command]
+pub fn load_external_tracks_for_file(
+    state: State<'_, PlayerState>,
+    path: String,
+) -> Result<(), String> {
+    load_external_tracks_internal(&*state, std::path::Path::new(&path))
+}
+
+/// Получить текущую версию приложения (из Cargo.toml).
+#[tauri::command]
+pub fn get_app_version() -> Result<String, String> {
+    Ok(env!("CARGO_PKG_VERSION").to_string())
 }
 
 // ─── Подсветка полос (Ambient Light / GPU Blur) ─────────
@@ -1923,4 +2378,303 @@ pub async fn extract_track(
     }
 
     Ok(target_path)
+}
+
+// ============================================================================
+// Модуль проверки и установки обновлений
+// ============================================================================
+
+/// Информация об обновлении приложения.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UpdateInfo {
+    /// Текущая установленная версия приложения.
+    pub current_version: String,
+    /// Последняя доступная версия на GitHub.
+    pub latest_version: String,
+    /// Флаг наличия более новой версии.
+    pub has_update: bool,
+    /// Список изменений (описание релиза).
+    pub release_notes: String,
+    /// Прямая ссылка на скачивание установочного файла.
+    pub download_url: String,
+    /// Имя загружаемого файла (например, L-MPV_1.3.1_x64-setup.exe).
+    pub asset_name: String,
+    /// Дата публикации релиза.
+    pub published_at: String,
+}
+
+/// Прогресс скачивания обновления для передачи во фронтенд.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UpdateProgress {
+    /// Количество скачанных байт.
+    pub downloaded: u64,
+    /// Общий размер файла в байтах.
+    pub total: u64,
+    /// Процент выполнения (0.0 - 100.0).
+    pub percentage: f64,
+}
+
+#[derive(Deserialize, Debug)]
+struct GitHubAsset {
+    name: String,
+    browser_download_url: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct GitHubRelease {
+    tag_name: String,
+    body: Option<String>,
+    published_at: Option<String>,
+    assets: Vec<GitHubAsset>,
+}
+
+/// Сравнение семантических версий (например, "1.3.0" и "1.3.1").
+fn is_newer_semver(current: &str, latest: &str) -> bool {
+    let clean_curr = current.trim_start_matches(|c| c == 'v' || c == 'V');
+    let clean_late = latest.trim_start_matches(|c| c == 'v' || c == 'V');
+
+    let parse_parts = |s: &str| -> Vec<u64> {
+        s.split('.')
+            .filter_map(|p| {
+                // Извлекаем ведущие цифры на случай префиксов или суффиксов
+                let digits: String = p.chars().take_while(|c| c.is_ascii_digit()).collect();
+                digits.parse::<u64>().ok()
+            })
+            .collect()
+    };
+
+    let curr_parts = parse_parts(clean_curr);
+    let late_parts = parse_parts(clean_late);
+
+    let max_len = curr_parts.len().max(late_parts.len());
+    for i in 0..max_len {
+        let c = curr_parts.get(i).copied().unwrap_or(0);
+        let l = late_parts.get(i).copied().unwrap_or(0);
+        if l > c {
+            return true;
+        } else if l < c {
+            return false;
+        }
+    }
+
+    false
+}
+
+/// Внутренний запрос к GitHub Releases API для получения данных о последнем релизе.
+async fn fetch_latest_release_internal() -> Result<UpdateInfo, String> {
+    const REPO_API_URL: &str = "https://api.github.com/repos/Menely/L-MPV/releases/latest";
+    let current_version = env!("CARGO_PKG_VERSION").to_string();
+
+    let client = reqwest::Client::builder()
+        .user_agent("L-MPV-Updater")
+        .timeout(std::time::Duration::from_secs(12))
+        .build()
+        .map_err(|e| format!("Не удалось инициализировать HTTP-клиент: {}", e))?;
+
+    let response = client
+        .get(REPO_API_URL)
+        .send()
+        .await
+        .map_err(|e| format!("Ошибка подключения к GitHub API: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("GitHub API вернул статус: {}", response.status()));
+    }
+
+    let release: GitHubRelease = response
+        .json()
+        .await
+        .map_err(|e| format!("Ошибка разбора ответа GitHub API: {}", e))?;
+
+    let latest_version = release.tag_name.clone();
+    let has_update = is_newer_semver(&current_version, &latest_version);
+
+    // Ищем подходящий установочный файл (приоритет: .exe содержащий 'setup', иначе любой .exe)
+    let setup_asset = release
+        .assets
+        .iter()
+        .find(|a| {
+            let lower = a.name.to_lowercase();
+            lower.contains("setup") && lower.ends_with(".exe")
+        })
+        .or_else(|| {
+            release
+                .assets
+                .iter()
+                .find(|a| a.name.to_lowercase().ends_with(".exe"))
+        });
+
+    let (download_url, asset_name) = match setup_asset {
+        Some(asset) => (asset.browser_download_url.clone(), asset.name.clone()),
+        None => (String::new(), String::new()),
+    };
+
+    Ok(UpdateInfo {
+        current_version,
+        latest_version,
+        has_update,
+        release_notes: release.body.unwrap_or_default(),
+        download_url,
+        asset_name,
+        published_at: release.published_at.unwrap_or_default(),
+    })
+}
+
+/// Фоновая проверка обновлений при запуске плеера.
+/// Счётчик запусков увеличивается на 1.
+/// Если запуск кратен 5 (каждый 5-й запуск), отправляется запрос к GitHub Releases API.
+#[tauri::command]
+pub async fn check_launch_and_update() -> Result<Option<UpdateInfo>, String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    let mut should_check = false;
+
+    if let Some(ref p_dir) = exe_dir {
+        let mut settings = AppSettings::load(p_dir);
+        settings.launch_count = settings.launch_count.saturating_add(1);
+        println!("L-MPV запуск №{}", settings.launch_count);
+        if settings.launch_count % 5 == 0 {
+            should_check = true;
+        }
+        let _ = settings.save(p_dir);
+    }
+
+    if !should_check {
+        return Ok(None);
+    }
+
+    // При фоновой проверке не прерываем работу плеера ошибкой, если нет интернета
+    match fetch_latest_release_internal().await {
+        Ok(info) => {
+            if info.has_update {
+                println!("Обнаружено обновление: {}", info.latest_version);
+                Ok(Some(info))
+            } else {
+                Ok(None)
+            }
+        }
+        Err(e) => {
+            eprintln!("Фоновая проверка обновлений не удалась (оффлайн): {}", e);
+            Ok(None)
+        }
+    }
+}
+
+/// Ручная проверка обновлений (по кнопке в интерфейсе настроек).
+#[tauri::command]
+pub async fn check_for_updates() -> Result<UpdateInfo, String> {
+    fetch_latest_release_internal().await
+}
+
+/// Скачивание инсталлятора с отображением прогресса и последующий запуск с закрытием плеера.
+#[tauri::command]
+pub async fn download_and_install_update(
+    app: tauri::AppHandle,
+    download_url: String,
+    asset_name: String,
+) -> Result<(), String> {
+    if download_url.is_empty() {
+        return Err("URL для скачивания обновления не указан".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent("L-MPV-Updater")
+        .build()
+        .map_err(|e| format!("Не удалось инициализировать HTTP-клиент: {}", e))?;
+
+    let mut response = client
+        .get(&download_url)
+        .send()
+        .await
+        .map_err(|e| format!("Не удалось начать загрузку: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Сервер вернул ошибку при загрузке: {}",
+            response.status()
+        ));
+    }
+
+    let total_size = response.content_length().unwrap_or(0);
+    let temp_name = if asset_name.is_empty() {
+        "L-MPV-Update-Setup.exe".to_string()
+    } else {
+        asset_name
+    };
+
+    let temp_file_path = std::env::temp_dir().join(temp_name);
+
+    let mut file = tokio::fs::File::create(&temp_file_path)
+        .await
+        .map_err(|e| {
+            format!(
+                "Не удалось создать временный файл инсталлятора: {}",
+                e
+            )
+        })?;
+
+    let mut downloaded: u64 = 0;
+    let mut last_percentage: f64 = 0.0;
+
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| format!("Ошибка чтения потока данных: {}", e))?
+    {
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| format!("Ошибка записи во временный файл: {}", e))?;
+
+        downloaded += chunk.len() as u64;
+
+        let percentage = if total_size > 0 {
+            (downloaded as f64 / total_size as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        // Эмитим событие при изменении процента хотя бы на 0.5% или при завершении
+        if (percentage - last_percentage).abs() >= 0.5 || downloaded == total_size {
+            last_percentage = percentage;
+            let _ = app.emit(
+                "update-download-progress",
+                UpdateProgress {
+                    downloaded,
+                    total: total_size,
+                    percentage,
+                },
+            );
+        }
+    }
+
+    file.flush()
+        .await
+        .map_err(|e| format!("Ошибка финализации файла: {}", e))?;
+    drop(file);
+
+    println!(
+        "Инсталлятор успешно скачан: {:?}. Запуск независимого процесса установки...",
+        temp_file_path
+    );
+
+    // Запускаем инсталлятор с флагом DETACHED_PROCESS
+    let mut cmd = std::process::Command::new(&temp_file_path);
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        cmd.creation_flags(DETACHED_PROCESS);
+    }
+
+    cmd.spawn()
+        .map_err(|e| format!("Не удалось запустить процесс установщика: {}", e))?;
+
+    // Небольшая пауза для гарантированного запуска инсталлятора и последующий корректный выход из приложения
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    app.exit(0);
+
+    Ok(())
 }

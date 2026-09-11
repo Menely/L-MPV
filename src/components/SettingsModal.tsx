@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Trash2,
   Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -27,6 +28,7 @@ import {
   getKeyDisplay,
 } from "../utils/hotkeyUtils";
 import { PASTEL_PRESETS, VIBRANT_PRESETS, applyAccentColor } from "../utils/colorUtils";
+import { UpdateInfo } from "./UpdateModal";
 
 interface AmbientSettings {
   mode: "off" | "blur" | "color";
@@ -36,15 +38,19 @@ interface AmbientSettings {
 
 interface SettingsModalProps {
   onClose: () => void;
+  onShowUpdate?: (info: UpdateInfo) => void;
 }
 
-export function SettingsModal({ onClose }: SettingsModalProps) {
+export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [screenshotDir, setScreenshotDir] = useState<string>("");
   const [uiOpacity, setUiOpacity] = useState<number>(0.88);
   const [activeColor, setActiveColor] = useState<string>("#7fc7ff");
   const [showTrackNames, setShowTrackNames] = useState<boolean>(true);
   const [multiInstance, setMultiInstance] = useState<boolean>(false);
   const [saveTracksToVideoDir, setSaveTracksToVideoDir] = useState<boolean>(true);
+  const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
+  const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
+  const [appVersion, setAppVersion] = useState<string>("1.3.0");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(getCustomHotkeys());
   const [recordingAction, setRecordingAction] = useState<{ id: string, index: number } | null>(null);
@@ -58,10 +64,23 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     color: "#7fc7ff",
   });
 
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const updateStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const ambientSettingsRef = useRef<AmbientSettings>(ambientSettings);
   ambientSettingsRef.current = ambientSettings;
   const isAmbientDirtyRef = useRef<boolean>(false);
   const ambientSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Сброс таймера статуса при размонтировании
+  useEffect(() => {
+    return () => {
+      if (updateStatusTimerRef.current) {
+        clearTimeout(updateStatusTimerRef.current);
+      }
+    };
+  }, []);
 
   // Сброс несохраненных изменений на диск при закрытии/размонтировании модального окна
   useEffect(() => {
@@ -124,6 +143,36 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       }
     };
     loadMultiInstance();
+
+    const loadAutoLoadTracks = async () => {
+      try {
+        const val = await invoke<boolean>("get_auto_load_tracks");
+        setAutoLoadTracks(val);
+      } catch (e) {
+        console.error("Ошибка загрузки настройки auto_load_tracks:", e);
+      }
+    };
+    loadAutoLoadTracks();
+
+    const loadAutoSelectAudio = async () => {
+      try {
+        const val = await invoke<boolean>("get_auto_select_external_audio");
+        setAutoSelectExternalAudio(val);
+      } catch (e) {
+        console.error("Ошибка загрузки настройки auto_select_external_audio:", e);
+      }
+    };
+    loadAutoSelectAudio();
+
+    const loadVersion = async () => {
+      try {
+        const ver = await invoke<string>("get_app_version");
+        setAppVersion(ver);
+      } catch (e) {
+        console.error("Ошибка загрузки версии приложения:", e);
+      }
+    };
+    loadVersion();
 
     const loadAmbient = async () => {
       try {
@@ -211,6 +260,35 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       setScreenshotDir(defaultPath);
     } catch (e) {
       console.error("Ошибка сброса пути:", e);
+    }
+  };
+
+  // Ручная проверка обновлений через GitHub Releases API
+  const handleCheckForUpdates = async () => {
+    setIsCheckingUpdate(true);
+    setUpdateStatus(null);
+    if (updateStatusTimerRef.current) {
+      clearTimeout(updateStatusTimerRef.current);
+      updateStatusTimerRef.current = null;
+    }
+
+    try {
+      const info = await invoke<UpdateInfo>("check_for_updates");
+      if (info.has_update) {
+        setUpdateStatus(`Найдено обновление v${info.latest_version.replace(/^[vV]/, "")}`);
+        if (onShowUpdate) {
+          onShowUpdate(info);
+        }
+      } else {
+        setUpdateStatus("У вас последняя версия");
+        updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
+      }
+    } catch (err) {
+      console.error("Ошибка проверки обновлений:", err);
+      setUpdateStatus("Не удалось проверить");
+      updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
+    } finally {
+      setIsCheckingUpdate(false);
     }
   };
 
@@ -467,6 +545,78 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                     </span>
                   </div>
                 </label>
+
+                {/* Настройка автоподхвата внешних дорожек */}
+                <div
+                  className="modal__section-title"
+                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <AudioLines size={16} /> Автоматическое подключение дорожек
+                  </div>
+                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
+                  <input
+                    type="checkbox"
+                    checked={autoLoadTracks}
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      setAutoLoadTracks(val);
+                      try {
+                        await invoke("set_auto_load_tracks", { enabled: val });
+                      } catch (err) {
+                        console.error("Ошибка сохранения настройки auto_load_tracks:", err);
+                      }
+                    }}
+                    style={{
+                      width: 18,
+                      height: 18,
+                      accentColor: "var(--accent)",
+                      cursor: "pointer"
+                    }}
+                  />
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                      Автоматически подхватывать внешние аудиодорожки и субтитры
+                    </span>
+                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
+                      Подключает файлы для текущей серии из папки с видео и её подпапок первого уровня (Audio, Subs и др.)
+                    </span>
+                  </div>
+                </label>
+
+                {/* Вложенная настройка автовыбора подхваченной аудиодорожки */}
+                {autoLoadTracks && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10, marginLeft: 28, cursor: "pointer", userSelect: "none" }}>
+                    <input
+                      type="checkbox"
+                      checked={autoSelectExternalAudio}
+                      onChange={async (e) => {
+                        const val = e.target.checked;
+                        setAutoSelectExternalAudio(val);
+                        try {
+                          await invoke("set_auto_select_external_audio", { enabled: val });
+                        } catch (err) {
+                          console.error("Ошибка сохранения настройки auto_select_external_audio:", err);
+                        }
+                      }}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        accentColor: "var(--accent)",
+                        cursor: "pointer"
+                      }}
+                    />
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontSize: "0.86rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                        Автоматически переключать звук на подхваченную внешнюю аудиодорожку
+                      </span>
+                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", marginTop: 2 }}>
+                        Если выключено (по умолчанию), внешнее аудио добавляется в список, но воспроизводится оригинальный звук видео
+                      </span>
+                    </div>
+                  </label>
+                )}
               </div>
             </div>
           )}
@@ -1342,6 +1492,84 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Футер с версией приложения и проверкой обновлений */}
+        <div
+          style={{
+            padding: "12px 20px",
+            borderTop: "1px solid var(--border)",
+            background: "rgba(0, 0, 0, 0.25)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontSize: "0.82rem",
+            color: "var(--text-muted)",
+            flexShrink: 0,
+            borderRadius: "0 0 var(--radius-lg, 12px) var(--radius-lg, 12px)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>L-MPV</span>
+            <span
+              style={{
+                color: "var(--accent)",
+                fontWeight: 700,
+                background: "var(--accent-glass)",
+                padding: "2px 8px",
+                borderRadius: "var(--radius-pill)",
+                fontSize: "0.78rem",
+                border: "1px solid var(--border-pill)",
+              }}
+            >
+              v{appVersion}
+            </span>
+
+            <button
+              onClick={handleCheckForUpdates}
+              disabled={isCheckingUpdate}
+              style={{
+                background: "rgba(255, 255, 255, 0.06)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "var(--radius-pill, 9999px)",
+                padding: "3px 10px",
+                fontSize: "0.78rem",
+                color: "var(--text-secondary, #d1d5db)",
+                cursor: isCheckingUpdate ? "default" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                transition: "all 0.15s ease",
+              }}
+              className="hover-bright"
+              title="Проверить наличие обновлений на GitHub"
+            >
+              {isCheckingUpdate ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  <span>Проверка...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={12} />
+                  <span>Проверить обновления</span>
+                </>
+              )}
+            </button>
+
+            {updateStatus && (
+              <span
+                style={{
+                  fontSize: "0.78rem",
+                  color: updateStatus.includes("Найдено") ? "var(--accent)" : "var(--text-muted)",
+                  marginLeft: 4,
+                }}
+              >
+                {updateStatus}
+              </span>
+            )}
+          </div>
+          <span style={{ fontSize: "0.76rem" }}>Портативная редакция</span>
         </div>
       </div>
     </div>
