@@ -50,7 +50,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [saveTracksToVideoDir, setSaveTracksToVideoDir] = useState<boolean>(true);
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
-  const [appVersion, setAppVersion] = useState<string>("1.3.0");
+  const [appVersion, setAppVersion] = useState<string>("1.3.1");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(getCustomHotkeys());
   const [recordingAction, setRecordingAction] = useState<{ id: string, index: number } | null>(null);
