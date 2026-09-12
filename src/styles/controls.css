@@ -94,8 +94,8 @@
   background: var(--accent);
   border: 2px solid rgba(255, 255, 255, 0.9);
   border-radius: 50%;
-  box-shadow: var(--shadow-glow);
-  transition: transform var(--t-fast) var(--ease-out);
+  box-shadow: var(--thumb-glow, var(--shadow-glow));
+  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-smooth);
   z-index: 10;
   pointer-events: none;
 }
@@ -200,6 +200,7 @@
   background: var(--bg-hover);
   color: var(--text-primary);
   transform: scale(1.08);
+  box-shadow: var(--btn-glow, none);
 }
 
 .control-btn:active {
@@ -223,10 +224,12 @@
   color: var(--accent-hover);
   background: var(--bg-active);
   transform: scale(1.12);
+  box-shadow: var(--play-btn-glow, var(--shadow-glow, none));
 }
 
 .control-btn--active {
   color: var(--accent);
+  box-shadow: var(--active-btn-glow, none);
 }
 
 /* ─── Текстовые метки (время, кадры) ─────────────────── */

@@ -18,6 +18,9 @@ import {
   Trash2,
   Sparkles,
   RefreshCw,
+  Plus,
+  X,
+  ChevronDown,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -27,8 +30,19 @@ import {
   resetSingleHotkey,
   getKeyDisplay,
 } from "../utils/hotkeyUtils";
-import { PASTEL_PRESETS, VIBRANT_PRESETS, applyAccentColor } from "../utils/colorUtils";
+import {
+  PASTEL_PRESETS,
+  STANDARD_PRESETS,
+  applyAccentColor,
+  getCustomColors,
+  saveCustomColors,
+  MAX_CUSTOM_COLORS,
+  GlowIntensity,
+  getGlowIntensity,
+  saveGlowIntensity,
+} from "../utils/colorUtils";
 import { UpdateInfo } from "./UpdateModal";
+import { ColorPickerModal } from "./ColorPickerModal";
 
 interface AmbientSettings {
   mode: "off" | "blur" | "color";
@@ -41,16 +55,60 @@ interface SettingsModalProps {
   onShowUpdate?: (info: UpdateInfo) => void;
 }
 
+interface AccordionSectionProps {
+  isOpen: boolean;
+  onToggle: () => void;
+  icon: React.ReactNode;
+  title: React.ReactNode;
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+function AccordionSection({
+  isOpen,
+  onToggle,
+  icon,
+  title,
+  badge,
+  children,
+}: AccordionSectionProps) {
+  return (
+    <div className={`settings-accordion ${isOpen ? "settings-accordion--open" : ""}`}>
+      <button
+        type="button"
+        className="settings-accordion__header"
+        onClick={onToggle}
+      >
+        <div className="settings-accordion__title">
+          <span className="settings-accordion__icon">{icon}</span>
+          <span>{title}</span>
+          {badge}
+        </div>
+        <ChevronDown size={18} className="settings-accordion__chevron" />
+      </button>
+      <div className="settings-accordion__collapse">
+        <div className="settings-accordion__inner">
+          <div className="settings-accordion__body">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [screenshotDir, setScreenshotDir] = useState<string>("");
   const [uiOpacity, setUiOpacity] = useState<number>(0.88);
   const [activeColor, setActiveColor] = useState<string>("#7fc7ff");
+  const [customColors, setCustomColors] = useState<string[]>(() => getCustomColors());
+  const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
   const [showTrackNames, setShowTrackNames] = useState<boolean>(true);
   const [multiInstance, setMultiInstance] = useState<boolean>(false);
   const [saveTracksToVideoDir, setSaveTracksToVideoDir] = useState<boolean>(true);
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
-  const [appVersion, setAppVersion] = useState<string>("1.3.1");
+  const [appVersion, setAppVersion] = useState<string>("1.4.4");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
@@ -65,6 +123,17 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     blur_radius: 100,
     color: "#7fc7ff",
   });
+
+  const [glowIntensity, setGlowIntensity] = useState<GlowIntensity>(() => getGlowIntensity());
+  // По умолчанию все категории свернуты (пустой Set / объект)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (id: string) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
@@ -235,6 +304,13 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         }
       }, 400);
     }
+  };
+
+  // Выбор и сохранение акцентного цвета интерфейса
+  const handleSelectAccentColor = (color: string) => {
+    applyAccentColor(color);
+    setActiveColor(color);
+    localStorage.setItem("l-mpv-accent-color", color);
   };
 
   // Выбор папки скриншотов через диалог Tauri
@@ -411,16 +487,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         {/* Тело модального окна */}
         <div className="modal__body" style={{ padding: "20px" }}>
           {activeTab === "general" && (
-            <div className="modal__section">
-              <div
-                className="modal__section-title"
-                style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal" }}
+            <div className="modal__section" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {/* 1. Папка сохранения скриншотов */}
+              <AccordionSection
+                isOpen={!!openSections["gen_screenshots"]}
+                onToggle={() => toggleSection("gen_screenshots")}
+                icon={<Camera size={16} />}
+                title="Папка сохранения скриншотов"
               >
-                <Camera size={16} /> Папка сохранения скриншотов
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14, marginBottom: 24 }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12 }}>
                   <input
                     type="text"
                     readOnly
@@ -476,16 +551,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     <RotateCcw size={16} />
                   </button>
                 </div>
+              </AccordionSection>
 
-                {/* Настройка Multi-instance */}
-                <div
-                  className="modal__section-title"
-                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Monitor size={16} /> Режим нескольких окон (Multi-instance)
-                  </div>
-                </div>
+              {/* 2. Режим нескольких окон (Multi-instance) */}
+              <AccordionSection
+                isOpen={!!openSections["gen_multi_instance"]}
+                onToggle={() => toggleSection("gen_multi_instance")}
+                icon={<Monitor size={16} />}
+                title="Режим нескольких окон (Multi-instance)"
+              >
                 <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
@@ -515,16 +589,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     </span>
                   </div>
                 </label>
+              </AccordionSection>
 
-                {/* Настройка скачивания дорожек */}
-                <div
-                  className="modal__section-title"
-                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Download size={16} /> Извлечение аудио и субтитров
-                  </div>
-                </div>
+              {/* 3. Извлечение аудио и субтитров */}
+              <AccordionSection
+                isOpen={!!openSections["gen_track_extraction"]}
+                onToggle={() => toggleSection("gen_track_extraction")}
+                icon={<Download size={16} />}
+                title="Извлечение аудио и субтитров"
+              >
                 <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
@@ -550,16 +623,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     </span>
                   </div>
                 </label>
+              </AccordionSection>
 
-                {/* Настройка автоподхвата внешних дорожек */}
-                <div
-                  className="modal__section-title"
-                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <AudioLines size={16} /> Автоматическое подключение дорожек
-                  </div>
-                </div>
+              {/* 4. Автоматическое подключение дорожек */}
+              <AccordionSection
+                isOpen={!!openSections["gen_auto_tracks"]}
+                onToggle={() => toggleSection("gen_auto_tracks")}
+                icon={<AudioLines size={16} />}
+                title="Автоматическое подключение дорожек"
+              >
                 <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
@@ -590,7 +662,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   </div>
                 </label>
 
-                {/* Вложенная настройка автовыбора подхваченной аудиодорожки */}
                 {autoLoadTracks && (
                   <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10, marginLeft: 28, cursor: "pointer", userSelect: "none" }}>
                     <input
@@ -622,16 +693,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     </div>
                   </label>
                 )}
+              </AccordionSection>
 
-                {/* Настройка Хотлоада дорожек перетаскиванием (Drag & Drop) */}
-                <div
-                  className="modal__section-title"
-                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={16} /> Хотлоад дорожек (Drag & Drop)
-                  </div>
-                </div>
+              {/* 5. Хотлоад дорожек (Drag & Drop) */}
+              <AccordionSection
+                isOpen={!!openSections["gen_hotload"]}
+                onToggle={() => toggleSection("gen_hotload")}
+                icon={<Sparkles size={16} />}
+                title="Хотлоад дорожек (Drag & Drop)"
+              >
                 <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
@@ -658,140 +728,209 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     </span>
                   </div>
                 </label>
-              </div>
+              </AccordionSection>
             </div>
           )}
 
           {activeTab === "appearance" && (
-            <div className="modal__section">
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {/* Настройка акцентного цвета */}
-                <div
-                  className="modal__section-title"
-                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", justifyContent: 'space-between' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Palette size={16} /> Акцентный цвет
+            <div className="modal__section" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {/* 1. Акцентный цвет */}
+              <AccordionSection
+                isOpen={!!openSections["app_accent"]}
+                onToggle={() => toggleSection("app_accent")}
+                icon={<Palette size={16} />}
+                title="Акцентный цвет"
+              >
+                <div className="color-columns-grid" style={{ marginTop: 10 }}>
+                  {/* Колонка 1: Пастельные (12 цветов) */}
+                  <div className="color-column-card">
+                    <div className="color-column-card__header">
+                      <span className="color-column-card__title">Пастельные</span>
+                    </div>
+                    <div className="color-column-card__grid">
+                      {PASTEL_PRESETS.slice(0, 12).map((hex) => (
+                        <button
+                          key={hex}
+                          onClick={() => handleSelectAccentColor(hex)}
+                          title={hex}
+                          className={`color-circle ${activeColor === hex ? "color-circle--active" : ""}`}
+                          style={{
+                            backgroundColor: hex,
+                            boxShadow: activeColor === hex ? `0 0 12px ${hex}80` : "none",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Колонка 2: Стандартные (12 цветов) */}
+                  <div className="color-column-card">
+                    <div className="color-column-card__header">
+                      <span className="color-column-card__title">Стандартные</span>
+                    </div>
+                    <div className="color-column-card__grid">
+                      {STANDARD_PRESETS.slice(0, 12).map((hex) => (
+                        <button
+                          key={hex}
+                          onClick={() => handleSelectAccentColor(hex)}
+                          title={hex}
+                          className={`color-circle ${activeColor === hex ? "color-circle--active" : ""}`}
+                          style={{
+                            backgroundColor: hex,
+                            boxShadow: activeColor === hex ? `0 0 14px ${hex}A0` : "none",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Колонка 3: Пользовательские (тема Windows + свои цвета до 12) */}
+                  <div className="color-column-card">
+                    <div className="color-column-card__header">
+                      <span className="color-column-card__title">Свои цвета</span>
+                      <span className="color-column-card__badge">{customColors.length}/{MAX_CUSTOM_COLORS}</span>
+                    </div>
+                    <div className="color-column-card__grid">
+                      {/* 1. Кнопка «Цвет темы Windows» */}
+                      <button
+                        onClick={async () => {
+                          try {
+                            const winColor = await invoke<string>("get_windows_accent_color");
+                            handleSelectAccentColor(winColor);
+                            setActiveColor("windows");
+                            localStorage.setItem("l-mpv-accent-color", "windows");
+                          } catch (e) {
+                            console.error("Ошибка получения цвета Windows", e);
+                          }
+                        }}
+                        title="Цвет темы Windows"
+                        className={`color-circle color-circle--windows ${activeColor === "windows" ? "color-circle--active" : ""}`}
+                      >
+                        <Monitor size={15} />
+                      </button>
+
+                      {/* 2. Список добавленных пользователем цветов */}
+                      {customColors.map((hex, idx) => (
+                        <div key={`${hex}-${idx}`} style={{ position: "relative" }}>
+                          <button
+                            onClick={() => handleSelectAccentColor(hex)}
+                            title={hex}
+                            className={`color-circle ${activeColor === hex ? "color-circle--active" : ""}`}
+                            style={{
+                              backgroundColor: hex,
+                              boxShadow: activeColor === hex ? `0 0 14px ${hex}A0` : "none",
+                            }}
+                          >
+                            <span
+                              className="color-circle__remove-btn"
+                              title="Удалить цвет"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const nextColors = customColors.filter((_, i) => i !== idx);
+                                setCustomColors(nextColors);
+                                saveCustomColors(nextColors);
+                              }}
+                            >
+                              <X size={10} />
+                            </span>
+                          </button>
+                        </div>
+                      ))}
+
+                      {/* 3. Кнопка добавления нового цвета + */}
+                      {customColors.length < MAX_CUSTOM_COLORS && (
+                        <button
+                          onClick={() => setShowColorPicker(true)}
+                          className="color-circle color-circle--add"
+                          title="Добавить свой цвет"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      )}
+
+                      {/* 4. Пустые слоты-заполнители для ровной матрицы 3х4 */}
+                      {Array.from({
+                        length: Math.max(0, MAX_CUSTOM_COLORS - customColors.length - (customColors.length < MAX_CUSTOM_COLORS ? 1 : 0)),
+                      }).map((_, i) => (
+                        <div key={`empty-${i}`} className="color-circle color-circle--empty" />
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 4 }}>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Пастельные цвета
-                  </span>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                    <button
-                      onClick={async () => {
-                        try {
-                          const winColor = await invoke<string>("get_windows_accent_color");
-                          applyAccentColor(winColor);
-                          setActiveColor("windows");
-                          localStorage.setItem('l-mpv-accent-color', 'windows');
-                        } catch (e) {
-                          console.error("Ошибка получения цвета Windows", e);
-                        }
-                      }}
-                      title="Использовать цвет Windows"
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "50%",
-                        background: "rgba(255,255,255,0.1)",
-                        border: activeColor === "windows" ? "2px solid white" : "2px solid transparent",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "white",
-                        transition: "all var(--t-fast) var(--ease-smooth)",
-                      }}
-                    >
-                      <Monitor size={16} />
-                    </button>
-                    {PASTEL_PRESETS.map((hex) => (
+              </AccordionSection>
+
+              {/* 2. Интенсивность неонового свечения (Glow Intensity) */}
+              <AccordionSection
+                isOpen={!!openSections["app_glow"]}
+                onToggle={() => toggleSection("app_glow")}
+                icon={<Sparkles size={16} />}
+                title="Интенсивность неонового свечения (Glow Intensity)"
+              >
+                <div style={{ fontSize: "0.80rem", color: "var(--text-secondary)", marginTop: 10, marginBottom: 12, lineHeight: 1.4 }}>
+                  Настройка яркости и размера неонового свечения вокруг кнопок управления, активных элементов и ползунка прогресса.
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(4, 1fr)",
+                    gap: 8,
+                    padding: 4,
+                    background: "rgba(255, 255, 255, 0.03)",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  {[
+                    { id: "off" as const, label: "Off", desc: "Без свечения" },
+                    { id: "soft" as const, label: "Soft", desc: "Мягкое" },
+                    { id: "medium" as const, label: "Medium", desc: "Сбалансированное" },
+                    { id: "intense" as const, label: "Cyber Intense", desc: "Яркий неон" },
+                  ].map((mode) => {
+                    const isSel = glowIntensity === mode.id;
+                    return (
                       <button
-                        key={hex}
+                        key={mode.id}
+                        type="button"
                         onClick={() => {
-                          applyAccentColor(hex);
-                          setActiveColor(hex);
-                          localStorage.setItem('l-mpv-accent-color', hex);
+                          setGlowIntensity(mode.id);
+                          saveGlowIntensity(mode.id);
                         }}
                         style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: hex,
-                          border: activeColor === hex ? "2px solid white" : "2px solid transparent",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 4,
+                          padding: "10px 6px",
+                          borderRadius: "var(--radius-sm)",
+                          border: "none",
                           cursor: "pointer",
-                          boxShadow: activeColor === hex ? `0 0 12px ${hex}80` : "none",
+                          background: isSel ? "var(--accent-glow)" : "transparent",
+                          color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+                          boxShadow: isSel
+                            ? "0 0 12px var(--accent-glow), inset 0 0 0 1px var(--accent)"
+                            : "none",
                           transition: "all var(--t-fast) var(--ease-smooth)",
                         }}
-                      />
-                    ))}
-                  </div>
-
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Однотонные
-                  </span>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                    {VIBRANT_PRESETS.map((hex) => (
-                      <button
-                        key={hex}
-                        onClick={() => {
-                          applyAccentColor(hex);
-                          setActiveColor(hex);
-                          localStorage.setItem('l-mpv-accent-color', hex);
-                        }}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          backgroundColor: hex,
-                          border: activeColor === hex ? "2px solid white" : "2px solid transparent",
-                          cursor: "pointer",
-                          boxShadow: activeColor === hex ? `0 0 14px ${hex}A0` : "none",
-                          transition: "all var(--t-fast) var(--ease-smooth)",
-                        }}
-                      />
-                    ))}
-                  </div>
-
-
+                      >
+                        <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{mode.label}</span>
+                        <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
+                          {mode.desc}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
+              </AccordionSection>
 
-                {/* Настройка прозрачности */}
-                <div
-                  className="modal__section-title"
-                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 20, justifyContent: 'space-between' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <SlidersHorizontal size={16} /> Прозрачность интерфейса
-                  </div>
-                  <button
-                    onClick={() => {
-                      setUiOpacity(0.88);
-                      localStorage.setItem('l-mpv-ui-opacity', '0.88');
-                      document.documentElement.style.setProperty('--ui-opacity', '0.88');
-                    }}
-                    className="control-btn"
-                    title="Сбросить на значение по умолчанию"
-                    style={{
-                      width: "auto",
-                      height: 28,
-                      padding: "0 10px",
-                      borderRadius: "var(--radius-md)",
-                      background: "rgba(255, 255, 255, 0.05)",
-                      border: "1px solid var(--border)",
-                      color: "var(--text-secondary)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: "0.75rem"
-                    }}
-                  >
-                    <RotateCcw size={14} />
-                  </button>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 4 }}>
+              {/* 3. Прозрачность интерфейса */}
+              <AccordionSection
+                isOpen={!!openSections["app_opacity"]}
+                onToggle={() => toggleSection("app_opacity")}
+                icon={<SlidersHorizontal size={16} />}
+                title="Прозрачность интерфейса"
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12 }}>
                   <input
                     type="range"
                     min="0.1"
@@ -809,18 +948,41 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   <div style={{ width: "45px", fontSize: "0.9rem", color: "var(--text-secondary)", textAlign: "right" }}>
                     {Math.round(uiOpacity * 100)}%
                   </div>
+                  <button
+                    onClick={() => {
+                      setUiOpacity(0.88);
+                      localStorage.setItem('l-mpv-ui-opacity', '0.88');
+                      document.documentElement.style.setProperty('--ui-opacity', '0.88');
+                    }}
+                    className="control-btn"
+                    title="Сбросить на значение по умолчанию (88%)"
+                    style={{
+                      width: "auto",
+                      height: 28,
+                      padding: "0 10px",
+                      borderRadius: "var(--radius-md)",
+                      background: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid var(--border)",
+                      color: "var(--text-secondary)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: "0.75rem"
+                    }}
+                  >
+                    <RotateCcw size={14} />
+                  </button>
                 </div>
+              </AccordionSection>
 
-                {/* Настройка отображения названий дорожек */}
-                <div
-                  className="modal__section-title"
-                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <AudioLines size={16} /> Названия дорожек на панели
-                  </div>
-                </div>
-                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4, cursor: "pointer", userSelect: "none" }}>
+              {/* 4. Названия дорожек на панели */}
+              <AccordionSection
+                isOpen={!!openSections["app_track_names"]}
+                onToggle={() => toggleSection("app_track_names")}
+                icon={<AudioLines size={16} />}
+                title="Названия дорожек на панели"
+              >
+                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
                     checked={showTrackNames}
@@ -841,18 +1003,16 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     Отображать короткое название выбранной аудиодорожки и субтитров рядом с иконками
                   </span>
                 </label>
+              </AccordionSection>
 
-                {/* Настройка кнопок на панели управления */}
-                <div
-                  className="modal__section-title"
-                  style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginTop: 24, justifyContent: 'space-between' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <SlidersHorizontal size={16} /> Видимость кнопок панели управления
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", columnGap: 20, rowGap: 8, marginTop: 4 }}>
+              {/* 5. Видимость кнопок панели управления */}
+              <AccordionSection
+                isOpen={!!openSections["app_control_buttons"]}
+                onToggle={() => toggleSection("app_control_buttons")}
+                icon={<SlidersHorizontal size={16} />}
+                title="Видимость кнопок панели управления"
+              >
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", columnGap: 20, rowGap: 8, marginTop: 12 }}>
                   {[
                     { id: 'repeat', label: 'Повтор', defaultChecked: true },
                     { id: 'shuffle', label: 'Случайный порядок', defaultChecked: true },
@@ -937,29 +1097,16 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     );
                   })}
                 </div>
+              </AccordionSection>
 
-                {/* Настройка подсветки полос (Ambient Light / GPU Blur) */}
-                <div
-                  className="modal__section-title"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: "0.95rem",
-                    color: "var(--accent)",
-                    fontWeight: 600,
-                    textTransform: "none",
-                    letterSpacing: "normal",
-                    marginTop: 24,
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Sparkles size={16} /> Подсветка черных полос (Ambient Light)
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 4 }}>
+              {/* 6. Подсветка черных полос (Ambient Light) */}
+              <AccordionSection
+                isOpen={!!openSections["app_ambient"]}
+                onToggle={() => toggleSection("app_ambient")}
+                icon={<Sparkles size={16} />}
+                title="Подсветка черных полос (Ambient Light)"
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
                   <span style={{ fontSize: "0.80rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>
                     Заполняет пустые области экрана (letterbox/pillarbox) при просмотре широкоформатных видео или в полноэкранном режиме.
                   </span>
@@ -1135,8 +1282,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     </div>
                   )}
                 </div>
-
-              </div>
+              </AccordionSection>
             </div>
           )}
 
@@ -1190,7 +1336,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 Назначения горячих клавиш
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {(() => {
                   const categorizedHotkeys = HOTKEY_ACTIONS.reduce((acc, item) => {
                     if (!acc[item.category]) acc[item.category] = [];
@@ -1198,221 +1344,229 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     return acc;
                   }, {} as Record<string, typeof HOTKEY_ACTIONS>);
 
-                  return Object.entries(categorizedHotkeys).map(([category, items]) => (
-                    <div key={category} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      <div
-                        style={{
-                          fontSize: "0.95rem",
-                          color: "var(--accent)",
-                          fontWeight: 600,
-                          paddingBottom: 6,
-                          borderBottom: "1px solid rgba(255,255,255,0.06)",
-                          marginBottom: 4,
-                        }}
+                  return Object.entries(categorizedHotkeys).map(([category, items]) => {
+                    const secKey = `hk_${category}`;
+                    const isOpen = !!openSections[secKey];
+
+                    return (
+                      <AccordionSection
+                        key={category}
+                        isOpen={isOpen}
+                        onToggle={() => toggleSection(secKey)}
+                        icon={<Keyboard size={16} />}
+                        title={category}
+                        badge={
+                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 500, marginLeft: 4 }}>
+                            ({items.length})
+                          </span>
+                        }
                       >
-                        {category}
-                      </div>
-                      
-                      {items.map((item) => {
-                        const currentCodes = customHotkeys[item.id] || [];
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 12 }}>
+                          {items.map((item) => {
+                                const currentCodes = customHotkeys[item.id] || [];
 
-                        return (
-                          <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div
-                              className="modal__row"
-                              style={{
-                                flex: 1,
-                                padding: "10px 14px",
-                                background: "rgba(255, 255, 255, 0.03)",
-                                border: "1px solid rgba(255, 255, 255, 0.04)",
-                                borderRadius: "var(--radius-md)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                flexWrap: "wrap",
-                                gap: 10,
-                              }}
-                            >
-                              <span style={{ color: "var(--text-primary)", fontSize: "0.9rem", fontWeight: 500, flex: 1, minWidth: 200 }}>
-                                {item.label}
-                              </span>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                                {currentCodes.map((code, idx) => {
-                                  const isRecording = recordingAction?.id === item.id && recordingAction.index === idx;
-                                  return (
-                                    <div key={idx} style={{ display: "flex", alignItems: "center" }}>
-                                      <button
-                                        onClick={() => setRecordingAction({ id: item.id, index: idx })}
-                                        onKeyDown={(e) => {
-                                          if (isRecording) {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            if (
-                                              e.key === "Control" ||
-                                              e.key === "Shift" ||
-                                              e.key === "Alt" ||
-                                              e.key === "Meta"
-                                            ) {
-                                              return;
-                                            }
-                                            const parts: string[] = [];
-                                            if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
-                                            if (e.shiftKey) parts.push("Shift");
-                                            if (e.altKey) parts.push("Alt");
-                                            parts.push(e.code || e.key);
-                                            const newCode = parts.join("+");
-
-                                            const newCodes = [...currentCodes];
-                                            newCodes[idx] = newCode;
-                                            const updated = { ...customHotkeys, [item.id]: newCodes };
-                                            setCustomHotkeys(updated);
-                                            saveCustomHotkeys(updated);
-                                            setRecordingAction(null);
-                                          }
-                                        }}
-                                        onMouseDown={(e) => {
-                                          if (isRecording) {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
-                                            const newCode = btnMap[e.button] || `MouseButton${e.button}`;
-                                            const newCodes = [...currentCodes];
-                                            newCodes[idx] = newCode;
-                                            const updated = { ...customHotkeys, [item.id]: newCodes };
-                                            setCustomHotkeys(updated);
-                                            saveCustomHotkeys(updated);
-                                            setRecordingAction(null);
-                                          }
-                                        }}
-                                        onContextMenu={(e) => {
-                                          if (isRecording) e.preventDefault();
-                                        }}
-                                        style={{
-                                          padding: "4px 10px",
-                                          background: isRecording ? "var(--accent)" : "rgba(127, 199, 255, 0.12)",
-                                          border: isRecording ? "1px solid white" : "1px solid rgba(127, 199, 255, 0.2)",
-                                          borderRadius: "var(--radius-sm)",
-                                          fontFamily: "monospace",
-                                          fontSize: "0.84rem",
-                                          fontWeight: 600,
-                                          color: isRecording ? "#000" : "var(--accent)",
-                                          cursor: "pointer",
-                                          outline: "none",
-                                          borderTopRightRadius: 0,
-                                          borderBottomRightRadius: 0,
-                                        }}
-                                      >
-                                        {isRecording ? "Нажмите..." : getKeyDisplay(code)}
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          const newCodes = currentCodes.filter((_, i) => i !== idx);
-                                          const updated = { ...customHotkeys, [item.id]: newCodes };
-                                          setCustomHotkeys(updated);
-                                          saveCustomHotkeys(updated);
-                                        }}
-                                        title="Удалить"
-                                        style={{
-                                          padding: "4px 6px",
-                                          background: "rgba(255, 50, 50, 0.15)",
-                                          border: "1px solid rgba(255, 50, 50, 0.3)",
-                                          borderLeft: "none",
-                                          borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
-                                          color: "#ff8888",
-                                          cursor: "pointer",
-                                          display: "flex",
-                                          alignItems: "center",
-                                          justifyContent: "center",
-                                        }}
-                                      >
-                                        <Trash2 size={13} />
-                                      </button>
-                                    </div>
-                                  );
-                                })}
-                                
-                                {/* Кнопка добавления нового бинда */}
-                                {(() => {
-                                  const isRecordingNew = recordingAction?.id === item.id && recordingAction.index === currentCodes.length;
-                                  if (isRecordingNew) {
-                                    return (
-                                      <button
-                                          onKeyDown={(e) => {
-                                            if (isRecordingNew) {
-                                              e.preventDefault();
-                                              e.stopPropagation();
-                                              if (
-                                                e.key === "Control" ||
-                                                e.key === "Shift" ||
-                                                e.key === "Alt" ||
-                                                e.key === "Meta"
-                                              ) {
-                                                return;
-                                              }
-                                              const parts: string[] = [];
-                                              if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
-                                              if (e.shiftKey) parts.push("Shift");
-                                              if (e.altKey) parts.push("Alt");
-                                              parts.push(e.code || e.key);
-                                              const newCode = parts.join("+");
-
-                                              const newCodes = [...currentCodes, newCode];
-                                              const updated = { ...customHotkeys, [item.id]: newCodes };
-                                              setCustomHotkeys(updated);
-                                              saveCustomHotkeys(updated);
-                                              setRecordingAction(null);
-                                            }
-                                          }}
-                                          onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
-                                            const newCode = btnMap[e.button] || `MouseButton${e.button}`;
-                                            const newCodes = [...currentCodes, newCode];
-                                            const updated = { ...customHotkeys, [item.id]: newCodes };
-                                            setCustomHotkeys(updated);
-                                            saveCustomHotkeys(updated);
-                                            setRecordingAction(null);
-                                          }}
-                                          onContextMenu={(e) => e.preventDefault()}
-                                          style={{
-                                            padding: "4px 10px",
-                                            background: "var(--accent)",
-                                            border: "1px solid white",
-                                            borderRadius: "var(--radius-sm)",
-                                            fontFamily: "monospace",
-                                            fontSize: "0.84rem",
-                                            fontWeight: 600,
-                                            color: "#000",
-                                            outline: "none",
-                                          }}
-                                      >
-                                        Нажмите...
-                                      </button>
-                                    );
-                                  }
-                                  
-                                  return (
-                                    <button
-                                      onClick={() => setRecordingAction({ id: item.id, index: currentCodes.length })}
-                                      title="Добавить клавишу"
+                                return (
+                                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <div
+                                      className="modal__row"
                                       style={{
-                                        padding: "4px 8px",
-                                        background: "rgba(255, 255, 255, 0.05)",
-                                        border: "1px dashed rgba(255, 255, 255, 0.2)",
-                                        borderRadius: "var(--radius-sm)",
-                                        color: "var(--text-secondary)",
-                                        cursor: "pointer",
-                                        fontSize: "1rem",
-                                        lineHeight: 1,
+                                        flex: 1,
+                                        padding: "10px 14px",
+                                        background: "rgba(255, 255, 255, 0.03)",
+                                        border: "1px solid rgba(255, 255, 255, 0.04)",
+                                        borderRadius: "var(--radius-md)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        flexWrap: "wrap",
+                                        gap: 10,
                                       }}
                                     >
-                                      +
-                                    </button>
-                                  );
-                                })()}
-                              </div>
-                            </div>
+                                      <span style={{ color: "var(--text-primary)", fontSize: "0.9rem", fontWeight: 500, flex: 1, minWidth: 200 }}>
+                                        {item.label}
+                                      </span>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                        {currentCodes.map((code, idx) => {
+                                          const isRecording = recordingAction?.id === item.id && recordingAction.index === idx;
+                                          return (
+                                            <div key={idx} style={{ display: "flex", alignItems: "center" }}>
+                                              <button
+                                                onClick={() => setRecordingAction({ id: item.id, index: idx })}
+                                                onKeyDown={(e) => {
+                                                  if (isRecording) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    if (
+                                                      e.key === "Control" ||
+                                                      e.key === "Shift" ||
+                                                      e.key === "Alt" ||
+                                                      e.key === "Meta"
+                                                    ) {
+                                                      return;
+                                                    }
+                                                    const parts: string[] = [];
+                                                    if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
+                                                    if (e.shiftKey) parts.push("Shift");
+                                                    if (e.altKey) parts.push("Alt");
+                                                    parts.push(e.code || e.key);
+                                                    const newCode = parts.join("+");
+
+                                                    const newCodes = [...currentCodes];
+                                                    newCodes[idx] = newCode;
+                                                    const updated = { ...customHotkeys, [item.id]: newCodes };
+                                                    setCustomHotkeys(updated);
+                                                    saveCustomHotkeys(updated);
+                                                    setRecordingAction(null);
+                                                  }
+                                                }}
+                                                onMouseDown={(e) => {
+                                                  if (isRecording) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
+                                                    const newCode = btnMap[e.button] || `MouseButton${e.button}`;
+                                                    const newCodes = [...currentCodes];
+                                                    newCodes[idx] = newCode;
+                                                    const updated = { ...customHotkeys, [item.id]: newCodes };
+                                                    setCustomHotkeys(updated);
+                                                    saveCustomHotkeys(updated);
+                                                    setRecordingAction(null);
+                                                  }
+                                                }}
+                                                onContextMenu={(e) => {
+                                                  if (isRecording) e.preventDefault();
+                                                }}
+                                                style={{
+                                                  padding: "4px 10px",
+                                                  background: isRecording ? "var(--accent)" : "rgba(127, 199, 255, 0.12)",
+                                                  border: isRecording ? "1px solid white" : "1px solid rgba(127, 199, 255, 0.2)",
+                                                  borderRadius: "var(--radius-sm)",
+                                                  fontFamily: "monospace",
+                                                  fontSize: "0.84rem",
+                                                  fontWeight: 600,
+                                                  color: isRecording ? "#000" : "var(--accent)",
+                                                  cursor: "pointer",
+                                                  outline: "none",
+                                                  borderTopRightRadius: 0,
+                                                  borderBottomRightRadius: 0,
+                                                }}
+                                              >
+                                                {isRecording ? "Нажмите..." : getKeyDisplay(code)}
+                                              </button>
+                                              <button
+                                                onClick={() => {
+                                                  const newCodes = currentCodes.filter((_, i) => i !== idx);
+                                                  const updated = { ...customHotkeys, [item.id]: newCodes };
+                                                  setCustomHotkeys(updated);
+                                                  saveCustomHotkeys(updated);
+                                                }}
+                                                title="Удалить"
+                                                style={{
+                                                  padding: "4px 6px",
+                                                  background: "rgba(255, 50, 50, 0.15)",
+                                                  border: "1px solid rgba(255, 50, 50, 0.3)",
+                                                  borderLeft: "none",
+                                                  borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
+                                                  color: "#ff8888",
+                                                  cursor: "pointer",
+                                                  display: "flex",
+                                                  alignItems: "center",
+                                                  justifyContent: "center",
+                                                }}
+                                              >
+                                                <Trash2 size={13} />
+                                              </button>
+                                            </div>
+                                          );
+                                        })}
+                                        
+                                        {/* Кнопка добавления нового бинда */}
+                                        {(() => {
+                                          const isRecordingNew = recordingAction?.id === item.id && recordingAction.index === currentCodes.length;
+                                          if (isRecordingNew) {
+                                            return (
+                                              <button
+                                                  onKeyDown={(e) => {
+                                                    if (isRecordingNew) {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      if (
+                                                        e.key === "Control" ||
+                                                        e.key === "Shift" ||
+                                                        e.key === "Alt" ||
+                                                        e.key === "Meta"
+                                                      ) {
+                                                        return;
+                                                      }
+                                                      const parts: string[] = [];
+                                                      if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
+                                                      if (e.shiftKey) parts.push("Shift");
+                                                      if (e.altKey) parts.push("Alt");
+                                                      parts.push(e.code || e.key);
+                                                      const newCode = parts.join("+");
+
+                                                      const updatedCodes = [...currentCodes, newCode];
+                                                      const updated = { ...customHotkeys, [item.id]: updatedCodes };
+                                                      setCustomHotkeys(updated);
+                                                      saveCustomHotkeys(updated);
+                                                      setRecordingAction(null);
+                                                    }
+                                                  }}
+                                                  onMouseDown={(e) => {
+                                                    if (isRecordingNew) {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
+                                                      const newCode = btnMap[e.button] || `MouseButton${e.button}`;
+                                                      const updatedCodes = [...currentCodes, newCode];
+                                                      const updated = { ...customHotkeys, [item.id]: updatedCodes };
+                                                      setCustomHotkeys(updated);
+                                                      saveCustomHotkeys(updated);
+                                                      setRecordingAction(null);
+                                                    }
+                                                  }}
+                                                  onContextMenu={(e) => {
+                                                    if (isRecordingNew) e.preventDefault();
+                                                  }}
+                                                  style={{
+                                                    padding: "4px 10px",
+                                                    background: "var(--accent)",
+                                                    border: "1px solid white",
+                                                    borderRadius: "var(--radius-sm)",
+                                                    fontFamily: "monospace",
+                                                    fontSize: "0.84rem",
+                                                    fontWeight: 600,
+                                                    color: "#000",
+                                                    cursor: "pointer",
+                                                    outline: "none",
+                                                  }}
+                                              >
+                                                Нажмите...
+                                              </button>
+                                            );
+                                          }
+                                          
+                                          return (
+                                            <button
+                                              onClick={() => setRecordingAction({ id: item.id, index: currentCodes.length })}
+                                              title="Добавить клавишу"
+                                              style={{
+                                                padding: "4px 8px",
+                                                background: "rgba(255, 255, 255, 0.05)",
+                                                border: "1px dashed rgba(255, 255, 255, 0.2)",
+                                                borderRadius: "var(--radius-sm)",
+                                                color: "var(--text-secondary)",
+                                                cursor: "pointer",
+                                                fontSize: "1rem",
+                                                lineHeight: 1,
+                                              }}
+                                            >
+                                              +
+                                            </button>
+                                          );
+                                        })()}
+                                      </div>
+                                    </div>
                             
                             <button
                               onClick={() => {
@@ -1447,8 +1601,10 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           </div>
                         );
                       })}
-                    </div>
-                  ));
+                        </div>
+                      </AccordionSection>
+                    );
+                  });
                 })()}
               </div>
             </div>
@@ -1664,6 +1820,22 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           <span style={{ fontSize: "0.76rem" }}>Портативная редакция</span>
         </div>
       </div>
+
+      {/* Кастомное модальное окно выбора своего цвета с цветовым кругом */}
+      {showColorPicker && (
+        <ColorPickerModal
+          initialColor={activeColor.startsWith("#") ? activeColor : "#7fc7ff"}
+          onSelectColor={(hex) => {
+            const nextColors = [hex, ...customColors.filter((c) => c.toLowerCase() !== hex.toLowerCase())].slice(0, MAX_CUSTOM_COLORS);
+            setCustomColors(nextColors);
+            saveCustomColors(nextColors);
+            applyAccentColor(hex);
+            setActiveColor(hex);
+            localStorage.setItem("l-mpv-accent-color", hex);
+          }}
+          onClose={() => setShowColorPicker(false)}
+        />
+      )}
     </div>
   );
 }
