@@ -301,7 +301,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         style={{
           width: 650,
           maxWidth: "94vw",
-          maxHeight: "82vh",
+          maxHeight: "75vh",
           display: "flex",
           flexDirection: "column",
         }}
