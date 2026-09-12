@@ -297,18 +297,18 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal"
+        className="modal modal--settings"
         style={{
           width: 650,
-          maxWidth: "92vw",
-          maxHeight: "75vh",
+          maxWidth: "94vw",
+          maxHeight: "82vh",
           display: "flex",
           flexDirection: "column",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Шапка модального окна */}
-        <div className="modal__header" style={{ padding: "16px 20px", flexShrink: 0 }}>
+        <div className="modal__header" style={{ padding: "14px 18px", flexShrink: 0 }}>
           <h2 className="modal__title" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "1.15rem" }}>
             <SlidersHorizontal size={20} color="var(--accent)" /> Настройки
           </h2>
@@ -319,12 +319,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
         {/* Навигация по вкладкам */}
         <div
+          className="settings-tabs"
           style={{
             display: "flex",
             borderBottom: "1px solid var(--border)",
-            padding: "0 20px",
+            padding: "0 14px",
             background: "rgba(0,0,0,0.15)",
             flexShrink: 0,
+            overflowX: "auto",
+            scrollbarWidth: "none",
           }}
         >
           <button
@@ -849,7 +852,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "210px max-content", columnGap: 28, rowGap: 8, marginTop: 4 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", columnGap: 20, rowGap: 8, marginTop: 4 }}>
                   {[
                     { id: 'repeat', label: 'Повтор', defaultChecked: true },
                     { id: 'shuffle', label: 'Случайный порядок', defaultChecked: true },

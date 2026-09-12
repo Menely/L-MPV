@@ -37,8 +37,13 @@ import { getCustomHotkeys } from "../utils/hotkeyUtils";
 function TimeDisplay() {
   const { position, duration } = usePlayerProgress();
   return (
-    <span className="time-display" style={{ marginLeft: "12px" }}>
-      {formatTime(position)} / {formatTime(duration)}
+    <span className="time-display">
+      <span className="time-display__full">
+        {formatTime(position)} / {formatTime(duration)}
+      </span>
+      <span className="time-display__compact">
+        {formatTime(position)}
+      </span>
     </span>
   );
 }
@@ -593,7 +598,7 @@ export function PlayerControls({
           <div className="controls-row__center">
             {visibleButtons.repeat !== false && (
               <button
-                className={`control-btn ${repeatMode !== 0 ? "control-btn--active" : ""}`}
+                className={`control-btn control-btn--priority-low ${repeatMode !== 0 ? "control-btn--active" : ""}`}
                 onClick={handleToggleRepeat}
               >
                 {repeatMode === 1 ? <Repeat1 size={16} /> : <Repeat size={16} />}
@@ -601,7 +606,7 @@ export function PlayerControls({
             )}
 
             <button
-              className="control-btn"
+              className="control-btn control-btn--priority-medium"
               onClick={handlePlaylistPrev}
               id="btn-playlist-prev"
             >
@@ -637,7 +642,7 @@ export function PlayerControls({
             </button>
 
             <button
-              className="control-btn"
+              className="control-btn control-btn--priority-medium"
               onClick={handlePlaylistNext}
               id="btn-playlist-next"
             >
@@ -646,7 +651,7 @@ export function PlayerControls({
 
             {visibleButtons.shuffle !== false && (
               <button
-                className="control-btn"
+                className="control-btn control-btn--priority-low"
                 onClick={handleShuffle}
               >
                 <Shuffle size={16} />
@@ -658,7 +663,7 @@ export function PlayerControls({
           <div className="controls-row__right">
             {visibleButtons.skipOpening === true && (
               <button
-                className="control-btn control-btn--with-label"
+                className="control-btn control-btn--with-label control-btn--priority-low"
                 onClick={() => handleSeek(skipOpeningSeconds)}
                 id="btn-skip-opening"
                 title={`Перемотать опенинг (+${skipOpeningSeconds}с)`}
@@ -673,7 +678,7 @@ export function PlayerControls({
 
             {visibleButtons.alwaysOnTop !== false && (
               <button
-                className={`control-btn ${isAlwaysOnTop ? "control-btn--active" : ""}`}
+                className={`control-btn control-btn--priority-medium ${isAlwaysOnTop ? "control-btn--active" : ""}`}
                 id="btn-always-on-top"
                 onClick={async () => {
                   try {
@@ -690,7 +695,7 @@ export function PlayerControls({
 
             {visibleButtons.info !== false && (
               <button
-                className={`control-btn ${showMediaInfo ? "control-btn--active" : ""}`}
+                className={`control-btn control-btn--priority-low ${showMediaInfo ? "control-btn--active" : ""}`}
                 onClick={() => {
                   setActivePopover(null);
                   if (onCloseChapters) onCloseChapters();
@@ -720,7 +725,7 @@ export function PlayerControls({
 
             {visibleButtons.screenshot !== false && (
               <button
-                className="control-btn"
+                className="control-btn control-btn--priority-low"
                 onClick={handleTakeScreenshot}
                 id="btn-screenshot"
               >

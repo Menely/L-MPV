@@ -414,6 +414,8 @@ html, body, #root {
   z-index: 500;
   width: calc(100% - 28px);
   max-width: none;
+  container-type: inline-size;
+  container-name: controls;
   transition: opacity var(--t-slow) var(--ease-smooth),
               transform var(--t-slow) var(--ease-out);
 }
@@ -643,6 +645,16 @@ html, body, #root {
   padding: 0 4px;
   font-weight: 500;
   letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.time-display__compact {
+  display: none;
+}
+
+.time-display__full {
+  display: inline;
 }
 
 .frame-display {
@@ -732,10 +744,109 @@ html, body, #root {
   transform: scale(1.2);
 }
 
+/* ─── Адаптивность Панели Управления (Container Queries) ─── */
+@container controls (max-width: 780px) {
+  .control-btn__label {
+    display: none !important;
+  }
+  .control-btn--with-label {
+    width: 34px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+  }
+  .controls-row__center {
+    gap: 8px;
+  }
+  .controls-row__left,
+  .controls-row__right {
+    gap: 4px;
+  }
+  .control-btn--priority-low {
+    display: none !important;
+  }
+}
+
+@container controls (max-width: 580px) {
+  .player-controls {
+    padding: 4px 10px 6px;
+  }
+  .volume-slider__value {
+    display: none !important;
+  }
+  .volume-slider:hover .volume-slider__expandable,
+  .volume-slider__expandable:focus-within {
+    width: 44px;
+  }
+  .control-btn--priority-medium {
+    display: none !important;
+  }
+  .controls-row__center {
+    gap: 6px;
+  }
+  .controls-row__left,
+  .controls-row__right {
+    gap: 2px;
+  }
+}
+
+@container controls (max-width: 460px) {
+  .player-controls {
+    padding: 3px 6px 5px;
+    border-radius: 14px;
+  }
+  .controls-row {
+    grid-template-columns: auto 1fr auto;
+    gap: 4px;
+  }
+  .volume-slider {
+    display: none !important;
+  }
+  .time-display__full {
+    display: none !important;
+  }
+  .time-display__compact {
+    display: inline !important;
+    font-size: 0.72rem;
+  }
+  .controls-row__center {
+    gap: 4px;
+    justify-self: center;
+  }
+  .control-btn {
+    width: 30px;
+    height: 30px;
+  }
+  .control-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  .control-btn--play {
+    width: 36px;
+    height: 36px;
+  }
+  .control-btn--play svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@container controls (max-width: 340px) {
+  .time-display {
+    display: none !important;
+  }
+  .controls-row__left button#btn-audio-tracks {
+    display: none !important;
+  }
+}
+
 /* ─── Контекстное меню ───────────────────────────────── */
 .context-menu {
   position: fixed;
-  min-width: 220px;
+  min-width: 200px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--bg-glass);
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
@@ -744,6 +855,8 @@ html, body, #root {
   padding: 5px;
   box-shadow: var(--shadow-lg);
   z-index: 9999;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   animation: contextMenuIn 120ms var(--ease-out);
 }
 
@@ -1653,5 +1766,93 @@ html, body, #root {
 
 .hover-scale:active {
   transform: translateY(0);
+}
+
+/* ─── Глобальная адаптивность для узких окон и вертикальных видео ─── */
+@media (max-width: 600px) {
+  /* Кастомный Titlebar */
+  .titlebar {
+    padding: 0 4px 0 10px;
+  }
+  .titlebar__center {
+    max-width: calc(100% - 150px);
+  }
+  .titlebar__title {
+    font-size: 0.8rem;
+  }
+  .titlebar__filename {
+    font-size: 0.78rem;
+  }
+  .titlebar__btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Модальные окна (Настройки, Информация, Обновление) */
+  .modal {
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: 86vh !important;
+    border-radius: var(--radius-md);
+  }
+  .modal__header {
+    padding: 10px 14px;
+  }
+  .modal__body {
+    padding: 12px 14px;
+  }
+  .settings-tabs button {
+    padding: 8px 10px !important;
+    font-size: 0.82rem !important;
+    gap: 4px !important;
+  }
+
+  /* Всплывающие карточки (Playlist, MediaInfo, Chapters) */
+  .media-info-overlay,
+  .playlist-drawer,
+  .chapters-modal-overlay {
+    bottom: 80px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100% - 130px) !important;
+  }
+
+  /* Всплывающие списки выбора дорожек */
+  .track-popover {
+    min-width: 200px;
+    max-width: calc(100vw - 20px);
+    bottom: calc(100% + 8px);
+  }
+  .track-popover--speed {
+    right: 8px;
+  }
+
+  /* Всплывающая плашка контекстного меню */
+  .context-menu {
+    max-width: calc(100vw - 16px);
+  }
+  .context-menu__submenu {
+    position: static;
+    box-shadow: none;
+    border-left: 2px solid var(--accent);
+    margin-top: 4px;
+    margin-bottom: 4px;
+    padding-left: 8px;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .titlebar__center {
+    display: none; /* Скрываем длинное имя файла на микро-ширинах чтобы не перекрывать кнопки */
+  }
+  .player-controls-wrapper {
+    left: 8px;
+    right: 8px;
+    width: calc(100% - 16px);
+    bottom: 8px;
+  }
 }
 
