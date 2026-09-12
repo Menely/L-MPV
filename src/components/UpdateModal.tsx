@@ -369,8 +369,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               borderRadius: 8,
               background: isDownloading
                 ? "rgba(59, 130, 246, 0.4)"
-                : "linear-gradient(135deg, var(--accent, #3b82f6) 0%, #2563eb 100%)",
-              border: "1px solid var(--border-pill, rgba(255, 255, 255, 0.2))",
+                : "linear-gradient(135deg, var(--accent, #3b82f6) 0%, var(--accent-dim, #2563eb) 100%)",
+              border: "none",
+              outline: "none",
               color: "#ffffff",
               fontSize: "0.85rem",
               fontWeight: 600,
@@ -380,7 +381,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               gap: 8,
               boxShadow: isDownloading
                 ? "none"
-                : "0 4px 14px var(--accent-glass, rgba(59, 130, 246, 0.4))",
+                : "0 4px 14px var(--accent-glow, rgba(59, 130, 246, 0.35))",
               transition: "all 0.15s ease",
             }}
             className={!isDownloading ? "hover-scale" : ""}
@@ -398,6 +399,61 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             )}
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+interface UpdateToastProps {
+  updateInfo: UpdateInfo;
+  onOpenModal: () => void;
+  onClose: () => void;
+}
+
+/**
+ * Ненавязчивое всплывающее окно в правом нижнем углу при обнаружении обновления.
+ */
+export const UpdateToast: React.FC<UpdateToastProps> = ({
+  updateInfo,
+  onOpenModal,
+  onClose,
+}) => {
+  return (
+    <div className="update-toast">
+      <div className="update-toast__header">
+        <div className="update-toast__title-group">
+          <div className="update-toast__icon">
+            <Sparkles size={16} color="#ffffff" />
+          </div>
+          <div>
+            <div className="update-toast__title">Доступно обновление</div>
+            <div className="update-toast__version">
+              Версия v{updateInfo.latest_version.replace(/^[vV]/, "")}
+            </div>
+          </div>
+        </div>
+        <button
+          className="update-toast__close"
+          onClick={onClose}
+          title="Закрыть"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      <div className="update-toast__actions">
+        <button
+          className="update-toast__btn update-toast__btn--secondary"
+          onClick={onClose}
+        >
+          Позже
+        </button>
+        <button
+          className="update-toast__btn update-toast__btn--primary"
+          onClick={onOpenModal}
+        >
+          Обновить
+        </button>
       </div>
     </div>
   );

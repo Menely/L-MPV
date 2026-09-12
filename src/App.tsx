@@ -19,7 +19,7 @@ import { MediaInfoModal } from "./components/MediaInfoModal";
 import { ChaptersModal } from "./components/ChaptersModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { PlaylistDrawer } from "./components/PlaylistDrawer";
-import { UpdateModal, UpdateInfo } from "./components/UpdateModal";
+import { UpdateModal, UpdateToast, UpdateInfo } from "./components/UpdateModal";
 import { applyAccentColor } from "./utils/colorUtils";
 import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
 
@@ -49,6 +49,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [showUpdateToast, setShowUpdateToast] = useState(false);
   const [osdText, setOsdText] = useState<string | null>(null);
   
   const mediaTitle = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "";
@@ -102,12 +103,12 @@ function App() {
       }
     }
 
-    // Фоновая проверка обновлений (срабатывает на каждый 5-й запуск плеера)
+    // Фоновая проверка обновлений (показываем ненавязчивое уведомление в правом углу)
     invoke<UpdateInfo | null>("check_launch_and_update")
       .then((info) => {
         if (info && info.has_update) {
           setPendingUpdate(info);
-          setShowUpdateModal(true);
+          setShowUpdateToast(true);
         }
       })
       .catch((err) => {
@@ -909,6 +910,17 @@ function App() {
         <UpdateModal
           updateInfo={pendingUpdate}
           onClose={() => setShowUpdateModal(false)}
+        />
+      )}
+
+      {showUpdateToast && pendingUpdate && !showUpdateModal && (
+        <UpdateToast
+          updateInfo={pendingUpdate}
+          onOpenModal={() => {
+            setShowUpdateToast(false);
+            setShowUpdateModal(true);
+          }}
+          onClose={() => setShowUpdateToast(false)}
         />
       )}
 

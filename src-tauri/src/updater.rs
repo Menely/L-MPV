@@ -91,13 +91,16 @@ async fn fetch_latest_release_internal() -> Result<UpdateInfo, String> {
 
     let latest_version = release.tag_name.clone();
 
-    // Ищем портативные файлы: .exe и .dll
+    // Ищем портативные файлы: автономный .exe и системные .dll (исключая установочники setup/installer/msi)
     let portable_assets: Vec<GitHubAsset> = release
         .assets
         .iter()
         .filter(|a| {
             let lower = a.name.to_lowercase();
-            lower.ends_with(".exe") || lower.ends_with(".dll")
+            let is_installer = lower.contains("setup")
+                || lower.contains("installer")
+                || lower.ends_with(".msi");
+            !is_installer && (lower.ends_with(".exe") || lower.ends_with(".dll"))
         })
         .cloned()
         .collect();
@@ -202,7 +205,10 @@ pub async fn download_and_install_update(
         .into_iter()
         .filter(|a| {
             let lower = a.name.to_lowercase();
-            lower.ends_with(".exe") || lower.ends_with(".dll")
+            let is_installer = lower.contains("setup")
+                || lower.contains("installer")
+                || lower.ends_with(".msi");
+            !is_installer && (lower.ends_with(".exe") || lower.ends_with(".dll"))
         })
         .collect();
 
