@@ -6,6 +6,7 @@
 mod ambient;
 mod commands;
 mod mpv_manager;
+mod updater;
 
 use commands::PlayerState;
 use mpv_manager::MpvManager;
@@ -155,9 +156,9 @@ pub fn run() {
             commands::load_external_tracks_for_file,
             commands::get_app_version,
             // Автообновление
-            commands::check_launch_and_update,
-            commands::check_for_updates,
-            commands::download_and_install_update,
+            updater::check_launch_and_update,
+            updater::check_for_updates,
+            updater::download_and_install_update,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { .. } => {
