@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-1.4.2-blueviolet?style=for-the-badge" alt="Version 1.4.2">
+  <img src="https://img.shields.io/badge/Version-1.4.3-blueviolet?style=for-the-badge" alt="Version 1.4.3">
   <img src="https://img.shields.io/badge/Tauri-v2.1-blue?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri v2">
   <img src="https://img.shields.io/badge/React-19.1-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19">
   <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
@@ -210,12 +210,24 @@ L-MPV/
 │   │   └── PlaylistDrawer.tsx            # Боковая панель плейлиста (Natural Sort, живой поиск)
 │   ├── contexts/                         # Реактивные контексты состояния
 │   │   └── PlayerStateContext.tsx        # Двухуровневый контекст: PlayerStateContext + PlayerProgressContext (60 FPS)
+│   ├── styles/                           # Модульная система стилей (11 модулей Vanilla CSS)
+│   │   ├── variables.css                 # CSS-переменные, палитры, UI Scale
+│   │   ├── base.css                      # Глобальный сброс, IDLE-режим, OSD
+│   │   ├── titlebar.css                  # Шапка окна
+│   │   ├── video-area.css                # Видеообласть
+│   │   ├── controls.css                  # Панель управления, таймлайн, регулятор громкости
+│   │   ├── context-menu.css              # ПКМ-меню
+│   │   ├── modals.css                    # Модальные окна
+│   │   ├── side-panel.css                # Панель глав
+│   │   ├── track-popover.css             # Меню дорожек
+│   │   ├── overlays.css                  # Overlay-элементы (Drag&Drop, Playlist Drawer и др.)
+│   │   └── responsive.css                # Адаптивность и медиа-запросы
 │   ├── utils/                            # Вспомогательные утилиты
 │   │   ├── colorUtils.ts                 # Цветовые темы, генерация градиентов и HSL/RGB преобразования
 │   │   ├── hotkeyUtils.ts                # Реестр действий, обработка биндов и локальное сохранение
 │   │   └── timeUtils.ts                  # Высокоточное форматирование временных меток
 │   ├── App.tsx                           # Главный контейнер (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, OSD)
-│   ├── index.css                         # Единая дизайн-система (CSS-токены, UI Scale, Glassmorphism, анимации)
+│   ├── index.css                         # Единый импорт модулей стилей
 │   └── main.tsx                          # Точка входа React
 ├── src-tauri/                            # Бэкенд (Rust + Tauri v2)
 │   ├── capabilities/default.json         # Манифест разрешений Tauri v2 (окна, диалоги, opener)

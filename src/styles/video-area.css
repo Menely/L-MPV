@@ -1,0 +1,53 @@
+/* ─── Область видео ──────────────────────────────────── */
+.video-area {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.video-area--empty {
+  background: var(--bg-primary);
+}
+
+.video-area__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  color: var(--text-muted);
+  animation: placeholderPulse 3s ease-in-out infinite;
+}
+
+@keyframes placeholderPulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1;   }
+}
+
+.video-area__placeholder-icon {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent-glass);
+  border: 1px solid var(--border-pill);
+  color: var(--accent-dim);
+}
+
+.video-area__placeholder-text {
+  font-size: var(--fs-xl);
+  font-weight: 300;
+  letter-spacing: 2px;
+  color: var(--text-secondary);
+}
+
+.video-area__placeholder-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}

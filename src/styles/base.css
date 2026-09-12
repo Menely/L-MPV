@@ -1,0 +1,148 @@
+/* ─── Глобальный сброс ───────────────────────────────── */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Отключение стрелок спиннера у числовых полей ввода */
+.no-spin-input::-webkit-outer-spin-button,
+.no-spin-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spin-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-family);
+  font-size: var(--fs-base);
+  color: var(--text-primary);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+/* ─── Контейнер приложения ───────────────────────────── */
+.app-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: transparent;
+  cursor: default;
+  zoom: var(--ui-scale);
+}
+
+/* Класс idle — скрывает UI после бездействия мыши */
+.app-container--idle .titlebar,
+.app-container--idle .player-controls-wrapper {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-container--idle {
+  cursor: none;
+}
+
+/* ─── Режим Mini Player (PiP) ─── */
+.app-container--mini .titlebar,
+.app-container--mini .player-controls-wrapper {
+  opacity: 0;
+  pointer-events: none;
+}
+.app-container--mini:hover .player-controls-wrapper {
+  opacity: 1;
+  pointer-events: auto;
+}
+.app-container--mini .player-controls {
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+.app-container--mini .controls-row__left .control-btn,
+.app-container--mini .controls-row__right .control-btn {
+  display: none; /* Скрываем второстепенные кнопки в мини-плеере */
+}
+.app-container--mini .controls-row__right #btn-speed,
+.app-container--mini .controls-row__right #btn-always-on-top {
+  display: flex; /* Оставляем только важные кнопки */
+}
+
+/* OSD отображения кадров в левом верхнем углу */
+.frame-osd {
+  position: fixed;
+  top: 48px;
+  left: 24px;
+  z-index: 1000;
+  background: rgba(10, 12, 18, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 8px 18px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.8px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: fadeIn 150ms var(--ease-out);
+}
+
+/* ─── Всплывающая плашка времени на таймлайне ─── */
+.timeline-preview-card {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  background: rgba(10, 12, 18, 0.90);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  z-index: 1000;
+  white-space: nowrap;
+  animation: previewFadeIn var(--t-fast) var(--ease-out);
+}
+
+@keyframes previewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.timeline-preview-card__time {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.4px;
+}
+
+.timeline-preview-card__chapter {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

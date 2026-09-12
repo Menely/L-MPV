@@ -169,7 +169,7 @@ function App() {
           }
           
           // Ограничиваем снизу
-          const MIN_WIDTH = 320;
+          const MIN_WIDTH = 560;
           const MIN_HEIGHT = 180;
           
           if (targetWidth < MIN_WIDTH || targetHeight < MIN_HEIGHT) {

@@ -1,0 +1,433 @@
+/* ─── Обертка панели управления (Floating Pill Full-Width) ── */
+.player-controls-wrapper {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  right: 14px;
+  z-index: 500;
+  width: calc(100% - 28px);
+  max-width: none;
+  container-type: inline-size;
+  container-name: controls;
+  transition: opacity var(--t-slow) var(--ease-smooth),
+              transform var(--t-slow) var(--ease-out);
+}
+
+/* ─── Таблетка управления ─────────────────────────────── */
+.player-controls {
+  background: var(--bg-pill);
+  backdrop-filter: var(--ui-backdrop);
+  -webkit-backdrop-filter: var(--ui-backdrop);
+  border: 1px solid var(--border-pill);
+  border-radius: 16px;
+  padding: 4px 16px 6px;
+  box-shadow: var(--shadow-pill);
+  transition: transform var(--t-base) var(--ease-smooth),
+              box-shadow var(--t-base) var(--ease-smooth);
+}
+
+.player-controls:hover {
+  box-shadow: var(--shadow-pill),
+              0 0 20px rgba(127, 199, 255, 0.06);
+}
+
+/* ─── Таймлайн ───────────────────────────────────────── */
+.timeline {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+
+.timeline__track {
+  width: 100%;
+  height: 5px;
+  position: relative;
+  transition: height var(--t-fast) var(--ease-smooth);
+}
+
+.timeline:hover .timeline__track {
+  height: 8px;
+}
+
+.timeline__segment-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.timeline__segment-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  transition: none;
+  will-change: width;
+}
+
+.timeline__segment-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--accent-gradient, var(--accent));
+  border-radius: 4px;
+  transition: none;
+  will-change: width;
+}
+
+.timeline__thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: var(--shadow-glow);
+  transition: transform var(--t-fast) var(--ease-out);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.timeline:hover .timeline__thumb {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Всплывающее превью времени при наведении */
+.timeline-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  background: rgba(10, 12, 18, 0.90);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
+}
+
+/* ─── Кнопки управления (Grid с математическим центрированием) ── */
+.controls-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+}
+
+.controls-row__left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+}
+
+.controls-row__center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: center;
+}
+
+.controls-row__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: end;
+}
+
+.control-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all var(--t-fast) var(--ease-smooth);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.control-btn--with-label {
+  width: auto;
+  min-width: 34px;
+  padding: 0 8px;
+  border-radius: 12px;
+  gap: 5px;
+}
+
+.control-btn__label {
+  font-size: 0.73rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-primary);
+  user-select: none;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.control-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.25;
+}
+
+.control-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  transform: scale(1.08);
+}
+
+.control-btn:active {
+  transform: scale(0.92);
+}
+
+/* Кнопка Play крупнее остальных */
+.control-btn--play {
+  width: 40px;
+  height: 40px;
+  color: var(--accent);
+}
+
+.control-btn--play svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.4;
+}
+
+.control-btn--play:hover {
+  color: var(--accent-hover);
+  background: var(--bg-active);
+  transform: scale(1.12);
+}
+
+.control-btn--active {
+  color: var(--accent);
+}
+
+/* ─── Текстовые метки (время, кадры) ─────────────────── */
+.time-display {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 0 4px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.time-display__compact {
+  display: none;
+}
+
+.time-display__full {
+  display: inline;
+}
+
+.frame-display {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 0 2px;
+}
+
+/* ─── Слайдер громкости ──────────────────────────────── */
+.volume-slider {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: auto;
+}
+
+.volume-slider #btn-volume {
+  width: 28px;
+  height: 28px;
+}
+
+.volume-slider__expandable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 0;
+  height: 28px;
+  padding: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: width 0.3s var(--ease-out), opacity 0.3s var(--ease-out), margin 0.3s var(--ease-out);
+  pointer-events: none;
+}
+
+.volume-slider:hover .volume-slider__expandable,
+.volume-slider__expandable:focus-within {
+  width: 58px;
+  padding: 0 1px;
+  opacity: 1;
+  pointer-events: auto;
+  margin-left: 2px;
+  margin-right: 2px;
+}
+
+.volume-slider__value {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  min-width: 24px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  user-select: none;
+  margin-left: 2px;
+}
+
+.volume-slider__input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 56px;
+  height: 3px;
+  background-color: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.volume-slider__input:hover {
+  filter: brightness(1.15);
+}
+
+.volume-slider__input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: transform var(--t-fast) var(--ease-out);
+}
+
+.volume-slider__input:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+/* ─── Адаптивность Панели Управления (Container Queries) ─── */
+@container controls (max-width: 780px) {
+  .control-btn__label {
+    display: none !important;
+  }
+  .control-btn--with-label {
+    width: 34px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+  }
+  .controls-row__center {
+    gap: 8px;
+  }
+  .controls-row__left,
+  .controls-row__right {
+    gap: 4px;
+  }
+  .control-btn--priority-low {
+    display: none !important;
+  }
+}
+
+@container controls (max-width: 580px) {
+  .player-controls {
+    padding: 4px 10px 6px;
+  }
+  .volume-slider__value {
+    display: none !important;
+  }
+  .volume-slider:hover .volume-slider__expandable,
+  .volume-slider__expandable:focus-within {
+    width: 44px;
+  }
+  .control-btn--priority-medium {
+    display: none !important;
+  }
+  .controls-row__center {
+    gap: 6px;
+  }
+  .controls-row__left,
+  .controls-row__right {
+    gap: 2px;
+  }
+}
+
+@container controls (max-width: 460px) {
+  .player-controls {
+    padding: 3px 6px 5px;
+    border-radius: 14px;
+  }
+  .controls-row {
+    grid-template-columns: auto 1fr auto;
+    gap: 4px;
+  }
+  .volume-slider {
+    display: none !important;
+  }
+  .time-display__full {
+    display: none !important;
+  }
+  .time-display__compact {
+    display: inline !important;
+    font-size: 0.72rem;
+  }
+  .controls-row__center {
+    gap: 4px;
+    justify-self: center;
+  }
+  .control-btn {
+    width: 30px;
+    height: 30px;
+  }
+  .control-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  .control-btn--play {
+    width: 36px;
+    height: 36px;
+  }
+  .control-btn--play svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@container controls (max-width: 340px) {
+  .time-display {
+    display: none !important;
+  }
+  .controls-row__left button#btn-audio-tracks {
+    display: none !important;
+  }
+}

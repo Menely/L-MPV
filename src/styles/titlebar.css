@@ -1,0 +1,113 @@
+/* ─── Кастомный Titlebar ─────────────────────────────── */
+.titlebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px 0 14px;
+  z-index: 1000;
+  border: none;
+  box-shadow: none;
+  transition: opacity var(--t-slow) var(--ease-smooth);
+}
+
+.titlebar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 75px;
+  z-index: -1;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.70) 10%,
+    rgba(0, 0, 0, 0.64) 20%,
+    rgba(0, 0, 0, 0.55) 30%,
+    rgba(0, 0, 0, 0.44) 40%,
+    rgba(0, 0, 0, 0.33) 50%,
+    rgba(0, 0, 0, 0.22) 60%,
+    rgba(0, 0, 0, 0.13) 70%,
+    rgba(0, 0, 0, 0.06) 80%,
+    rgba(0, 0, 0, 0.02) 90%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  pointer-events: none;
+}
+
+.titlebar__left {
+  display: flex;
+  align-items: center;
+}
+
+.titlebar__center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 260px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.titlebar__filename {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.titlebar__title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.titlebar__controls {
+  display: flex;
+  gap: 2px;
+}
+
+.titlebar__btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.titlebar__btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.titlebar__btn:active {
+  transform: scale(0.90);
+}
+
+.titlebar__btn--close:hover {
+  background: rgba(232, 65, 65, 0.85);
+  color: white;
+}

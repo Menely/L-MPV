@@ -1,0 +1,174 @@
+/* ─── Контекстное меню ───────────────────────────────── */
+.context-menu {
+  position: fixed;
+  min-width: 200px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg-glass);
+  backdrop-filter: var(--ui-backdrop);
+  -webkit-backdrop-filter: var(--ui-backdrop);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 5px;
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  animation: contextMenuIn 120ms var(--ease-out);
+}
+
+@keyframes contextMenuIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.context-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-family: var(--font-family);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  width: 100%;
+  text-align: left;
+  transition: background var(--t-fast) var(--ease-smooth);
+  position: relative;
+}
+
+.context-menu__item:hover {
+  background: var(--bg-hover);
+}
+
+.context-menu__item--active {
+  color: var(--accent);
+}
+
+.context-menu__item-icon {
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.context-menu__item-icon svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+}
+
+.context-menu__item-label {
+  flex: 1;
+}
+
+.context-menu__item-shortcut {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-left: 16px;
+}
+
+.context-menu__item-arrow {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.context-menu__divider {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 10px;
+}
+
+/* Подменю */
+.context-menu__submenu {
+  position: absolute;
+  left: calc(100% + 4px);
+  top: -6px;
+}
+
+.context-menu__submenu--left {
+  left: auto;
+  right: calc(100% + 4px);
+}
+
+.context-menu__submenu--tracks {
+  min-width: 220px;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.context-menu__track-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.context-menu__track-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-family: var(--font-family);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.context-menu .track-download-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+}
+
+.context-menu__track-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.context-menu__track-btn--active {
+  background: var(--bg-active);
+  color: var(--accent);
+  font-weight: 500;
+  border-color: var(--border-pill);
+}
+
+.context-menu__track-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-menu__track-check {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}

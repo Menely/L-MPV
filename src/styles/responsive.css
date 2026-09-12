@@ -1,0 +1,87 @@
+/* ─── Глобальная адаптивность для узких окон и вертикальных видео ─── */
+@media (max-width: 600px) {
+  /* Кастомный Titlebar */
+  .titlebar {
+    padding: 0 4px 0 10px;
+  }
+  .titlebar__center {
+    max-width: calc(100% - 150px);
+  }
+  .titlebar__title {
+    font-size: 0.8rem;
+  }
+  .titlebar__filename {
+    font-size: 0.78rem;
+  }
+  .titlebar__btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Модальные окна (Настройки, Информация, Обновление) */
+  .modal {
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: 86vh !important;
+    border-radius: var(--radius-md);
+  }
+  .modal__header {
+    padding: 10px 14px;
+  }
+  .modal__body {
+    padding: 12px 14px;
+  }
+  .settings-tabs button {
+    padding: 8px 10px !important;
+    font-size: 0.82rem !important;
+    gap: 4px !important;
+  }
+
+  /* Всплывающие карточки (Playlist, MediaInfo, Chapters) */
+  .media-info-overlay,
+  .playlist-drawer,
+  .chapters-modal-overlay {
+    bottom: 80px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100% - 130px) !important;
+  }
+
+  /* Всплывающие списки выбора дорожек */
+  .track-popover {
+    min-width: 200px;
+    max-width: calc(100vw - 20px);
+    bottom: calc(100% + 8px);
+  }
+  .track-popover--speed {
+    right: 8px;
+  }
+
+  /* Всплывающая плашка контекстного меню */
+  .context-menu {
+    max-width: calc(100vw - 16px);
+  }
+  .context-menu__submenu {
+    position: static;
+    box-shadow: none;
+    border-left: 2px solid var(--accent);
+    margin-top: 4px;
+    margin-bottom: 4px;
+    padding-left: 8px;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .titlebar__center {
+    display: none; /* Скрываем длинное имя файла на микро-ширинах чтобы не перекрывать кнопки */
+  }
+  .player-controls-wrapper {
+    left: 8px;
+    right: 8px;
+    width: calc(100% - 16px);
+    bottom: 8px;
+  }
+}
