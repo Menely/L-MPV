@@ -20,7 +20,7 @@
   -webkit-backdrop-filter: var(--ui-backdrop);
   border: 1px solid var(--border-pill);
   border-radius: 16px;
-  padding: 4px 16px 6px;
+  padding: 5px 16px 8px;
   box-shadow: var(--shadow-pill);
   transition: transform var(--t-base) var(--ease-smooth),
               box-shadow var(--t-base) var(--ease-smooth);
@@ -197,10 +197,14 @@
 }
 
 .control-btn:hover {
-  background: var(--bg-hover);
+  background: transparent;
   color: var(--text-primary);
-  transform: scale(1.08);
-  box-shadow: var(--btn-glow, none);
+  transform: scale(1.1);
+  box-shadow: none;
+}
+
+.control-btn:hover svg {
+  filter: var(--hover-icon-glow, drop-shadow(0 0 4px var(--accent-glow)) drop-shadow(0 0 10px var(--accent-glow)));
 }
 
 .control-btn:active {
@@ -209,27 +213,39 @@
 
 /* Кнопка Play крупнее остальных */
 .control-btn--play {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   color: var(--accent);
+  background: transparent;
+  box-shadow: none;
 }
 
 .control-btn--play svg {
   width: 22px;
   height: 22px;
   stroke-width: 2.4;
+  filter: none;
 }
 
 .control-btn--play:hover {
   color: var(--accent-hover);
-  background: var(--bg-active);
-  transform: scale(1.12);
-  box-shadow: var(--play-btn-glow, var(--shadow-glow, none));
+  background: transparent;
+  transform: scale(1.1);
+  box-shadow: none;
+}
+
+.control-btn--play:hover svg {
+  filter: var(--hover-icon-glow, drop-shadow(0 0 4px var(--accent-glow)) drop-shadow(0 0 10px var(--accent-glow)));
 }
 
 .control-btn--active {
   color: var(--accent);
-  box-shadow: var(--active-btn-glow, none);
+  background: transparent;
+  box-shadow: none;
+}
+
+.control-btn--active svg {
+  filter: var(--active-icon-glow, drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 7px var(--accent-glow)) drop-shadow(0 0 16px var(--accent-glow)));
 }
 
 /* ─── Текстовые метки (время, кадры) ─────────────────── */
@@ -364,7 +380,7 @@
 
 @container controls (max-width: 580px) {
   .player-controls {
-    padding: 4px 10px 6px;
+    padding: 5px 10px 8px;
   }
   .volume-slider__value {
     display: none !important;
@@ -387,7 +403,7 @@
 
 @container controls (max-width: 460px) {
   .player-controls {
-    padding: 3px 6px 5px;
+    padding: 4px 8px 7px;
     border-radius: 14px;
   }
   .controls-row {

@@ -1,6 +1,43 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
+
+/**
+ * Векторная иконка GitHub для ссылки на репозиторий.
+ */
+const GithubIcon: React.FC<{ size?: number; className?: string }> = ({ size = 16, className }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    style={{ display: "block" }}
+  >
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+    />
+  </svg>
+);
+
+/**
+ * Векторная иконка Telegram для ссылки на сообщество.
+ */
+const TelegramIcon: React.FC<{ size?: number; className?: string }> = ({ size = 16, className }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    style={{ display: "block" }}
+  >
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.96 1.25-5.54 3.69-.52.36-1 .54-1.42.53-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 4.02-1.75 6.7-2.9 8.04-3.46 3.83-1.6 4.62-1.88 5.14-1.89.11 0 .37.03.54.17.14.12.18.28.2.4.02.12.01.24 0 .35z" />
+  </svg>
+);
 import {
   FolderOpen,
   Camera,
@@ -1762,7 +1799,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   )}
                 </div>
                 <div style={{ fontSize: "0.86rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
-                  Добавляет пункт <strong>«Открыть в L-MPV MediaInfo»</strong> в контекстное меню правой кнопки мыши Windows. Позволяет мгновенно посмотреть технический отчёт о любом медиафайле.
+                  Добавляет пункт <strong>«L-MPV MediaInfo»</strong> в контекстное меню правой кнопки мыши Windows. Позволяет мгновенно посмотреть технический отчёт о любом медиафайле.
                 </div>
 
                 <div style={{ display: "flex", gap: 10 }}>
@@ -1781,7 +1818,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       }
                     }}
                     className="settings-action-btn settings-action-btn--primary"
-                    title="Добавить пункт 'Открыть в L-MPV MediaInfo' в контекстное меню Windows"
+                    title="Добавить пункт 'L-MPV MediaInfo' в контекстное меню Windows"
                     style={{ flex: 1 }}
                   >
                     {isContextMenuLoading ? (
@@ -1812,7 +1849,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       }
                     }}
                     className="settings-action-btn settings-action-btn--danger"
-                    title="Удалить пункт 'Открыть в L-MPV MediaInfo' из контекстного меню Windows"
+                    title="Удалить пункт 'L-MPV MediaInfo' из контекстного меню Windows"
                     style={{ flex: 1 }}
                   >
                     <Trash2 size={15} />
@@ -1859,7 +1896,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         {/* Футер с версией приложения и проверкой обновлений */}
         <div
           style={{
-            padding: "12px 20px",
+            padding: "10px 14px",
             borderTop: "1px solid var(--border)",
             background: "rgba(0, 0, 0, 0.25)",
             display: "flex",
@@ -1871,7 +1908,52 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             borderRadius: "0 0 var(--radius-lg, 12px) var(--radius-lg, 12px)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {/* Иконки социальных сетей слева от названия L-MPV */}
+            <div style={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <button
+                type="button"
+                onClick={() => openUrl("https://github.com/Menely/L-MPV")}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "1px 2px",
+                  cursor: "pointer",
+                  color: "var(--text-muted)",
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.15s ease",
+                }}
+                className="hover-bright"
+                title="Репозиторий L-MPV на GitHub"
+              >
+                <GithubIcon size={19} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => openUrl("https://t.me/+-zY0lB2RrVxmY2Ey")}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "1px 2px",
+                  cursor: "pointer",
+                  color: "var(--text-muted)",
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.15s ease",
+                }}
+                className="hover-bright"
+                title="Telegram-канал L-MPV"
+              >
+                <TelegramIcon size={19} />
+              </button>
+            </div>
+
             <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>L-MPV</span>
             <span
               style={{

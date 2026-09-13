@@ -64,6 +64,34 @@ fn is_newer_semver(current: &str, latest: &str) -> bool {
     false
 }
 
+/// Проверяет, является ли файл релиза допустимым компонентом портативного обновления.
+///
+/// Строго исключает любые инсталляторы (NSIS/MSI, имена с setup, installer, x64, x86, arm64).
+/// Разрешает только прямой бинарник плеера (l-mpv.exe), утилиту ffmpeg.exe
+/// и системные динамические библиотеки (.dll).
+fn is_portable_update_asset(name: &str) -> bool {
+    let lower = name.to_lowercase();
+
+    // Категорически исключаем любые инсталляторы и пакеты развертывания
+    let is_installer = lower.contains("setup")
+        || lower.contains("installer")
+        || lower.ends_with(".msi")
+        || lower.contains("_x64")
+        || lower.contains("_x86")
+        || lower.contains("_arm64")
+        || lower.contains("-nsis")
+        || lower.contains("_nsis");
+
+    if is_installer {
+        return false;
+    }
+
+    // Разрешаем только целевой исполняемый файл l-mpv.exe, ffmpeg и динамические библиотеки
+    lower == "l-mpv.exe"
+        || lower == "ffmpeg.exe"
+        || (lower.ends_with(".dll") && !lower.contains("setup"))
+}
+
 async fn fetch_latest_release_internal() -> Result<UpdateInfo, String> {
     const REPO_API_URL: &str = "https://api.github.com/repos/Menely/L-MPV/releases/latest";
     let current_version = env!("CARGO_PKG_VERSION").to_string();
@@ -91,17 +119,11 @@ async fn fetch_latest_release_internal() -> Result<UpdateInfo, String> {
 
     let latest_version = release.tag_name.clone();
 
-    // Ищем портативные файлы: автономный .exe и системные .dll (исключая установочники setup/installer/msi)
+    // Ищем строго портативные файлы: автономный l-mpv.exe и системные .dll
     let portable_assets: Vec<GitHubAsset> = release
         .assets
         .iter()
-        .filter(|a| {
-            let lower = a.name.to_lowercase();
-            let is_installer = lower.contains("setup")
-                || lower.contains("installer")
-                || lower.ends_with(".msi");
-            !is_installer && (lower.ends_with(".exe") || lower.ends_with(".dll"))
-        })
+        .filter(|a| is_portable_update_asset(&a.name))
         .cloned()
         .collect();
 
@@ -203,13 +225,7 @@ pub async fn download_and_install_update(
     let portable_assets: Vec<GitHubAsset> = release
         .assets
         .into_iter()
-        .filter(|a| {
-            let lower = a.name.to_lowercase();
-            let is_installer = lower.contains("setup")
-                || lower.contains("installer")
-                || lower.ends_with(".msi");
-            !is_installer && (lower.ends_with(".exe") || lower.ends_with(".dll"))
-        })
+        .filter(|a| is_portable_update_asset(&a.name))
         .collect();
 
     if portable_assets.is_empty() {

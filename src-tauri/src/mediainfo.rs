@@ -240,37 +240,22 @@ pub fn get_standalone_mediainfo_path() -> Option<String> {
     STANDALONE_PATH.lock().ok().and_then(|lock| lock.clone())
 }
 
-/// Создание или фокус отдельного легковесного окна MediaInfo.
+/// Отображение и передача пути в предварительно инициализированное окно MediaInfo.
 pub fn open_or_update_mediainfo_window(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     use tauri::{Emitter, Manager};
     set_standalone_target_path(path);
 
     if let Some(win) = app.get_webview_window("mediainfo") {
+        let _ = win.set_always_on_top(true);
         let _ = win.show();
         let _ = win.unminimize();
         let _ = win.set_focus();
         let _ = win.emit("load-mediainfo-path", path);
+        let _ = app.emit("mediainfo-window-opened", ());
         return Ok(());
     }
 
-    let win = tauri::WebviewWindowBuilder::new(
-        app,
-        "mediainfo",
-        tauri::WebviewUrl::App("index.html".into()),
-    )
-    .title("Свойства MediaInfo")
-    .inner_size(680.0, 600.0)
-    .min_inner_size(480.0, 360.0)
-    .resizable(true)
-    .decorations(false)
-    .transparent(true)
-    .center()
-    .build()
-    .map_err(|e| format!("Не удалось создать окно MediaInfo: {e}"))?;
-
-    let _ = win.show();
-    let _ = win.set_focus();
-    Ok(())
+    Err("Окно 'mediainfo' не найдено в конфигурации приложения".to_string())
 }
 
 /// Команда открытия автономного окна MediaInfo из интерфейса плеера.
@@ -290,5 +275,34 @@ pub fn open_mediainfo_window(
             current
         }
     };
+    open_or_update_mediainfo_window(&app, &file_path)
+}
+
+/// Команда переключения (показать/скрыть) независимого окна MediaInfo.
+#[tauri::command]
+pub fn toggle_mediainfo_window(
+    app: tauri::AppHandle,
+    path: Option<String>,
+    state: State<'_, PlayerState>,
+) -> Result<(), String> {
+    use tauri::{Emitter, Manager};
+
+    let file_path = match path {
+        Some(p) if !p.trim().is_empty() => p,
+        _ => state.mpv.get_property_string("path").unwrap_or_default(),
+    };
+
+    if let Some(win) = app.get_webview_window("mediainfo") {
+        if win.is_visible().unwrap_or(false) {
+            let _ = win.hide();
+            let _ = app.emit("mediainfo-window-closed", ());
+            return Ok(());
+        }
+    }
+
+    if file_path.trim().is_empty() {
+        return Err("Файл не воспроизводится и путь к медиафайлу не передан".to_string());
+    }
+
     open_or_update_mediainfo_window(&app, &file_path)
 }

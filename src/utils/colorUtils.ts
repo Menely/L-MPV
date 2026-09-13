@@ -217,60 +217,55 @@ export function applyAccentColor(value: string) {
 
   const intensity = getGlowIntensity();
 
-  // Коэффициенты свечения в зависимости от режима
-  let glowAlpha = 0.30;
-  let shadowGlow = "0 0 16px var(--accent-glow)";
-  let btnGlow = "none";
-  let thumbGlow = "0 0 16px var(--accent-glow)";
-  let playBtnGlow = "none";
-  let activeBtnGlow = "none";
+  const rgb = hexToRgb(hex) || { r: 127, g: 199, b: 255 };
+  const rgbString = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
 
-  if (intensity === "off") {
-    glowAlpha = 0;
-    shadowGlow = "none";
-    thumbGlow = "none";
-    btnGlow = "none";
-    playBtnGlow = "none";
-    activeBtnGlow = "none";
-  } else if (intensity === "soft") {
-    glowAlpha = 0.20;
-    shadowGlow = `0 0 10px var(--accent-glow)`;
-    thumbGlow = `0 0 10px var(--accent-glow)`;
-    btnGlow = `0 0 8px var(--accent-glow)`;
-    playBtnGlow = `0 0 10px var(--accent-glow)`;
-    activeBtnGlow = `0 0 8px var(--accent-glow)`;
+  // Переменные рассеивающегося свечения иконок (drop-shadow непосредственно от штрихов SVG)
+  let glowAlpha = 0.38;
+  let shadowGlow = "none";
+  let thumbGlow = "none";
+  let activeIconGlow = "none";
+  let playIconGlow = "none";
+  let hoverIconGlow = "none";
+
+  if (intensity === "soft") {
+    glowAlpha = 0.32;
+    shadowGlow = `0 0 10px rgba(${rgbString}, 0.45), 0 0 20px rgba(${rgbString}, 0.22), 0 0 32px rgba(${rgbString}, 0.09)`;
+    thumbGlow = `0 0 7px rgba(${rgbString}, 0.45), 0 0 14px rgba(${rgbString}, 0.22), 0 0 24px rgba(${rgbString}, 0.08)`;
+    activeIconGlow = `drop-shadow(0 0 3px rgba(${rgbString}, 0.85)) drop-shadow(0 0 8px rgba(${rgbString}, 0.50)) drop-shadow(0 0 16px rgba(${rgbString}, 0.25))`;
+    playIconGlow = `drop-shadow(0 0 3px rgba(${rgbString}, 0.85)) drop-shadow(0 0 9px rgba(${rgbString}, 0.50)) drop-shadow(0 0 18px rgba(${rgbString}, 0.25))`;
+    hoverIconGlow = `drop-shadow(0 0 5px rgba(${rgbString}, 0.55)) drop-shadow(0 0 12px rgba(${rgbString}, 0.25))`;
   } else if (intensity === "medium") {
-    glowAlpha = 0.35;
-    shadowGlow = `0 0 16px var(--accent-glow)`;
-    thumbGlow = `0 0 16px var(--accent-glow), 0 0 4px var(--accent)`;
-    btnGlow = `0 0 12px var(--accent-glow)`;
-    playBtnGlow = `0 0 16px var(--accent-glow)`;
-    activeBtnGlow = `0 0 12px var(--accent-glow)`;
+    glowAlpha = 0.48;
+    shadowGlow = `0 0 12px rgba(${rgbString}, 0.60), 0 0 24px rgba(${rgbString}, 0.32), 0 0 38px rgba(${rgbString}, 0.14)`;
+    thumbGlow = `0 0 8px rgba(${rgbString}, 0.60), 0 0 16px rgba(${rgbString}, 0.30), 0 0 28px rgba(${rgbString}, 0.12)`;
+    activeIconGlow = `drop-shadow(0 0 3px rgba(${rgbString}, 0.95)) drop-shadow(0 0 10px rgba(${rgbString}, 0.70)) drop-shadow(0 0 22px rgba(${rgbString}, 0.35))`;
+    playIconGlow = `drop-shadow(0 0 3px rgba(${rgbString}, 0.95)) drop-shadow(0 0 11px rgba(${rgbString}, 0.70)) drop-shadow(0 0 24px rgba(${rgbString}, 0.35))`;
+    hoverIconGlow = `drop-shadow(0 0 6px rgba(${rgbString}, 0.70)) drop-shadow(0 0 15px rgba(${rgbString}, 0.35))`;
   } else if (intensity === "intense") {
-    glowAlpha = 0.65;
-    shadowGlow = `0 0 24px var(--accent-glow), 0 0 8px var(--accent)`;
-    thumbGlow = `0 0 24px var(--accent-glow), 0 0 8px var(--accent)`;
-    btnGlow = `0 0 18px var(--accent-glow), 0 0 6px var(--accent)`;
-    playBtnGlow = `0 0 24px var(--accent-glow), 0 0 8px var(--accent)`;
-    activeBtnGlow = `0 0 18px var(--accent-glow), 0 0 6px var(--accent)`;
+    glowAlpha = 0.70;
+    shadowGlow = `0 0 14px rgba(${rgbString}, 0.75), 0 0 28px rgba(${rgbString}, 0.45), 0 0 46px rgba(${rgbString}, 0.20)`;
+    thumbGlow = `0 0 10px rgba(${rgbString}, 0.75), 0 0 20px rgba(${rgbString}, 0.40), 0 0 34px rgba(${rgbString}, 0.16)`;
+    activeIconGlow = `drop-shadow(0 0 3px rgba(${rgbString}, 1)) drop-shadow(0 0 12px rgba(${rgbString}, 0.85)) drop-shadow(0 0 28px rgba(${rgbString}, 0.50))`;
+    playIconGlow = `drop-shadow(0 0 4px rgba(${rgbString}, 1)) drop-shadow(0 0 14px rgba(${rgbString}, 0.85)) drop-shadow(0 0 30px rgba(${rgbString}, 0.50))`;
+    hoverIconGlow = `drop-shadow(0 0 7px rgba(${rgbString}, 0.85)) drop-shadow(0 0 18px rgba(${rgbString}, 0.45))`;
   }
 
-  const rgb = hexToRgb(hex);
-  if (rgb) {
-    const rgbString = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
-    root.style.setProperty("--accent-glow", `rgba(${rgbString}, ${glowAlpha})`);
-    root.style.setProperty("--accent-glass", `rgba(${rgbString}, 0.08)`);
-    root.style.setProperty("--border-pill", `rgba(${rgbString}, 0.10)`);
-    root.style.setProperty("--bg-hover", `rgba(${rgbString}, 0.08)`);
-    root.style.setProperty("--bg-active", `rgba(${rgbString}, 0.14)`);
-  }
+  root.style.setProperty("--accent-glow", `rgba(${rgbString}, ${glowAlpha})`);
+  root.style.setProperty("--accent-glass", `rgba(${rgbString}, 0.08)`);
+  root.style.setProperty("--border-pill", `rgba(${rgbString}, 0.10)`);
+  root.style.setProperty("--bg-hover", `rgba(${rgbString}, 0.08)`);
+  root.style.setProperty("--bg-active", `rgba(${rgbString}, 0.14)`);
 
   root.style.setProperty("--glow-intensity", intensity);
   root.style.setProperty("--shadow-glow", shadowGlow);
   root.style.setProperty("--thumb-glow", thumbGlow);
-  root.style.setProperty("--btn-glow", btnGlow);
-  root.style.setProperty("--play-btn-glow", playBtnGlow);
-  root.style.setProperty("--active-btn-glow", activeBtnGlow);
+  root.style.setProperty("--btn-glow", "none");
+  root.style.setProperty("--play-btn-glow", "none");
+  root.style.setProperty("--active-btn-glow", "none");
+  root.style.setProperty("--active-icon-glow", activeIconGlow);
+  root.style.setProperty("--play-icon-glow", playIconGlow);
+  root.style.setProperty("--hover-icon-glow", hoverIconGlow);
 
   root.style.setProperty("--accent", hex);
   root.style.setProperty("--accent-gradient", `linear-gradient(90deg, ${hex}, ${hex})`);

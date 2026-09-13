@@ -190,6 +190,7 @@ pub fn run() {
             mediainfo::is_standalone_mode,
             mediainfo::get_standalone_mediainfo_path,
             mediainfo::open_mediainfo_window,
+            mediainfo::toggle_mediainfo_window,
             commands::get_playback_state,
             commands::get_video_dimensions,
             system_integration::get_windows_accent_color,
@@ -230,9 +231,14 @@ pub fn run() {
             updater::download_and_install_update,
         ])
         .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { .. } => {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
                 if window.label() == "mediainfo" {
-                    use tauri::Manager;
+                    use tauri::{Emitter, Manager};
+                    // Предотвращаем уничтожение окна — скрываем его для мгновенного повторного открытия
+                    api.prevent_close();
+                    let _ = window.hide();
+                    // Оповещаем главное окно о закрытии окна MediaInfo для сброса подсветки кнопки
+                    let _ = window.app_handle().emit("mediainfo-window-closed", ());
                     // Если главное окно плеера скрыто (приложение запущено только для MediaInfo), завершаем процесс
                     if let Some(main_win) = window.app_handle().get_webview_window("main") {
                         if !main_win.is_visible().unwrap_or(false) {
@@ -242,6 +248,8 @@ pub fn run() {
                 } else {
                     let state = window.state::<PlayerState>();
                     commands::save_current_playback_position(&state);
+                    // Закрытие главного окна плеера обязано полностью завершать процесс приложения
+                    window.app_handle().exit(0);
                 }
             }
             tauri::WindowEvent::Focused(focused) => {

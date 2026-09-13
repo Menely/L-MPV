@@ -446,7 +446,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
           className="update-toast__btn update-toast__btn--secondary"
           onClick={onClose}
         >
-          Позже
+          Отложить
         </button>
         <button
           className="update-toast__btn update-toast__btn--primary"

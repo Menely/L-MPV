@@ -309,11 +309,8 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: rgba(14, 16, 24, 0.98);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border: 1px solid var(--border-pill);
-  border-radius: var(--radius-md);
+  background: #0f121a;
+  color: #e2e8f0;
   box-sizing: border-box;
   overflow: hidden;
   user-select: none;

@@ -169,12 +169,12 @@ pub fn register_file_associations() -> Result<Vec<String>, String> {
 
         // 6. Регистрация пункта в контекстном меню Windows Explorer
         if let Ok((shell_key, _)) = classes.create_subkey("*\\shell\\LMPV.MediaInfo") {
-            let _ = shell_key.set_value("", &"Открыть в L-MPV MediaInfo");
+            let _ = shell_key.set_value("", &"L-MPV MediaInfo");
             let _ = shell_key.set_value("Icon", &format!("\"{}\",0", exe_path_str));
             if let Ok((cmd_key, _)) = shell_key.create_subkey("command") {
                 let _ = cmd_key.set_value("", &format!("\"{}\" --mediainfo \"%1\"", exe_path_str));
             }
-            logs.push("[OK] Зарегистрирован пункт контекстного меню Explorer: 'Открыть в L-MPV MediaInfo'".to_string());
+            logs.push("[OK] Зарегистрирован пункт контекстного меню Explorer: 'L-MPV MediaInfo'".to_string());
         }
 
         // 7. Оповещение Windows Shell об обновлении ассоциаций и иконок
@@ -288,7 +288,7 @@ pub fn register_explorer_context_menu() -> Result<Vec<String>, String> {
             .map_err(|e| format!("Ошибка создания ключа *\\shell\\LMPV.MediaInfo: {e}"))?;
 
         shell_key
-            .set_value("", &"Открыть в L-MPV MediaInfo")
+            .set_value("", &"L-MPV MediaInfo")
             .map_err(|e| format!("Ошибка установки названия пункта: {e}"))?;
 
         let _ = shell_key.set_value("Icon", &format!("\"{}\",0", exe_path_str));
@@ -301,7 +301,7 @@ pub fn register_explorer_context_menu() -> Result<Vec<String>, String> {
             .set_value("", &format!("\"{}\" --mediainfo \"%1\"", exe_path_str))
             .map_err(|e| format!("Ошибка установки команды запуска: {e}"))?;
 
-        logs.push("[OK] Пункт 'Открыть в L-MPV MediaInfo' успешно зарегистрирован в контекстном меню Windows!".to_string());
+        logs.push("[OK] Пункт 'L-MPV MediaInfo' успешно зарегистрирован в контекстном меню Windows!".to_string());
 
         notify_shell_associations_changed();
         logs.push("[OK] Кэш оболочки Windows Explorer обновлен.".to_string());
@@ -327,7 +327,7 @@ pub fn unregister_explorer_context_menu() -> Result<Vec<String>, String> {
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         if let Ok(classes) = hkcu.open_subkey_with_flags("Software\\Classes", KEY_ALL_ACCESS) {
             let _ = classes.delete_subkey_all("*\\shell\\LMPV.MediaInfo");
-            logs.push("[OK] Пункт 'Открыть в L-MPV MediaInfo' удален из реестра Windows.".to_string());
+            logs.push("[OK] Пункт 'L-MPV MediaInfo' удален из реестра Windows.".to_string());
         }
 
         notify_shell_associations_changed();

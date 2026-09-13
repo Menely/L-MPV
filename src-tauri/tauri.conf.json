@@ -23,6 +23,20 @@
         "resizable": true,
         "center": true,
         "visible": false
+      },
+      {
+        "label": "mediainfo",
+        "title": "L-MPV MediaInfo",
+        "width": 565,
+        "height": 685,
+        "minWidth": 460,
+        "minHeight": 360,
+        "decorations": false,
+        "transparent": false,
+        "resizable": true,
+        "alwaysOnTop": true,
+        "center": true,
+        "visible": false
       }
     ],
     "security": {
@@ -30,8 +44,8 @@
     }
   },
   "bundle": {
-    "active": true,
-    "targets": "all",
+    "active": false,
+    "targets": [],
     "windows": {
       "nsis": {
         "installerHooks": "nsis/installer_hooks.nsh"

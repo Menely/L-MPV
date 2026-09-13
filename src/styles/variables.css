@@ -40,11 +40,11 @@
   --shadow-sm:   0 2px 8px rgba(0, 0, 0, 0.35);
   --shadow-md:   0 4px 20px rgba(0, 0, 0, 0.45);
   --shadow-lg:   0 8px 40px rgba(0, 0, 0, 0.55);
-  --shadow-glow: 0 0 16px var(--accent-glow);
-  --thumb-glow:  0 0 16px var(--accent-glow), 0 0 4px var(--accent);
-  --btn-glow:    0 0 12px var(--accent-glow);
-  --play-btn-glow: 0 0 16px var(--accent-glow);
-  --active-btn-glow: 0 0 12px var(--accent-glow);
+  --shadow-glow:     0 0 8px rgba(127, 199, 255, 0.45), 0 0 18px rgba(127, 199, 255, 0.22), 0 0 30px rgba(127, 199, 255, 0.09);
+  --thumb-glow:      0 0 6px rgba(127, 199, 255, 0.45), 0 0 13px rgba(127, 199, 255, 0.22), 0 0 22px rgba(127, 199, 255, 0.08);
+  --btn-glow:        0 0 5px rgba(127, 199, 255, 0.35), 0 0 12px rgba(127, 199, 255, 0.18), 0 0 20px rgba(127, 199, 255, 0.07);
+  --play-btn-glow:   0 0 7px rgba(127, 199, 255, 0.45), 0 0 15px rgba(127, 199, 255, 0.24), 0 0 26px rgba(127, 199, 255, 0.10);
+  --active-btn-glow: 0 0 6px rgba(127, 199, 255, 0.40), 0 0 14px rgba(127, 199, 255, 0.20), 0 0 24px rgba(127, 199, 255, 0.08);
   --shadow-pill: 0 4px 30px rgba(0, 0, 0, 0.50),
                  0 0 1px rgba(127, 199, 255, 0.15);
 

@@ -68,3 +68,17 @@ jobs:
           releaseBody: 'Автоматический релиз медиаплеера L-MPV на базе libmpv.'
           releaseDraft: false
           prerelease: false
+
+      - name: Публикация чистого портативного l-mpv.exe в релиз
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if (-not $tag -or $tag -notmatch '^v\d+') {
+            $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
+            $tag = "v$ver"
+          }
+          Write-Host "Загрузка автономного портативного файла l-mpv.exe в релиз $tag..."
+          gh release upload $tag "src-tauri/target/release/l-mpv.exe#l-mpv.exe" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

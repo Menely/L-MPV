@@ -1,15 +1,15 @@
 # L-MPV — Архитектура проекта и База Знаний
 
-Данный документ содержит полную и актуальную информацию об устройстве медиаплеера **L-MPV** (версия **1.5.3**), его архитектуре, технологическом стеке, структуре файлов, взаимодействии Rust и React, детальном реестре IPC-команд и всех пользовательских функциях плеера.
+Данный документ содержит полную и актуальную информацию об устройстве медиаплеера **L-MPV** (версия **1.5.5**), его архитектуре, технологическом стеке, структуре файлов, взаимодействии Rust и React, детальном реестре IPC-команд и всех пользовательских функциях плеера.
 
 ---
 
 ## 1. Стек технологий и Портативность
 
-- **Фронтенд:** React 19 + TypeScript + Vite + Lucide Icons + Vanilla CSS (Design Tokens, Glassmorphism, CSS Custom Properties).
+- **Фронтенд:** React 19 + TypeScript + Vite + Lucide Icons + Vanilla CSS (Design Tokens, Glassmorphism, CSS Custom Properties, Vector Drop-Shadow).
 - **Бэкенд:** Rust + Tauri v2.
 - **Медиа-движок:** `libmpv-2.dll` (или `mpv-2.dll` / `mpv-1.dll`), задействован динамический FFI через `libloading`.
-- **Анализ медиа:** Нативная `mediainfo.dll` (C-API) для детального отчёта свойств медиафайлов.
+- **Анализ медиа:** Нативная `mediainfo.dll` (C-API) для детального отчёта свойств медиафайлов в независимом окне ОС Windows.
 - **Портативный режим (Portable Architecture):**
   - Приложение полностью отвязано от диска и реестра Windows.
   - Все пути определяются динамически во время выполнения через `std::env::current_exe().parent()`.
@@ -32,21 +32,20 @@ L-MPV/
 │   │   ├── Titlebar.tsx                  # Шапка окна (логотип, по центру название файла, кнопки окна)
 │   │   ├── PlayerControls.tsx            # Нижняя плавающая «таблетка» управления (быстрая смена дорожек, скачивание, скриншот, плейлист, скорость)
 │   │   ├── ContextMenu.tsx               # Кастомное ПКМ-меню (дорожки со скачиванием, скорость, вид, масштабирование, поворот)
-│   │   ├── SettingsModal.tsx             # Модальное окно настроек (скриншоты, сохранение дорожек, акцентные градиенты, бинды, интеграция)
+│   │   ├── SettingsModal.tsx             # Модальное окно настроек (скриншоты, сохранение дорожек, акцентные цвета, бинды, интеграция, компактные соцсети)
 │   │   ├── MediaInfoModal.tsx            # Компактное окно технической информации о медиафайле
-│   │   ├── DetailedMediaInfoModal.tsx    # Внутреннее перемещаемое окно подробных свойств MediaInfo в плеере
-│   │   ├── StandaloneMediaInfoWindow.tsx # Изолированное автономное окно MediaInfo (вызов "Открыть в L-MPV MediaInfo")
+│   │   ├── StandaloneMediaInfoWindow.tsx # Независимое нативное окно MediaInfo (565x685, Always on Top с кнопкой Pin, Drag&Drop, запуск из плеера или проводника)
 │   │   ├── ChaptersModal.tsx             # Модальное окно навигации по главам (Chapters)
 │   │   ├── Timeline.tsx                  # Высокоточный таймлайн с изолированным контекстом времени (без лишних ререндеров)
 │   │   └── PlaylistDrawer.tsx            # Выдвижная боковая панель плейлиста (Natural Sort, поиск, переключение)
 │   ├── contexts/                         # Реактивные контексты React
 │   │   └── PlayerStateContext.tsx        # Двухуровневый контекст: PlayerStateContext (метаданные, скачивание) + PlayerProgressContext (10–60 FPS)
-│   ├── styles/                           # Модульная система стилей (11 модулей Vanilla CSS)
-│   │   ├── variables.css                 # CSS Custom Properties, темы, UI Scale, акцентные палитры
+│   ├── styles/                           # Модульная система стилей (12 модулей Vanilla CSS)
+│   │   ├── variables.css                 # CSS Custom Properties, темы, UI Scale, акцентные палитры, параметры свечения
 │   │   ├── base.css                      # Глобальный сброс, стили приложения, IDLE-режим, OSD
 │   │   ├── titlebar.css                  # Кастомная шапка окна
 │   │   ├── video-area.css                # Область видео и вотермарка
-│   │   ├── controls.css                  # Плавающая панель управления, таймлайн, регулятор громкости
+│   │   ├── controls.css                  # Плавающая панель управления, таймлайн, регулятор громкости, векторное свечение drop-shadow
 │   │   ├── context-menu.css              # Кастомное ПКМ-меню
 │   │   ├── modals.css                    # Модальные окна (Настройки, MediaInfo, Chapters)
 │   │   ├── mediainfo-modal.css           # Стили кастомного окна и модального отчёта MediaInfo
@@ -55,7 +54,7 @@ L-MPV/
 │   │   ├── overlays.css                  # Overlay-элементы (Drag&Drop, Scrollbar, Playlist Drawer, Update)
 │   │   └── responsive.css                # Глобальные медиа-запросы
 │   ├── utils/                            # Утилиты
-│   │   ├── colorUtils.ts                 # Цветовые палитры и вычисление HSL/RGB акцентов и градиентов
+│   │   ├── colorUtils.ts                 # Цветовые палитры и вычисление HSL/RGB акцентов, градиентов и параметров свечения drop-shadow
 │   │   ├── hotkeyUtils.ts                # Кастомная привязка, сохранение и сброс горячих клавиш по умолчанию
 │   │   ├── mediaInfoParser.ts            # Модуль разбора и перевода на русский язык отчёта MediaInfo
 │   │   └── timeUtils.ts                  # Форматирование времени воспроизведения
@@ -66,15 +65,15 @@ L-MPV/
 │   ├── capabilities/default.json         # Разрешения Tauri (окна, opener, dialog)
 │   ├── src/
 │   │   ├── main.rs                       # Входная точка
-│   │   ├── lib.rs                        # Настройка Tauri, привязка HWND (`wid`), фокус окна, регистрация 58 IPC-команд
+│   │   ├── lib.rs                        # Настройка Tauri, привязка HWND (`wid`), фокус окна, предсоздание окна MediaInfo, чистый exit(0)
 │   │   ├── ambient.rs                    # Контроллер подсветки черных полос (Ambient Light: GPU Blur / Color / Off)
-│   │   ├── mediainfo.rs                  # FFI-интеграция с mediainfo.dll и управление автономным окном MediaInfo
+│   │   ├── mediainfo.rs                  # FFI-интеграция с mediainfo.dll и управление независимым окном MediaInfo
 │   │   ├── mpv_manager.rs                # FFI-обертчик libmpv (vo=gpu-next, WASAPI, D3D11, HWDEC auto-safe, HDR, 32-tap sinc resampler)
 │   │   ├── system_integration.rs         # Интеграция с Проводником Windows (контекстное меню, ассоциации файлов)
 │   │   ├── updater.rs                    # Модуль автообновления приложения
-│   │   └── commands.rs                   # 58 IPC #[tauri::command] функций, извлечение дорожек FFmpeg, персистентность AppSettings
+│   │   └── commands.rs                   # 74 IPC #[tauri::command] функций, извлечение дорожек FFmpeg, персистентность AppSettings
 │   ├── Cargo.toml                        # Зависимости Rust (tauri, libloading, serde, base64, tokio, windows-sys)
-│   └── tauri.conf.json                   # Конфигурация приложения Tauri (версия синхронизирована с package.json)
+│   └── tauri.conf.json                   # Конфигурация приложения Tauri (версия синхронизирована с package.json, предсозданные окна main и mediainfo)
 └── Portable-L-MPV/                       # Готовая портативная папка для тестирования и релиза
 ```
 
@@ -112,14 +111,24 @@ L-MPV/
 
 ### 3.3. `lib.rs`
 - Извлекает HWND окна Tauri v2 и передает его в mpv через свойство `"wid"`, связывая видеопоток с поверхностью окна Webview2.
-- Обрабатывает событие `WindowEvent::Focused` для динамического управления Z-порядком в полноэкранном режиме (автоматическое снятие Topmost для корректного `Alt+Tab` и возврат при активации плеера).
-- Регистрирует все **59 IPC-команд** в `tauri::Builder`.
+- **Предварительная инициализация окон:** окно `"mediainfo"` (565x685 px, `always_on_top: true`) предсоздается в скрытом виде (`visible: false`) на этапе старта, что полностью исключает задержки открытия и блокировки главного UI-потока.
+- **Управление жизненным циклом и фокусом:**
+  - Обрабатывает событие `WindowEvent::Focused` для динамического управления Z-порядком в полноэкранном режиме (автоматическое снятие Topmost для корректного `Alt+Tab` и возврат при активации плеера).
+  - Обрабатывает `WindowEvent::CloseRequested`:
+    - Для окна `"mediainfo"` предотвращает уничтожение окна (`prevent_close`), скрывает его (`hide()`) и уведомляет React (`mediainfo-window-closed`) для снятия подсветки с кнопки вызова. Если плеер был запущен исключительно в режиме MediaInfo — завершает процесс.
+    - Для главного окна `"main"` сохраняет позицию воспроизведения и вызывает `window.app_handle().exit(0)`, гарантируя мгновенное завершение процесса `L-MPV.exe` в диспетчере задач Windows.
+- Регистрирует все **74 IPC-команды** в `tauri::Builder`.
+
+### 3.4. `mediainfo.rs`
+- Нативное динамическое связывание с `mediainfo.dll` через `libloading` (C-API: `MediaInfo_New`, `MediaInfo_Open`, `MediaInfo_Inform`, `MediaInfo_Close`, `MediaInfo_Delete`).
+- Предотвращает зависания: запросы выполняются безопасно без перекрестных дедлоков потоков.
+- Управляет нативным окном через команды `open_mediainfo_window` и `toggle_mediainfo_window`, посылая события `mediainfo-inspect-file`.
 
 ---
 
-## 4. Полный Реестр IPC-Команд Rust (`commands.rs`)
+## 4. Полный Реестр IPC-Команд Rust (`commands.rs`, `mediainfo.rs`, `system_integration.rs`, `updater.rs`)
 
-В бэкенде зарегистрирована **59 IPC-команд**:
+В бэкенде зарегистрировано **74 IPC-команды**:
 
 | Категория | IPC Команда | Параметры | Возвращает | Описание |
 | :--- | :--- | :--- | :--- | :--- |
@@ -144,12 +153,14 @@ L-MPV/
 | | `set_subtitle_track` | `track_id: i64` | `Result<(), String>` | Переключение субтитров по ID (`sid`) |
 | | `disable_subtitles` | — | `Result<(), String>` | Отключение субтитров (`sid = "no"`) |
 | | `load_subtitle_file` | `path: String` | `Result<(), String>` | Подключение внешнего файла субтитров (`sub-add`) |
+| | `load_audio_file` | `path: String` | `Result<(), String>` | Подключение внешнего аудиофайла (`audio-add`) |
 | | `set_video_track` | `track_id: i64` | `Result<(), String>` | Переключение видеопотока по ID (`vid`) |
 | | `extract_track` | `video_path: String, track_type: String, track_index: usize, ff_index: Option<usize>, external_filename: Option<String>, target_path: String` | `Result<String, String>` | Извлечение аудио/субтитров (Direct Stream Copy `-c copy`, многопоточный fallback `-threads 0`, прямое копирование внешних файлов) |
-| | `get_auto_load_tracks` | — | `Result<bool, String>` | Получение статуса настройки автоматического подхвата внешних дорожек |
-| | `set_auto_load_tracks` | `enabled: bool` | `Result<(), String>` | Включение/выключение автоподхвата внешних дорожек с сохранением в `settings.json` |
+| | `get_auto_load_tracks` | — | `Result<bool, String>` | Получение статуса настройки автоподхвата внешних дорожек |
+| | `set_auto_load_tracks` | `enabled: bool` | `Result<(), String>` | Включение/выключение автоподхвата внешних дорожек |
+| | `get_auto_select_external_audio`| — | `Result<bool, String>` | Чтение статуса автовыбора внешней русской аудиодорожки |
+| | `set_auto_select_external_audio`| `enabled: bool` | `Result<(), String>` | Настройка автовыбора внешней русской аудиодорожки |
 | | `load_external_tracks_for_file` | `path: String` | `Result<(), String>` | Сканирование и подключение внешних аудио и субтитров для текущего файла |
-| **Система и Метаданные** | `get_app_version` | — | `Result<String, String>` | Получение актуальной версии приложения (`CARGO_PKG_VERSION`) |
 | **Вид, Зумирование и Окно** | `set_aspect_ratio` | `ratio: String` | `Result<(), String>` | Установка соотношения сторон (`16:9`, `21:9`, `4:3`, `no`) |
 | | `set_rotation` | `degrees: i64` | `Result<(), String>` | Поворот видеокадра (`0`, `90`, `180`, `270`) |
 | | `set_video_zoom_and_pan` | `zoom: f64, pan_x: f64, pan_y: f64` | `Result<(), String>` | Аппаратный видеозум и панорамирование в mpv |
@@ -160,6 +171,8 @@ L-MPV/
 | | `copy_frame_to_clipboard` | — | `Result<(), String>` | Копирование текущего кадра в буфер обмена Windows |
 | | `get_screenshot_dir` | — | `Result<String, String>` | Чтение текущей директории для скриншотов |
 | | `set_screenshot_dir` | `path: String` | `Result<(), String>` | Изменение пути скриншотов с записью в `settings.json` |
+| **Экземпляры Приложения** | `get_multi_instance` | — | `Result<bool, String>` | Проверка разрешения одновременного запуска нескольких окон плеера |
+| | `set_multi_instance` | `enabled: bool` | `Result<(), String>` | Включение/выключение режима нескольких экземпляров |
 | **Главы** | `get_chapters` | — | `Result<Vec<ChapterInfo>, String>` | Получение списка всех глав текущего медиафайла |
 | | `seek_chapter` | `index: i64` | `Result<(), String>` | Переход к главе по индексу (`chapter`) |
 | **Метаданные и Позиция** | `get_playback_state` | — | `Result<PlaybackState, String>` | Легкий динамический статус плеера (позиция, кадр, пауза, громкость, битрейт, пропуски) |
@@ -171,17 +184,28 @@ L-MPV/
 | | `get_fps` | — | `Result<f64, String>` | Частота кадров (`container-fps`) |
 | | `get_last_position` | `path: String` | `Result<Option<f64>, String>` | Чтение сохранённой позиции воспроизведения из истории |
 | | `save_position` | `path: String, position: f64` | `Result<(), String>` | Сохранение позиции воспроизведения в историю |
-| **Интеграция с Windows** | `register_file_associations` | — | `Result<Vec<String>, String>` | Регистрация плеера и ассоциаций медиафайлов в Windows |
+| | `save_current_position` | — | `Result<(), String>` | Принудительное сохранение текущей позиции активного воспроизведения |
+| | `get_app_version` | — | `Result<String, String>` | Получение актуальной версии приложения (`CARGO_PKG_VERSION`) |
+| **Анализ MediaInfo (C-FFI)** | `get_detailed_media_info` | `path: String` | `Result<DetailedMediaInfo, String>` | Полный парсинг всех потоков и тегов файла через нативную `mediainfo.dll` |
+| | `is_standalone_mode` | — | `Result<bool, String>` | Определение, запущено ли окно в автономном режиме MediaInfo |
+| | `get_standalone_mediainfo_path` | — | `Result<Option<String>, String>` | Получение пути к файлу, переданному через CLI для MediaInfo |
+| | `open_mediainfo_window` | `path: String` | `Result<(), String>` | Открытие независимого окна MediaInfo с инспекцией файла |
+| | `toggle_mediainfo_window` | `path: Option<String>` | `Result<bool, String>` | Переключение видимости независимого окна MediaInfo |
+| **Интеграция с Windows** | `get_windows_accent_color` | — | `Result<Option<String>, String>` | Получение системного цвета акцента Windows |
+| | `register_file_associations` | — | `Result<Vec<String>, String>` | Регистрация плеера и ассоциаций медиафайлов в Windows |
 | | `unregister_file_associations` | — | `Result<Vec<String>, String>` | Полное удаление ассоциаций файлов и записей L-MPV из реестра Windows |
+| | `is_explorer_context_menu_registered` | — | `Result<bool, String>` | Проверка регистрации пунктов L-MPV в контекстном меню Проводника Windows |
+| | `register_explorer_context_menu` | — | `Result<(), String>` | Добавление «Воспроизвести в L-MPV» и «Открыть в L-MPV MediaInfo» в меню Windows |
+| | `unregister_explorer_context_menu` | — | `Result<(), String>` | Удаление пунктов L-MPV из контекстного меню Проводника Windows |
 | | `open_default_apps_settings` | — | `Result<(), String>` | Открытие параметров Windows «Приложения по умолчанию» |
-| | `get_windows_accent_color` | — | `Result<Option<String>, String>` | Получение системного цвета акцента Windows |
-| | `get_multi_instance` | — | `Result<bool, String>` | Проверка разрешения одновременного запуска нескольких окон плеера |
-| | `set_multi_instance` | `enabled: bool` | `Result<(), String>` | Включение/выключение режима нескольких экземпляров |
 | | `update_taskbar_progress` | `progress: f64, state: String` | `Result<(), String>` | Отображение прогресса видео на иконке панели задач Windows |
 | **Подсветка полос (Ambient Light)** | `get_ambient_settings` | — | `Result<AmbientSettings, String>` | Получение текущего режима, радиуса размытия и цвета подсветки из оперативной памяти |
 | | `apply_ambient_preview` | `settings: AmbientSettings` | `Result<(), String>` | Мгновенный 60fps предпросмотр шейдерных эффектов на GPU без блокирующего дискового I/O |
 | | `set_ambient_settings` | `settings: AmbientSettings` | `Result<(), String>` | Применение и сохранение настроек подсветки черных полос |
 | | `toggle_ambient_mode` | — | `Result<AmbientSettings, String>` | Циклическое быстрое переключение режима (Off -> Blur -> Color -> Off) |
+| **Автообновление (In-App)** | `check_launch_and_update` | — | `Result<Option<UpdateInfo>, String>` | Фоновая периодическая проверка доступных обновлений на GitHub |
+| | `check_for_updates` | — | `Result<Option<UpdateInfo>, String>` | Ручная проверка релизов на GitHub с получением списка изменений |
+| | `download_and_install_update` | `version: String, assets: Vec<AssetInfo>` | `Result<(), String>` | Точечное скачивание бинарников, создание `update.bat` и автоперезапуск |
 
 ---
 
@@ -213,6 +237,14 @@ L-MPV/
   - Размеры окна вычисляются по истинному Display Aspect Ratio (`video-params/dw`, `video-params/dh`) и применяются (`setSize`) вместе с центрированием (`center`) **до** отображения окна.
   - Окно становится видимым (`window.show()`) строго в момент, когда React уже отрисовал интерфейс и первый кадр видео готов, полностью исключая мелькание заглушки-плейсхолдера и рывки геометрии окна.
   - При запуске без файла (пустой плеер) окно открывается сразу с интерактивной заглушкой.
+- **Чистый Жизненный Цикл Процесса (No Ghost Processes):**
+  - Обработчик закрытия главного окна плеера в `lib.rs` перехватывает `WindowEvent::CloseRequested` и гарантированно вызывает `window.app_handle().exit(0)`.
+  - Это полностью исключает зависание процесса `L-MPV.exe` в фоновых задачах Windows после закрытия плеера.
+- **Векторная Система Свечения Иконок (Vector Drop-Shadow Engine):**
+  - Свечение кнопок управления и навигации переведено с прямоугольных блоков и круговых ареолов на чистый векторный контур `filter: drop-shadow(...)`.
+  - Свет плавно рассеивается непосредственно от формы самой SVG-иконки с градиентным угасанием без грубых краев и круговых ободков.
+  - Интенсивность и радиусы свечения точно сбалансированы по режимам (Normal, Medium, Strong), обеспечивая премиальный эстетичный вид.
+  - Кнопка «Пуск / Пауза» избавлена от постоянного фонового свечения и подсвечивается только при наведении или взаимодействии.
 - **Ограничение окна при старте:**
   - Окно при открытии файлов ограничивается до 1280x720 или 50% экрана без появления черных рамок.
 - **Плавное аппаратное зумирование и панорамирование (Ctrl + Колесо мыши):**
@@ -268,7 +300,7 @@ L-MPV/
   - ЛКМ: мгновенное циклическое переключение.
   - ПКМ: выпадающее меню со списком доступных дорожек и кнопками скачивания.
 
-### 5.5. Скриншоты и Настройки (Screenshots & Settings)
+### 5.5. Скриншоты, Настройки и MediaInfo (Screenshots, Settings & MediaInfo)
 - **Создание Скриншотов:**
   - Кнопка с иконкой фотоаппарата `<Camera />` на панели управления, горячая клавиша `S` / `Ы` или выбор в ПКМ-меню. Чистый кадр без OSD, всплывающее уведомление *«Кадр сохранён»*.
   - **Копирование кадра в буфер обмена:** нативная команда `copy_frame_to_clipboard` (сочетание `Ctrl + C`).
@@ -276,15 +308,23 @@ L-MPV/
   - В модальном окне `SettingsModal`:
     - Выбор папки скриншотов или сброс на портативную папку `screenshots`.
     - Выбор монохромных и чистых акцентных пастельных цветов (включая **#e8a236** Amber и **#FFA9DE** Pink).
+    - Компактный блок соцсетей в футере (иконки 19px, оптимальные отступы).
     - **Расширенная гибридная система привязки клавиш и кнопок мыши**:
       - Раздельное управление биндами аудио и субтитров (смена дорожки и открытие меню).
       - Поддержка модификаторов (`Ctrl`, `Shift`, `Alt`) и кликов мыши (`MouseLeft`, `MouseRight`, `MouseMiddle`, `MouseLeftDoubleClick`).
       - Для каждого действия предусмотрена индивидуальная иконка-кнопка **«По умолчанию»** справа от поля ввода для быстрого точечного сброса конкретной функции, помимо общей кнопки сброса всех настроек.
 - **Интеграция с Windows:**
   - Регистрация ассоциаций файлов (видео и аудио) в реестре Windows в один клик.
+  - Добавление пунктов «Воспроизвести в L-MPV» и «Открыть в L-MPV MediaInfo» в контекстное меню Проводника Windows.
   - Быстрый переход в параметры Windows «Приложения по умолчанию».
 - **Запоминание позиции (Resume Playback):** автоматическое сохранение позиции воспроизведения в локальную историю просмотров.
-- **Окно информации о видео (MediaInfo):** подробные технические параметры медиафайла с корректным левосторонним переносом длинных названий без горизонтального скролла.
+- **Независимое Окно MediaInfo (565×685 px):**
+  - **Полноценное окно Windows:** реализовано как независимое окно ОС (`label: "mediainfo"`), которое можно свободно перетаскивать за пределы окна плеера на любой монитор.
+  - **Режим «Поверх всех окон» с фиксацией Pin:** по умолчанию окно открывается поверх плеера (`alwaysOnTop: true`), но снабжено кнопкой-булавкой в шапке окна, позволяющей в один клик открепить его от режима поверх окон.
+  - **Zero-Freeze и предварительная инициализация:** окно предсоздается в скрытом виде при старте плеера, что исключает дедлоки, лаги и зависания при вызове.
+  - **Drag & Drop:** поддержка перетаскивания новых файлов прямо в окно MediaInfo для мгновенного анализа.
+  - **Интерактивные возможности:** мгновенный поиск по свойствам (Ctrl+F), экспорт полного отчёта в .txt, копирование в буфер обмена и переключение языков интерфейса (RU/EN).
+  - **Связь с кнопкой в плеере:** кнопка вызова в панели управления подсвечивается только тогда, когда окно MediaInfo реально открыто, и автоматически гаснет при закрытии окна.
 - **Подсветка черных полос (Ambient Light / GPU Blur):**
   - **Аппаратное шейдерное размытие (GPU Blur):** при просмотре видео с соотношением сторон, отличным от монитора (например, 21:9 на 16:9 экране или 4:3), либо в полноэкранном режиме края видеокадра аппаратно проецируются и размываются в пустых черных полосах letterbox и pillarbox на базе `vo=gpu-next` и `libplacebo` без нагрузки на процессор.
   - **Регулировка радиуса:** плавный ползунок радиуса размытия (от 10px до 150px) с кнопкой сброса на 100px (значение по умолчанию).

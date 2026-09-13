@@ -411,7 +411,7 @@ export function ContextMenu({
     {
       type: "item",
       icon: <FileText size={15} />,
-      label: "Свойства MediaInfo...",
+      label: "L-MPV MediaInfo...",
       shortcut: "Shift+F10",
       action: () => {
         if (onShowDetailedMediaInfo) onShowDetailedMediaInfo();

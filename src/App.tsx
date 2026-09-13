@@ -5,7 +5,7 @@ import {
   useRef,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen, emit } from "@tauri-apps/api/event";
 import { usePlayerState } from "./contexts/PlayerStateContext";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
@@ -16,7 +16,6 @@ import { Titlebar } from "./components/Titlebar";
 import { PlayerControls } from "./components/PlayerControls";
 import { ContextMenu } from "./components/ContextMenu";
 import { MediaInfoModal } from "./components/MediaInfoModal";
-import { DetailedMediaInfoModal } from "./components/DetailedMediaInfoModal";
 import { ChaptersModal } from "./components/ChaptersModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { PlaylistDrawer } from "./components/PlaylistDrawer";
@@ -46,7 +45,7 @@ function App() {
   } | null>(null);
 
   const [showMediaInfo, setShowMediaInfo] = useState(false);
-  const [showDetailedMediaInfo, setShowDetailedMediaInfo] = useState(false);
+  const [isMediaInfoOpen, setIsMediaInfoOpen] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
@@ -76,7 +75,6 @@ function App() {
     if (isPlaylistOpen) {
       setShowChapters(false);
       setShowMediaInfo(false);
-      setShowDetailedMediaInfo(false);
       setShowSettings(false);
     }
   }, [isPlaylistOpen]);
@@ -145,15 +143,27 @@ function App() {
       invoke("open_file", { path: event.payload }).catch(console.error);
     });
 
-    const unlistenMediaInfo = listen<string>('open-mediainfo-cli', () => {
-      setShowDetailedMediaInfo(true);
+    const unlistenMediaInfo = listen<string>('open-mediainfo-cli', (event) => {
+      invoke("open_mediainfo_window", { path: event.payload || null }).catch(console.error);
     });
+
+    const unlistenOpen = listen("mediainfo-window-opened", () => setIsMediaInfoOpen(true));
+    const unlistenClose = listen("mediainfo-window-closed", () => setIsMediaInfoOpen(false));
 
     return () => {
       unlistenFile.then(f => f());
       unlistenMediaInfo.then(f => f());
+      unlistenOpen.then(f => f());
+      unlistenClose.then(f => f());
     };
   }, []);
+
+  // Синхронизация пути воспроизводимого файла с открытым независимым окном MediaInfo
+  useEffect(() => {
+    if (mediaInfo?.path) {
+      emit("load-mediainfo-path", mediaInfo.path).catch(() => {});
+    }
+  }, [mediaInfo?.path]);
 
   const isWindowRevealedRef = useRef(false);
 
@@ -445,12 +455,10 @@ function App() {
         }
         break;
       case "fileInfo":
-        setShowDetailedMediaInfo(false);
         setShowMediaInfo((v) => !v);
         break;
       case "detailedMediaInfo":
-        setShowMediaInfo(false);
-        setShowDetailedMediaInfo((v) => !v);
+        invoke("toggle_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
         break;
       case "resetZoom":
         videoZoomRef.current = 0;
@@ -876,25 +884,23 @@ function App() {
       {hasMedia && (
         <PlayerControls
           showMediaInfo={showMediaInfo}
-          showDetailedMediaInfo={showDetailedMediaInfo}
+          showDetailedMediaInfo={isMediaInfoOpen}
           showChapters={showChapters}
           onShowMediaInfo={() => {
             setIsPlaylistOpen(false);
             setShowChapters(false);
-            setShowDetailedMediaInfo(false);
             setShowMediaInfo(true);
           }}
           onToggleMediaInfo={() => {
             setIsPlaylistOpen(false);
             setShowChapters(false);
-            setShowDetailedMediaInfo(false);
             setShowMediaInfo((v) => !v);
           }}
           onToggleDetailedMediaInfo={() => {
             setIsPlaylistOpen(false);
             setShowChapters(false);
             setShowMediaInfo(false);
-            setShowDetailedMediaInfo((v) => !v);
+            invoke("toggle_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
           }}
           onCloseChapters={() => setShowChapters(false)}
         />
@@ -909,7 +915,6 @@ function App() {
           onShowMediaInfo={() => {
             setIsPlaylistOpen(false);
             setShowChapters(false);
-            setShowDetailedMediaInfo(false);
             setShowMediaInfo(true);
             closeContextMenu();
           }}
@@ -917,20 +922,18 @@ function App() {
             setIsPlaylistOpen(false);
             setShowChapters(false);
             setShowMediaInfo(false);
-            setShowDetailedMediaInfo(true);
+            invoke("open_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
             closeContextMenu();
           }}
           onShowChapters={() => {
             setIsPlaylistOpen(false);
             setShowMediaInfo(false);
-            setShowDetailedMediaInfo(false);
             setShowChapters(true);
             closeContextMenu();
           }}
           onShowSettings={() => {
             setIsPlaylistOpen(false);
             setShowMediaInfo(false);
-            setShowDetailedMediaInfo(false);
             setShowSettings(true);
             closeContextMenu();
           }}
@@ -942,11 +945,6 @@ function App() {
           onClose={() => setShowMediaInfo(false)}
         />
       )}
-
-      <DetailedMediaInfoModal
-        isOpen={showDetailedMediaInfo}
-        onClose={() => setShowDetailedMediaInfo(false)}
-      />
 
       {showChapters && (
         <ChaptersModal

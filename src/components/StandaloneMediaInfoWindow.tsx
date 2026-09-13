@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen, emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   FileText,
@@ -15,6 +15,7 @@ import {
   Minus,
   Square,
   RefreshCw,
+  Pin,
 } from "lucide-react";
 import { parseMediaInfoLines } from "../utils/mediaInfoParser";
 import "../styles/mediainfo-modal.css";
@@ -43,6 +44,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   const [copied, setCopied] = useState<boolean>(false);
   const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
+  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState<boolean>(true);
 
   const bodyRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -101,6 +103,9 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
       if (event.payload) {
         loadMediaInfoForPath(event.payload);
       }
+    }).catch((e) => {
+      console.error("Ошибка подписки load-mediainfo-path:", e);
+      return () => {};
     });
 
     // 3. Отслеживание изменения статуса развёрнутого окна
@@ -113,17 +118,37 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     };
     updateMaximizedState();
 
-    const unlistenResize = appWindow.onResized(() => {
-      updateMaximizedState();
-    });
+    const unlistenResizePromise = appWindow
+      .onResized(() => {
+        updateMaximizedState();
+      })
+      .catch(() => () => {});
+
+    // 4. Оповещение при закрытии окна
+    const unlistenClosePromise = appWindow
+      .onCloseRequested(async () => {
+        await emit("mediainfo-window-closed").catch(() => {});
+      })
+      .catch(() => () => {});
 
     return () => {
-      unlistenPromise.then((unlisten) => unlisten());
-      unlistenResize.then((unlisten) => unlisten());
+      unlistenPromise.then((unlisten) => unlisten && unlisten()).catch(() => {});
+      unlistenResizePromise.then((unlisten) => unlisten && unlisten()).catch(() => {});
+      unlistenClosePromise.then((unlisten) => unlisten && unlisten()).catch(() => {});
     };
   }, [appWindow, loadMediaInfoForPath]);
 
   // Управление окном
+  const handleToggleAlwaysOnTop = useCallback(async () => {
+    try {
+      const next = !isAlwaysOnTop;
+      await appWindow.setAlwaysOnTop(next);
+      setIsAlwaysOnTop(next);
+    } catch (e) {
+      console.error("Ошибка переключения закрепления окна:", e);
+    }
+  }, [appWindow, isAlwaysOnTop]);
+
   const handleMinimize = useCallback(() => {
     appWindow.minimize();
   }, [appWindow]);
@@ -145,7 +170,12 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
 
   const handleClose = useCallback(async () => {
     try {
-      await appWindow.close();
+      await emit("mediainfo-window-closed").catch(() => {});
+      await appWindow.hide();
+      const isStandalone = await invoke<boolean>("is_standalone_mode").catch(() => false);
+      if (isStandalone) {
+        await appWindow.close();
+      }
     } catch (e) {
       console.error("Ошибка закрытия окна MediaInfo:", e);
     }
@@ -296,6 +326,14 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
         </div>
 
         <div className="mediainfo-standalone__window-controls">
+          <button
+            type="button"
+            className={`mediainfo-standalone__control-btn ${isAlwaysOnTop ? "mediainfo-standalone__control-btn--active" : ""}`}
+            title={isAlwaysOnTop ? "Открепить от верха окон" : "Закрепить поверх всех окон"}
+            onClick={handleToggleAlwaysOnTop}
+          >
+            <Pin size={13} style={{ transform: isAlwaysOnTop ? "rotate(45deg)" : "none", color: isAlwaysOnTop ? "var(--accent)" : "inherit" }} />
+          </button>
           <button
             type="button"
             className="mediainfo-standalone__control-btn"
