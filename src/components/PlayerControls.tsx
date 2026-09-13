@@ -28,9 +28,17 @@ import {
   Loader2,
   FastForward,
   FileText,
+  AudioWaveform,
 } from "lucide-react";
 import { formatTime } from "../utils/timeUtils";
 import { Timeline } from "./Timeline";
+import {
+  AudioVisualizer,
+  getVisualizerConfig,
+  saveVisualizerConfig,
+  VisualizerConfig,
+  VisualizerMode,
+} from "./AudioVisualizer";
 import { getCustomHotkeys } from "../utils/hotkeyUtils";
 
 
@@ -112,12 +120,15 @@ export function PlayerControls({
       alwaysOnTop: true,
       info: true,
       mediaInfo: true,
+      visualizer: true,
       screenshot: true,
       playlist: true,
       fullscreen: true,
       skipOpening: false
     };
   });
+
+  const [visualizerConfig, setVisualizerConfig] = useState<VisualizerConfig>(() => getVisualizerConfig());
 
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => {
     return Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90);
@@ -131,6 +142,7 @@ export function PlayerControls({
       setShowTrackNames(saved !== null ? saved === 'true' : true);
       const savedBtns = localStorage.getItem('l-mpv-visible-buttons');
       if (savedBtns) setVisibleButtons(JSON.parse(savedBtns));
+      setVisualizerConfig(getVisualizerConfig());
       setSkipOpeningSeconds(Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
       setHotkeys(getCustomHotkeys());
     };
@@ -498,12 +510,15 @@ export function PlayerControls({
           </div>
         )}
 
+        {/* Аудио-визуалайзер над таймлайном */}
+        <AudioVisualizer placement="above_timeline" />
+
         {/* Таймлайн */}
         <Timeline />
 
         {/* Кнопки управления */}
         <div className="controls-row">
-          {/* Левый блок: Аудио, Субтитры, Громкость, Время */}
+          {/* Левый блок: Аудио, Субтитры, Громкость, Время, Визуалайзер */}
           <div className="controls-row__left">
             <button
               className={`control-btn ${activePopover === "audio" ? "control-btn--active" : ""} ${
@@ -598,6 +613,9 @@ export function PlayerControls({
             </div>
             
             <TimeDisplay />
+
+            {/* Компактный аудио-визуалайзер в тулбаре */}
+            <AudioVisualizer placement="toolbar" />
           </div>
 
           {/* Центральный блок: Пред. видео, -10с, Play/Pause, +10с, Сл. видео */}
@@ -732,6 +750,31 @@ export function PlayerControls({
                 }}
               >
                 <FileText size={18} />
+              </button>
+            )}
+
+            {visibleButtons.visualizer !== false && (
+              <button
+                className={`control-btn control-btn--priority-low ${
+                  visualizerConfig.enabled ? "control-btn--active" : ""
+                }`}
+                id="btn-visualizer"
+                title={`Аудио-визуалайзер: ${visualizerConfig.enabled ? "Вкл" : "Выкл"} (ПКМ: переключить стиль)`}
+                onClick={() => {
+                  const updated = { ...visualizerConfig, enabled: !visualizerConfig.enabled };
+                  setVisualizerConfig(updated);
+                  saveVisualizerConfig(updated);
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  const modes: VisualizerMode[] = ["waveform", "spectrum", "bars"];
+                  const nextIndex = (modes.indexOf(visualizerConfig.mode) + 1) % modes.length;
+                  const updated = { ...visualizerConfig, mode: modes[nextIndex], enabled: true };
+                  setVisualizerConfig(updated);
+                  saveVisualizerConfig(updated);
+                }}
+              >
+                <AudioWaveform size={18} />
               </button>
             )}
 

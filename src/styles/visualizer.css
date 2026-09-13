@@ -1,0 +1,59 @@
+/* ─── Аудио-визуалайзер L-MPV (Visualizer Engine) ────────── */
+
+.audio-visualizer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.audio-visualizer__canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ─── Вариант 1: Полоса над таймлайном ─────────────────────── */
+.audio-visualizer--above_timeline {
+  width: 100%;
+  margin-bottom: 2px;
+  pointer-events: none; /* Прозрачен для кликов мыши, чтобы не блокировать таймлайн */
+  border-radius: var(--radius-sm, 6px);
+  opacity: 0.92;
+  transition: opacity var(--t-base) var(--ease-smooth),
+              transform var(--t-base) var(--ease-smooth);
+}
+
+/* Приглушение при активном наведении на таймлайн для максимальной читаемости превью */
+.player-controls:has(.timeline:hover) .audio-visualizer--above_timeline {
+  opacity: 0.65;
+}
+
+/* ─── Вариант 2: Компактный виджет в тулбаре ──────────────── */
+.audio-visualizer--toolbar {
+  width: 80px;
+  min-width: 64px;
+  max-width: 100px;
+  height: 24px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.audio-visualizer--toolbar:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 10px var(--accent-glow, rgba(127, 199, 255, 0.2));
+  transform: translateY(-1px);
+}
+
+.audio-visualizer--toolbar:active {
+  transform: scale(0.96);
+}

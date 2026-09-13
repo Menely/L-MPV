@@ -4,6 +4,7 @@
 //! и регистрирует все IPC-команды для фронтенда.
 
 mod ambient;
+mod audio_capture;
 mod commands;
 mod mediainfo;
 mod mpv_manager;
@@ -109,10 +110,12 @@ pub fn run() {
     ));
 
     let cli_initial = parse_cli_args(std::env::args());
+    let audio_capture = Arc::new(crate::audio_capture::AudioCaptureManager::new());
     let player_state = commands::PlayerState {
         mpv: mpv_arc,
         ambient_controller,
         startup_open_mediainfo: std::sync::atomic::AtomicBool::new(cli_initial.open_mediainfo),
+        audio_capture,
     };
 
     println!("[L-MPV] Инициализация Tauri Builder...");
@@ -229,6 +232,9 @@ pub fn run() {
             updater::check_launch_and_update,
             updater::check_for_updates,
             updater::download_and_install_update,
+            // Аудио-визуализатор
+            commands::get_audio_spectrum,
+            commands::set_visualizer_active,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {

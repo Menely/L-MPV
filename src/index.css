@@ -34,3 +34,7 @@
 
 /* 11. Глобальная адаптивность (media queries) */
 @import './styles/responsive.css';
+
+/* 12. Аудио-визуалайзер */
+@import './styles/visualizer.css';
+

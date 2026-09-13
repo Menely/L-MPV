@@ -81,6 +81,7 @@ import {
 } from "../utils/colorUtils";
 import { UpdateInfo } from "./UpdateModal";
 import { ColorPickerModal } from "./ColorPickerModal";
+import { VisualizerSettingsSection } from "./VisualizerSettingsSection";
 
 interface AmbientSettings {
   mode: "off" | "blur" | "color";
@@ -93,7 +94,7 @@ interface SettingsModalProps {
   onShowUpdate?: (info: UpdateInfo) => void;
 }
 
-interface AccordionSectionProps {
+export interface AccordionSectionProps {
   isOpen: boolean;
   onToggle: () => void;
   icon: React.ReactNode;
@@ -102,7 +103,7 @@ interface AccordionSectionProps {
   children: React.ReactNode;
 }
 
-function AccordionSection({
+export function AccordionSection({
   isOpen,
   onToggle,
   icon,
@@ -1060,7 +1061,13 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 </label>
               </AccordionSection>
 
-              {/* 5. Видимость кнопок панели управления */}
+              {/* 5. Аудио-визуалайзер на панели управления */}
+              <VisualizerSettingsSection
+                isOpen={!!openSections["app_visualizer"]}
+                onToggle={() => toggleSection("app_visualizer")}
+              />
+
+              {/* 6. Видимость кнопок панели управления */}
               <AccordionSection
                 isOpen={!!openSections["app_control_buttons"]}
                 onToggle={() => toggleSection("app_control_buttons")}
@@ -1074,6 +1081,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     { id: 'alwaysOnTop', label: 'Поверх всех окон', defaultChecked: true },
                     { id: 'info', label: 'Информация о файле', defaultChecked: true },
                     { id: 'mediaInfo', label: 'Свойства MediaInfo (Shift+F10)', defaultChecked: true },
+                    { id: 'visualizer', label: 'Аудио-визуалайзер', defaultChecked: true },
                     { id: 'screenshot', label: 'Сделать скриншот', defaultChecked: true },
                     { id: 'playlist', label: 'Плейлист', defaultChecked: true },
                     { id: 'fullscreen', label: 'Полный экран', defaultChecked: true },

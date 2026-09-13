@@ -60,6 +60,8 @@ pub struct PlayerState {
     pub ambient_controller: Arc<crate::ambient::AmbientController>,
     /// Флаг открытия окна MediaInfo при холодном старте приложения (CLI-флаг --mediainfo).
     pub startup_open_mediainfo: std::sync::atomic::AtomicBool,
+    /// Менеджер захвата аудио и вычисления частотного спектра для визуализатора.
+    pub audio_capture: Arc<crate::audio_capture::AudioCaptureManager>,
 }
 
 /// Информация о текущем медиафайле.
@@ -2226,3 +2228,15 @@ pub async fn extract_track(
     Ok(effective_target_path)
 }
 
+/// Получение текущего спектра частот (32 логарифмические полосы) для аудио-визуализатора.
+#[tauri::command]
+pub fn get_audio_spectrum(state: State<'_, PlayerState>) -> [f32; 32] {
+    state.audio_capture.get_spectrum()
+}
+
+/// Включение/выключение активного захвата аудио-потока для визуализатора.
+/// При выключении поток переходит в режим сна (0% нагрузки на CPU).
+#[tauri::command]
+pub fn set_visualizer_active(state: State<'_, PlayerState>, active: bool) {
+    state.audio_capture.set_active(active);
+}
