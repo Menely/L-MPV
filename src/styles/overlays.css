@@ -89,6 +89,23 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs, 4px);
+  margin: 0 -6px;
+  transition: background var(--t-fast) var(--ease-smooth);
+}
+
+.media-info__row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.media-info__row:hover .media-info__label {
+  color: #ffffff;
+}
+
+.media-info__row:hover .media-info__value {
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--accent-glow);
 }
 
 .media-info__label {
@@ -96,6 +113,7 @@
   font-weight: 400;
   flex-shrink: 0;
   line-height: 1.4;
+  transition: color var(--t-fast) var(--ease-smooth);
 }
 
 .media-info__value {
@@ -106,6 +124,7 @@
   overflow-wrap: anywhere;
   word-break: break-word;
   line-height: 1.4;
+  transition: color var(--t-fast) var(--ease-smooth), text-shadow var(--t-fast) var(--ease-smooth);
 }
 
 .media-info__value--filename {

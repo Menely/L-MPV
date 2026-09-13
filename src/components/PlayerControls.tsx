@@ -721,7 +721,6 @@ export function PlayerControls({
               <button
                 className={`control-btn control-btn--priority-low ${showMediaInfo ? "control-btn--active" : ""}`}
                 id="btn-file-info"
-                title="Информация о файле (I)"
                 onClick={() => {
                   setActivePopover(null);
                   if (onCloseChapters) onCloseChapters();
@@ -759,7 +758,6 @@ export function PlayerControls({
                   visualizerConfig.enabled ? "control-btn--active" : ""
                 }`}
                 id="btn-visualizer"
-                title={`Аудио-визуалайзер: ${visualizerConfig.enabled ? "Вкл" : "Выкл"} (ПКМ: переключить стиль)`}
                 onClick={() => {
                   const updated = { ...visualizerConfig, enabled: !visualizerConfig.enabled };
                   setVisualizerConfig(updated);
