@@ -58,18 +58,12 @@ jobs:
             (Get-Content src-tauri/Cargo.toml) -replace '^version = ".*?"', "version = `"$ver`"" | Set-Content src-tauri/Cargo.toml
           }
 
-      - name: Сборка и публикация релиза Tauri
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: v__VERSION__
-          releaseName: 'L-MPV v__VERSION__'
-          releaseBody: 'Автоматический релиз медиаплеера L-MPV на базе libmpv.'
-          releaseDraft: false
-          prerelease: false
+      - name: Сборка портативного l-mpv.exe
+        shell: pwsh
+        run: |
+          npm run tauri build -- --no-bundle
 
-      - name: Публикация чистого портативного l-mpv.exe в релиз
+      - name: Публикация портативного релиза в GitHub Releases
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
@@ -77,8 +71,7 @@ jobs:
             $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
             $tag = "v$ver"
           }
-          Write-Host "Загрузка автономного портативного файла l-mpv.exe в релиз $tag..."
-          gh release upload $tag "src-tauri/target/release/l-mpv.exe#l-mpv.exe" --clobber
+          Write-Host "Публикация автономного файла l-mpv.exe в релиз $tag..."
+          gh release create $tag "src-tauri/target/release/l-mpv.exe#l-mpv.exe" --title "L-MPV $tag" --notes "Автоматический портативный релиз медиаплеера L-MPV на базе libmpv." --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
