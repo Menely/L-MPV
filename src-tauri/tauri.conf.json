@@ -44,8 +44,8 @@
     }
   },
   "bundle": {
-    "active": false,
-    "targets": [],
+    "active": true,
+    "targets": ["nsis"],
     "windows": {
       "nsis": {
         "installerHooks": "nsis/installer_hooks.nsh"
