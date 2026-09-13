@@ -43,6 +43,9 @@ jobs:
           Write-Host "Распаковка в корень..."
           Expand-Archive -Path mpv_libs.zip -DestinationPath ./ -Force
           Remove-Item mpv_libs.zip -Force
+          if (Test-Path "mediainfo.dll") {
+            Copy-Item -Path "mediainfo.dll" -Destination "src-tauri/mediainfo.dll" -Force
+          }
 
       - name: Синхронизация версии из Git-тега в package.json и Cargo.toml
         shell: pwsh
