@@ -185,6 +185,104 @@
   border-radius: 2px;
 }
 
+/* ─── Универсальные секции и категории MediaInfo ──── */
+.mediainfo-section {
+  margin-bottom: 12px;
+}
+
+.mediainfo-section:last-child {
+  margin-bottom: 0;
+}
+
+.mediainfo-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  margin-bottom: 5px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.mediainfo-section:first-child .mediainfo-section__header {
+  margin-top: 0;
+}
+
+.mediainfo-section__title {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.2px;
+}
+
+.mediainfo-section__copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius-xs, 4px);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 150ms ease;
+  user-select: none;
+}
+
+.mediainfo-section__copy-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: var(--border-pill);
+}
+
+.mediainfo-section__copy-btn--copied {
+  background: rgba(74, 222, 128, 0.16) !important;
+  color: #4ade80 !important;
+  border-color: rgba(74, 222, 128, 0.4) !important;
+}
+
+/* ─── Строка свойства: выравнивание колонок без лишних пробелов в тексте ──── */
+.mediainfo-row {
+  display: flex;
+  align-items: baseline;
+  line-height: 1.5;
+  font-family: Consolas, "Cascadia Code", "Courier New", monospace;
+  font-size: 12px;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.mediainfo-row__key {
+  width: clamp(190px, 46%, 270px);
+  min-width: 190px;
+  flex-shrink: 0;
+  color: #cbd5e1;
+  word-break: break-word;
+}
+
+.mediainfo-row__colon {
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.mediainfo-row__val {
+  flex: 1;
+  color: #f8fafc;
+  word-break: break-word;
+}
+
+.mediainfo-row--match {
+  background: rgba(255, 220, 100, 0.25);
+  color: #fff;
+  border-radius: 2px;
+}
+
 .mediainfo-floating-window__loading,
 .mediainfo-floating-window__error {
   display: flex;

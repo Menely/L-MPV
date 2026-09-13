@@ -41,6 +41,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   const [useRussian, setUseRussian] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
+  const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
 
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -173,51 +174,73 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     };
   }, [searchQuery, handleClose]);
 
-  // Парсинг и форматирование строк с переводом
+  // Парсинг и структурирование отчёта по секциям
   const baseReport = useMemo(() => {
-    if (!data?.text) return { rawText: "", lines: [] };
+    if (!data?.text) return { rawText: "", cleanText: "", lines: [], sections: [] };
     return parseMediaInfoLines(data.text, useRussian);
   }, [data?.text, useRussian]);
 
-  // Фильтрация и подсветка поиска
-  const displayLines = useMemo(() => {
+  // Фильтрация и подсветка поиска по свойствам категорий
+  const displaySections = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) {
-      return baseReport.lines.map((l) => ({ ...l, isMatch: false }));
+      return baseReport.sections.map((sec) => ({
+        ...sec,
+        rows: sec.rows.map((r) => ({ ...r, isMatch: false })),
+      }));
     }
-    return baseReport.lines.map((l) => ({
-      ...l,
-      isMatch: !!l.text && l.text.toLowerCase().includes(q),
+    return baseReport.sections.map((sec) => ({
+      ...sec,
+      rows: sec.rows.map((r) => ({
+        ...r,
+        isMatch:
+          (!!r.key && r.key.toLowerCase().includes(q)) ||
+          (!!r.value && r.value.toLowerCase().includes(q)),
+      })),
     }));
-  }, [baseReport.lines, searchQuery]);
+  }, [baseReport.sections, searchQuery]);
 
   // Автопрокрутка к первому совпадению при вводе запроса
   useEffect(() => {
     if (!searchQuery.trim() || !bodyRef.current) return;
-    const firstMatch = bodyRef.current.querySelector(".mediainfo-standalone__line--match");
+    const firstMatch = bodyRef.current.querySelector(".mediainfo-row--match");
     if (firstMatch) {
       firstMatch.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }, [searchQuery]);
 
-  // Копирование отчёта в буфер обмена
+  // Копирование полного отчёта в буфер обмена без лишних пробелов перед двоеточием
   const handleCopy = useCallback(async () => {
-    if (!baseReport.rawText) return;
+    const textToCopy = baseReport.cleanText || baseReport.rawText;
+    if (!textToCopy) return;
     try {
-      await navigator.clipboard.writeText(baseReport.rawText);
+      await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (e) {
       console.error("Ошибка копирования в буфер обмена:", e);
     }
-  }, [baseReport.rawText]);
+  }, [baseReport.cleanText, baseReport.rawText]);
 
-  // Экспорт отчёта в .txt
+  // Копирование отдельной категории в буфер обмена
+  const handleCopySection = useCallback(async (sectionTitle: string, sectionCleanText: string) => {
+    if (!sectionCleanText) return;
+    try {
+      await navigator.clipboard.writeText(sectionCleanText);
+      setCopiedSectionId(sectionTitle);
+      setTimeout(() => setCopiedSectionId(null), 2000);
+    } catch (e) {
+      console.error("Ошибка копирования категории:", e);
+    }
+  }, []);
+
+  // Экспорт отчёта в .txt без лишних пробелов
   const handleExportTxt = useCallback(() => {
-    if (!baseReport.rawText) return;
+    const textToExport = baseReport.cleanText || baseReport.rawText;
+    if (!textToExport) return;
     try {
       const name = fileName ? `${fileName}.mediainfo.txt` : "mediainfo.txt";
-      const blob = new Blob([baseReport.rawText], { type: "text/plain;charset=utf-8" });
+      const blob = new Blob([textToExport], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -229,13 +252,19 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     } catch (e) {
       console.error("Ошибка экспорта в текстовый файл:", e);
     }
-  }, [baseReport.rawText, fileName]);
+  }, [baseReport.cleanText, baseReport.rawText, fileName]);
 
   // Количество совпадений поиска
   const matchCount = useMemo(() => {
     if (!searchQuery.trim()) return 0;
-    return displayLines.filter((l) => l.isMatch).length;
-  }, [searchQuery, displayLines]);
+    let count = 0;
+    for (const sec of displaySections) {
+      for (const r of sec.rows) {
+        if (r.isMatch) count++;
+      }
+    }
+    return count;
+  }, [searchQuery, displaySections]);
 
   return (
     <div className="mediainfo-standalone">
@@ -387,26 +416,46 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
 
         {!loading && !error && data && (
           <div className="mediainfo-standalone__content">
-            {displayLines.map((line) => {
-              if (line.isSection) {
-                return (
-                  <div key={line.id} className="mediainfo-standalone__section-header">
-                    {line.text}
-                  </div>
-                );
-              }
-              if (!line.text) {
-                return <div key={line.id} className="mediainfo-standalone__empty-line" />;
-              }
-              return (
-                <div
-                  key={line.id}
-                  className={`mediainfo-standalone__line ${line.isMatch ? "mediainfo-standalone__line--match" : ""}`}
-                >
-                  {line.text}
+            {displaySections.map((section) => (
+              <div key={section.id} className="mediainfo-section">
+                <div className="mediainfo-section__header">
+                  <span className="mediainfo-section__title">{section.title}</span>
+                  <button
+                    type="button"
+                    className={`mediainfo-section__copy-btn ${
+                      copiedSectionId === section.title ? "mediainfo-section__copy-btn--copied" : ""
+                    }`}
+                    title={`Скопировать категорию «${section.title}»`}
+                    onClick={() => handleCopySection(section.title, section.cleanText)}
+                  >
+                    {copiedSectionId === section.title ? (
+                      <>
+                        <Check size={12} color="#4ade80" />
+                        <span>Скопировано</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={12} />
+                        <span>Копировать</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-              );
-            })}
+
+                <div className="mediainfo-section__rows">
+                  {section.rows.map((row) => (
+                    <div
+                      key={row.id}
+                      className={`mediainfo-row ${row.isMatch ? "mediainfo-row--match" : ""}`}
+                    >
+                      <span className="mediainfo-row__key">{row.key}</span>
+                      <span className="mediainfo-row__colon">:</span>
+                      <span className="mediainfo-row__val">{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

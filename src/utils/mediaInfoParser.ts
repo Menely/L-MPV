@@ -165,24 +165,46 @@ export function translateValue(val: string): string {
     .replace(/(\d+)\.(\d+)(?=\s*(?:Гбайт|Мбайт|Кбайт|кГц|Гц|кадра\/сек|кадров\/сек|\(24000\/1001\)))/g, "$1,$2");
 }
 
+export interface ParsedMediaInfoRow {
+  id: number;
+  key: string;
+  value: string;
+  cleanText: string;
+  displayText: string;
+}
+
+export interface ParsedMediaInfoSection {
+  id: string;
+  title: string;
+  rows: ParsedMediaInfoRow[];
+  cleanText: string;
+}
+
 export interface ParsedMediaInfoLine {
   id: number;
   text: string;
   isSection: boolean;
+  cleanText?: string;
 }
 
 export interface ParsedMediaInfoReport {
   rawText: string;
+  cleanText: string;
   lines: ParsedMediaInfoLine[];
+  sections: ParsedMediaInfoSection[];
 }
 
-/** Парсинг и форматирование строк отчёта MediaInfo */
+/** Парсинг и структурирование строк отчёта MediaInfo */
 export function parseMediaInfoLines(rawText: string, useRussian: boolean): ParsedMediaInfoReport {
-  if (!rawText) return { rawText: "", lines: [] };
+  if (!rawText) return { rawText: "", cleanText: "", lines: [], sections: [] };
 
   const rawLines = rawText.split("\n");
   const linesOut: ParsedMediaInfoLine[] = [];
   const textOut: string[] = [];
+  const sections: ParsedMediaInfoSection[] = [];
+
+  let currentSection: ParsedMediaInfoSection | null = null;
+  let rowIdCounter = 0;
 
   for (let i = 0; i < rawLines.length; i++) {
     const line = rawLines[i].replace(/\r$/, "");
@@ -193,7 +215,7 @@ export function parseMediaInfoLines(rawText: string, useRussian: boolean): Parse
     const colonIdx = line.indexOf(":");
     if (colonIdx === -1) {
       if (!trimmed) {
-        linesOut.push({ id: i, text: "", isSection: false });
+        linesOut.push({ id: i, text: "", isSection: false, cleanText: "" });
         textOut.push("");
         continue;
       }
@@ -206,7 +228,16 @@ export function parseMediaInfoLines(rawText: string, useRussian: boolean): Parse
           sectionName = match[2] ? `${base}${match[2]}` : base;
         }
       }
-      linesOut.push({ id: i, text: sectionName, isSection: true });
+
+      currentSection = {
+        id: `sec-${sections.length}-${sectionName}`,
+        title: sectionName,
+        rows: [],
+        cleanText: "",
+      };
+      sections.push(currentSection);
+
+      linesOut.push({ id: i, text: sectionName, isSection: true, cleanText: sectionName });
       textOut.push(sectionName);
     } else {
       const rawKey = line.substring(0, colonIdx).trim();
@@ -215,15 +246,49 @@ export function parseMediaInfoLines(rawText: string, useRussian: boolean): Parse
 
       const key = useRussian ? KEY_TRANSLATIONS[rawKey] || rawKey : rawKey;
       const val = useRussian ? translateValue(rawVal) : rawVal;
-      const formattedLine = `${key.padEnd(38)} : ${val}`;
 
-      linesOut.push({ id: i, text: formattedLine, isSection: false });
+      const formattedLine = `${key.padEnd(38)} : ${val}`;
+      const cleanLine = val ? `${key}: ${val}` : key;
+
+      if (!currentSection) {
+        const defaultTitle = useRussian ? "Общее" : "General";
+        currentSection = {
+          id: `sec-0-${defaultTitle}`,
+          title: defaultTitle,
+          rows: [],
+          cleanText: "",
+        };
+        sections.push(currentSection);
+      }
+
+      currentSection.rows.push({
+        id: rowIdCounter++,
+        key,
+        value: val,
+        cleanText: cleanLine,
+        displayText: formattedLine,
+      });
+
+      linesOut.push({ id: i, text: formattedLine, isSection: false, cleanText: cleanLine });
       textOut.push(formattedLine);
     }
   }
 
+  // Формирование структурированного чистого текста для каждой категории
+  for (const sec of sections) {
+    const secLines = [sec.title];
+    for (const r of sec.rows) {
+      if (r.cleanText) {
+        secLines.push(r.cleanText);
+      }
+    }
+    sec.cleanText = secLines.join("\n");
+  }
+
   return {
     rawText: textOut.join("\n"),
+    cleanText: sections.map((s) => s.cleanText).join("\n\n"),
     lines: linesOut,
+    sections,
   };
 }
