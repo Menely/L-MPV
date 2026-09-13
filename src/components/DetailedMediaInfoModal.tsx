@@ -41,6 +41,7 @@ export function DetailedMediaInfoModal({
   const [useRussian, setUseRussian] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
+  const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -91,7 +92,6 @@ export function DetailedMediaInfoModal({
     if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("input")) {
       return;
     }
-    e.preventDefault();
 
     const modalEl = modalRef.current;
     if (!modalEl) return;
@@ -191,56 +191,84 @@ export function DetailedMediaInfoModal({
     };
   }, [isOpen, onClose, searchQuery]);
 
-  // Базовый парсинг и перевод отчёта (только при смене данных или языка)
+  // Базовый парсинг и структурирование отчёта по секциям
   const baseReport = useMemo(() => {
-    if (!data?.text) return { rawText: "", lines: [] };
+    if (!data?.text) return { rawText: "", cleanText: "", lines: [], sections: [] };
     return parseMediaInfoLines(data.text, useRussian);
   }, [data?.text, useRussian]);
 
-  // Подсветка фильтрации поиска (быстрая маппинг-операция без повторного перевода)
-  const displayLines = useMemo(() => {
+  // Фильтрация и подсветка поиска по свойствам категорий
+  const displaySections = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) {
-      return baseReport.lines.map((l) => ({ ...l, isMatch: false }));
+      return baseReport.sections.map((sec) => ({
+        ...sec,
+        rows: sec.rows.map((r) => ({ ...r, isMatch: false })),
+      }));
     }
-    return baseReport.lines.map((l) => ({
-      ...l,
-      isMatch: !!l.text && l.text.toLowerCase().includes(q),
+    return baseReport.sections.map((sec) => ({
+      ...sec,
+      rows: sec.rows.map((r) => ({
+        ...r,
+        isMatch:
+          (!!r.key && r.key.toLowerCase().includes(q)) ||
+          (!!r.value && r.value.toLowerCase().includes(q)),
+      })),
     }));
-  }, [baseReport.lines, searchQuery]);
+  }, [baseReport.sections, searchQuery]);
+
 
   // Автопрокрутка к первому совпадению при поиске
   useEffect(() => {
     if (!searchQuery.trim() || !bodyRef.current) return;
-    const firstMatch = bodyRef.current.querySelector(".mediainfo-floating-window__line--match");
+    const firstMatch = bodyRef.current.querySelector(".mediainfo-row--match, .mediainfo-floating-window__line--match");
     if (firstMatch) {
       firstMatch.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }, [searchQuery]);
 
-  // Копирование полного отчёта в буфер обмена
+  // Копирование полного отчёта без пробелов перед двоеточием
   const handleCopy = useCallback(async () => {
-    if (!baseReport.rawText) return;
+    const textToCopy = baseReport.cleanText || baseReport.rawText;
+    if (!textToCopy) return;
     try {
-      await navigator.clipboard.writeText(baseReport.rawText);
+      await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       window.dispatchEvent(
         new CustomEvent("show-osd", {
-          detail: "Отчёт MediaInfo скопирован в буфер обмена",
+          detail: "Полный отчёт MediaInfo скопирован в буфер",
         })
       );
       setTimeout(() => setCopied(false), 2000);
     } catch (e) {
       console.error("Ошибка копирования в буфер:", e);
     }
-  }, [baseReport.rawText]);
+  }, [baseReport.cleanText, baseReport.rawText]);
 
-  // Экспорт отчёта в файл .txt
+  // Копирование конкретной категории без лишних пробелов
+  const handleCopySection = useCallback(async (sectionTitle: string, sectionCleanText: string) => {
+    if (!sectionCleanText) return;
+    try {
+      await navigator.clipboard.writeText(sectionCleanText);
+      setCopiedSectionId(sectionTitle);
+      window.dispatchEvent(
+        new CustomEvent("show-osd", {
+          detail: `Категория «${sectionTitle}» скопирована в буфер`,
+        })
+      );
+      setTimeout(() => setCopiedSectionId(null), 2000);
+    } catch (e) {
+      console.error("Ошибка копирования категории:", e);
+    }
+  }, []);
+
+  // Экспорт полного отчёта в файл .txt без лишних пробелов
   const handleExportTxt = useCallback(() => {
-    if (!baseReport.rawText) return;
+    const textToExport = baseReport.cleanText || baseReport.rawText;
+    if (!textToExport) return;
     try {
       const filename = currentPath ? currentPath.split(/[/\\]/).pop() || "media" : "media";
-      const blob = new Blob([baseReport.rawText], { type: "text/plain;charset=utf-8" });
+      const blob = new Blob([textToExport], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -257,13 +285,19 @@ export function DetailedMediaInfoModal({
     } catch (e) {
       console.error("Ошибка экспорта MediaInfo в файл:", e);
     }
-  }, [baseReport.rawText, currentPath]);
+  }, [baseReport.cleanText, baseReport.rawText, currentPath]);
 
   // Количество совпадений поиска
   const matchCount = useMemo(() => {
     if (!searchQuery.trim()) return 0;
-    return displayLines.filter((l) => l.isMatch).length;
-  }, [searchQuery, displayLines]);
+    let count = 0;
+    for (const sec of displaySections) {
+      for (const r of sec.rows) {
+        if (r.isMatch) count++;
+      }
+    }
+    return count;
+  }, [searchQuery, displaySections]);
 
   if (!isOpen) return null;
 
@@ -387,16 +421,46 @@ export function DetailedMediaInfoModal({
         )}
 
         {!loading && !error && data && (
-          <div>
-            {displayLines.map((line) => (
-              <span
-                key={line.id}
-                className={`mediainfo-floating-window__line ${
-                  line.isSection ? "mediainfo-floating-window__line--section" : ""
-                } ${line.isMatch ? "mediainfo-floating-window__line--match" : ""}`}
-              >
-                {line.text || " "}
-              </span>
+          <div className="mediainfo-floating-window__content">
+            {displaySections.map((section) => (
+              <div key={section.id} className="mediainfo-section">
+                <div className="mediainfo-section__header">
+                  <span className="mediainfo-section__title">{section.title}</span>
+                  <button
+                    type="button"
+                    className={`mediainfo-section__copy-btn ${
+                      copiedSectionId === section.title ? "mediainfo-section__copy-btn--copied" : ""
+                    }`}
+                    title={`Скопировать категорию «${section.title}»`}
+                    onClick={() => handleCopySection(section.title, section.cleanText)}
+                  >
+                    {copiedSectionId === section.title ? (
+                      <>
+                        <Check size={12} color="#4ade80" />
+                        <span>Скопировано</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={12} />
+                        <span>Копировать</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="mediainfo-section__rows">
+                  {section.rows.map((row) => (
+                    <div
+                      key={row.id}
+                      className={`mediainfo-row ${row.isMatch ? "mediainfo-row--match" : ""}`}
+                    >
+                      <span className="mediainfo-row__key">{row.key}</span>
+                      <span className="mediainfo-row__colon">:</span>
+                      <span className="mediainfo-row__val">{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
