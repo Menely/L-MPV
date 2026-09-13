@@ -16,6 +16,7 @@ import { Titlebar } from "./components/Titlebar";
 import { PlayerControls } from "./components/PlayerControls";
 import { ContextMenu } from "./components/ContextMenu";
 import { MediaInfoModal } from "./components/MediaInfoModal";
+import { DetailedMediaInfoModal } from "./components/DetailedMediaInfoModal";
 import { ChaptersModal } from "./components/ChaptersModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { PlaylistDrawer } from "./components/PlaylistDrawer";
@@ -45,6 +46,7 @@ function App() {
   } | null>(null);
 
   const [showMediaInfo, setShowMediaInfo] = useState(false);
+  const [showDetailedMediaInfo, setShowDetailedMediaInfo] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
@@ -74,6 +76,7 @@ function App() {
     if (isPlaylistOpen) {
       setShowChapters(false);
       setShowMediaInfo(false);
+      setShowDetailedMediaInfo(false);
       setShowSettings(false);
     }
   }, [isPlaylistOpen]);
@@ -116,6 +119,8 @@ function App() {
       });
   }, []);
 
+  const isStandaloneModeRef = useRef(false);
+
   useEffect(() => {
     const handleOsd = (e: Event) => {
       const text = (e as CustomEvent).detail;
@@ -130,12 +135,23 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const unlisten = listen<string>('open-file-cli', (event) => {
+    invoke<boolean>("is_standalone_mode")
+      .then((isStandalone) => {
+        isStandaloneModeRef.current = isStandalone;
+      })
+      .catch(console.error);
+
+    const unlistenFile = listen<string>('open-file-cli', (event) => {
       invoke("open_file", { path: event.payload }).catch(console.error);
     });
 
+    const unlistenMediaInfo = listen<string>('open-mediainfo-cli', () => {
+      setShowDetailedMediaInfo(true);
+    });
+
     return () => {
-      unlisten.then(f => f());
+      unlistenFile.then(f => f());
+      unlistenMediaInfo.then(f => f());
     };
   }, []);
 
@@ -188,14 +204,14 @@ function App() {
       }
 
       // Показываем окно строго ПОСЛЕ изменения размера и готовности первого кадра
-      if (!isWindowRevealedRef.current) {
+      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
         isWindowRevealedRef.current = true;
         await appWindow.show();
       }
       return true;
     } catch (e) {
       console.error("Ошибка при изменении размера окна:", e);
-      if (!isWindowRevealedRef.current) {
+      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
         isWindowRevealedRef.current = true;
         getCurrentWindow().show().catch(() => {});
       }
@@ -221,7 +237,7 @@ function App() {
       }
     } else if (mediaInfo?.path) {
       // Аудиофайл или файл без видеоряда
-      if (!isWindowRevealedRef.current) {
+      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
         isWindowRevealedRef.current = true;
         getCurrentWindow().show().catch(() => {});
       }
@@ -232,13 +248,25 @@ function App() {
 
   // Защитный таймер безопасности (на случай долгого ответа декодера или ошибок)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!isWindowRevealedRef.current) {
-        isWindowRevealedRef.current = true;
-        getCurrentWindow().show().catch(() => {});
-      }
-    }, 1500);
-    return () => clearTimeout(timer);
+    let timer: number | null = null;
+    
+    invoke<boolean>("is_standalone_mode")
+      .then((isStandalone) => {
+        isStandaloneModeRef.current = isStandalone;
+        if (!isStandalone) {
+          timer = window.setTimeout(() => {
+            if (!isWindowRevealedRef.current) {
+              isWindowRevealedRef.current = true;
+              getCurrentWindow().show().catch(() => {});
+            }
+          }, 1500);
+        }
+      })
+      .catch(console.error);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   // ─── Отображение OSD кадра в левом верхнем углу ────
@@ -417,7 +445,12 @@ function App() {
         }
         break;
       case "fileInfo":
+        setShowDetailedMediaInfo(false);
         setShowMediaInfo((v) => !v);
+        break;
+      case "detailedMediaInfo":
+        setShowMediaInfo(false);
+        setShowDetailedMediaInfo((v) => !v);
         break;
       case "resetZoom":
         videoZoomRef.current = 0;
@@ -843,16 +876,25 @@ function App() {
       {hasMedia && (
         <PlayerControls
           showMediaInfo={showMediaInfo}
+          showDetailedMediaInfo={showDetailedMediaInfo}
           showChapters={showChapters}
           onShowMediaInfo={() => {
             setIsPlaylistOpen(false);
             setShowChapters(false);
+            setShowDetailedMediaInfo(false);
             setShowMediaInfo(true);
           }}
           onToggleMediaInfo={() => {
             setIsPlaylistOpen(false);
             setShowChapters(false);
+            setShowDetailedMediaInfo(false);
             setShowMediaInfo((v) => !v);
+          }}
+          onToggleDetailedMediaInfo={() => {
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(false);
+            setShowDetailedMediaInfo((v) => !v);
           }}
           onCloseChapters={() => setShowChapters(false)}
         />
@@ -867,17 +909,28 @@ function App() {
           onShowMediaInfo={() => {
             setIsPlaylistOpen(false);
             setShowChapters(false);
+            setShowDetailedMediaInfo(false);
             setShowMediaInfo(true);
+            closeContextMenu();
+          }}
+          onShowDetailedMediaInfo={() => {
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(false);
+            setShowDetailedMediaInfo(true);
             closeContextMenu();
           }}
           onShowChapters={() => {
             setIsPlaylistOpen(false);
             setShowMediaInfo(false);
+            setShowDetailedMediaInfo(false);
             setShowChapters(true);
             closeContextMenu();
           }}
           onShowSettings={() => {
             setIsPlaylistOpen(false);
+            setShowMediaInfo(false);
+            setShowDetailedMediaInfo(false);
             setShowSettings(true);
             closeContextMenu();
           }}
@@ -889,6 +942,11 @@ function App() {
           onClose={() => setShowMediaInfo(false)}
         />
       )}
+
+      <DetailedMediaInfoModal
+        isOpen={showDetailedMediaInfo}
+        onClose={() => setShowDetailedMediaInfo(false)}
+      />
 
       {showChapters && (
         <ChaptersModal

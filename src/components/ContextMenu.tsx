@@ -22,6 +22,7 @@ import {
   Download,
   Loader2,
   Sparkles,
+  FileText,
 } from "lucide-react";
 
 interface ContextMenuProps {
@@ -35,6 +36,8 @@ interface ContextMenuProps {
   onOpenFile?: () => void;
   /** Открытие модального окна информации о файле. */
   onShowMediaInfo: () => void;
+  /** Открытие окна детальных свойств MediaInfo. */
+  onShowDetailedMediaInfo?: () => void;
   /** Открытие панели глав. */
   onShowChapters: () => void;
   /** Открытие модального окна настроек. */
@@ -62,6 +65,7 @@ export function ContextMenu({
   onClose,
   onOpenFile,
   onShowMediaInfo,
+  onShowDetailedMediaInfo,
   onShowChapters,
   onShowSettings,
 }: ContextMenuProps) {
@@ -406,6 +410,16 @@ export function ContextMenu({
     },
     {
       type: "item",
+      icon: <FileText size={15} />,
+      label: "Свойства MediaInfo...",
+      shortcut: "Shift+F10",
+      action: () => {
+        if (onShowDetailedMediaInfo) onShowDetailedMediaInfo();
+        onClose();
+      },
+    },
+    {
+      type: "item",
       icon: <Settings size={15} />,
       label: "Настройки...",
       action: () => {
@@ -475,6 +489,7 @@ export function ContextMenu({
 
       if (item.type === "submenu") {
         const submenuId = `submenu-${index}`;
+        const isBottomHalf = index > menuItems.length / 2;
         return (
           <div
             key={submenuId}
@@ -506,7 +521,9 @@ export function ContextMenu({
               <div
                 className={`context-menu context-menu__submenu ${
                   item.submenuClassName || ""
-                } ${isRightScreenEdge ? "context-menu__submenu--left" : ""}`}
+                } ${isRightScreenEdge ? "context-menu__submenu--left" : ""} ${
+                  isBottomHalf ? "context-menu__submenu--bottom" : ""
+                }`}
               >
                 {item.children.map((child, ci) => renderItem(child, ci))}
               </div>

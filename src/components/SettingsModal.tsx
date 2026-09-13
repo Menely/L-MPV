@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
@@ -21,6 +21,7 @@ import {
   Plus,
   X,
   ChevronDown,
+  FileText,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -118,6 +119,23 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [integrationLogs, setIntegrationLogs] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
   const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
+  const [isContextMenuRegistered, setIsContextMenuRegistered] = useState<boolean | null>(null);
+  const [isContextMenuLoading, setIsContextMenuLoading] = useState<boolean>(false);
+
+  const checkContextMenuStatus = useCallback(async () => {
+    try {
+      const reg = await invoke<boolean>("is_explorer_context_menu_registered");
+      setIsContextMenuRegistered(reg);
+    } catch {
+      setIsContextMenuRegistered(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "integration") {
+      checkContextMenuStatus();
+    }
+  }, [activeTab, checkContextMenuStatus]);
   const [ambientSettings, setAmbientSettings] = useState<AmbientSettings>({
     mode: "off",
     blur_radius: 100,
@@ -1018,6 +1036,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     { id: 'shuffle', label: 'Случайный порядок', defaultChecked: true },
                     { id: 'alwaysOnTop', label: 'Поверх всех окон', defaultChecked: true },
                     { id: 'info', label: 'Информация о файле', defaultChecked: true },
+                    { id: 'mediaInfo', label: 'Свойства MediaInfo (Shift+F10)', defaultChecked: true },
                     { id: 'screenshot', label: 'Сделать скриншот', defaultChecked: true },
                     { id: 'playlist', label: 'Плейлист', defaultChecked: true },
                     { id: 'fullscreen', label: 'Полный экран', defaultChecked: true },
@@ -1630,6 +1649,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     try {
                       const logs = await invoke<string[]>("register_file_associations");
                       setIntegrationLogs(logs);
+                      await checkContextMenuStatus();
                     } catch (e) {
                       setIntegrationLogs([`[ERROR] Не удалось зарегистрировать: ${e}`]);
                     } finally {
@@ -1683,6 +1703,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       try {
                         const logs = await invoke<string[]>("unregister_file_associations");
                         setIntegrationLogs(logs);
+                        await checkContextMenuStatus();
                       } catch (e) {
                         setIntegrationLogs([`[ERROR] Не удалось удалить: ${e}`]);
                       } finally {
@@ -1703,6 +1724,99 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                         <Trash2 size={15} /> Удалить ассоциации
                       </>
                     )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Контекстное меню Windows Explorer (MediaInfo) */}
+              <div style={{ marginTop: 24, marginBottom: 16 }}>
+                <div
+                  className="modal__section-title"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: "0.95rem",
+                    color: "var(--accent)",
+                    fontWeight: 600,
+                    textTransform: "none",
+                    letterSpacing: "normal",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <FileText size={16} /> Контекстное меню Проводника
+                  </div>
+                  {isContextMenuRegistered !== null && (
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        padding: "2px 8px",
+                        borderRadius: "10px",
+                        background: isContextMenuRegistered ? "rgba(34, 197, 94, 0.15)" : "rgba(148, 163, 184, 0.15)",
+                        color: isContextMenuRegistered ? "#4ade80" : "var(--text-muted)",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {isContextMenuRegistered ? "Активно" : "Не добавлено"}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: "0.86rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
+                  Добавляет пункт <strong>«Открыть в L-MPV MediaInfo»</strong> в контекстное меню правой кнопки мыши Windows. Позволяет мгновенно посмотреть технический отчёт о любом медиафайле.
+                </div>
+
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    disabled={isContextMenuLoading || isRegistering || isUnregistering}
+                    onClick={async () => {
+                      setIsContextMenuLoading(true);
+                      try {
+                        const logs = await invoke<string[]>("register_explorer_context_menu");
+                        setIntegrationLogs(logs);
+                        await checkContextMenuStatus();
+                      } catch (e) {
+                        setIntegrationLogs([`[ERROR] Не удалось зарегистрировать меню: ${e}`]);
+                      } finally {
+                        setIsContextMenuLoading(false);
+                      }
+                    }}
+                    className="settings-action-btn settings-action-btn--primary"
+                    title="Добавить пункт 'Открыть в L-MPV MediaInfo' в контекстное меню Windows"
+                    style={{ flex: 1 }}
+                  >
+                    {isContextMenuLoading ? (
+                      <>
+                        <Loader2 size={15} className="spin-animation" />
+                        Применение...
+                      </>
+                    ) : (
+                      <>
+                        <FileText size={15} />
+                        Добавить в контекстное меню
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    disabled={isContextMenuLoading || isRegistering || isUnregistering}
+                    onClick={async () => {
+                      setIsContextMenuLoading(true);
+                      try {
+                        const logs = await invoke<string[]>("unregister_explorer_context_menu");
+                        setIntegrationLogs(logs);
+                        await checkContextMenuStatus();
+                      } catch (e) {
+                        setIntegrationLogs([`[ERROR] Не удалось удалить меню: ${e}`]);
+                      } finally {
+                        setIsContextMenuLoading(false);
+                      }
+                    }}
+                    className="settings-action-btn settings-action-btn--danger"
+                    title="Удалить пункт 'Открыть в L-MPV MediaInfo' из контекстного меню Windows"
+                    style={{ flex: 1 }}
+                  >
+                    <Trash2 size={15} />
+                    Удалить из меню
                   </button>
                 </div>
               </div>

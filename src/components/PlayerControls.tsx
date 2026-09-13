@@ -27,6 +27,7 @@ import {
   Download,
   Loader2,
   FastForward,
+  FileText,
 } from "lucide-react";
 import { formatTime } from "../utils/timeUtils";
 import { Timeline } from "./Timeline";
@@ -52,12 +53,16 @@ export function PlayerControls({
   onShowMediaInfo,
   onToggleMediaInfo,
   showMediaInfo,
+  onToggleDetailedMediaInfo,
+  showDetailedMediaInfo,
   showChapters,
   onCloseChapters,
 }: {
   onShowMediaInfo?: () => void;
   onToggleMediaInfo?: () => void;
   showMediaInfo?: boolean;
+  onToggleDetailedMediaInfo?: () => void;
+  showDetailedMediaInfo?: boolean;
   showChapters?: boolean;
   onCloseChapters?: () => void;
   isMiniPlayer?: boolean;
@@ -106,6 +111,7 @@ export function PlayerControls({
       shuffle: true,
       alwaysOnTop: true,
       info: true,
+      mediaInfo: true,
       screenshot: true,
       playlist: true,
       fullscreen: true,
@@ -696,6 +702,8 @@ export function PlayerControls({
             {visibleButtons.info !== false && (
               <button
                 className={`control-btn control-btn--priority-low ${showMediaInfo ? "control-btn--active" : ""}`}
+                id="btn-file-info"
+                title="Информация о файле (I)"
                 onClick={() => {
                   setActivePopover(null);
                   if (onCloseChapters) onCloseChapters();
@@ -707,6 +715,23 @@ export function PlayerControls({
                 }}
               >
                 <Info size={18} />
+              </button>
+            )}
+
+            {visibleButtons.mediaInfo !== false && (
+              <button
+                className={`control-btn control-btn--priority-low ${showDetailedMediaInfo ? "control-btn--active" : ""}`}
+                id="btn-mediainfo"
+                title="Свойства MediaInfo (Shift+F10)"
+                onClick={() => {
+                  setActivePopover(null);
+                  if (onCloseChapters) onCloseChapters();
+                  if (onToggleDetailedMediaInfo) {
+                    onToggleDetailedMediaInfo();
+                  }
+                }}
+              >
+                <FileText size={18} />
               </button>
             )}
 

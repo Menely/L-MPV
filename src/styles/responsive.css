@@ -62,6 +62,11 @@
   /* Всплывающая плашка контекстного меню */
   .context-menu {
     max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 20px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   }
   .context-menu__submenu {
     position: static;
@@ -71,6 +76,29 @@
     margin-bottom: 4px;
     padding-left: 8px;
     max-width: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-height: 520px) {
+  .context-menu {
+    max-height: calc(100vh - 20px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+  .context-menu__submenu {
+    position: static;
+    box-shadow: none;
+    border-left: 2px solid var(--accent);
+    margin-top: 4px;
+    margin-bottom: 4px;
+    padding-left: 8px;
+    max-width: 100%;
+    max-height: none;
+    overflow: visible;
   }
 }
 

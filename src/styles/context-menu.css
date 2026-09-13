@@ -3,9 +3,6 @@
   position: fixed;
   min-width: 200px;
   max-width: calc(100vw - 16px);
-  max-height: calc(100vh - 20px);
-  overflow-y: auto;
-  overflow-x: hidden;
   background: var(--bg-glass);
   backdrop-filter: var(--ui-backdrop);
   -webkit-backdrop-filter: var(--ui-backdrop);
@@ -14,8 +11,6 @@
   padding: 5px;
   box-shadow: var(--shadow-lg);
   z-index: 9999;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   animation: contextMenuIn 120ms var(--ease-out);
 }
 
@@ -98,11 +93,21 @@
   position: absolute;
   left: calc(100% + 4px);
   top: -6px;
+  max-height: min(420px, calc(100vh - 40px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .context-menu__submenu--left {
   left: auto;
   right: calc(100% + 4px);
+}
+
+.context-menu__submenu--bottom {
+  top: auto;
+  bottom: -6px;
 }
 
 .context-menu__submenu--tracks {

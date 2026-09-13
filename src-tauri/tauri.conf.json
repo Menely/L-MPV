@@ -39,7 +39,8 @@
     },
     "resources": [
       "libmpv-2.dll",
-      "ffmpeg.exe"
+      "ffmpeg.exe",
+      "mediainfo.dll"
     ],
     "icon": [
       "icons/32x32.png",

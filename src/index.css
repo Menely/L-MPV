@@ -21,6 +21,7 @@
 
 /* 7. Модальные окна и кнопки действий */
 @import './styles/modals.css';
+@import './styles/mediainfo-modal.css';
 
 /* 8. Боковая панель (главы) */
 @import './styles/side-panel.css';

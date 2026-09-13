@@ -5,7 +5,9 @@
 
 mod ambient;
 mod commands;
+mod mediainfo;
 mod mpv_manager;
+mod system_integration;
 mod updater;
 
 use commands::PlayerState;
@@ -13,8 +15,61 @@ use mpv_manager::MpvManager;
 use std::sync::Arc;
 use tauri::Manager;
 
+/// Результат разбора аргументов командной строки при запуске или повторном вызове.
+#[derive(Debug, Clone, Default)]
+pub struct ParsedCliArgs {
+    /// Путь к медиафайлу, если передан в аргументах.
+    pub file_path: Option<String>,
+    /// Флаг открытия окна MediaInfo (`--mediainfo`, `-mediainfo`, `/mediainfo`).
+    pub open_mediainfo: bool,
+}
+
+/// Универсальный разбор аргументов командной строки.
+pub fn parse_cli_args<I: IntoIterator<Item = String>>(args: I) -> ParsedCliArgs {
+    let mut file_path = None;
+    let mut open_mediainfo = false;
+
+    for arg in args.into_iter().skip(1) {
+        let lower = arg.to_lowercase();
+        if lower == "--mediainfo" || lower == "-mediainfo" || lower == "/mediainfo" {
+            open_mediainfo = true;
+        } else if !arg.starts_with('-') && !arg.starts_with('/') && file_path.is_none() {
+            file_path = Some(arg);
+        }
+    }
+
+    ParsedCliArgs {
+        file_path,
+        open_mediainfo,
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let raw_args: Vec<String> = std::env::args().collect();
+    if raw_args.iter().any(|a| a == "--register-context-menu") {
+        match system_integration::register_explorer_context_menu() {
+            Ok(logs) => {
+                for log in logs {
+                    println!("{}", log);
+                }
+            }
+            Err(e) => eprintln!("[ERROR] {}", e),
+        }
+        std::process::exit(0);
+    }
+    if raw_args.iter().any(|a| a == "--unregister-context-menu") {
+        match system_integration::unregister_explorer_context_menu() {
+            Ok(logs) => {
+                for log in logs {
+                    println!("{}", log);
+                }
+            }
+            Err(e) => eprintln!("[ERROR] {}", e),
+        }
+        std::process::exit(0);
+    }
+
     println!("[L-MPV] Запуск функции run()...");
     // Определяем портативную директорию приложения
     let exe_dir = std::env::current_exe()
@@ -53,9 +108,11 @@ pub fn run() {
         settings.ambient.clone(),
     ));
 
+    let cli_initial = parse_cli_args(std::env::args());
     let player_state = commands::PlayerState {
         mpv: mpv_arc,
         ambient_controller,
+        startup_open_mediainfo: std::sync::atomic::AtomicBool::new(cli_initial.open_mediainfo),
     };
 
     println!("[L-MPV] Инициализация Tauri Builder...");
@@ -66,13 +123,18 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             use tauri::Emitter;
             use tauri::Manager;
-            if args.len() > 1 {
-                let _ = app.emit("open-file-cli", &args[1]);
-            }
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
+            let cli = parse_cli_args(args);
+            if let Some(ref path) = cli.file_path {
+                if cli.open_mediainfo {
+                    let _ = mediainfo::open_or_update_mediainfo_window(app, path);
+                } else {
+                    let _ = app.emit("open-file-cli", path);
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.unminimize();
+                        let _ = window.set_focus();
+                    }
+                }
             }
         }));
     }
@@ -124,12 +186,19 @@ pub fn run() {
             commands::get_frame_count,
             commands::get_fps,
             commands::get_media_info,
+            mediainfo::get_detailed_media_info,
+            mediainfo::is_standalone_mode,
+            mediainfo::get_standalone_mediainfo_path,
+            mediainfo::open_mediainfo_window,
             commands::get_playback_state,
             commands::get_video_dimensions,
-            commands::get_windows_accent_color,
-            commands::register_file_associations,
-            commands::unregister_file_associations,
-            commands::open_default_apps_settings,
+            system_integration::get_windows_accent_color,
+            system_integration::register_file_associations,
+            system_integration::unregister_file_associations,
+            system_integration::is_explorer_context_menu_registered,
+            system_integration::register_explorer_context_menu,
+            system_integration::unregister_explorer_context_menu,
+            system_integration::open_default_apps_settings,
             commands::get_playlist,
             commands::play_playlist_item,
             // Новые команды
@@ -162,8 +231,18 @@ pub fn run() {
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { .. } => {
-                let state = window.state::<PlayerState>();
-                commands::save_current_playback_position(&state);
+                if window.label() == "mediainfo" {
+                    use tauri::Manager;
+                    // Если главное окно плеера скрыто (приложение запущено только для MediaInfo), завершаем процесс
+                    if let Some(main_win) = window.app_handle().get_webview_window("main") {
+                        if !main_win.is_visible().unwrap_or(false) {
+                            window.app_handle().exit(0);
+                        }
+                    }
+                } else {
+                    let state = window.state::<PlayerState>();
+                    commands::save_current_playback_position(&state);
+                }
             }
             tauri::WindowEvent::Focused(focused) => {
                 commands::handle_window_focus(window, *focused);
@@ -210,10 +289,18 @@ pub fn run() {
                 }
             }
 
-            let args: Vec<String> = std::env::args().collect();
-            if args.len() > 1 {
+            let cli = parse_cli_args(std::env::args());
+            if cli.open_mediainfo {
+                if let Some(ref path) = cli.file_path {
+                    let app_handle = app.handle().clone();
+                    if let Err(e) = mediainfo::open_or_update_mediainfo_window(&app_handle, path) {
+                        eprintln!("[L-MPV] Ошибка открытия автономного окна MediaInfo: {}", e);
+                    }
+                }
+                // Окно плеера main остается скрытым
+            } else if let Some(ref path) = cli.file_path {
                 let state = app.state::<PlayerState>();
-                if let Err(e) = commands::open_file_internal(&*state, &args[1]) {
+                if let Err(e) = commands::open_file_internal(&*state, path) {
                     println!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
                     window.show().ok();
                 }
