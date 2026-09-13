@@ -10,6 +10,7 @@ jobs:
   publish-tauri:
     permissions:
       contents: write
+      packages: write
     runs-on: windows-latest
 
     steps:
