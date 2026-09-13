@@ -181,14 +181,21 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       ctx.clearRect(0, 0, w, h);
 
       const state = animStateRef.current;
-      const spectrum = realSpectrumRef.current;
+      const rawSpectrum = realSpectrumRef.current;
 
       const isAudible = shouldBeActive && rawVolume > 0;
+
+      // Адаптивное усиление для тихой громкости (Volume Gain Compensation):
+      // Если звук убавлен (например, 10-30%), масштабируем полосы спектра так,
+      // чтобы анимация оставалась насыщенной и подвижной.
+      const volumeGain = rawVolume > 0 && rawVolume < 75 ? Math.min(3.5, 75.0 / Math.max(10.0, rawVolume)) : 1.0;
+      const spectrum = rawSpectrum.map((v) => Math.min(1.0, v * volumeGain));
+
       const bassEnergy = Math.max(spectrum[0] || 0, spectrum[1] || 0, spectrum[2] || 0, spectrum[3] || 0);
       const midEnergy = Math.max(spectrum[8] || 0, spectrum[10] || 0, spectrum[12] || 0);
       const totalAudioEnergy = Math.max(bassEnergy * 1.1, midEnergy);
 
-      const targetAmp = !isAudible ? 0.0 : Math.min(1.0, totalAudioEnergy * 1.2 + 0.1);
+      const targetAmp = !isAudible ? 0.0 : Math.min(1.0, totalAudioEnergy * 1.35 + 0.12);
       state.currentAmp += (targetAmp - state.currentAmp) * Math.min(1.0, dt * 10.0);
 
       if (!isPaused && state.currentAmp > 0.005) {
@@ -368,18 +375,12 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
 
   const height = placement === "toolbar" ? 22 : (config.height || 22);
 
-  const getTitle = () => {
-    const names = { waveform: "Плавная волна", spectrum: "Частотный спектр", bars: "Ритм-бары" };
-    return `Аудио-визуалайзер: ${names[config.mode]} (Клик для смены стиля)`;
-  };
-
   return (
     <div
       ref={containerRef}
       className={`audio-visualizer audio-visualizer--${placement} ${className}`}
       style={{ height: `${height}px` }}
       onClick={placement === "toolbar" ? handleToggleStyle : undefined}
-      title={placement === "toolbar" ? getTitle() : undefined}
     >
       <canvas ref={canvasRef} className="audio-visualizer__canvas" />
     </div>
