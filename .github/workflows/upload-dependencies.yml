@@ -26,7 +26,7 @@ jobs:
           Invoke-WebRequest -Uri $ffmpegUrl -OutFile "ffmpeg.7z"
           
           Write-Host "3. Скачивание MediaInfo.dll..."
-          $miUrl = "https://mediaarea.net/download/binary/mediainfo/24.06/MediaInfo_DLL_24.06_Windows_x64.zip"
+          $miUrl = "https://mediaarea.net/download/binary/libmediainfo0/26.05/MediaInfo_DLL_26.05_Windows_x64_WithoutInstaller.zip"
           Invoke-WebRequest -Uri $miUrl -OutFile "mediainfo.zip"
           
           Write-Host "4. Распаковка..."
