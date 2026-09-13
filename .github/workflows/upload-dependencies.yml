@@ -25,21 +25,28 @@ jobs:
           $ffmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z"
           Invoke-WebRequest -Uri $ffmpegUrl -OutFile "ffmpeg.7z"
           
-          Write-Host "3. Распаковка..."
+          Write-Host "3. Скачивание MediaInfo.dll..."
+          $miUrl = "https://mediaarea.net/download/binary/mediainfo/24.06/MediaInfo_DLL_24.06_Windows_x64.zip"
+          Invoke-WebRequest -Uri $miUrl -OutFile "mediainfo.zip"
+          
+          Write-Host "4. Распаковка..."
           New-Item -ItemType Directory -Force -Path temp_ext
           tar -xf mpv-dev.7z -C temp_ext
           tar -xf ffmpeg.7z -C temp_ext
+          Expand-Archive -Path mediainfo.zip -DestinationPath temp_ext -Force
           
-          Write-Host "4. Подготовка папки бинарников..."
+          Write-Host "5. Подготовка папки бинарников..."
           $dll = Get-ChildItem -Path temp_ext -Recurse -Filter "libmpv-2.dll" | Select-Object -First 1
           if (-not $dll) { $dll = Get-ChildItem -Path temp_ext -Recurse -Filter "mpv-2.dll" | Select-Object -First 1 }
           $exe = Get-ChildItem -Path temp_ext -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+          $miDll = Get-ChildItem -Path temp_ext -Recurse -Filter "MediaInfo.dll" | Select-Object -First 1
           
           New-Item -ItemType Directory -Force -Path dist_libs
           Copy-Item -Path $dll.FullName -Destination "dist_libs/libmpv-2.dll"
           Copy-Item -Path $exe.FullName -Destination "dist_libs/ffmpeg.exe"
+          Copy-Item -Path $miDll.FullName -Destination "dist_libs/mediainfo.dll"
           
-          Write-Host "5. Создание mpv_libs.zip..."
+          Write-Host "6. Создание mpv_libs.zip..."
           Compress-Archive -Path "dist_libs/*" -DestinationPath "mpv_libs.zip" -Force
 
       - name: Публикация/Обновление релиза deps-v1 на GitHub

@@ -36,21 +36,13 @@ jobs:
       - name: Загрузка и распаковка внешних библиотек (libmpv-2.dll, ffmpeg.exe, mediainfo.dll)
         shell: pwsh
         run: |
-          Write-Host "1. Скачивание библиотек из релиза deps-v1..."
+          Write-Host "Скачивание зависимостей из релиза deps-v1..."
           Invoke-WebRequest -Uri "https://github.com/Menely/L-MPV/releases/download/deps-v1/mpv_libs.zip" -OutFile "mpv_libs.zip"
-          Write-Host "Распаковка..."
+          Write-Host "Распаковка в src-tauri..."
           Expand-Archive -Path mpv_libs.zip -DestinationPath src-tauri/ -Force
+          Write-Host "Распаковка в корень..."
           Expand-Archive -Path mpv_libs.zip -DestinationPath ./ -Force
           Remove-Item mpv_libs.zip -Force
-
-          Write-Host "2. Скачивание нативной библиотеки MediaInfo.dll..."
-          $miUrl = "https://mediaarea.net/download/binary/mediainfo/24.06/MediaInfo_DLL_24.06_Windows_x64.zip"
-          Invoke-WebRequest -Uri $miUrl -OutFile "mediainfo.zip"
-          Expand-Archive -Path mediainfo.zip -DestinationPath temp_mi -Force
-          Copy-Item -Path "temp_mi/MediaInfo.dll" -Destination "src-tauri/mediainfo.dll" -Force
-          Copy-Item -Path "temp_mi/MediaInfo.dll" -Destination "./mediainfo.dll" -Force
-          Remove-Item mediainfo.zip -Force
-          Remove-Item temp_mi -Recurse -Force
 
       - name: Синхронизация версии из Git-тега в package.json и Cargo.toml
         shell: pwsh
