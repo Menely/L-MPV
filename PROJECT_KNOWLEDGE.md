@@ -369,5 +369,76 @@ L-MPV/
    ```
    *(Если файл заблокирован запущенным плеером, сначала завершите процесс через `Stop-Process -Name "L-MPV" -Force`).*
 
+---
 
+## 7. CI/CD и Автоматическая Публикация Релизов (GitHub Actions)
 
+### 7.1. Обязательный состав файлов каждого релиза на GitHub
+В каждом релизе GitHub Releases (`v*.*.*`) **строго обязательно** должны присутствовать два типа бинарных файлов приложения:
+1. **`L-MPV_<версия>_x64-setup.exe`** — полноценный Windows-инсталлятор (NSIS). Генерируется и загружается экшеном `tauri-apps/tauri-action@v0`.
+2. **`l-mpv.exe`** — чистый портативный исполняемый файл без установщика для мгновенного запуска из любой папки. Загружается шагом `gh release upload`.
+3. **`Source code (zip / tar.gz)`** — автоматические архивы исходного кода от самого GitHub.
+
+### 7.2. Критические требования к конфигурации (Защита от ошибки «No artifacts were found»)
+
+> [!CAUTION]
+> **ПРИЧИНА ОШИБКИ «No artifacts were found»:**
+> Экшен `tauri-apps/tauri-action@v0` ожидает, что после выполнения команды сборки в директории артефактов появятся готовые инсталляторы/пакеты.
+> Если в `src-tauri/tauri.conf.json` отключен бандл (`"active": false` или `"targets": []`), Tauri компилирует только сырой `target/release/l-mpv.exe`, а создание пакетов пропускает.
+> В этот момент `tauri-action` падает с фатальной ошибкой: **`No artifacts were found`**, и весь пайплайн релиза прерывается!
+
+#### Правильная настройка `src-tauri/tauri.conf.json`:
+В секции `"bundle"` **всегда** должны быть активны следующие параметры:
+```json
+"bundle": {
+  "active": true,
+  "targets": ["nsis"],
+  "windows": {
+    "nsis": {
+      "installerHooks": "nsis/installer_hooks.nsh"
+    }
+  },
+  "resources": [
+    "libmpv-2.dll",
+    "ffmpeg.exe",
+    "mediainfo.dll"
+  ]
+}
+```
+*Запрещено отключать `"active": true` или очищать `"targets"` в `tauri.conf.json`!*
+
+#### Правильная настройка шагов в `.github/workflows/release.yml`:
+Workflow релиза должен состоять строго из следующей последовательности шагов:
+1. `actions/checkout@v4` — получение кода.
+2. Настройка `Node.js 20` и `Rust toolchain (stable)`.
+3. Скачивание и распаковка внешних нативных библиотек `mpv_libs.zip` (`libmpv-2.dll`, `ffmpeg.exe`, `mediainfo.dll`).
+4. Синхронизация номера версии из Git-тега в `package.json` и `Cargo.toml`.
+5. **Шаг публикации инсталлятора через `tauri-action`:**
+   ```yaml
+   - name: Сборка и публикация релиза Tauri
+     uses: tauri-apps/tauri-action@v0
+     env:
+       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+     with:
+       tagName: v__VERSION__
+       releaseName: 'L-MPV v__VERSION__'
+       releaseBody: 'Автоматический релиз медиаплеера L-MPV на базе libmpv.'
+       releaseDraft: false
+       prerelease: false
+   ```
+6. **Шаг догрузки портативного `l-mpv.exe`:**
+   ```yaml
+   - name: Публикация чистого портативного l-mpv.exe в релиз
+     shell: pwsh
+     run: |
+       $tag = "${{ github.ref_name }}"
+       if (-not $tag -or $tag -notmatch '^v\d+') {
+         $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
+         $tag = "v$ver"
+       }
+       Write-Host "Загрузка автономного портативного файла l-mpv.exe в релиз $tag..."
+       gh release upload $tag "src-tauri/target/release/l-mpv.exe#l-mpv.exe" --clobber
+     env:
+       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+   ```
+   *(Флаг `--clobber` обязателен для предотвращения ошибок при повторных перезапусках workflow).*
