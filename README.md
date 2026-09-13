@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-1.4.4-blueviolet?style=for-the-badge" alt="Version 1.4.4">
+  <img src="https://img.shields.io/badge/Version-1.5.0-blueviolet?style=for-the-badge" alt="Version 1.5.0">
   <img src="https://img.shields.io/badge/Tauri-v2.1-blue?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri v2">
   <img src="https://img.shields.io/badge/React-19.1-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19">
   <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
@@ -148,6 +148,11 @@
 - **Точечный сброс:** персональная кнопка сброса «По умолчанию» рядом с каждым действием.
 - **Ассоциации файлов:** регистрация медиафайлов в реестре Windows и быстрый переход в параметры Windows «Приложения по умолчанию».
 
+### 📊 Анализ Свойств Медиаконтейнера (MediaInfo.dll C-API)
+- **Нативный анализ без внешних консолей:** прямое C-FFI связывание с `mediainfo.dll` через `libloading` для мгновенного сбора исчерпывающей информации обо всех видео, аудио и субтитрах.
+- **Автономный режим просмотра ("Открыть в L-MPV MediaInfo"):** отдельное лёгкое окно MediaInfo, открываемое напрямую из контекстного меню Проводника Windows без запуска основного медиаплеера.
+- **Интерактивное модальное окно в плеере:** плавающее окно с поддержкой Drag & Drop, поиском по свойствам (Ctrl+F), экспортом в .txt, копированием в буфер обмена и переключением языков (RU/EN).
+
 ---
 
 ## 🏗️ Стек Технологий
@@ -161,17 +166,22 @@
   <tr>
     <td><b>Frontend</b></td>
     <td>React 19, TypeScript 5.8, Vite 7, Lucide Icons, Vanilla CSS</td>
-    <td>Сверхбыстрый Glassmorphism интерфейс, дизайн-система на CSS Custom Properties, микроанимации</td>
+    <td>Сверхбыстрый Glassmorphic интерфейс, дизайн-система на CSS Custom Properties, микроанимации</td>
   </tr>
   <tr>
     <td><b>Backend & Shell</b></td>
     <td>Rust (2021 edition), Tauri v2, Tokio</td>
-    <td>Низкоуровневая интеграция с Win32 API, многопоточный IPC-мост, управление окном и DWM</td>
+    <td>Низкоуровневая интеграция с Win32 API, многопоточный IPC-мост, управление окнами и DWM</td>
   </tr>
   <tr>
     <td><b>Media Engine</b></td>
     <td><code>libmpv-2.dll</code> via dynamic FFI (<code>libloading</code>)</td>
     <td>Аппаратный рендеринг <code>vo=gpu-next</code>, Direct3D 11, HDR tone-mapping, demuxing</td>
+  </tr>
+  <tr>
+    <td><b>MediaInfo Engine</b></td>
+    <td><code>mediainfo.dll</code> via dynamic C-FFI</td>
+    <td>Извлечение исчерпывающего технического отчёта о видеоконтейнере и потоках данных</td>
   </tr>
   <tr>
     <td><b>Audio Engine</b></td>
@@ -186,7 +196,7 @@
   <tr>
     <td><b>Платформа</b></td>
     <td>Windows 10 / 11 x64</td>
-    <td>Аппаратное ускорение DXVA2/D3D11VA, Windows Taskbar API, регистрация ассоциаций файлов</td>
+    <td>Аппаратное ускорение DXVA2/D3D11VA, Windows Explorer Context Menu API, Taskbar API</td>
   </tr>
 </table>
 
@@ -204,13 +214,15 @@ L-MPV/
 │   │   ├── PlayerControls.tsx            # Плавающая панель управления (кнопки, громкость, треки, скорость)
 │   │   ├── ContextMenu.tsx               # Кастомное ПКМ-меню (масштаб, пропорции, поворот, дорожки, подсветка)
 │   │   ├── SettingsModal.tsx             # Настройки (скриншоты, цвета, подсветка полос, хоткеи, ассоциации)
-│   │   ├── MediaInfoModal.tsx            # Окно подробной технической информации о медиафайле
+│   │   ├── MediaInfoModal.tsx            # Компактное окно технической информации о медиафайле
+│   │   ├── DetailedMediaInfoModal.tsx    # Перемещаемое модальное окно свойств MediaInfo внутри плеера
+│   │   ├── StandaloneMediaInfoWindow.tsx # Автономное окно просмотра MediaInfo из проводника
 │   │   ├── ChaptersModal.tsx             # Модальное окно навигации по главам видео
 │   │   ├── Timeline.tsx                  # Изолированный таймлайн воспроизведения с превью времени
 │   │   └── PlaylistDrawer.tsx            # Боковая панель плейлиста (Natural Sort, живой поиск)
 │   ├── contexts/                         # Реактивные контексты состояния
 │   │   └── PlayerStateContext.tsx        # Двухуровневый контекст: PlayerStateContext + PlayerProgressContext (60 FPS)
-│   ├── styles/                           # Модульная система стилей (11 модулей Vanilla CSS)
+│   ├── styles/                           # Модульная система стилей (12 модулей Vanilla CSS)
 │   │   ├── variables.css                 # CSS-переменные, палитры, UI Scale
 │   │   ├── base.css                      # Глобальный сброс, IDLE-режим, OSD
 │   │   ├── titlebar.css                  # Шапка окна
@@ -218,6 +230,7 @@ L-MPV/
 │   │   ├── controls.css                  # Панель управления, таймлайн, регулятор громкости
 │   │   ├── context-menu.css              # ПКМ-меню
 │   │   ├── modals.css                    # Модальные окна
+│   │   ├── mediainfo-modal.css           # Стили кастомного окна и модального отчёта MediaInfo
 │   │   ├── side-panel.css                # Панель глав
 │   │   ├── track-popover.css             # Меню дорожек
 │   │   ├── overlays.css                  # Overlay-элементы (Drag&Drop, Playlist Drawer и др.)
@@ -225,6 +238,7 @@ L-MPV/
 │   ├── utils/                            # Вспомогательные утилиты
 │   │   ├── colorUtils.ts                 # Цветовые темы, генерация градиентов и HSL/RGB преобразования
 │   │   ├── hotkeyUtils.ts                # Реестр действий, обработка биндов и локальное сохранение
+│   │   ├── mediaInfoParser.ts            # Модуль парсинга и русского перевода свойств MediaInfo
 │   │   └── timeUtils.ts                  # Высокоточное форматирование временных меток
 │   ├── App.tsx                           # Главный контейнер (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, OSD)
 │   ├── index.css                         # Единый импорт модулей стилей
@@ -233,18 +247,20 @@ L-MPV/
 │   ├── capabilities/default.json         # Манифест разрешений Tauri v2 (окна, диалоги, opener)
 │   ├── src/
 │   │   ├── main.rs                       # Точка входа приложения
-│   │   ├── lib.rs                        # Инициализация Tauri, HWND-привязка, фокус и реестр 56 IPC-команд
+│   │   ├── lib.rs                        # Инициализация Tauri, HWND-привязка, фокус и реестр 58 IPC-команд
 │   │   ├── ambient.rs                    # Контроллер подсветки черных полос (GPU Blur / Color / Off)
+│   │   ├── mediainfo.rs                  # FFI-интеграция с mediainfo.dll и управление автономным окном
 │   │   ├── mpv_manager.rs                # FFI-обертка libmpv (vo=gpu-next, WASAPI, D3D11, HDR, sinc-фильтр)
-│   │   └── commands.rs                   # 56 #[tauri::command] обработчиков, экспорт дорожек через FFmpeg
+│   │   ├── system_integration.rs         # Интеграция с Проводником Windows (контекстное меню, ассоциации файлов)
+│   │   ├── updater.rs                    # Модуль фонового и ручного обновления
+│   │   └── commands.rs                   # 58 #[tauri::command] обработчиков, экспорт дорожек через FFmpeg
 │   ├── Cargo.toml                        # Зависимости бэкенда Rust
 │   └── tauri.conf.json                   # Конфигурация Tauri v2
 └── Portable-L-MPV/                       # Автономный портативный дистрибутив
     ├── L-MPV.exe                         # Главный исполняемый файл
     ├── libmpv-2.dll                      # Нативная библиотека медиадвижка MPV
+    ├── mediainfo.dll                     # Нативная библиотека подробного анализа MediaInfo
     ├── ffmpeg.exe                        # Встроенный модуль для прямого экспорта дорожек
-    ├── config/                           # Локальные настройки (settings.json и история воспроизведения)
-    ├── data/                             # Локальные данные и кэш миниатюр (thumbs/)
     └── screenshots/                      # Каталог сохранения снимков экрана по умолчанию
 ```
 
@@ -286,16 +302,17 @@ L-MPV/
 
 ## ⚡ IPC-Архитектура (Rust ↔ React)
 
-Связь интерфейса React с движком MPV осуществляется через **56 нативных IPC-команд**, гарантирующих мгновенный отклик и отсутствие задержек:
+Связь интерфейса React с движком MPV и системными подсистемами осуществляется через **58 нативных IPC-команд**, гарантирующих мгновенный отклик и отсутствие задержек:
 
 - **Воспроизведение и Плейлист (14 команд):** `open_file`, `toggle_pause`, `set_pause`, `seek`, `seek_absolute`, `frame_step`, `frame_back_step`, `playlist_prev`, `playlist_next`, `get_playlist`, `play_playlist_item`, `set_loop_file`, `set_loop_playlist`, `toggle_shuffle`.
 - **Громкость и Скорость (2 команды):** `set_volume`, `set_speed`.
 - **Дорожки и FFmpeg Извлечение (7 команд):** `get_tracks`, `set_audio_track`, `set_subtitle_track`, `disable_subtitles`, `load_subtitle_file`, `set_video_track`, `extract_track`.
 - **Вид, Зумирование и Окно (7 команд):** `set_aspect_ratio`, `set_rotation`, `set_video_zoom_and_pan`, `get_video_zoom`, `get_video_dimensions`, `toggle_fullscreen`, `handle_window_focus`.
+- **Анализ MediaInfo (4 команды):** `get_detailed_media_info`, `is_standalone_mode`, `get_standalone_mediainfo_path`, `open_mediainfo_window`.
 - **Скриншоты и Буфер Обмена (4 команды):** `take_screenshot`, `copy_frame_to_clipboard`, `get_screenshot_dir`, `set_screenshot_dir`.
 - **Главы (2 команды):** `get_chapters`, `seek_chapter`.
 - **Метаданные и Позиция (9 команд):** `get_position`, `get_duration`, `get_frame_number`, `get_frame_count`, `get_fps`, `get_media_info`, `get_playback_state`, `get_last_position`, `save_position`, `save_current_position`.
-- **Интеграция с Windows (7 команд):** `register_file_associations`, `unregister_file_associations`, `open_default_apps_settings`, `get_windows_accent_color`, `get_multi_instance`, `set_multi_instance`, `update_taskbar_progress`.
+- **Интеграция с Windows (9 команд):** `register_file_associations`, `unregister_file_associations`, `open_default_apps_settings`, `register_explorer_context_menu`, `unregister_explorer_context_menu`, `is_explorer_context_menu_registered`, `get_windows_accent_color`, `get_multi_instance`, `set_multi_instance`.
 - **Подсветка Полос / Ambient Light (4 команды):** `get_ambient_settings`, `apply_ambient_preview`, `set_ambient_settings`, `toggle_ambient_mode`.
 
 ---

@@ -1,6 +1,6 @@
 # L-MPV — Архитектура проекта и База Знаний
 
-Данный документ содержит полную и актуальную информацию об устройстве медиаплеера **L-MPV** (версия **1.4.4**), его архитектуре, технологическом стеке, структуре файлов, взаимодействии Rust и React, детальном реестре IPC-команд и всех пользовательских функциях плеера.
+Данный документ содержит полную и актуальную информацию об устройстве медиаплеера **L-MPV** (версия **1.5.0**), его архитектуре, технологическом стеке, структуре файлов, взаимодействии Rust и React, детальном реестре IPC-команд и всех пользовательских функциях плеера.
 
 ---
 
@@ -9,12 +9,14 @@
 - **Фронтенд:** React 19 + TypeScript + Vite + Lucide Icons + Vanilla CSS (Design Tokens, Glassmorphism, CSS Custom Properties).
 - **Бэкенд:** Rust + Tauri v2.
 - **Медиа-движок:** `libmpv-2.dll` (или `mpv-2.dll` / `mpv-1.dll`), задействован динамический FFI через `libloading`.
+- **Анализ медиа:** Нативная `mediainfo.dll` (C-API) для детального отчёта свойств медиафайлов.
 - **Портативный режим (Portable Architecture):**
   - Приложение полностью отвязано от диска и реестра Windows.
   - Все пути определяются динамически во время выполнения через `std::env::current_exe().parent()`.
   - Портативная структура папки `Portable-L-MPV/`:
     - `L-MPV.exe` — главный исполняемый файл.
     - `mpv-2.dll` — нативная библиотека воспроизведения mpv.
+    - `mediainfo.dll` — нативная библиотека подробного анализа MediaInfo.
     - `config/` — локальные конфигурации (включает `settings.json` и историю просмотров).
     - `screenshots/` — папка сохранения кадров по умолчанию.
 
@@ -31,7 +33,9 @@ L-MPV/
 │   │   ├── PlayerControls.tsx            # Нижняя плавающая «таблетка» управления (быстрая смена дорожек, скачивание, скриншот, плейлист, скорость)
 │   │   ├── ContextMenu.tsx               # Кастомное ПКМ-меню (дорожки со скачиванием, скорость, вид, масштабирование, поворот)
 │   │   ├── SettingsModal.tsx             # Модальное окно настроек (скриншоты, сохранение дорожек, акцентные градиенты, бинды, интеграция)
-│   │   ├── MediaInfoModal.tsx            # Окно технической информации о медиафайле
+│   │   ├── MediaInfoModal.tsx            # Компактное окно технической информации о медиафайле
+│   │   ├── DetailedMediaInfoModal.tsx    # Внутреннее перемещаемое окно подробных свойств MediaInfo в плеере
+│   │   ├── StandaloneMediaInfoWindow.tsx # Изолированное автономное окно MediaInfo (вызов "Открыть в L-MPV MediaInfo")
 │   │   ├── ChaptersModal.tsx             # Модальное окно навигации по главам (Chapters)
 │   │   ├── Timeline.tsx                  # Высокоточный таймлайн с изолированным контекстом времени (без лишних ререндеров)
 │   │   └── PlaylistDrawer.tsx            # Выдвижная боковая панель плейлиста (Natural Sort, поиск, переключение)
@@ -45,6 +49,7 @@ L-MPV/
 │   │   ├── controls.css                  # Плавающая панель управления, таймлайн, регулятор громкости
 │   │   ├── context-menu.css              # Кастомное ПКМ-меню
 │   │   ├── modals.css                    # Модальные окна (Настройки, MediaInfo, Chapters)
+│   │   ├── mediainfo-modal.css           # Стили кастомного окна и модального отчёта MediaInfo
 │   │   ├── side-panel.css                # Панель глав
 │   │   ├── track-popover.css             # Всплывающие меню аудиодорожек и субтитров
 │   │   ├── overlays.css                  # Overlay-элементы (Drag&Drop, Scrollbar, Playlist Drawer, Update)
@@ -52,6 +57,7 @@ L-MPV/
 │   ├── utils/                            # Утилиты
 │   │   ├── colorUtils.ts                 # Цветовые палитры и вычисление HSL/RGB акцентов и градиентов
 │   │   ├── hotkeyUtils.ts                # Кастомная привязка, сохранение и сброс горячих клавиш по умолчанию
+│   │   ├── mediaInfoParser.ts            # Модуль разбора и перевода на русский язык отчёта MediaInfo
 │   │   └── timeUtils.ts                  # Форматирование времени воспроизведения
 │   ├── App.tsx                           # Главный контейнер (клики, IDLE-таймер, Drag&Drop, Hotkeys, Zoom/Pan, Wheel Vol, OSD)
 │   ├── index.css                         # Единая точка импорта CSS-модулей
@@ -60,10 +66,13 @@ L-MPV/
 │   ├── capabilities/default.json         # Разрешения Tauri (окна, opener, dialog)
 │   ├── src/
 │   │   ├── main.rs                       # Входная точка
-│   │   ├── lib.rs                        # Настройка Tauri, привязка HWND (`wid`), фокус окна, регистрация 54 IPC-команд
+│   │   ├── lib.rs                        # Настройка Tauri, привязка HWND (`wid`), фокус окна, регистрация 58 IPC-команд
 │   │   ├── ambient.rs                    # Контроллер подсветки черных полос (Ambient Light: GPU Blur / Color / Off)
+│   │   ├── mediainfo.rs                  # FFI-интеграция с mediainfo.dll и управление автономным окном MediaInfo
 │   │   ├── mpv_manager.rs                # FFI-обертчик libmpv (vo=gpu-next, WASAPI, D3D11, HWDEC auto-safe, HDR, 32-tap sinc resampler)
-│   │   └── commands.rs                   # 54 IPC #[tauri::command] функции, извлечение дорожек FFmpeg, персистентность AppSettings
+│   │   ├── system_integration.rs         # Интеграция с Проводником Windows (контекстное меню, ассоциации файлов)
+│   │   ├── updater.rs                    # Модуль автообновления приложения
+│   │   └── commands.rs                   # 58 IPC #[tauri::command] функций, извлечение дорожек FFmpeg, персистентность AppSettings
 │   ├── Cargo.toml                        # Зависимости Rust (tauri, libloading, serde, base64, tokio, windows-sys)
 │   └── tauri.conf.json                   # Конфигурация приложения Tauri (версия синхронизирована с package.json)
 └── Portable-L-MPV/                       # Готовая портативная папка для тестирования и релиза
