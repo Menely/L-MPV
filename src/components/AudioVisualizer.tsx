@@ -185,21 +185,24 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
 
       const isAudible = shouldBeActive && rawVolume > 0;
 
-      // Адаптивное усиление для тихой громкости (Volume Gain Compensation):
-      // Если звук убавлен (например, 10-30%), масштабируем полосы спектра так,
-      // чтобы анимация оставалась насыщенной и подвижной.
-      const volumeGain = rawVolume > 0 && rawVolume < 75 ? Math.min(3.5, 75.0 / Math.max(10.0, rawVolume)) : 1.0;
-      const spectrum = rawSpectrum.map((v) => Math.min(1.0, v * volumeGain));
+      // Адаптивное усиление для тихой и средней громкости (Volume Gain Compensation):
+      // Если звук убавлен (например, 10-40%), дополнительно масштабируем полосы спектра,
+      // чтобы анимация оставалась выразительной, широкой и насыщенной.
+      const baseBoost = 1.6;
+      const volumeGain = rawVolume > 0 && rawVolume < 85 ? Math.min(5.5, (85.0 / Math.max(10.0, rawVolume)) * 1.6) : baseBoost;
+      // Мягкая нелинейная компрессия диапазона для оживления средних и тихих частот
+      const spectrum = rawSpectrum.map((v) => Math.min(1.0, Math.pow(v, 0.85) * volumeGain));
 
       const bassEnergy = Math.max(spectrum[0] || 0, spectrum[1] || 0, spectrum[2] || 0, spectrum[3] || 0);
       const midEnergy = Math.max(spectrum[8] || 0, spectrum[10] || 0, spectrum[12] || 0);
-      const totalAudioEnergy = Math.max(bassEnergy * 1.1, midEnergy);
+      const totalAudioEnergy = Math.max(bassEnergy * 1.35, midEnergy * 1.25);
 
-      const targetAmp = !isAudible ? 0.0 : Math.min(1.0, totalAudioEnergy * 1.35 + 0.12);
-      state.currentAmp += (targetAmp - state.currentAmp) * Math.min(1.0, dt * 10.0);
+      // Более динамичный и упругий отклик амплитуды
+      const targetAmp = !isAudible ? 0.0 : Math.min(1.0, totalAudioEnergy * 1.75 + 0.22);
+      state.currentAmp += (targetAmp - state.currentAmp) * Math.min(1.0, dt * 14.0);
 
       if (!isPaused && state.currentAmp > 0.005) {
-        state.phase += dt * (2.0 * Math.max(0.25, Math.min(3.0, speed)) + bassEnergy * 3.5);
+        state.phase += dt * (2.8 * Math.max(0.25, Math.min(3.0, speed)) + bassEnergy * 5.2);
       }
 
       // Определение цветов темы
@@ -229,7 +232,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       // 1. Waveform (Органическая спектральная волна)
       if (config.mode === "waveform") {
         const centerY = h / 2;
-        const maxWaveHeight = (h / 2) * 0.85;
+        const maxWaveHeight = (h / 2) * 0.92;
         const baseAmp = state.currentAmp * maxWaveHeight;
 
         // Мягкая фоновая волна
@@ -242,15 +245,15 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
             const env = Math.sin(p * Math.PI);
             const specIdx = Math.min(31, Math.floor(p * 32));
             const bandVal = spectrum[specIdx] || 0;
-            const wave = Math.sin(p * 6.0 - state.phase * 1.0) * 0.4 +
-                         Math.cos(p * 11.0 + state.phase * 1.4) * 0.2 +
-                         bandVal * 0.45;
-            const y = centerY + wave * baseAmp * 0.65 * env;
+            const wave = Math.sin(p * 6.5 - state.phase * 1.2) * 0.45 +
+                         Math.cos(p * 12.0 + state.phase * 1.6) * 0.25 +
+                         bandVal * 0.65;
+            const y = centerY + wave * baseAmp * 0.7 * env;
             if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
           }
           ctx.strokeStyle = primary;
-          ctx.globalAlpha = 0.25;
-          ctx.lineWidth = 1.4;
+          ctx.globalAlpha = 0.28;
+          ctx.lineWidth = 1.5;
           ctx.stroke();
         }
 
@@ -263,9 +266,9 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
           const env = Math.sin(p * Math.PI);
           const specIdx = Math.min(31, Math.floor(p * 32));
           const bandVal = spectrum[specIdx] || 0;
-          const harmonic = Math.sin(p * 7.5 + state.phase * 1.6) * 0.4 +
-                           Math.sin(p * 14.0 - state.phase * 0.9) * 0.2 +
-                           bandVal * 0.65;
+          const harmonic = Math.sin(p * 8.0 + state.phase * 1.8) * 0.45 +
+                           Math.sin(p * 15.0 - state.phase * 1.1) * 0.25 +
+                           bandVal * 0.85;
           const y = centerY + harmonic * baseAmp * env;
           if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
@@ -282,14 +285,14 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
         const barCount = placement === "toolbar" ? 14 : Math.min(36, Math.max(18, Math.floor(w / 16)));
         const gap = 2.5;
         const barWidth = Math.max(2, (w - gap * (barCount - 1)) / barCount);
-        const maxHeight = h * 0.90;
+        const maxHeight = h * 0.94;
 
         for (let i = 0; i < barCount; i++) {
           const specIdx = Math.min(31, Math.floor((i / barCount) * 32));
           const val = spectrum[specIdx] || 0;
-          const targetH = isAudible ? Math.max(2, val * maxHeight) : 2;
+          const targetH = isAudible ? Math.min(maxHeight, Math.max(2, val * maxHeight * 1.2)) : 2;
 
-          const attackSpeed = targetH > (state.bars[i] || 2) ? 24.0 : 12.0;
+          const attackSpeed = targetH > (state.bars[i] || 2) ? 26.0 : 13.0;
           state.bars[i] = (state.bars[i] || 2) + (targetH - (state.bars[i] || 2)) * Math.min(1.0, dt * attackSpeed);
           const curH = state.bars[i];
 
@@ -331,14 +334,14 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
         const gap = 3;
         const barWidth = Math.max(3, (w - gap * (barCount - 1)) / barCount);
         const centerY = h / 2;
-        const maxHalfH = (h / 2) * 0.88;
+        const maxHalfH = (h / 2) * 0.92;
 
         for (let i = 0; i < barCount; i++) {
           const specIdx = Math.min(31, Math.floor((i / barCount) * 32));
           const val = spectrum[specIdx] || 0;
-          const targetHalfH = isAudible ? Math.max(2, val * maxHalfH) : 2;
+          const targetHalfH = isAudible ? Math.min(maxHalfH, Math.max(2, val * maxHalfH * 1.2)) : 2;
 
-          const attackSpeed = targetHalfH > (state.bars[i] || 2) ? 22.0 : 12.0;
+          const attackSpeed = targetHalfH > (state.bars[i] || 2) ? 24.0 : 13.0;
           state.bars[i] = (state.bars[i] || 2) + (targetHalfH - (state.bars[i] || 2)) * Math.min(1.0, dt * attackSpeed);
           const curHalfH = state.bars[i];
 
