@@ -11,8 +11,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::{HashMap, HashSet};
 use tauri::State;
 
+fn default_true() -> bool {
+    true
+}
+
 /// Конфигурация приложения, сохраняемая в config/settings.json.
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppSettings {
     pub screenshot_directory: Option<String>,
     #[serde(default)]
@@ -25,6 +29,9 @@ pub struct AppSettings {
     /// Флаг автоматического переключения звука на внешнюю аудиодорожку при её обнаружении (по умолчанию выключен).
     #[serde(default)]
     pub auto_select_external_audio: bool,
+    /// Действие по окончании видео: true - включать следующее видео, false - ничего не делать.
+    #[serde(default = "default_true")]
+    pub play_next_on_end: bool,
     /// Счётчик запусков приложения для периодической фоновой проверки обновлений.
     #[serde(default)]
     pub launch_count: u64,
@@ -34,6 +41,22 @@ pub struct AppSettings {
     /// Последняя зафиксированная версия приложения для сброса счётчиков при обновлении.
     #[serde(default)]
     pub last_version: String,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            screenshot_directory: None,
+            allow_multi_instance: false,
+            ambient: AmbientSettings::default(),
+            auto_load_tracks: false,
+            auto_select_external_audio: false,
+            play_next_on_end: true,
+            launch_count: 0,
+            postponed_until_launch: 0,
+            last_version: String::new(),
+        }
+    }
 }
 
 impl AppSettings {
@@ -146,6 +169,8 @@ pub struct PlaybackState {
     pub current_aid: String,
     /// Текущая активная дорожка субтитров
     pub current_sid: String,
+    /// Флаг достижения конца файла (EOF).
+    pub eof_reached: bool,
 }
 
 /// Функция экранирования путей для команд mpv.
@@ -734,6 +759,21 @@ pub fn open_file_internal(
 pub fn toggle_pause(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    // Если достигнут конец воспроизведения, перезапускаем видео с самого начала
+    let is_eof = state.mpv.get_property_bool("eof-reached").unwrap_or(false);
+    let is_near_end = if !is_eof {
+        let pos = state.mpv.get_property_double("time-pos").unwrap_or(0.0);
+        let dur = state.mpv.get_property_double("duration").unwrap_or(0.0);
+        dur > 0.0 && pos >= (dur - 0.3)
+    } else {
+        true
+    };
+
+    if is_near_end {
+        let _ = state.mpv.command("seek 0 absolute+exact");
+        let _ = state.mpv.set_property_string("pause", "no");
+        return Ok(());
+    }
     state.mpv.command("cycle pause")
 }
 
@@ -743,6 +783,21 @@ pub fn set_pause(
     state: State<'_, PlayerState>,
     paused: bool,
 ) -> Result<(), String> {
+    if !paused {
+        let is_eof = state.mpv.get_property_bool("eof-reached").unwrap_or(false);
+        let is_near_end = if !is_eof {
+            let pos = state.mpv.get_property_double("time-pos").unwrap_or(0.0);
+            let dur = state.mpv.get_property_double("duration").unwrap_or(0.0);
+            dur > 0.0 && pos >= (dur - 0.3)
+        } else {
+            true
+        };
+
+        if is_near_end {
+            let _ = state.mpv.command("seek 0 absolute+exact");
+            return state.mpv.set_property_string("pause", "no");
+        }
+    }
     let value = if paused { "yes" } else { "no" };
     state.mpv.set_property_string("pause", value)
 }
@@ -1212,6 +1267,42 @@ pub fn set_auto_select_external_audio(enabled: bool) -> Result<(), String> {
         let mut settings = AppSettings::load(&p_dir);
         settings.auto_select_external_audio = enabled;
         settings.save(&p_dir).ok();
+        return Ok(());
+    }
+    Err("Не удалось определить директорию приложения для сохранения настроек".to_string())
+}
+
+/// Получить текущий статус настройки автоматического переключения на следующее видео по окончании.
+#[tauri::command]
+pub fn get_play_next_on_end() -> Result<bool, String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+        
+    if let Some(p_dir) = exe_dir {
+        let settings = AppSettings::load(&p_dir);
+        return Ok(settings.play_next_on_end);
+    }
+    Ok(true)
+}
+
+/// Установить статус настройки автоматического переключения на следующее видео по окончании.
+#[tauri::command]
+pub fn set_play_next_on_end(
+    state: State<'_, PlayerState>,
+    enabled: bool,
+) -> Result<(), String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    if let Some(p_dir) = exe_dir {
+        let mut settings = AppSettings::load(&p_dir);
+        settings.play_next_on_end = enabled;
+        settings.save(&p_dir).ok();
+
+        let keep_open_val = if enabled { "yes" } else { "always" };
+        let _ = state.mpv.set_property_string("keep-open", keep_open_val);
         return Ok(());
     }
     Err("Не удалось определить директорию приложения для сохранения настроек".to_string())

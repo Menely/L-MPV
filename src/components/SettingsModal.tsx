@@ -62,6 +62,7 @@ import {
   ChevronDown,
   FileText,
   Zap,
+  Film,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -156,6 +157,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [saveTracksToVideoDir, setSaveTracksToVideoDir] = useState<boolean>(true);
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
+  const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
   const [appVersion, setAppVersion] = useState<string>("1.4.4");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
@@ -328,6 +330,16 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       }
     };
     loadAutoSelectAudio();
+
+    const loadPlayNextOnEnd = async () => {
+      try {
+        const val = await invoke<boolean>("get_play_next_on_end");
+        setPlayNextOnEnd(val);
+      } catch (e) {
+        console.error("Ошибка загрузки настройки play_next_on_end:", e);
+      }
+    };
+    loadPlayNextOnEnd();
 
     const loadVersion = async () => {
       try {
@@ -848,6 +860,76 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     </span>
                   </div>
                 </label>
+              </AccordionSection>
+
+              {/* 6. Поведение по окончании видео */}
+              <AccordionSection
+                isOpen={!!openSections["gen_end_action"]}
+                onToggle={() => toggleSection("gen_end_action")}
+                icon={<Film size={16} />}
+                title="Поведение по окончании видео"
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", userSelect: "none" }}>
+                    <input
+                      type="radio"
+                      name="playNextOnEnd"
+                      checked={playNextOnEnd}
+                      onChange={async () => {
+                        setPlayNextOnEnd(true);
+                        try {
+                          await invoke("set_play_next_on_end", { enabled: true });
+                        } catch (err) {
+                          console.error("Ошибка сохранения настройки play_next_on_end:", err);
+                        }
+                      }}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        accentColor: "var(--accent)",
+                        cursor: "pointer"
+                      }}
+                    />
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                        Переключать на следующее видео (по умолчанию)
+                      </span>
+                      <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
+                        Автоматически воспроизводить следующий файл в плейлисте после завершения текущего
+                      </span>
+                    </div>
+                  </label>
+
+                  <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", userSelect: "none" }}>
+                    <input
+                      type="radio"
+                      name="playNextOnEnd"
+                      checked={!playNextOnEnd}
+                      onChange={async () => {
+                        setPlayNextOnEnd(false);
+                        try {
+                          await invoke("set_play_next_on_end", { enabled: false });
+                        } catch (err) {
+                          console.error("Ошибка сохранения настройки play_next_on_end:", err);
+                        }
+                      }}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        accentColor: "var(--accent)",
+                        cursor: "pointer"
+                      }}
+                    />
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                        Ничего не делать
+                      </span>
+                      <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
+                        Останавливать воспроизведение на последнем кадре (нажатие на пуск перезапустит видео с начала)
+                      </span>
+                    </div>
+                  </label>
+                </div>
               </AccordionSection>
             </div>
           )}
