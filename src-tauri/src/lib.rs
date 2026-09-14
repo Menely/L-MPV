@@ -241,6 +241,12 @@ pub fn run() {
             // Пресеты настроек
             commands::get_settings_presets,
             commands::save_settings_presets,
+            commands::save_single_preset,
+            commands::delete_preset_file,
+            commands::rename_preset_file,
+            commands::open_presets_folder,
+            commands::write_text_file,
+            commands::read_text_file,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {

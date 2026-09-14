@@ -482,30 +482,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           <h2 className="modal__title" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "1.15rem" }}>
             <SlidersHorizontal size={20} color="var(--accent)" /> Настройки
           </h2>
-          <button
-            type="button"
-            onClick={() => setActiveTab("presets")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "5px 12px",
-              borderRadius: "var(--radius-sm)",
-              background: activeTab === "presets" ? "var(--accent-glow, rgba(127,199,255,0.2))" : "rgba(255, 255, 255, 0.06)",
-              border: activeTab === "presets" ? "1px solid var(--accent)" : "1px solid var(--border)",
-              color: activeTab === "presets" ? "var(--accent)" : "var(--text-secondary)",
-              fontSize: "0.82rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all var(--t-fast) var(--ease-smooth)",
-              marginLeft: "auto",
-              marginRight: 10,
-            }}
-            title="Открыть менеджер пресетов настроек"
-          >
-            <Sparkles size={14} color="var(--accent)" />
-            <span>Пресеты</span>
-          </button>
+
           <button
             className="modal__close"
             onClick={onClose}
