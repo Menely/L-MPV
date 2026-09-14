@@ -18,7 +18,8 @@
   <img src="https://img.shields.io/badge/MPV-libmpv--2-red?style=for-the-badge&logo=mpv&logoColor=white" alt="libmpv">
   <img src="https://img.shields.io/badge/Engine-Direct3D%2011-5C2D91?style=for-the-badge" alt="Direct3D 11">
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License">
+  <a href="https://t.me/+45xNDoaEpHBjY2Qy"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License"></a>
 </p>
 
 ---
@@ -366,8 +367,16 @@ Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MP
 
 ---
 
-## 📄 Лицензия
+## 💬 Сообщество и Связь
 
-Проект распространяется под свободной лицензией **MIT**. Подробная информация доступна в файле лицензии.
+Присоединяйтесь к нашему Telegram-каналу для получения последних новостей, обновлений и обратной связи:
+👉 **[Telegram-канал L-MPV](https://t.me/+45xNDoaEpHBjY2Qy)**
 
 ---
+
+## 📄 Лицензия
+
+Проект распространяется под свободной лицензией **MIT**. Подробная информация доступна в файле [LICENSE](./LICENSE).
+
+---
+

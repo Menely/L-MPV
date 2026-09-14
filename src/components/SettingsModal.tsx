@@ -1942,7 +1942,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
               <button
                 type="button"
-                onClick={() => openUrl("https://t.me/+-zY0lB2RrVxmY2Ey")}
+                onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
                 style={{
                   background: "transparent",
                   border: "none",
