@@ -39,16 +39,18 @@ L-MPV/
 │   │   ├── Timeline.tsx                  # Высокоточный таймлайн с изолированным контекстом времени (без лишних ререндеров)
 │   │   ├── AudioVisualizer.tsx           # Высокопроизводительный Canvas-визуалайзер аудио-волн (Waveform / Spectrum / Bars, пастель/неон)
 │   │   ├── VisualizerSettingsSection.tsx # Модульная секция настроек аудио-визуалайзера для окна SettingsModal
+│   │   ├── PresetsSection.tsx            # Секция управления пресетами («Мои пресеты» и «Готовые стили») в SettingsModal
 │   │   └── PlaylistDrawer.tsx            # Выдвижная боковая панель плейлиста (Natural Sort, поиск, переключение)
 │   ├── contexts/                         # Реактивные контексты React
-│   │   └── PlayerStateContext.tsx        # Двухуровневый контекст: PlayerStateContext (метаданные, скачивание) + PlayerProgressContext (10–60 FPS)
-│   ├── styles/                           # Модульная система стилей (13 модулей Vanilla CSS)
+│   │   └── PlayerStateContext.tsx        # Трёхуровневый контекст: PlayerStateContext (метаданные) + LiveStateContext (показатели) + PlayerProgressContext (10–60 FPS)
+│   ├── styles/                           # Модульная система стилей (14 модулей Vanilla CSS)
 │   │   ├── variables.css                 # CSS Custom Properties, темы, UI Scale, акцентные палитры, параметры свечения
 │   │   ├── base.css                      # Глобальный сброс, стили приложения, IDLE-режим, OSD
 │   │   ├── titlebar.css                  # Кастомная шапка окна
 │   │   ├── video-area.css                # Область видео и вотермарка
 │   │   ├── controls.css                  # Плавающая панель управления, таймлайн, регулятор громкости, векторное свечение drop-shadow
 │   │   ├── visualizer.css                # Стили аудио-визуалайзера (режимы над таймлайном и компактный тулбар)
+│   │   ├── presets.css                   # Стили секции управления пресетами настроек
 │   │   ├── context-menu.css              # Кастомное ПКМ-меню
 │   │   ├── modals.css                    # Модальные окна (Настройки, MediaInfo, Chapters)
 │   │   ├── mediainfo-modal.css           # Стили кастомного окна и модального отчёта MediaInfo
@@ -60,6 +62,7 @@ L-MPV/
 │   │   ├── colorUtils.ts                 # Цветовые палитры и вычисление HSL/RGB акцентов, градиентов и параметров свечения drop-shadow
 │   │   ├── hotkeyUtils.ts                # Кастомная привязка, сохранение и сброс горячих клавиш по умолчанию
 │   │   ├── mediaInfoParser.ts            # Модуль разбора и перевода на русский язык отчёта MediaInfo
+│   │   ├── presetsUtils.ts               # Модуль управления, хранения, экспорта и импорта пользовательских и готовых пресетов
 │   │   └── timeUtils.ts                  # Форматирование времени воспроизведения
 │   ├── App.tsx                           # Главный контейнер (клики, IDLE-таймер, Drag&Drop, Hotkeys, Zoom/Pan, Wheel Vol, OSD)
 │   ├── index.css                         # Единая точка импорта CSS-модулей

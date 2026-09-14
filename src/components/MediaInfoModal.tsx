@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
+import { usePlayerState, usePlayerProgress, useLiveState } from "../contexts/PlayerStateContext";
 
 interface MediaInfoModalProps {
   /** Обработчик закрытия модального окна. */
@@ -25,7 +25,8 @@ import { formatTime } from "../utils/timeUtils";
 export function MediaInfoModal({
   onClose,
 }: MediaInfoModalProps) {
-  const { mediaInfo, liveState } = usePlayerState();
+  const { mediaInfo } = usePlayerState();
+  const liveState = useLiveState();
   const { position, frame } = usePlayerProgress();
 
   // Выборка имени файла

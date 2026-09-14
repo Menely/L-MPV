@@ -99,26 +99,29 @@ fn compute_fft(input: &[f32; FFT_SIZE], real: &mut [f32; FFT_SIZE], imag: &mut [
         let half = step / 2;
         let angle_step = -2.0 * std::f32::consts::PI / step as f32;
 
-        let mut group = 0;
-        while group < FFT_SIZE {
-            for j in 0..half {
-                let angle = angle_step * j as f32;
-                let w_re = angle.cos();
-                let w_im = angle.sin();
+        for j in 0..half {
+            let angle = angle_step * j as f32;
+            let (w_im, w_re) = angle.sin_cos();
 
-                let u_re = real[group + j];
-                let u_im = imag[group + j];
+            let mut group = 0;
+            while group < FFT_SIZE {
+                let idx1 = group + j;
+                let idx2 = idx1 + half;
 
-                let v_re = real[group + j + half] * w_re - imag[group + j + half] * w_im;
-                let v_im = real[group + j + half] * w_im + imag[group + j + half] * w_re;
+                let u_re = real[idx1];
+                let u_im = imag[idx1];
 
-                real[group + j] = u_re + v_re;
-                imag[group + j] = u_im + v_im;
+                let v_re = real[idx2] * w_re - imag[idx2] * w_im;
+                let v_im = real[idx2] * w_im + imag[idx2] * w_re;
 
-                real[group + j + half] = u_re - v_re;
-                imag[group + j + half] = u_im - v_im;
+                real[idx1] = u_re + v_re;
+                imag[idx1] = u_im + v_im;
+
+                real[idx2] = u_re - v_re;
+                imag[idx2] = u_im - v_im;
+
+                group += step;
             }
-            group += step;
         }
         step <<= 1;
     }

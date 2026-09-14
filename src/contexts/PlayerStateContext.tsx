@@ -81,9 +81,14 @@ export function usePlayerProgress() {
   return useContext(PlayerProgressContext);
 }
 
+const LiveStateContext = createContext<PlaybackState | null>(null);
+
+export function useLiveState() {
+  return useContext(LiveStateContext);
+}
+
 interface PlayerStateContextType {
   mediaInfo: MediaInfo | null;
-  liveState: PlaybackState | null;
   hasMedia: boolean;
   isIdle: boolean;
   chapters: Chapter[];
@@ -117,7 +122,6 @@ interface PlayerStateContextType {
 
 const PlayerStateContext = createContext<PlayerStateContextType>({
   mediaInfo: null,
-  liveState: null,
   hasMedia: false,
   isIdle: false,
   chapters: [],
@@ -189,8 +193,16 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   }, [hasMedia, loadTracks]);
 
   // Обработка idle (бездействия мыши)
+  const lastActivityTimeRef = useRef<number>(0);
+
   useEffect(() => {
     const handleActivity = (e?: Event) => {
+      const now = Date.now();
+      if (e?.type === "mousemove" && now - lastActivityTimeRef.current < 120) {
+        return;
+      }
+      lastActivityTimeRef.current = now;
+
       setIsIdle(false);
       if (idleTimer.current) window.clearTimeout(idleTimer.current);
 
@@ -770,7 +782,6 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
   const contextValue = useMemo<PlayerStateContextType>(() => ({
     mediaInfo,
-    liveState,
     hasMedia,
     isIdle,
     chapters,
@@ -796,7 +807,6 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     handleDownloadTrack,
   }), [
     mediaInfo,
-    liveState,
     hasMedia,
     isIdle,
     chapters,
@@ -822,11 +832,13 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   ]);
 
   return (
-    <PlayerProgressContext.Provider value={progress}>
-      <PlayerStateContext.Provider value={contextValue}>
-        {children}
-      </PlayerStateContext.Provider>
-    </PlayerProgressContext.Provider>
+    <LiveStateContext.Provider value={liveState}>
+      <PlayerProgressContext.Provider value={progress}>
+        <PlayerStateContext.Provider value={contextValue}>
+          {children}
+        </PlayerStateContext.Provider>
+      </PlayerProgressContext.Provider>
+    </LiveStateContext.Provider>
   );
 }
 
