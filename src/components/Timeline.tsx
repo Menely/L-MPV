@@ -54,8 +54,9 @@ export const Timeline = React.memo(() => {
   const calcPositionFromMouse = useCallback((clientX: number): number => {
     if (!timelineRef.current || duration <= 0) return 0;
     const rect = timelineRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return 0;
     const clickX = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    return (clickX / rect.width) * duration;
+    return Math.max(0, Math.min((clickX / rect.width) * duration, duration));
   }, [duration]);
 
   const dragCleanupRef = useRef<(() => void) | null>(null);
@@ -71,7 +72,7 @@ export const Timeline = React.memo(() => {
   }, []);
 
   const handleTimelineMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || duration <= 0) return;
     isDragging.current = true;
     const newPos = calcPositionFromMouse(e.clientX);
     setMousePosition(newPos);

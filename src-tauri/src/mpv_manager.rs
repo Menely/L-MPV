@@ -382,6 +382,7 @@ impl MpvManager {
             unsafe {
                 let path = Self::get_string_raw(&self.api, handle, c"path");
                 let position = Self::get_double_raw(&self.api, handle, c"time-pos");
+                let duration = Self::get_double_raw(&self.api, handle, c"duration");
                 let frame = Self::get_double_raw(&self.api, handle, c"estimated-frame-number") as i64;
                 let paused_flag = Self::get_flag_raw(&self.api, handle, c"pause");
                 let eof_reached = Self::get_flag_raw(&self.api, handle, c"eof-reached");
@@ -426,6 +427,7 @@ impl MpvManager {
 
                 Ok(crate::commands::PlaybackState {
                     position,
+                    duration,
                     frame,
                     paused,
                     speed,

@@ -28,6 +28,7 @@ export interface MediaInfo {
 
 export interface PlaybackState {
   position: number;
+  duration: number;
   frame: number;
   paused: boolean;
   speed: number;
@@ -167,6 +168,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const [tracks, setTracks] = useState<TrackInfo[]>([]);
   const seekingRef = useRef(false);
   const seekTargetRef = useRef<number | null>(null);
+  const seekTimestampRef = useRef<number>(0);
+  const seekTimeoutIdRef = useRef<number | null>(null);
   const idleTimer = useRef<number | null>(null);
   const currentPathRef = useRef<string>("");
   const currentAidRef = useRef<string>("");
@@ -274,8 +277,13 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         if (!hasMediaInfoRef.current || dynState.path !== currentPathRef.current) {
           const fullInfo = await invoke<MediaInfo>("get_media_info");
           if (fullInfo.path !== "") {
+            const effectiveDuration = fullInfo.duration > 0
+              ? fullInfo.duration
+              : (dynState.duration > 0 ? dynState.duration : 0);
+            fullInfo.duration = effectiveDuration;
+
             currentPathRef.current = fullInfo.path;
-            hasMediaInfoRef.current = true;
+            hasMediaInfoRef.current = effectiveDuration > 0;
             mediaInfoRef.current = fullInfo;
             setMediaInfo(fullInfo);
             setHasMedia(true);
@@ -284,7 +292,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             loadTracks();
             setProgress({
               position: fullInfo.position,
-              duration: fullInfo.duration,
+              duration: effectiveDuration,
               frame: fullInfo.frame,
               seeking: false,
               seekTarget: null,
@@ -334,9 +342,15 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             loadTracks();
           }
 
-          // Проверяем, доехал ли mpv до цели seek
+          // Проверяем, доехал ли mpv до цели seek или истек таймаут
           if (seekingRef.current && seekTargetRef.current !== null) {
-            if (Math.abs(dynState.position - seekTargetRef.current) < 1.0) {
+            const isTargetReached = Math.abs(dynState.position - seekTargetRef.current) < 2.0;
+            const isTimedOut = Date.now() - seekTimestampRef.current > 1000;
+            if (isTargetReached || isTimedOut) {
+              if (seekTimeoutIdRef.current !== null) {
+                window.clearTimeout(seekTimeoutIdRef.current);
+                seekTimeoutIdRef.current = null;
+              }
               seekingRef.current = false;
               seekTargetRef.current = null;
               setSeeking(false);
@@ -353,7 +367,27 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           currentPositionRef.current = curPos;
           eofReachedRef.current = !!dynState.eof_reached;
 
-          const curDur = mediaInfoRef.current?.duration || 0;
+          // Актуальная длительность из динамического состояния или сохраненной информации
+          const curDur = dynState.duration > 0
+            ? dynState.duration
+            : (mediaInfoRef.current?.duration || 0);
+
+          // Если в mediaInfo длительность была 0, но в mpv контейнер дочитался (> 0):
+          if (dynState.duration > 0 && (!mediaInfoRef.current || mediaInfoRef.current.duration <= 0)) {
+            hasMediaInfoRef.current = true;
+            if (mediaInfoRef.current) {
+              const updatedMedia: MediaInfo = {
+                ...mediaInfoRef.current,
+                duration: dynState.duration,
+              };
+              mediaInfoRef.current = updatedMedia;
+              setMediaInfo(updatedMedia);
+            }
+            // Подгружаем главы, так как при первой инициализации контейнер мог быть не готов
+            invoke<Chapter[]>("get_chapters").then(chaps => {
+              if (chaps && chaps.length > 0) setChapters(chaps);
+            }).catch(() => {});
+          }
 
           setProgress({
             position: curPos,
@@ -415,21 +449,47 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     return () => {
       isCancelled = true;
       if (timerId !== null) window.clearTimeout(timerId);
+      if (seekTimeoutIdRef.current !== null) {
+        window.clearTimeout(seekTimeoutIdRef.current);
+        seekTimeoutIdRef.current = null;
+      }
       window.removeEventListener("l-mpv-force-poll", handleForcePoll);
     };
   }, [loadTracks]);
 
   // ─── Единая точка входа для seek ───
   const seekTo = useCallback(async (seconds: number) => {
+    if (seekTimeoutIdRef.current !== null) {
+      window.clearTimeout(seekTimeoutIdRef.current);
+      seekTimeoutIdRef.current = null;
+    }
+
     seekingRef.current = true;
     seekTargetRef.current = seconds;
+    seekTimestampRef.current = Date.now();
     setSeeking(true);
     setSeekTarget(seconds);
     setProgress(prev => ({ ...prev, position: seconds, seeking: true, seekTarget: seconds }));
+
+    // Страховочный таймер: гарантированно сбрасываем seeking через 1200 мс
+    seekTimeoutIdRef.current = window.setTimeout(() => {
+      if (seekingRef.current) {
+        seekingRef.current = false;
+        seekTargetRef.current = null;
+        setSeeking(false);
+        setSeekTarget(null);
+      }
+      seekTimeoutIdRef.current = null;
+    }, 1200);
+
     try {
       await invoke("seek_absolute", { seconds });
     } catch (e) {
-      // При ошибке сбрасываем seeking
+      // При ошибке немедленно сбрасываем seeking
+      if (seekTimeoutIdRef.current !== null) {
+        window.clearTimeout(seekTimeoutIdRef.current);
+        seekTimeoutIdRef.current = null;
+      }
       seekingRef.current = false;
       seekTargetRef.current = null;
       setSeeking(false);

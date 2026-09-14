@@ -143,6 +143,8 @@ pub struct MediaInfo {
 pub struct PlaybackState {
     /// Текущая позиция воспроизведения в секундах.
     pub position: f64,
+    /// Полная длительность текущего медиафайла в секундах.
+    pub duration: f64,
     /// Текущий номер кадра.
     pub frame: i64,
     /// Состояние паузы.
@@ -819,9 +821,14 @@ pub fn seek_absolute(
     state: State<'_, PlayerState>,
     seconds: f64,
 ) -> Result<(), String> {
+    let safe_seconds = if seconds.is_nan() || seconds.is_infinite() {
+        0.0
+    } else {
+        seconds.max(0.0)
+    };
     state
         .mpv
-        .command(&format!("seek {} absolute+exact", seconds))
+        .command(&format!("seek {} absolute+exact", safe_seconds))
 }
 
 /// Шаг на один кадр вперед.
