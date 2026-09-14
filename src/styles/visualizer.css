@@ -38,7 +38,7 @@
   max-width: 100px;
   height: 24px;
   padding: 2px 6px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm, 6px);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
@@ -57,3 +57,71 @@
 .audio-visualizer--toolbar:active {
   transform: scale(0.96);
 }
+
+/* Безрамочный КРУПНЫЙ вид для радиальных и плазменных визуализаторов в тулбаре */
+.audio-visualizer--toolbar.audio-visualizer--mode-circular,
+.audio-visualizer--toolbar.audio-visualizer--mode-blob {
+  background: transparent;
+  border-color: transparent;
+  padding: 0;
+  width: 80px;
+  min-width: 64px;
+  max-width: 100px;
+  height: 40px;
+  margin-top: -8px;
+  margin-bottom: -8px;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.audio-visualizer--toolbar.audio-visualizer--mode-circular:hover,
+.audio-visualizer--toolbar.audio-visualizer--mode-blob:hover {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
+
+/* ─── Вариант 3: Внутри полосы прогресса (SoundCloud Style) ─ */
+.audio-visualizer--inside_timeline {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 16px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.85;
+  border-radius: var(--radius-sm, 4px);
+  mix-blend-mode: screen;
+  transition: opacity var(--t-fast) var(--ease-smooth),
+              height var(--t-fast) var(--ease-smooth);
+}
+
+.timeline:has(.audio-visualizer--inside_timeline) {
+  height: 20px;
+}
+
+.timeline:has(.audio-visualizer--inside_timeline) .timeline__track {
+  height: 14px;
+}
+
+.timeline:has(.audio-visualizer--inside_timeline):hover .timeline__track {
+  height: 16px;
+}
+
+.timeline:has(.audio-visualizer--inside_timeline) .timeline__segment-bg {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.timeline:has(.audio-visualizer--inside_timeline) .timeline__segment-progress {
+  opacity: 0.70;
+}
+
+.timeline:hover .audio-visualizer--inside_timeline {
+  opacity: 1;
+  height: 18px;
+}
+

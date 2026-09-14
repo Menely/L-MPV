@@ -127,7 +127,7 @@
 
 .titlebar__btn svg {
   display: block;
-  transition: filter var(--t-fast) var(--ease-smooth);
+  transition: transform var(--t-spring, 260ms) var(--ease-spring-bounce), filter var(--t-fast) var(--ease-smooth);
 }
 
 /* Отключение свечения в Titlebar при режиме Off */

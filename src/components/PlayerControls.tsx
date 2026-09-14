@@ -765,7 +765,17 @@ export function PlayerControls({
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  const modes: VisualizerMode[] = ["waveform", "spectrum", "bars"];
+                  const modes: VisualizerMode[] = [
+                    "waveform",
+                    "spectrum",
+                    "bars",
+                    "matrix",
+                    "ribbon",
+                    "particles",
+                    "circular",
+                    "blob",
+                    "strings",
+                  ];
                   const nextIndex = (modes.indexOf(visualizerConfig.mode) + 1) % modes.length;
                   const updated = { ...visualizerConfig, mode: modes[nextIndex], enabled: true };
                   setVisualizerConfig(updated);

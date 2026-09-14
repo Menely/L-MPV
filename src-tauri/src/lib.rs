@@ -122,7 +122,10 @@ pub fn run() {
 
     let mut builder = tauri::Builder::default();
     
-    if !settings.allow_multi_instance {
+    // Если запущено автономное окно MediaInfo (--mediainfo), плагин single_instance не регистрируется,
+    // чтобы каждое открытие из контекстного меню Проводника создавало независимое окно без привязки
+    // к настройке "Режим нескольких окон" основного плеера.
+    if !settings.allow_multi_instance && !cli_initial.open_mediainfo {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             use tauri::Emitter;
             use tauri::Manager;
@@ -235,6 +238,9 @@ pub fn run() {
             // Аудио-визуализатор
             commands::get_audio_spectrum,
             commands::set_visualizer_active,
+            // Пресеты настроек
+            commands::get_settings_presets,
+            commands::save_settings_presets,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -305,11 +311,10 @@ pub fn run() {
 
             let cli = parse_cli_args(std::env::args());
             if cli.open_mediainfo {
-                if let Some(ref path) = cli.file_path {
-                    let app_handle = app.handle().clone();
-                    if let Err(e) = mediainfo::open_or_update_mediainfo_window(&app_handle, path) {
-                        eprintln!("[L-MPV] Ошибка открытия автономного окна MediaInfo: {}", e);
-                    }
+                let target_path = cli.file_path.as_deref().unwrap_or("");
+                let app_handle = app.handle().clone();
+                if let Err(e) = mediainfo::open_or_update_mediainfo_window(&app_handle, target_path) {
+                    eprintln!("[L-MPV] Ошибка открытия автономного окна MediaInfo: {}", e);
                 }
                 // Окно плеера main остается скрытым
             } else if let Some(ref path) = cli.file_path {

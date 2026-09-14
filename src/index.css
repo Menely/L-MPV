@@ -38,3 +38,6 @@
 /* 12. Аудио-визуалайзер */
 @import './styles/visualizer.css';
 
+/* 13. Пресеты настроек */
+@import './styles/presets.css';
+

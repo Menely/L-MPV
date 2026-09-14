@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
 import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
 import { formatTime } from "../utils/timeUtils";
+import { AudioVisualizer } from "./AudioVisualizer";
 
 export const Timeline = React.memo(() => {
   const { mediaInfo, chapters, seekTo } = usePlayerState();
@@ -92,6 +93,9 @@ export const Timeline = React.memo(() => {
       onMouseMove={handleTimelineMouseMove}
       onMouseLeave={handleTimelineMouseLeave}
     >
+      {/* Визуализатор внутри таймлайна (SoundCloud Style) */}
+      <AudioVisualizer placement="inside_timeline" />
+
       {hoverInfo && (() => {
         const activeSegment = segments.find(seg => hoverInfo.time >= seg.start && hoverInfo.time <= seg.end);
         const showChapter = activeSegment && activeSegment.title && activeSegment.title !== mediaPath;

@@ -1,0 +1,404 @@
+/* ─── Стили окна и секции пресетов настроек (Presets) ────────────────── */
+
+.presets-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: presetsFadeIn var(--t-normal) var(--ease-smooth);
+}
+
+@keyframes presetsFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Блок создания нового пресета ───────────────────────── */
+.presets-creator {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+.presets-creator__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.presets-creator__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.presets-creator__subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.presets-creator__form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.presets-creator__input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.presets-creator__input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow, rgba(127, 199, 255, 0.25));
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.presets-creator__btn-save {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: var(--accent);
+  color: #0c0f17;
+  font-weight: 600;
+  font-size: 0.88rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-smooth);
+  box-shadow: 0 2px 10px var(--accent-glow, rgba(127, 199, 255, 0.3));
+  white-space: nowrap;
+}
+
+.presets-creator__btn-save:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px var(--accent-glow, rgba(127, 199, 255, 0.45));
+}
+
+.presets-creator__btn-save:active {
+  transform: translateY(0);
+}
+
+/* ─── Списки пресетов ────────────────────────────────────── */
+.presets-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  margin-bottom: 2px;
+}
+
+.presets-section-heading__title {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--t-fast) var(--ease-smooth);
+}
+
+.presets-section-heading__title:hover {
+  color: var(--text-primary);
+}
+
+.presets-section-heading__chevron {
+  transition: transform var(--t-fast) var(--ease-smooth);
+  color: var(--text-muted);
+}
+
+.presets-section-heading__title:hover .presets-section-heading__chevron {
+  color: var(--text-primary);
+}
+
+.presets-section-heading__chevron--collapsed {
+  transform: rotate(-90deg);
+}
+
+.presets-section-heading__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.presets-btn-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.presets-btn-text:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.presets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── Карточка отдельного пресета ────────────────────────── */
+.preset-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all var(--t-normal) var(--ease-smooth);
+  position: relative;
+  overflow: hidden;
+}
+
+.preset-card:hover {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.preset-card--builtin {
+  background: rgba(255, 255, 255, 0.015);
+  border-style: dashed;
+}
+
+.preset-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.preset-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.preset-card__name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preset-card__name {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-card__rename-input {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  outline: none;
+  max-width: 260px;
+}
+
+.preset-card__badge-builtin {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.preset-card__meta {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+/* Бейджи параметров в карточке */
+.preset-card__tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preset-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.preset-tag__color-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+}
+
+/* Кнопки действий карточки */
+.preset-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.preset-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.preset-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.preset-action-btn--apply {
+  background: var(--accent);
+  color: #0a0d14;
+  font-weight: 600;
+  border-color: transparent;
+  box-shadow: 0 2px 8px var(--accent-glow, rgba(127, 199, 255, 0.25));
+}
+
+.preset-action-btn--apply:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+  color: #000;
+  box-shadow: 0 4px 12px var(--accent-glow, rgba(127, 199, 255, 0.4));
+}
+
+.preset-action-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* Пустой список */
+.presets-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  gap: 10px;
+}
+
+.presets-empty__title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.presets-empty__desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  max-width: 380px;
+  line-height: 1.4;
+}
+
+/* Всплывающее уведомление о применении пресета */
+.preset-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid var(--accent);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glow, rgba(127, 199, 255, 0.3));
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  z-index: 100000;
+  backdrop-filter: blur(12px);
+  animation: toastSlideUp 0.25s var(--ease-spring-smooth);
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}

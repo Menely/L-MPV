@@ -85,6 +85,8 @@ import {
 import { UpdateInfo } from "./UpdateModal";
 import { ColorPickerModal } from "./ColorPickerModal";
 import { VisualizerSettingsSection } from "./VisualizerSettingsSection";
+import { PresetsSection } from "./PresetsSection";
+import { SettingsPreset } from "../utils/presetsUtils";
 
 interface AmbientSettings {
   mode: "off" | "blur" | "color";
@@ -160,7 +162,25 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(getCustomHotkeys());
   const [recordingAction, setRecordingAction] = useState<{ id: string, index: number } | null>(null);
-  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "hotkeys" | "integration">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "hotkeys" | "integration">("general");
+
+  // Синхронизация локальных состояний SettingsModal при применении любого пресета
+  const handlePresetApplied = useCallback((preset: SettingsPreset) => {
+    const { data } = preset;
+    if (data.accentColor) setActiveColor(data.accentColor);
+    if (data.glowIntensity) setGlowIntensity(data.glowIntensity);
+    if (typeof data.uiOpacity === "number") setUiOpacity(data.uiOpacity);
+    if (typeof data.animationsEnabled === "boolean") setAnimationsEnabled(data.animationsEnabled);
+    if (typeof data.showTrackNames === "boolean") setShowTrackNames(data.showTrackNames);
+    if (data.visibleButtons) setVisibleButtons(data.visibleButtons);
+    if (data.ambient) setAmbientSettings(data.ambient);
+    if (typeof data.saveTracksToVideoDir === "boolean") setSaveTracksToVideoDir(data.saveTracksToVideoDir);
+    if (typeof data.hotloadEnabled === "boolean") setHotloadEnabled(data.hotloadEnabled);
+    if (typeof data.skipOpeningSeconds === "number") setSkipOpeningSeconds(data.skipOpeningSeconds);
+    if (data.customColors) setCustomColors(data.customColors);
+    if (data.customHotkeys) setCustomHotkeys(data.customHotkeys);
+  }, []);
+
   const [integrationLogs, setIntegrationLogs] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
   const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
@@ -463,6 +483,30 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             <SlidersHorizontal size={20} color="var(--accent)" /> Настройки
           </h2>
           <button
+            type="button"
+            onClick={() => setActiveTab("presets")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "5px 12px",
+              borderRadius: "var(--radius-sm)",
+              background: activeTab === "presets" ? "var(--accent-glow, rgba(127,199,255,0.2))" : "rgba(255, 255, 255, 0.06)",
+              border: activeTab === "presets" ? "1px solid var(--accent)" : "1px solid var(--border)",
+              color: activeTab === "presets" ? "var(--accent)" : "var(--text-secondary)",
+              fontSize: "0.82rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all var(--t-fast) var(--ease-smooth)",
+              marginLeft: "auto",
+              marginRight: 10,
+            }}
+            title="Открыть менеджер пресетов настроек"
+          >
+            <Sparkles size={14} color="var(--accent)" />
+            <span>Пресеты</span>
+          </button>
+          <button
             className="modal__close"
             onClick={onClose}
             id="btn-settings-close"
@@ -523,6 +567,25 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             }}
           >
             <Palette size={17} /> Кастом
+          </button>
+          <button
+            onClick={() => setActiveTab("presets")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "12px 18px",
+              background: "transparent",
+              border: "none",
+              borderBottom: activeTab === "presets" ? "2px solid var(--accent)" : "2px solid transparent",
+              color: activeTab === "presets" ? "var(--text-primary)" : "var(--text-secondary)",
+              fontSize: "0.92rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all var(--t-fast) var(--ease-smooth)",
+            }}
+          >
+            <Sparkles size={17} /> Пресеты
           </button>
           <button
             onClick={() => setActiveTab("hotkeys")}
@@ -1582,6 +1645,12 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   )}
                 </div>
               </AccordionSection>
+            </div>
+          )}
+
+          {activeTab === "presets" && (
+            <div className="modal__section" style={{ display: "flex", flexDirection: "column" }}>
+              <PresetsSection onPresetApplied={handlePresetApplied} />
             </div>
           )}
 

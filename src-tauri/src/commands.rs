@@ -2240,3 +2240,43 @@ pub fn get_audio_spectrum(state: State<'_, PlayerState>) -> [f32; 32] {
 pub fn set_visualizer_active(state: State<'_, PlayerState>, active: bool) {
     state.audio_capture.set_active(active);
 }
+
+/// Получение абсолютного пути к портативному файлу config/presets.json.
+fn get_presets_file_path() -> Result<std::path::PathBuf, String> {
+    let exe_dir = std::env::current_exe()
+        .map_err(|e| format!("Не удалось определить путь к исполняемому файлу: {e}"))?
+        .parent()
+        .ok_or_else(|| "Не удалось определить директорию исполняемого файла".to_string())?
+        .to_path_buf();
+    Ok(exe_dir.join("config").join("presets.json"))
+}
+
+/// Чтение сохранённых пресетов настроек из портативной директории config/presets.json.
+///
+/// Если файл не существует, возвращается пустой JSON-массив "[]".
+#[tauri::command]
+pub fn get_settings_presets() -> Result<String, String> {
+    let presets_path = get_presets_file_path()?;
+    if presets_path.exists() {
+        std::fs::read_to_string(&presets_path)
+            .map_err(|e| format!("Ошибка чтения файла пресетов config/presets.json: {e}"))
+    } else {
+        Ok("[]".to_string())
+    }
+}
+
+/// Сохранение пресетов настроек в портативную директорию config/presets.json.
+///
+/// При необходимости автоматически создаёт директорию config/ и перезаписывает файл.
+#[tauri::command]
+pub fn save_settings_presets(presets_json: String) -> Result<(), String> {
+    let presets_path = get_presets_file_path()?;
+    if let Some(parent) = presets_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Ошибка создания папки config: {e}"))?;
+    }
+    std::fs::write(&presets_path, presets_json)
+        .map_err(|e| format!("Ошибка записи файла пресетов config/presets.json: {e}"))
+}
+
+
