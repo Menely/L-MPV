@@ -73,6 +73,7 @@ L-MPV/
 │   │   ├── main.rs                       # Входная точка
 │   │   ├── lib.rs                        # Настройка Tauri, привязка HWND (`wid`), фокус окна, предсоздание окна MediaInfo, чистый exit(0)
 │   │   ├── ambient.rs                    # Контроллер подсветки черных полос (Ambient Light: GPU Blur / Color / Off)
+│   │   ├── audio_capture.rs              # Нативный захват звука WASAPI Loopback, быстрый БПФ (FFT Radix-2), 32 логарифмические полосы спектра
 │   │   ├── mediainfo.rs                  # FFI-интеграция с mediainfo.dll и управление независимым окном MediaInfo
 │   │   ├── mpv_manager.rs                # FFI-обертчик libmpv (vo=gpu-next, WASAPI, D3D11, HWDEC auto-safe, HDR, 32-tap sinc resampler)
 │   │   ├── system_integration.rs         # Интеграция с Проводником Windows (контекстное меню, ассоциации файлов)

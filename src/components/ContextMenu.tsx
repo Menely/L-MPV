@@ -410,6 +410,16 @@ export function ContextMenu({
     },
     {
       type: "item",
+      icon: <BookOpen size={15} />,
+      label: "Главы (Chapters)...",
+      shortcut: "C",
+      action: () => {
+        onShowChapters();
+        onClose();
+      },
+    },
+    {
+      type: "item",
       icon: <FileText size={15} />,
       label: "L-MPV MediaInfo...",
       shortcut: "Shift+F10",
@@ -422,6 +432,7 @@ export function ContextMenu({
       type: "item",
       icon: <Settings size={15} />,
       label: "Настройки...",
+      shortcut: "F2",
       action: () => {
         onShowSettings();
         onClose();

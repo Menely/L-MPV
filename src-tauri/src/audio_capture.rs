@@ -79,17 +79,17 @@ impl Drop for AudioCaptureManager {
 }
 
 /// Быстрое преобразование Фурье (Radix-2 Cooley-Tukey FFT на 1024 отсчета) с окном Ханна.
-fn compute_fft(input: &[f32; FFT_SIZE], real: &mut [f32; FFT_SIZE], imag: &mut [f32; FFT_SIZE]) {
-    // 1. Оконная функция Ханна и 10-битная перестановка (Bit-reversal)
+fn compute_fft(
+    input: &[f32; FFT_SIZE],
+    real: &mut [f32; FFT_SIZE],
+    imag: &mut [f32; FFT_SIZE],
+    bit_rev: &[usize; FFT_SIZE],
+    hann_window: &[f32; FFT_SIZE],
+) {
+    // 1. Оконная функция Ханна и 10-битная перестановка (Bit-reversal) по предрасчитанной таблице
     for i in 0..FFT_SIZE {
-        let mut rev = 0usize;
-        let mut temp = i;
-        for _ in 0..10 {
-            rev = (rev << 1) | (temp & 1);
-            temp >>= 1;
-        }
-        let hann = 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (FFT_SIZE - 1) as f32).cos());
-        real[rev] = input[i] * hann;
+        let rev = bit_rev[i];
+        real[rev] = input[i] * hann_window[i];
         imag[rev] = 0.0;
     }
 
@@ -163,6 +163,20 @@ fn run_capture_loop(
         if band_indices[i] <= band_indices[i - 1] {
             band_indices[i] = band_indices[i - 1] + 1;
         }
+    }
+
+    // Предрасчёт таблицы битовой перестановки и коэффициентов окна Ханна для БПФ
+    let mut bit_rev = [0usize; FFT_SIZE];
+    let mut hann_window = [0.0f32; FFT_SIZE];
+    for i in 0..FFT_SIZE {
+        let mut rev = 0usize;
+        let mut temp = i;
+        for _ in 0..10 {
+            rev = (rev << 1) | (temp & 1);
+            temp >>= 1;
+        }
+        bit_rev[i] = rev;
+        hann_window[i] = 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (FFT_SIZE - 1) as f32).cos());
     }
 
     while is_running.load(Ordering::Relaxed) {
@@ -303,8 +317,8 @@ fn run_capture_loop(
                 fft_input[i] = samples_buffer[(buffer_pos + i) % FFT_SIZE];
             }
 
-            // Вычисляем 1024-точечное FFT
-            compute_fft(&fft_input, &mut real, &mut imag);
+            // Вычисляем 1024-точечное FFT с предрасчитанными таблицами
+            compute_fft(&fft_input, &mut real, &mut imag, &bit_rev, &hann_window);
 
             // Логарифмический спектральный анализ по 32 полосам
             for b in 0..BANDS_COUNT {

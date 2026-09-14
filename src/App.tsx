@@ -20,6 +20,7 @@ import { ChaptersModal } from "./components/ChaptersModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { PlaylistDrawer } from "./components/PlaylistDrawer";
 import { UpdateModal, UpdateToast, UpdateInfo } from "./components/UpdateModal";
+import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/AudioVisualizer";
 import { applyAccentColor } from "./utils/colorUtils";
 import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
 
@@ -458,6 +459,45 @@ function App() {
       case "detailedMediaInfo":
         invoke("toggle_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
         break;
+      case "chapters":
+        setShowChapters((v) => !v);
+        break;
+      case "settings":
+        setShowSettings((v) => !v);
+        break;
+      case "toggleVisualizer": {
+        const cfg = getVisualizerConfig();
+        const nextEnabled = !cfg.enabled;
+        saveVisualizerConfig({ ...cfg, enabled: nextEnabled });
+        setOsdText(`Визуализатор: ${nextEnabled ? "Включен" : "Выключен"}`);
+        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        break;
+      }
+      case "cycleVisualizerMode": {
+        const cfg = getVisualizerConfig();
+        const modes: VisualizerMode[] = ["waveform", "spectrum", "bars", "matrix", "ribbon", "particles", "circular", "blob", "strings"];
+        const nextIdx = (modes.indexOf(cfg.mode) + 1) % modes.length;
+        const nextMode = modes[nextIdx];
+        saveVisualizerConfig({ ...cfg, enabled: true, mode: nextMode });
+        setOsdText(`Визуализатор: ${nextMode}`);
+        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        break;
+      }
+      case "rotateVideo": {
+        try {
+          const curRot = (mediaInfo as any)?.rotation || 0;
+          const nextRot = (curRot + 90) % 360;
+          await invoke("set_rotation", { degrees: nextRot });
+          setOsdText(`Поворот: ${nextRot}°`);
+          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        } catch (e) {
+          console.error(e);
+        }
+        break;
+      }
       case "resetZoom":
         videoZoomRef.current = 0;
         videoPanXRef.current = 0;

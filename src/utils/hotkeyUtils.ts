@@ -39,6 +39,11 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   speedDown: ["BracketLeft"],
   speedReset: ["Backspace"],
   toggleAmbient: ["KeyB"],
+  chapters: ["KeyC"],
+  settings: ["F2"],
+  toggleVisualizer: ["KeyW"],
+  cycleVisualizerMode: ["Shift+KeyW"],
+  rotateVideo: ["Alt+KeyR"],
 };
 
 export const HOTKEY_ACTIONS: HotkeyAction[] = [
@@ -78,6 +83,11 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "openContextMenu", label: "Открыть контекстное меню", defaultKeys: DEFAULT_HOTKEYS["openContextMenu"], category: "Интерфейс" },
   { id: "fileInfo", label: "Информация о файле", defaultKeys: DEFAULT_HOTKEYS["fileInfo"], category: "Интерфейс" },
   { id: "detailedMediaInfo", label: "Свойства MediaInfo (MPC)", defaultKeys: DEFAULT_HOTKEYS["detailedMediaInfo"], category: "Интерфейс" },
+  { id: "chapters", label: "Главы видео (Chapters)", defaultKeys: DEFAULT_HOTKEYS["chapters"], category: "Интерфейс" },
+  { id: "settings", label: "Открыть настройки", defaultKeys: DEFAULT_HOTKEYS["settings"], category: "Интерфейс" },
+  { id: "toggleVisualizer", label: "Вкл/Выкл аудио-визуализатор", defaultKeys: DEFAULT_HOTKEYS["toggleVisualizer"], category: "Интерфейс" },
+  { id: "cycleVisualizerMode", label: "Сменить стиль визуализатора", defaultKeys: DEFAULT_HOTKEYS["cycleVisualizerMode"], category: "Интерфейс" },
+  { id: "rotateVideo", label: "Поворот видео на 90°", defaultKeys: DEFAULT_HOTKEYS["rotateVideo"], category: "Интерфейс" },
   { id: "resetZoom", label: "Сброс масштаба видео (100%)", defaultKeys: DEFAULT_HOTKEYS["resetZoom"], category: "Интерфейс" },
   { id: "screenshot", label: "Сохранить кадр", defaultKeys: DEFAULT_HOTKEYS["screenshot"], category: "Интерфейс" },
   { id: "copyFrame", label: "Копировать кадр в буфер", defaultKeys: DEFAULT_HOTKEYS["copyFrame"], category: "Интерфейс" },
