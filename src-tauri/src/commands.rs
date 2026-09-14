@@ -28,6 +28,12 @@ pub struct AppSettings {
     /// Счётчик запусков приложения для периодической фоновой проверки обновлений.
     #[serde(default)]
     pub launch_count: u64,
+    /// Номер запуска, до которого проверка обновлений отложена пользователем (при "Отложить" +15).
+    #[serde(default)]
+    pub postponed_until_launch: u64,
+    /// Последняя зафиксированная версия приложения для сброса счётчиков при обновлении.
+    #[serde(default)]
+    pub last_version: String,
 }
 
 impl AppSettings {

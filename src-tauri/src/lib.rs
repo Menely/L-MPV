@@ -235,6 +235,7 @@ pub fn run() {
             updater::check_launch_and_update,
             updater::check_for_updates,
             updater::download_and_install_update,
+            updater::postpone_update,
             // Аудио-визуализатор
             commands::get_audio_spectrum,
             commands::set_visualizer_active,

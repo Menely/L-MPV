@@ -228,21 +228,23 @@ function App() {
     return false;
   }, []);
 
-  const lastResizedVideoRef = useRef<{ path: string; w: number; h: number } | null>(null);
+  // Флаг того, что начальный размер окна под первое видео в текущей сессии уже был применён
+  const hasInitialVideoSizedRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (mediaInfo?.path && mediaInfo.width > 0 && mediaInfo.height > 0) {
-      if (
-        lastResizedVideoRef.current?.path !== mediaInfo.path ||
-        lastResizedVideoRef.current?.w !== mediaInfo.width ||
-        lastResizedVideoRef.current?.h !== mediaInfo.height
-      ) {
-        lastResizedVideoRef.current = { 
-          path: mediaInfo.path, 
-          w: mediaInfo.width, 
-          h: mediaInfo.height 
-        };
+      // Подгоняем окно под размер видео СТРОГО один раз за сессию для самого первого открытого видео.
+      // Любое последующее переключение видео (кнопки, плейлист, хоткей, drag&drop)
+      // или хотлоад дорожек/субтитров не сбрасывает размер окна, сохраняя выбор пользователя.
+      if (!hasInitialVideoSizedRef.current) {
+        hasInitialVideoSizedRef.current = true;
         resizeWindowForVideo(mediaInfo.width, mediaInfo.height);
+      } else {
+        // Окно уже было спозиционировано под первое видео — просто гарантируем видимость
+        if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
+          isWindowRevealedRef.current = true;
+          getCurrentWindow().show().catch(() => {});
+        }
       }
     } else if (mediaInfo?.path) {
       // Аудиофайл или файл без видеоряда
@@ -250,8 +252,6 @@ function App() {
         isWindowRevealedRef.current = true;
         getCurrentWindow().show().catch(() => {});
       }
-    } else if (!mediaInfo?.path) {
-      lastResizedVideoRef.current = null;
     }
   }, [mediaInfo?.path, mediaInfo?.width, mediaInfo?.height, resizeWindowForVideo]);
 
