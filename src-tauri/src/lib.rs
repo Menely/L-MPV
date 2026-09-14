@@ -325,7 +325,7 @@ pub fn run() {
                 // Окно плеера main остается скрытым
             } else if let Some(ref path) = cli.file_path {
                 let state = app.state::<PlayerState>();
-                if let Err(e) = commands::open_file_internal(&*state, path) {
+                if let Err(e) = commands::open_file_internal(&state, path) {
                     println!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
                     window.show().ok();
                 }

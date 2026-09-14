@@ -6,7 +6,7 @@
 
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_double, c_int, c_void};
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Mutex;
 use libloading::{Library, Symbol};
 
@@ -51,6 +51,7 @@ unsafe impl Send for MpvApi {}
 unsafe impl Sync for MpvApi {}
 
 impl MpvApi {
+    #[allow(clippy::missing_transmute_annotations)]
     unsafe fn load(dll_name: &str) -> Result<Self, String> {
         let lib = Library::new(dll_name).map_err(|e| format!("Не удалось загрузить {}: {}", dll_name, e))?;
         
@@ -114,7 +115,7 @@ impl MpvManager {
 
     /// Создание нового экземпляра менеджера mpv.
     pub fn new(
-        portable_dir: &PathBuf,
+        portable_dir: &Path,
     ) -> Result<Self, String> {
         unsafe {
             let api = Self::load_mpv_api()?;

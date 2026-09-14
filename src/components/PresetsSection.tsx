@@ -63,7 +63,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     }
     setToastMessage(msg);
     toastTimerRef.current = window.setTimeout(() => {
-      setToastMessage(null);
+      if (isMountedRef.current) {
+        setToastMessage(null);
+      }
       toastTimerRef.current = null;
     }, 2800);
   }, []);

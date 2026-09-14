@@ -636,7 +636,7 @@ pub fn open_file(
     state: State<'_, PlayerState>,
     path: String,
 ) -> Result<(), String> {
-    open_file_internal(&*state, &path)
+    open_file_internal(&state, &path)
 }
 
 pub fn open_file_internal(
@@ -682,7 +682,7 @@ pub fn open_file_internal(
                     p.is_file()
                         && p.extension()
                             .and_then(|ext| ext.to_str())
-                            .map_or(false, is_video_extension)
+                            .is_some_and(is_video_extension)
                 })
                 .collect();
 
@@ -1217,7 +1217,7 @@ pub fn load_external_tracks_for_file(
     state: State<'_, PlayerState>,
     path: String,
 ) -> Result<(), String> {
-    load_external_tracks_internal(&*state, std::path::Path::new(&path))
+    load_external_tracks_internal(&state, std::path::Path::new(&path))
 }
 
 /// Получить текущую версию приложения (из Cargo.toml).

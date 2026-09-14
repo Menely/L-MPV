@@ -151,11 +151,11 @@ fn run_capture_loop(
     let bin_freq = 48000.0f32 / FFT_SIZE as f32; // ~46.875 Гц на 1 бин
 
     let mut band_indices = [0usize; BANDS_COUNT + 1];
-    for i in 0..=BANDS_COUNT {
+    for (i, item) in band_indices.iter_mut().enumerate() {
         let norm = i as f32 / BANDS_COUNT as f32;
         let freq = min_freq * (max_freq / min_freq).powf(norm);
         let bin = (freq / bin_freq).round() as usize;
-        band_indices[i] = bin.clamp(1, FFT_SIZE / 2 - 1);
+        *item = bin.clamp(1, FFT_SIZE / 2 - 1);
     }
 
     // Гарантируем строгую монотонность диапазонов полос
@@ -201,7 +201,7 @@ fn run_capture_loop(
             }
         };
 
-        if let Err(_) = unsafe { audio_client.Start() } {
+        if unsafe { audio_client.Start() }.is_err() {
             thread::sleep(Duration::from_millis(200));
             continue;
         }
@@ -306,10 +306,7 @@ fn run_capture_loop(
                     break;
                 }
 
-                packet_length = match unsafe { capture_client.GetNextPacketSize() } {
-                    Ok(len) => len,
-                    Err(_) => 0,
-                };
+                packet_length = unsafe { capture_client.GetNextPacketSize() }.unwrap_or_default();
             }
 
             // Разворачиваем кольцевой буфер для непрерывности временной функции
@@ -358,7 +355,7 @@ fn run_capture_loop(
                 if normalized > smoothed_bands[b] {
                     smoothed_bands[b] = smoothed_bands[b] * 0.15 + normalized * 0.85;
                 } else {
-                    smoothed_bands[b] = smoothed_bands[b] * 0.82;
+                    smoothed_bands[b] *= 0.82;
                 }
             }
 

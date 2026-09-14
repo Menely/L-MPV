@@ -36,8 +36,8 @@ struct GitHubRelease {
 }
 
 fn is_newer_semver(current: &str, latest: &str) -> bool {
-    let clean_curr = current.trim_start_matches(|c| c == 'v' || c == 'V');
-    let clean_late = latest.trim_start_matches(|c| c == 'v' || c == 'V');
+    let clean_curr = current.trim_start_matches(['v', 'V']);
+    let clean_late = latest.trim_start_matches(['v', 'V']);
 
     let parse_parts = |s: &str| -> Vec<u64> {
         s.split('.')
@@ -163,7 +163,7 @@ pub async fn check_launch_and_update() -> Result<Option<UpdateInfo>, String> {
         let mut settings = crate::commands::AppSettings::load(p_dir);
         settings.launch_count = settings.launch_count.saturating_add(1);
         println!("L-MPV запуск №{}", settings.launch_count);
-        if settings.launch_count % 5 == 0 {
+        if settings.launch_count.is_multiple_of(5) {
             should_check = true;
         }
         let _ = settings.save(p_dir);
