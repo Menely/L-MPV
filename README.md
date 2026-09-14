@@ -2,7 +2,7 @@
   <img src="./assets/banner.png" alt="L-MPV Banner" width="100%" style="border-radius: 12px;">
 </p>
 
-<h1 align="center">🎬 L-MPV - Modern & Portable Media Player</h1>
+<h1 align="center">🎬 L-MPV — Modern & Portable Media Player</h1>
 
 <p align="center">
   <b>Высокопроизводительный, эстетичный и портативный медиаплеер нового поколения.</b><br>
