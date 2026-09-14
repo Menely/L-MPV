@@ -328,13 +328,13 @@ export function ContextMenu({
         },
         {
           type: "item",
-          label: "Размытие видео (GPU Blur)",
+          label: "Размытие видео",
           active: ambientMode === "blur",
           action: () => handleSetAmbientMode("blur"),
         },
         {
           type: "item",
-          label: "Цветной Ambient",
+          label: "Подсветка под цвет",
           active: ambientMode === "color",
           action: () => handleSetAmbientMode("color"),
         },
@@ -365,7 +365,7 @@ export function ContextMenu({
     {
       type: "item",
       icon: <Shuffle size={15} />,
-      label: "Случайный порядок (Shuffle)",
+      label: "Случайный порядок",
       action: () => { invoke("toggle_shuffle"); onClose(); },
     },
     { type: "divider" },
@@ -401,7 +401,7 @@ export function ContextMenu({
     {
       type: "item",
       icon: <Info size={15} />,
-      label: "Информация о файле...",
+      label: "Информация о файле",
       shortcut: "I",
       action: () => {
         onShowMediaInfo();
@@ -410,18 +410,8 @@ export function ContextMenu({
     },
     {
       type: "item",
-      icon: <BookOpen size={15} />,
-      label: "Главы (Chapters)...",
-      shortcut: "C",
-      action: () => {
-        onShowChapters();
-        onClose();
-      },
-    },
-    {
-      type: "item",
       icon: <FileText size={15} />,
-      label: "L-MPV MediaInfo...",
+      label: "L-MPV MediaInfo",
       shortcut: "Shift+F10",
       action: () => {
         if (onShowDetailedMediaInfo) onShowDetailedMediaInfo();
@@ -431,7 +421,7 @@ export function ContextMenu({
     {
       type: "item",
       icon: <Settings size={15} />,
-      label: "Настройки...",
+      label: "Настройки",
       shortcut: "F2",
       action: () => {
         onShowSettings();

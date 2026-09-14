@@ -164,6 +164,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(getCustomHotkeys());
   const [recordingAction, setRecordingAction] = useState<{ id: string, index: number } | null>(null);
+  const ignoreClickUntilRef = useRef<number>(0);
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "hotkeys" | "integration">("general");
 
   // Синхронизация локальных состояний SettingsModal при применении любого пресета
@@ -1818,7 +1819,18 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                           return (
                                             <div key={idx} style={{ display: "flex", alignItems: "center" }}>
                                               <button
-                                                onClick={() => setRecordingAction({ id: item.id, index: idx })}
+                                                onClick={(e) => {
+                                                  if (Date.now() < ignoreClickUntilRef.current) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    return;
+                                                  }
+                                                  if (!isRecording) {
+                                                    setRecordingAction({ id: item.id, index: idx });
+                                                  } else {
+                                                    e.preventDefault();
+                                                  }
+                                                }}
                                                 onKeyDown={(e) => {
                                                   if (isRecording) {
                                                     e.preventDefault();
@@ -1850,6 +1862,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                                   if (isRecording) {
                                                     e.preventDefault();
                                                     e.stopPropagation();
+                                                    ignoreClickUntilRef.current = Date.now() + 400;
                                                     const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
                                                     const newCode = btnMap[e.button] || `MouseButton${e.button}`;
                                                     const newCodes = [...currentCodes];
@@ -1861,7 +1874,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                                   }
                                                 }}
                                                 onContextMenu={(e) => {
-                                                  if (isRecording) e.preventDefault();
+                                                  e.preventDefault();
+                                                  e.stopPropagation();
                                                 }}
                                                 style={{
                                                   padding: "4px 10px",
@@ -1943,7 +1957,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                                     if (isRecordingNew) {
                                                       e.preventDefault();
                                                       e.stopPropagation();
-                                                      const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
+                                                      ignoreClickUntilRef.current = Date.now() + 400;
+                                                    const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
                                                       const newCode = btnMap[e.button] || `MouseButton${e.button}`;
                                                       const updatedCodes = [...currentCodes, newCode];
                                                       const updated = { ...customHotkeys, [item.id]: updatedCodes };
@@ -1953,7 +1968,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                                     }
                                                   }}
                                                   onContextMenu={(e) => {
-                                                    if (isRecordingNew) e.preventDefault();
+                                                    e.preventDefault();
+                                                   e.stopPropagation();
                                                   }}
                                                   style={{
                                                     padding: "4px 10px",
@@ -1975,7 +1991,14 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                           
                                           return (
                                             <button
-                                              onClick={() => setRecordingAction({ id: item.id, index: currentCodes.length })}
+                                              onClick={(e) => {
+                                                if (Date.now() < ignoreClickUntilRef.current) {
+                                                  e.preventDefault();
+                                                  e.stopPropagation();
+                                                  return;
+                                                }
+                                                setRecordingAction({ id: item.id, index: currentCodes.length });
+                                              }}
                                               title="Добавить клавишу"
                                               style={{
                                                 padding: "4px 8px",

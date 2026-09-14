@@ -58,6 +58,16 @@ if (typeof document !== "undefined") {
     }
   });
   window.addEventListener("l-mpv-settings-changed", syncAnimationsSetting);
+
+  // Предотвращение вызова стандартного контекстного меню движка WebView2
+  window.addEventListener("contextmenu", (e) => {
+    // Разрешаем стандартное меню только для текстовых полей ввода при необходимости
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+      return;
+    }
+    e.preventDefault();
+  });
 }
 
 // Глобальный перехватчик ошибок React во избежание белого экрана
