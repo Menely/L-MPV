@@ -104,6 +104,11 @@ pub fn run() {
     let settings = commands::AppSettings::load(&exe_dir);
 
     let mpv_arc = Arc::new(mpv);
+
+    // Применяем настройку поведения при окончании воспроизведения видео (yes = автопереход, always = остановка)
+    let keep_open_val = if settings.play_next_on_end { "yes" } else { "always" };
+    let _ = mpv_arc.set_property_string("keep-open", keep_open_val);
+
     let ambient_controller = Arc::new(ambient::AmbientController::new(
         mpv_arc.clone(),
         settings.ambient.clone(),
@@ -229,18 +234,27 @@ pub fn run() {
             commands::set_auto_load_tracks,
             commands::get_auto_select_external_audio,
             commands::set_auto_select_external_audio,
+            commands::get_play_next_on_end,
+            commands::set_play_next_on_end,
             commands::load_external_tracks_for_file,
             commands::get_app_version,
             // Автообновление
             updater::check_launch_and_update,
             updater::check_for_updates,
             updater::download_and_install_update,
+            updater::postpone_update,
             // Аудио-визуализатор
             commands::get_audio_spectrum,
             commands::set_visualizer_active,
             // Пресеты настроек
             commands::get_settings_presets,
             commands::save_settings_presets,
+            commands::save_single_preset,
+            commands::delete_preset_file,
+            commands::rename_preset_file,
+            commands::open_presets_folder,
+            commands::write_text_file,
+            commands::read_text_file,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -319,7 +333,7 @@ pub fn run() {
                 // Окно плеера main остается скрытым
             } else if let Some(ref path) = cli.file_path {
                 let state = app.state::<PlayerState>();
-                if let Err(e) = commands::open_file_internal(&*state, path) {
+                if let Err(e) = commands::open_file_internal(&state, path) {
                     println!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
                     window.show().ok();
                 }

@@ -36,8 +36,8 @@ struct GitHubRelease {
 }
 
 fn is_newer_semver(current: &str, latest: &str) -> bool {
-    let clean_curr = current.trim_start_matches(|c| c == 'v' || c == 'V');
-    let clean_late = latest.trim_start_matches(|c| c == 'v' || c == 'V');
+    let clean_curr = current.trim_start_matches(['v', 'V']);
+    let clean_late = latest.trim_start_matches(['v', 'V']);
 
     let parse_parts = |s: &str| -> Vec<u64> {
         s.split('.')
@@ -161,11 +161,29 @@ pub async fn check_launch_and_update() -> Result<Option<UpdateInfo>, String> {
 
     if let Some(ref p_dir) = exe_dir {
         let mut settings = crate::commands::AppSettings::load(p_dir);
+        let current_version = env!("CARGO_PKG_VERSION");
+
+        // Если приложение обновилось на новую версию — сбрасываем счетчик запусков и откладываний
+        if settings.last_version != current_version {
+            settings.last_version = current_version.to_string();
+            settings.launch_count = 0;
+            settings.postponed_until_launch = 0;
+        }
+
         settings.launch_count = settings.launch_count.saturating_add(1);
         println!("L-MPV запуск №{}", settings.launch_count);
-        if settings.launch_count % 5 == 0 {
+
+        if settings.postponed_until_launch > 0 {
+            if settings.launch_count >= settings.postponed_until_launch {
+                // Прошло 15 запусков с момента нажатия "Отложить", возвращаемся к проверке
+                settings.postponed_until_launch = 0;
+                should_check = true;
+            }
+        } else if settings.launch_count.is_multiple_of(2) {
+            // Базовый график: каждый 2-й запуск
             should_check = true;
         }
+
         let _ = settings.save(p_dir);
     }
 
@@ -192,6 +210,25 @@ pub async fn check_launch_and_update() -> Result<Option<UpdateInfo>, String> {
 #[tauri::command]
 pub async fn check_for_updates() -> Result<UpdateInfo, String> {
     fetch_latest_release_internal().await
+}
+
+/// Отложить проверку обновлений на 15 последующих запусков приложения.
+#[tauri::command]
+pub fn postpone_update() -> Result<(), String> {
+    let exe_dir = std::env::current_exe()
+        .map_err(|e| e.to_string())?
+        .parent()
+        .ok_or_else(|| "Не удалось определить директорию исполняемого файла".to_string())?
+        .to_path_buf();
+
+    let mut settings = crate::commands::AppSettings::load(&exe_dir);
+    settings.postponed_until_launch = settings.launch_count.saturating_add(15);
+    settings.save(&exe_dir)?;
+    println!(
+        "L-MPV: проверка обновлений отложена на 15 запусков (до запуска №{})",
+        settings.postponed_until_launch
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -297,6 +334,12 @@ pub async fn download_and_install_update(
             .await
             .map_err(|e| format!("Ошибка финализации файла {}: {}", asset.name, e))?;
     }
+
+    // Сбрасываем счётчики запусков и откладываний перед обновлением
+    let mut settings = crate::commands::AppSettings::load(exe_dir);
+    settings.launch_count = 0;
+    settings.postponed_until_launch = 0;
+    let _ = settings.save(exe_dir);
 
     let bat_path = updates_dir.join("update.bat");
     let current_exe_name = exe_path.file_name().unwrap_or_default().to_string_lossy();

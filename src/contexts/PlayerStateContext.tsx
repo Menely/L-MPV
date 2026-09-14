@@ -41,6 +41,7 @@ export interface PlaybackState {
   video_height: number;
   current_aid: string;
   current_sid: string;
+  eof_reached?: boolean;
 }
 
 export interface Chapter {
@@ -251,6 +252,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const lastSavedPositionRef = useRef<number>(0);
   const lastSavedPausedRef = useRef<boolean>(true);
   const lastSaveTimeRef = useRef<number>(0);
+  const currentPositionRef = useRef<number>(0);
+  const eofReachedRef = useRef<boolean>(false);
 
   // Оптимизированный цикл поллинга
   useEffect(() => {
@@ -347,6 +350,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             ? seekTargetRef.current
             : dynState.position;
 
+          currentPositionRef.current = curPos;
+          eofReachedRef.current = !!dynState.eof_reached;
+
           const curDur = mediaInfoRef.current?.duration || 0;
 
           setProgress({
@@ -434,13 +440,27 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
   // ─── Переключение паузы ───
   const togglePause = useCallback(async () => {
+    const dur = mediaInfoRef.current?.duration || 0;
+    const isAtEnd = dur > 0 && (
+      eofReachedRef.current ||
+      currentPositionRef.current >= dur - 0.3
+    );
+
     // Мгновенно обновляем UI локально (оптимистично)
     setMediaInfo(prev => {
       if (!prev) return null;
-      const next = { ...prev, paused: !prev.paused };
+      const nextPaused = isAtEnd ? false : !prev.paused;
+      const next = { ...prev, paused: nextPaused };
       mediaInfoRef.current = next;
       return next;
     });
+
+    if (isAtEnd) {
+      currentPositionRef.current = 0;
+      eofReachedRef.current = false;
+      setProgress(prev => ({ ...prev, position: 0, frame: 0 }));
+    }
+
     try {
       await invoke("toggle_pause");
       // Пробуждаем цикл поллинга от 1-секундной "спячки"

@@ -91,6 +91,15 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     }
   };
 
+  const handlePostpone = async () => {
+    try {
+      await invoke("postpone_update");
+    } catch (e) {
+      console.error("Ошибка откладывания обновления:", e);
+    }
+    onClose();
+  };
+
   return (
     <div
       className="modal-overlay"
@@ -333,7 +342,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
         >
           {!isDownloading && (
             <button
-              onClick={onClose}
+              onClick={handlePostpone}
               style={{
                 padding: "8px 18px",
                 borderRadius: 8,
@@ -408,6 +417,15 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   onOpenModal,
   onClose,
 }) => {
+  const handlePostpone = async () => {
+    try {
+      await invoke("postpone_update");
+    } catch (e) {
+      console.error("Ошибка откладывания обновления:", e);
+    }
+    onClose();
+  };
+
   return (
     <div className="update-toast">
       <div className="update-toast__header">
@@ -435,7 +453,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
       <div className="update-toast__actions">
         <button
           className="update-toast__btn update-toast__btn--secondary"
-          onClick={onClose}
+          onClick={handlePostpone}
         >
           Отложить
         </button>

@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   Sun,
   ChevronDown,
+  FolderOpen,
 } from "lucide-react";
 import {
   SettingsPreset,
@@ -26,7 +27,8 @@ import {
   saveUserPresets,
   exportPresetToFile,
   exportAllPresetsToFile,
-  parseImportedPresets,
+  importPresetsFromNativeDialog,
+  openPresetsFolder,
 } from "../utils/presetsUtils";
 
 interface PresetsSectionProps {
@@ -53,7 +55,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   const [isBuiltInPresetsOpen, setIsBuiltInPresetsOpen] = useState<boolean>(false);
 
   const isMountedRef = useRef<boolean>(true);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const toastTimerRef = useRef<number | null>(null);
 
   const showToast = useCallback((msg: string) => {
@@ -62,7 +63,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     }
     setToastMessage(msg);
     toastTimerRef.current = window.setTimeout(() => {
-      setToastMessage(null);
+      if (isMountedRef.current) {
+        setToastMessage(null);
+      }
       toastTimerRef.current = null;
     }, 2800);
   }, []);
@@ -82,13 +85,36 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         if (isMountedRef.current) setLoading(false);
       });
 
+    // Автоматическая синхронизация при возврате фокуса в окно L-MPV (например, после изменения файлов в Проводнике)
+    const handleFocus = () => {
+      loadUserPresets()
+        .then((presets) => {
+          if (isMountedRef.current) setUserPresets(presets);
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("focus", handleFocus);
+
     return () => {
       isMountedRef.current = false;
+      window.removeEventListener("focus", handleFocus);
       if (toastTimerRef.current !== null) {
         window.clearTimeout(toastTimerRef.current);
       }
     };
   }, []);
+
+  // Ручное обновление списка пресетов
+  const handleReload = async () => {
+    try {
+      const presets = await loadUserPresets();
+      setUserPresets(presets);
+      showToast("Список пресетов обновлён");
+    } catch (err) {
+      console.error("Ошибка перезагрузки пресетов:", err);
+      showToast("Не удалось обновить список пресетов");
+    }
+  };
 
   // Сохранение текущих настроек под новым именем
   const handleSaveCurrent = async (e?: React.FormEvent) => {
@@ -101,12 +127,27 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
     try {
       const newPreset = await captureCurrentSettings(name);
-      const updated = [newPreset, ...userPresets];
+      const existingIdx = userPresets.findIndex(
+        (p) => p.name.trim().toLowerCase() === name.toLowerCase()
+      );
+      let updated: SettingsPreset[];
+      if (existingIdx !== -1) {
+        updated = [...userPresets];
+        updated[existingIdx] = {
+          ...newPreset,
+          id: userPresets[existingIdx].id,
+          createdAt: userPresets[existingIdx].createdAt,
+          updatedAt: Date.now(),
+        };
+        showToast(`Пресет «${name}» обновлён текущими настройками!`);
+      } else {
+        updated = [newPreset, ...userPresets];
+        showToast(`Пресет «${newPreset.name}» успешно сохранён!`);
+      }
       setUserPresets(updated);
       await saveUserPresets(updated);
       setNewPresetName("");
       setActivePresetId(newPreset.id);
-      showToast(`Пресет «${newPreset.name}» успешно сохранён!`);
     } catch (err) {
       console.error("Ошибка сохранения пресета:", err);
       showToast("Не удалось сохранить пресет");
@@ -173,35 +214,57 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     showToast(`Пресет переименован в «${trimmed}»`);
   };
 
-  // Импорт пресета из JSON
-  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Нативный импорт пресета через проводник Windows
+  const handleNativeImport = async () => {
+    try {
+      const imported = await importPresetsFromNativeDialog();
+      if (!isMountedRef.current || imported.length === 0) return;
+      const updated = [...imported, ...userPresets];
+      setUserPresets(updated);
+      await saveUserPresets(updated);
+      showToast(`Импортировано пресетов: ${imported.length}`);
+    } catch (err) {
+      console.error("Ошибка импорта:", err);
+      showToast("Не удалось импортировать пресет");
+    }
+  };
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const text = event.target?.result as string;
-        const imported = parseImportedPresets(text);
-        if (!isMountedRef.current) return;
-        if (imported.length === 0) {
-          showToast("В файле не найдено корректных пресетов");
-          return;
-        }
-        const updated = [...imported, ...userPresets];
-        setUserPresets(updated);
-        await saveUserPresets(updated);
-        showToast(`Импортировано пресетов: ${imported.length}`);
-      } catch (err) {
-        console.error("Ошибка импорта:", err);
-        if (isMountedRef.current) showToast("Ошибка чтения файла пресетов");
-      } finally {
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
+  // Экспорт отдельного пресета через диалог проводника
+  const handleExportSingle = async (preset: SettingsPreset) => {
+    try {
+      const savedPath = await exportPresetToFile(preset);
+      if (savedPath) {
+        const fileName = savedPath.split(/[/\\]/).pop() || preset.name;
+        showToast(`Пресет сохранён: ${fileName}`);
       }
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      console.error("Ошибка экспорта пресета:", err);
+      showToast("Не удалось экспортировать пресет");
+    }
+  };
+
+  // Экспорт всех пресетов через диалог проводника
+  const handleExportAll = async () => {
+    try {
+      const savedPath = await exportAllPresetsToFile(userPresets);
+      if (savedPath) {
+        const fileName = savedPath.split(/[/\\]/).pop() || "все пресеты";
+        showToast(`Все пресеты сохранены: ${fileName}`);
+      }
+    } catch (err) {
+      console.error("Ошибка экспорта всех пресетов:", err);
+      showToast("Не удалось экспортировать пресеты");
+    }
+  };
+
+  // Открытие папки config/presets в Проводнике Windows
+  const handleOpenFolder = async () => {
+    try {
+      await openPresetsFolder();
+    } catch (err) {
+      console.error("Ошибка открытия папки:", err);
+      showToast("Не удалось открыть папку пресетов");
+    }
   };
 
   // Форматирование даты
@@ -369,8 +432,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             <button
               type="button"
               className="preset-action-btn"
-              onClick={() => exportPresetToFile(preset)}
-              title="Экспортировать этот пресет в .json файл"
+              onClick={() => handleExportSingle(preset)}
+              title="Экспортировать этот пресет через Проводник Windows"
             >
               <Download size={13} />
             </button>
@@ -393,14 +456,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
   return (
     <div className="presets-container">
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileImport}
-        accept=".json"
-        style={{ display: "none" }}
-      />
-
       {/* ─── 1. Карточка создания нового пресета ─── */}
       <div className="presets-creator">
         <div className="presets-creator__header">
@@ -447,7 +502,23 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           <button
             type="button"
             className="presets-btn-text"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleReload}
+            title="Обновить список пресетов из файлов на диске"
+          >
+            <RotateCw size={13} /> Обновить
+          </button>
+          <button
+            type="button"
+            className="presets-btn-text"
+            onClick={handleOpenFolder}
+            title="Открыть папку с пресетами в Проводнике Windows"
+          >
+            <FolderOpen size={13} /> Папка
+          </button>
+          <button
+            type="button"
+            className="presets-btn-text"
+            onClick={handleNativeImport}
             title="Импортировать пресеты из .json файла"
           >
             <Upload size={13} /> Импорт
@@ -456,7 +527,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             <button
               type="button"
               className="presets-btn-text"
-              onClick={() => exportAllPresetsToFile(userPresets)}
+              onClick={handleExportAll}
               title="Экспортировать все пользовательские пресеты"
             >
               <Download size={13} /> Экспорт всех

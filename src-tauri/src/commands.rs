@@ -11,8 +11,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::{HashMap, HashSet};
 use tauri::State;
 
+fn default_true() -> bool {
+    true
+}
+
 /// Конфигурация приложения, сохраняемая в config/settings.json.
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppSettings {
     pub screenshot_directory: Option<String>,
     #[serde(default)]
@@ -25,9 +29,34 @@ pub struct AppSettings {
     /// Флаг автоматического переключения звука на внешнюю аудиодорожку при её обнаружении (по умолчанию выключен).
     #[serde(default)]
     pub auto_select_external_audio: bool,
+    /// Действие по окончании видео: true - включать следующее видео, false - ничего не делать.
+    #[serde(default = "default_true")]
+    pub play_next_on_end: bool,
     /// Счётчик запусков приложения для периодической фоновой проверки обновлений.
     #[serde(default)]
     pub launch_count: u64,
+    /// Номер запуска, до которого проверка обновлений отложена пользователем (при "Отложить" +15).
+    #[serde(default)]
+    pub postponed_until_launch: u64,
+    /// Последняя зафиксированная версия приложения для сброса счётчиков при обновлении.
+    #[serde(default)]
+    pub last_version: String,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            screenshot_directory: None,
+            allow_multi_instance: false,
+            ambient: AmbientSettings::default(),
+            auto_load_tracks: false,
+            auto_select_external_audio: false,
+            play_next_on_end: true,
+            launch_count: 0,
+            postponed_until_launch: 0,
+            last_version: String::new(),
+        }
+    }
 }
 
 impl AppSettings {
@@ -140,6 +169,8 @@ pub struct PlaybackState {
     pub current_aid: String,
     /// Текущая активная дорожка субтитров
     pub current_sid: String,
+    /// Флаг достижения конца файла (EOF).
+    pub eof_reached: bool,
 }
 
 /// Функция экранирования путей для команд mpv.
@@ -636,7 +667,7 @@ pub fn open_file(
     state: State<'_, PlayerState>,
     path: String,
 ) -> Result<(), String> {
-    open_file_internal(&*state, &path)
+    open_file_internal(&state, &path)
 }
 
 pub fn open_file_internal(
@@ -682,7 +713,7 @@ pub fn open_file_internal(
                     p.is_file()
                         && p.extension()
                             .and_then(|ext| ext.to_str())
-                            .map_or(false, is_video_extension)
+                            .is_some_and(is_video_extension)
                 })
                 .collect();
 
@@ -728,6 +759,21 @@ pub fn open_file_internal(
 pub fn toggle_pause(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    // Если достигнут конец воспроизведения, перезапускаем видео с самого начала
+    let dur = state.mpv.get_property_double("duration").unwrap_or(0.0);
+    let is_eof = dur > 0.0 && state.mpv.get_property_bool("eof-reached").unwrap_or(false);
+    let is_near_end = if !is_eof {
+        let pos = state.mpv.get_property_double("time-pos").unwrap_or(0.0);
+        dur > 0.0 && pos >= (dur - 0.3)
+    } else {
+        dur > 0.0
+    };
+
+    if is_near_end {
+        let _ = state.mpv.command("seek 0 absolute+exact");
+        let _ = state.mpv.set_property_string("pause", "no");
+        return Ok(());
+    }
     state.mpv.command("cycle pause")
 }
 
@@ -737,6 +783,21 @@ pub fn set_pause(
     state: State<'_, PlayerState>,
     paused: bool,
 ) -> Result<(), String> {
+    if !paused {
+        let dur = state.mpv.get_property_double("duration").unwrap_or(0.0);
+        let is_eof = dur > 0.0 && state.mpv.get_property_bool("eof-reached").unwrap_or(false);
+        let is_near_end = if !is_eof {
+            let pos = state.mpv.get_property_double("time-pos").unwrap_or(0.0);
+            dur > 0.0 && pos >= (dur - 0.3)
+        } else {
+            dur > 0.0
+        };
+
+        if is_near_end {
+            let _ = state.mpv.command("seek 0 absolute+exact");
+            return state.mpv.set_property_string("pause", "no");
+        }
+    }
     let value = if paused { "yes" } else { "no" };
     state.mpv.set_property_string("pause", value)
 }
@@ -1211,13 +1272,49 @@ pub fn set_auto_select_external_audio(enabled: bool) -> Result<(), String> {
     Err("Не удалось определить директорию приложения для сохранения настроек".to_string())
 }
 
+/// Получить текущий статус настройки автоматического переключения на следующее видео по окончании.
+#[tauri::command]
+pub fn get_play_next_on_end() -> Result<bool, String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+        
+    if let Some(p_dir) = exe_dir {
+        let settings = AppSettings::load(&p_dir);
+        return Ok(settings.play_next_on_end);
+    }
+    Ok(true)
+}
+
+/// Установить статус настройки автоматического переключения на следующее видео по окончании.
+#[tauri::command]
+pub fn set_play_next_on_end(
+    state: State<'_, PlayerState>,
+    enabled: bool,
+) -> Result<(), String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    if let Some(p_dir) = exe_dir {
+        let mut settings = AppSettings::load(&p_dir);
+        settings.play_next_on_end = enabled;
+        settings.save(&p_dir).ok();
+
+        let keep_open_val = if enabled { "yes" } else { "always" };
+        let _ = state.mpv.set_property_string("keep-open", keep_open_val);
+        return Ok(());
+    }
+    Err("Не удалось определить директорию приложения для сохранения настроек".to_string())
+}
+
 /// Сканирование и загрузка внешних дорожек и субтитров для указанного медиафайла.
 #[tauri::command]
 pub fn load_external_tracks_for_file(
     state: State<'_, PlayerState>,
     path: String,
 ) -> Result<(), String> {
-    load_external_tracks_internal(&*state, std::path::Path::new(&path))
+    load_external_tracks_internal(&state, std::path::Path::new(&path))
 }
 
 /// Получить текущую версию приложения (из Cargo.toml).
@@ -2241,42 +2338,200 @@ pub fn set_visualizer_active(state: State<'_, PlayerState>, active: bool) {
     state.audio_capture.set_active(active);
 }
 
-/// Получение абсолютного пути к портативному файлу config/presets.json.
-fn get_presets_file_path() -> Result<std::path::PathBuf, String> {
+/// Очистка имени пресета для безопасного использования в качестве имени файла на Windows.
+fn sanitize_filename(name: &str) -> String {
+    let invalid_chars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
+    let mut clean: String = name
+        .chars()
+        .map(|c| if invalid_chars.contains(&c) || c.is_control() { '_' } else { c })
+        .collect();
+    clean = clean.trim().trim_matches('.').to_string();
+    if clean.is_empty() {
+        clean = "preset".to_string();
+    }
+    clean
+}
+
+/// Получение абсолютного пути к портативной директории config/presets/.
+fn get_presets_dir() -> Result<std::path::PathBuf, String> {
     let exe_dir = std::env::current_exe()
         .map_err(|e| format!("Не удалось определить путь к исполняемому файлу: {e}"))?
         .parent()
         .ok_or_else(|| "Не удалось определить директорию исполняемого файла".to_string())?
         .to_path_buf();
-    Ok(exe_dir.join("config").join("presets.json"))
+    let dir = exe_dir.join("config").join("presets");
+    if !dir.exists() {
+        let _ = std::fs::create_dir_all(&dir);
+    }
+    Ok(dir)
 }
 
-/// Чтение сохранённых пресетов настроек из портативной директории config/presets.json.
+/// Автоматическая миграция устаревшего файла config/presets.json в отдельные файлы config/presets/<name>.json.
+fn migrate_legacy_presets_if_needed(presets_dir: &std::path::Path) {
+    if let Some(config_dir) = presets_dir.parent() {
+        let legacy_file = config_dir.join("presets.json");
+        if legacy_file.is_file() {
+            if let Ok(content) = std::fs::read_to_string(&legacy_file) {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(list) = parsed.as_array() {
+                        for item in list {
+                            if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
+                                let safe_name = sanitize_filename(name);
+                                let file_path = presets_dir.join(format!("{safe_name}.json"));
+                                if !file_path.exists() {
+                                    if let Ok(item_str) = serde_json::to_string_pretty(item) {
+                                        let _ = std::fs::write(&file_path, item_str);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Удаляем старый монолитный файл после успешного переноса
+            let _ = std::fs::remove_file(&legacy_file);
+        }
+    }
+}
+
+/// Чтение всех сохранённых пресетов настроек из папки config/presets/.
 ///
-/// Если файл не существует, возвращается пустой JSON-массив "[]".
+/// Сканирует все *.json файлы, считывает их и возвращает в виде объединённого JSON-массива.
 #[tauri::command]
 pub fn get_settings_presets() -> Result<String, String> {
-    let presets_path = get_presets_file_path()?;
-    if presets_path.exists() {
-        std::fs::read_to_string(&presets_path)
-            .map_err(|e| format!("Ошибка чтения файла пресетов config/presets.json: {e}"))
-    } else {
-        Ok("[]".to_string())
+    let presets_dir = get_presets_dir()?;
+    migrate_legacy_presets_if_needed(&presets_dir);
+
+    let mut presets = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&presets_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && path.extension().and_then(|ext| ext.to_str()) == Some("json") {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                        presets.push(val);
+                    }
+                }
+            }
+        }
     }
+
+    presets.sort_by(|a, b| {
+        let a_time = a.get("updatedAt").or_else(|| a.get("createdAt")).and_then(|v| v.as_i64()).unwrap_or(0);
+        let b_time = b.get("updatedAt").or_else(|| b.get("createdAt")).and_then(|v| v.as_i64()).unwrap_or(0);
+        b_time.cmp(&a_time)
+    });
+
+    serde_json::to_string(&presets)
+        .map_err(|e| format!("Ошибка сериализации списка пресетов: {e}"))
 }
 
-/// Сохранение пресетов настроек в портативную директорию config/presets.json.
-///
-/// При необходимости автоматически создаёт директорию config/ и перезаписывает файл.
+/// Сохранение списка пресетов: каждый пресет сохраняется в отдельный файл config/presets/<имя>.json.
 #[tauri::command]
 pub fn save_settings_presets(presets_json: String) -> Result<(), String> {
-    let presets_path = get_presets_file_path()?;
-    if let Some(parent) = presets_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Ошибка создания папки config: {e}"))?;
+    let presets_dir = get_presets_dir()?;
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&presets_json) {
+        if let Some(list) = parsed.as_array() {
+            let mut active_files = std::collections::HashSet::new();
+            for item in list {
+                if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
+                    let safe_name = sanitize_filename(name);
+                    let file_name = format!("{safe_name}.json");
+                    let file_path = presets_dir.join(&file_name);
+                    if let Ok(item_str) = serde_json::to_string_pretty(item) {
+                        let _ = std::fs::write(&file_path, item_str);
+                    }
+                    active_files.insert(file_name);
+                }
+            }
+
+            // Удаляем файлы пресетов, которые были удалены пользователем
+            if let Ok(entries) = std::fs::read_dir(&presets_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if let Some(fname) = path.file_name().and_then(|f| f.to_str()) {
+                        if fname.ends_with(".json") && !active_files.contains(fname) {
+                            let _ = std::fs::remove_file(&path);
+                        }
+                    }
+                }
+            }
+        }
     }
-    std::fs::write(&presets_path, presets_json)
-        .map_err(|e| format!("Ошибка записи файла пресетов config/presets.json: {e}"))
+    Ok(())
+}
+
+/// Сохранение отдельного пресета в индивидуальный файл config/presets/<имя>.json.
+#[tauri::command]
+pub fn save_single_preset(file_name: String, preset_json: String) -> Result<String, String> {
+    let presets_dir = get_presets_dir()?;
+    let safe_name = sanitize_filename(&file_name);
+    let target_path = presets_dir.join(format!("{safe_name}.json"));
+
+    std::fs::write(&target_path, preset_json)
+        .map_err(|e| format!("Ошибка записи файла пресета {:?}: {e}", target_path))?;
+
+    Ok(safe_name)
+}
+
+/// Удаление файла пресета из config/presets/<имя>.json.
+#[tauri::command]
+pub fn delete_preset_file(file_name: String) -> Result<(), String> {
+    let presets_dir = get_presets_dir()?;
+    let safe_name = sanitize_filename(&file_name);
+    let target_path = presets_dir.join(format!("{safe_name}.json"));
+
+    if target_path.exists() {
+        std::fs::remove_file(&target_path)
+            .map_err(|e| format!("Ошибка удаления файла пресета {:?}: {e}", target_path))?;
+    }
+    Ok(())
+}
+
+/// Переименование файла пресета в config/presets/.
+#[tauri::command]
+pub fn rename_preset_file(old_name: String, new_name: String) -> Result<String, String> {
+    let presets_dir = get_presets_dir()?;
+    let safe_old = sanitize_filename(&old_name);
+    let safe_new = sanitize_filename(&new_name);
+    let old_path = presets_dir.join(format!("{safe_old}.json"));
+    let new_path = presets_dir.join(format!("{safe_new}.json"));
+
+    if old_path.exists() && old_path != new_path {
+        std::fs::rename(&old_path, &new_path)
+            .map_err(|e| format!("Ошибка переименования файла пресета: {e}"))?;
+    }
+    Ok(safe_new)
+}
+
+/// Открытие папки config/presets/ в Проводнике Windows.
+#[tauri::command]
+pub fn open_presets_folder() -> Result<(), String> {
+    let dir = get_presets_dir()?;
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(&dir)
+            .spawn()
+            .map_err(|e| format!("Не удалось открыть папку пресетов в Проводнике: {e}"))?;
+    }
+    Ok(())
+}
+
+/// Запись текстового/JSON файла по указанному пути (для нативного экспорта пресетов).
+#[tauri::command]
+pub fn write_text_file(path: String, content: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if let Some(parent) = p.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    std::fs::write(p, content).map_err(|e| format!("Ошибка записи файла по пути {path}: {e}"))
+}
+
+/// Чтение содержимого текстового файла по указанному пути (для нативного импорта пресетов).
+#[tauri::command]
+pub fn read_text_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("Ошибка чтения файла по пути {path}: {e}"))
 }
 
 

@@ -9,21 +9,16 @@ use std::sync::{Arc, Mutex};
 use crate::mpv_manager::MpvManager;
 
 /// Режим работы подсветки черных полос.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AmbientMode {
     /// Классические черные полосы без эффектов.
+    #[default]
     Off,
     /// Нативное GPU-размытие краев видео в области полос.
     Blur,
     /// Мягкая статическая или акцентная подсветка выбранным цветом.
     Color,
-}
-
-impl Default for AmbientMode {
-    fn default() -> Self {
-        AmbientMode::Off
-    }
 }
 
 /// Пользовательские настройки подсветки полос.

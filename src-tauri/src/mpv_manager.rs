@@ -6,7 +6,7 @@
 
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_double, c_int, c_void};
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Mutex;
 use libloading::{Library, Symbol};
 
@@ -51,6 +51,7 @@ unsafe impl Send for MpvApi {}
 unsafe impl Sync for MpvApi {}
 
 impl MpvApi {
+    #[allow(clippy::missing_transmute_annotations)]
     unsafe fn load(dll_name: &str) -> Result<Self, String> {
         let lib = Library::new(dll_name).map_err(|e| format!("Не удалось загрузить {}: {}", dll_name, e))?;
         
@@ -114,7 +115,7 @@ impl MpvManager {
 
     /// Создание нового экземпляра менеджера mpv.
     pub fn new(
-        portable_dir: &PathBuf,
+        portable_dir: &Path,
     ) -> Result<Self, String> {
         unsafe {
             let api = Self::load_mpv_api()?;
@@ -181,7 +182,7 @@ impl MpvManager {
 
             // ─── Поведение при конце файла ──────────────
             Self::set_option(
-                &api, handle, "keep-open", "always",
+                &api, handle, "keep-open", "yes",
             );
 
             // ─── Масштабирование и поведение окна ──────
@@ -315,6 +316,26 @@ impl MpvManager {
         })
     }
 
+    pub fn get_property_bool(&self, name: &str) -> Result<bool, String> {
+        self.with_handle(|handle| {
+            let c_name = CString::new(name).map_err(|e| format!("Ошибка CString: {}", e))?;
+            unsafe {
+                let mut value: c_int = 0;
+                let err = (self.api.get_property)(
+                    handle,
+                    c_name.as_ptr(),
+                    MpvFormat::Flag,
+                    &mut value as *mut c_int as *mut c_void,
+                );
+                if err < 0 {
+                    Err(format!("Ошибка чтения свойства '{}': код {}", name, err))
+                } else {
+                    Ok(value != 0)
+                }
+            }
+        })
+    }
+
     #[inline]
     unsafe fn get_double_raw(api: &MpvApi, handle: *mut MpvHandle, name: &CStr) -> f64 {
         let mut value: c_double = 0.0;
@@ -362,7 +383,9 @@ impl MpvManager {
                 let path = Self::get_string_raw(&self.api, handle, c"path");
                 let position = Self::get_double_raw(&self.api, handle, c"time-pos");
                 let frame = Self::get_double_raw(&self.api, handle, c"estimated-frame-number") as i64;
-                let paused = Self::get_flag_raw(&self.api, handle, c"pause");
+                let paused_flag = Self::get_flag_raw(&self.api, handle, c"pause");
+                let eof_reached = Self::get_flag_raw(&self.api, handle, c"eof-reached");
+                let paused = paused_flag || eof_reached;
                 let speed_raw = Self::get_double_raw(&self.api, handle, c"speed");
                 let speed = if speed_raw <= 0.0 { 1.0 } else { speed_raw };
                 let volume = Self::get_double_raw(&self.api, handle, c"volume");
@@ -416,6 +439,7 @@ impl MpvManager {
                     video_height,
                     current_aid,
                     current_sid,
+                    eof_reached,
                 })
             }
         })

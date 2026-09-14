@@ -4,6 +4,7 @@
 // а также мгновенное применение любых пресетов в рантайме.
 
 import { invoke } from "@tauri-apps/api/core";
+import { save, open } from "@tauri-apps/plugin-dialog";
 import {
   applyAccentColor,
   GlowIntensity,
@@ -415,21 +416,38 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
 }
 
 /**
- * Загрузка пользовательских пресетов из портативного файла config/presets.json и localStorage.
+ * Загрузка пользовательских пресетов из индивидуальных файлов в config/presets/*.json и localStorage.
  */
 export async function loadUserPresets(): Promise<SettingsPreset[]> {
+  const normalizeList = (list: unknown[]): SettingsPreset[] => {
+    return list
+      .filter((item): item is SettingsPreset => {
+        return !!(item && typeof item === "object" && typeof (item as SettingsPreset).name === "string");
+      })
+      .map((item) => ({
+        id: item.id || `preset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        name: item.name,
+        description: item.description,
+        createdAt: typeof item.createdAt === "number" ? item.createdAt : Date.now(),
+        updatedAt: typeof item.updatedAt === "number" ? item.updatedAt : undefined,
+        isBuiltIn: false,
+        data: item.data || {},
+      }));
+  };
+
   try {
-    // 1. Попытка чтения из бэкенда (портативный файл config/presets.json)
-    const jsonFromBackend = await invoke<string>("get_settings_presets").catch(() => "");
-    if (jsonFromBackend && jsonFromBackend.trim() !== "" && jsonFromBackend !== "[]") {
+    // 1. Попытка чтения из бэкенда (сканирование папки config/presets/*.json)
+    const jsonFromBackend = await invoke<string>("get_settings_presets");
+    if (jsonFromBackend && jsonFromBackend.trim() !== "") {
       const parsed = JSON.parse(jsonFromBackend);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(parsed));
-        return parsed;
+      if (Array.isArray(parsed)) {
+        const normalized = normalizeList(parsed);
+        localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(normalized));
+        return normalized;
       }
     }
   } catch (e) {
-    console.error("Ошибка чтения пресетов из бэкенда:", e);
+    console.warn("Чтение пресетов из бэкенда не удалось, используется локальное хранилище:", e);
   }
 
   // 2. Фолбэк на localStorage
@@ -438,7 +456,7 @@ export async function loadUserPresets(): Promise<SettingsPreset[]> {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return normalizeList(parsed);
       }
     }
   } catch (e) {
@@ -486,19 +504,106 @@ function downloadJson(filename: string, data: unknown): void {
 }
 
 /**
- * Экспорт выбранного пресета в виде скачиваемого .json файла.
+ * Экспорт выбранного пресета с открытием нативного проводника Windows.
  */
-export function exportPresetToFile(preset: SettingsPreset): void {
+export async function exportPresetToFile(preset: SettingsPreset): Promise<string | null> {
   const cleanName = preset.name.replace(/[\\/:*?"<>|]/g, "_").trim() || "preset";
-  downloadJson(`l-mpv-preset-${cleanName}.json`, preset);
+  const defaultFileName = `l-mpv-preset-${cleanName}.json`;
+
+  try {
+    const selectedPath = await save({
+      title: `Экспорт пресета «${preset.name}»`,
+      defaultPath: defaultFileName,
+      filters: [
+        {
+          name: "Пресет L-MPV (*.json)",
+          extensions: ["json"],
+        },
+      ],
+    });
+
+    if (!selectedPath) return null;
+
+    const content = JSON.stringify(preset, null, 2);
+    await invoke("write_text_file", { path: selectedPath, content });
+    return selectedPath;
+  } catch (e) {
+    console.error("Ошибка нативного экспорта пресета:", e);
+    // Фолбэк на скачивание через браузерный Blob если вызов Tauri отклонён
+    downloadJson(defaultFileName, preset);
+    return defaultFileName;
+  }
 }
 
 /**
- * Экспорт всех пользовательских пресетов в один файл backup.
+ * Экспорт всех пользовательских пресетов в один файл backup с открытием нативного проводника.
  */
-export function exportAllPresetsToFile(presets: SettingsPreset[]): void {
+export async function exportAllPresetsToFile(presets: SettingsPreset[]): Promise<string | null> {
   const userOnly = presets.filter((p) => !p.isBuiltIn);
-  downloadJson(`l-mpv-presets-backup-${new Date().toISOString().slice(0, 10)}.json`, userOnly);
+  const defaultFileName = `l-mpv-presets-all-${new Date().toISOString().slice(0, 10)}.json`;
+
+  try {
+    const selectedPath = await save({
+      title: "Экспорт всех пресетов настроек",
+      defaultPath: defaultFileName,
+      filters: [
+        {
+          name: "Пресеты L-MPV (*.json)",
+          extensions: ["json"],
+        },
+      ],
+    });
+
+    if (!selectedPath) return null;
+
+    const content = JSON.stringify(userOnly, null, 2);
+    await invoke("write_text_file", { path: selectedPath, content });
+    return selectedPath;
+  } catch (e) {
+    console.error("Ошибка нативного экспорта всех пресетов:", e);
+    downloadJson(defaultFileName, userOnly);
+    return defaultFileName;
+  }
+}
+
+/**
+ * Нативный импорт пресетов через окно выбора файла проводника Windows.
+ */
+export async function importPresetsFromNativeDialog(): Promise<SettingsPreset[]> {
+  try {
+    const selectedPath = await open({
+      title: "Выберите файл пресета для импорта (.json)",
+      multiple: false,
+      directory: false,
+      filters: [
+        {
+          name: "Файлы пресетов (*.json)",
+          extensions: ["json"],
+        },
+      ],
+    });
+
+    if (!selectedPath || typeof selectedPath !== "string") {
+      return [];
+    }
+
+    const fileContent = await invoke<string>("read_text_file", { path: selectedPath });
+    return parseImportedPresets(fileContent);
+  } catch (e) {
+    console.error("Ошибка нативного импорта пресета:", e);
+    throw e;
+  }
+}
+
+/**
+ * Открытие портативной папки config/presets/ в Проводнике Windows.
+ */
+export async function openPresetsFolder(): Promise<void> {
+  try {
+    await invoke("open_presets_folder");
+  } catch (e) {
+    console.error("Ошибка открытия папки пресетов:", e);
+  }
 }
 
 /**
