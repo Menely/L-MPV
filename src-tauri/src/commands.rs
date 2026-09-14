@@ -760,13 +760,13 @@ pub fn toggle_pause(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
     // Если достигнут конец воспроизведения, перезапускаем видео с самого начала
-    let is_eof = state.mpv.get_property_bool("eof-reached").unwrap_or(false);
+    let dur = state.mpv.get_property_double("duration").unwrap_or(0.0);
+    let is_eof = dur > 0.0 && state.mpv.get_property_bool("eof-reached").unwrap_or(false);
     let is_near_end = if !is_eof {
         let pos = state.mpv.get_property_double("time-pos").unwrap_or(0.0);
-        let dur = state.mpv.get_property_double("duration").unwrap_or(0.0);
         dur > 0.0 && pos >= (dur - 0.3)
     } else {
-        true
+        dur > 0.0
     };
 
     if is_near_end {
@@ -784,13 +784,13 @@ pub fn set_pause(
     paused: bool,
 ) -> Result<(), String> {
     if !paused {
-        let is_eof = state.mpv.get_property_bool("eof-reached").unwrap_or(false);
+        let dur = state.mpv.get_property_double("duration").unwrap_or(0.0);
+        let is_eof = dur > 0.0 && state.mpv.get_property_bool("eof-reached").unwrap_or(false);
         let is_near_end = if !is_eof {
             let pos = state.mpv.get_property_double("time-pos").unwrap_or(0.0);
-            let dur = state.mpv.get_property_double("duration").unwrap_or(0.0);
             dur > 0.0 && pos >= (dur - 0.3)
         } else {
-            true
+            dur > 0.0
         };
 
         if is_near_end {

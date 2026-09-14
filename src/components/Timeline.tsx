@@ -58,11 +58,29 @@ export const Timeline = React.memo(() => {
     return (clickX / rect.width) * duration;
   }, [duration]);
 
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+
+  // Очистка глобальных обработчиков перетаскивания при размонтировании компонента
+  React.useEffect(() => {
+    return () => {
+      if (dragCleanupRef.current) {
+        dragCleanupRef.current();
+        dragCleanupRef.current = null;
+      }
+    };
+  }, []);
+
   const handleTimelineMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     isDragging.current = true;
     const newPos = calcPositionFromMouse(e.clientX);
     setMousePosition(newPos);
+
+    const cleanup = () => {
+      window.removeEventListener("mousemove", handleGlobalMouseMove);
+      window.removeEventListener("mouseup", handleGlobalMouseUp);
+      dragCleanupRef.current = null;
+    };
 
     const handleGlobalMouseMove = (moveEvent: MouseEvent) => {
       if (isDragging.current) {
@@ -76,11 +94,11 @@ export const Timeline = React.memo(() => {
         const finalPos = calcPositionFromMouse(upEvent.clientX);
         setMousePosition(null);
         seekTo(finalPos);
-        window.removeEventListener("mousemove", handleGlobalMouseMove);
-        window.removeEventListener("mouseup", handleGlobalMouseUp);
+        cleanup();
       }
     };
 
+    dragCleanupRef.current = cleanup;
     window.addEventListener("mousemove", handleGlobalMouseMove);
     window.addEventListener("mouseup", handleGlobalMouseUp);
   }, [calcPositionFromMouse, seekTo]);

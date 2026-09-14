@@ -797,11 +797,18 @@ function App() {
       return unlisten;
     };
 
+    let isMounted = true;
+
     setupDragDrop().then((unlisten) => {
-      unlistenFn = unlisten;
+      if (!isMounted) {
+        unlisten();
+      } else {
+        unlistenFn = unlisten;
+      }
     });
 
     return () => {
+      isMounted = false;
       if (unlistenFn) unlistenFn();
     };
   }, []);
