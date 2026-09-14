@@ -356,9 +356,10 @@ export function DetailedMediaInfoModal({
 
           {/* Закрыть */}
           <button
-            className="mediainfo-floating-window__btn"
+            className="mediainfo-floating-window__btn mediainfo-floating-window__btn--close"
             onClick={onClose}
             title="Закрыть (Esc)"
+            aria-label="Закрыть"
           >
             <X size={14} />
           </button>
@@ -390,14 +391,9 @@ export function DetailedMediaInfoModal({
         {searchQuery && (
           <button
             onClick={() => setSearchQuery("")}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              padding: 0,
-              display: "flex",
-            }}
+            className="mediainfo-floating-window__search-clear"
+            title="Очистить поиск"
+            aria-label="Очистить поиск"
           >
             <X size={12} />
           </button>

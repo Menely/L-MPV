@@ -93,15 +93,13 @@ function App() {
       document.documentElement.style.setProperty('--ui-opacity', savedOpacity);
     }
 
-    const savedAccent = localStorage.getItem('l-mpv-accent-color');
-    if (savedAccent) {
-      if (savedAccent === 'windows') {
-        invoke<string>("get_windows_accent_color")
-          .then(color => applyAccentColor(color))
-          .catch(console.error);
-      } else {
-        applyAccentColor(savedAccent);
-      }
+    const savedAccent = localStorage.getItem('l-mpv-accent-color') || "#7fc7ff";
+    if (savedAccent === 'windows') {
+      invoke<string>("get_windows_accent_color")
+        .then(color => applyAccentColor(color))
+        .catch(() => applyAccentColor("#7fc7ff"));
+    } else {
+      applyAccentColor(savedAccent);
     }
 
     // Фоновая проверка обновлений (показываем ненавязчивое уведомление в правом углу)

@@ -17,7 +17,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  animation: popoverIn 150ms var(--ease-out);
+  animation: popoverSpringIn var(--t-spring) var(--ease-spring-smooth);
+  transform-origin: bottom center;
 }
 
 .track-popover--speed {
@@ -26,16 +27,20 @@
   width: auto;
   left: auto;
   right: 120px;
+  transform-origin: bottom right;
 }
 
-@keyframes popoverIn {
-  from {
+@keyframes popoverSpringIn {
+  0% {
     opacity: 0;
-    transform: translateY(6px) scale(0.96);
+    transform: translate3d(0, 8px, 0) scale(0.96);
   }
-  to {
+  65% {
+    transform: translate3d(0, -1px, 0) scale(1.005);
+  }
+  100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -73,12 +78,21 @@
   cursor: pointer;
   border-radius: var(--radius-md);
   text-align: left;
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: transform var(--t-spring) var(--ease-spring-smooth),
+              background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
+  transform: translateX(0);
 }
 
 .track-popover__item:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+  transform: translateX(3px);
+}
+
+.track-popover__item:active {
+  transform: translateX(1px) scale(0.98);
 }
 
 .track-popover__item--active {
@@ -86,6 +100,21 @@
   color: var(--accent);
   font-weight: 500;
   border-color: var(--border-pill);
+}
+
+.track-popover__item--active svg,
+.track-popover__item--active .track-popover__check {
+  filter: var(--active-icon-glow, none);
+  transition: filter var(--t-fast) var(--ease-smooth);
+}
+
+.track-popover__item--active:hover {
+  transform: translateX(3px);
+}
+
+[data-glow="off"] .track-popover__item--active svg,
+html[data-glow="off"] .track-popover__item--active svg {
+  filter: none !important;
 }
 
 .track-popover__item-title {
@@ -102,6 +131,18 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  animation: popoverCheckIn var(--t-spring) var(--ease-spring-bounce);
+}
+
+@keyframes popoverCheckIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-20deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
 }
 
 /* ─── Кнопка скачивания дорожки в попапе ──────────────── */

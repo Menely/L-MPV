@@ -55,12 +55,16 @@
   --radius-xl:   20px;
   --radius-pill: 50px;
 
-  /* Анимации */
-  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-smooth:   cubic-bezier(0.4, 0, 0.2, 1);
-  --t-fast:        150ms;
-  --t-base:        250ms;
-  --t-slow:        400ms;
+  /* Анимации и Физические Кривые (Spring Physics, GPU-Optimized) */
+  --ease-out:            cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth:         cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring-bounce:  cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-spring-smooth:  cubic-bezier(0.2, 1.15, 0.3, 1);
+  --ease-elastic:        cubic-bezier(0.68, -0.6, 0.32, 1.6);
+  --t-fast:              120ms;
+  --t-base:              200ms;
+  --t-slow:              300ms;
+  --t-spring:            260ms;
 
   /* Типографика */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont,

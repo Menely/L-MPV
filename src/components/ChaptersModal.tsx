@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { X } from "lucide-react";
 import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
 
 interface ChaptersModalProps {
@@ -83,23 +84,12 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
             Главы ({chapters.length})
           </div>
           <button 
+            className="modal__close"
             onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontSize: '1.2rem',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="Закрыть"
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+            title="Закрыть (Esc)"
+            aria-label="Закрыть"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 

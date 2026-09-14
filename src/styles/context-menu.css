@@ -11,17 +11,21 @@
   padding: 5px;
   box-shadow: var(--shadow-lg);
   z-index: 9999;
-  animation: contextMenuIn 120ms var(--ease-out);
+  animation: contextMenuSpringIn var(--t-spring) var(--ease-spring-smooth);
+  transform-origin: top left;
 }
 
-@keyframes contextMenuIn {
-  from {
+@keyframes contextMenuSpringIn {
+  0% {
     opacity: 0;
-    transform: scale(0.96) translateY(4px);
+    transform: translate3d(0, -4px, 0) scale(0.96);
   }
-  to {
+  70% {
+    transform: translate3d(0, 1px, 0) scale(1.005);
+  }
+  100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -39,12 +43,20 @@
   border-radius: var(--radius-sm);
   width: 100%;
   text-align: left;
-  transition: background var(--t-fast) var(--ease-smooth);
+  transition: transform var(--t-spring) var(--ease-spring-smooth),
+              background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
   position: relative;
+  transform: translateX(0);
 }
 
 .context-menu__item:hover {
   background: var(--bg-hover);
+  transform: translateX(3px);
+}
+
+.context-menu__item:active {
+  transform: translateX(1px) scale(0.98);
 }
 
 .context-menu__item--active {

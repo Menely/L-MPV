@@ -146,3 +146,73 @@ html, body, #root {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ─── Унифицированное центрированное вращение крестиков (Close & Clear) ── */
+.modal__close svg,
+.titlebar__btn--close svg,
+.playlist-drawer__close svg,
+.side-panel__close svg,
+.mediainfo-floating-window__btn--close svg,
+.mediainfo-standalone__control-btn--close svg,
+.update-toast__close svg,
+.mediainfo-standalone__btn-icon svg,
+.mediainfo-floating-window__search-clear svg,
+.color-circle__remove-btn svg {
+  display: block;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  transform-origin: 50% 50%;
+  transition: transform var(--t-spring, 260ms) var(--ease-spring-bounce);
+}
+
+.modal__close:hover svg,
+.titlebar__btn--close:hover svg,
+.playlist-drawer__close:hover svg,
+.side-panel__close:hover svg,
+.mediainfo-floating-window__btn--close:hover svg,
+.mediainfo-standalone__control-btn--close:hover svg,
+.update-toast__close:hover svg,
+.mediainfo-standalone__btn-icon:hover svg,
+.mediainfo-floating-window__search-clear:hover svg,
+.color-circle__remove-btn:hover svg {
+  transform: rotate(90deg);
+}
+
+/* ─── Отключение анимаций при выключении в настройках ── */
+html.no-animations *,
+html.no-animations *::before,
+html.no-animations *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+html.no-animations .modal__close:hover svg,
+html.no-animations .titlebar__btn--close:hover svg,
+html.no-animations .playlist-drawer__close:hover svg,
+html.no-animations .side-panel__close:hover svg,
+html.no-animations .mediainfo-floating-window__btn--close:hover svg,
+html.no-animations .mediainfo-standalone__control-btn--close:hover svg,
+html.no-animations .update-toast__close:hover svg,
+html.no-animations .mediainfo-standalone__btn-icon:hover svg,
+html.no-animations .mediainfo-floating-window__search-clear:hover svg,
+html.no-animations .color-circle__remove-btn:hover svg,
+html.no-animations .control-btn:hover,
+html.no-animations .control-btn--play:hover,
+html.no-animations .control-btn:active,
+html.no-animations .control-btn--play:active,
+html.no-animations .control-btn:hover svg,
+html.no-animations .control-btn--play:hover svg,
+html.no-animations .track-popover__item:hover,
+html.no-animations .side-panel__item:hover,
+html.no-animations .playlist-item:hover,
+html.no-animations .context-menu__item:hover {
+  transform: none !important;
+  transition: none !important;
+}
+
+html.no-animations .control-btn--play::before {
+  display: none !important;
+}
+

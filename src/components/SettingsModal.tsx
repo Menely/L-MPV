@@ -43,6 +43,7 @@ import {
   Camera,
   Keyboard,
   RotateCcw,
+  RotateCw,
   SlidersHorizontal,
   Palette,
   Monitor,
@@ -56,9 +57,11 @@ import {
   Sparkles,
   RefreshCw,
   Plus,
+  Play,
   X,
   ChevronDown,
   FileText,
+  Zap,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -143,6 +146,10 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [customColors, setCustomColors] = useState<string[]>(() => getCustomColors());
   const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
   const [showTrackNames, setShowTrackNames] = useState<boolean>(true);
+  const [animationsEnabled, setAnimationsEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('l-mpv-animations-enabled');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [multiInstance, setMultiInstance] = useState<boolean>(false);
   const [saveTracksToVideoDir, setSaveTracksToVideoDir] = useState<boolean>(true);
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
@@ -181,6 +188,17 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   });
 
   const [glowIntensity, setGlowIntensity] = useState<GlowIntensity>(() => getGlowIntensity());
+
+  useEffect(() => {
+    const handleGlowChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<GlowIntensity>;
+      if (customEvent.detail) {
+        setGlowIntensity(customEvent.detail);
+      }
+    };
+    window.addEventListener("l-mpv-glow-changed", handleGlowChanged);
+    return () => window.removeEventListener("l-mpv-glow-changed", handleGlowChanged);
+  }, []);
   // По умолчанию все категории свернуты (пустой Set / объект)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
@@ -444,8 +462,14 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           <h2 className="modal__title" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "1.15rem" }}>
             <SlidersHorizontal size={20} color="var(--accent)" /> Настройки
           </h2>
-          <button className="modal__close" onClick={onClose} id="btn-settings-close" style={{ width: 32, height: 32, fontSize: "16px" }}>
-            ✕
+          <button
+            className="modal__close"
+            onClick={onClose}
+            id="btn-settings-close"
+            title="Закрыть (Esc)"
+            aria-label="Закрыть"
+          >
+            <X size={18} />
           </button>
         </div>
 
@@ -925,6 +949,155 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 <div style={{ fontSize: "0.80rem", color: "var(--text-secondary)", marginTop: 10, marginBottom: 12, lineHeight: 1.4 }}>
                   Настройка яркости и размера неонового свечения вокруг кнопок управления, активных элементов и ползунка прогресса.
                 </div>
+
+                {/* Аутентичный предпросмотр реального интерфейса плеера (точь-в-точь как на панели управления) */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "14px 18px",
+                    marginBottom: 12,
+                    background: "rgba(0, 0, 0, 0.35)",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--border)",
+                    gap: 16,
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: "0.84rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                        Предпросмотр:
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "0.82rem",
+                          fontWeight: 700,
+                          color: glowIntensity === "off" ? "var(--text-muted)" : "var(--accent)",
+                          textShadow: glowIntensity === "off"
+                            ? "none"
+                            : glowIntensity === "soft"
+                            ? "0 0 6px var(--accent-glow)"
+                            : glowIntensity === "medium"
+                            ? "0 0 10px var(--accent-glow)"
+                            : "0 0 16px var(--accent), 0 0 24px var(--accent-glow)",
+                          transition: "all var(--t-fast) var(--ease-smooth)",
+                        }}
+                      >
+                        {glowIntensity === "off"
+                          ? "Off (Без свечения)"
+                          : glowIntensity === "soft"
+                          ? "Soft (Мягкое свечение)"
+                          : glowIntensity === "medium"
+                          ? "Medium (Сбалансированное)"
+                          : "Cyber Intense (Яркий неон)"}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", lineHeight: 1.3 }}>
+                      {glowIntensity === "off"
+                        ? "Минималистичный вид: иконки и ползунки без ореола и drop-shadow"
+                        : "Свечение транслируется на все кнопки, активные иконки, таймлайн и регулятор громкости"}
+                    </span>
+                  </div>
+
+                  {/* Миниатюрная аутентичная панель управления плеера (как на фото 2) */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "var(--bg-pill, rgba(13, 17, 23, 0.88))",
+                      backdropFilter: "blur(12px)",
+                      WebkitBackdropFilter: "blur(12px)",
+                      border: "1px solid var(--border-pill)",
+                      borderRadius: "12px",
+                      padding: "8px 16px 10px",
+                      boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
+                      width: "140px",
+                      flexShrink: 0,
+                      gap: 6,
+                    }}
+                  >
+                    {/* Кнопки плеера: перемотка назад, Play с мягким рассеиванием света от иконки, перемотка вперед */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                      <RotateCcw
+                        size={15}
+                        style={{
+                          color: "var(--text-secondary)",
+                          opacity: 0.85,
+                          cursor: "default",
+                        }}
+                      />
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "transparent",
+                          color: "var(--accent)",
+                          cursor: "default",
+                        }}
+                      >
+                        <Play
+                          size={22}
+                          fill="currentColor"
+                          style={{
+                            filter: glowIntensity === "off"
+                              ? "none"
+                              : glowIntensity === "soft"
+                              ? "drop-shadow(0 0 3px rgba(var(--accent-rgb, 127, 199, 255), 0.85)) drop-shadow(0 0 9px rgba(var(--accent-rgb, 127, 199, 255), 0.45))"
+                              : glowIntensity === "medium"
+                              ? "drop-shadow(0 0 4px rgba(var(--accent-rgb, 127, 199, 255), 0.95)) drop-shadow(0 0 14px rgba(var(--accent-rgb, 127, 199, 255), 0.65)) drop-shadow(0 0 26px rgba(var(--accent-rgb, 127, 199, 255), 0.35))"
+                              : "drop-shadow(0 0 5px rgba(var(--accent-rgb, 127, 199, 255), 1)) drop-shadow(0 0 18px rgba(var(--accent-rgb, 127, 199, 255), 0.85)) drop-shadow(0 0 36px rgba(var(--accent-rgb, 127, 199, 255), 0.55))",
+                            transition: "filter var(--t-fast) var(--ease-smooth)",
+                          }}
+                        />
+                      </div>
+                      <RotateCw
+                        size={15}
+                        style={{
+                          color: "var(--text-secondary)",
+                          opacity: 0.85,
+                          cursor: "default",
+                        }}
+                      />
+                    </div>
+
+                    {/* Полоска прогресса таймлайна со свечением (как на фото 2) */}
+                    <div
+                      style={{
+                        position: "relative",
+                        width: "100%",
+                        height: 3,
+                        background: "rgba(255, 255, 255, 0.15)",
+                        borderRadius: 3,
+                        overflow: "visible",
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: "55%",
+                          background: "var(--accent)",
+                          borderRadius: 3,
+                          boxShadow: glowIntensity === "off"
+                            ? "none"
+                            : glowIntensity === "soft"
+                            ? "0 0 6px rgba(var(--accent-rgb, 127, 199, 255), 0.40)"
+                            : glowIntensity === "medium"
+                            ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.55), 0 0 2px rgba(var(--accent-rgb, 127, 199, 255), 0.80)"
+                            : "0 0 12px rgba(var(--accent-rgb, 127, 199, 255), 0.85), 0 0 4px rgba(var(--accent-rgb, 127, 199, 255), 1)",
+                          transition: "box-shadow var(--t-fast) var(--ease-smooth)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div
                   style={{
                     display: "grid",
@@ -937,10 +1110,34 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   }}
                 >
                   {[
-                    { id: "off" as const, label: "Off", desc: "Без свечения" },
-                    { id: "soft" as const, label: "Soft", desc: "Мягкое" },
-                    { id: "medium" as const, label: "Medium", desc: "Сбалансированное" },
-                    { id: "intense" as const, label: "Cyber Intense", desc: "Яркий неон" },
+                    {
+                      id: "off" as const,
+                      label: "Off",
+                      desc: "Без свечения",
+                      selectedBg: "rgba(255, 255, 255, 0.08)",
+                      selectedShadow: "inset 0 0 0 1.5px var(--accent)",
+                    },
+                    {
+                      id: "soft" as const,
+                      label: "Soft",
+                      desc: "Мягкое",
+                      selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.12)",
+                      selectedShadow: "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.40), inset 0 0 0 1.5px var(--accent)",
+                    },
+                    {
+                      id: "medium" as const,
+                      label: "Medium",
+                      desc: "Сбалансированное",
+                      selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.22)",
+                      selectedShadow: "0 0 16px rgba(var(--accent-rgb, 127, 199, 255), 0.65), 0 0 4px var(--accent), inset 0 0 0 1.5px var(--accent)",
+                    },
+                    {
+                      id: "intense" as const,
+                      label: "Cyber Intense",
+                      desc: "Яркий неон",
+                      selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.32)",
+                      selectedShadow: "0 0 28px rgba(var(--accent-rgb, 127, 199, 255), 0.95), 0 0 8px var(--accent), inset 0 0 0 2px var(--accent)",
+                    },
                   ].map((mode) => {
                     const isSel = glowIntensity === mode.id;
                     return (
@@ -961,11 +1158,9 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           borderRadius: "var(--radius-sm)",
                           border: "none",
                           cursor: "pointer",
-                          background: isSel ? "var(--accent-glow)" : "transparent",
+                          background: isSel ? mode.selectedBg : "transparent",
                           color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
-                          boxShadow: isSel
-                            ? "0 0 12px var(--accent-glow), inset 0 0 0 1px var(--accent)"
-                            : "none",
+                          boxShadow: isSel ? mode.selectedShadow : "none",
                           transition: "all var(--t-fast) var(--ease-smooth)",
                         }}
                       >
@@ -1031,7 +1226,47 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 </div>
               </AccordionSection>
 
-              {/* 4. Названия дорожек на панели */}
+              {/* 4. Плавные анимации интерфейса */}
+              <AccordionSection
+                isOpen={!!openSections["app_animations"]}
+                onToggle={() => toggleSection("app_animations")}
+                icon={<Zap size={16} />}
+                title="Анимации интерфейса (Spring Physics)"
+              >
+                <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", userSelect: "none" }}>
+                    <input
+                      type="checkbox"
+                      checked={animationsEnabled}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        setAnimationsEnabled(val);
+                        localStorage.setItem('l-mpv-animations-enabled', val ? 'true' : 'false');
+                        if (val) {
+                          document.documentElement.classList.remove('no-animations');
+                        } else {
+                          document.documentElement.classList.add('no-animations');
+                        }
+                        window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                      }}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        accentColor: "var(--accent)",
+                        cursor: "pointer"
+                      }}
+                    />
+                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                      Включить плавные spring-микроанимации переключения, раскрытия меню и физического отклика
+                    </span>
+                  </label>
+                  <p style={{ margin: "2px 0 0 30px", fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                    Эластичные переходы кнопок Play/Pause, Mute, слайдера громкости, боковой панели плейлиста, меню дорожек и окон. При отключении интерфейс реагирует мгновенно.
+                  </p>
+                </div>
+              </AccordionSection>
+
+              {/* 5. Названия дорожек на панели */}
               <AccordionSection
                 isOpen={!!openSections["app_track_names"]}
                 onToggle={() => toggleSection("app_track_names")}

@@ -203,7 +203,8 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
           <button
             onClick={onClose}
             className="modal__close"
-            style={{ width: 28, height: 28 }}
+            title="Закрыть (Esc)"
+            aria-label="Закрыть"
           >
             <X size={16} />
           </button>

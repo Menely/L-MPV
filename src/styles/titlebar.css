@@ -95,19 +95,43 @@
   color: var(--text-secondary);
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: transform var(--t-spring) var(--ease-spring-bounce),
+              background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
 }
 
 .titlebar__btn:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
+  color: var(--accent-hover, var(--accent));
+}
+
+.titlebar__btn:not(.titlebar__btn--close):hover svg {
+  filter: var(--hover-icon-glow, none);
 }
 
 .titlebar__btn:active {
-  transform: scale(0.90);
+  transform: scale(0.92);
+}
+
+.titlebar__btn--close {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .titlebar__btn--close:hover {
   background: rgba(232, 65, 65, 0.85);
   color: white;
+}
+
+.titlebar__btn svg {
+  display: block;
+  transition: filter var(--t-fast) var(--ease-smooth);
+}
+
+/* Отключение свечения в Titlebar при режиме Off */
+[data-glow="off"] .titlebar__btn svg,
+html[data-glow="off"] .titlebar__btn svg {
+  filter: none !important;
 }

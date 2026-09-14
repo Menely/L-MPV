@@ -576,11 +576,11 @@ export function PlayerControls({
                 id="btn-volume"
               >
                 {volume === 0 ? (
-                  <VolumeX size={18} />
+                  <VolumeX key="vol-x" size={18} />
                 ) : volume < 50 ? (
-                  <Volume1 size={18} />
+                  <Volume1 key="vol-1" size={18} />
                 ) : (
-                  <Volume2 size={18} />
+                  <Volume2 key="vol-2" size={18} />
                 )}
               </button>
               <div className="volume-slider__expandable">
@@ -651,9 +651,9 @@ export function PlayerControls({
               id="btn-play-pause"
             >
               {paused ? (
-                <Play size={22} fill="currentColor" />
+                <Play key="play-icon" size={22} fill="currentColor" />
               ) : (
-                <Pause size={22} fill="currentColor" />
+                <Pause key="pause-icon" size={22} fill="currentColor" />
               )}
             </button>
 

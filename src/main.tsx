@@ -5,6 +5,7 @@ import App from "./App";
 import { StandaloneMediaInfoWindow } from "./components/StandaloneMediaInfoWindow";
 import "./index.css";
 import { PlayerStateProvider } from "./contexts/PlayerStateContext";
+import { applyAccentColor } from "./utils/colorUtils";
 
 // Безопасное определение текущего окна Tauri (главное окно плеера или отдельное окно MediaInfo)
 const checkIsMediaInfoWindow = (): boolean => {
@@ -33,6 +34,30 @@ if (typeof document !== "undefined") {
     document.documentElement.style.background = "transparent";
     document.body.style.background = "transparent";
   }
+
+  // Применение акцентного цвета и интенсивности свечения при старте
+  const savedAccent = localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
+  if (savedAccent !== "windows") {
+    applyAccentColor(savedAccent);
+  }
+
+  // Применение настройки анимаций (по умолчанию включено)
+  const syncAnimationsSetting = () => {
+    const isOff = localStorage.getItem("l-mpv-animations-enabled") === "false";
+    document.documentElement.classList.toggle("no-animations", isOff);
+  };
+  syncAnimationsSetting();
+
+  window.addEventListener("storage", (e) => {
+    if (e.key === "l-mpv-animations-enabled") {
+      syncAnimationsSetting();
+    }
+    if (e.key === "l-mpv-glow-intensity" || e.key === "l-mpv-accent-color") {
+      const cur = localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
+      if (cur !== "windows") applyAccentColor(cur);
+    }
+  });
+  window.addEventListener("l-mpv-settings-changed", syncAnimationsSetting);
 }
 
 // Глобальный перехватчик ошибок React во избежание белого экрана

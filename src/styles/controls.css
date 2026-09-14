@@ -81,8 +81,13 @@
   height: 100%;
   background: var(--accent-gradient, var(--accent));
   border-radius: 4px;
-  transition: none;
+  box-shadow: var(--timeline-glow, none);
+  transition: box-shadow var(--t-fast) var(--ease-smooth);
   will-change: width;
+}
+
+.timeline:hover .timeline__segment-progress {
+  box-shadow: var(--timeline-glow, none), 0 0 10px var(--accent-glow);
 }
 
 .timeline__thumb {
@@ -92,16 +97,18 @@
   width: 14px;
   height: 14px;
   background: var(--accent);
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.95);
   border-radius: 50%;
   box-shadow: var(--thumb-glow, var(--shadow-glow));
-  transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-smooth);
+  transition: transform var(--t-spring) var(--ease-spring-bounce),
+              box-shadow var(--t-base) var(--ease-smooth);
   z-index: 10;
   pointer-events: none;
+  will-change: transform;
 }
 
 .timeline:hover .timeline__thumb {
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, -50%) scale(1.15);
 }
 
 /* Всплывающее превью времени при наведении */
@@ -155,6 +162,7 @@
 }
 
 .control-btn {
+  position: relative;
   width: 34px;
   height: 34px;
   display: flex;
@@ -165,9 +173,12 @@
   color: var(--text-secondary);
   cursor: pointer;
   border-radius: 50%;
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: transform var(--t-spring) var(--ease-spring-bounce),
+              color var(--t-fast) var(--ease-smooth),
+              background-color var(--t-fast) var(--ease-smooth);
   flex-shrink: 0;
   padding: 0;
+  transform: scale(1);
 }
 
 .control-btn--with-label {
@@ -188,54 +199,106 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color var(--t-fast) var(--ease-smooth);
 }
 
 .control-btn svg {
   width: 18px;
   height: 18px;
   stroke-width: 2.25;
+  transition: transform var(--t-spring) var(--ease-spring-smooth),
+              filter var(--t-fast) var(--ease-smooth);
 }
 
 .control-btn:hover {
   background: transparent;
-  color: var(--text-primary);
-  transform: scale(1.1);
+  color: var(--accent-hover, var(--accent));
+  transform: scale(1.12);
   box-shadow: none;
 }
 
 .control-btn:hover svg {
-  filter: var(--hover-icon-glow, drop-shadow(0 0 4px var(--accent-glow)) drop-shadow(0 0 10px var(--accent-glow)));
+  filter: var(--hover-icon-glow, none);
 }
 
 .control-btn:active {
+  transform: scale(0.88);
+  transition-duration: 100ms;
+}
+
+.control-btn:active svg {
   transform: scale(0.92);
 }
 
-/* Кнопка Play крупнее остальных */
+/* Кнопка Play / Pause с интерактивным живым шейпом */
 .control-btn--play {
+  position: relative;
   width: 38px;
   height: 38px;
   color: var(--accent);
   background: transparent;
   box-shadow: none;
+  transition: transform var(--t-spring) var(--ease-spring-bounce),
+              color var(--t-fast) var(--ease-smooth);
 }
 
 .control-btn--play svg {
   width: 22px;
   height: 22px;
   stroke-width: 2.4;
-  filter: none;
+  filter: var(--play-icon-glow, none);
+  animation: playPausePop var(--t-spring) var(--ease-spring-bounce);
+  transition: filter var(--t-fast) var(--ease-smooth),
+              transform var(--t-spring) var(--ease-spring-bounce);
+}
+
+@keyframes playPausePop {
+  0% {
+    opacity: 0.4;
+    transform: scale3d(0.75, 0.75, 1) rotate(-10deg);
+  }
+  65% {
+    transform: scale3d(1.1, 1.1, 1) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale3d(1, 1, 1) rotate(0deg);
+  }
 }
 
 .control-btn--play:hover {
-  color: var(--accent-hover);
+  color: var(--accent-hover, var(--accent));
   background: transparent;
-  transform: scale(1.1);
+  transform: scale(1.14);
   box-shadow: none;
 }
 
 .control-btn--play:hover svg {
-  filter: var(--hover-icon-glow, drop-shadow(0 0 4px var(--accent-glow)) drop-shadow(0 0 10px var(--accent-glow)));
+  filter: var(--play-icon-glow, none);
+}
+
+.control-btn--play:active {
+  transform: scale(0.86);
+  transition-duration: 90ms;
+}
+
+/* Анимация переключения громкости (Mute/Unmute) */
+.volume-slider #btn-volume svg {
+  animation: volumeIconPop var(--t-spring) var(--ease-spring-bounce);
+}
+
+@keyframes volumeIconPop {
+  0% {
+    opacity: 0.5;
+    transform: translate3d(-2px, 0, 0) scale3d(0.8, 0.8, 1);
+  }
+  60% {
+    transform: translate3d(1px, 0, 0) scale3d(1.08, 1.08, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+  }
 }
 
 .control-btn--active {
@@ -245,7 +308,12 @@
 }
 
 .control-btn--active svg {
-  filter: var(--active-icon-glow, drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 7px var(--accent-glow)) drop-shadow(0 0 16px var(--accent-glow)));
+  filter: var(--active-icon-glow, none);
+  transition: filter var(--t-fast) var(--ease-smooth);
+}
+
+.control-btn--active:hover svg {
+  filter: var(--play-icon-glow, var(--active-icon-glow, none));
 }
 
 /* ─── Текстовые метки (время, кадры) ─────────────────── */
@@ -299,7 +367,9 @@
   padding: 0;
   opacity: 0;
   overflow: hidden;
-  transition: width 0.3s var(--ease-out), opacity 0.3s var(--ease-out), margin 0.3s var(--ease-out);
+  transition: width var(--t-spring) var(--ease-spring-smooth),
+              opacity var(--t-base) var(--ease-smooth),
+              margin var(--t-spring) var(--ease-spring-smooth);
   pointer-events: none;
 }
 
@@ -322,6 +392,7 @@
   font-weight: 500;
   user-select: none;
   margin-left: 2px;
+  transition: color var(--t-fast) var(--ease-smooth);
 }
 
 .volume-slider__input {
@@ -334,10 +405,11 @@
   outline: none;
   cursor: pointer;
   accent-color: var(--accent);
+  transition: filter var(--t-fast) var(--ease-smooth);
 }
 
 .volume-slider__input:hover {
-  filter: brightness(1.15);
+  filter: brightness(1.2);
 }
 
 .volume-slider__input::-webkit-slider-thumb {
@@ -349,11 +421,44 @@
   border-radius: 50%;
   cursor: pointer;
   border: none;
-  transition: transform var(--t-fast) var(--ease-out);
+  transition: transform var(--t-spring) var(--ease-spring-bounce),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
 
 .volume-slider__input:hover::-webkit-slider-thumb {
-  transform: scale(1.2);
+  transform: scale(1.35);
+  box-shadow: var(--thumb-glow, none);
+}
+
+.volume-slider__input:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+/* ─── Полное отключение свечения при режиме Off ── */
+[data-glow="off"] .control-btn svg,
+[data-glow="off"] .control-btn:hover svg,
+[data-glow="off"] .control-btn--play svg,
+[data-glow="off"] .control-btn--play:hover svg,
+[data-glow="off"] .control-btn--active svg,
+[data-glow="off"] .control-btn--active:hover svg,
+html[data-glow="off"] .control-btn svg,
+html[data-glow="off"] .control-btn:hover svg,
+html[data-glow="off"] .control-btn--play svg,
+html[data-glow="off"] .control-btn--play:hover svg,
+html[data-glow="off"] .control-btn--active svg,
+html[data-glow="off"] .control-btn--active:hover svg {
+  filter: none !important;
+}
+
+[data-glow="off"] .timeline__segment-progress,
+html[data-glow="off"] .timeline__segment-progress,
+[data-glow="off"] .volume-slider__input::-webkit-slider-thumb,
+[data-glow="off"] .volume-slider__input:hover::-webkit-slider-thumb,
+html[data-glow="off"] .volume-slider__input::-webkit-slider-thumb,
+html[data-glow="off"] .volume-slider__input:hover::-webkit-slider-thumb,
+[data-glow="off"] .timeline__thumb,
+html[data-glow="off"] .timeline__thumb {
+  box-shadow: none !important;
 }
 
 /* ─── Адаптивность Панели Управления (Container Queries) ─── */

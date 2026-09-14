@@ -160,21 +160,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
           {!isDownloading && (
             <button
               onClick={onClose}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "var(--text-muted, #9ca3af)",
-                cursor: "pointer",
-                padding: 6,
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "color 0.15s, background 0.15s",
-              }}
-              className="hover-subtle"
+              className="modal__close"
+              title="Закрыть (Esc)"
+              aria-label="Закрыть"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           )}
         </div>
@@ -436,8 +426,9 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
           className="update-toast__close"
           onClick={onClose}
           title="Закрыть"
+          aria-label="Закрыть"
         >
-          <X size={15} />
+          <X size={16} />
         </button>
       </div>
 

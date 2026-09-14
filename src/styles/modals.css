@@ -28,17 +28,21 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg), 0 0 30px rgba(127, 199, 255, 0.05);
   overflow: hidden;
-  animation: modalIn 250ms var(--ease-out);
+  animation: modalSpringIn var(--t-spring) var(--ease-spring-smooth);
+  transform-origin: center center;
 }
 
-@keyframes modalIn {
-  from {
+@keyframes modalSpringIn {
+  0% {
     opacity: 0;
-    transform: scale(0.96) translateY(10px);
+    transform: translate3d(0, 10px, 0) scale(0.95);
   }
-  to {
+  65% {
+    transform: translate3d(0, -1px, 0) scale(1.005);
+  }
+  100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -58,9 +62,9 @@
 }
 
 .modal__close {
-  width: 28px;
-  height: 28px;
-  display: flex;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   background: transparent;
@@ -68,12 +72,22 @@
   color: var(--text-secondary);
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: all var(--t-fast) var(--ease-smooth);
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: color var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth);
 }
 
 .modal__close:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.modal__close:active {
+  transform: scale(0.92);
 }
 
 .modal__body {
@@ -259,7 +273,7 @@
   align-items: center;
   justify-content: center;
   border: 2px solid transparent;
-  transition: transform var(--t-fast) var(--ease-smooth),
+  transition: transform var(--t-spring) var(--ease-spring-bounce),
               box-shadow var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth);
   outline: none;
@@ -267,13 +281,17 @@
 }
 
 .color-circle:hover {
-  transform: scale(1.1);
+  transform: scale(1.18);
+}
+
+.color-circle:active {
+  transform: scale(0.92);
 }
 
 .color-circle--active {
   border-color: #ffffff !important;
   box-shadow: 0 0 14px var(--accent-glow) !important;
-  transform: scale(1.05);
+  transform: scale(1.12);
 }
 
 .color-circle--windows {
@@ -331,7 +349,7 @@
 }
 
 .color-circle__remove-btn:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
   background: #dc2626;
 }
 

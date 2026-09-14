@@ -69,6 +69,22 @@
   max-width: min(420px, calc(100vw - 28px));
   pointer-events: auto;
   box-sizing: border-box;
+  animation: mediaInfoSpringIn var(--t-spring) var(--ease-spring-smooth);
+  transform-origin: bottom left;
+}
+
+@keyframes mediaInfoSpringIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.96);
+  }
+  70% {
+    transform: translate3d(0, -2px, 0) scale(1.005);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 .media-info__section {
@@ -149,7 +165,22 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: fadeIn 150ms var(--ease-smooth);
+  animation: playlistSpringIn var(--t-spring) var(--ease-spring-smooth);
+  transform-origin: bottom right;
+}
+
+@keyframes playlistSpringIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.96);
+  }
+  70% {
+    transform: translate3d(0, -2px, 0) scale(1.005);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 .playlist-drawer__header {
@@ -171,17 +202,26 @@
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 50%;
-  display: flex;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--t-fast) var(--ease-smooth);
+  line-height: 1;
+  box-sizing: border-box;
+  transition: color var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth);
 }
 
 .playlist-drawer__close:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.playlist-drawer__close:active {
+  transform: scale(0.92);
 }
 
 .playlist-drawer__search {
@@ -196,6 +236,7 @@
   position: absolute;
   left: 28px;
   color: var(--text-secondary);
+  pointer-events: none;
 }
 
 .playlist-drawer__search-input {
@@ -213,6 +254,7 @@
   outline: none;
   border-color: var(--accent);
   background: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 12px var(--accent-glass);
 }
 
 .playlist-drawer__search-input::placeholder {
@@ -245,15 +287,24 @@
   padding: 8px 12px;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: transform var(--t-spring) var(--ease-spring-smooth),
+              background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
   background: transparent;
   border: 1px solid transparent;
   text-align: left;
   width: 100%;
+  transform: translateX(0);
 }
 
 .playlist-item:hover {
   background: var(--bg-hover);
+  transform: translateX(4px);
+}
+
+.playlist-item:active {
+  transform: translateX(2px) scale(0.98);
 }
 
 .playlist-item--current {
@@ -262,12 +313,22 @@
   color: var(--accent);
 }
 
+.playlist-item--current:hover {
+  transform: translateX(4px);
+}
+
 .playlist-item__icon {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
+  transition: transform var(--t-spring) var(--ease-spring-bounce),
+              color var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-item:hover .playlist-item__icon {
+  transform: scale(1.15);
 }
 
 .playlist-item--current .playlist-item__icon {
@@ -350,17 +411,20 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  animation: updateToastIn 250ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+  animation: updateToastSpringIn var(--t-spring) var(--ease-spring-smooth);
 }
 
-@keyframes updateToastIn {
-  from {
+@keyframes updateToastSpringIn {
+  0% {
     opacity: 0;
-    transform: translateY(12px) scale(0.96);
+    transform: translate3d(0, 14px, 0) scale(0.96);
   }
-  to {
+  70% {
+    transform: translate3d(0, -2px, 0) scale(1.005);
+  }
+  100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -408,11 +472,15 @@
   border: none;
   color: var(--text-secondary, rgba(255, 255, 255, 0.5));
   cursor: pointer;
-  padding: 4px;
+  padding: 0;
+  width: 26px;
+  height: 26px;
   border-radius: 6px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  line-height: 1;
+  box-sizing: border-box;
   transition: all var(--t-fast, 150ms) var(--ease-smooth, ease);
 }
 
