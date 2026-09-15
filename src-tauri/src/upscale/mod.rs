@@ -88,10 +88,11 @@ pub fn switch_upscale_network_hotkey(
 /// Предварительная фоновая компиляция TensorRT .engine для конкретной модели под 1080p
 #[tauri::command]
 pub async fn precompile_model_engine_1080p(
+    app: tauri::AppHandle,
     slot: u32,
     filename: String,
 ) -> Result<String, String> {
-    controller::precompile_model_engine_1080p_impl(slot, filename).await
+    controller::precompile_model_engine_1080p_impl(app, slot, filename).await
 }
 
 #[cfg(test)]

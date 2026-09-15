@@ -104,3 +104,20 @@ pub struct UpscaleDownloadProgress {
     pub error: Option<String>,
 }
 
+/// Информация о прогрессе предварительной компиляции TensorRT .engine под 1080p
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpscaleCompileProgress {
+    /// Назначенный номер слота модели
+    pub slot: u32,
+    /// Имя файла модели
+    pub filename: String,
+    /// Описание текущего этапа оптимизации
+    pub stage: String,
+    /// Процент выполнения от 0.0 до 100.0
+    pub percent: f64,
+    /// Флаг завершения сборки
+    pub is_finished: bool,
+    /// Описание ошибки сборки (если возникла)
+    pub error: Option<String>,
+}
+

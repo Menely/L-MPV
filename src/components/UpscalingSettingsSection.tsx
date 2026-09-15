@@ -21,6 +21,7 @@ import {
   UpscaleStatus,
   UpscaleSettings,
   DownloadProgressPayload,
+  UpscaleCompileProgress,
 } from "./upscale/types";
 import { BackendSelector } from "./upscale/BackendSelector";
 
@@ -30,6 +31,7 @@ export type {
   UpscaleStatus,
   UpscaleSettings,
   DownloadProgressPayload,
+  UpscaleCompileProgress,
 };
 
 /**
@@ -41,6 +43,7 @@ export const UpscalingSettingsSection: React.FC = () => {
   const [isDownloadingEngine, setIsDownloadingEngine] = useState<boolean>(false);
   const [isDeletingEngine, setIsDeletingEngine] = useState<boolean>(false);
   const [compilingModel, setCompilingModel] = useState<string | null>(null);
+  const [compileProgress, setCompileProgress] = useState<Record<string, UpscaleCompileProgress>>({});
   const [engineSuccessMessage, setEngineSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [downloadProgressText, setDownloadProgressText] = useState<string | null>(null);
@@ -115,6 +118,33 @@ export const UpscalingSettingsSection: React.FC = () => {
       unlistenProgress = fn;
     });
 
+    let unlistenCompile: (() => void) | null = null;
+    listen<UpscaleCompileProgress>("upscale-compile-progress", (event) => {
+      if (!isMountedRef.current) return;
+      const p = event.payload;
+      setCompileProgress((prev) => ({ ...prev, [p.filename]: p }));
+      if (p.is_finished) {
+        setCompilingModel((curr) => (curr === p.filename ? null : curr));
+        if (p.error) {
+          setErrorMessage(`Ошибка сборки ${p.filename}: ${p.error}`);
+        } else {
+          setEngineSuccessMessage(`Модель ${p.filename} успешно оптимизирована для 1080p!`);
+        }
+        refreshStatus();
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            setCompileProgress((prev) => {
+              const copy = { ...prev };
+              delete copy[p.filename];
+              return copy;
+            });
+          }
+        }, 3000);
+      }
+    }).then((fn) => {
+      unlistenCompile = fn;
+    });
+
     const handleSettingsChanged = () => {
       if (isMountedRef.current) {
         setCustomHotkeys(getCustomHotkeys());
@@ -136,6 +166,7 @@ export const UpscalingSettingsSection: React.FC = () => {
     return () => {
       isMountedRef.current = false;
       if (unlistenProgress) unlistenProgress();
+      if (unlistenCompile) unlistenCompile();
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
     };
   }, [refreshStatus]);
@@ -549,27 +580,81 @@ export const UpscalingSettingsSection: React.FC = () => {
                             <CheckCircle2 size={13} />
                             1080p готов
                           </span>
-                        ) : compilingModel === model.filename ? (
-                          <button
-                            type="button"
-                            disabled
+                        ) : compilingModel === model.filename || (compileProgress[model.filename] && !compileProgress[model.filename].is_finished) ? (
+                          <div
                             style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 6,
-                              padding: "4px 10px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 3,
+                              minWidth: 155,
+                              padding: "4px 8px",
                               borderRadius: "var(--radius-sm)",
-                              background: "rgba(127, 199, 255, 0.2)",
-                              border: "1px solid var(--accent)",
-                              color: "var(--accent)",
-                              fontSize: "0.75rem",
-                              fontWeight: 600,
-                              cursor: "wait",
+                              background: "rgba(127, 199, 255, 0.08)",
+                              border: "1px solid rgba(127, 199, 255, 0.3)",
+                              userSelect: "none",
                             }}
                           >
-                            <RefreshCw size={12} className="spin" />
-                            Сборка 1080p...
-                          </button>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 6,
+                                fontSize: "0.72rem",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 5,
+                                  color: "var(--accent)",
+                                  fontWeight: 500,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: 110,
+                                }}
+                                title={compileProgress[model.filename]?.stage || "Сборка 1080p..."}
+                              >
+                                <RefreshCw size={10} className="spin" />
+                                {compileProgress[model.filename]?.stage || "Сборка 1080p..."}
+                              </span>
+                              <span
+                                style={{
+                                  color: "var(--accent)",
+                                  fontWeight: 700,
+                                  fontVariantNumeric: "tabular-nums",
+                                }}
+                              >
+                                {compileProgress[model.filename]
+                                  ? `${compileProgress[model.filename].percent}%`
+                                  : "..."}
+                              </span>
+                            </div>
+
+                            {/* Полоса прогресса */}
+                            <div
+                              style={{
+                                width: "100%",
+                                height: 3.5,
+                                borderRadius: 2,
+                                background: "rgba(255, 255, 255, 0.1)",
+                                overflow: "hidden",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: `${compileProgress[model.filename]?.percent || 8}%`,
+                                  height: "100%",
+                                  background: "linear-gradient(90deg, #3498db, var(--accent), #2ecc71)",
+                                  borderRadius: 2,
+                                  transition: "width 0.25s ease-out",
+                                  boxShadow: "0 0 6px rgba(127, 199, 255, 0.4)",
+                                }}
+                              />
+                            </div>
+                          </div>
                         ) : (
                           <button
                             type="button"

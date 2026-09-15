@@ -126,11 +126,14 @@ pub fn open_inference_folder_impl() -> Result<(), String> {
 
 /// Фоновая предварительная компиляция TensorRT .engine для конкретной модели под разрешение 1080p
 pub async fn precompile_model_engine_1080p_impl(
+    app: tauri::AppHandle,
     slot: u32,
     filename: String,
 ) -> Result<String, String> {
     use super::config::write_upscale_conf;
     use super::hardware::detect_system_gpu;
+    use super::types::UpscaleCompileProgress;
+    use tauri::Emitter;
 
     let gpu = detect_system_gpu();
     if !gpu.supports_tensorrt {
@@ -151,10 +154,103 @@ pub async fn precompile_model_engine_1080p_impl(
     let conf_path = write_upscale_conf("TensorRT", slot)?;
     let models_dir = get_models_dir();
 
+    // Очищаем старые/битые файлы кэшей и логов, чтобы не вызывать конфликтов аллокатора
+    if let Ok(entries) = std::fs::read_dir(&models_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(ext) = path.extension().and_then(|x| x.to_str()) {
+                if ext.eq_ignore_ascii_case("cache") || ext.eq_ignore_ascii_case("log") {
+                    let _ = std::fs::remove_file(path);
+                }
+            }
+        }
+    }
+
+    // Отправляем начальное событие запуска компиляции
+    let _ = app.emit(
+        "upscale-compile-progress",
+        UpscaleCompileProgress {
+            slot,
+            filename: filename.clone(),
+            stage: "Инициализация параметров сборщика...".to_string(),
+            percent: 5.0,
+            is_finished: false,
+            error: None,
+        },
+    );
+
     println!(
         "[L-MPV][Upscale] Запуск предварительной компиляции 1080p для модели: {} (слот {})",
         filename, slot
     );
+
+    // Фоновый мониторинг этапов сборки по лог-файлам
+    let is_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let is_running_monitor = is_running.clone();
+    let app_monitor = app.clone();
+    let filename_monitor = filename.clone();
+    let models_dir_monitor = models_dir.clone();
+
+    let monitor_handle = tokio::spawn(async move {
+        let mut current_percent: f64 = 8.0;
+        while is_running_monitor.load(std::sync::atomic::Ordering::Relaxed) {
+            tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
+            if !is_running_monitor.load(std::sync::atomic::Ordering::Relaxed) {
+                break;
+            }
+
+            let mut stage_text = "Подготовка графа нейросети...".to_string();
+            let mut detected_target: f64 = current_percent;
+
+            if let Ok(entries) = std::fs::read_dir(&models_dir_monitor) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    let fname = entry.file_name().to_string_lossy().to_string();
+                    if fname.ends_with(".build.log") {
+                        if let Ok(log_content) = std::fs::read_to_string(&p) {
+                            if log_content.contains("Detected") || log_content.contains("Total Activation Memory") {
+                                stage_text = "Сериализация исполняемого .engine файла...".to_string();
+                                detected_target = detected_target.max(88.0);
+                            } else if log_content.contains("Compiler backend is used") {
+                                stage_text = "Глубокая оптимизация графа TensorRT...".to_string();
+                                detected_target = detected_target.max(65.0);
+                            } else if log_content.contains("Init builder kernel library") {
+                                stage_text = "Подбор тактик и ядер CUDA...".to_string();
+                                detected_target = detected_target.max(45.0);
+                            } else if log_content.contains("Finished parsing network model") {
+                                stage_text = "Построение профилей 1080p -> 4K...".to_string();
+                                detected_target = detected_target.max(25.0);
+                            } else if log_content.contains("Start parsing network model") {
+                                stage_text = "Разбор структуры ONNX графа...".to_string();
+                                detected_target = detected_target.max(15.0);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Плавный рост процентов без дерганий
+            if current_percent < detected_target {
+                current_percent = (current_percent + 2.5).min(detected_target);
+            } else if current_percent < 94.0 {
+                current_percent += 0.4;
+            }
+
+            let rounded_percent = (current_percent * 10.0).round() / 10.0;
+
+            let _ = app_monitor.emit(
+                "upscale-compile-progress",
+                UpscaleCompileProgress {
+                    slot,
+                    filename: filename_monitor.clone(),
+                    stage: stage_text,
+                    percent: rounded_percent,
+                    is_finished: false,
+                    error: None,
+                },
+            );
+        }
+    });
 
     #[cfg(windows)]
     use std::os::windows::process::CommandExt;
@@ -190,6 +286,9 @@ pub async fn precompile_model_engine_1080p_impl(
             "NUL",
         ]);
 
+        // Оптимизация памяти: ленивая загрузка CUDA-модулей снижает расход VRAM при сборке
+        cmd.env("CUDA_MODULE_LOADING", "LAZY");
+
         #[cfg(windows)]
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: предотвращает моргание консольного окна
 
@@ -198,6 +297,9 @@ pub async fn precompile_model_engine_1080p_impl(
     .await
     .map_err(|e| format!("Ошибка потока выполнения сборщика: {}", e))?
     .map_err(|e| format!("Не удалось запустить aji_harness.exe: {}", e))?;
+
+    is_running.store(false, std::sync::atomic::Ordering::Relaxed);
+    let _ = monitor_handle.await;
 
     let stdout_str = String::from_utf8_lossy(&output.stdout);
     let stderr_str = String::from_utf8_lossy(&output.stderr);
@@ -208,8 +310,33 @@ pub async fn precompile_model_engine_1080p_impl(
         } else {
             stdout_str.to_string()
         };
+
+        let _ = app.emit(
+            "upscale-compile-progress",
+            UpscaleCompileProgress {
+                slot,
+                filename: filename.clone(),
+                stage: "Ошибка компиляции".to_string(),
+                percent: 100.0,
+                is_finished: true,
+                error: Some(err_detail.clone()),
+            },
+        );
+
         return Err(format!("Ошибка компиляции TensorRT: {}", err_detail));
     }
+
+    let _ = app.emit(
+        "upscale-compile-progress",
+        UpscaleCompileProgress {
+            slot,
+            filename: filename.clone(),
+            stage: "1080p движок готов!".to_string(),
+            percent: 100.0,
+            is_finished: true,
+            error: None,
+        },
+    );
 
     println!("[L-MPV][Upscale] Модель {} успешно скомпилирована для 1080p.", filename);
     Ok(format!("Модель {} успешно оптимизирована для 1080p!", filename))

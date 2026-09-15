@@ -46,3 +46,12 @@ export interface DownloadProgressPayload {
   error?: string | null;
 }
 
+export interface UpscaleCompileProgress {
+  slot: number;
+  filename: string;
+  stage: string;
+  percent: number;
+  is_finished: boolean;
+  error?: string | null;
+}
+
