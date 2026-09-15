@@ -9,6 +9,8 @@ import {
   Keyboard,
   X,
   RefreshCw,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   getCustomHotkeys,
@@ -52,6 +54,27 @@ export const UpscalingSettingsSection: React.FC = () => {
   // Хоткеи
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
   const [recordingActionId, setRecordingActionId] = useState<string | null>(null);
+
+  // Скрытие названий моделей (компактный вид только с именем файла и размером)
+  const [hideModelNames, setHideModelNames] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("l-mpv-hide-model-names") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleHideModelNames = () => {
+    setHideModelNames((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("l-mpv-hide-model-names", next ? "true" : "false");
+      } catch (e) {
+        console.error("Ошибка сохранения настройки скрытия названий моделей:", e);
+      }
+      return next;
+    });
+  };
 
   const [settings, setSettings] = useState<UpscaleSettings>(() => {
     try {
@@ -473,25 +496,47 @@ export const UpscalingSettingsSection: React.FC = () => {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenModelsFolder}
-            title="Открыть папку моделей в Проводнике"
-            style={{
-              padding: "8px 10px",
-              borderRadius: "var(--radius-md)",
-              background: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid var(--border-pill)",
-              color: "var(--text-primary)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <FolderOpen size={16} />
-          </button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={toggleHideModelNames}
+              title={hideModelNames ? "Показать названия моделей" : "Скрыть названия моделей"}
+              style={{
+                padding: "8px 10px",
+                borderRadius: "var(--radius-md)",
+                background: hideModelNames ? "rgba(127, 199, 255, 0.12)" : "rgba(255, 255, 255, 0.06)",
+                border: `1px solid ${hideModelNames ? "var(--accent)" : "var(--border-pill)"}`,
+                color: hideModelNames ? "var(--accent)" : "var(--text-primary)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              {hideModelNames ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenModelsFolder}
+              title="Открыть папку моделей в Проводнике"
+              style={{
+                padding: "8px 10px",
+                borderRadius: "var(--radius-md)",
+                background: "rgba(255, 255, 255, 0.06)",
+                border: "1px solid var(--border-pill)",
+                color: "var(--text-primary)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <FolderOpen size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Список обнаруженных файлов ONNX-моделей */}
@@ -544,11 +589,35 @@ export const UpscalingSettingsSection: React.FC = () => {
                     )}
 
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: "0.88rem", fontWeight: 500, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {model.display_name}
-                      </div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontFamily: "monospace", marginTop: 1 }}>
-                        {model.filename} ({formatFileSize(model.size_bytes)})
+                      {!hideModelNames && (
+                        <div style={{ fontSize: "0.88rem", fontWeight: 500, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {model.display_name}
+                        </div>
+                      )}
+                      <div
+                        style={{
+                          fontSize: hideModelNames ? "0.84rem" : "0.75rem",
+                          fontWeight: hideModelNames ? 500 : 400,
+                          color: hideModelNames ? "var(--text-primary)" : "var(--text-muted)",
+                          fontFamily: hideModelNames ? "inherit" : "monospace",
+                          marginTop: hideModelNames ? 0 : 1,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {model.filename}
+                        <span
+                          style={{
+                            fontSize: "0.75rem",
+                            color: "var(--text-muted)",
+                            fontFamily: "monospace",
+                            marginLeft: 6,
+                            fontWeight: 400,
+                          }}
+                        >
+                          ({formatFileSize(model.size_bytes)})
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -586,12 +655,16 @@ export const UpscalingSettingsSection: React.FC = () => {
                               display: "flex",
                               flexDirection: "column",
                               gap: 3,
-                              minWidth: 155,
+                              width: 175,
+                              minWidth: 175,
+                              maxWidth: 175,
+                              boxSizing: "border-box",
                               padding: "4px 8px",
                               borderRadius: "var(--radius-sm)",
                               background: "rgba(127, 199, 255, 0.08)",
                               border: "1px solid rgba(127, 199, 255, 0.3)",
                               userSelect: "none",
+                              flexShrink: 0,
                             }}
                           >
                             <div
@@ -601,6 +674,7 @@ export const UpscalingSettingsSection: React.FC = () => {
                                 justifyContent: "space-between",
                                 gap: 6,
                                 fontSize: "0.72rem",
+                                width: "100%",
                               }}
                             >
                               <span
@@ -613,18 +687,24 @@ export const UpscalingSettingsSection: React.FC = () => {
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
                                   whiteSpace: "nowrap",
-                                  maxWidth: 110,
+                                  flex: 1,
+                                  minWidth: 0,
                                 }}
                                 title={compileProgress[model.filename]?.stage || "Сборка 1080p..."}
                               >
-                                <RefreshCw size={10} className="spin" />
-                                {compileProgress[model.filename]?.stage || "Сборка 1080p..."}
+                                <RefreshCw size={10} className="spin" style={{ flexShrink: 0 }} />
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {compileProgress[model.filename]?.stage || "Сборка 1080p..."}
+                                </span>
                               </span>
                               <span
                                 style={{
                                   color: "var(--accent)",
                                   fontWeight: 700,
                                   fontVariantNumeric: "tabular-nums",
+                                  width: 38,
+                                  textAlign: "right",
+                                  flexShrink: 0,
                                 }}
                               >
                                 {compileProgress[model.filename]
