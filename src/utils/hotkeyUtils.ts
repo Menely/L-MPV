@@ -44,6 +44,10 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   toggleVisualizer: ["KeyW"],
   cycleVisualizerMode: ["Shift+KeyW"],
   rotateVideo: ["Alt+KeyR"],
+  upscaleOff: ["Shift+Digit1"],
+  upscaleNet1: ["Shift+Digit2"],
+  upscaleNet2: ["Shift+Digit3"],
+  upscaleNet3: ["Shift+Digit4"],
 };
 
 export const HOTKEY_ACTIONS: HotkeyAction[] = [
@@ -98,6 +102,12 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "playlistPrev", label: "Предыдущий файл в плейлисте", defaultKeys: DEFAULT_HOTKEYS["playlistPrev"], category: "Плейлист" },
   { id: "playlistNext", label: "Следующий файл в плейлисте", defaultKeys: DEFAULT_HOTKEYS["playlistNext"], category: "Плейлист" },
   { id: "openFile", label: "Открыть файл", defaultKeys: DEFAULT_HOTKEYS["openFile"], category: "Плейлист" },
+
+  // Апскейлинг 4K
+  { id: "upscaleOff", label: "Апскейлинг: Выключить", defaultKeys: DEFAULT_HOTKEYS["upscaleOff"], category: "Апскейлинг" },
+  { id: "upscaleNet1", label: "Апскейлинг: Нейросеть #1", defaultKeys: DEFAULT_HOTKEYS["upscaleNet1"], category: "Апскейлинг" },
+  { id: "upscaleNet2", label: "Апскейлинг: Нейросеть #2", defaultKeys: DEFAULT_HOTKEYS["upscaleNet2"], category: "Апскейлинг" },
+  { id: "upscaleNet3", label: "Апскейлинг: Нейросеть #3", defaultKeys: DEFAULT_HOTKEYS["upscaleNet3"], category: "Апскейлинг" },
 ];
 
 export function getCustomHotkeys(): Record<string, string[]> {

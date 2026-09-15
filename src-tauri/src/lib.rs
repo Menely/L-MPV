@@ -4,6 +4,7 @@
 //! и регистрирует все IPC-команды для фронтенда.
 
 mod ambient;
+pub mod upscale;
 mod audio_capture;
 mod commands;
 mod mediainfo;
@@ -255,6 +256,13 @@ pub fn run() {
             commands::open_presets_folder,
             commands::write_text_file,
             commands::read_text_file,
+            // AI Upscaling & Models
+            upscale::get_upscale_status,
+            upscale::scan_onnx_models,
+            upscale::open_models_folder,
+            upscale::apply_upscale_settings,
+            upscale::download_recommended_models,
+            upscale::switch_upscale_network_hotkey,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {

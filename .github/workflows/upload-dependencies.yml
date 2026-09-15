@@ -17,8 +17,8 @@ jobs:
       - name: Загрузка и архивация нативных библиотек
         shell: pwsh
         run: |
-          Write-Host "1. Скачивание libmpv-2.dll от shinchiro..."
-          $mpvUrl = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260903/mpv-dev-x86_64-20260903-git-69e63f425a.7z"
+          Write-Host "1. Скачивание libmpv-2.dll от the-database (mpv-winbuild с vf_animejanai)..."
+          $mpvUrl = "https://github.com/the-database/mpv-winbuild/releases/download/2026-09-13-d4c06dd342/mpv-dev-x86_64-20260913-git-d4c06dd342.7z"
           Invoke-WebRequest -Uri $mpvUrl -OutFile "mpv-dev.7z"
           
           Write-Host "2. Скачивание ffmpeg.exe от gyan.dev..."
@@ -54,7 +54,7 @@ jobs:
         with:
           tag_name: deps-v1
           name: "L-MPV Build Dependencies v1"
-          body: "Автоматически собранные нативные библиотеки libmpv-2.dll (от shinchiro) и ffmpeg.exe (от gyan.dev) для сборки L-MPV."
+          body: "Автоматически собранные нативные библиотеки libmpv-2.dll (от the-database/mpv-winbuild с vf_animejanai), ffmpeg.exe (от gyan.dev) и MediaInfo.dll для сборки L-MPV."
           files: mpv_libs.zip
           draft: false
           prerelease: false

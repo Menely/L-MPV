@@ -580,6 +580,43 @@ function App() {
           console.error("Ошибка переключения подсветки полос:", e);
         }
         break;
+      case "upscaleOff":
+        try {
+          const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+          await invoke("switch_upscale_network_hotkey", { slot: 0, backend });
+          localStorage.setItem("l-mpv-upscale-mode", "off");
+          setOsdText("4K AI Апскейлинг: Выключен");
+          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+        } catch (e) { console.error("Ошибка отключения апскейлинга:", e); }
+        break;
+      case "upscaleNet1":
+      case "upscaleNet2":
+      case "upscaleNet3": {
+        try {
+          const slotMap: Record<string, number> = {
+            upscaleNet1: 1001,
+            upscaleNet2: 1002,
+            upscaleNet3: 1003,
+          };
+          const slot = slotMap[actionId] || 1001;
+          const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+          await invoke("switch_upscale_network_hotkey", { slot, backend });
+          localStorage.setItem("l-mpv-upscale-mode", "ai");
+          localStorage.setItem("l-mpv-upscale-slot", String(slot));
+
+          const models = await invoke<Array<{ slot: number; display_name: string }>>("scan_onnx_models").catch(() => []);
+          const matched = models.find((m) => m.slot === slot);
+          const name = matched?.display_name || `Нейросеть #${slot - 1000}`;
+
+          setOsdText(`4K AI: ${name}`);
+          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+        } catch (e) {
+          console.error("Ошибка переключения нейросети:", e);
+        }
+        break;
+      }
     }
   }, [handleOpenFile, triggerFrameOsd]);
 

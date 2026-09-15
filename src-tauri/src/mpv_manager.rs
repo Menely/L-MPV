@@ -446,6 +446,29 @@ impl MpvManager {
             }
         })
     }
+
+    /// Активирует фильтр AI-апскейлинга AnimeJaNai в mpv
+    pub fn enable_ai_upscale(&self, conf_path: &str, slot: u32) -> Result<(), String> {
+        let norm_conf = conf_path.replace('\\', "/");
+        let cmd_add = format!("vf add @aji:animejanai=conf=\"{}\"", norm_conf);
+        let _ = self.command(&cmd_add);
+        let cmd_slot = format!("vf-command aji slot {}", slot);
+        self.command(&cmd_slot)
+    }
+
+    /// Отключает фильтр AI-апскейлинга в mpv
+    pub fn disable_ai_upscale(&self) -> Result<(), String> {
+        let _ = self.command("vf-command aji slot 0");
+        let _ = self.command("vf remove @aji");
+        Ok(())
+    }
+
+    /// Переключает активный слот инференса в фильтре AnimeJaNai на лету
+    #[allow(dead_code)]
+    pub fn set_ai_upscale_slot(&self, slot: u32) -> Result<(), String> {
+        let cmd = format!("vf-command aji slot {}", slot);
+        self.command(&cmd)
+    }
 }
 
 impl Drop for MpvManager {

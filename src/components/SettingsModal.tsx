@@ -78,6 +78,7 @@ import { ColorSchemeSection } from "./ColorSchemeSection";
 import { getEffectiveAccentColor } from "../utils/colorUtils";
 import { VisualizerSettingsSection } from "./VisualizerSettingsSection";
 import { PresetsSection } from "./PresetsSection";
+import { UpscalingSettingsSection } from "./UpscalingSettingsSection";
 import { ControlButtonsPreviewCard } from "./ControlButtonsPreviewCard";
 import { SettingsPreset } from "../utils/presetsUtils";
 import {
@@ -175,7 +176,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const ignoreClickUntilRef = useRef<number>(0);
   const [uiRadius, setUiRadius] = useState<{ level: UiRadiusLevel; value: number }>(() => getSavedUiRadius());
   const [uiScale, setUiScale] = useState<{ mode: UiScaleMode; value: number }>(() => getSavedUiScale());
-  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "hotkeys" | "integration">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "upscaling" | "hotkeys" | "integration">("general");
 
   // Навигация стрелками влево и вправо для переключения категорий настроек
   useEffect(() => {
@@ -201,10 +202,11 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         return;
       }
 
-      const tabs: ("general" | "appearance" | "presets" | "hotkeys" | "integration")[] = [
+      const tabs: ("general" | "appearance" | "presets" | "upscaling" | "hotkeys" | "integration")[] = [
         "general",
         "appearance",
         "presets",
+        "upscaling",
         "hotkeys",
         "integration",
       ];
@@ -603,6 +605,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             { id: "general", label: "Общие", icon: SlidersHorizontal },
             { id: "appearance", label: "Кастом", icon: Palette },
             { id: "presets", label: "Пресеты", icon: Sparkles },
+            { id: "upscaling", label: "Апскейлинг", icon: Zap },
             { id: "hotkeys", label: "Горячие клавиши", icon: Keyboard },
             { id: "integration", label: "Интеграция", icon: Link },
           ].map((tab) => {
@@ -1727,6 +1730,12 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           {activeTab === "presets" && (
             <div className="modal__section" style={{ display: "flex", flexDirection: "column" }}>
               <PresetsSection onPresetApplied={handlePresetApplied} />
+            </div>
+          )}
+
+          {activeTab === "upscaling" && (
+            <div className="modal__section" style={{ display: "flex", flexDirection: "column" }}>
+              <UpscalingSettingsSection />
             </div>
           )}
 
