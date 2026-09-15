@@ -97,6 +97,45 @@ pub fn get_inference_dir() -> PathBuf {
     inf_dir
 }
 
+/// Ленивая инициализация путей к библиотекам инференса.
+/// Добавляет папку inference в системный PATH и вызывает SetDllDirectoryW только при
+/// первом реальном включении AI-апскейлинга, чтобы старт плеера был мгновенным.
+pub fn ensure_inference_environment() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static INITIALIZED: AtomicBool = AtomicBool::new(false);
+
+    if INITIALIZED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+
+    let inf_dir = get_inference_dir();
+
+    if let Some(path) = std::env::var_os("PATH") {
+        let mut paths = std::env::split_paths(&path).collect::<Vec<_>>();
+        if !paths.contains(&inf_dir) {
+            paths.insert(0, inf_dir.clone());
+            if let Ok(new_path) = std::env::join_paths(paths) {
+                std::env::set_var("PATH", new_path);
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        let mut wide: Vec<u16> = inf_dir.as_os_str().encode_wide().collect();
+        wide.push(0);
+        extern "system" {
+            fn SetDllDirectoryW(lpPathName: *const u16) -> i32;
+        }
+        unsafe {
+            SetDllDirectoryW(wide.as_ptr());
+        }
+    }
+}
+
+static LAST_APPLIED_BACKEND: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
 /// Возвращает путь к конфигурационному файлу апскейлинга `config/upscale.conf`
 pub fn get_upscale_conf_path() -> PathBuf {
     let root = get_app_root_dir();
@@ -134,7 +173,9 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
                 .cmp(&b.file_name().unwrap_or_default().to_string_lossy().to_lowercase())
         });
 
-        let mut slot = 1001u32;
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
         for path in onnx_paths {
             let filename = path
                 .file_name()
@@ -147,6 +188,11 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
                 .trim_end_matches(".ONNX")
                 .replace('_', " ");
 
+            let mut hasher = DefaultHasher::new();
+            filename.hash(&mut hasher);
+            // Генерируем слот: от 2000 до 9999 (чтобы не пересекаться с builtin слотами 10xx)
+            let slot = (hasher.finish() % 8000 + 2000) as u32;
+
             items.push(ModelFileItem {
                 filename,
                 display_name,
@@ -154,7 +200,6 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
                 slot,
                 full_path: path.to_string_lossy().to_string(),
             });
-            slot += 1;
         }
     }
 
@@ -193,34 +238,35 @@ pub fn check_upscale_status_internal() -> UpscaleStatus {
     }
 }
 
-/// Формирует актуальный файл конфигурации апскейлинга
 pub fn write_upscale_conf(backend: &str, default_slot: u32) -> Result<PathBuf, String> {
     let conf_path = get_upscale_conf_path();
-    let inf_dir = get_inference_dir();
-    let models_dir = get_models_dir();
+    let models = scan_onnx_models_internal();
 
-    // Находим aji.dll
-    let aji_path = if inf_dir.join("aji.dll").exists() {
-        inf_dir.join("aji.dll")
-    } else if get_app_root_dir().join("animejanai").join("inference").join("aji.dll").exists() {
-        get_app_root_dir().join("animejanai").join("inference").join("aji.dll")
-    } else {
-        inf_dir.join("aji.dll")
-    };
-
-    let conf_content = format!(
+    let mut conf_content = format!(
         "[global]\n\
          config_version=3\n\
          backend={}\n\
-         logging=yes\n\
-         default_slot={}\n\
-         lib={}\n\
-         model_dir={}\n",
-        backend,
-        default_slot,
-        aji_path.to_string_lossy().replace('\\', "/"),
-        models_dir.to_string_lossy().replace('\\', "/")
+         logging=no\n\
+         default_slot={}\n\n",
+        backend, default_slot
     );
+
+    // Добавляем описание каждого слота (для кастомных моделей)
+    for model in models {
+        let model_stem = model.filename
+            .strip_suffix(".onnx")
+            .or_else(|| model.filename.strip_suffix(".ONNX"))
+            .unwrap_or(&model.filename);
+
+        conf_content.push_str(&format!(
+            "[slot_{}]\n\
+             profile_name={}\n\
+             chain_1_model_1_name={}\n\n",
+            model.slot,
+            model.display_name,
+            model_stem
+        ));
+    }
 
     fs::write(&conf_path, conf_content)
         .map_err(|e| format!("Ошибка записи конфигурации апскейлинга: {}", e))?;
@@ -264,14 +310,38 @@ pub fn apply_upscale_settings(
     let conf_path = write_upscale_conf(&settings.backend, settings.active_slot)?;
     let conf_str = conf_path.to_string_lossy();
 
+    let backend_changed = {
+        let mut last = LAST_APPLIED_BACKEND.lock().unwrap();
+        let changed = last.as_deref() != Some(&settings.backend);
+        *last = Some(settings.backend.clone());
+        changed
+    };
+
     if settings.mode == "ai" {
-        // Попытка подключить фильтр — если видео не загружено, mpv вернёт ошибку
-        // (код -12 / MPV_ERROR_COMMAND), но это нормально: фильтр будет
-        // подхвачен при следующем запуске воспроизведения.
-        let _ = state.mpv.enable_ai_upscale(&conf_str, settings.active_slot);
+        ensure_inference_environment();
+        let models_dir = get_models_dir();
+        let _ = state.mpv.set_hwdec_for_backend(&settings.backend);
+        let _ = state.mpv.enable_ai_upscale(
+            &conf_str,
+            &models_dir.to_string_lossy(),
+            settings.active_slot,
+            backend_changed,
+        );
     } else {
         let _ = state.mpv.disable_ai_upscale();
     }
+    
+    // Форсируем немедленный апскейлинг/перерисовку кадра, даже если видео стоит на паузе
+    if let Ok(paused) = state.mpv.get_property_bool("pause") {
+        let eof = state.mpv.get_property_bool("eof-reached").unwrap_or(false);
+        if paused && !eof {
+            let pos = state.mpv.get_property_double("time-pos").unwrap_or(0.0);
+            let _ = state.mpv.command(&format!("seek {:.4} absolute+exact", pos));
+            let _ = state.mpv.command("frame-step");
+            let _ = state.mpv.command("frame-back-step");
+        }
+    }
+    
     Ok(())
 }
 
@@ -343,29 +413,27 @@ pub async fn download_inference_engine(engine: String) -> Result<String, String>
 
 /// Удаление всех библиотек движка инференса из папки inference/
 #[tauri::command]
-pub fn delete_inference_engine() -> Result<String, String> {
+pub fn delete_inference_engine(backend: String) -> Result<String, String> {
     let inf_dir = get_inference_dir();
     if !inf_dir.exists() {
         return Ok("Папка inference/ не найдена — удалять нечего".to_string());
     }
 
+    let files_to_delete = if backend == "TensorRT" {
+        vec!["aji_trt.dll", "nvinfer_11.dll"]
+    } else {
+        vec!["aji_dml.dll", "DirectML.dll", "onnxruntime.dll"]
+    };
+
     let mut removed = 0u32;
-    if let Ok(entries) = fs::read_dir(&inf_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_file() {
-                if fs::remove_file(&path).is_ok() {
-                    removed += 1;
-                }
-            } else if path.is_dir() {
-                if fs::remove_dir_all(&path).is_ok() {
-                    removed += 1;
-                }
-            }
+    for file in files_to_delete {
+        let path = inf_dir.join(file);
+        if path.exists() && fs::remove_file(&path).is_ok() {
+            removed += 1;
         }
     }
 
-    Ok(format!("Удалено файлов и каталогов: {}", removed))
+    Ok(format!("Удалено файлов: {}", removed))
 }
 
 /// Переключение видов нейросетей по горячим клавишам Shift+1..4 на лету
@@ -376,11 +444,39 @@ pub fn switch_upscale_network_hotkey(
     backend: Option<String>,
 ) -> Result<(), String> {
     let chosen_backend = backend.unwrap_or_else(|| "DirectML".to_string());
+    let backend_changed = {
+        let mut last = LAST_APPLIED_BACKEND.lock().unwrap();
+        let changed = last.as_deref() != Some(&chosen_backend);
+        *last = Some(chosen_backend.clone());
+        changed
+    };
+
     if slot == 0 {
-        state.mpv.disable_ai_upscale()
+        let _ = state.mpv.disable_ai_upscale();
     } else {
+        ensure_inference_environment();
+        let models_dir = get_models_dir();
         let conf_path = write_upscale_conf(&chosen_backend, slot)?;
         let conf_str = conf_path.to_string_lossy();
-        state.mpv.enable_ai_upscale(&conf_str, slot)
+        let _ = state.mpv.set_hwdec_for_backend(&chosen_backend);
+        let _ = state.mpv.enable_ai_upscale(
+            &conf_str,
+            &models_dir.to_string_lossy(),
+            slot,
+            backend_changed,
+        );
     }
+    
+    // Форсируем немедленный апскейлинг/перерисовку кадра, даже если видео стоит на паузе
+    if let Ok(paused) = state.mpv.get_property_bool("pause") {
+        let eof = state.mpv.get_property_bool("eof-reached").unwrap_or(false);
+        if paused && !eof {
+            let pos = state.mpv.get_property_double("time-pos").unwrap_or(0.0);
+            let _ = state.mpv.command(&format!("seek {:.4} absolute+exact", pos));
+            let _ = state.mpv.command("frame-step");
+            let _ = state.mpv.command("frame-back-step");
+        }
+    }
+    
+    Ok(())
 }

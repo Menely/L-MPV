@@ -47,6 +47,8 @@ if (typeof document !== "undefined") {
   } else {
     document.documentElement.style.background = "transparent";
     document.body.style.background = "transparent";
+    // Сбрасываем апскейлинг по умолчанию (выключен при каждом запуске плеера)
+    localStorage.setItem("l-mpv-upscale-mode", "off");
   }
 
   // Применение темы оформления плеера при старте

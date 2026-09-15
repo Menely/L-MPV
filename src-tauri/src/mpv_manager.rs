@@ -146,11 +146,14 @@ impl MpvManager {
             Self::set_option(&api, handle, "screenshot-directory", &screenshots_dir);
             Self::set_option(&api, handle, "screenshot-format", "png");
 
-            // ─── Настройки рендеринга 4K / HDR / GPU-Next ─────────
+            // ─── Оптимизированный рендеринг: Direct3D 11 (нативный для Windows / DWM) ───
             Self::set_option(&api, handle, "vo", "gpu-next");
-            Self::set_option(&api, handle, "gpu-api", "d3d11");
+            Self::set_option(&api, handle, "gpu-api", "d3d11,auto");
             Self::set_option(&api, handle, "hwdec", "auto-safe");
-            Self::set_option(&api, handle, "profile", "gpu-hq");
+
+            // Отключаем лог-файл и снижаем уровень логирования для исключения дискового I/O
+            Self::set_option(&api, handle, "terminal", "no");
+            Self::set_option(&api, handle, "msg-level", "all=warn");
 
             // ─── HDR поддержка ──────────────────────────
             Self::set_option(&api, handle, "target-colorspace-hint", "yes");
@@ -160,21 +163,18 @@ impl MpvManager {
             // ─── Оптимизация фона и буфера ────────────────
             Self::set_option(&api, handle, "background-color", "#000000");
             Self::set_option(&api, handle, "border-background", "color");
-            Self::set_option(&api, handle, "demuxer-max-bytes", "32MiB");
-            Self::set_option(&api, handle, "demuxer-readahead-secs", "2");
-            Self::set_option(&api, handle, "demuxer-max-back-bytes", "16MiB");
+            Self::set_option(&api, handle, "demuxer-max-bytes", "64MiB");
+            Self::set_option(&api, handle, "demuxer-readahead-secs", "5");
+            Self::set_option(&api, handle, "demuxer-max-back-bytes", "32MiB");
             Self::set_option(&api, handle, "hr-seek-framedrop", "yes"); // Использовать drop кадров при перемотке для снижения RAM
             Self::set_option(&api, handle, "cache-pause", "no"); // Не ставить на паузу при буферизации локальных файлов
             
-            // ─── Максимальное качество аудио ────────────
+            // ─── Качественный отзывчивый звук (WASAPI) ───
             Self::set_option(&api, handle, "ao", "wasapi"); // Высококачественный драйвер Windows WASAPI
             Self::set_option(&api, handle, "audio-buffer", "0.2"); // Отзывчивый размер буфера для плавной перемотки
-            Self::set_option(&api, handle, "audio-channels", "auto-safe"); // Автоопределение каналов оборудования без искажений
-            Self::set_option(&api, handle, "audio-pitch-correction", "yes"); // Сохранение тональности при изменении скорости (scaletempo2)
-            Self::set_option(&api, handle, "audio-resample-filter-size", "32"); // Студийное качество sinc-интерполяции ресемплера (32 taps)
-            Self::set_option(&api, handle, "audio-resample-phase-shift", "14"); // Высокоточный фазовый сдвиг (16384 фаз) для ресемплера
-            Self::set_option(&api, handle, "audio-resample-linear", "yes"); // Линейная интерполяция между отсчётами фильтра
-            Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от перегруза и клиппинга при сведении многоканального звука в стерео
+            Self::set_option(&api, handle, "audio-channels", "auto-safe"); // Автоопределение каналов оборудования
+            Self::set_option(&api, handle, "audio-pitch-correction", "yes"); // Сохранение тональности при изменении скорости
+            Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от клиппинга при даунмиксе
 
             // ─── Субтитры ───────────────────────────────
             Self::set_option(&api, handle, "demuxer-mkv-subtitle-preroll", "yes");
@@ -185,10 +185,14 @@ impl MpvManager {
                 &api, handle, "keep-open", "yes",
             );
 
-            // ─── Масштабирование и поведение окна ──────
+            // ─── Масштабирование без тяжелых фильтров ───
             Self::set_option(&api, handle, "auto-window-resize", "no");
             Self::set_option(&api, handle, "scale", "spline36");
             Self::set_option(&api, handle, "cscale", "spline36");
+            Self::set_option(&api, handle, "dscale", "mitchell");
+            Self::set_option(&api, handle, "correct-downscaling", "yes");
+            Self::set_option(&api, handle, "linear-downscaling", "yes");
+            Self::set_option(&api, handle, "deband", "no"); // Отключаем дебандинг для 0% просадок FPS при обычном воспроизведении
 
             // Отключаем встроенный OSC и обработку ввода (мы используем свой UI)
             Self::set_option(&api, handle, "osc", "no");
@@ -447,19 +451,53 @@ impl MpvManager {
         })
     }
 
-    /// Активирует фильтр AI-апскейлинга AnimeJaNai в mpv
-    pub fn enable_ai_upscale(&self, conf_path: &str, slot: u32) -> Result<(), String> {
+    /// Активирует фильтр AI-апскейлинга AnimeJaNai в mpv или переключает слот инференса
+    pub fn enable_ai_upscale(
+        &self,
+        conf_path: &str,
+        models_dir: &str,
+        slot: u32,
+        backend_changed: bool,
+    ) -> Result<(), String> {
         let norm_conf = conf_path.replace('\\', "/");
-        let cmd_add = format!("vf add @aji:animejanai=conf=\"{}\"", norm_conf);
-        let _ = self.command(&cmd_add);
+        let norm_models_dir = models_dir.replace('\\', "/");
+        
+        let vf_list = self.get_property_string("vf").unwrap_or_default();
+        let aji_present = vf_list.contains("aji");
+
+        // Фильтр создается заново только если он еще не добавлен или если сменился вычислительный бэкенд
+        if !aji_present || backend_changed {
+            if aji_present {
+                let _ = self.command("vf remove @aji");
+            }
+            let cmd_add = format!(
+                "vf add @aji:animejanai=conf=\"{}\":model-dir=\"{}\"",
+                norm_conf, norm_models_dir
+            );
+            let _ = self.command(&cmd_add);
+        }
+        
+        // Мгновенное переключение активного слота в AnimeJaNai
         let cmd_slot = format!("vf-command aji slot {}", slot);
-        self.command(&cmd_slot)
+        let _ = self.command(&cmd_slot);
+        Ok(())
     }
 
-    /// Отключает фильтр AI-апскейлинга в mpv
+    /// Устанавливает hwdec в зависимости от выбранного бэкенда
+    pub fn set_hwdec_for_backend(&self, backend: &str) -> Result<(), String> {
+        let hwdec = match backend {
+            "TensorRT" => "nvdec",
+            "DirectML" => "d3d11va",
+            _ => "auto-safe",
+        };
+        self.set_property_string("hwdec", hwdec)
+    }
+
+    /// Полностью отключает фильтр AI-апскейлинга в mpv, очищая видеоцепочку
     pub fn disable_ai_upscale(&self) -> Result<(), String> {
         let _ = self.command("vf-command aji slot 0");
         let _ = self.command("vf remove @aji");
+        let _ = self.set_property_string("hwdec", "auto-safe");
         Ok(())
     }
 

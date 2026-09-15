@@ -103,6 +103,9 @@ function App() {
       applyAccentColor(savedAccent);
     }
 
+    // При каждом запуске плеера апскейлинг всегда гарантированно отключен по умолчанию
+    localStorage.setItem("l-mpv-upscale-mode", "off");
+
     // Фоновая проверка обновлений (показываем ненавязчивое уведомление в правом углу)
     invoke<UpdateInfo | null>("check_launch_and_update")
       .then((info) => {
@@ -254,6 +257,20 @@ function App() {
       }
     }
   }, [mediaInfo?.path, mediaInfo?.width, mediaInfo?.height, resizeWindowForVideo]);
+
+  // Автоматическое применение AI Upscaling при загрузке нового файла
+  useEffect(() => {
+    if (mediaInfo?.path) {
+      const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
+      if (mode === "ai") {
+        const slot = parseInt(localStorage.getItem("l-mpv-upscale-slot") || "1001", 10);
+        const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+        invoke("apply_upscale_settings", { 
+          settings: { mode, active_slot: slot, backend, selected_model: "" }
+        }).catch(console.error);
+      }
+    }
+  }, [mediaInfo?.path]);
 
   // Защитный таймер безопасности (на случай долгого ответа декодера или ошибок)
   useEffect(() => {
@@ -588,6 +605,7 @@ function App() {
           setOsdText("4K AI Апскейлинг: Выключен");
           if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
           osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+          window.dispatchEvent(new Event("l-mpv-settings-changed"));
         } catch (e) { console.error("Ошибка отключения апскейлинга:", e); }
         break;
       case "upscaleNet1":
@@ -595,31 +613,41 @@ function App() {
       case "upscaleNet3":
       case "upscaleNet4":
       case "upscaleNet5":
-      case "upscaleNet6": {
+      case "upscaleNet6":
+      case "upscaleNet7":
+      case "upscaleNet8":
+      case "upscaleNet9":
+      case "upscaleNet10":
+      case "upscaleNet11":
+      case "upscaleNet12": {
         try {
-          const slotMap: Record<string, number> = {
-            upscaleNet1: 1001,
-            upscaleNet2: 1002,
-            upscaleNet3: 1003,
-            upscaleNet4: 1004,
-            upscaleNet5: 1005,
-            upscaleNet6: 1006,
-          };
-          const slot = slotMap[actionId] || 1001;
-          const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
-          await invoke("switch_upscale_network_hotkey", { slot, backend });
-          localStorage.setItem("l-mpv-upscale-mode", "ai");
-          localStorage.setItem("l-mpv-upscale-slot", String(slot));
+          const index = parseInt(actionId.replace("upscaleNet", ""), 10) - 1;
+          const models = await invoke<Array<{ slot: number; display_name: string; filename: string }>>("scan_onnx_models").catch(() => []);
+          const targetModel = models[index];
 
-          const models = await invoke<Array<{ slot: number; display_name: string }>>("scan_onnx_models").catch(() => []);
-          const matched = models.find((m) => m.slot === slot);
-          const name = matched?.display_name || `Нейросеть #${slot - 1000}`;
+          if (targetModel) {
+            const slot = targetModel.slot;
+            const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
 
-          setOsdText(`4K AI: ${name}`);
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+            // При выборе любой модели по хоткею гарантированно активируем режим "ai"
+            localStorage.setItem("l-mpv-upscale-mode", "ai");
+            localStorage.setItem("l-mpv-upscale-slot", String(slot));
+            localStorage.setItem("l-mpv-upscale-selected-model", targetModel.filename);
+
+            await invoke("switch_upscale_network_hotkey", { slot, backend });
+
+            setOsdText(`4K AI: ${targetModel.display_name} (Включен)`);
+            if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+            osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+
+            window.dispatchEvent(new Event("l-mpv-settings-changed"));
+          } else {
+            setOsdText(`Модель #${index + 1} не найдена в models/onnx/`);
+            if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+            osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+          }
         } catch (e) {
-          console.error("Ошибка переключения нейросети:", e);
+          console.error("Ошибка переключения нейросети по хоткею:", e);
         }
         break;
       }

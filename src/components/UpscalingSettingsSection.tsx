@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Info,
   Keyboard,
-  Gauge,
   Trash2,
   X,
 } from "lucide-react";
@@ -45,41 +44,7 @@ export interface UpscaleSettings {
   selected_model: string;
 }
 
-export type QualityProfile = "performance" | "balanced" | "quality" | "ultra";
 
-interface QualityProfileOption {
-  id: QualityProfile;
-  name: string;
-  description: string;
-  icon: string;
-}
-
-const QUALITY_PROFILES: QualityProfileOption[] = [
-  {
-    id: "performance",
-    name: "Производительность",
-    description: "Быстрый инференс, минимальная нагрузка на GPU (для 60fps / легких карт)",
-    icon: "⚡",
-  },
-  {
-    id: "balanced",
-    name: "Баланс",
-    description: "Оптимальный компромисс между четкостью деталей и энергопотреблением",
-    icon: "⚖️",
-  },
-  {
-    id: "quality",
-    name: "Качество",
-    description: "Высокая детализация контуров и текстур для мощных видеокарт",
-    icon: "💎",
-  },
-  {
-    id: "ultra",
-    name: "Ультра",
-    description: "Максимальное качество реконструкции изображения без компромиссов",
-    icon: "🌟",
-  },
-];
 
 /**
  * Вкладка управления апскейлингом видео в реальном времени (AI Upscaling).
@@ -95,15 +60,6 @@ export const UpscalingSettingsSection: React.FC = () => {
   // Хоткеи
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
   const [recordingActionId, setRecordingActionId] = useState<string | null>(null);
-
-  // Профиль качества
-  const [qualityProfile, setQualityProfile] = useState<QualityProfile>(() => {
-    try {
-      return (localStorage.getItem("l-mpv-upscale-profile") as QualityProfile) || "balanced";
-    } catch {
-      return "balanced";
-    }
-  });
 
   const [settings, setSettings] = useState<UpscaleSettings>(() => {
     try {
@@ -151,7 +107,19 @@ export const UpscalingSettingsSection: React.FC = () => {
       if (isMountedRef.current) refreshStatus();
     };
     const handleSettingsChanged = () => {
-      if (isMountedRef.current) setCustomHotkeys(getCustomHotkeys());
+      if (isMountedRef.current) {
+        setCustomHotkeys(getCustomHotkeys());
+        const savedMode = (localStorage.getItem("l-mpv-upscale-mode") as "off" | "ai") || "off";
+        const savedBackend = (localStorage.getItem("l-mpv-upscale-backend") as "DirectML" | "TensorRT") || "DirectML";
+        const savedSlot = Number(localStorage.getItem("l-mpv-upscale-slot") || 1001);
+        const savedModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
+        setSettings({
+          mode: savedMode,
+          active_slot: savedSlot,
+          backend: savedBackend,
+          selected_model: savedModel,
+        });
+      }
     };
 
     window.addEventListener("focus", handleFocus);
@@ -180,16 +148,6 @@ export const UpscalingSettingsSection: React.FC = () => {
     } catch (err) {
       console.error("Ошибка применения настроек апскейлинга:", err);
       setErrorMessage(String(err));
-    }
-  };
-
-  // Переключение профиля качества
-  const handleSelectQualityProfile = (prof: QualityProfile) => {
-    setQualityProfile(prof);
-    try {
-      localStorage.setItem("l-mpv-upscale-profile", prof);
-    } catch (e) {
-      console.error("Ошибка сохранения профиля качества:", e);
     }
   };
 
@@ -228,13 +186,12 @@ export const UpscalingSettingsSection: React.FC = () => {
     }
   };
 
-  // Удаление библиотек движка инференса
   const handleDeleteEngine = async () => {
     setIsDeletingEngine(true);
     setEngineSuccessMessage(null);
     setErrorMessage(null);
     try {
-      const res = await invoke<string>("delete_inference_engine");
+      const res = await invoke<string>("delete_inference_engine", { backend: settings.backend });
       setEngineSuccessMessage(res || "Библиотеки движка удалены");
       await refreshStatus();
     } catch (err) {
@@ -354,45 +311,6 @@ export const UpscalingSettingsSection: React.FC = () => {
           </button>
         </div>
 
-        {/* Секция выбора профилей качества */}
-        <div>
-          <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-            <Gauge size={14} color="var(--accent)" /> Профиль качества и производительности
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-            {QUALITY_PROFILES.map((prof) => {
-              const isSelected = qualityProfile === prof.id;
-              return (
-                <button
-                  key={prof.id}
-                  type="button"
-                  onClick={() => handleSelectQualityProfile(prof.id)}
-                  title={prof.description}
-                  style={{
-                    padding: "10px 10px",
-                    borderRadius: "var(--radius-md)",
-                    border: `1px solid ${isSelected ? "var(--accent)" : "var(--border-pill)"}`,
-                    background: isSelected ? "rgba(127, 199, 255, 0.12)" : "rgba(0, 0, 0, 0.2)",
-                    color: isSelected ? "var(--text-primary)" : "var(--text-muted)",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 4,
-                    textAlign: "center",
-                    transition: "all 0.18s ease",
-                  }}
-                >
-                  <span style={{ fontSize: "1.2rem" }}>{prof.icon}</span>
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: isSelected ? "var(--accent)" : "var(--text-primary)" }}>
-                    {prof.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
       {/* 2. Настройка бэкенда инференса (DirectML / TensorRT) и скачивание движка */}
