@@ -11,6 +11,7 @@ import {
   Info,
   Keyboard,
   Gauge,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -87,6 +88,7 @@ export const UpscalingSettingsSection: React.FC = () => {
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isDownloadingEngine, setIsDownloadingEngine] = useState<boolean>(false);
+  const [isDeletingEngine, setIsDeletingEngine] = useState<boolean>(false);
   const [engineSuccessMessage, setEngineSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -226,6 +228,23 @@ export const UpscalingSettingsSection: React.FC = () => {
     }
   };
 
+  // Удаление библиотек движка инференса
+  const handleDeleteEngine = async () => {
+    setIsDeletingEngine(true);
+    setEngineSuccessMessage(null);
+    setErrorMessage(null);
+    try {
+      const res = await invoke<string>("delete_inference_engine");
+      setEngineSuccessMessage(res || "Библиотеки движка удалены");
+      await refreshStatus();
+    } catch (err) {
+      console.error("Ошибка удаления библиотек инференса:", err);
+      setErrorMessage(`Ошибка удаления движка: ${err}`);
+    } finally {
+      setIsDeletingEngine(false);
+    }
+  };
+
   // Назначение горячей клавиши для модели
   const handleKeyRecord = (e: React.KeyboardEvent, actionId: string) => {
     e.preventDefault();
@@ -274,6 +293,8 @@ export const UpscalingSettingsSection: React.FC = () => {
   const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
   const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
   const isAiActive = settings.mode === "ai";
+  const isCurrentBackendInstalled = settings.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
+  const isAnyEnginePresent = isDmlInstalled || isTrtInstalled;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -421,26 +442,50 @@ export const UpscalingSettingsSection: React.FC = () => {
             <button
               type="button"
               onClick={handleDownloadEngine}
-              disabled={isDownloadingEngine}
-              title="Скачать или обновить файлы библиотек движка инференса"
+              disabled={isDownloadingEngine || isCurrentBackendInstalled}
+              title={isCurrentBackendInstalled ? "Движок уже установлен" : "Скачать или обновить файлы библиотек движка инференса"}
               style={{
                 padding: "8px 14px",
                 borderRadius: "var(--radius-md)",
-                background: "var(--accent)",
-                border: "none",
-                color: "#000",
+                background: isCurrentBackendInstalled ? "rgba(255, 255, 255, 0.06)" : "var(--accent)",
+                border: isCurrentBackendInstalled ? "1px solid var(--border-pill)" : "none",
+                color: isCurrentBackendInstalled ? "var(--text-muted)" : "#000",
                 fontSize: "0.82rem",
                 fontWeight: 600,
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                cursor: isDownloadingEngine ? "wait" : "pointer",
-                opacity: isDownloadingEngine ? 0.7 : 1,
+                cursor: (isDownloadingEngine || isCurrentBackendInstalled) ? "default" : "pointer",
+                opacity: (isDownloadingEngine || isCurrentBackendInstalled) ? 0.5 : 1,
               }}
             >
               {isDownloadingEngine ? <RefreshCw size={15} className="spin" /> : <Download size={15} />}
-              {isDownloadingEngine ? "Загрузка..." : "Скачать движок"}
+              {isDownloadingEngine ? "Загрузка..." : isCurrentBackendInstalled ? "Установлен" : "Скачать движок"}
             </button>
+
+            {isAnyEnginePresent && (
+              <button
+                type="button"
+                onClick={handleDeleteEngine}
+                disabled={isDeletingEngine}
+                title="Удалить все файлы движка инференса из папки inference/"
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: "var(--radius-md)",
+                  background: "rgba(231, 76, 60, 0.12)",
+                  border: "1px solid rgba(231, 76, 60, 0.3)",
+                  color: "#e74c3c",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: isDeletingEngine ? "wait" : "pointer",
+                  opacity: isDeletingEngine ? 0.6 : 1,
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {isDeletingEngine ? <RefreshCw size={14} className="spin" /> : <Trash2 size={14} />}
+              </button>
+            )}
           </div>
         </div>
 

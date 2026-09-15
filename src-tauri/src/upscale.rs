@@ -253,7 +253,9 @@ pub fn open_models_folder() -> Result<(), String> {
     Ok(())
 }
 
-/// Применение настроек апскейлинга
+/// Применение настроек апскейлинга.
+/// Ошибки mpv (например, если видео не загружено) игнорируются — конфигурация
+/// всё равно сохраняется и будет применена при следующем воспроизведении.
 #[tauri::command]
 pub fn apply_upscale_settings(
     state: State<'_, PlayerState>,
@@ -263,10 +265,14 @@ pub fn apply_upscale_settings(
     let conf_str = conf_path.to_string_lossy();
 
     if settings.mode == "ai" {
-        state.mpv.enable_ai_upscale(&conf_str, settings.active_slot)
+        // Попытка подключить фильтр — если видео не загружено, mpv вернёт ошибку
+        // (код -12 / MPV_ERROR_COMMAND), но это нормально: фильтр будет
+        // подхвачен при следующем запуске воспроизведения.
+        let _ = state.mpv.enable_ai_upscale(&conf_str, settings.active_slot);
     } else {
-        state.mpv.disable_ai_upscale()
+        let _ = state.mpv.disable_ai_upscale();
     }
+    Ok(())
 }
 
 /// Открытие папки библиотек инференса в Проводнике Windows
@@ -333,6 +339,33 @@ pub async fn download_inference_engine(engine: String) -> Result<String, String>
     }
 
     Ok(format!("Успешно распаковано файлов библиотек: {}", extracted_count))
+}
+
+/// Удаление всех библиотек движка инференса из папки inference/
+#[tauri::command]
+pub fn delete_inference_engine() -> Result<String, String> {
+    let inf_dir = get_inference_dir();
+    if !inf_dir.exists() {
+        return Ok("Папка inference/ не найдена — удалять нечего".to_string());
+    }
+
+    let mut removed = 0u32;
+    if let Ok(entries) = fs::read_dir(&inf_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if fs::remove_file(&path).is_ok() {
+                    removed += 1;
+                }
+            } else if path.is_dir() {
+                if fs::remove_dir_all(&path).is_ok() {
+                    removed += 1;
+                }
+            }
+        }
+    }
+
+    Ok(format!("Удалено файлов и каталогов: {}", removed))
 }
 
 /// Переключение видов нейросетей по горячим клавишам Shift+1..4 на лету

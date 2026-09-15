@@ -263,6 +263,7 @@ pub fn run() {
             upscale::open_inference_folder,
             upscale::apply_upscale_settings,
             upscale::download_inference_engine,
+            upscale::delete_inference_engine,
             upscale::switch_upscale_network_hotkey,
         ])
         .on_window_event(|window, event| match event {
