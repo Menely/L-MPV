@@ -486,7 +486,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   onClick={() => handleOverwrite(preset)}
                   title="Перезаписать этот пресет текущими настройками плеера"
                 >
-                  <RotateCw size={15} />
+                  <RotateCw size={13} />
                 </button>
 
                 <button
@@ -498,7 +498,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   }}
                   title="Переименовать пресет"
                 >
-                  <Edit2 size={15} />
+                  <Edit2 size={13} />
                 </button>
 
                 <button
@@ -507,7 +507,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   onClick={() => handleExportSingle(preset)}
                   title="Экспортировать этот пресет через Проводник Windows"
                 >
-                  <Download size={15} />
+                  <Download size={13} />
                 </button>
 
                 <button
@@ -516,7 +516,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   onClick={() => handleDelete(preset)}
                   title="Удалить пресет"
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={13} />
                 </button>
               </div>
             ) : (

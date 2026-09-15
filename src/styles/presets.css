@@ -184,10 +184,10 @@
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   transition: all var(--t-normal) var(--ease-smooth);
   position: relative;
   overflow: hidden;
@@ -207,32 +207,34 @@
 
 .preset-card__top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
 }
 
 .preset-card__info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
 }
 
 .preset-card__name-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: 10px;
+  line-height: 1.2;
 }
 
 .preset-card__name {
-  font-size: 0.98rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .preset-card__rename-input {
@@ -261,31 +263,35 @@
 .preset-card__meta {
   font-size: 0.76rem;
   color: var(--text-muted);
+  opacity: 0.75;
 }
 
 /* Бейджи параметров в карточке */
 .preset-card__tags {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
+  line-height: 1.2;
 }
 
 .preset-tag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
+  gap: 5px;
+  font-size: 0.74rem;
   padding: 3px 8px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.28);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   color: var(--text-secondary);
+  height: 24px;
+  box-sizing: border-box;
 }
 
 .preset-tag__color-dot {
-  width: 11px;
-  height: 11px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
@@ -403,25 +409,38 @@
   }
 }
 
-/* Кнопки действий карточки (компактный блок справа: «Применить» сверху, сетка 2x2 снизу) */
+/* Кнопки действий карточки (аккуратный блок справа: «Применить» сверху, сетка 2x2 мини-иконок снизу) */
 .preset-card__actions-col {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 6px;
   flex-shrink: 0;
-  width: 104px;
+  width: 82px;
+  align-self: center;
 }
 
 .preset-card__actions-col .preset-action-btn {
   width: 100%;
 }
 
+.preset-action-btn--apply {
+  background: var(--accent);
+  color: #0a0d14;
+  font-weight: 600;
+  border-color: transparent;
+  box-shadow: 0 2px 8px var(--accent-glow, rgba(127, 199, 255, 0.25));
+  height: 28px;
+  font-size: 0.79rem;
+  padding: 0 8px;
+  gap: 5px;
+}
+
 .preset-card__actions-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+  gap: 5px;
   width: 100%;
 }
 
@@ -431,12 +450,19 @@
   justify-content: center;
   padding: 0;
   width: 100%;
-  height: 34px;
+  height: 26px;
   border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .preset-action-btn--icon svg {
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
+  opacity: 0.85;
+}
+
+.preset-action-btn--icon:hover svg {
+  opacity: 1;
 }
 
