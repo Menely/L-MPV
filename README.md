@@ -31,7 +31,7 @@
 Плеер спроектирован по строгой концепции **True Portable Architecture (Zero-Install)**: он полностью автономен, не привязан к системному реестру Windows и не создает мусор в системных каталогах пользователя. Все конфигурации, кэш миниатюр, скриншоты и нативные бинарные библиотеки (`libmpv-2.dll`, `ffmpeg.exe`, `mediainfo.dll`) расположены непосредственно в каталоге приложения.
 
 <p align="center">
-  <img src="./assets/interface-player.png" alt="L-MPV Player Interface" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
+  <img src="./assets/interface-player.png?v=2" alt="L-MPV Player Interface" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
 </p>
 
 ---
@@ -43,36 +43,36 @@
     <td width="50%" align="center">
       <b>🌌 Аппаратная Подсветка Полос</b><br>
       <sub>Шейдерное размытие краев видео (Ambient)</sub><br><br>
-      <a href="./assets/ambient-light-demo.png"><img src="./assets/ambient-light-demo.png" alt="Ambient Light" style="border-radius: 8px;"></a>
+      <a href="./assets/ambient-light-demo.png?v=2"><img src="./assets/ambient-light-demo.png?v=2" alt="Ambient Light" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
       <b>📑 Выдвижная Панель Плейлиста</b><br>
       <sub>Автоматическое сканирование каталога, фильтрация и живой поиск</sub><br><br>
-      <a href="./assets/playlist-drawer.png"><img src="./assets/playlist-drawer.png" alt="Playlist Drawer" style="border-radius: 8px;"></a>
+      <a href="./assets/playlist-drawer.png?v=2"><img src="./assets/playlist-drawer.png?v=2" alt="Playlist Drawer" style="border-radius: 8px;"></a>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
       <b>🎧 Управление Дорожками и Экспорт в 1 Клик</b><br>
       <sub>Быстрая смена аудио/субтитров и скачивание</sub><br><br>
-      <a href="./assets/audio-window.png"><img src="./assets/audio-window.png" alt="Audio & Subtitles" style="border-radius: 8px;"></a>
+      <a href="./assets/audio-window.png?v=2"><img src="./assets/audio-window.png?v=2" alt="Audio & Subtitles" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
       <b>🔖 Интерактивная Навигация по Главам</b><br>
       <sub>Список глав с таймкодами и подсветкой активной части видео</sub><br><br>
-      <a href="./assets/interface-chapter-player.png"><img src="./assets/interface-chapter-player.png" alt="Chapters Modal" style="border-radius: 8px;"></a>
+      <a href="./assets/interface-chapter-player.png?v=2"><img src="./assets/interface-chapter-player.png?v=2" alt="Chapters Modal" style="border-radius: 8px;"></a>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
       <b>⚙️ Центр Настроек</b><br>
       <sub>Управление скриншотами, режимом окон и системными ассоциациями</sub><br><br>
-      <a href="./assets/settings-general-player.png"><img src="./assets/settings-general-player.png" alt="General Settings" style="border-radius: 8px;"></a>
+      <a href="./assets/settings-general-player.png?v=2"><img src="./assets/settings-general-player.png?v=2" alt="General Settings" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
       <b>🎨 Кастомизация</b><br>
       <sub>Выбор акцентных цветов интерфейса и индивидуальная настройка хоткеев</sub><br><br>
-      <a href="./assets/settings-customization-player.png"><img src="./assets/settings-customization-player.png" alt="Customization & Hotkeys" style="border-radius: 8px;"></a>
+      <a href="./assets/settings-customization-player.png?v=2"><img src="./assets/settings-customization-player.png?v=2" alt="Customization & Hotkeys" style="border-radius: 8px;"></a>
     </td>
   </tr>
 </table>
