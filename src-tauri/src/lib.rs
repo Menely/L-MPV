@@ -259,6 +259,7 @@ pub fn run() {
             commands::read_text_file,
             // AI Upscaling & Models
             upscale::get_upscale_status,
+            upscale::get_system_gpu_info,
             upscale::scan_onnx_models,
             upscale::open_models_folder,
             upscale::open_inference_folder,

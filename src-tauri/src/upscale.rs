@@ -65,6 +65,29 @@ pub struct UpscaleStatus {
     pub models_dir: String,
     /// Список обнаруженных файлов моделей
     pub models: Vec<ModelFileItem>,
+    /// Аппаратная информация об установленном видеоадаптере (GPU)
+    pub gpu_info: GpuHardwareInfo,
+}
+
+/// Аппаратные характеристики графического адаптера системы
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GpuHardwareInfo {
+    /// Наименование графического адаптера
+    pub name: String,
+    /// Производитель ("NVIDIA" | "AMD" | "Intel" | "Microsoft" | "Unknown")
+    pub vendor: String,
+    /// Идентификатор производителя (PCI Vendor ID)
+    pub vendor_id: u32,
+    /// Идентификатор графического чипа (Device ID)
+    pub device_id: u32,
+    /// Рекомендуемый бэкенд для апскейлинга ("TensorRT" | "DirectML")
+    pub recommended_backend: String,
+    /// Поддерживает ли видеокарта ускорение через TensorRT (только NVIDIA)
+    pub supports_tensorrt: bool,
+    /// Архитектура шейдерных блоков NVIDIA ("sm120", "sm89", "sm86", "sm80", "sm75", "ptx")
+    pub sm_architecture: String,
+    /// Объем выделенной видеопамяти (VRAM) в байтах
+    pub vram_bytes: u64,
 }
 
 /// Возвращает корневой каталог приложения
@@ -206,26 +229,204 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
     items
 }
 
+/// Определение архитектуры шейдерных блоков NVIDIA (Streaming Multiprocessors)
+fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
+    let lower = name.to_lowercase();
+    // Архитектура Blackwell (RTX 5090, 5080, 5070, 5060 и их Ti/Super модификации)
+    if lower.contains("5090")
+        || lower.contains("5080")
+        || lower.contains("5070")
+        || lower.contains("5060")
+        || lower.contains("5050")
+        || lower.contains("blackwell")
+    {
+        return "sm120".to_string();
+    }
+    // Архитектура Ada Lovelace (RTX 4090, 4080, 4070, 4060, 4050, RTX 4000/4500/5000 Ada, L40, L4)
+    if lower.contains("4090")
+        || lower.contains("4080")
+        || lower.contains("4070")
+        || lower.contains("4060")
+        || lower.contains("4050")
+        || lower.contains("ada")
+        || lower.contains("l40")
+        || lower.contains("l4")
+    {
+        return "sm89".to_string();
+    }
+    // Архитектура Ampere Datacenter (A100)
+    if lower.contains("a100") {
+        return "sm80".to_string();
+    }
+    // Архитектура Ampere Consumer & Pro (RTX 3090, 3080, 3070, 3060, 3050, A2000, A3000, A4000, A5000, A6000)
+    if lower.contains("3090")
+        || lower.contains("3080")
+        || lower.contains("3070")
+        || lower.contains("3060")
+        || lower.contains("3050")
+        || lower.contains("a2000")
+        || lower.contains("a3000")
+        || lower.contains("a4000")
+        || lower.contains("a5000")
+        || lower.contains("a6000")
+    {
+        return "sm86".to_string();
+    }
+    // Архитектура Turing (RTX 2080, 2070, 2060, Titan RTX, GTX 1660, 1650, 1630, T4)
+    if lower.contains("2080")
+        || lower.contains("2070")
+        || lower.contains("2060")
+        || lower.contains("1660")
+        || lower.contains("1650")
+        || lower.contains("1630")
+        || lower.contains("titan rtx")
+        || lower.contains("turing")
+        || lower.contains(" t4")
+    {
+        return "sm75".to_string();
+    }
+
+    // Универсальный forward-compatible байт-код PTX для компиляции JIT под любую версию
+    "ptx".to_string()
+}
+
+/// Получение сведений о текущем графическом процессоре системы
+#[tauri::command]
+pub fn get_system_gpu_info() -> GpuHardwareInfo {
+    #[cfg(windows)]
+    {
+        use windows::Win32::Graphics::Dxgi::{
+            CreateDXGIFactory1, IDXGIFactory1, DXGI_ADAPTER_DESC1, DXGI_ADAPTER_FLAG_SOFTWARE,
+        };
+
+        let mut best_gpu: Option<GpuHardwareInfo> = None;
+
+        unsafe {
+            if let Ok(factory) = CreateDXGIFactory1::<IDXGIFactory1>() {
+                let mut i = 0;
+                while let Ok(adapter) = factory.EnumAdapters1(i) {
+                    let mut desc = DXGI_ADAPTER_DESC1::default();
+                    if adapter.GetDesc1(&mut desc).is_ok() {
+                        let is_software = (desc.Flags & (DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32)) != 0;
+                        let name_len = desc
+                            .Description
+                            .iter()
+                            .position(|&c| c == 0)
+                            .unwrap_or(desc.Description.len());
+                        let name = String::from_utf16_lossy(&desc.Description[..name_len])
+                            .trim()
+                            .to_string();
+                        let vendor_id = desc.VendorId;
+                        let device_id = desc.DeviceId;
+                        let vram_bytes = desc.DedicatedVideoMemory as u64;
+
+                        let vendor = match vendor_id {
+                            0x10DE => "NVIDIA",
+                            0x1002 => "AMD",
+                            0x8086 => "Intel",
+                            0x1414 => "Microsoft",
+                            _ => "Unknown",
+                        }
+                        .to_string();
+
+                        let supports_tensorrt = vendor_id == 0x10DE;
+                        let recommended_backend = if supports_tensorrt {
+                            "TensorRT".to_string()
+                        } else {
+                            "DirectML".to_string()
+                        };
+
+                        let sm_architecture = if supports_tensorrt {
+                            determine_nvidia_sm(&name, device_id)
+                        } else {
+                            "ptx".to_string()
+                        };
+
+                        let gpu_info = GpuHardwareInfo {
+                            name,
+                            vendor,
+                            vendor_id,
+                            device_id,
+                            recommended_backend,
+                            supports_tensorrt,
+                            sm_architecture,
+                            vram_bytes,
+                        };
+
+                        if !is_software {
+                            if let Some(ref current) = best_gpu {
+                                if (gpu_info.vendor == "NVIDIA" && current.vendor != "NVIDIA")
+                                    || (gpu_info.vendor == current.vendor
+                                        && gpu_info.vram_bytes > current.vram_bytes)
+                                {
+                                    best_gpu = Some(gpu_info);
+                                }
+                            } else {
+                                best_gpu = Some(gpu_info);
+                            }
+                        } else if best_gpu.is_none() {
+                            best_gpu = Some(gpu_info);
+                        }
+                    }
+                    i += 1;
+                }
+            }
+        }
+
+        if let Some(gpu) = best_gpu {
+            return gpu;
+        }
+    }
+
+    GpuHardwareInfo {
+        name: "Универсальный GPU".to_string(),
+        vendor: "Unknown".to_string(),
+        vendor_id: 0,
+        device_id: 0,
+        recommended_backend: "DirectML".to_string(),
+        supports_tensorrt: false,
+        sm_architecture: "ptx".to_string(),
+        vram_bytes: 0,
+    }
+}
+
 /// Проверяет наличие библиотек инференса и статус подсистемы
 pub fn check_upscale_status_internal() -> UpscaleStatus {
     let inf_dir = get_inference_dir();
     let models_dir = get_models_dir();
     let models = scan_onnx_models_internal();
+    let gpu_info = get_system_gpu_info();
 
     // Проверяем наличие aji.dll в папке inference/ либо рядом с приложением
     let aji_present = inf_dir.join("aji.dll").exists()
         || get_app_root_dir().join("aji.dll").exists()
         || get_app_root_dir().join("animejanai").join("inference").join("aji.dll").exists();
 
-    let directml_present = inf_dir.join("DirectML.dll").exists()
-        || inf_dir.join("onnxruntime.dll").exists()
-        || inf_dir.join("aji_dml.dll").exists()
+    // Для работы DirectML требуются все ключевые компоненты: aji.dll + aji_dml.dll + DirectML.dll + onnxruntime.dll
+    let has_directml_dll = inf_dir.join("DirectML.dll").exists()
         || get_app_root_dir().join("DirectML.dll").exists()
         || get_app_root_dir().join("animejanai").join("inference").join("DirectML.dll").exists();
 
-    let tensorrt_present = inf_dir.join("aji_trt.dll").exists()
-        || inf_dir.join("nvinfer_11.dll").exists()
+    let has_onnxruntime_dll = inf_dir.join("onnxruntime.dll").exists()
+        || get_app_root_dir().join("onnxruntime.dll").exists()
+        || get_app_root_dir().join("animejanai").join("inference").join("onnxruntime.dll").exists();
+
+    let has_aji_dml_dll = inf_dir.join("aji_dml.dll").exists()
+        || get_app_root_dir().join("aji_dml.dll").exists()
+        || get_app_root_dir().join("animejanai").join("inference").join("aji_dml.dll").exists();
+
+    let directml_present = aji_present && has_directml_dll && has_onnxruntime_dll && has_aji_dml_dll;
+
+    // Для работы TensorRT требуются: aji.dll + aji_trt.dll + nvinfer_11.dll
+    let has_aji_trt_dll = inf_dir.join("aji_trt.dll").exists()
+        || get_app_root_dir().join("aji_trt.dll").exists()
         || get_app_root_dir().join("animejanai").join("inference").join("aji_trt.dll").exists();
+
+    let has_nvinfer_dll = inf_dir.join("nvinfer_11.dll").exists()
+        || get_app_root_dir().join("nvinfer_11.dll").exists()
+        || get_app_root_dir().join("animejanai").join("inference").join("nvinfer_11.dll").exists();
+
+    let tensorrt_present = aji_present && has_aji_trt_dll && has_nvinfer_dll;
 
     UpscaleStatus {
         filter_supported: true,
@@ -235,6 +436,7 @@ pub fn check_upscale_status_internal() -> UpscaleStatus {
         models_count: models.len(),
         models_dir: models_dir.to_string_lossy().to_string(),
         models,
+        gpu_info,
     }
 }
 
@@ -356,41 +558,82 @@ pub fn open_inference_folder() -> Result<(), String> {
     Ok(())
 }
 
+/// Распаковка 7z-архива средствами встроенной в Windows 10/11 утилиты tar.exe (bsdtar)
+fn extract_7z_archive(archive_path: &std::path::Path, dest_dir: &std::path::Path) -> Result<(), String> {
+    #[cfg(windows)]
+    use std::os::windows::process::CommandExt;
+
+    let mut cmd = Command::new("tar.exe");
+    cmd.args([
+        "-xf",
+        &archive_path.to_string_lossy(),
+        "-C",
+        &dest_dir.to_string_lossy(),
+    ]);
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: предотвращает мерцание консольного окна
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Не удалось запустить tar.exe: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Ошибка распаковки архива tar.exe: {}", stderr));
+    }
+
+    Ok(())
+}
+
+/// Перемещение файлов из вложенных каталогов animejanai/inference/ в целевую папку inference/
+fn move_nested_animejanai_files(inf_dir: &std::path::Path) {
+    let nested = inf_dir.join("animejanai").join("inference");
+    if nested.exists() {
+        if let Ok(entries) = fs::read_dir(&nested) {
+            for entry in entries.flatten() {
+                let target = inf_dir.join(entry.file_name());
+                let _ = fs::rename(entry.path(), &target);
+            }
+        }
+        let _ = fs::remove_dir_all(inf_dir.join("animejanai"));
+    }
+}
+
 /// Фоновая загрузка библиотек движка инференса (DirectML / TensorRT)
 #[tauri::command]
 pub async fn download_inference_engine(engine: String) -> Result<String, String> {
+    println!("[L-MPV][Upscale] Запуск процедуры загрузки компонентов движка: {}", engine);
+
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(120))
+        .timeout(Duration::from_secs(600))
         .build()
         .map_err(|e| format!("Ошибка создания HTTP-клиента: {}", e))?;
 
     let inf_dir = get_inference_dir();
-    let url = if engine.eq_ignore_ascii_case("TensorRT") {
-        "https://github.com/the-database/animejanai-inference/releases/download/v0.9.0/aji-windows-x64.zip"
-    } else {
-        "https://github.com/the-database/animejanai-inference/releases/download/v0.9.0/aji-windows-x64.zip"
-    };
+    let gpu_info = get_system_gpu_info();
 
-    let res = client
-        .get(url)
+    // 1. Загрузка и распаковка базовых мостов aji (aji.dll, aji_dml.dll, aji_trt.dll)
+    println!("[L-MPV][Upscale] Загрузка базового пакета aji-windows-x64.zip...");
+    let aji_url = "https://github.com/the-database/animejanai-inference/releases/download/v0.9.0/aji-windows-x64.zip";
+    let aji_res = client
+        .get(aji_url)
         .send()
         .await
-        .map_err(|e| format!("Ошибка загрузки библиотек: {}", e))?;
+        .map_err(|e| format!("Ошибка загрузки aji-windows-x64.zip: {}", e))?;
 
-    if !res.status().is_success() {
-        return Err(format!("Сервер вернул статус {}", res.status()));
+    if !aji_res.status().is_success() {
+        return Err(format!("Сервер вернул статус {} при скачивании aji", aji_res.status()));
     }
 
-    let bytes = res
+    let aji_bytes = aji_res
         .bytes()
         .await
-        .map_err(|e| format!("Ошибка чтения данных: {}", e))?;
+        .map_err(|e| format!("Ошибка чтения данных aji: {}", e))?;
 
-    let cursor = std::io::Cursor::new(bytes);
+    let cursor = std::io::Cursor::new(aji_bytes);
     let mut archive = zip::ZipArchive::new(cursor)
-        .map_err(|e| format!("Ошибка открытия zip-архива: {}", e))?;
+        .map_err(|e| format!("Ошибка открытия архива aji: {}", e))?;
 
-    let mut extracted_count = 0;
     for i in 0..archive.len() {
         if let Ok(mut file) = archive.by_index(i) {
             let outpath = inf_dir.join(file.name());
@@ -402,13 +645,155 @@ pub async fn download_inference_engine(engine: String) -> Result<String, String>
                 }
                 if let Ok(mut outfile) = fs::File::create(&outpath) {
                     let _ = std::io::copy(&mut file, &mut outfile);
-                    extracted_count += 1;
                 }
             }
         }
     }
+    println!("[L-MPV][Upscale] Базовые библиотеки aji успешно распакованы.");
 
-    Ok(format!("Успешно распаковано файлов библиотек: {}", extracted_count))
+    // 2. В зависимости от выбранного движка загружаем профильные зависимости
+    if engine.eq_ignore_ascii_case("DirectML") {
+        println!("[L-MPV][Upscale] Загрузка пакета Microsoft.ML.OnnxRuntime.DirectML...");
+        let ort_url = "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.directml/1.24.4/microsoft.ml.onnxruntime.directml.1.24.4.nupkg";
+        let ort_res = client
+            .get(ort_url)
+            .send()
+            .await
+            .map_err(|e| format!("Ошибка загрузки пакета OnnxRuntime: {}", e))?;
+
+        if !ort_res.status().is_success() {
+            return Err(format!("Сервер вернул статус {} для OnnxRuntime", ort_res.status()));
+        }
+
+        let ort_bytes = ort_res.bytes().await.map_err(|e| format!("Ошибка чтения OnnxRuntime: {}", e))?;
+        let mut ort_archive = zip::ZipArchive::new(std::io::Cursor::new(ort_bytes))
+            .map_err(|e| format!("Ошибка открытия архива OnnxRuntime: {}", e))?;
+
+        for i in 0..ort_archive.len() {
+            if let Ok(mut file) = ort_archive.by_index(i) {
+                let name = file.name().to_string();
+                if name == "runtimes/win-x64/native/onnxruntime.dll" {
+                    let outpath = inf_dir.join("onnxruntime.dll");
+                    if let Ok(mut outfile) = fs::File::create(&outpath) {
+                        let _ = std::io::copy(&mut file, &mut outfile);
+                    }
+                } else if name == "runtimes/win-x64/native/onnxruntime_providers_shared.dll" {
+                    let outpath = inf_dir.join("onnxruntime_providers_shared.dll");
+                    if let Ok(mut outfile) = fs::File::create(&outpath) {
+                        let _ = std::io::copy(&mut file, &mut outfile);
+                    }
+                }
+            }
+        }
+        println!("[L-MPV][Upscale] Библиотека OnnxRuntime успешно извлечена.");
+
+        println!("[L-MPV][Upscale] Загрузка пакета Microsoft.AI.DirectML...");
+        let dml_url = "https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/1.15.4/microsoft.ai.directml.1.15.4.nupkg";
+        let dml_res = client
+            .get(dml_url)
+            .send()
+            .await
+            .map_err(|e| format!("Ошибка загрузки пакета DirectML: {}", e))?;
+
+        if !dml_res.status().is_success() {
+            return Err(format!("Сервер вернул статус {} для DirectML", dml_res.status()));
+        }
+
+        let dml_bytes = dml_res.bytes().await.map_err(|e| format!("Ошибка чтения DirectML: {}", e))?;
+        let mut dml_archive = zip::ZipArchive::new(std::io::Cursor::new(dml_bytes))
+            .map_err(|e| format!("Ошибка открытия архива DirectML: {}", e))?;
+
+        for i in 0..dml_archive.len() {
+            if let Ok(mut file) = dml_archive.by_index(i) {
+                let name = file.name().to_string();
+                if name == "bin/x64-win/DirectML.dll" {
+                    let outpath = inf_dir.join("DirectML.dll");
+                    if let Ok(mut outfile) = fs::File::create(&outpath) {
+                        let _ = std::io::copy(&mut file, &mut outfile);
+                    }
+                }
+            }
+        }
+        println!("[L-MPV][Upscale] Библиотека DirectML.dll успешно извлечена.");
+
+        Ok("Движок DirectML успешно установлен (aji_dml.dll, DirectML.dll, onnxruntime.dll)".to_string())
+    } else {
+        // TensorRT (NVIDIA)
+        println!("[L-MPV][Upscale] Загрузка базового рантайма TensorRT 11 (component-trt-runtime.7z)...");
+        let trt_runtime_url = "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.0/component-trt-runtime.7z";
+        let trt_runtime_path = inf_dir.join("component-trt-runtime.7z");
+
+        let rt_res = client
+            .get(trt_runtime_url)
+            .send()
+            .await
+            .map_err(|e| format!("Ошибка загрузки рантайма TensorRT: {}", e))?;
+
+        if !rt_res.status().is_success() {
+            return Err(format!("Сервер вернул статус {} для рантайма TensorRT", rt_res.status()));
+        }
+
+        let rt_bytes = rt_res.bytes().await.map_err(|e| format!("Ошибка чтения рантайма TensorRT: {}", e))?;
+        fs::write(&trt_runtime_path, rt_bytes)
+            .map_err(|e| format!("Ошибка сохранения архива рантайма TensorRT: {}", e))?;
+
+        println!("[L-MPV][Upscale] Распаковка component-trt-runtime.7z с помощью tar.exe...");
+        extract_7z_archive(&trt_runtime_path, &inf_dir)?;
+        let _ = fs::remove_file(&trt_runtime_path);
+        move_nested_animejanai_files(&inf_dir);
+        println!("[L-MPV][Upscale] Базовый рантайм TensorRT 11 успешно установлен.");
+
+        // SM Architecture
+        let sm = if gpu_info.supports_tensorrt {
+            gpu_info.sm_architecture.as_str()
+        } else {
+            "ptx"
+        };
+        println!("[L-MPV][Upscale] Загрузка архитектурного билдера TensorRT для SM: {}...", sm);
+        let sm_url = format!(
+            "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.0/component-trt-{}.7z",
+            sm
+        );
+        let sm_path = inf_dir.join(format!("component-trt-{}.7z", sm));
+
+        let sm_res = client
+            .get(&sm_url)
+            .send()
+            .await
+            .map_err(|e| format!("Ошибка загрузки билдера TensorRT ({}): {}", sm, e))?;
+
+        if !sm_res.status().is_success() {
+            // Если архитектура не нашлась, пробуем универсальный ptx
+            println!("[L-MPV][Upscale] Архитектура {} недоступна, загружаем универсальный ptx...", sm);
+            let ptx_url = "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.0/component-trt-ptx.7z";
+            let ptx_res = client
+                .get(ptx_url)
+                .send()
+                .await
+                .map_err(|e| format!("Ошибка загрузки универсального билдера TensorRT (ptx): {}", e))?;
+            if !ptx_res.status().is_success() {
+                return Err(format!("Сервер вернул статус {} при скачивании ptx", ptx_res.status()));
+            }
+            let ptx_bytes = ptx_res.bytes().await.map_err(|e| format!("Ошибка чтения ptx: {}", e))?;
+            fs::write(&sm_path, ptx_bytes)
+                .map_err(|e| format!("Ошибка записи архива ptx: {}", e))?;
+        } else {
+            let sm_bytes = sm_res.bytes().await.map_err(|e| format!("Ошибка чтения билдера {}: {}", sm, e))?;
+            fs::write(&sm_path, sm_bytes)
+                .map_err(|e| format!("Ошибка записи архива билдера {}: {}", sm, e))?;
+        }
+
+        println!("[L-MPV][Upscale] Распаковка билдера TensorRT...");
+        extract_7z_archive(&sm_path, &inf_dir)?;
+        let _ = fs::remove_file(&sm_path);
+        move_nested_animejanai_files(&inf_dir);
+
+        println!("[L-MPV][Upscale] Установка движка TensorRT завершена успешно.");
+        Ok(format!(
+            "Движок TensorRT успешно установлен для {} ({})!",
+            gpu_info.name, sm
+        ))
+    }
 }
 
 /// Удаление всех библиотек движка инференса из папки inference/
@@ -419,21 +804,58 @@ pub fn delete_inference_engine(backend: String) -> Result<String, String> {
         return Ok("Папка inference/ не найдена — удалять нечего".to_string());
     }
 
-    let files_to_delete = if backend == "TensorRT" {
-        vec!["aji_trt.dll", "nvinfer_11.dll"]
-    } else {
-        vec!["aji_dml.dll", "DirectML.dll", "onnxruntime.dll"]
-    };
-
     let mut removed = 0u32;
-    for file in files_to_delete {
-        let path = inf_dir.join(file);
-        if path.exists() && fs::remove_file(&path).is_ok() {
-            removed += 1;
+    if backend.eq_ignore_ascii_case("TensorRT") {
+        let files = [
+            "aji_trt.dll",
+            "nvinfer_11.dll",
+            "nvinfer_plugin_11.dll",
+            "nvonnxparser_11.dll",
+            "cudart64_13.dll",
+            "trtexec.exe",
+            "DirectML_LICENSE.txt",
+        ];
+        for f in files {
+            let p = inf_dir.join(f);
+            if p.exists() && fs::remove_file(&p).is_ok() {
+                removed += 1;
+            }
+        }
+        // Удаляем любые builder resource dll
+        if let Ok(entries) = fs::read_dir(&inf_dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with("nvinfer_builder_resource_") {
+                    if fs::remove_file(entry.path()).is_ok() {
+                        removed += 1;
+                    }
+                }
+            }
+        }
+    } else {
+        let files = [
+            "aji_dml.dll",
+            "DirectML.dll",
+            "onnxruntime.dll",
+            "onnxruntime_providers_shared.dll",
+        ];
+        for f in files {
+            let p = inf_dir.join(f);
+            if p.exists() && fs::remove_file(&p).is_ok() {
+                removed += 1;
+            }
         }
     }
 
-    Ok(format!("Удалено файлов: {}", removed))
+    // Если ни одного бэкенда больше не установлено, удаляем также aji.dll и тестовые бинарники
+    let status = check_upscale_status_internal();
+    if !status.directml_present && !status.tensorrt_present {
+        let _ = fs::remove_file(inf_dir.join("aji.dll"));
+        let _ = fs::remove_file(inf_dir.join("aji_harness.exe"));
+        let _ = fs::remove_file(inf_dir.join("aji_kernel_test.exe"));
+    }
+
+    Ok(format!("Успешно удалено файлов: {}", removed))
 }
 
 /// Переключение видов нейросетей по горячим клавишам Shift+1..4 на лету
@@ -479,4 +901,25 @@ pub fn switch_upscale_network_hotkey(
     }
     
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gpu_detection() {
+        let gpu = get_system_gpu_info();
+        println!("\n=== Тест распознавания GPU ===");
+        println!("Имя: {}", gpu.name);
+        println!("Производитель: {}", gpu.vendor);
+        println!("Vendor ID: {:#x}", gpu.vendor_id);
+        println!("Device ID: {:#x}", gpu.device_id);
+        println!("Поддержка TensorRT: {}", gpu.supports_tensorrt);
+        println!("Рекомендуемый бэкенд: {}", gpu.recommended_backend);
+        println!("Архитектура SM: {}", gpu.sm_architecture);
+        println!("VRAM: {:.2} ГБ", gpu.vram_bytes as f64 / (1024.0 * 1024.0 * 1024.0));
+        println!("==============================\n");
+        assert!(!gpu.name.is_empty());
+    }
 }

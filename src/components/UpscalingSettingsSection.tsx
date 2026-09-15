@@ -27,6 +27,17 @@ export interface ModelFileItem {
   full_path: string;
 }
 
+export interface GpuHardwareInfo {
+  name: string;
+  vendor: string;
+  vendor_id: number;
+  device_id: number;
+  recommended_backend: "TensorRT" | "DirectML";
+  supports_tensorrt: boolean;
+  sm_architecture: string;
+  vram_bytes: number;
+}
+
 export interface UpscaleStatus {
   filter_supported: boolean;
   aji_present: boolean;
@@ -35,6 +46,7 @@ export interface UpscaleStatus {
   models_count: number;
   models_dir: string;
   models: ModelFileItem[];
+  gpu_info?: GpuHardwareInfo;
 }
 
 export interface UpscaleSettings {
@@ -56,6 +68,7 @@ export const UpscalingSettingsSection: React.FC = () => {
   const [isDeletingEngine, setIsDeletingEngine] = useState<boolean>(false);
   const [engineSuccessMessage, setEngineSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [downloadProgressText, setDownloadProgressText] = useState<string | null>(null);
 
   // Хоткеи
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
@@ -174,8 +187,16 @@ export const UpscalingSettingsSection: React.FC = () => {
     setIsDownloadingEngine(true);
     setEngineSuccessMessage(null);
     setErrorMessage(null);
+    const engineName = settings.backend;
+    const isTrt = engineName === "TensorRT";
+    const sm = status?.gpu_info?.sm_architecture || "sm";
+    setDownloadProgressText(
+      isTrt
+        ? `Загрузка библиотек NVIDIA TensorRT 11 (runtime + ${sm})... Пожалуйста, подождите`
+        : "Загрузка библиотек Microsoft DirectML и ONNX Runtime... Пожалуйста, подождите"
+    );
     try {
-      const res = await invoke<string>("download_inference_engine", { engine: settings.backend });
+      const res = await invoke<string>("download_inference_engine", { engine: engineName });
       setEngineSuccessMessage(res || "Библиотеки инференса успешно установлены");
       await refreshStatus();
     } catch (err) {
@@ -183,6 +204,7 @@ export const UpscalingSettingsSection: React.FC = () => {
       setErrorMessage(`Ошибка загрузки движка: ${err}`);
     } finally {
       setIsDownloadingEngine(false);
+      setDownloadProgressText(null);
     }
   };
 
@@ -407,6 +429,78 @@ export const UpscalingSettingsSection: React.FC = () => {
           </div>
         </div>
 
+        {/* Блок обнаруженной видеокарты (GPU) */}
+        {status?.gpu_info && (
+          <div
+            style={{
+              padding: "10px 14px",
+              borderRadius: "var(--radius-md)",
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid var(--border-pill)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 8,
+              fontSize: "0.82rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Cpu size={16} color="var(--accent)" />
+              <span style={{ color: "var(--text-primary)" }}>
+                <strong>Видеокарта:</strong> {status.gpu_info.name}
+                {status.gpu_info.vram_bytes > 0 && (
+                  <span style={{ color: "var(--text-muted)", marginLeft: 6 }}>
+                    ({(status.gpu_info.vram_bytes / (1024 * 1024 * 1024)).toFixed(1)} ГБ VRAM)
+                  </span>
+                )}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ color: "var(--text-muted)" }}>Рекомендуется:</span>
+              <span
+                style={{
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  background:
+                    status.gpu_info.recommended_backend === "TensorRT"
+                      ? "rgba(118, 185, 0, 0.15)"
+                      : "rgba(127, 199, 255, 0.15)",
+                  color:
+                    status.gpu_info.recommended_backend === "TensorRT"
+                      ? "#76b900"
+                      : "var(--accent)",
+                  fontWeight: 600,
+                  fontSize: "0.78rem",
+                }}
+              >
+                {status.gpu_info.recommended_backend}{" "}
+                {status.gpu_info.supports_tensorrt ? `(${status.gpu_info.sm_architecture})` : ""}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Индикатор этапа загрузки библиотек */}
+        {isDownloadingEngine && downloadProgressText && (
+          <div
+            style={{
+              padding: "10px 14px",
+              borderRadius: "var(--radius-md)",
+              background: "rgba(127, 199, 255, 0.1)",
+              border: "1px solid rgba(127, 199, 255, 0.3)",
+              color: "var(--accent)",
+              fontSize: "0.82rem",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <RefreshCw size={15} className="spin" />
+            <span>{downloadProgressText}</span>
+          </div>
+        )}
+
         {engineSuccessMessage && (
           <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(46, 204, 113, 0.15)", border: "1px solid rgba(46, 204, 113, 0.3)", color: "#2ecc71", fontSize: "0.82rem" }}>
             {engineSuccessMessage}
@@ -420,6 +514,7 @@ export const UpscalingSettingsSection: React.FC = () => {
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {/* Карточка DirectML */}
           <div
             onClick={() => updateSettings({ backend: "DirectML" })}
             style={{
@@ -429,10 +524,11 @@ export const UpscalingSettingsSection: React.FC = () => {
               background: settings.backend === "DirectML" ? "rgba(127, 199, 255, 0.08)" : "rgba(0, 0, 0, 0.2)",
               cursor: "pointer",
               transition: "all 0.18s ease",
+              position: "relative",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>DirectML</span>
                 <span
                   style={{
@@ -446,27 +542,50 @@ export const UpscalingSettingsSection: React.FC = () => {
                 >
                   {isDmlInstalled ? "Установлен" : "Не установлен"}
                 </span>
+                {status?.gpu_info && !status.gpu_info.supports_tensorrt && (
+                  <span
+                    style={{
+                      fontSize: "0.7rem",
+                      padding: "1px 5px",
+                      borderRadius: 3,
+                      background: "rgba(127, 199, 255, 0.15)",
+                      color: "var(--accent)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Рекомендуется
+                  </span>
+                )}
               </div>
               {settings.backend === "DirectML" && <CheckCircle2 size={16} color="var(--accent)" />}
             </div>
             <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.3 }}>
-              Универсальный DirectX 12 для любого GPU (AMD, Intel, NVIDIA). Высокая стабильность.
+              Универсальный DirectX 12 для любого GPU (AMD, Intel, NVIDIA). Высокая совместимость.
             </p>
           </div>
 
+          {/* Карточка TensorRT */}
           <div
-            onClick={() => updateSettings({ backend: "TensorRT" })}
+            onClick={() => {
+              if (status?.gpu_info && !status.gpu_info.supports_tensorrt) {
+                setErrorMessage("Движок TensorRT доступен исключительно для видеокарт NVIDIA RTX/GTX. Для вашей видеокарты используется DirectML.");
+                return;
+              }
+              updateSettings({ backend: "TensorRT" });
+            }}
             style={{
               padding: "12px 14px",
               borderRadius: "var(--radius-md)",
               border: `1px solid ${settings.backend === "TensorRT" ? "var(--accent)" : "var(--border-pill)"}`,
               background: settings.backend === "TensorRT" ? "rgba(127, 199, 255, 0.08)" : "rgba(0, 0, 0, 0.2)",
-              cursor: "pointer",
+              cursor: status?.gpu_info && !status.gpu_info.supports_tensorrt ? "not-allowed" : "pointer",
+              opacity: status?.gpu_info && !status.gpu_info.supports_tensorrt ? 0.6 : 1,
               transition: "all 0.18s ease",
+              position: "relative",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>TensorRT (NVIDIA)</span>
                 <span
                   style={{
@@ -480,6 +599,20 @@ export const UpscalingSettingsSection: React.FC = () => {
                 >
                   {isTrtInstalled ? "Установлен" : "Не установлен"}
                 </span>
+                {status?.gpu_info?.supports_tensorrt && (
+                  <span
+                    style={{
+                      fontSize: "0.7rem",
+                      padding: "1px 5px",
+                      borderRadius: 3,
+                      background: "rgba(118, 185, 0, 0.18)",
+                      color: "#76b900",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Рекомендуется
+                  </span>
+                )}
               </div>
               {settings.backend === "TensorRT" && <CheckCircle2 size={16} color="var(--accent)" />}
             </div>
