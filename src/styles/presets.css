@@ -403,25 +403,40 @@
   }
 }
 
-/* Кнопки действий карточки (компактный столбик справа) */
+/* Кнопки действий карточки (компактный блок справа: «Применить» сверху, сетка 2x2 снизу) */
 .preset-card__actions-col {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: center;
   gap: 6px;
   flex-shrink: 0;
-  min-width: 105px;
+  width: 104px;
 }
 
-.preset-card__actions-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.preset-card__actions-col .preset-action-btn {
+  width: 100%;
+}
+
+.preset-card__actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  width: 100%;
 }
 
 .preset-action-btn--icon {
-  padding: 5px 8px;
-  min-width: 28px;
-  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 100%;
+  height: 34px;
+  border-radius: var(--radius-sm);
 }
+
+.preset-action-btn--icon svg {
+  width: 16px;
+  height: 16px;
+}
+

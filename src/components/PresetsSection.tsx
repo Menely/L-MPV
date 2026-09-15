@@ -478,52 +478,57 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               <span>{isApplied ? "Активен" : "Применить"}</span>
             </button>
 
-            <div className="preset-card__actions-row">
-              {!isBuiltIn && (
-                <>
-                  <button
-                    type="button"
-                    className="preset-action-btn preset-action-btn--icon"
-                    onClick={() => handleOverwrite(preset)}
-                    title="Перезаписать этот пресет текущими настройками плеера"
-                  >
-                    <RotateCw size={13} />
-                  </button>
+            {!isBuiltIn ? (
+              <div className="preset-card__actions-grid">
+                <button
+                  type="button"
+                  className="preset-action-btn preset-action-btn--icon"
+                  onClick={() => handleOverwrite(preset)}
+                  title="Перезаписать этот пресет текущими настройками плеера"
+                >
+                  <RotateCw size={15} />
+                </button>
 
-                  <button
-                    type="button"
-                    className="preset-action-btn preset-action-btn--icon"
-                    onClick={() => {
-                      setEditingId(preset.id);
-                      setEditingName(preset.name);
-                    }}
-                    title="Переименовать пресет"
-                  >
-                    <Edit2 size={13} />
-                  </button>
-                </>
-              )}
+                <button
+                  type="button"
+                  className="preset-action-btn preset-action-btn--icon"
+                  onClick={() => {
+                    setEditingId(preset.id);
+                    setEditingName(preset.name);
+                  }}
+                  title="Переименовать пресет"
+                >
+                  <Edit2 size={15} />
+                </button>
 
-              <button
-                type="button"
-                className="preset-action-btn preset-action-btn--icon"
-                onClick={() => handleExportSingle(preset)}
-                title="Экспортировать этот пресет через Проводник Windows"
-              >
-                <Download size={13} />
-              </button>
+                <button
+                  type="button"
+                  className="preset-action-btn preset-action-btn--icon"
+                  onClick={() => handleExportSingle(preset)}
+                  title="Экспортировать этот пресет через Проводник Windows"
+                >
+                  <Download size={15} />
+                </button>
 
-              {!isBuiltIn && (
                 <button
                   type="button"
                   className="preset-action-btn preset-action-btn--icon preset-action-btn--danger"
                   onClick={() => handleDelete(preset)}
                   title="Удалить пресет"
                 >
-                  <Trash2 size={13} />
+                  <Trash2 size={15} />
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="preset-action-btn preset-action-btn--icon"
+                onClick={() => handleExportSingle(preset)}
+                title="Экспортировать этот пресет через Проводник Windows"
+              >
+                <Download size={15} />
+              </button>
+            )}
           </div>
         </div>
       </div>
