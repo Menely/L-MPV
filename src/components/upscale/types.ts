@@ -34,3 +34,14 @@ export interface UpscaleSettings {
   backend: "DirectML" | "TensorRT";
   selected_model: string;
 }
+
+export interface DownloadProgressPayload {
+  engine: string;
+  stage: string;
+  percent: number;
+  downloaded_bytes: number;
+  total_bytes: number;
+  is_finished: boolean;
+  error?: string | null;
+}
+

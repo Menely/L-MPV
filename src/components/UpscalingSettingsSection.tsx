@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import {
   Zap,
   FolderOpen,
   CheckCircle2,
   Layers,
-  Info,
   Keyboard,
   X,
 } from "lucide-react";
@@ -19,6 +19,7 @@ import {
   GpuHardwareInfo,
   UpscaleStatus,
   UpscaleSettings,
+  DownloadProgressPayload,
 } from "./upscale/types";
 import { BackendSelector } from "./upscale/BackendSelector";
 
@@ -27,9 +28,8 @@ export type {
   GpuHardwareInfo,
   UpscaleStatus,
   UpscaleSettings,
+  DownloadProgressPayload,
 };
-
-
 
 /**
  * Вкладка управления апскейлингом видео в реальном времени (AI Upscaling).
@@ -42,6 +42,7 @@ export const UpscalingSettingsSection: React.FC = () => {
   const [engineSuccessMessage, setEngineSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [downloadProgressText, setDownloadProgressText] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgressPayload | null>(null);
 
   // Хоткеи
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
@@ -74,7 +75,10 @@ export const UpscalingSettingsSection: React.FC = () => {
   // Загрузка статуса подсистемы и списка доступных моделей
   const refreshStatus = useCallback(async () => {
     try {
-      if (isMountedRef.current) setLoading(true);
+      // Флаг loading отображаем исключительно при самом первом открытии, когда данных еще нет
+      if (isMountedRef.current && status === null) {
+        setLoading(true);
+      }
       const currentStatus = await invoke<UpscaleStatus>("get_upscale_status");
       if (isMountedRef.current) setStatus(currentStatus);
     } catch (err) {
@@ -83,15 +87,32 @@ export const UpscalingSettingsSection: React.FC = () => {
     } finally {
       if (isMountedRef.current) setLoading(false);
     }
-  }, []);
+  }, [status]);
 
   useEffect(() => {
     isMountedRef.current = true;
     refreshStatus();
 
-    const handleFocus = () => {
-      if (isMountedRef.current) refreshStatus();
-    };
+    let unlistenProgress: (() => void) | null = null;
+    listen<DownloadProgressPayload>("upscale-download-progress", (event) => {
+      if (!isMountedRef.current) return;
+      const payload = event.payload;
+      setDownloadProgress(payload);
+      if (payload.stage) {
+        setDownloadProgressText(payload.stage);
+      }
+      if (payload.is_finished) {
+        setIsDownloadingEngine(false);
+        setEngineSuccessMessage(payload.stage || "Движок успешно установлен!");
+        refreshStatus();
+      } else if (payload.error) {
+        setIsDownloadingEngine(false);
+        setErrorMessage(`Ошибка загрузки: ${payload.error}`);
+      }
+    }).then((fn) => {
+      unlistenProgress = fn;
+    });
+
     const handleSettingsChanged = () => {
       if (isMountedRef.current) {
         setCustomHotkeys(getCustomHotkeys());
@@ -108,32 +129,70 @@ export const UpscalingSettingsSection: React.FC = () => {
       }
     };
 
-    window.addEventListener("focus", handleFocus);
     window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
 
     return () => {
       isMountedRef.current = false;
-      window.removeEventListener("focus", handleFocus);
+      if (unlistenProgress) unlistenProgress();
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
     };
   }, [refreshStatus]);
 
-  // Сохранение и немедленное применение настроек
+  // Сохранение и применение настроек
   const updateSettings = async (newPartialSettings: Partial<UpscaleSettings>) => {
     const updated: UpscaleSettings = { ...settings, ...newPartialSettings };
     setSettings(updated);
     setErrorMessage(null);
 
-    try {
-      localStorage.setItem("l-mpv-upscale-mode", updated.mode);
-      localStorage.setItem("l-mpv-upscale-backend", updated.backend);
-      localStorage.setItem("l-mpv-upscale-slot", String(updated.active_slot));
-      localStorage.setItem("l-mpv-upscale-selected-model", updated.selected_model);
+    localStorage.setItem("l-mpv-upscale-mode", updated.mode);
+    localStorage.setItem("l-mpv-upscale-backend", updated.backend);
+    localStorage.setItem("l-mpv-upscale-slot", String(updated.active_slot));
+    localStorage.setItem("l-mpv-upscale-selected-model", updated.selected_model);
 
+    // Проверяем, установлен ли движок при попытке включить режим "ai"
+    const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
+    const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
+    const isInstalled = updated.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
+
+    if (updated.mode === "ai" && !isInstalled) {
+      setErrorMessage(`Для включения апскейлинга необходимо сначала скачать библиотеки движка ${updated.backend}.`);
+      const fallbackSettings: UpscaleSettings = { ...updated, mode: "off" };
+      setSettings(fallbackSettings);
+      localStorage.setItem("l-mpv-upscale-mode", "off");
+      return;
+    }
+
+    try {
       await invoke("apply_upscale_settings", { settings: updated });
     } catch (err) {
       console.error("Ошибка применения настроек апскейлинга:", err);
       setErrorMessage(String(err));
+    }
+  };
+
+  // Переключение выбранного бэкенда без лишних перерисовок кадра, если апскейл выключен
+  const handleSelectBackend = async (backend: "DirectML" | "TensorRT") => {
+    const updated: UpscaleSettings = { ...settings, backend };
+    setSettings(updated);
+    setErrorMessage(null);
+    localStorage.setItem("l-mpv-upscale-backend", updated.backend);
+
+    // Если апскейлинг выключен, mpv не трогаем — видео не будет дергаться
+    if (updated.mode === "ai") {
+      const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
+      const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
+      const isInstalled = backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
+
+      if (isInstalled) {
+        try {
+          await invoke("apply_upscale_settings", { settings: updated });
+        } catch (err) {
+          console.error("Ошибка применения движка:", err);
+          setErrorMessage(String(err));
+        }
+      } else {
+        setErrorMessage(`Движок ${backend} еще не установлен. Нажмите «Скачать движок» для загрузки.`);
+      }
     }
   };
 
@@ -155,18 +214,19 @@ export const UpscalingSettingsSection: React.FC = () => {
     }
   };
 
-  // Фоновое скачивание библиотек инференса
+  // Фоновое скачивание библиотек инференса с прогресс-баром
   const handleDownloadEngine = async () => {
     setIsDownloadingEngine(true);
     setEngineSuccessMessage(null);
     setErrorMessage(null);
+    setDownloadProgress(null);
     const engineName = settings.backend;
     const isTrt = engineName === "TensorRT";
     const sm = status?.gpu_info?.sm_architecture || "sm";
     setDownloadProgressText(
       isTrt
-        ? `Загрузка библиотек NVIDIA TensorRT 11 (runtime + ${sm})... Пожалуйста, подождите`
-        : "Загрузка библиотек Microsoft DirectML и ONNX Runtime... Пожалуйста, подождите"
+        ? `Подготовка к загрузке NVIDIA TensorRT 11 (${sm})...`
+        : "Подготовка к загрузке Microsoft DirectML и ONNX Runtime..."
     );
     try {
       const res = await invoke<string>("download_inference_engine", { engine: engineName });
@@ -177,10 +237,17 @@ export const UpscalingSettingsSection: React.FC = () => {
       setErrorMessage(`Ошибка загрузки движка: ${err}`);
     } finally {
       setIsDownloadingEngine(false);
-      setDownloadProgressText(null);
+      // Скрываем прогресс-бар через 2.5 секунды после финиша
+      setTimeout(() => {
+        if (isMountedRef.current) {
+          setDownloadProgress(null);
+          setDownloadProgressText(null);
+        }
+      }, 2500);
     }
   };
 
+  // Удаление выбранного движка
   const handleDeleteEngine = async () => {
     setIsDeletingEngine(true);
     setEngineSuccessMessage(null);
@@ -188,6 +255,15 @@ export const UpscalingSettingsSection: React.FC = () => {
     try {
       const res = await invoke<string>("delete_inference_engine", { backend: settings.backend });
       setEngineSuccessMessage(res || "Библиотеки движка удалены");
+
+      // Если режим AI был включен с этим движком, отключаем его
+      if (settings.mode === "ai") {
+        const offSettings: UpscaleSettings = { ...settings, mode: "off" };
+        setSettings(offSettings);
+        localStorage.setItem("l-mpv-upscale-mode", "off");
+        await invoke("apply_upscale_settings", { settings: offSettings });
+      }
+
       await refreshStatus();
     } catch (err) {
       console.error("Ошибка удаления библиотек инференса:", err);
@@ -246,7 +322,7 @@ export const UpscalingSettingsSection: React.FC = () => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* 1. Выбор основного режима работы и профилей качества */}
+      {/* 1. Выбор основного режима работы */}
       <div
         style={{
           background: "rgba(255, 255, 255, 0.03)",
@@ -301,19 +377,19 @@ export const UpscalingSettingsSection: React.FC = () => {
             {isAiActive ? "Включен" : "Выключен"}
           </button>
         </div>
-
       </div>
 
-      {/* 2. Настройка бэкенда инференса (DirectML / TensorRT) и скачивание движка */}
+      {/* 2. Настройка бэкенда инференса (DirectML / TensorRT) и скачивание движка с прогресс-баром */}
       <BackendSelector
         status={status}
         settings={settings}
         isDownloadingEngine={isDownloadingEngine}
         isDeletingEngine={isDeletingEngine}
         downloadProgressText={downloadProgressText}
+        downloadProgress={downloadProgress}
         engineSuccessMessage={engineSuccessMessage}
         errorMessage={errorMessage}
-        onUpdateSettings={updateSettings}
+        onSelectBackend={handleSelectBackend}
         onOpenInferenceFolder={handleOpenInferenceFolder}
         onDownloadEngine={handleDownloadEngine}
         onDeleteEngine={handleDeleteEngine}
@@ -342,7 +418,6 @@ export const UpscalingSettingsSection: React.FC = () => {
             </p>
           </div>
 
-          {/* Лаконичная кнопка папки без лишнего текста */}
           <button
             type="button"
             onClick={handleOpenModelsFolder}
@@ -364,10 +439,11 @@ export const UpscalingSettingsSection: React.FC = () => {
           </button>
         </div>
 
-        {/* Список обнаруженных файлов ONNX-моделей с возможностью кастомного бинда клавиш */}
+        {/* Список обнаруженных файлов ONNX-моделей */}
         <div
           style={{
             maxHeight: 220,
+            minHeight: 80,
             overflowY: "auto",
             display: "flex",
             flexDirection: "column",
@@ -376,8 +452,8 @@ export const UpscalingSettingsSection: React.FC = () => {
             paddingRight: 4,
           }}
         >
-          {loading ? (
-            <div style={{ padding: 12, textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+          {loading && !status ? (
+            <div style={{ padding: 18, textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
               Загрузка списка моделей...
             </div>
           ) : status?.models && status.models.length > 0 ? (
@@ -429,46 +505,43 @@ export const UpscalingSettingsSection: React.FC = () => {
                   >
                     <button
                       type="button"
+                      tabIndex={0}
                       onClick={() => setRecordingActionId(isRecording ? null : actionId)}
                       onKeyDown={(e) => isRecording && handleKeyRecord(e, actionId)}
-                      title="Нажмите, чтобы изменить горячую клавишу для этой модели"
+                      title={isRecording ? "Нажмите желаемую комбинацию клавиш (Esc для отмены)" : "Нажмите для переназначения клавиши активации"}
                       style={{
-                        padding: "4px 8px",
-                        borderRadius: "var(--radius-sm)",
-                        background: isRecording ? "var(--accent)" : "rgba(255, 255, 255, 0.08)",
-                        border: isRecording ? "1px solid white" : "1px solid var(--border-pill)",
-                        color: isRecording ? "#000" : bindCodes.length > 0 ? "var(--accent)" : "var(--text-muted)",
-                        fontFamily: "monospace",
-                        fontSize: "0.78rem",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        outline: "none",
                         display: "flex",
                         alignItems: "center",
-                        gap: 5,
+                        gap: 6,
+                        padding: "4px 10px",
+                        fontSize: "0.78rem",
+                        borderRadius: "var(--radius-sm)",
+                        background: isRecording ? "rgba(127, 199, 255, 0.25)" : "rgba(255, 255, 255, 0.06)",
+                        border: `1px solid ${isRecording ? "var(--accent)" : "var(--border-pill)"}`,
+                        color: isRecording ? "var(--accent)" : bindCodes.length > 0 ? "var(--text-primary)" : "var(--text-muted)",
+                        cursor: "pointer",
+                        outline: "none",
                         transition: "all 0.15s ease",
                       }}
                     >
                       <Keyboard size={13} />
-                      {isRecording ? "Нажмите клавишу..." : displayBind}
+                      <span>{isRecording ? "Нажмите клавишу..." : displayBind}</span>
                     </button>
 
-                    {bindCodes.length > 0 && !isRecording && (
+                    {bindCodes.length > 0 && (
                       <button
                         type="button"
                         onClick={(e) => handleClearHotkey(e, actionId)}
-                        title="Очистить горячую клавишу"
+                        title="Сбросить привязанную клавишу"
                         style={{
-                          padding: "4px",
-                          borderRadius: "var(--radius-sm)",
                           background: "transparent",
                           border: "none",
                           color: "var(--text-muted)",
+                          padding: 4,
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          opacity: 0.6,
                         }}
                       >
                         <X size={13} />
@@ -479,44 +552,16 @@ export const UpscalingSettingsSection: React.FC = () => {
               );
             })
           ) : (
-            <div
-              style={{
-                padding: "16px",
-                borderRadius: "var(--radius-md)",
-                background: "rgba(0, 0, 0, 0.2)",
-                textAlign: "center",
-                color: "var(--text-muted)",
-                fontSize: "0.84rem",
-              }}
-            >
-              <Info size={20} style={{ margin: "0 auto 6px", display: "block", opacity: 0.6 }} />
-              Папка <code style={{ color: "var(--accent)" }}>models/onnx/</code> пуста.
-              Нажмите иконку папки и скопируйте любые <code>.onnx</code> файлы нейросетей.
+            <div style={{ padding: 18, textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+              В папке models/onnx/ не найдено совместимых моделей .onnx.
+              <br />
+              <span style={{ fontSize: "0.78rem" }}>
+                Нажмите значок папки справа вверху и скопируйте файлы моделей.
+              </span>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* 4. Памятка по горячим клавишам */}
-      <div
-        style={{
-          background: "rgba(255, 255, 255, 0.02)",
-          border: "1px solid var(--border-pill)",
-          borderRadius: "var(--radius-lg)",
-          padding: "12px 16px",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        <Keyboard size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
-        <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
-          <strong style={{ color: "var(--text-primary)" }}>Быстрое переключение на лету:</strong>{" "}
-          <code style={{ color: "var(--accent)" }}>{getKeyDisplay((customHotkeys["upscaleOff"] || ["Shift+Digit1"])[0])}</code> — Выключить апскейлинг.
-          Для каждой нейросети можно назначить свою уникальную клавишу прямо в списке выше.
         </div>
       </div>
     </div>
   );
 };
-

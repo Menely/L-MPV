@@ -62,8 +62,11 @@ pub fn apply_upscale_settings(
 
 /// Фоновая загрузка библиотек движка инференса (DirectML / TensorRT)
 #[tauri::command]
-pub async fn download_inference_engine(engine: String) -> Result<String, String> {
-    downloader::download_inference_engine_impl(engine).await
+pub async fn download_inference_engine(
+    app: tauri::AppHandle,
+    engine: String,
+) -> Result<String, String> {
+    downloader::download_inference_engine_impl(app, engine).await
 }
 
 /// Удаление библиотек выбранного движка инференса из каталога inference/

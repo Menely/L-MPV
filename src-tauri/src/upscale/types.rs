@@ -82,3 +82,23 @@ pub struct UpscaleStatus {
     /// Аппаратная информация об установленном видеоадаптере (GPU)
     pub gpu_info: GpuHardwareInfo,
 }
+
+/// Информация о прогрессе загрузки и распаковки движка инференса
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpscaleDownloadProgress {
+    /// Наименование движка ("DirectML" или "TensorRT")
+    pub engine: String,
+    /// Описание текущего этапа (например, "Скачивание Microsoft.AI.DirectML (3/3)...")
+    pub stage: String,
+    /// Процент выполнения от 0.0 до 100.0
+    pub percent: f64,
+    /// Количество загруженных байт для текущего файла
+    pub downloaded_bytes: u64,
+    /// Общий размер текущего файла в байтах
+    pub total_bytes: u64,
+    /// Флаг завершения всех этапов установки
+    pub is_finished: bool,
+    /// Описание возникшей ошибки (если есть)
+    pub error: Option<String>,
+}
+

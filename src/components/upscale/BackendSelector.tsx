@@ -7,7 +7,7 @@ import {
   RefreshCw,
   CheckCircle2,
 } from "lucide-react";
-import { UpscaleSettings, UpscaleStatus } from "./types";
+import { UpscaleSettings, UpscaleStatus, DownloadProgressPayload } from "./types";
 import { GpuHardwareCard } from "./GpuHardwareCard";
 
 interface BackendSelectorProps {
@@ -16,9 +16,10 @@ interface BackendSelectorProps {
   isDownloadingEngine: boolean;
   isDeletingEngine: boolean;
   downloadProgressText: string | null;
+  downloadProgress: DownloadProgressPayload | null;
   engineSuccessMessage: string | null;
   errorMessage: string | null;
-  onUpdateSettings: (partial: Partial<UpscaleSettings>) => void;
+  onSelectBackend: (backend: "DirectML" | "TensorRT") => void;
   onOpenInferenceFolder: () => void;
   onDownloadEngine: () => void;
   onDeleteEngine: () => void;
@@ -31,9 +32,10 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
   isDownloadingEngine,
   isDeletingEngine,
   downloadProgressText,
+  downloadProgress,
   engineSuccessMessage,
   errorMessage,
-  onUpdateSettings,
+  onSelectBackend,
   onOpenInferenceFolder,
   onDownloadEngine,
   onDeleteEngine,
@@ -44,6 +46,8 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
   const isCurrentBackendInstalled =
     settings.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
   const isAnyEnginePresent = isDmlInstalled || isTrtInstalled;
+
+  const activePercent = Math.min(100, Math.max(0, Math.round(downloadProgress?.percent || 0)));
 
   return (
     <div
@@ -62,11 +66,11 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 10,
+          flexWrap: "nowrap",
+          gap: 12,
         }}
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           <h3
             style={{
               fontSize: "1.02rem",
@@ -75,6 +79,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               display: "flex",
               alignItems: "center",
               gap: 8,
+              whiteSpace: "nowrap",
             }}
           >
             <Cpu size={17} color="var(--accent)" /> Движок инференса (Backend)
@@ -84,13 +89,16 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               fontSize: "0.8rem",
               color: "var(--text-muted)",
               marginTop: 2,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
             Библиотеки выполнения нейросетей (aji.dll, DirectML, OnnxRuntime, TensorRT)
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
           <button
             type="button"
             onClick={onOpenInferenceFolder}
@@ -122,6 +130,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             }
             style={{
               padding: "8px 14px",
+              minWidth: 145,
               borderRadius: "var(--radius-md)",
               background: isCurrentBackendInstalled
                 ? "rgba(255, 255, 255, 0.06)"
@@ -134,21 +143,25 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               fontWeight: 600,
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 6,
               cursor:
                 isDownloadingEngine || isCurrentBackendInstalled
                   ? "default"
                   : "pointer",
-              opacity: isDownloadingEngine || isCurrentBackendInstalled ? 0.5 : 1,
+              opacity: isDownloadingEngine || isCurrentBackendInstalled ? 0.6 : 1,
+              transition: "all 0.2s ease",
             }}
           >
             {isDownloadingEngine ? (
               <RefreshCw size={15} className="spin" />
+            ) : isCurrentBackendInstalled ? (
+              <CheckCircle2 size={15} color="#2ecc71" />
             ) : (
               <Download size={15} />
             )}
             {isDownloadingEngine
-              ? "Загрузка..."
+              ? `Загрузка ${activePercent}%`
               : isCurrentBackendInstalled
               ? "Установлен"
               : "Скачать движок"}
@@ -158,7 +171,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             <button
               type="button"
               onClick={onDeleteEngine}
-              disabled={isDeletingEngine}
+              disabled={isDeletingEngine || isDownloadingEngine}
               title="Удалить файлы выбранного движка инференса"
               style={{
                 padding: "8px 10px",
@@ -169,8 +182,8 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                cursor: isDeletingEngine ? "wait" : "pointer",
-                opacity: isDeletingEngine ? 0.6 : 1,
+                cursor: isDeletingEngine || isDownloadingEngine ? "wait" : "pointer",
+                opacity: isDeletingEngine || isDownloadingEngine ? 0.5 : 1,
                 transition: "all 0.15s ease",
               }}
             >
@@ -187,45 +200,136 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
       {/* Аппаратная карточка GPU */}
       <GpuHardwareCard gpuInfo={status?.gpu_info} />
 
-      {/* Индикатор этапа загрузки библиотек */}
-      {isDownloadingEngine && downloadProgressText && (
+      {/* Интерактивный прогресс-бар загрузки библиотек */}
+      {(isDownloadingEngine || (downloadProgress && !downloadProgress.is_finished)) && (
         <div
           style={{
-            padding: "10px 14px",
+            padding: "12px 16px",
             borderRadius: "var(--radius-md)",
-            background: "rgba(127, 199, 255, 0.1)",
+            background: "rgba(127, 199, 255, 0.08)",
             border: "1px solid rgba(127, 199, 255, 0.3)",
-            color: "var(--accent)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            transition: "all 0.25s ease",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: "0.83rem",
+                color: "var(--text-primary)",
+                fontWeight: 500,
+                minWidth: 0,
+              }}
+            >
+              <RefreshCw size={14} className="spin" color="var(--accent)" />
+              <span
+                style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {downloadProgress?.stage || downloadProgressText || "Загрузка библиотек инференса..."}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: "0.82rem",
+                fontWeight: 700,
+                color: "var(--accent)",
+                fontVariantNumeric: "tabular-nums",
+                flexShrink: 0,
+              }}
+            >
+              {downloadProgress && downloadProgress.total_bytes > 0 && (
+                <span
+                  style={{
+                    color: "var(--text-muted)",
+                    fontWeight: 400,
+                    fontSize: "0.77rem",
+                  }}
+                >
+                  {(downloadProgress.downloaded_bytes / (1024 * 1024)).toFixed(1)} МБ / {(downloadProgress.total_bytes / (1024 * 1024)).toFixed(1)} МБ
+                </span>
+              )}
+              <span
+                style={{
+                  padding: "1px 6px",
+                  borderRadius: 4,
+                  background: "rgba(127, 199, 255, 0.15)",
+                }}
+              >
+                {activePercent}%
+              </span>
+            </div>
+          </div>
+
+          {/* Анимированный трек прогресс-бара */}
+          <div
+            style={{
+              width: "100%",
+              height: 7,
+              background: "rgba(255, 255, 255, 0.08)",
+              borderRadius: 4,
+              overflow: "hidden",
+              position: "relative",
+            }}
+          >
+            <div
+              style={{
+                width: `${activePercent}%`,
+                height: "100%",
+                background: "linear-gradient(90deg, #3498db, var(--accent), #2ecc71)",
+                borderRadius: 4,
+                boxShadow: "0 0 8px rgba(127, 199, 255, 0.5)",
+                transition: "width 0.25s ease-out",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Уведомление об успешной установке */}
+      {engineSuccessMessage && !isDownloadingEngine && (
+        <div
+          style={{
+            padding: "9px 14px",
+            borderRadius: "var(--radius-md)",
+            background: "rgba(46, 204, 113, 0.15)",
+            border: "1px solid rgba(46, 204, 113, 0.3)",
+            color: "#2ecc71",
             fontSize: "0.82rem",
             display: "flex",
             alignItems: "center",
             gap: 8,
           }}
         >
-          <RefreshCw size={15} className="spin" />
-          <span>{downloadProgressText}</span>
+          <CheckCircle2 size={15} />
+          <span>{engineSuccessMessage}</span>
         </div>
       )}
 
-      {engineSuccessMessage && (
+      {/* Сообщение об ошибке */}
+      {errorMessage && !isDownloadingEngine && (
         <div
           style={{
-            padding: "8px 12px",
-            borderRadius: "var(--radius-md)",
-            background: "rgba(46, 204, 113, 0.15)",
-            border: "1px solid rgba(46, 204, 113, 0.3)",
-            color: "#2ecc71",
-            fontSize: "0.82rem",
-          }}
-        >
-          {engineSuccessMessage}
-        </div>
-      )}
-
-      {errorMessage && (
-        <div
-          style={{
-            padding: "8px 12px",
+            padding: "9px 14px",
             borderRadius: "var(--radius-md)",
             background: "rgba(231, 76, 60, 0.15)",
             border: "1px solid rgba(231, 76, 60, 0.3)",
@@ -241,7 +345,11 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {/* Карточка DirectML */}
         <div
-          onClick={() => onUpdateSettings({ backend: "DirectML" })}
+          onClick={() => {
+            if (settings.backend !== "DirectML") {
+              onSelectBackend("DirectML");
+            }
+          }}
           style={{
             padding: "12px 14px",
             borderRadius: "var(--radius-md)",
@@ -337,7 +445,9 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               );
               return;
             }
-            onUpdateSettings({ backend: "TensorRT" });
+            if (settings.backend !== "TensorRT") {
+              onSelectBackend("TensorRT");
+            }
           }}
           style={{
             padding: "12px 14px",

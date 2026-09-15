@@ -11,15 +11,14 @@ use tauri::State;
 static LAST_APPLIED_BACKEND: Mutex<Option<String>> = Mutex::new(None);
 
 /// Принудительно заставляет mpv перерисовать и отобразить апскейленный кадр,
-/// даже если воспроизведение стоит на паузе.
+/// если воспроизведение активного файла стоит на паузе.
 pub fn force_frame_refresh(mpv: &MpvManager) {
     if let Ok(paused) = mpv.get_property_bool("pause") {
         let eof = mpv.get_property_bool("eof-reached").unwrap_or(false);
-        if paused && !eof {
-            let pos = mpv.get_property_double("time-pos").unwrap_or(0.0);
-            let _ = mpv.command(&format!("seek {:.4} absolute+exact", pos));
-            let _ = mpv.command("frame-step");
-            let _ = mpv.command("frame-back-step");
+        let duration = mpv.get_property_double("duration").unwrap_or(0.0);
+        if paused && !eof && duration > 0.0 {
+            // Мягкая перерисовка текущего кадра без сдвига позиции и без дерганий вперед-назад
+            let _ = mpv.command("seek 0 relative exact");
         }
     }
 }
@@ -40,6 +39,20 @@ pub fn apply_upscale_settings_impl(
     };
 
     if settings.mode == "ai" {
+        // Проверяем, установлены ли необходимые библиотеки выбранного движка
+        let status = super::config::check_upscale_status_internal();
+        let is_installed = if settings.backend.eq_ignore_ascii_case("TensorRT") {
+            status.tensorrt_present && status.aji_present
+        } else {
+            status.directml_present && status.aji_present
+        };
+
+        if !is_installed {
+            // Если движок не установлен — отключаем AI фильтр, не ломая цепочку вывода
+            let _ = state.mpv.disable_ai_upscale();
+            return Ok(());
+        }
+
         ensure_inference_environment();
         let models_dir = get_models_dir();
         let _ = state.mpv.set_hwdec_for_backend(&settings.backend);
@@ -49,11 +62,11 @@ pub fn apply_upscale_settings_impl(
             settings.active_slot,
             backend_changed,
         );
+        force_frame_refresh(&state.mpv);
     } else {
         let _ = state.mpv.disable_ai_upscale();
     }
 
-    force_frame_refresh(&state.mpv);
     Ok(())
 }
 
