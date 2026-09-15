@@ -325,7 +325,26 @@ L-MPV/
 │   ├── contexts/                         # Реактивные контексты состояния
 │   │   └── PlayerStateContext.tsx        # Трёхуровневый контекст: PlayerStateContext + LiveStateContext + PlayerProgressContext
 │   ├── styles/                           # Модульная система стилей (14 модулей Vanilla CSS)
-│   ├── utils/                            # Вспомогательные утилиты (цвета, хоткеи, MediaInfo, пресеты, время)
+│   │   ├── variables.css                 # CSS-переменные, палитры, UI Scale, параметры свечения
+│   │   ├── base.css                      # Глобальный сброс, IDLE-режим, OSD
+│   │   ├── titlebar.css                  # Шапка окна
+│   │   ├── video-area.css                # Видеообласть
+│   │   ├── controls.css                  # Панель управления, таймлайн, регулятор громкости
+│   │   ├── visualizer.css                # Стили аудио-визуализатора (над таймлайном и тулбар)
+│   │   ├── presets.css                   # Стили менеджера пресетов
+│   │   ├── context-menu.css              # ПКМ-меню
+│   │   ├── modals.css                    # Модальные окна
+│   │   ├── mediainfo-modal.css           # Стили кастомного окна и модального отчёта MediaInfo
+│   │   ├── side-panel.css                # Панель глав
+│   │   ├── track-popover.css             # Меню дорожек
+│   │   ├── overlays.css                  # Overlay-элементы (Drag&Drop, Playlist Drawer и др.)
+│   │   └── responsive.css                # Адаптивность и медиа-запросы
+│   ├── utils/                            # Вспомогательные утилиты
+│   │   ├── colorUtils.ts                 # Цветовые темы, генерация градиентов и HSL/RGB преобразования
+│   │   ├── hotkeyUtils.ts                # Реестр действий, обработка биндов и локальное сохранение
+│   │   ├── mediaInfoParser.ts            # Модуль парсинга и русского перевода свойств MediaInfo
+│   │   ├── presetsUtils.ts               # Управление, импорт и экспорт пользовательских пресетов
+│   │   └── timeUtils.ts                  # Высокоточное форматирование временных меток
 │   ├── App.tsx                           # Главный контейнер (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, OSD)
 │   ├── index.css                         # Единый импорт модулей стилей
 │   └── main.tsx                          # Точка входа React
