@@ -114,7 +114,11 @@ pub fn has_compiled_engine_for_model(models_dir: &std::path::Path, model_stem: &
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
             if name.starts_with(&prefix) && name.ends_with(".engine") {
-                return true;
+                if let Ok(meta) = entry.metadata() {
+                    if meta.len() > 0 {
+                        return true;
+                    }
+                }
             }
         }
     }

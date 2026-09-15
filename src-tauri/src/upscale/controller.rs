@@ -275,6 +275,7 @@ pub async fn precompile_model_engine_1080p_impl(
         crc, gpu_clean, sm_suffix
     );
     let save_engine_path = models_dir.join(&engine_filename);
+    let save_engine_path_for_err = save_engine_path.clone();
 
     let build_log_path = models_dir.join(format!("{}.build.log", engine_filename));
     let build_log_for_err = build_log_path.clone();
@@ -366,6 +367,9 @@ pub async fn precompile_model_engine_1080p_impl(
         } else {
             "Неизвестная ошибка сборки движка".to_string()
         };
+
+        // Удаляем битый/пустой файл .engine, если он был создан
+        let _ = std::fs::remove_file(&save_engine_path_for_err);
 
         let _ = app.emit(
             "upscale-compile-progress",
