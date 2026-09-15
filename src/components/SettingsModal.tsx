@@ -574,9 +574,9 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       <div
         className="modal modal--settings"
         style={{
-          width: 650,
-          maxWidth: "94vw",
-          maxHeight: "75vh",
+          width: 720,
+          maxWidth: "95vw",
+          maxHeight: "78vh",
           display: "flex",
           flexDirection: "column",
         }}
@@ -616,8 +616,10 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
                 className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
+                title={tab.label}
               >
-                <Icon size={17} /> {tab.label}
+                <Icon size={16} className="settings-tab-icon" />
+                <span className="settings-tab-label">{tab.label}</span>
               </button>
             );
           })}

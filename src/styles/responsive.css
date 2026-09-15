@@ -31,10 +31,27 @@
   .modal__body {
     padding: 12px 14px;
   }
-  .settings-tabs button {
-    padding: 8px 10px !important;
-    font-size: 0.82rem !important;
+  .settings-tabs {
+    padding: 6px 8px !important;
+    gap: 3px !important;
+  }
+  .settings-tab-btn {
+    padding: 6px 4px !important;
+    font-size: 0.78rem !important;
     gap: 4px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .settings-tab-btn:not(.settings-tab-btn--active) .settings-tab-label {
+    display: none;
+  }
+  .settings-tab-btn {
+    flex: 0 0 auto !important;
+    padding: 6px 10px !important;
+  }
+  .settings-tab-btn--active {
+    flex: 1 1 auto !important;
   }
 
   /* Всплывающие карточки (Playlist, MediaInfo, Chapters) */

@@ -472,33 +472,40 @@
   display: flex;
   align-items: center;
   border-bottom: 1px solid var(--border);
-  padding: 8px 14px;
+  padding: 6px 10px;
   background: rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-  gap: 6px;
-}
-
-.settings-tabs::-webkit-scrollbar {
-  display: none;
+  gap: 4px;
 }
 
 .settings-tab-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: 0;
+  gap: 6px;
+  padding: 7px 8px;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-secondary);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 500;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
   border-radius: var(--radius-pill);
   transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.settings-tab-icon {
+  flex-shrink: 0;
+}
+
+.settings-tab-label {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .settings-tab-btn:hover {
