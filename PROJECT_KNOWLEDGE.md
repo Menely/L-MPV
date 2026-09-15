@@ -1,25 +1,31 @@
 # L-MPV — Архитектура проекта и База Знаний
 
-Данный документ содержит полную и актуальную информацию об устройстве медиаплеера **L-MPV** (версия **1.6.8**), его архитектуре, технологическом стеке, структуре файлов, взаимодействии Rust и React, детальном реестре IPC-команд и всех пользовательских функциях плеера.
+Данный документ содержит полную и актуальную информацию об устройстве медиаплеера **L-MPV** (версия **1.6.8**), его архитектуре, технологическом стеке, структуре файлов, взаимодействии Rust и React, детальном реестре IPC-команд, подсистеме Real-Time 4K AI Upscaling и всех пользовательских возможностях.
 
 ---
 
 ## 1. Стек технологий и Портативность
 
-- **Фронтенд:** React 19 + TypeScript + Vite + Lucide Icons + Vanilla CSS (Design Tokens, Glassmorphism, CSS Custom Properties, Vector Drop-Shadow).
-- **Бэкенд:** Rust + Tauri v2.
-- **Медиа-движок:** `libmpv-2.dll` (или `mpv-2.dll` / `mpv-1.dll`), задействован динамический FFI через `libloading`.
+- **Фронтенд:** React 19 + TypeScript 5.8 + Vite 7 + Lucide Icons + Vanilla CSS (Design Tokens, Glassmorphism, CSS Custom Properties, Vector Drop-Shadow).
+- **Бэкенд:** Rust (2021 edition) + Tauri v2 + Tokio.
+- **Медиа-движок:** `libmpv-2.dll` (сборка `the-database/mpv-winbuild` с нативным видеофильтром `vf_animejanai`), задействован динамический FFI через `libloading`.
+- **Подсистема AI-Апскейлинга:** Нативный инференс ONNX-моделей в реальном времени (DirectML DirectX 12 / NVIDIA TensorRT) через фильтр `animejanai` и мост `aji.dll`.
 - **Анализ медиа:** Нативная `mediainfo.dll` (C-API) для детального отчёта свойств медиафайлов в независимом окне ОС Windows.
+- **Прямой экспорт дорожек:** Встроенный `ffmpeg.exe` для мгновенного извлечения аудио и субтитров (`-c copy` / многопоточный фоллбек).
 - **Портативный режим (Portable Architecture):**
   - Приложение полностью отвязано от диска и реестра Windows.
   - Все пути определяются динамически во время выполнения через `std::env::current_exe().parent()`.
   - Портативная структура папки `Portable-L-MPV/`:
-    - `L-MPV.exe` — главный исполняемый файл.
-    - `mpv-2.dll` — нативная библиотека воспроизведения mpv.
+    - `L-MPV.exe` — главный исполняемый файл с нативно встроенным веб-интерфейсом React.
+    - `libmpv-2.dll` — нативная библиотека воспроизведения mpv со встроенным фильтром `vf_animejanai`.
     - `mediainfo.dll` — нативная библиотека подробного анализа MediaInfo.
+    - `ffmpeg.exe` — утилита прямого извлечения аудио и субтитров.
+    - `models/onnx/` — универсальная папка для любых пользовательских моделей нейросетей `.onnx`.
+    - `inference/` — каталог вспомогательных библиотек инференса (`aji.dll`, DirectML, TensorRT).
     - `config/` — локальные конфигурации:
       - `settings.json` — конфигурация плеера.
       - `history.json` — история просмотров и позиций воспроизведения.
+      - `upscale.conf` — параметры активного режима апскейлинга, слотов и бэкенда.
       - `presets/` — индивидуальные файлы пресетов настроек (`<название_пресета>.json`).
     - `screenshots/` — папка сохранения кадров по умолчанию.
 
@@ -29,17 +35,18 @@
 
 ```
 L-MPV/
-├── src/                                  # Фронтенд (React + TypeScript)
-│   ├── assets/                           # Статические ресурсы
-│   ├── components/                       # Изолированные компоненты
+├── src/                                  # Фронтенд (React 19 + TypeScript 5.8)
+│   ├── assets/                           # Статические ресурсы и иконки
+│   ├── components/                       # Модульные компоненты интерфейса
 │   │   ├── Titlebar.tsx                  # Шапка окна (логотип, по центру название файла, кнопки окна)
-│   │   ├── PlayerControls.tsx            # Нижняя плавающая «таблетка» управления (быстрая смена дорожек, скачивание, скриншот, плейлист, скорость)
-│   │   ├── ContextMenu.tsx               # Кастомное ПКМ-меню (дорожки со скачиванием, скорость, вид, масштабирование, поворот)
-│   │   ├── SettingsModal.tsx             # Модальное окно настроек (скриншоты, сохранение дорожек, акцентные цвета, бинды, интеграция, компактные соцсети)
-│   │   ├── ColorSchemeSection.tsx        # Изолированный модуль цветового оформления плеера (7 кинематографичных тем, акценты, неоновый глоу, предпросмотр)
-│   │   ├── ColorPickerModal.tsx          # Кастомное модальное окно выбора цвета (круг спектра HSV/RGB/HEX, слайдер яркости, персистентная палитра)
+│   │   ├── PlayerControls.tsx            # Нижняя плавающая «таблетка» управления (смена дорожек, скачивание, скриншот, плейлист, скорость)
+│   │   ├── ContextMenu.tsx               # Кастомное ПКМ-меню (дорожки со скачиванием, скорость, вид, масштабирование, поворот, подсветка)
+│   │   ├── SettingsModal.tsx             # Модальное окно настроек (скриншоты, цвета, подсветка, апскейлинг, бинды, интеграция)
+│   │   ├── UpscalingSettingsSection.tsx  # Модуль управления 4K AI апскейлингом (Выкл / AI, DirectML / TensorRT, библиотека ONNX моделей, скачивание)
+│   │   ├── ColorSchemeSection.tsx        # Модуль цветового оформления плеера (7 кинематографичных тем, акценты, неоновый глоу, предпросмотр)
+│   │   ├── ColorPickerModal.tsx          # Кастомное модальное окно выбора цвета (круг спектра HSV/RGB/HEX, слайдер яркости, палитра)
 │   │   ├── MediaInfoModal.tsx            # Компактное окно технической информации о медиафайле
-│   │   ├── StandaloneMediaInfoWindow.tsx # Независимое нативное окно MediaInfo (565x685, Always on Top с кнопкой Pin, Drag&Drop, запуск из плеера или проводника)
+│   │   ├── StandaloneMediaInfoWindow.tsx # Независимое нативное окно MediaInfo (565x685, Always on Top с Pin, Drag&Drop, запуск из проводника)
 │   │   ├── ChaptersModal.tsx             # Модальное окно навигации по главам (Chapters)
 │   │   ├── Timeline.tsx                  # Высокоточный таймлайн с изолированным контекстом времени (без лишних ререндеров)
 │   │   ├── AudioVisualizer.tsx           # Высокопроизводительный Canvas-визуалайзер аудио-волн (Waveform / Spectrum / Bars, пастель/неон)
@@ -65,27 +72,31 @@ L-MPV/
 │   │   └── responsive.css                # Глобальные медиа-запросы
 │   ├── utils/                            # Утилиты
 │   │   ├── colorUtils.ts                 # Цветовые палитры и вычисление HSL/RGB акцентов, градиентов и параметров свечения drop-shadow
-│   │   ├── hotkeyUtils.ts                # Кастомная привязка, сохранение и сброс горячих клавиш по умолчанию
+│   │   ├── hotkeyUtils.ts                # Реестр действий, бинды, сохранение и сброс горячих клавиш (включая Shift+1..4)
 │   │   ├── mediaInfoParser.ts            # Модуль разбора и перевода на русский язык отчёта MediaInfo
 │   │   ├── presetsUtils.ts               # Модуль управления, хранения, экспорта и импорта пользовательских и готовых пресетов
 │   │   └── timeUtils.ts                  # Форматирование времени воспроизведения
-│   ├── App.tsx                           # Главный контейнер (клики, IDLE-таймер, Drag&Drop, Hotkeys, Zoom/Pan, Wheel Vol, OSD)
+│   ├── App.tsx                           # Главный контейнер (клики, IDLE, Drag&Drop, Hotkeys, Zoom/Pan, Wheel Vol, OSD)
 │   ├── index.css                         # Единая точка импорта CSS-модулей
 │   └── main.tsx                          # Точка входа React
 ├── src-tauri/                            # Бэкенд (Rust + Tauri v2)
 │   ├── capabilities/default.json         # Разрешения Tauri (окна, opener, dialog)
 │   ├── src/
-│   │   ├── main.rs                       # Входная точка
-│   │   ├── lib.rs                        # Настройка Tauri, привязка HWND (`wid`), фокус окна, предсоздание окна MediaInfo, чистый exit(0)
+│   │   ├── main.rs                       # Входная точка приложения
+│   │   ├── lib.rs                        # Настройка Tauri, HWND (`wid`), фокус, предсоздание окна MediaInfo, реестр IPC-команд
+│   │   ├── upscale.rs                    # Модуль 4K AI апскейлинга: сканирование models/onnx/, DirectML/TensorRT, конфиг upscale.conf, IPC
 │   │   ├── ambient.rs                    # Контроллер подсветки черных полос (Ambient Light: GPU Blur / Color / Off)
-│   │   ├── audio_capture.rs              # Нативный захват звука WASAPI Loopback, быстрый БПФ (FFT Radix-2), 32 логарифмические полосы спектра
+│   │   ├── audio_capture.rs              # Нативный захват звука WASAPI Loopback, быстрый БПФ (FFT Radix-2), 32 логарифмические полосы
 │   │   ├── mediainfo.rs                  # FFI-интеграция с mediainfo.dll и управление независимым окном MediaInfo
-│   │   ├── mpv_manager.rs                # FFI-обертчик libmpv (vo=gpu-next, WASAPI, D3D11, HWDEC auto-safe, HDR, 32-tap sinc resampler)
+│   │   ├── mpv_manager.rs                # FFI-обертчик libmpv (vo=gpu-next, WASAPI, D3D11, vf_animejanai, sinc resampler)
 │   │   ├── system_integration.rs         # Интеграция с Проводником Windows (контекстное меню, ассоциации файлов)
 │   │   ├── updater.rs                    # Модуль автообновления приложения
-│   │   └── commands.rs                   # 77 IPC #[tauri::command] функций, извлечение дорожек FFmpeg, персистентность AppSettings
-│   ├── Cargo.toml                        # Зависимости Rust (tauri, libloading, serde, base64, tokio, windows-sys)
-│   └── tauri.conf.json                   # Конфигурация приложения Tauri (версия синхронизирована с package.json, предсозданные окна main и mediainfo)
+│   │   └── commands.rs                   # IPC #[tauri::command] функции, извлечение дорожек FFmpeg, персистентность AppSettings
+│   ├── Cargo.toml                        # Зависимости Rust (tauri, libloading, serde, tokio, reqwest, zip, windows-sys)
+│   └── tauri.conf.json                   # Конфигурация приложения Tauri (NSIS bundle, resources, окна)
+├── models/                               # Корневой каталог нейросетей
+│   └── onnx/                             # Универсальная папка для размещения ONNX-моделей
+├── inference/                            # Папка для библиотек инференса (aji.dll, DirectML, TensorRT)
 └── Portable-L-MPV/                       # Готовая портативная папка для тестирования и релиза
 ```
 
@@ -94,7 +105,7 @@ L-MPV/
 ## 3. Архитектура Бэкенда (Rust)
 
 ### 3.1. `mpv_manager.rs`
-- Динамически загружает `mpv-2.dll` (или `libmpv-2.dll` / `mpv-1.dll`) через `libloading`.
+- Динамически загружает `libmpv-2.dll` (с поддержкой `vf_animejanai`) через `libloading`.
 - **Рендеринг и видео:** Профиль `vo=gpu-next`, `profile=gpu-hq`, `gpu-api=d3d11`, `hwdec=auto-safe`, `scale=spline36`, `cscale=spline36`, `auto-window-resize=no`.
 - **HDR & Color Management:** `target-colorspace-hint=yes`, `tone-mapping=auto`, `hdr-compute-peak=yes`.
 - **Студийное аудио (Audiophile Profile):**
@@ -102,48 +113,59 @@ L-MPV/
   - Авто-конфигурация каналов: `audio-channels=auto-safe`, `audio-pitch-correction=yes` (scaletempo2).
   - Студийный sinc-ресемплинг: `audio-resample-filter-size=32` (32 taps sinc-фильтр), `audio-resample-phase-shift=14` (16 384 фазы), `audio-resample-linear=yes`.
   - Безопасное стерео-сведение: `audio-normalize-downmix=yes` (защита от перегрузок и клиппинга).
+- **Интеграция с AI Апскейлингом:**
+  - `enable_ai_upscale(&self, conf_path: &str, slot: u32)` — подключение видеофильтра `@aji:animejanai=conf="..."` и установка активного слота.
+  - `disable_ai_upscale(&self)` — сброс слота на 0 и удаление фильтра `@aji`.
+  - `set_ai_upscale_slot(&self, slot: u32)` — переключение слота нейросети на лету.
 - **Оптимизация буферизации и кэширования:**
-  - `demuxer-max-bytes=32MiB` (динамический буфер пакетов вперед).
-  - `demuxer-readahead-secs=2` (предзагрузка минимум 2 секунд потока).
-  - `demuxer-max-back-bytes=16MiB` (**кэш обратной перемотки**: мгновенный возврат назад без чтения диска).
-  - `hr-seek-framedrop=yes` (сброс кадров при перемотке для снижения задержек и RAM).
-  - `cache-pause=no` (исключение микропауз при буферизации локальных файлов).
-  - `demuxer-mkv-subtitle-preroll=yes`, `sub-auto=fuzzy`.
-- **Отключение встроенного UI:** `osc=no`, `osd-level=0`, `input-default-bindings=no`, `input-vo-keyboard=no`.
-- **Скриншоты:** Принудительный чистый формат PNG (`screenshot-format=png`).
+  - `demuxer-max-bytes=32MiB`, `demuxer-readahead-secs=2`.
+  - `demuxer-max-back-bytes=16MiB` (**кэш обратной перемотки**: мгновенный возврат назад).
+  - `hr-seek-framedrop=yes`, `cache-pause=no`, `demuxer-mkv-subtitle-preroll=yes`, `sub-auto=fuzzy`.
 
-### 3.2. `ambient.rs` (Подсветка полос / Ambient Light)
+### 3.2. `upscale.rs` (Подсистема AI-Апскейлинга и ONNX Моделей)
+- **Универсальность:** модуль не привязан к одной фиксированной модели. Он сканирует каталог `models/onnx/`, обнаруживает все файлы `.onnx`, применяет естественную сортировку и автоматически назначает номера слотов (1001, 1002, 1003...).
+- **Генерация конфигурации `config/upscale.conf`:**
+  - Автоматически создает и обновляет файл конфигурации, прописывая пути к библиотеке `aji.dll`, каталогу `models/onnx/`, выбранному бэкенду (`DirectML` или `TensorRT`) и слоту по умолчанию.
+- **Управление файлами и фоновая загрузка:**
+  - `open_models_folder()` — открытие универсальной папки `models/onnx/` в Проводнике Windows для ручного добавления любых моделей.
+  - `download_recommended_models()` — фоновая загрузка базовых рекомендованных моделей через `reqwest` (таймаут 60с, атомарная запись через временные файлы `.part`).
+- **Горячие клавиши на лету:**
+  - `switch_upscale_network_hotkey(slot, backend)` — прямое переключение фильтра без необходимости перезапуска видео.
+
+### 3.3. `ambient.rs` (Подсветка полос / Ambient Light)
 - Управляет состоянием подсветки областей letterbox/pillarbox (соотношения сторон 21:9, 4:3, нестандартные форматы, полноэкранный режим).
 - Режимы работы:
   - **`Off`**: классические черные полосы (`border-background=color`, `background-color=#000000`).
   - **`Blur`**: аппаратный шейдерный GPU Blur видеокадра в пустых областях без нагрузки на процессор (`border-background=blur`, `background-blur-radius=5..150`).
   - **`Color`**: мягкая подсветка акцентным цветом темы или кастомным HEX (`border-background=color`, `background-color=#RRGGBB`).
-- **Архитектурная оптимизация**: инкапсулированный `AmbientController` с in-memory кэшированием состояния (исключает повторную отправку одинаковых свойств mpv) и разделением на 60fps GPU preview без дискового I/O и отложенное сохранение (Debounce 400ms с гарантированным flush при unmount).
-- Поддержка быстрого циклического переключения через горячую клавишу `B` и ПКМ-меню.
+- Оптимизированный `AmbientController` с in-memory кэшированием состояния, 60fps GPU preview и отложенным сохранением (Debounce 400ms).
 
-### 3.3. `lib.rs`
-- Извлекает HWND окна Tauri v2 и передает его в mpv через свойство `"wid"`, связывая видеопоток с поверхностью окна Webview2.
-- **Предварительная инициализация окон:** окно `"mediainfo"` (565x685 px, `always_on_top: true`) предсоздается в скрытом виде (`visible: false`) на этапе старта, что полностью исключает задержки открытия и блокировки главного UI-потока.
+### 3.4. `lib.rs`
+- Извлекает HWND окна Tauri v2 и передает его в mpv через свойство `"wid"`, связывая видеопоток с поверхностью окна WebView2.
+- **Предварительная инициализация окон:** окно `"mediainfo"` (565x685 px, `always_on_top: true`) предсоздается в скрытом виде (`visible: false`) на этапе старта.
 - **Управление жизненным циклом и фокусом:**
-  - Обрабатывает событие `WindowEvent::Focused` для динамического управления Z-порядком в полноэкранном режиме (автоматическое снятие Topmost для корректного `Alt+Tab` и возврат при активации плеера).
-  - Обрабатывает `WindowEvent::CloseRequested`:
-    - Для окна `"mediainfo"` предотвращает уничтожение окна (`prevent_close`), скрывает его (`hide()`) и уведомляет React (`mediainfo-window-closed`) для снятия подсветки с кнопки вызова. Если плеер был запущен исключительно в режиме MediaInfo — завершает процесс.
-    - Для главного окна `"main"` сохраняет позицию воспроизведения и вызывает `window.app_handle().exit(0)`, гарантируя мгновенное завершение процесса `L-MPV.exe` в диспетчере задач Windows.
-- Регистрирует все **85 IPC-команд** в `tauri::Builder`.
+  - Обработка `WindowEvent::Focused` для динамического Z-порядка в полноэкранном режиме (`Alt+Tab`).
+  - Обработка `WindowEvent::CloseRequested` с сохранением позиции и гарантированным чистым выходом `window.app_handle().exit(0)`.
+- Регистрирует все **91 IPC-команду** в `tauri::Builder`.
 
-### 3.4. `mediainfo.rs`
+### 3.5. `mediainfo.rs`
 - Нативное динамическое связывание с `mediainfo.dll` через `libloading` (C-API: `MediaInfo_New`, `MediaInfo_Open`, `MediaInfo_Inform`, `MediaInfo_Close`, `MediaInfo_Delete`).
-- Предотвращает зависания: запросы выполняются безопасно без перекрестных дедлоков потоков.
-- Управляет нативным окном через команды `open_mediainfo_window` и `toggle_mediainfo_window`, посылая события `mediainfo-inspect-file`.
+- Управляет независимым окном MediaInfo через команды `open_mediainfo_window` и `toggle_mediainfo_window`.
 
 ---
 
-## 4. Полный Реестр IPC-Команд Rust (`commands.rs`, `mediainfo.rs`, `system_integration.rs`, `updater.rs`)
+## 4. Полный Реестр IPC-Команд Rust
 
-В бэкенде зарегистрировано **85 IPC-команд**:
+В бэкенде зарегистрировано **91 IPC-команда**:
 
 | Категория | IPC Команда | Параметры | Возвращает | Описание |
 | :--- | :--- | :--- | :--- | :--- |
+| **Апскейлинг и AI Модели (upscale.rs)** | `get_upscale_status` | — | `UpscaleStatus` | Получение статуса компонентов инференса и списка найденных ONNX-моделей |
+| | `scan_onnx_models` | — | `Vec<ModelFileItem>` | Сканирование папки `models/onnx/` и получение упорядоченного списка моделей |
+| | `open_models_folder` | — | `Result<(), String>` | Открытие универсальной папки моделей `models/onnx/` в Проводнике Windows |
+| | `apply_upscale_settings` | `settings: UpscaleSettings` | `Result<(), String>` | Формирование `upscale.conf` и включение/выключение фильтра в mpv |
+| | `download_recommended_models` | — | `Result<usize, String>` | Фоновая загрузка базовых рекомендованных моделей с таймаутом |
+| | `switch_upscale_network_hotkey` | `slot: u32, backend: Option<String>` | `Result<(), String>` | Мгновенное переключение нейросети/слота или выключение апскейлинга по хоткею |
 | **Воспроизведение и Плейлист** | `open_file` | `path: String` | `Result<(), String>` | Загрузка файла в плеер + авто-создание плейлиста из папки |
 | | `toggle_pause` | — | `Result<(), String>` | Переключение паузы (`cycle pause`) |
 | | `set_pause` | `paused: bool` | `Result<(), String>` | Явная установка паузы (`yes` / `no`) |
@@ -158,8 +180,8 @@ L-MPV/
 | | `set_loop_file` | `loop_file: String` | `Result<(), String>` | Зацикливание текущего файла (`inf` / `no`) |
 | | `set_loop_playlist` | `loop_playlist: String` | `Result<(), String>` | Зацикливание всего плейлиста (`inf` / `no`) |
 | | `toggle_shuffle` | — | `Result<(), String>` | Переключение случайного порядка плейлиста (`playlist-shuffle`) |
-| | `get_play_next_on_end` | — | `Result<bool, String>` | Чтение статуса настройки автопереключения на следующее видео по окончании |
-| | `set_play_next_on_end` | `enabled: bool` | `Result<(), String>` | Установка действия при завершении видео (автопереход `keep-open=yes` или остановка `keep-open=always`) |
+| | `get_play_next_on_end` | — | `Result<bool, String>` | Чтение статуса настройки автопереключения на следующее видео |
+| | `set_play_next_on_end` | `enabled: bool` | `Result<(), String>` | Установка действия при завершении видео |
 | **Громкость / Скорость** | `set_volume` | `volume: f64` | `Result<(), String>` | Установка громкости от 0.0 до 100.0 |
 | | `set_speed` | `speed: f64` | `Result<(), String>` | Установка множителя скорости воспроизведения |
 | **Дорожки и Извлечение** | `get_tracks` | — | `Result<Vec<TrackInfo>, String>` | Список дорожек (аудио, субтитры, видео) с ID, кодеком, ff-index и типом |
@@ -169,66 +191,66 @@ L-MPV/
 | | `load_subtitle_file` | `path: String` | `Result<(), String>` | Подключение внешнего файла субтитров (`sub-add`) |
 | | `load_audio_file` | `path: String` | `Result<(), String>` | Подключение внешнего аудиофайла (`audio-add`) |
 | | `set_video_track` | `track_id: i64` | `Result<(), String>` | Переключение видеопотока по ID (`vid`) |
-| | `extract_track` | `video_path: String, track_type: String, track_index: usize, ff_index: Option<usize>, external_filename: Option<String>, target_path: String` | `Result<String, String>` | Извлечение аудио/субтитров (Direct Stream Copy `-c copy`, многопоточный fallback `-threads 0`, прямое копирование внешних файлов) |
-| | `get_auto_load_tracks` | — | `Result<bool, String>` | Получение статуса настройки автоподхвата внешних дорожек |
+| | `extract_track` | `video_path, track_type, track_index, ff_index, external_filename, target_path` | `Result<String, String>` | Извлечение аудио/субтитров (Direct Stream Copy `-c copy`, многопоточный fallback `-threads 0`) |
+| | `get_auto_load_tracks` | — | `Result<bool, String>` | Получение статуса автоподхвата внешних дорожек |
 | | `set_auto_load_tracks` | `enabled: bool` | `Result<(), String>` | Включение/выключение автоподхвата внешних дорожек |
 | | `get_auto_select_external_audio`| — | `Result<bool, String>` | Чтение статуса автовыбора внешней русской аудиодорожки |
 | | `set_auto_select_external_audio`| `enabled: bool` | `Result<(), String>` | Настройка автовыбора внешней русской аудиодорожки |
-| | `load_external_tracks_for_file` | `path: String` | `Result<(), String>` | Сканирование и подключение внешних аудио и субтитров для текущего файла |
+| | `load_external_tracks_for_file` | `path: String` | `Result<(), String>` | Сканирование и подключение внешних аудио и субтитров |
 | **Вид, Зумирование и Окно** | `set_aspect_ratio` | `ratio: String` | `Result<(), String>` | Установка соотношения сторон (`16:9`, `21:9`, `4:3`, `no`) |
 | | `set_rotation` | `degrees: i64` | `Result<(), String>` | Поворот видеокадра (`0`, `90`, `180`, `270`) |
 | | `set_video_zoom_and_pan` | `zoom: f64, pan_x: f64, pan_y: f64` | `Result<(), String>` | Аппаратный видеозум и панорамирование в mpv |
 | | `get_video_zoom` | — | `Result<f64, String>` | Получение текущего коэффициента зума |
 | | `get_video_dimensions` | — | `Result<VideoDimensions, String>` | Получение реальных размеров видео (ширина, высота, aspect) |
-| | `toggle_fullscreen` | — | `Result<bool, String>` | Нативное безопасное переключение полноэкранного режима без смещения в (0, 0) |
+| | `toggle_fullscreen` | — | `Result<bool, String>` | Нативное безопасное переключение полноэкранного режима |
 | **Скриншоты и Буфер** | `take_screenshot` | — | `Result<(), String>` | Сохранение текущего кадра без OSD (`screenshot video`) |
 | | `copy_frame_to_clipboard` | — | `Result<(), String>` | Копирование текущего кадра в буфер обмена Windows |
 | | `get_screenshot_dir` | — | `Result<String, String>` | Чтение текущей директории для скриншотов |
 | | `set_screenshot_dir` | `path: String` | `Result<(), String>` | Изменение пути скриншотов с записью в `settings.json` |
-| **Экземпляры Приложения** | `get_multi_instance` | — | `Result<bool, String>` | Проверка разрешения одновременного запуска нескольких окон плеера |
+| **Экземпляры Приложения** | `get_multi_instance` | — | `Result<bool, String>` | Проверка разрешения одновременного запуска нескольких окон |
 | | `set_multi_instance` | `enabled: bool` | `Result<(), String>` | Включение/выключение режима нескольких экземпляров |
 | **Главы** | `get_chapters` | — | `Result<Vec<ChapterInfo>, String>` | Получение списка всех глав текущего медиафайла |
 | | `seek_chapter` | `index: i64` | `Result<(), String>` | Переход к главе по индексу (`chapter`) |
-| **Метаданные и Позиция** | `get_playback_state` | — | `Result<PlaybackState, String>` | Легкий динамический статус плеера (позиция, кадр, пауза, громкость, битрейт, пропуски) |
-| | `get_media_info` | — | `Result<MediaInfo, String>` | Полный статический снапшот файла (кодеки, разрешение, FPS, HDR, битрейт, длительность) |
+| **Метаданные и Позиция** | `get_playback_state` | — | `Result<PlaybackState, String>` | Динамический статус плеера (позиция, кадр, пауза, громкость, битрейт) |
+| | `get_media_info` | — | `Result<MediaInfo, String>` | Полный статический снапшот файла (кодеки, разрешение, FPS, HDR, битрейт) |
 | | `get_position` | — | `Result<f64, String>` | Текущее время воспроизведения (в секундах) |
 | | `get_duration` | — | `Result<f64, String>` | Полная длительность видео (в секундах) |
-| | `get_frame_number` | — | `Result<i64, String>` | Номер текущего кадра (`estimated-frame-number`) |
-| | `get_frame_count` | — | `Result<i64, String>` | Общее количество кадров (`estimated-frame-count`) |
-| | `get_fps` | — | `Result<f64, String>` | Частота кадров (`container-fps`) |
+| | `get_frame_number` | — | `Result<i64, String>` | Номер текущего кадра |
+| | `get_frame_count` | — | `Result<i64, String>` | Общее количество кадров |
+| | `get_fps` | — | `Result<f64, String>` | Частота кадров |
 | | `get_last_position` | `path: String` | `Result<Option<f64>, String>` | Чтение сохранённой позиции воспроизведения из истории |
 | | `save_position` | `path: String, position: f64` | `Result<(), String>` | Сохранение позиции воспроизведения в историю |
-| | `save_current_position` | — | `Result<(), String>` | Принудительное сохранение текущей позиции активного воспроизведения |
-| | `get_app_version` | — | `Result<String, String>` | Получение актуальной версии приложения (`CARGO_PKG_VERSION`) |
-| **Анализ MediaInfo (C-FFI)** | `get_detailed_media_info` | `path: String` | `Result<DetailedMediaInfo, String>` | Полный парсинг всех потоков и тегов файла через нативную `mediainfo.dll` |
+| | `save_current_position` | — | `Result<(), String>` | Принудительное сохранение текущей позиции |
+| | `get_app_version` | — | `Result<String, String>` | Получение актуальной версии приложения |
+| **Анализ MediaInfo (C-FFI)** | `get_detailed_media_info` | `path: String` | `Result<DetailedMediaInfo, String>` | Полный парсинг всех потоков и тегов через `mediainfo.dll` |
 | | `is_standalone_mode` | — | `Result<bool, String>` | Определение, запущено ли окно в автономном режиме MediaInfo |
-| | `get_standalone_mediainfo_path` | — | `Result<Option<String>, String>` | Получение пути к файлу, переданному через CLI для MediaInfo |
+| | `get_standalone_mediainfo_path` | — | `Result<Option<String>, String>` | Получение пути к файлу для MediaInfo |
 | | `open_mediainfo_window` | `path: String` | `Result<(), String>` | Открытие независимого окна MediaInfo с инспекцией файла |
 | | `toggle_mediainfo_window` | `path: Option<String>` | `Result<bool, String>` | Переключение видимости независимого окна MediaInfo |
 | **Интеграция с Windows** | `get_windows_accent_color` | — | `Result<Option<String>, String>` | Получение системного цвета акцента Windows |
 | | `register_file_associations` | — | `Result<Vec<String>, String>` | Регистрация плеера и ассоциаций медиафайлов в Windows |
-| | `unregister_file_associations` | — | `Result<Vec<String>, String>` | Полное удаление ассоциаций файлов и записей L-MPV из реестра Windows |
-| | `is_explorer_context_menu_registered` | — | `Result<bool, String>` | Проверка регистрации пунктов L-MPV в контекстном меню Проводника Windows |
-| | `register_explorer_context_menu` | — | `Result<(), String>` | Добавление «Воспроизвести в L-MPV» и «Открыть в L-MPV MediaInfo» в меню Windows |
-| | `unregister_explorer_context_menu` | — | `Result<(), String>` | Удаление пунктов L-MPV из контекстного меню Проводника Windows |
+| | `unregister_file_associations` | — | `Result<Vec<String>, String>` | Полное удаление ассоциаций файлов и записей L-MPV из реестра |
+| | `is_explorer_context_menu_registered` | — | `Result<bool, String>` | Проверка регистрации пунктов L-MPV в контекстном меню Проводника |
+| | `register_explorer_context_menu` | — | `Result<(), String>` | Добавление пунктов воспроизведения и MediaInfo в меню Windows |
+| | `unregister_explorer_context_menu` | — | `Result<(), String>` | Удаление пунктов L-MPV из контекстного меню Проводника |
 | | `open_default_apps_settings` | — | `Result<(), String>` | Открытие параметров Windows «Приложения по умолчанию» |
 | | `update_taskbar_progress` | `progress: f64, state: String` | `Result<(), String>` | Отображение прогресса видео на иконке панели задач Windows |
-| **Подсветка полос (Ambient Light)** | `get_ambient_settings` | — | `Result<AmbientSettings, String>` | Получение текущего режима, радиуса размытия и цвета подсветки из оперативной памяти |
-| | `apply_ambient_preview` | `settings: AmbientSettings` | `Result<(), String>` | Мгновенный 60fps предпросмотр шейдерных эффектов на GPU без блокирующего дискового I/O |
+| **Подсветка полос (Ambient Light)** | `get_ambient_settings` | — | `Result<AmbientSettings, String>` | Получение текущего режима, радиуса размытия и цвета подсветки |
+| | `apply_ambient_preview` | `settings: AmbientSettings` | `Result<(), String>` | Мгновенный 60fps предпросмотр шейдерных эффектов на GPU |
 | | `set_ambient_settings` | `settings: AmbientSettings` | `Result<(), String>` | Применение и сохранение настроек подсветки черных полос |
-| | `toggle_ambient_mode` | — | `Result<AmbientSettings, String>` | Циклическое быстрое переключение режима (Off -> Blur -> Color -> Off) |
-| **Автообновление (In-App)** | `check_launch_and_update` | — | `Result<Option<UpdateInfo>, String>` | Фоновая периодическая проверка доступных обновлений на GitHub (каждый 2-й запуск или через 15 запусков при откладывании) |
+| | `toggle_ambient_mode` | — | `Result<AmbientSettings, String>` | Циклическое быстрое переключение режима (Off -> Blur -> Color) |
+| **Автообновление (In-App)** | `check_launch_and_update` | — | `Result<Option<UpdateInfo>, String>` | Фоновая проверка обновлений на GitHub |
 | | `check_for_updates` | — | `Result<Option<UpdateInfo>, String>` | Ручная проверка релизов на GitHub с получением списка изменений |
-| | `download_and_install_update` | `version: String, assets: Vec<AssetInfo>` | `Result<(), String>` | Точечное скачивание бинарников, создание `update.bat` и автоперезапуск |
-| | `postpone_update` | — | `Result<(), String>` | Откладывание проверки обновлений на 15 запусков (`postponed_until_launch = launch_count + 15`) |
-| **Пресеты настроек и Файлы** | `get_settings_presets` | — | `Result<String, String>` | Чтение всех сохранённых пресетов из индивидуальных файлов `config/presets/*.json` |
-| | `save_settings_presets` | `presets_json: String` | `Result<(), String>` | Сохранение пресетов в отдельные файлы `config/presets/<имя>.json` с удалением удалённых |
-| | `save_single_preset` | `file_name: String, preset_json: String` | `Result<String, String>` | Сохранение одиночного пресета в отдельный файл `config/presets/<имя>.json` |
-| | `delete_preset_file` | `file_name: String` | `Result<(), String>` | Удаление индивидуального файла пресета из `config/presets/` |
+| | `download_and_install_update` | `version: String, assets: Vec<AssetInfo>` | `Result<(), String>` | Скачивание бинарников, создание `update.bat` и автоперезапуск |
+| | `postpone_update` | — | `Result<(), String>` | Откладывание проверки обновлений на 15 запусков |
+| **Пресеты настроек и Файлы** | `get_settings_presets` | — | `Result<String, String>` | Чтение всех пресетов из индивидуальных файлов `config/presets/*.json` |
+| | `save_settings_presets` | `presets_json: String` | `Result<(), String>` | Сохранение пресетов в отдельные файлы `config/presets/<имя>.json` |
+| | `save_single_preset` | `file_name: String, preset_json: String` | `Result<String, String>` | Сохранение одиночного пресета в отдельный файл |
+| | `delete_preset_file` | `file_name: String` | `Result<(), String>` | Удаление индивидуального файла пресета |
 | | `rename_preset_file` | `old_name: String, new_name: String` | `Result<String, String>` | Переименование файла пресета в папке `config/presets/` |
-| | `open_presets_folder` | — | `Result<(), String>` | Открытие портативной директории `config/presets/` в Проводнике Windows |
-| | `write_text_file` | `path: String, content: String` | `Result<(), String>` | Запись файла по произвольному пути диалога сохранения Проводника Windows |
-| | `read_text_file` | `path: String` | `Result<String, String>` | Чтение файла по произвольному пути диалога выбора файла Проводника Windows |
+| | `open_presets_folder` | — | `Result<(), String>` | Открытие портативной директории `config/presets/` в Проводнике |
+| | `write_text_file` | `path: String, content: String` | `Result<(), String>` | Запись файла по произвольному пути диалога сохранения |
+| | `read_text_file` | `path: String` | `Result<String, String>` | Чтение файла по произвольному пути диалога выбора файла |
 
 ---
 
@@ -246,246 +268,97 @@ L-MPV/
   - Кнопка Repeat на панели управления: переключение между режимами *«Без повтора»*, *«Повтор одного файла»* (`set_loop_file`), *«Повтор всего плейлиста»* (`set_loop_playlist`).
   - Кнопка Shuffle: случайный порядок воспроизведения файлов.
 - **Пауза, Покадровая и Быстрая Перемотка:**
-  - Пробел (`Space`), клик ЛКМ по видео (с дебаунсом для предотвращения ложного срабатывания двойного клика Fullscreen), кнопка Play/Pause.
+  - Пробел (`Space`), клик ЛКМ по видео, кнопка Play/Pause.
   - Покадровый шаг: клавиши `←` / `,` / `Б` (назад) и `→` / `.` / `Ю` (вперед) с OSD-счётчиком кадра.
-  - Кнопки `-10 сек` и `+10 сек`, клик по таймлайну, всплывающее превью времени и глав.
-- **Интеллектуальное Поведение по Окончании Видео (End-of-Playback Control):**
-  - Опция в окне *«Настройки»* -> вкладка *«Общие»*:
-    - **«Переключать на следующее видео (по умолчанию)»**: при достижении конца воспроизведения движок mpv автоматически загружает и воспроизводит следующий файл в плейлисте папки (`keep-open=yes`).
-    - **«Ничего не делать»**: плеер останавливается на последнем кадре текущего видео (`keep-open=always`) без автоматического переключения.
-  - **Мгновенный перезапуск с начала при нажатии на «Пуск»**: если воспроизведение остановилось в конце файла (в режиме «Ничего не делать» или на последнем элементе плейлиста), любое нажатие кнопки воспроизведения (ЛКМ по видео, клавиша Пробел, кнопка Play на панели управления или хоткеи) автоматически перематывает видео на 0:00 (`seek 0 absolute+exact`) и запускает просмотр заново.
 
-### 5.2. Визуальное Отображение, Зумирование и Рендеринг (Video, Zoom & Display)
-- **Прозрачность WebView2 и аппаратный рендеринг mpv:**
-  - В `tauri.conf.json` включен `"transparent": true`. Окно mpv привязано к Win32 HWND через `wid`.
-  - DOM-слой WebView2 полностью прозрачен (`background: transparent`), за счет чего видеопоток Direct3D 11 отображается напрямую без потерь качества и перекрытий непрозрачными фонами.
-  - Полосы леттербоксинга при несовпадении пропорций окна и видео аппаратно отрисовывает сам mpv (`background=#000000`).
-- **Безупречный запуск без мельканий и скачков (Zero-Flicker Window Lifecycle):**
-  - При запуске с медиафайлом окно создается скрытым (`"visible": false`).
-  - Размеры окна вычисляются по истинному Display Aspect Ratio (`video-params/dw`, `video-params/dh`) и применяются (`setSize`) вместе с центрированием (`center`) **до** отображения окна.
-  - Окно становится видимым (`window.show()`) строго в момент, когда React уже отрисовал интерфейс и первый кадр видео готов, полностью исключая мелькание заглушки-плейсхолдера и рывки геометрии окна.
-  - При запуске без файла (пустой плеер) окно открывается сразу с интерактивной заглушкой.
-- **Чистый Жизненный Цикл Процесса (No Ghost Processes):**
-  - Обработчик закрытия главного окна плеера в `lib.rs` перехватывает `WindowEvent::CloseRequested` и гарантированно вызывает `window.app_handle().exit(0)`.
-  - Это полностью исключает зависание процесса `L-MPV.exe` в фоновых задачах Windows после закрытия плеера.
-- **Векторная Система Свечения Иконок (Vector Drop-Shadow Engine):**
-  - Свечение кнопок управления и навигации переведено с прямоугольных блоков и круговых ареолов на чистый векторный контур `filter: drop-shadow(...)`.
-  - Свет плавно рассеивается непосредственно от формы самой SVG-иконки с градиентным угасанием без грубых краев и круговых ободков.
-  - Интенсивность и радиусы свечения точно сбалансированы по режимам (Normal, Medium, Strong), обеспечивая премиальный эстетичный вид.
-  - Кнопка «Пуск / Пауза» избавлена от постоянного фонового свечения и подсвечивается только при наведении или взаимодействии.
-- **Интеллектуальное управление размером окна в сессии (Session Window Size Preservation):**
-  - При первой загрузке видео в сессии окно автоматически подстраивается под пропорции видео (Display Aspect Ratio) с ограничением до 1280x720 или 50% экрана без появления черных рамок.
-  - Если пользователь изменил размер окна вручную (не переходя в полноэкранный режим), этот размер гарантированно сохраняется на протяжении всей сессии: переключение на следующее/предыдущее видео (кнопками «Вперед»/«Назад» или через плейлист), а также горячая подгрузка аудиодорожек или субтитров (hotload) **не сбрасывают** установленный пользователем размер окна.
-  - Сохранение работает исключительно в оперативной памяти в рамках активной сессии (in-session): при закрытии и новом холодном запуске плеер стартует с дефолтным размером без сохранения геометрии на диск.
-- **Плавное аппаратное зумирование и панорамирование (Ctrl + Колесо мыши):**
-  - Зажатие `Ctrl` + прокрутка колеса мыши позволяет центрировано масштабировать видеокадр относительно курсора мыши.
-  - Оптимизировано с уменьшенным шагом (0.04) и батчингом через `requestAnimationFrame` (до 60 fps).
-  - Магнитная привязка к 100% при приближении к исходному размеру (`zoom = 0`).
-  - Горячая клавиша `Ctrl + 0` мгновенно сбрасывает масштаб и панорамирование к 100%.
-- **Колесо мыши без Ctrl:**
-  - Прокрутка колесика над видеообластью без Ctrl осуществляет точную плавную регулировку громкости плеера (шаг 5%) с сохранением значения в `localStorage`.
-- **Изменение соотношения сторон (Aspect Ratio):**
-  - Переключение режимов: *Оригинальное* (`no`), *16:9*, *21:9 (CinemaScope)*, *4:3*.
-- **Поворот кадра (Video Rotation):**
-  - Поворот на *0°*, *90°*, *180°*, *270°* по часовой стрелке.
-- **Полноэкранный режим (Fullscreen) без наложения Панели задач:**
-  - Двойной клик ЛКМ или кнопка разворачивания на панели управления.
-  - Гарантированное скрытие панели задач Windows с помощью установки флага `HWND_TOPMOST`.
-  - **Динамический Z-порядок (`handle_window_focus`):** при переключении на другое окно (Alt+Tab) плеер временно снимает Topmost (`HWND_NOTOPMOST`), позволяя браузеру и мессенджерам свободно открываться поверх плеера. При возврате фокуса плееру статус Topmost мгновенно восстанавливается.
-  - Защита от смещения и сжатия в угол (0, 0) через нативную команду `toggle_fullscreen` и DWM-клоакинг (`DWMWA_CLOAK`).
-- **Режим PiP (Picture-in-Picture / Поверх всех окон):**
-  - Переключатель *"Поверх всех окон"* в ПКМ-меню и кнопка-булавка на панели управления.
-- **Интеллектуальная Адаптивность для Вертикальных Видео и Узких Окон (Responsive Container Queries):**
-  - Панель управления построена на передовой технологии **CSS Container Queries** (`@container controls`), плавно подстраивающейся под ширину окна:
-    - **Ширина < 780px:** текстовые плашки дорожек аудио и субтитров плавно скрываются, превращаясь в компактные круглые иконки; скрываются второстепенные кнопки (повтор, shuffle, опенинг, инфо, скриншот).
-    - **Ширина < 580px (вертикальные Shorts/Reels/TikTok):** скрываются кнопки перехода по плейлисту (`SkipBack`/`SkipForward`), отступы уменьшаются, числовой процент громкости скрывается, оставляя только иконку динамика.
-    - **Ширина < 460px (микро-окно):** панель переключается в суперкомпактный режим (только `-10с`, `Play/Pause`, `+10с`, субтитры, компактное время и полноэкранный режим); слайдер громкости скрывается (регулировка звука остается доступна колесиком мыши над видео).
-  - **Адаптивные меню и модальные окна:** контекстное меню ПКМ снабжено авто-прокруткой при нехватке вертикали экрана (`max-height: calc(100vh - 20px)`), модальное окно настроек адаптируется с горизонтальным скроллом вкладок и авто-сеткой чекбоксов, а в Titlebar автоматически скрывается заголовок файла на микро-ширинах, защищая кнопки управления окном от перекрытия.
+### 5.2. Подсистема AI-Апскейлинга в 4K (Real-Time AI Upscaling)
+- **Управление режимом:**
+  - Вкладка **«Апскейлинг»** в Настройках (`F2`).
+  - Переключатель режимов: **«Выкл»** и **«AI Upscaling»**. Пользователь самостоятельно включает апскейлинг при необходимости.
+- **Движки инференса (Backend):**
+  - **DirectML:** Универсальный инференс через DirectX 12 для любых видеокарт (AMD Radeon, Intel Arc/Iris, NVIDIA GeForce). Максимальная стабильность и совместимость.
+  - **TensorRT:** Максимальная производительность для карт NVIDIA RTX через скомпилированные `.engine` тензоры.
+- **Универсальная библиотека ONNX моделей (`models/onnx/`):**
+  - Пользователь может поместить любые свои `.onnx` модели в папку `models/onnx/`.
+  - Кнопка **«Папка моделей»** открывает директорию в Проводнике Windows.
+  - Кнопка **«Скачать базовые»** загружает проверенные модели (Balanced, Performance, Compact SD) в фоновом режиме.
+  - Автоматическое обновление списка при возврате фокуса в плеер.
+- **Горячие клавиши переключения видов нейросетей на лету:**
+  - `Shift+1` — Выключить апскейлинг.
+  - `Shift+2` — Включить апскейл и выбрать Нейросеть #1.
+  - `Shift+3` — Включить апскейл и выбрать Нейросеть #2.
+  - `Shift+4` — Включить апскейл и выбрать Нейросеть #3.
+  - Мгновенный вывод OSD-уведомления с реальным названием активированной модели.
 
-### 5.3. Извлечение и Скачивание Дорожек (Track Extraction)
-- **Мгновенный экспорт звука и субтитров:**
-  - Кнопка «Скачать» доступна во всплывающих окнах дорожек на панели управления и в контекстном меню (ПКМ).
-  - Прямой экспорт без потери качества (`-c copy`) за считанные секунды.
-  - Интеллектуальный многопоточный fallback (`-threads 0`): авто-транскодирование, если кодек не поддерживается контейнером (например, субтитры `mov_text` конвертируются в `.srt`).
-  - Прямое копирование внешних файлов субтитров (`std::fs::copy`), минуя FFmpeg.
-  - Точное сопоставление потоков через нативный `ff-index` MPV.
-  - Поддержка скачивания дорожек из сетевых онлайн-видео (URL).
-- **Настройка путей сохранения:**
-  - В настройках («Общие») опция *«Скачивать дорожки в ту же папку, где находится видео»*.
-  - При активной опции дорожка сохраняется рядом с файлом без диалогов; при выключенной (или для URL) открывается системный проводник.
-- **Индикация процесса:**
-  - Кнопка скачивания анимируется крутящимся спиннером `Loader2`.
-  - Статус загрузки синхронно отображается на нижней панели правее названия активной дорожки.
-- **Автоматический поиск и подхват внешних дорожек (Smart Track Discovery):**
-  - Опция в настройках («Общие») *«Автоматически подхватывать внешние аудиодорожки и субтитры»* (по умолчанию выключена, персистентно сохраняется в `config/settings.json`).
-  - Сканирует директорию видео (уровень 0) и все прямые дочерние папки (уровень 1: `Subs`, `Audio`, `Subtitles` и любые другие), строго без рекурсивного спуска глубже.
-  - Сопоставление с текущей серией: интеллектуально извлекает номера серий (`S01E02`, `1x02`, `EP02`, `02`), исключая подхват файлов от других серий. Для фильмов сопоставляются основы названий.
-  - Безопасное подключение (`cached`): внешние дорожки добавляются в общий список `TrackInfo` без перебивания активной дорожки видео.
+### 5.3. Студийный Аудио-Визуалайзер (WASAPI Loopback Capture / FFT 1024)
+- **Спектральный анализ:** Нативный захват системного звука через Windows WASAPI Loopback Capture в фоновом Rust-потоке с вычислением 1024-точечного БПФ (Cooley-Tukey Radix-2 FFT) со сглаживающим окном Ханна.
+- **32 частотные полосы:** Логарифмическое распределение от 25 Гц до 19 000 Гц.
+- **Сведение 5.1/7.1 Surround:** Подмешивание LFE канала сабвуфера и центрального канала голоса.
+- **3 стиля:** `Waveform`, `Spectrum`, `Bars`.
+- **0.0% CPU в IDLE:** При скрытии контролов или паузе захват звука засыпает.
 
-### 5.4. Звук и Студийный Аудио-профиль
-- **Студийный ресемплинг:** 32-точечный sinc-фильтр (`audio-resample-filter-size=32`), 16 384 фазы фазового сдвига, линейная интерполяция между отсчётами.
-- **Нормализация даунмикса:** исключение перегрузов и искажений при сведении 5.1/7.1 в стерео (`audio-normalize-downmix=yes`).
-- **Регулировка громкости:** слайдер на панели, скролл колесика мыши над видео (шаг 5%), персистентное сохранение громкости в `localStorage`.
-- **Переключение дорожек:**
-  - ЛКМ: мгновенное циклическое переключение.
-  - ПКМ: выпадающее меню со списком доступных дорожек и кнопками скачивания.
+### 5.4. Аппаратная Подсветка Полос (Ambient Light / GPU Blur)
+- Устранение черных полос при несоответствии пропорций экрана и видео.
+- 3 режима: `Off`, `Blur` (GPU шейдерное размытие кадра), `Color` (акцентная заливка).
+- Быстрое переключение по горячей клавише `B`.
 
-### 5.5. Скриншоты, Настройки и MediaInfo (Screenshots, Settings & MediaInfo)
-- **Создание Скриншотов:**
-  - Кнопка с иконкой фотоаппарата `<Camera />` на панели управления, горячая клавиша `S` / `Ы` или выбор в ПКМ-меню. Чистый кадр без OSD, всплывающее уведомление *«Кадр сохранён»*.
-  - **Копирование кадра в буфер обмена:** нативная команда `copy_frame_to_clipboard` (сочетание `Ctrl + C`).
-- **Настройка папки скриншотов, Акцентных Пастельных Цветов и Кастомных Биндов:**
-  - В модальном окне `SettingsModal`:
-    - Выбор папки скриншотов или сброс на портативную папку `screenshots`.
-    - Выбор монохромных и чистых акцентных пастельных цветов (включая **#e8a236** Amber и **#FFA9DE** Pink).
-    - Компактный блок соцсетей в футере (иконки 19px, оптимальные отступы).
-    - **Расширенная гибридная система привязки клавиш и кнопок мыши**:
-      - Раздельное управление биндами аудио и субтитров (смена дорожки и открытие меню).
-      - Поддержка модификаторов (`Ctrl`, `Shift`, `Alt`) и кликов мыши (`MouseLeft`, `MouseRight`, `MouseMiddle`, `MouseLeftDoubleClick`).
-      - Для каждого действия предусмотрена индивидуальная иконка-кнопка **«По умолчанию»** справа от поля ввода для быстрого точечного сброса конкретной функции, помимо общей кнопки сброса всех настроек.
-- **Интеграция с Windows:**
-  - Регистрация ассоциаций файлов (видео и аудио) в реестре Windows в один клик.
-  - Добавление пунктов «Воспроизвести в L-MPV» и «Открыть в L-MPV MediaInfo» в контекстное меню Проводника Windows.
-  - Быстрый переход в параметры Windows «Приложения по умолчанию».
-- **Запоминание позиции (Resume Playback):** автоматическое сохранение позиции воспроизведения в локальную историю просмотров.
-- **Независимое Окно MediaInfo (565×685 px):**
-  - **Полноценное окно Windows:** реализовано как независимое окно ОС (`label: "mediainfo"`), которое можно свободно перетаскивать за пределы окна плеера на любой монитор.
-  - **Режим «Поверх всех окон» с фиксацией Pin:** по умолчанию окно открывается поверх плеера (`alwaysOnTop: true`), но снабжено кнопкой-булавкой в шапке окна, позволяющей в один клик открепить его от режима поверх окон.
-  - **Zero-Freeze и предварительная инициализация:** окно предсоздается в скрытом виде при старте плеера, что исключает дедлоки, лаги и зависания при вызове.
-  - **Drag & Drop:** поддержка перетаскивания новых файлов прямо в окно MediaInfo для мгновенного анализа.
-  - **Интерактивные возможности:** мгновенный поиск по свойствам (Ctrl+F), экспорт полного отчёта в .txt, копирование в буфер обмена и переключение языков интерфейса (RU/EN).
-  - **Связь с кнопкой в плеере:** кнопка вызова в панели управления подсвечивается только тогда, когда окно MediaInfo реально открыто, и автоматически гаснет при закрытии окна.
-- **Подсветка черных полос (Ambient Light / GPU Blur):**
-  - **Аппаратное шейдерное размытие (GPU Blur):** при просмотре видео с соотношением сторон, отличным от монитора (например, 21:9 на 16:9 экране или 4:3), либо в полноэкранном режиме края видеокадра аппаратно проецируются и размываются в пустых черных полосах letterbox и pillarbox на базе `vo=gpu-next` и `libplacebo` без нагрузки на процессор.
-  - **Регулировка радиуса:** плавный ползунок радиуса размытия (от 10px до 150px) с кнопкой сброса на 100px (значение по умолчанию).
-  - **Высокопроизводительная архитектура (Zero Lag & Debounced I/O):** при перетаскивании ползунков изменения на лету транслируются в GPU-пайплайн mpv на 60 FPS через команду `apply_ambient_preview`, а запись на диск дебаунсится на 400 мс с гарантированным сбросом на диск при закрытии окна, полностью устраняя блокировки дисковой подсистемы. В Rust-контроллере `AmbientController` реализована дедупликация команд для исключения повторной переинициализации контекста рендера.
-  - **Цветовой Ambient (Color):** мягкая подсветка акцентным цветом плеера (включая системный Windows Accent) или любым кастомным оттенком HEX.
-  - **Быстрое управление:** переключение в *Настройках* (*Внешний вид*), через контекстное меню (ПКМ -> *Подсветка полос*) и глобальную горячую клавишу `B` с OSD-уведомлениями. Сохранение состояния в `config/settings.json`.
+### 5.5. Извлечение и Экспорт Дорожек (FFmpeg Track Extraction)
+- Кнопки скачивания аудио и субтитров прямо в меню дорожек.
+- Direct Stream Copy (`-c copy`) без потери качества.
 
-### 5.6. Умная Портативная Система Автообновления (Smart Portable In-App Auto-Update)
-- **Фоновая и Ручная проверка обновлений (Adaptive Launch Cadence):**
-  - При каждом старте приложения значение `launch_count` в `config/settings.json` увеличивается на 1.
-  - Проверка обновлений выполняется **каждый 2-й запуск** (`launch_count % 2 == 0`) либо по кнопке *«Проверить обновления»* в Настройках.
-  - **Откладывание обновлений на 15 запусков (`postpone_update`):** при нажатии кнопок «Отложить» (во всплывающем тосте) или «Напомнить позже» (в модальном окне `UpdateModal`) плеер запоминает порог `postponed_until_launch = launch_count + 15`. Фоновые проверки и уведомления блокируются на следующие 15 запусков.
-  - **Автоматический сброс при обновлении:** при переходе на новую версию (`last_version != current_version`) счётчики `launch_count` и `postponed_until_launch` автоматически сбрасываются в 0, а поле `last_version` обновляется.
-  - Отображает интерактивный `UpdateModal` с версией и подробным списком изменений (Changelog).
-- **Точечная портативная загрузка без инсталляторов (Asset-based Portable Update):**
-  - Плеер анализирует бинарные ассеты релиза (`l-mpv.exe`, `ffmpeg.exe`, `mpv-2.dll` / `libmpv-2.dll`).
-  - Плеер скачивает только те бинарники, которые выложены в релизе (например, если выложен только `l-mpv.exe`, скачивается строго он, исключая лишнюю загрузку FFmpeg и libmpv).
-- **Загрузка во временную локальную папку `.updates`:**
-  - Все ассеты загружаются потоком с отслеживанием прогресса в локальный служебный каталог `.updates/` рядом с исполняемым файлом (100% портативность без использования `%TEMP%`).
-- **Автономный Bat-скрипт смены файлов и автоперезапуска (`update.bat`):**
-  - В папке `.updates/` автоматически генерируется скрипт `update.bat`.
-  - Бэкенд запускает `update.bat` в независимом процессе (`CREATE_NO_WINDOW`, `DETACHED_PROCESS`) и завершает работу плеера (`app.exit(0)`).
-  - Скрипт `update.bat` ожидает закрытия процесса плеера, копирует файлы из `.updates/` командой `xcopy /y /q`, перезапускает обновленный плеер и удаляет временный каталог `.updates/`.
+### 5.6. Анализ Свойств Медиаконтейнера (MediaInfo C-API)
+- Нативное независимое окно 565x685 px с поддержкой Always on Top, Drag & Drop, поиска (Ctrl+F), экспорта в .txt.
+- Автономный запуск из контекстного меню Проводника Windows.
 
-### 5.7. Модульная Система Пресетов Настроек (Settings Presets System)
-- **Изолированное хранение пресетов в отдельных файлах:**
-  - Каждый пользовательский пресет сохраняется в собственный независимый JSON-файл в портативной папке `config/presets/<название_пресета>.json`.
-  - Предотвращено смешивание разных пресетов в один общий файл: пользователи могут напрямую просматривать, копировать, переименовывать и передавать отдельные файлы пресетов через проводник.
-  - Встроена автоматическая бесшовная миграция: устаревший монолитный `config/presets.json` при первом запуске прозрачно конвертируется в отдельные файлы `config/presets/<name>.json` и безопасно удаляется.
-- **Нативная интеграция с Проводником Windows:**
-  - **Экспорт:** открытие нативного диалога сохранения файлов Windows (`save` dialog) с возможностью выбора любого каталога на диске. Доступен экспорт как отдельного пресета, так и создание полного резервного архива всех пользовательских стилей.
-  - **Импорт:** открытие нативного проводника Windows (`open` dialog) для комфортного выбора файла пресета с предварительной проверкой целостности данных.
-  - **Кнопка «Папка»:** мгновенное открытие портативной папки `config/presets/` в Проводнике Windows в один клик.
-  - **Автоматическая синхронизация (Zero-Stale Presets):** при возврате фокуса в окно плеера (например, после добавления или удаления файлов в Проводнике) список пресетов мгновенно обновляется. Доступна кнопка ручного обновления списка («Обновить»).
-- **Сворачиваемые категории и оптимизированный UI:**
-  - Категории «Мои пресеты» и «Готовые стили» снабжены анимированными шевронами и возможностью независимого сворачивания.
-  - Из шапки модального окна настроек удалена лишняя дублирующая кнопка «Пресеты», что устранило визуальный шум и сделало заголовок аккуратным.
+### 5.7. Модульная Система Пресетов Настроек
+- Индивидуальные файлы `config/presets/<название_пресета>.json`.
+- Импорт и экспорт через системный Проводник Windows.
 
 ---
 
 ## 6. Инструкция по Сборке и Релизу
 
-Для компиляции и создания исполняемого файла используются команды:
+### Необходимые зависимости
+- **Node.js** v20+ и **npm**.
+- **Rust toolchain** (`stable-x86_64-pc-windows-msvc`).
+- Библиотеки в корне или `src-tauri/`:
+  - `libmpv-2.dll` (сборка `the-database/mpv-winbuild` с `vf_animejanai`).
+  - `ffmpeg.exe` (gyan.dev).
+  - `mediainfo.dll` (MediaArea).
 
-1. **Компиляция проекта (Быстрое обновление только `.exe`):**
-   ```bash
-   npm run tauri build -- --no-bundle
-   ```
-   *Результат сборки создается в папке:* `src-tauri/target/release/l-mpv.exe`
+### Сборка приложения
+```bash
+# 1. Установка зависимостей фронтенда
+npm install
 
-2. **Полная компиляция с созданием инсталляторов (MSI/NSIS):**
-   ```bash
-   npm run tauri build
-   ```
+# 2. Быстрая сборка автономного .exe без создания инсталлятора (фронтенд встраивается автоматически):
+npm run build:exe
+# (или напрямую: npm run tauri build -- --no-bundle)
 
-3. **Копирование в портативную папку:**
-   ```powershell
-   Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MPV/L-MPV.exe" -Force
-   ```
-   *(Если файл заблокирован запущенным плеером, сначала завершите процесс через `Stop-Process -Name "L-MPV" -Force`).*
+# 3. Полная сборка с созданием NSIS-инсталлятора:
+npm run build:bundle
+# (или напрямую: npm run tauri build)
+```
+
+Готовый файл располагается по пути: `src-tauri/target/release/l-mpv.exe`.
+
+### Копирование в портативную сборку
+```powershell
+Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MPV/L-MPV.exe" -Force
+```
 
 ---
 
 ## 7. CI/CD и Автоматическая Публикация Релизов (GitHub Actions)
 
-### 7.1. Обязательный состав файлов каждого релиза на GitHub
-В каждом релизе GitHub Releases (`v*.*.*`) **строго обязательно** должны присутствовать два типа бинарных файлов приложения:
-1. **`L-MPV_<версия>_x64-setup.exe`** — полноценный Windows-инсталлятор (NSIS). Генерируется и загружается экшеном `tauri-apps/tauri-action@v0`.
-2. **`l-mpv.exe`** — чистый портативный исполняемый файл без установщика для мгновенного запуска из любой папки. Загружается шагом `gh release upload`.
-3. **`Source code (zip / tar.gz)`** — автоматические архивы исходного кода от самого GitHub.
+### 7.1. Сборщик зависимостей (`upload-dependencies.yml`)
+- Автоматически скачивает свежую сборку `libmpv-2.dll` из репозитория `the-database/mpv-winbuild` с фильтром `vf_animejanai`, `ffmpeg.exe` и `mediainfo.dll`.
+- Запаковывает их в `mpv_libs.zip` и публикует в релиз `deps-v1`.
 
-### 7.2. Критические требования к конфигурации (Защита от ошибки «No artifacts were found»)
-
-> [!CAUTION]
-> **ПРИЧИНА ОШИБКИ «No artifacts were found»:**
-> Экшен `tauri-apps/tauri-action@v0` ожидает, что после выполнения команды сборки в директории артефактов появятся готовые инсталляторы/пакеты.
-> Если в `src-tauri/tauri.conf.json` отключен бандл (`"active": false` или `"targets": []`), Tauri компилирует только сырой `target/release/l-mpv.exe`, а создание пакетов пропускает.
-> В этот момент `tauri-action` падает с фатальной ошибкой: **`No artifacts were found`**, и весь пайплайн релиза прерывается!
-
-#### Правильная настройка `src-tauri/tauri.conf.json`:
-В секции `"bundle"` **всегда** должны быть активны следующие параметры:
-```json
-"bundle": {
-  "active": true,
-  "targets": ["nsis"],
-  "windows": {
-    "nsis": {
-      "installerHooks": "nsis/installer_hooks.nsh"
-    }
-  },
-  "resources": [
-    "libmpv-2.dll",
-    "ffmpeg.exe",
-    "mediainfo.dll"
-  ]
-}
-```
-*Запрещено отключать `"active": true` или очищать `"targets"` в `tauri.conf.json`!*
-
-#### Правильная настройка шагов в `.github/workflows/release.yml`:
-Workflow релиза должен состоять строго из следующей последовательности шагов:
+### 7.2. Рабочий процесс релиза (`release.yml`)
 1. `actions/checkout@v4` — получение кода.
-2. Настройка `Node.js 20` и `Rust toolchain (stable)`.
-3. Скачивание и распаковка внешних нативных библиотек `mpv_libs.zip` (`libmpv-2.dll`, `ffmpeg.exe`, `mediainfo.dll`).
-4. Синхронизация номера версии из Git-тега в `package.json` и `Cargo.toml`.
-5. **Шаг публикации инсталлятора через `tauri-action`:**
-   ```yaml
-   - name: Сборка и публикация релиза Tauri
-     uses: tauri-apps/tauri-action@v0
-     env:
-       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-     with:
-       tagName: v__VERSION__
-       releaseName: 'L-MPV v__VERSION__'
-       releaseBody: 'Автоматический релиз медиаплеера L-MPV на базе libmpv.'
-       releaseDraft: false
-       prerelease: false
-   ```
-6. **Шаг догрузки портативного `l-mpv.exe`:**
-   ```yaml
-   - name: Публикация чистого портативного l-mpv.exe в релиз
-     shell: pwsh
-     run: |
-       $tag = "${{ github.ref_name }}"
-       if (-not $tag -or $tag -notmatch '^v\d+') {
-         $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
-         $tag = "v$ver"
-       }
-       Write-Host "Загрузка автономного портативного файла l-mpv.exe в релиз $tag..."
-       gh release upload $tag "src-tauri/target/release/l-mpv.exe#l-mpv.exe" --clobber
-     env:
-       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-   ```
-   *(Флаг `--clobber` обязателен для предотвращения ошибок при повторных перезапусках workflow).*
+2. `actions/setup-node@v4` и `rust-toolchain@stable`.
+3. Скачивание `mpv_libs.zip` из релиза `deps-v1` и распаковка в `src-tauri/` и корень.
+4. Синхронизация версии из Git-тега в `package.json` и `Cargo.toml`.
+5. Сборка и публикация инсталлятора NSIS через `tauri-apps/tauri-action@v0`.
+6. Загрузка чистого портативного `l-mpv.exe` в релиз через `gh release upload`.
