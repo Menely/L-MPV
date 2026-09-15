@@ -65,8 +65,6 @@
     max-height: calc(100vh - 20px);
     overflow-y: auto;
     overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   }
   .context-menu__submenu {
     position: static;
@@ -86,8 +84,6 @@
     max-height: calc(100vh - 20px);
     overflow-y: auto;
     overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   }
   .context-menu__submenu {
     position: static;

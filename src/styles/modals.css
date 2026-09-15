@@ -93,10 +93,10 @@
 .modal__body {
   padding: 14px 18px;
   overflow-y: auto;
+  overflow-y: overlay;
+  scrollbar-gutter: stable;
   flex: 1;
   min-height: 0;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .modal__section {
@@ -466,5 +466,77 @@
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ─── Вкладки и анимация переключения категорий в настройках ─── */
+.settings-tabs {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: 6px;
+}
+
+.settings-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  border-radius: var(--radius-pill);
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.settings-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.settings-tab-btn:active {
+  transform: scale(0.96);
+}
+
+.settings-tab-btn--active {
+  color: var(--accent);
+  background: var(--accent-glass);
+  border-color: var(--border-pill);
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.settings-tab-btn--active svg {
+  color: var(--accent);
+}
+
+.settings-tab-content {
+  animation: settingsTabFadeIn var(--t-spring) var(--ease-spring-smooth);
+  will-change: transform, opacity;
+}
+
+@keyframes settingsTabFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 
 

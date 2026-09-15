@@ -177,6 +177,60 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [uiScale, setUiScale] = useState<{ mode: UiScaleMode; value: number }>(() => getSavedUiScale());
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "hotkeys" | "integration">("general");
 
+  // Навигация стрелками влево и вправо для переключения категорий настроек
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Игнорируем переключение, если идет запись горячей клавиши
+      if (recordingAction !== null) return;
+
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+
+      const tabs: ("general" | "appearance" | "presets" | "hotkeys" | "integration")[] = [
+        "general",
+        "appearance",
+        "presets",
+        "hotkeys",
+        "integration",
+      ];
+      const currentIndex = tabs.indexOf(activeTab);
+
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        const nextIndex = (currentIndex + 1) % tabs.length;
+        setActiveTab(tabs[nextIndex]);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        const prevIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        setActiveTab(tabs[prevIndex]);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [activeTab, recordingAction, onClose]);
+
   // Синхронизация локальных состояний SettingsModal при применении любого пресета
   const handlePresetApplied = useCallback((preset: SettingsPreset) => {
     const { data } = preset;
@@ -544,119 +598,33 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         </div>
 
         {/* Навигация по вкладкам */}
-        <div
-          className="settings-tabs"
-          style={{
-            display: "flex",
-            borderBottom: "1px solid var(--border)",
-            padding: "0 14px",
-            background: "rgba(0,0,0,0.15)",
-            flexShrink: 0,
-            overflowX: "auto",
-            scrollbarWidth: "none",
-          }}
-        >
-          <button
-            onClick={() => setActiveTab("general")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "12px 18px",
-              background: "transparent",
-              border: "none",
-              borderBottom: activeTab === "general" ? "2px solid var(--accent)" : "2px solid transparent",
-              color: activeTab === "general" ? "var(--text-primary)" : "var(--text-secondary)",
-              fontSize: "0.92rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all var(--t-fast) var(--ease-smooth)",
-            }}
-          >
-            <SlidersHorizontal size={17} /> Общие
-          </button>
-          <button
-            onClick={() => setActiveTab("appearance")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "12px 18px",
-              background: "transparent",
-              border: "none",
-              borderBottom: activeTab === "appearance" ? "2px solid var(--accent)" : "2px solid transparent",
-              color: activeTab === "appearance" ? "var(--text-primary)" : "var(--text-secondary)",
-              fontSize: "0.92rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all var(--t-fast) var(--ease-smooth)",
-            }}
-          >
-            <Palette size={17} /> Кастом
-          </button>
-          <button
-            onClick={() => setActiveTab("presets")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "12px 18px",
-              background: "transparent",
-              border: "none",
-              borderBottom: activeTab === "presets" ? "2px solid var(--accent)" : "2px solid transparent",
-              color: activeTab === "presets" ? "var(--text-primary)" : "var(--text-secondary)",
-              fontSize: "0.92rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all var(--t-fast) var(--ease-smooth)",
-            }}
-          >
-            <Sparkles size={17} /> Пресеты
-          </button>
-          <button
-            onClick={() => setActiveTab("hotkeys")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "12px 18px",
-              background: "transparent",
-              border: "none",
-              borderBottom: activeTab === "hotkeys" ? "2px solid var(--accent)" : "2px solid transparent",
-              color: activeTab === "hotkeys" ? "var(--text-primary)" : "var(--text-secondary)",
-              fontSize: "0.92rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all var(--t-fast) var(--ease-smooth)",
-            }}
-          >
-            <Keyboard size={17} /> Горячие клавиши
-          </button>
-          <button
-            onClick={() => setActiveTab("integration")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "12px 18px",
-              background: "transparent",
-              border: "none",
-              borderBottom: activeTab === "integration" ? "2px solid var(--accent)" : "2px solid transparent",
-              color: activeTab === "integration" ? "var(--text-primary)" : "var(--text-secondary)",
-              fontSize: "0.92rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all var(--t-fast) var(--ease-smooth)",
-            }}
-          >
-            <Link size={17} /> Интеграция
-          </button>
+        <div className="settings-tabs">
+          {[
+            { id: "general", label: "Общие", icon: SlidersHorizontal },
+            { id: "appearance", label: "Кастом", icon: Palette },
+            { id: "presets", label: "Пресеты", icon: Sparkles },
+            { id: "hotkeys", label: "Горячие клавиши", icon: Keyboard },
+            { id: "integration", label: "Интеграция", icon: Link },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
+              >
+                <Icon size={17} /> {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Тело модального окна */}
         <div className="modal__body" style={{ padding: "20px" }}>
-          {activeTab === "general" && (
-            <div className="modal__section" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div key={activeTab} className="settings-tab-content">
+            {activeTab === "general" && (
+              <div className="modal__section" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {/* 1. Папка сохранения скриншотов */}
               <AccordionSection
                 isOpen={!!openSections["gen_screenshots"]}
@@ -2333,6 +2301,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               </div>
             </div>
           )}
+          </div>
         </div>
 
         {/* Футер с версией приложения и проверкой обновлений */}
