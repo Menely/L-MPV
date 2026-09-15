@@ -6,6 +6,14 @@ import { StandaloneMediaInfoWindow } from "./components/StandaloneMediaInfoWindo
 import "./index.css";
 import { PlayerStateProvider } from "./contexts/PlayerStateContext";
 import { applyAccentColor } from "./utils/colorUtils";
+import {
+  applyUiRadius,
+  getSavedUiRadius,
+  applyUiScale,
+  getSavedUiScale,
+  applyUiOpacity,
+  getSavedUiOpacity,
+} from "./utils/uiThemeUtils";
 
 // Безопасное определение текущего окна Tauri (главное окно плеера или отдельное окно MediaInfo)
 const checkIsMediaInfoWindow = (): boolean => {
@@ -41,12 +49,28 @@ if (typeof document !== "undefined") {
     applyAccentColor(savedAccent);
   }
 
+  // Применение скругления интерфейса, масштаба и прозрачности при старте
+  const initialRadius = getSavedUiRadius();
+  applyUiRadius(initialRadius.level, initialRadius.value);
+  const initialScale = getSavedUiScale();
+  applyUiScale(initialScale.mode, initialScale.value);
+  applyUiOpacity(getSavedUiOpacity());
+
   // Применение настройки анимаций (по умолчанию включено)
   const syncAnimationsSetting = () => {
     const isOff = localStorage.getItem("l-mpv-animations-enabled") === "false";
     document.documentElement.classList.toggle("no-animations", isOff);
   };
   syncAnimationsSetting();
+
+  const syncAllVisualSettings = () => {
+    syncAnimationsSetting();
+    const curRadius = getSavedUiRadius();
+    applyUiRadius(curRadius.level, curRadius.value);
+    const curScale = getSavedUiScale();
+    applyUiScale(curScale.mode, curScale.value);
+    applyUiOpacity(getSavedUiOpacity());
+  };
 
   window.addEventListener("storage", (e) => {
     if (e.key === "l-mpv-animations-enabled") {
@@ -56,8 +80,19 @@ if (typeof document !== "undefined") {
       const cur = localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
       if (cur !== "windows") applyAccentColor(cur);
     }
+    if (e.key === "l-mpv-ui-radius" || e.key === "l-mpv-ui-radius-value") {
+      const curRadius = getSavedUiRadius();
+      applyUiRadius(curRadius.level, curRadius.value);
+    }
+    if (e.key === "l-mpv-ui-scale-mode" || e.key === "l-mpv-ui-scale-value") {
+      const curScale = getSavedUiScale();
+      applyUiScale(curScale.mode, curScale.value);
+    }
+    if (e.key === "l-mpv-ui-opacity") {
+      applyUiOpacity(getSavedUiOpacity());
+    }
   });
-  window.addEventListener("l-mpv-settings-changed", syncAnimationsSetting);
+  window.addEventListener("l-mpv-settings-changed", syncAllVisualSettings);
 
   // Предотвращение вызова стандартного контекстного меню движка WebView2
   window.addEventListener("contextmenu", (e) => {

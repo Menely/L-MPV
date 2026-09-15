@@ -19,6 +19,14 @@ import {
   saveVisualizerConfig,
 } from "../components/AudioVisualizer";
 import { getCustomHotkeys, saveCustomHotkeys } from "./hotkeyUtils";
+import {
+  UiRadiusLevel,
+  getSavedUiRadius,
+  saveUiRadius,
+  UiScaleMode,
+  getSavedUiScale,
+  saveUiScale,
+} from "./uiThemeUtils";
 
 export interface SettingsPresetData {
   /** Акцентный цвет (HEX или "windows") */
@@ -27,6 +35,13 @@ export interface SettingsPresetData {
   glowIntensity: GlowIntensity;
   /** Прозрачность интерфейса (0.2 - 1.0) */
   uiOpacity: number;
+  /** Уровень скругления интерфейса */
+  uiRadius?: UiRadiusLevel | { level: UiRadiusLevel; value?: number };
+  /** Масштаб интерфейса */
+  uiScale?: {
+    mode: UiScaleMode;
+    value?: number;
+  };
   /** Включение плавных пружинящих анимаций */
   animationsEnabled: boolean;
   /** Отображение названий аудио- и субтитров на панели */
@@ -300,6 +315,8 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
   const hotloadEnabled = localStorage.getItem("l-mpv-hotload-enabled") === "true";
   const skipOpeningSeconds = Number(localStorage.getItem("l-mpv-skip-opening-seconds") || 90);
   const customHotkeys = getCustomHotkeys();
+  const uiRadius = getSavedUiRadius();
+  const uiScale = getSavedUiScale();
 
   return {
     id: `preset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -310,6 +327,8 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
       accentColor,
       glowIntensity,
       uiOpacity,
+      uiRadius,
+      uiScale,
       animationsEnabled,
       showTrackNames,
       visibleButtons,
@@ -355,6 +374,20 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   if (typeof data.uiOpacity === "number") {
     localStorage.setItem("l-mpv-ui-opacity", data.uiOpacity.toString());
     document.documentElement.style.setProperty("--ui-opacity", data.uiOpacity.toString());
+  }
+
+  // 3.1 Скругление интерфейса
+  if (data.uiRadius) {
+    if (typeof data.uiRadius === "string") {
+      saveUiRadius(data.uiRadius);
+    } else {
+      saveUiRadius(data.uiRadius.level, data.uiRadius.value);
+    }
+  }
+
+  // 3.2 Масштаб интерфейса
+  if (data.uiScale) {
+    saveUiScale(data.uiScale.mode, data.uiScale.value);
   }
 
   // 4. Плавные анимации
