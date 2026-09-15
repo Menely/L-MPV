@@ -85,9 +85,27 @@ pub fn switch_upscale_network_hotkey(
     controller::switch_upscale_network_hotkey_impl(&state, slot, backend)
 }
 
+/// Предварительная фоновая компиляция TensorRT .engine для конкретной модели под 1080p
+#[tauri::command]
+pub async fn precompile_model_engine_1080p(
+    slot: u32,
+    filename: String,
+) -> Result<String, String> {
+    controller::precompile_model_engine_1080p_impl(slot, filename).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_crc32_algorithm() {
+        use config::crc32_ieee;
+        let test_stem = "2x_AnimeJaNai_V2_Compact_36k";
+        let crc = crc32_ieee(test_stem.as_bytes());
+        // Должен точно совпадать с хешем в aji_trt.dll (0xcff3dc28)
+        assert_eq!(crc, 0xcff3dc28);
+    }
 
     #[test]
     fn test_gpu_detection() {

@@ -4,6 +4,7 @@ export interface ModelFileItem {
   size_bytes: number;
   slot: number;
   full_path: string;
+  has_engine_1080p?: boolean;
 }
 
 export interface GpuHardwareInfo {

@@ -15,6 +15,8 @@ pub struct ModelFileItem {
     pub slot: u32,
     /// Полный абсолютный путь к файлу модели
     pub full_path: String,
+    /// Флаг наличия скомпилированного TensorRT .engine для 1080p разрешения
+    pub has_engine_1080p: bool,
 }
 
 /// Настройки апскейлинга, передаваемые между фронтендом и бэкендом

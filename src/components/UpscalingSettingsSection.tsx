@@ -8,6 +8,7 @@ import {
   Layers,
   Keyboard,
   X,
+  RefreshCw,
 } from "lucide-react";
 import {
   getCustomHotkeys,
@@ -39,6 +40,7 @@ export const UpscalingSettingsSection: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [isDownloadingEngine, setIsDownloadingEngine] = useState<boolean>(false);
   const [isDeletingEngine, setIsDeletingEngine] = useState<boolean>(false);
+  const [compilingModel, setCompilingModel] = useState<string | null>(null);
   const [engineSuccessMessage, setEngineSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [downloadProgressText, setDownloadProgressText] = useState<string | null>(null);
@@ -273,6 +275,28 @@ export const UpscalingSettingsSection: React.FC = () => {
     }
   };
 
+  // Фоновая предварительная компиляция TensorRT .engine для 1080p
+  const handlePrecompileModel = async (model: ModelFileItem) => {
+    if (compilingModel) return;
+    setCompilingModel(model.filename);
+    setErrorMessage(null);
+    setEngineSuccessMessage(null);
+    try {
+      const res = await invoke<string>("precompile_model_engine_1080p", {
+        slot: model.slot,
+        filename: model.filename,
+      });
+      setEngineSuccessMessage(res || "Модель успешно оптимизирована для 1080p!");
+      await refreshStatus();
+    } catch (err) {
+      console.error("Ошибка компиляции модели:", err);
+      setErrorMessage(`Ошибка компиляции модели: ${err}`);
+    } finally {
+      setCompilingModel(null);
+    }
+  };
+
+
   // Назначение горячей клавиши для модели
   const handleKeyRecord = (e: React.KeyboardEvent, actionId: string) => {
     e.preventDefault();
@@ -498,11 +522,95 @@ export const UpscalingSettingsSection: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Кнопка настройки горячей клавиши (бинда) прямо в строке модели */}
+                  {/* Блок предкомпиляции 1080p для NVIDIA TensorRT и кнопка горячей клавиши */}
                   <div
-                    style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}
                     onClick={(e) => e.stopPropagation()}
                   >
+                    {status?.gpu_info?.supports_tensorrt && (
+                      <div>
+                        {model.has_engine_1080p ? (
+                          <span
+                            title="Движок TensorRT (.engine) уже скомпилирован под разрешение 1080p — включение будет мгновенным"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 5,
+                              padding: "4px 8px",
+                              borderRadius: "var(--radius-sm)",
+                              background: "rgba(46, 204, 113, 0.12)",
+                              border: "1px solid rgba(46, 204, 113, 0.3)",
+                              color: "#2ecc71",
+                              fontSize: "0.74rem",
+                              fontWeight: 600,
+                              userSelect: "none",
+                            }}
+                          >
+                            <CheckCircle2 size={13} />
+                            1080p готов
+                          </span>
+                        ) : compilingModel === model.filename ? (
+                          <button
+                            type="button"
+                            disabled
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              padding: "4px 10px",
+                              borderRadius: "var(--radius-sm)",
+                              background: "rgba(127, 199, 255, 0.2)",
+                              border: "1px solid var(--accent)",
+                              color: "var(--accent)",
+                              fontSize: "0.75rem",
+                              fontWeight: 600,
+                              cursor: "wait",
+                            }}
+                          >
+                            <RefreshCw size={12} className="spin" />
+                            Сборка 1080p...
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handlePrecompileModel(model)}
+                            disabled={!!compilingModel}
+                            title="Скомпилировать TensorRT движок под 1080p заранее, чтобы при первом запуске не было пауз"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 5,
+                              padding: "4px 10px",
+                              borderRadius: "var(--radius-sm)",
+                              background: "rgba(255, 255, 255, 0.06)",
+                              border: "1px solid var(--border-pill)",
+                              color: "var(--text-secondary)",
+                              fontSize: "0.75rem",
+                              fontWeight: 500,
+                              cursor: compilingModel ? "default" : "pointer",
+                              opacity: compilingModel ? 0.5 : 1,
+                              transition: "all 0.15s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!compilingModel) {
+                                e.currentTarget.style.color = "var(--text-primary)";
+                                e.currentTarget.style.borderColor = "var(--accent)";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!compilingModel) {
+                                e.currentTarget.style.color = "var(--text-secondary)";
+                                e.currentTarget.style.borderColor = "var(--border-pill)";
+                              }
+                            }}
+                          >
+                            <Zap size={12} color="var(--accent)" />
+                            1080p сборка
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     <button
                       type="button"
                       tabIndex={0}

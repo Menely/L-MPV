@@ -89,6 +89,38 @@ pub fn get_upscale_conf_path() -> PathBuf {
     cfg_dir.join("upscale.conf")
 }
 
+/// Вычисление контрольной суммы CRC32 по стандарту IEEE 802.3
+pub fn crc32_ieee(data: &[u8]) -> u32 {
+    let mut crc: u32 = 0xFFFF_FFFF;
+    for &byte in data {
+        crc ^= byte as u32;
+        for _ in 0..8 {
+            crc = if crc & 1 != 0 {
+                (crc >> 1) ^ 0xEDB8_8320
+            } else {
+                crc >> 1
+            };
+        }
+    }
+    !crc
+}
+
+/// Проверка наличия скомпилированного движка TensorRT (.engine) для модели в каталоге
+pub fn has_compiled_engine_for_model(models_dir: &std::path::Path, model_stem: &str) -> bool {
+    let crc = crc32_ieee(model_stem.as_bytes());
+    let prefix = format!("aji-{:08x}.", crc);
+
+    if let Ok(entries) = fs::read_dir(models_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with(&prefix) && name.ends_with(".engine") {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Сканирует папку `models/onnx/` и формирует список моделей
 pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
     let models_dir = get_models_dir();
@@ -115,10 +147,12 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
 
-            let display_name = filename
+            let model_stem = filename
                 .strip_suffix(".onnx")
                 .or_else(|| filename.strip_suffix(".ONNX"))
-                .unwrap_or(&filename)
+                .unwrap_or(&filename);
+
+            let display_name = model_stem
                 .replace('_', " ")
                 .replace('-', " ");
 
@@ -129,12 +163,15 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
             // Генерируем уникальный слот: от 2000 до 9999 (чтобы не пересекаться со слотами 10xx)
             let slot = (hasher.finish() % 8000 + 2000) as u32;
 
+            let has_engine_1080p = has_compiled_engine_for_model(&models_dir, model_stem);
+
             items.push(ModelFileItem {
                 filename,
                 display_name,
                 size_bytes,
                 slot,
                 full_path: path.to_string_lossy().to_string(),
+                has_engine_1080p,
             });
         }
     }
