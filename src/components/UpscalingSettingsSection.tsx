@@ -3,14 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   Zap,
   FolderOpen,
-  Download,
   CheckCircle2,
-  Cpu,
   Layers,
-  RefreshCw,
   Info,
   Keyboard,
-  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -18,43 +14,20 @@ import {
   saveCustomHotkeys,
   getKeyDisplay,
 } from "../utils/hotkeyUtils";
+import {
+  ModelFileItem,
+  GpuHardwareInfo,
+  UpscaleStatus,
+  UpscaleSettings,
+} from "./upscale/types";
+import { BackendSelector } from "./upscale/BackendSelector";
 
-export interface ModelFileItem {
-  filename: string;
-  display_name: string;
-  size_bytes: number;
-  slot: number;
-  full_path: string;
-}
-
-export interface GpuHardwareInfo {
-  name: string;
-  vendor: string;
-  vendor_id: number;
-  device_id: number;
-  recommended_backend: "TensorRT" | "DirectML";
-  supports_tensorrt: boolean;
-  sm_architecture: string;
-  vram_bytes: number;
-}
-
-export interface UpscaleStatus {
-  filter_supported: boolean;
-  aji_present: boolean;
-  directml_present: boolean;
-  tensorrt_present: boolean;
-  models_count: number;
-  models_dir: string;
-  models: ModelFileItem[];
-  gpu_info?: GpuHardwareInfo;
-}
-
-export interface UpscaleSettings {
-  mode: "off" | "ai";
-  active_slot: number;
-  backend: "DirectML" | "TensorRT";
-  selected_model: string;
-}
+export type {
+  ModelFileItem,
+  GpuHardwareInfo,
+  UpscaleStatus,
+  UpscaleSettings,
+};
 
 
 
@@ -269,11 +242,7 @@ export const UpscalingSettingsSection: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
-  const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
-  const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
   const isAiActive = settings.mode === "ai";
-  const isCurrentBackendInstalled = settings.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
-  const isAnyEnginePresent = isDmlInstalled || isTrtInstalled;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -336,292 +305,20 @@ export const UpscalingSettingsSection: React.FC = () => {
       </div>
 
       {/* 2. Настройка бэкенда инференса (DirectML / TensorRT) и скачивание движка */}
-      <div
-        style={{
-          background: "rgba(255, 255, 255, 0.03)",
-          border: "1px solid var(--border-pill)",
-          borderRadius: "var(--radius-lg)",
-          padding: "16px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <div>
-            <h3 style={{ fontSize: "1.02rem", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
-              <Cpu size={17} color="var(--accent)" /> Движок инференса (Backend)
-            </h3>
-            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 2 }}>
-              Библиотеки выполнения нейросетей (aji.dll, DirectML, OnnxRuntime, TensorRT)
-            </p>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {/* Лаконичная кнопка папки без лишнего текста */}
-            <button
-              type="button"
-              onClick={handleOpenInferenceFolder}
-              title="Открыть папку движков инференса в Проводнике"
-              style={{
-                padding: "8px 10px",
-                borderRadius: "var(--radius-md)",
-                background: "rgba(255, 255, 255, 0.06)",
-                border: "1px solid var(--border-pill)",
-                color: "var(--text-primary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <FolderOpen size={16} />
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDownloadEngine}
-              disabled={isDownloadingEngine || isCurrentBackendInstalled}
-              title={isCurrentBackendInstalled ? "Движок уже установлен" : "Скачать или обновить файлы библиотек движка инференса"}
-              style={{
-                padding: "8px 14px",
-                borderRadius: "var(--radius-md)",
-                background: isCurrentBackendInstalled ? "rgba(255, 255, 255, 0.06)" : "var(--accent)",
-                border: isCurrentBackendInstalled ? "1px solid var(--border-pill)" : "none",
-                color: isCurrentBackendInstalled ? "var(--text-muted)" : "#000",
-                fontSize: "0.82rem",
-                fontWeight: 600,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                cursor: (isDownloadingEngine || isCurrentBackendInstalled) ? "default" : "pointer",
-                opacity: (isDownloadingEngine || isCurrentBackendInstalled) ? 0.5 : 1,
-              }}
-            >
-              {isDownloadingEngine ? <RefreshCw size={15} className="spin" /> : <Download size={15} />}
-              {isDownloadingEngine ? "Загрузка..." : isCurrentBackendInstalled ? "Установлен" : "Скачать движок"}
-            </button>
-
-            {isAnyEnginePresent && (
-              <button
-                type="button"
-                onClick={handleDeleteEngine}
-                disabled={isDeletingEngine}
-                title="Удалить все файлы движка инференса из папки inference/"
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: "var(--radius-md)",
-                  background: "rgba(231, 76, 60, 0.12)",
-                  border: "1px solid rgba(231, 76, 60, 0.3)",
-                  color: "#e74c3c",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: isDeletingEngine ? "wait" : "pointer",
-                  opacity: isDeletingEngine ? 0.6 : 1,
-                  transition: "all 0.15s ease",
-                }}
-              >
-                {isDeletingEngine ? <RefreshCw size={14} className="spin" /> : <Trash2 size={14} />}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Блок обнаруженной видеокарты (GPU) */}
-        {status?.gpu_info && (
-          <div
-            style={{
-              padding: "10px 14px",
-              borderRadius: "var(--radius-md)",
-              background: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid var(--border-pill)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 8,
-              fontSize: "0.82rem",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Cpu size={16} color="var(--accent)" />
-              <span style={{ color: "var(--text-primary)" }}>
-                <strong>Видеокарта:</strong> {status.gpu_info.name}
-                {status.gpu_info.vram_bytes > 0 && (
-                  <span style={{ color: "var(--text-muted)", marginLeft: 6 }}>
-                    ({(status.gpu_info.vram_bytes / (1024 * 1024 * 1024)).toFixed(1)} ГБ VRAM)
-                  </span>
-                )}
-              </span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ color: "var(--text-muted)" }}>Рекомендуется:</span>
-              <span
-                style={{
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  background:
-                    status.gpu_info.recommended_backend === "TensorRT"
-                      ? "rgba(118, 185, 0, 0.15)"
-                      : "rgba(127, 199, 255, 0.15)",
-                  color:
-                    status.gpu_info.recommended_backend === "TensorRT"
-                      ? "#76b900"
-                      : "var(--accent)",
-                  fontWeight: 600,
-                  fontSize: "0.78rem",
-                }}
-              >
-                {status.gpu_info.recommended_backend}{" "}
-                {status.gpu_info.supports_tensorrt ? `(${status.gpu_info.sm_architecture})` : ""}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Индикатор этапа загрузки библиотек */}
-        {isDownloadingEngine && downloadProgressText && (
-          <div
-            style={{
-              padding: "10px 14px",
-              borderRadius: "var(--radius-md)",
-              background: "rgba(127, 199, 255, 0.1)",
-              border: "1px solid rgba(127, 199, 255, 0.3)",
-              color: "var(--accent)",
-              fontSize: "0.82rem",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <RefreshCw size={15} className="spin" />
-            <span>{downloadProgressText}</span>
-          </div>
-        )}
-
-        {engineSuccessMessage && (
-          <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(46, 204, 113, 0.15)", border: "1px solid rgba(46, 204, 113, 0.3)", color: "#2ecc71", fontSize: "0.82rem" }}>
-            {engineSuccessMessage}
-          </div>
-        )}
-
-        {errorMessage && (
-          <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(231, 76, 60, 0.15)", border: "1px solid rgba(231, 76, 60, 0.3)", color: "#e74c3c", fontSize: "0.82rem" }}>
-            {errorMessage}
-          </div>
-        )}
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {/* Карточка DirectML */}
-          <div
-            onClick={() => updateSettings({ backend: "DirectML" })}
-            style={{
-              padding: "12px 14px",
-              borderRadius: "var(--radius-md)",
-              border: `1px solid ${settings.backend === "DirectML" ? "var(--accent)" : "var(--border-pill)"}`,
-              background: settings.backend === "DirectML" ? "rgba(127, 199, 255, 0.08)" : "rgba(0, 0, 0, 0.2)",
-              cursor: "pointer",
-              transition: "all 0.18s ease",
-              position: "relative",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>DirectML</span>
-                <span
-                  style={{
-                    fontSize: "0.72rem",
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    background: isDmlInstalled ? "rgba(46, 204, 113, 0.15)" : "rgba(230, 126, 34, 0.15)",
-                    color: isDmlInstalled ? "#2ecc71" : "#e67e22",
-                    fontWeight: 600,
-                  }}
-                >
-                  {isDmlInstalled ? "Установлен" : "Не установлен"}
-                </span>
-                {status?.gpu_info && !status.gpu_info.supports_tensorrt && (
-                  <span
-                    style={{
-                      fontSize: "0.7rem",
-                      padding: "1px 5px",
-                      borderRadius: 3,
-                      background: "rgba(127, 199, 255, 0.15)",
-                      color: "var(--accent)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Рекомендуется
-                  </span>
-                )}
-              </div>
-              {settings.backend === "DirectML" && <CheckCircle2 size={16} color="var(--accent)" />}
-            </div>
-            <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.3 }}>
-              Универсальный DirectX 12 для любого GPU (AMD, Intel, NVIDIA). Высокая совместимость.
-            </p>
-          </div>
-
-          {/* Карточка TensorRT */}
-          <div
-            onClick={() => {
-              if (status?.gpu_info && !status.gpu_info.supports_tensorrt) {
-                setErrorMessage("Движок TensorRT доступен исключительно для видеокарт NVIDIA RTX/GTX. Для вашей видеокарты используется DirectML.");
-                return;
-              }
-              updateSettings({ backend: "TensorRT" });
-            }}
-            style={{
-              padding: "12px 14px",
-              borderRadius: "var(--radius-md)",
-              border: `1px solid ${settings.backend === "TensorRT" ? "var(--accent)" : "var(--border-pill)"}`,
-              background: settings.backend === "TensorRT" ? "rgba(127, 199, 255, 0.08)" : "rgba(0, 0, 0, 0.2)",
-              cursor: status?.gpu_info && !status.gpu_info.supports_tensorrt ? "not-allowed" : "pointer",
-              opacity: status?.gpu_info && !status.gpu_info.supports_tensorrt ? 0.6 : 1,
-              transition: "all 0.18s ease",
-              position: "relative",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>TensorRT (NVIDIA)</span>
-                <span
-                  style={{
-                    fontSize: "0.72rem",
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    background: isTrtInstalled ? "rgba(46, 204, 113, 0.15)" : "rgba(230, 126, 34, 0.15)",
-                    color: isTrtInstalled ? "#2ecc71" : "#e67e22",
-                    fontWeight: 600,
-                  }}
-                >
-                  {isTrtInstalled ? "Установлен" : "Не установлен"}
-                </span>
-                {status?.gpu_info?.supports_tensorrt && (
-                  <span
-                    style={{
-                      fontSize: "0.7rem",
-                      padding: "1px 5px",
-                      borderRadius: 3,
-                      background: "rgba(118, 185, 0, 0.18)",
-                      color: "#76b900",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Рекомендуется
-                  </span>
-                )}
-              </div>
-              {settings.backend === "TensorRT" && <CheckCircle2 size={16} color="var(--accent)" />}
-            </div>
-            <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.3 }}>
-              Максимальная скорость для карт NVIDIA RTX через скомпилированные TensorRT .engine.
-            </p>
-          </div>
-        </div>
-      </div>
+      <BackendSelector
+        status={status}
+        settings={settings}
+        isDownloadingEngine={isDownloadingEngine}
+        isDeletingEngine={isDeletingEngine}
+        downloadProgressText={downloadProgressText}
+        engineSuccessMessage={engineSuccessMessage}
+        errorMessage={errorMessage}
+        onUpdateSettings={updateSettings}
+        onOpenInferenceFolder={handleOpenInferenceFolder}
+        onDownloadEngine={handleDownloadEngine}
+        onDeleteEngine={handleDeleteEngine}
+        onError={(msg) => setErrorMessage(msg)}
+      />
 
       {/* 3. Универсальная библиотека ONNX-моделей (`models/onnx/`) с биндом клавиш */}
       <div

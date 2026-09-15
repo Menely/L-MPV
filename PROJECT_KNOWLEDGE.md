@@ -41,8 +41,11 @@ L-MPV/
 │   │   ├── Titlebar.tsx                  # Шапка окна (логотип, по центру название файла, кнопки окна)
 │   │   ├── PlayerControls.tsx            # Нижняя плавающая «таблетка» управления (смена дорожек, скачивание, скриншот, плейлист, скорость)
 │   │   ├── ContextMenu.tsx               # Кастомное ПКМ-меню (дорожки со скачиванием, скорость, вид, масштабирование, поворот, подсветка)
-│   │   ├── SettingsModal.tsx             # Модальное окно настроек (скриншоты, цвета, подсветка, апскейлинг, бинды, интеграция)
 │   │   ├── UpscalingSettingsSection.tsx  # Модуль управления 4K AI апскейлингом (Выкл / AI, DirectML / TensorRT, библиотека ONNX моделей, скачивание)
+│   │   ├── upscale/                      # Модульные подкомпоненты апскейлинга:
+│   │   │   ├── types.ts                  # Интерфейсы моделей данных
+│   │   │   ├── GpuHardwareCard.tsx       # Информационная карточка обнаруженного GPU (VRAM, рекомендации)
+│   │   │   └── BackendSelector.tsx       # Селектор DirectML / TensorRT, кнопки скачивания, удаления, прогресс
 │   │   ├── ColorSchemeSection.tsx        # Модуль цветового оформления плеера (7 кинематографичных тем, акценты, неоновый глоу, предпросмотр)
 │   │   ├── ColorPickerModal.tsx          # Кастомное модальное окно выбора цвета (круг спектра HSV/RGB/HEX, слайдер яркости, палитра)
 │   │   ├── MediaInfoModal.tsx            # Компактное окно технической информации о медиафайле
@@ -83,8 +86,13 @@ L-MPV/
 │   ├── capabilities/default.json         # Разрешения Tauri (окна, opener, dialog)
 │   ├── src/
 │   │   ├── main.rs                       # Входная точка приложения
-│   │   ├── lib.rs                        # Настройка Tauri, HWND (`wid`), фокус, предсоздание окна MediaInfo, реестр IPC-команд
-│   │   ├── upscale.rs                    # Модуль 4K AI апскейлинга: сканирование models/onnx/, DirectML/TensorRT, конфиг upscale.conf, IPC
+│   │   ├── upscale/                      # Модульная подсистема 4K AI апскейлинга:
+│   │   │   ├── mod.rs                    # Единая точка входа, IPC-команды, unit-тесты
+│   │   │   ├── types.rs                  # Модели данных: ModelFileItem, UpscaleSettings, UpscaleStatus, GpuHardwareInfo
+│   │   │   ├── hardware.rs               # Аппаратный анализ GPU через DXGI, определение SM-архитектуры
+│   │   │   ├── config.rs                 # Пути каталогов, окружение DLL, сканирование models/onnx, генерация upscale.conf
+│   │   │   ├── downloader.rs             # Загрузчик DirectML/TensorRT, распаковка архивов tar.exe, очистка
+│   │   │   └── controller.rs             # Применение настроек к libmpv, переключение по хоткеям, перерисовка кадров
 │   │   ├── ambient.rs                    # Контроллер подсветки черных полос (Ambient Light: GPU Blur / Color / Off)
 │   │   ├── audio_capture.rs              # Нативный захват звука WASAPI Loopback, быстрый БПФ (FFT Radix-2), 32 логарифмические полосы
 │   │   ├── mediainfo.rs                  # FFI-интеграция с mediainfo.dll и управление независимым окном MediaInfo

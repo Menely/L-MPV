@@ -1,0 +1,84 @@
+//! Модели данных и структуры параметров подсистемы апскейлинга (AI Upscaling).
+
+use serde::{Deserialize, Serialize};
+
+/// Метаданные отдельного файла ONNX-модели в библиотеке
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelFileItem {
+    /// Имя файла модели (например, `2x_AnimeJaNai_HD_V3.1_Balanced.onnx`)
+    pub filename: String,
+    /// Отображаемое читаемое наименование модели
+    pub display_name: String,
+    /// Размер файла в байтах
+    pub size_bytes: u64,
+    /// Назначенный номер слота фильтра инференса (от 1001 до 9999)
+    pub slot: u32,
+    /// Полный абсолютный путь к файлу модели
+    pub full_path: String,
+}
+
+/// Настройки апскейлинга, передаваемые между фронтендом и бэкендом
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpscaleSettings {
+    /// Режим работы: "off" (выключен) или "ai" (активен)
+    pub mode: String,
+    /// Активный слот фильтра для инференса (по умолчанию 1001)
+    pub active_slot: u32,
+    /// Выбранный движок инференса: "DirectML" или "TensorRT"
+    pub backend: String,
+    /// Выбранный файл модели для активного слота
+    pub selected_model: String,
+}
+
+impl Default for UpscaleSettings {
+    fn default() -> Self {
+        Self {
+            mode: "off".to_string(),
+            active_slot: 1001,
+            backend: "DirectML".to_string(),
+            selected_model: String::new(),
+        }
+    }
+}
+
+/// Аппаратные характеристики обнаруженного графического адаптера (GPU)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GpuHardwareInfo {
+    /// Полное наименование видеокарты (например, "NVIDIA GeForce RTX 5070 Ti")
+    pub name: String,
+    /// Производитель ("NVIDIA" | "AMD" | "Intel" | "Microsoft" | "Unknown")
+    pub vendor: String,
+    /// Идентификатор производителя (PCI Vendor ID, например 0x10DE)
+    pub vendor_id: u32,
+    /// Идентификатор графического чипа (Device ID)
+    pub device_id: u32,
+    /// Рекомендуемый движок апскейлинга ("TensorRT" для NVIDIA, "DirectML" для AMD/Intel)
+    pub recommended_backend: String,
+    /// Поддержка аппаратно-программного стека NVIDIA TensorRT
+    pub supports_tensorrt: bool,
+    /// Архитектура шейдерных блоков NVIDIA ("sm120", "sm89", "sm86", "sm80", "sm75", "ptx")
+    pub sm_architecture: String,
+    /// Объем выделенной видеопамяти (VRAM) в байтах
+    pub vram_bytes: u64,
+}
+
+/// Полный статус подсистемы апскейлинга и доступных компонентов
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpscaleStatus {
+    /// Поддерживается ли нативный фильтр инференса в libmpv-2.dll
+    pub filter_supported: bool,
+    /// Наличие бинарного моста инференса aji.dll
+    pub aji_present: bool,
+    /// Наличие полного набора библиотек DirectML (DirectML.dll, onnxruntime.dll, aji_dml.dll)
+    pub directml_present: bool,
+    /// Наличие полного набора библиотек NVIDIA TensorRT (aji_trt.dll, nvinfer_11.dll)
+    pub tensorrt_present: bool,
+    /// Количество обнаруженных ONNX моделей в папке models/onnx/
+    pub models_count: usize,
+    /// Путь к каталогу моделей
+    pub models_dir: String,
+    /// Список обнаруженных файлов моделей
+    pub models: Vec<ModelFileItem>,
+    /// Аппаратная информация об установленном видеоадаптере (GPU)
+    pub gpu_info: GpuHardwareInfo,
+}
