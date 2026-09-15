@@ -402,3 +402,26 @@
     transform: translate(-50%, 0) scale(1);
   }
 }
+
+/* Кнопки действий карточки (компактный столбик справа) */
+.preset-card__actions-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-width: 105px;
+}
+
+.preset-card__actions-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.preset-action-btn--icon {
+  padding: 5px 8px;
+  min-width: 28px;
+  height: 28px;
+}

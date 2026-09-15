@@ -17,6 +17,7 @@ import {
   Sun,
   ChevronDown,
   FolderOpen,
+  Keyboard,
 } from "lucide-react";
 import {
   SettingsPreset,
@@ -30,6 +31,7 @@ import {
   importPresetsFromNativeDialog,
   openPresetsFolder,
 } from "../utils/presetsUtils";
+import { PLAYER_THEMES, PlayerThemeId } from "../utils/colorUtils";
 
 interface PresetsSectionProps {
   /** Опциональный callback при применении пресета для внешних обработчиков */
@@ -45,7 +47,6 @@ interface PresetsSectionProps {
  */
 export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied }) => {
   const [userPresets, setUserPresets] = useState<SettingsPreset[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
   const [newPresetName, setNewPresetName] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
@@ -77,12 +78,10 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       .then((presets) => {
         if (isMountedRef.current) {
           setUserPresets(presets);
-          setLoading(false);
         }
       })
       .catch((err) => {
         console.error("Ошибка загрузки пресетов:", err);
-        if (isMountedRef.current) setLoading(false);
       });
 
     // Автоматическая синхронизация при возврате фокуса в окно L-MPV (например, после изменения файлов в Проводнике)
@@ -285,33 +284,82 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     const { data } = preset;
     const isWindows = data.accentColor === "windows";
     const colorHex = isWindows ? "#7fc7ff" : data.accentColor;
+    const themeConfig = data.playerTheme ? PLAYER_THEMES[data.playerTheme as PlayerThemeId] : null;
+
+    // Определение описания скругления
+    let radiusText = "";
+    if (data.uiRadius) {
+      if (typeof data.uiRadius === "string") {
+        const rStr = data.uiRadius as string;
+        radiusText =
+          rStr === "none"
+            ? "Скругление: 0px"
+            : rStr === "minimal"
+            ? "Скругление: 4px"
+            : rStr === "default"
+            ? "Скругление: 10px"
+            : rStr === "smooth"
+            ? "Скругление: 16px"
+            : rStr === "pill"
+            ? "Скругление: 24px"
+            : `Скругление: ${rStr}`;
+      } else {
+        radiusText = `Скругление: ${data.uiRadius.value ?? 10}px`;
+      }
+    }
+
+    // Определение масштаба
+    const scaleValue = data.uiScale?.value ?? 1.0;
+    const scaleText = Math.round(scaleValue * 100) !== 100 ? `Масштаб: ${Math.round(scaleValue * 100)}%` : null;
+
+    // Количество хоткеев
+    const hotkeyCount = data.customHotkeys ? Object.keys(data.customHotkeys).length : 0;
 
     return (
       <div className="preset-card__tags">
-        <div className="preset-tag" title={`Цвет: ${data.accentColor}`}>
-          <span
-            className="preset-tag__color-dot"
-            style={{
-              backgroundColor: colorHex,
-              boxShadow: data.glowIntensity !== "off" ? `0 0 6px ${colorHex}` : "none",
-            }}
-          />
-          <span>{isWindows ? "Windows" : data.accentColor.toUpperCase()}</span>
-        </div>
+        {/* 1. Тема плеера (расцветка фона) */}
+        {themeConfig && (
+          <div className="preset-tag" title={`Тема плеера: ${themeConfig.name}`}>
+            <span
+              className="preset-tag__color-dot"
+              style={{
+                backgroundColor: themeConfig.dotColor,
+                border: "1.5px solid rgba(255, 255, 255, 0.35)",
+              }}
+            />
+            <span>Тема: {themeConfig.name}</span>
+          </div>
+        )}
 
+        {/* 2. Акцентный цвет */}
+        {data.accentColor && (
+          <div className="preset-tag" title={`Акцентный цвет: ${data.accentColor}`}>
+            <span
+              className="preset-tag__color-dot"
+              style={{
+                backgroundColor: colorHex,
+                boxShadow: data.glowIntensity && data.glowIntensity !== "off" ? `0 0 6px ${colorHex}` : "none",
+              }}
+            />
+            <span>{isWindows ? "Windows" : data.accentColor.toUpperCase()}</span>
+          </div>
+        )}
+
+        {/* 3. Интенсивность неонового свечения */}
         {data.glowIntensity && data.glowIntensity !== "off" && (
           <div className="preset-tag" title="Интенсивность неонового свечения">
             <Sparkles size={11} color="var(--accent)" />
             <span>
               {data.glowIntensity === "soft"
-                ? "Мягкое"
+                ? "Мягкое свечение"
                 : data.glowIntensity === "medium"
                 ? "Баланс"
-                : "Интенсивное"}
+                : "Cyber Intense"}
             </span>
           </div>
         )}
 
+        {/* 4. Ambient Light */}
         {data.ambient && (
           <div className="preset-tag" title="Подсветка полос (Ambient Light)">
             <Sun size={11} />
@@ -325,8 +373,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           </div>
         )}
 
+        {/* 5. Аудио-визуалайзер */}
         {data.visualizer && (
-          <div className="preset-tag" title="Аудио-визуализатор">
+          <div className="preset-tag" title="Аудио-визуалайзер">
             <AudioWaveform size={11} />
             <span>
               {data.visualizer.enabled && data.visualizer.placement !== "off"
@@ -336,10 +385,35 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           </div>
         )}
 
+        {/* 6. Прозрачность UI */}
         {typeof data.uiOpacity === "number" && data.uiOpacity < 1 && (
           <div className="preset-tag" title="Прозрачность интерфейса">
             <Eye size={11} />
             <span>{Math.round(data.uiOpacity * 100)}%</span>
+          </div>
+        )}
+
+        {/* 7. Скругление углов */}
+        {radiusText && (
+          <div className="preset-tag" title="Скругление углов элементов">
+            <SlidersHorizontal size={11} />
+            <span>{radiusText}</span>
+          </div>
+        )}
+
+        {/* 8. Масштаб интерфейса (если не 100%) */}
+        {scaleText && (
+          <div className="preset-tag" title="Масштаб интерфейса">
+            <Layers size={11} />
+            <span>{scaleText}</span>
+          </div>
+        )}
+
+        {/* 9. Кастомные бинды (если есть) */}
+        {hotkeyCount > 0 && (
+          <div className="preset-tag" title="Пользовательские горячие клавиши">
+            <Keyboard size={11} />
+            <span>Хоткеи ({hotkeyCount})</span>
           </div>
         )}
       </div>
@@ -393,61 +467,63 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             {renderPresetBadges(preset)}
           </div>
 
-          <div className="preset-card__actions">
+          <div className="preset-card__actions-col">
             <button
               type="button"
               className={`preset-action-btn ${isApplied ? "" : "preset-action-btn--apply"}`}
               onClick={() => handleApply(preset)}
               title={isBuiltIn ? "Применить данный встроенный пресет" : "Применить данный пресет к плееру"}
             >
-              {isApplied ? <Check size={14} /> : <Play size={14} />}
+              {isApplied ? <Check size={13} /> : <Play size={13} />}
               <span>{isApplied ? "Активен" : "Применить"}</span>
             </button>
 
-            {!isBuiltIn && (
-              <>
-                <button
-                  type="button"
-                  className="preset-action-btn"
-                  onClick={() => handleOverwrite(preset)}
-                  title="Перезаписать этот пресет текущими настройками плеера"
-                >
-                  <RotateCw size={13} />
-                </button>
+            <div className="preset-card__actions-row">
+              {!isBuiltIn && (
+                <>
+                  <button
+                    type="button"
+                    className="preset-action-btn preset-action-btn--icon"
+                    onClick={() => handleOverwrite(preset)}
+                    title="Перезаписать этот пресет текущими настройками плеера"
+                  >
+                    <RotateCw size={13} />
+                  </button>
 
-                <button
-                  type="button"
-                  className="preset-action-btn"
-                  onClick={() => {
-                    setEditingId(preset.id);
-                    setEditingName(preset.name);
-                  }}
-                  title="Переименовать пресет"
-                >
-                  <Edit2 size={13} />
-                </button>
-              </>
-            )}
+                  <button
+                    type="button"
+                    className="preset-action-btn preset-action-btn--icon"
+                    onClick={() => {
+                      setEditingId(preset.id);
+                      setEditingName(preset.name);
+                    }}
+                    title="Переименовать пресет"
+                  >
+                    <Edit2 size={13} />
+                  </button>
+                </>
+              )}
 
-            <button
-              type="button"
-              className="preset-action-btn"
-              onClick={() => handleExportSingle(preset)}
-              title="Экспортировать этот пресет через Проводник Windows"
-            >
-              <Download size={13} />
-            </button>
-
-            {!isBuiltIn && (
               <button
                 type="button"
-                className="preset-action-btn preset-action-btn--danger"
-                onClick={() => handleDelete(preset)}
-                title="Удалить пресет"
+                className="preset-action-btn preset-action-btn--icon"
+                onClick={() => handleExportSingle(preset)}
+                title="Экспортировать этот пресет через Проводник Windows"
               >
-                <Trash2 size={13} />
+                <Download size={13} />
               </button>
-            )}
+
+              {!isBuiltIn && (
+                <button
+                  type="button"
+                  className="preset-action-btn preset-action-btn--icon preset-action-btn--danger"
+                  onClick={() => handleDelete(preset)}
+                  title="Удалить пресет"
+                >
+                  <Trash2 size={13} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -456,140 +532,165 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
   return (
     <div className="presets-container">
-      {/* ─── 1. Карточка создания нового пресета ─── */}
+      {/* ── Блок создания нового пресета ── */}
       <div className="presets-creator">
         <div className="presets-creator__header">
           <div className="presets-creator__title">
-            <Sparkles size={18} color="var(--accent)" />
-            <span>Сохранить текущие настройки как пресет</span>
+            <Sparkles size={16} color="var(--accent)" />
+            <span>Сохранить текущие настройки</span>
           </div>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            Снимок цвета, прозрачности, подсветки и кнопок
-          </span>
-        </div>
-
-        <form className="presets-creator__form" onSubmit={handleSaveCurrent}>
-          <input
-            type="text"
-            className="presets-creator__input"
-            placeholder="Название нового пресета (например: Ночной кинозал, Неон, Минимал)..."
-            value={newPresetName}
-            onChange={(e) => setNewPresetName(e.target.value)}
-            maxLength={40}
-          />
-          <button type="submit" className="presets-creator__btn-save" title="Сохранить текущий снимок">
-            <Plus size={16} /> Сохранить пресет
-          </button>
-        </form>
-      </div>
-
-      {/* ─── 2. Секция «Мои сохранённые пресеты» ─── */}
-      <div className="presets-section-heading">
-        <button
-          type="button"
-          className="presets-section-heading__title"
-          onClick={() => setIsUserPresetsOpen((prev) => !prev)}
-          title={isUserPresetsOpen ? "Свернуть категорию" : "Развернуть категорию"}
-        >
-          <ChevronDown
-            size={16}
-            className={`presets-section-heading__chevron ${!isUserPresetsOpen ? "presets-section-heading__chevron--collapsed" : ""}`}
-          />
-          <Layers size={16} />
-          <span>Мои пресеты ({userPresets.length})</span>
-        </button>
-        <div className="presets-section-heading__actions">
-          <button
-            type="button"
-            className="presets-btn-text"
-            onClick={handleReload}
-            title="Обновить список пресетов из файлов на диске"
-          >
-            <RotateCw size={13} /> Обновить
-          </button>
-          <button
-            type="button"
-            className="presets-btn-text"
-            onClick={handleOpenFolder}
-            title="Открыть папку с пресетами в Проводнике Windows"
-          >
-            <FolderOpen size={13} /> Папка
-          </button>
           <button
             type="button"
             className="presets-btn-text"
             onClick={handleNativeImport}
-            title="Импортировать пресеты из .json файла"
+            title="Импортировать файлы пресетов .json"
           >
-            <Upload size={13} /> Импорт
+            <Upload size={13} />
+            <span>Импорт</span>
           </button>
-          {userPresets.length > 0 && (
+        </div>
+        <div className="presets-creator__subtitle">
+          Мгновенный снимок темы плеера, акцентного цвета, прозрачности, неонового свечения, визуалайзера и горячих клавиш.
+        </div>
+        <form onSubmit={handleSaveCurrent} className="presets-creator__form">
+          <input
+            type="text"
+            className="presets-creator__input"
+            placeholder="Название пресета (например: Ночной кинозал)"
+            value={newPresetName}
+            onChange={(e) => setNewPresetName(e.target.value)}
+          />
+          <button type="submit" className="presets-creator__btn-save">
+            <Plus size={15} />
+            <span>Сохранить пресет</span>
+          </button>
+        </form>
+      </div>
+
+      {/* Тост с уведомлением */}
+      {toastMessage && (
+        <div
+          style={{
+            padding: "8px 14px",
+            borderRadius: "var(--radius-sm)",
+            background: "rgba(var(--accent-rgb, 127, 199, 255), 0.18)",
+            border: "1px solid var(--accent)",
+            color: "var(--text-primary)",
+            fontSize: "0.82rem",
+            fontWeight: 500,
+            animation: "presetsFadeIn 0.2s ease",
+          }}
+        >
+          {toastMessage}
+        </div>
+      )}
+
+      {/* ── Список 1: Мои сохраненные пресеты ── */}
+      <div>
+        <div className="presets-section-heading">
+          <button
+            type="button"
+            className="presets-section-heading__title"
+            onClick={() => setIsUserPresetsOpen(!isUserPresetsOpen)}
+          >
+            <ChevronDown
+              size={15}
+              className={`presets-section-heading__chevron ${
+                !isUserPresetsOpen ? "presets-section-heading__chevron--collapsed" : ""
+              }`}
+            />
+            <Layers size={15} />
+            <span>Мои пресеты ({userPresets.length})</span>
+          </button>
+
+          <div className="presets-section-heading__actions">
             <button
               type="button"
               className="presets-btn-text"
-              onClick={handleExportAll}
-              title="Экспортировать все пользовательские пресеты"
+              onClick={handleReload}
+              title="Обновить список пресетов"
             >
-              <Download size={13} /> Экспорт всех
+              <RotateCw size={13} />
+              <span>Обновить</span>
             </button>
-          )}
+            <button
+              type="button"
+              className="presets-btn-text"
+              onClick={handleNativeImport}
+              title="Импортировать пресет из файла .json"
+            >
+              <Upload size={13} />
+              <span>Импорт</span>
+            </button>
+            {userPresets.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  className="presets-btn-text"
+                  onClick={handleExportAll}
+                  title="Экспортировать все пользовательские пресеты в один файл"
+                >
+                  <Download size={13} />
+                  <span>Экспорт всех</span>
+                </button>
+                <button
+                  type="button"
+                  className="presets-btn-text"
+                  onClick={handleOpenFolder}
+                  title="Открыть портативную папку config/presets в Проводнике"
+                >
+                  <FolderOpen size={13} />
+                  <span>Папка</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
 
-      {isUserPresetsOpen && (
-        <>
-          {loading ? (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
-              Загрузка сохранённых пресетов...
-            </div>
-          ) : userPresets.length === 0 ? (
-            <div className="presets-empty">
-              <SlidersHorizontal size={32} color="var(--text-muted)" />
-              <div className="presets-empty__title">Нет сохранённых пресетов</div>
-              <div className="presets-empty__desc">
-                Настройте цветовую палитру, кнопки нижней панели, подсветку полос и визуализатор, а затем введите
-                название в поле выше для создания первого пресета.
+        {isUserPresetsOpen && (
+          <div style={{ marginTop: 8 }}>
+            {userPresets.length === 0 ? (
+              <div className="presets-empty">
+                <Palette size={24} style={{ color: "var(--text-muted)", opacity: 0.7 }} />
+                <span className="presets-empty__title">Нет сохранённых пресетов</span>
+                <span className="presets-empty__desc">
+                  Настройте желаемый визуальный стиль плеера и сохраните его с помощью формы выше.
+                </span>
               </div>
-            </div>
-          ) : (
-            <div className="presets-list">
-              {userPresets.map((preset) => renderPresetCard(preset))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ─── 3. Секция «Заводские готовые пресеты» ─── */}
-      <div className="presets-section-heading" style={{ marginTop: 16 }}>
-        <button
-          type="button"
-          className="presets-section-heading__title"
-          onClick={() => setIsBuiltInPresetsOpen((prev) => !prev)}
-          title={isBuiltInPresetsOpen ? "Свернуть категорию" : "Развернуть категорию"}
-        >
-          <ChevronDown
-            size={16}
-            className={`presets-section-heading__chevron ${!isBuiltInPresetsOpen ? "presets-section-heading__chevron--collapsed" : ""}`}
-          />
-          <Palette size={16} />
-          <span>Готовые стили ({BUILT_IN_PRESETS.length})</span>
-        </button>
+            ) : (
+              <div className="presets-list">
+                {userPresets.map((preset) => renderPresetCard(preset))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {isBuiltInPresetsOpen && (
-        <div className="presets-list">
-          {BUILT_IN_PRESETS.map((preset) => renderPresetCard(preset))}
+      {/* ── Список 2: Готовые встроенные стили ── */}
+      <div>
+        <div className="presets-section-heading">
+          <button
+            type="button"
+            className="presets-section-heading__title"
+            onClick={() => setIsBuiltInPresetsOpen(!isBuiltInPresetsOpen)}
+          >
+            <ChevronDown
+              size={15}
+              className={`presets-section-heading__chevron ${
+                !isBuiltInPresetsOpen ? "presets-section-heading__chevron--collapsed" : ""
+              }`}
+            />
+            <Sparkles size={15} />
+            <span>Готовые стили ({BUILT_IN_PRESETS.length})</span>
+          </button>
         </div>
-      )}
 
-      {/* Всплывающий тост */}
-      {toastMessage && (
-        <div className="preset-toast">
-          <Check size={16} color="var(--accent)" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
+        {isBuiltInPresetsOpen && (
+          <div className="presets-list" style={{ marginTop: 8 }}>
+            {BUILT_IN_PRESETS.map((preset) => renderPresetCard(preset))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
-
