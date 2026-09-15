@@ -260,8 +260,9 @@ pub fn run() {
             upscale::get_upscale_status,
             upscale::scan_onnx_models,
             upscale::open_models_folder,
+            upscale::open_inference_folder,
             upscale::apply_upscale_settings,
-            upscale::download_recommended_models,
+            upscale::download_inference_engine,
             upscale::switch_upscale_network_hotkey,
         ])
         .on_window_event(|window, event| match event {

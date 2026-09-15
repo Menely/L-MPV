@@ -48,8 +48,8 @@ export interface UpscaleSettings {
 export const UpscalingSettingsSection: React.FC = () => {
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [downloadSuccessMessage, setDownloadSuccessMessage] = useState<string | null>(null);
+  const [isDownloadingEngine, setIsDownloadingEngine] = useState<boolean>(false);
+  const [engineSuccessMessage, setEngineSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [settings, setSettings] = useState<UpscaleSettings>(() => {
@@ -94,7 +94,7 @@ export const UpscalingSettingsSection: React.FC = () => {
     isMountedRef.current = true;
     refreshStatus();
 
-    // Автоматическое обновление списка моделей при возврате фокуса в окно L-MPV (например, после добавления файлов в Проводнике)
+    // Автоматическое обновление списка моделей при возврате фокуса в окно L-MPV
     const handleFocus = () => {
       if (isMountedRef.current) refreshStatus();
     };
@@ -125,8 +125,8 @@ export const UpscalingSettingsSection: React.FC = () => {
     }
   };
 
-  // Открытие универсальной папки моделей models/onnx/ в Проводнике
-  const handleOpenFolder = async () => {
+  // Открытие папки моделей models/onnx/ в Проводнике
+  const handleOpenModelsFolder = async () => {
     try {
       await invoke("open_models_folder");
     } catch (err) {
@@ -134,24 +134,29 @@ export const UpscalingSettingsSection: React.FC = () => {
     }
   };
 
-  // Фоновое скачивание базовых рекомендованных моделей
-  const handleDownloadModels = async () => {
-    setIsDownloading(true);
-    setDownloadSuccessMessage(null);
+  // Открытие папки библиотек инференса inference/ в Проводнике
+  const handleOpenInferenceFolder = async () => {
+    try {
+      await invoke("open_inference_folder");
+    } catch (err) {
+      console.error("Ошибка открытия папки движков:", err);
+    }
+  };
+
+  // Фоновое скачивание библиотек инференса
+  const handleDownloadEngine = async () => {
+    setIsDownloadingEngine(true);
+    setEngineSuccessMessage(null);
     setErrorMessage(null);
     try {
-      const count = await invoke<number>("download_recommended_models");
-      if (count > 0) {
-        setDownloadSuccessMessage(`Успешно загружено новых моделей: ${count}`);
-      } else {
-        setDownloadSuccessMessage("Все рекомендуемые модели уже установлены");
-      }
+      const res = await invoke<string>("download_inference_engine", { engine: settings.backend });
+      setEngineSuccessMessage(res || "Библиотеки инференса успешно установлены");
       await refreshStatus();
     } catch (err) {
-      console.error("Ошибка скачивания моделей:", err);
-      setErrorMessage(`Ошибка скачивания: ${err}`);
+      console.error("Ошибка скачивания библиотек инференса:", err);
+      setErrorMessage(`Ошибка загрузки движка: ${err}`);
     } finally {
-      setIsDownloading(false);
+      setIsDownloadingEngine(false);
     }
   };
 
@@ -163,6 +168,9 @@ export const UpscalingSettingsSection: React.FC = () => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
+
+  const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
+  const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -250,7 +258,7 @@ export const UpscalingSettingsSection: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Настройка бэкенда инференса (DirectML / TensorRT) */}
+      {/* 2. Настройка бэкенда инференса (DirectML / TensorRT) и скачивание движка */}
       <div
         style={{
           background: "rgba(255, 255, 255, 0.03)",
@@ -262,9 +270,74 @@ export const UpscalingSettingsSection: React.FC = () => {
           gap: 12,
         }}
       >
-        <h3 style={{ fontSize: "1.02rem", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
-          <Cpu size={17} color="var(--accent)" /> Движок инференса (Backend)
-        </h3>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+          <div>
+            <h3 style={{ fontSize: "1.02rem", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
+              <Cpu size={17} color="var(--accent)" /> Движок инференса (Backend)
+            </h3>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 2 }}>
+              Библиотеки выполнения нейросетей (aji.dll, DirectML, OnnxRuntime, TensorRT)
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={handleOpenInferenceFolder}
+              title="Открыть папку библиотек инференса в Проводнике"
+              style={{
+                padding: "8px 12px",
+                borderRadius: "var(--radius-md)",
+                background: "rgba(255, 255, 255, 0.06)",
+                border: "1px solid var(--border-pill)",
+                color: "var(--text-primary)",
+                fontSize: "0.82rem",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                cursor: "pointer",
+              }}
+            >
+              <FolderOpen size={15} /> Папка движков
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadEngine}
+              disabled={isDownloadingEngine}
+              title="Скачать или обновить файлы библиотек движка инференса"
+              style={{
+                padding: "8px 12px",
+                borderRadius: "var(--radius-md)",
+                background: "var(--accent)",
+                border: "none",
+                color: "#000",
+                fontSize: "0.82rem",
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                cursor: isDownloadingEngine ? "wait" : "pointer",
+                opacity: isDownloadingEngine ? 0.7 : 1,
+              }}
+            >
+              {isDownloadingEngine ? <RefreshCw size={15} className="spin" /> : <Download size={15} />}
+              {isDownloadingEngine ? "Загрузка..." : "Скачать движок"}
+            </button>
+          </div>
+        </div>
+
+        {engineSuccessMessage && (
+          <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(46, 204, 113, 0.15)", border: "1px solid rgba(46, 204, 113, 0.3)", color: "#2ecc71", fontSize: "0.82rem" }}>
+            {engineSuccessMessage}
+          </div>
+        )}
+
+        {errorMessage && (
+          <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(231, 76, 60, 0.15)", border: "1px solid rgba(231, 76, 60, 0.3)", color: "#e74c3c", fontSize: "0.82rem" }}>
+            {errorMessage}
+          </div>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div
@@ -279,7 +352,21 @@ export const UpscalingSettingsSection: React.FC = () => {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>DirectML</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>DirectML</span>
+                <span
+                  style={{
+                    fontSize: "0.72rem",
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    background: isDmlInstalled ? "rgba(46, 204, 113, 0.15)" : "rgba(230, 126, 34, 0.15)",
+                    color: isDmlInstalled ? "#2ecc71" : "#e67e22",
+                    fontWeight: 600,
+                  }}
+                >
+                  {isDmlInstalled ? "Установлен" : "Не установлен"}
+                </span>
+              </div>
               {settings.backend === "DirectML" && <CheckCircle2 size={16} color="var(--accent)" />}
             </div>
             <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.3 }}>
@@ -299,7 +386,21 @@ export const UpscalingSettingsSection: React.FC = () => {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>TensorRT (NVIDIA)</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>TensorRT (NVIDIA)</span>
+                <span
+                  style={{
+                    fontSize: "0.72rem",
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    background: isTrtInstalled ? "rgba(46, 204, 113, 0.15)" : "rgba(230, 126, 34, 0.15)",
+                    color: isTrtInstalled ? "#2ecc71" : "#e67e22",
+                    fontWeight: 600,
+                  }}
+                >
+                  {isTrtInstalled ? "Установлен" : "Не установлен"}
+                </span>
+              </div>
               {settings.backend === "TensorRT" && <CheckCircle2 size={16} color="var(--accent)" />}
             </div>
             <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.3 }}>
@@ -331,64 +432,26 @@ export const UpscalingSettingsSection: React.FC = () => {
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              onClick={handleOpenFolder}
-              title="Открыть папку моделей в Проводнике"
-              style={{
-                padding: "8px 12px",
-                borderRadius: "var(--radius-md)",
-                background: "rgba(255, 255, 255, 0.06)",
-                border: "1px solid var(--border-pill)",
-                color: "var(--text-primary)",
-                fontSize: "0.82rem",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                cursor: "pointer",
-              }}
-            >
-              <FolderOpen size={15} /> Папка моделей
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDownloadModels}
-              disabled={isDownloading}
-              title="Скачать базовые рекомендуемые AI-модели"
-              style={{
-                padding: "8px 12px",
-                borderRadius: "var(--radius-md)",
-                background: "var(--accent)",
-                border: "none",
-                color: "#000",
-                fontSize: "0.82rem",
-                fontWeight: 600,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                cursor: isDownloading ? "wait" : "pointer",
-                opacity: isDownloading ? 0.7 : 1,
-              }}
-            >
-              {isDownloading ? <RefreshCw size={15} className="spin" /> : <Download size={15} />}
-              {isDownloading ? "Загрузка..." : "Скачать базовые"}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleOpenModelsFolder}
+            title="Открыть папку моделей в Проводнике"
+            style={{
+              padding: "8px 12px",
+              borderRadius: "var(--radius-md)",
+              background: "rgba(255, 255, 255, 0.06)",
+              border: "1px solid var(--border-pill)",
+              color: "var(--text-primary)",
+              fontSize: "0.82rem",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              cursor: "pointer",
+            }}
+          >
+            <FolderOpen size={15} /> Папка моделей
+          </button>
         </div>
-
-        {downloadSuccessMessage && (
-          <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(46, 204, 113, 0.15)", border: "1px solid rgba(46, 204, 113, 0.3)", color: "#2ecc71", fontSize: "0.82rem" }}>
-            {downloadSuccessMessage}
-          </div>
-        )}
-
-        {errorMessage && (
-          <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(231, 76, 60, 0.15)", border: "1px solid rgba(231, 76, 60, 0.3)", color: "#e74c3c", fontSize: "0.82rem" }}>
-            {errorMessage}
-          </div>
-        )}
 
         {/* Список обнаруженных файлов ONNX-моделей */}
         <div
@@ -465,7 +528,7 @@ export const UpscalingSettingsSection: React.FC = () => {
             >
               <Info size={20} style={{ margin: "0 auto 6px", display: "block", opacity: 0.6 }} />
               Папка <code style={{ color: "var(--accent)" }}>models/onnx/</code> пуста.
-              Нажмите <b>«Скачать базовые»</b> или скопируйте любые <code>.onnx</code> модели самостоятельно.
+              Нажмите <b>«Папка моделей»</b> и скопируйте любые <code>.onnx</code> файлы нейросетей.
             </div>
           )}
         </div>

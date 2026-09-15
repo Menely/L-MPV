@@ -4,7 +4,6 @@
 use crate::commands::PlayerState;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
@@ -270,96 +269,70 @@ pub fn apply_upscale_settings(
     }
 }
 
-/// Фоновая загрузка рекомендованных базовых моделей через HTTP с таймаутом
+/// Открытие папки библиотек инференса в Проводнике Windows
 #[tauri::command]
-pub async fn download_recommended_models() -> Result<usize, String> {
+pub fn open_inference_folder() -> Result<(), String> {
+    let dir = get_inference_dir();
+    Command::new("explorer.exe")
+        .arg(&dir)
+        .spawn()
+        .map_err(|e| format!("Не удалось открыть Проводник: {}", e))?;
+    Ok(())
+}
+
+/// Фоновая загрузка библиотек движка инференса (DirectML / TensorRT)
+#[tauri::command]
+pub async fn download_inference_engine(engine: String) -> Result<String, String> {
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(60))
+        .timeout(Duration::from_secs(120))
         .build()
         .map_err(|e| format!("Ошибка создания HTTP-клиента: {}", e))?;
 
-    // При необходимости скачиваем библиотеку моста инференса
     let inf_dir = get_inference_dir();
-    let aji_dll = inf_dir.join("aji.dll");
-    if !aji_dll.exists() {
-        let bridge_url = "https://github.com/the-database/animejanai-inference/releases/download/v0.9.0/aji-windows-x64.zip";
-        if let Ok(res) = client.get(bridge_url).send().await {
-            if let Ok(bytes) = res.bytes().await {
-                let cursor = std::io::Cursor::new(bytes);
-                if let Ok(mut archive) = zip::ZipArchive::new(cursor) {
-                    for i in 0..archive.len() {
-                        if let Ok(mut file) = archive.by_index(i) {
-                            let outpath = inf_dir.join(file.name());
-                            if file.name().ends_with('/') {
-                                let _ = fs::create_dir_all(&outpath);
-                            } else {
-                                if let Some(p) = outpath.parent() {
-                                    let _ = fs::create_dir_all(p);
-                                }
-                                if let Ok(mut outfile) = fs::File::create(&outpath) {
-                                    let _ = std::io::copy(&mut file, &mut outfile);
-                                }
-                            }
-                        }
-                    }
+    let url = if engine.eq_ignore_ascii_case("TensorRT") {
+        "https://github.com/the-database/animejanai-inference/releases/download/v0.9.0/aji-windows-x64.zip"
+    } else {
+        "https://github.com/the-database/animejanai-inference/releases/download/v0.9.0/aji-windows-x64.zip"
+    };
+
+    let res = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("Ошибка загрузки библиотек: {}", e))?;
+
+    if !res.status().is_success() {
+        return Err(format!("Сервер вернул статус {}", res.status()));
+    }
+
+    let bytes = res
+        .bytes()
+        .await
+        .map_err(|e| format!("Ошибка чтения данных: {}", e))?;
+
+    let cursor = std::io::Cursor::new(bytes);
+    let mut archive = zip::ZipArchive::new(cursor)
+        .map_err(|e| format!("Ошибка открытия zip-архива: {}", e))?;
+
+    let mut extracted_count = 0;
+    for i in 0..archive.len() {
+        if let Ok(mut file) = archive.by_index(i) {
+            let outpath = inf_dir.join(file.name());
+            if file.name().ends_with('/') {
+                let _ = fs::create_dir_all(&outpath);
+            } else {
+                if let Some(p) = outpath.parent() {
+                    let _ = fs::create_dir_all(p);
+                }
+                if let Ok(mut outfile) = fs::File::create(&outpath) {
+                    let _ = std::io::copy(&mut file, &mut outfile);
+                    extracted_count += 1;
                 }
             }
         }
     }
 
-    let models_dir = get_models_dir();
-    let models_to_fetch = vec![
-        (
-            "2x_AnimeJaNai_HD_V3.1_Balanced_SPANF3_b8f64_unshuffle_fp16.onnx",
-            "https://raw.githubusercontent.com/the-database/mpv-AnimeJaNai/main/BuildMpvUpscale2xAnimeJaNai/mpv-upscale-2x_animejanai/animejanai/onnx/2x_AnimeJaNai_HD_V3.1_Balanced_SPANF3_b8f64_unshuffle_fp16.onnx",
-        ),
-        (
-            "2x_AnimeJaNai_HD_V3.1_Performance_SPANF3_b5f48_unshuffle_fp16.onnx",
-            "https://raw.githubusercontent.com/the-database/mpv-AnimeJaNai/main/BuildMpvUpscale2xAnimeJaNai/mpv-upscale-2x_animejanai/animejanai/onnx/2x_AnimeJaNai_HD_V3.1_Performance_SPANF3_b5f48_unshuffle_fp16.onnx",
-        ),
-        (
-            "2x_AnimeJaNai_SD_V1beta34_Compact_1x3xHxW_dyn-HW_strong_fp16_op21_dynamo.onnx",
-            "https://raw.githubusercontent.com/the-database/mpv-AnimeJaNai/main/BuildMpvUpscale2xAnimeJaNai/mpv-upscale-2x_animejanai/animejanai/onnx/2x_AnimeJaNai_SD_V1beta34_Compact_1x3xHxW_dyn-HW_strong_fp16_op21_dynamo.onnx",
-        ),
-    ];
-
-    let mut count = 0;
-    for (filename, url) in models_to_fetch {
-        let dest_path = models_dir.join(filename);
-        if !dest_path.exists() {
-            let temp_path = models_dir.join(format!("{}.part", filename));
-            let res = client
-                .get(url)
-                .send()
-                .await
-                .map_err(|e| format!("Ошибка загрузки {}: {}", filename, e))?;
-
-            if !res.status().is_success() {
-                continue;
-            }
-
-            let bytes = res
-                .bytes()
-                .await
-                .map_err(|e| format!("Ошибка чтения данных {}: {}", filename, e))?;
-
-            {
-                let mut f = fs::File::create(&temp_path)
-                    .map_err(|e| format!("Ошибка создания файла {}: {}", filename, e))?;
-                f.write_all(&bytes)
-                    .map_err(|e| format!("Ошибка записи {}: {}", filename, e))?;
-                f.flush()
-                    .map_err(|e| format!("Ошибка сброса буфера {}: {}", filename, e))?;
-            }
-
-            fs::rename(&temp_path, &dest_path)
-                .map_err(|e| format!("Ошибка перемещения готового файла {}: {}", filename, e))?;
-
-            count += 1;
-        }
-    }
-
-    Ok(count)
+    Ok(format!("Успешно распаковано файлов библиотек: {}", extracted_count))
 }
 
 /// Переключение видов нейросетей по горячим клавишам Shift+1..4 на лету
