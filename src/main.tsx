@@ -1,11 +1,25 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import App from "./App";
 import { StandaloneMediaInfoWindow } from "./components/StandaloneMediaInfoWindow";
 import "./index.css";
 import { PlayerStateProvider } from "./contexts/PlayerStateContext";
-import { applyAccentColor } from "./utils/colorUtils";
+import {
+  applyAccentColor,
+  applyPlayerTheme,
+  getSavedPlayerTheme,
+  getEffectiveAccentColor,
+} from "./utils/colorUtils";
+import {
+  applyUiRadius,
+  getSavedUiRadius,
+  applyUiScale,
+  getSavedUiScale,
+  applyUiOpacity,
+  getSavedUiOpacity,
+} from "./utils/uiThemeUtils";
 
 // Безопасное определение текущего окна Tauri (главное окно плеера или отдельное окно MediaInfo)
 const checkIsMediaInfoWindow = (): boolean => {
@@ -35,11 +49,28 @@ if (typeof document !== "undefined") {
     document.body.style.background = "transparent";
   }
 
+  // Применение темы оформления плеера при старте
+  applyPlayerTheme(getSavedPlayerTheme());
+
   // Применение акцентного цвета и интенсивности свечения при старте
   const savedAccent = localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
-  if (savedAccent !== "windows") {
+  if (savedAccent === "windows") {
+    invoke<string>("get_windows_accent_color")
+      .then((winHex) => {
+        localStorage.setItem("l-mpv-accent-color-windows", winHex);
+        applyAccentColor(winHex);
+      })
+      .catch(() => {});
+  } else {
     applyAccentColor(savedAccent);
   }
+
+  // Применение скругления интерфейса, масштаба и прозрачности при старте
+  const initialRadius = getSavedUiRadius();
+  applyUiRadius(initialRadius.level, initialRadius.value);
+  const initialScale = getSavedUiScale();
+  applyUiScale(initialScale.mode, initialScale.value);
+  applyUiOpacity(getSavedUiOpacity());
 
   // Применение настройки анимаций (по умолчанию включено)
   const syncAnimationsSetting = () => {
@@ -48,16 +79,49 @@ if (typeof document !== "undefined") {
   };
   syncAnimationsSetting();
 
+  const syncAllVisualSettings = () => {
+    syncAnimationsSetting();
+    applyPlayerTheme(getSavedPlayerTheme());
+    const curRadius = getSavedUiRadius();
+    applyUiRadius(curRadius.level, curRadius.value);
+    const curScale = getSavedUiScale();
+    applyUiScale(curScale.mode, curScale.value);
+    applyUiOpacity(getSavedUiOpacity());
+  };
+
   window.addEventListener("storage", (e) => {
     if (e.key === "l-mpv-animations-enabled") {
       syncAnimationsSetting();
     }
+    if (e.key === "l-mpv-player-theme") {
+      applyPlayerTheme(getSavedPlayerTheme());
+    }
     if (e.key === "l-mpv-glow-intensity" || e.key === "l-mpv-accent-color") {
-      const cur = localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
-      if (cur !== "windows") applyAccentColor(cur);
+      applyAccentColor(getEffectiveAccentColor());
+    }
+    if (e.key === "l-mpv-ui-radius" || e.key === "l-mpv-ui-radius-value") {
+      const curRadius = getSavedUiRadius();
+      applyUiRadius(curRadius.level, curRadius.value);
+    }
+    if (e.key === "l-mpv-ui-scale-mode" || e.key === "l-mpv-ui-scale-value") {
+      const curScale = getSavedUiScale();
+      applyUiScale(curScale.mode, curScale.value);
+    }
+    if (e.key === "l-mpv-ui-opacity") {
+      applyUiOpacity(getSavedUiOpacity());
     }
   });
-  window.addEventListener("l-mpv-settings-changed", syncAnimationsSetting);
+  window.addEventListener("l-mpv-settings-changed", syncAllVisualSettings);
+
+  // Предотвращение вызова стандартного контекстного меню движка WebView2
+  window.addEventListener("contextmenu", (e) => {
+    // Разрешаем стандартное меню только для текстовых полей ввода при необходимости
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+      return;
+    }
+    e.preventDefault();
+  });
 }
 
 // Глобальный перехватчик ошибок React во избежание белого экрана

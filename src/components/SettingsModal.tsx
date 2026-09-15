@@ -56,13 +56,14 @@ import {
   Trash2,
   Sparkles,
   RefreshCw,
-  Plus,
   Play,
   X,
   ChevronDown,
   FileText,
   Zap,
   Film,
+  Square,
+  Maximize2,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -72,22 +73,25 @@ import {
   resetSingleHotkey,
   getKeyDisplay,
 } from "../utils/hotkeyUtils";
-import {
-  PASTEL_PRESETS,
-  STANDARD_PRESETS,
-  applyAccentColor,
-  getCustomColors,
-  saveCustomColors,
-  MAX_CUSTOM_COLORS,
-  GlowIntensity,
-  getGlowIntensity,
-  saveGlowIntensity,
-} from "../utils/colorUtils";
 import { UpdateInfo } from "./UpdateModal";
-import { ColorPickerModal } from "./ColorPickerModal";
+import { ColorSchemeSection } from "./ColorSchemeSection";
+import { getEffectiveAccentColor } from "../utils/colorUtils";
 import { VisualizerSettingsSection } from "./VisualizerSettingsSection";
 import { PresetsSection } from "./PresetsSection";
+import { ControlButtonsPreviewCard } from "./ControlButtonsPreviewCard";
 import { SettingsPreset } from "../utils/presetsUtils";
+import {
+  UiRadiusLevel,
+  UI_RADIUS_PRESETS,
+  getSavedUiRadius,
+  saveUiRadius,
+  UiScaleMode,
+  UI_SCALE_PRESETS,
+  getSavedUiScale,
+  saveUiScale,
+  getSavedUiOpacity,
+  saveUiOpacity,
+} from "../utils/uiThemeUtils";
 
 interface AmbientSettings {
   mode: "off" | "blur" | "color";
@@ -144,10 +148,14 @@ export function AccordionSection({
 
 export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [screenshotDir, setScreenshotDir] = useState<string>("");
-  const [uiOpacity, setUiOpacity] = useState<number>(0.88);
-  const [activeColor, setActiveColor] = useState<string>("#7fc7ff");
-  const [customColors, setCustomColors] = useState<string[]>(() => getCustomColors());
-  const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
+  const [uiOpacity, setUiOpacity] = useState<number>(() => getSavedUiOpacity());
+  const [activeColor, setActiveColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
+    } catch {
+      return "#7fc7ff";
+    }
+  });
   const [showTrackNames, setShowTrackNames] = useState<boolean>(true);
   const [animationsEnabled, setAnimationsEnabled] = useState<boolean>(() => {
     const saved = localStorage.getItem('l-mpv-animations-enabled');
@@ -158,20 +166,33 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("1.4.4");
+  const [appVersion, setAppVersion] = useState<string>("1.6.8");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(getCustomHotkeys());
   const [recordingAction, setRecordingAction] = useState<{ id: string, index: number } | null>(null);
+  const ignoreClickUntilRef = useRef<number>(0);
+  const [uiRadius, setUiRadius] = useState<{ level: UiRadiusLevel; value: number }>(() => getSavedUiRadius());
+  const [uiScale, setUiScale] = useState<{ mode: UiScaleMode; value: number }>(() => getSavedUiScale());
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "hotkeys" | "integration">("general");
 
   // Синхронизация локальных состояний SettingsModal при применении любого пресета
   const handlePresetApplied = useCallback((preset: SettingsPreset) => {
     const { data } = preset;
     if (data.accentColor) setActiveColor(data.accentColor);
-    if (data.glowIntensity) setGlowIntensity(data.glowIntensity);
     if (typeof data.uiOpacity === "number") setUiOpacity(data.uiOpacity);
+    if (data.uiRadius) {
+      if (typeof data.uiRadius === "string") {
+        const val = data.uiRadius in UI_RADIUS_PRESETS
+          ? UI_RADIUS_PRESETS[data.uiRadius as Exclude<UiRadiusLevel, "custom">].controlsRadius
+          : 16;
+        setUiRadius({ level: data.uiRadius, value: val });
+      } else {
+        setUiRadius({ level: data.uiRadius.level, value: data.uiRadius.value ?? 16 });
+      }
+    }
+    if (data.uiScale) setUiScale({ mode: data.uiScale.mode, value: data.uiScale.value ?? 1.0 });
     if (typeof data.animationsEnabled === "boolean") setAnimationsEnabled(data.animationsEnabled);
     if (typeof data.showTrackNames === "boolean") setShowTrackNames(data.showTrackNames);
     if (data.visibleButtons) setVisibleButtons(data.visibleButtons);
@@ -179,7 +200,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     if (typeof data.saveTracksToVideoDir === "boolean") setSaveTracksToVideoDir(data.saveTracksToVideoDir);
     if (typeof data.hotloadEnabled === "boolean") setHotloadEnabled(data.hotloadEnabled);
     if (typeof data.skipOpeningSeconds === "number") setSkipOpeningSeconds(data.skipOpeningSeconds);
-    if (data.customColors) setCustomColors(data.customColors);
     if (data.customHotkeys) setCustomHotkeys(data.customHotkeys);
   }, []);
 
@@ -209,17 +229,47 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     color: "#7fc7ff",
   });
 
-  const [glowIntensity, setGlowIntensity] = useState<GlowIntensity>(() => getGlowIntensity());
-
   useEffect(() => {
-    const handleGlowChanged = (e: Event) => {
-      const customEvent = e as CustomEvent<GlowIntensity>;
+    const handleRadiusChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<{ level: UiRadiusLevel; value?: number } | UiRadiusLevel>;
       if (customEvent.detail) {
-        setGlowIntensity(customEvent.detail);
+        if (typeof customEvent.detail === "string") {
+          const lvl = customEvent.detail;
+          const val = lvl in UI_RADIUS_PRESETS
+            ? UI_RADIUS_PRESETS[lvl as Exclude<UiRadiusLevel, "custom">].controlsRadius
+            : 16;
+          setUiRadius({ level: lvl, value: val });
+        } else {
+          setUiRadius({
+            level: customEvent.detail.level,
+            value: customEvent.detail.value ?? 16,
+          });
+        }
       }
     };
-    window.addEventListener("l-mpv-glow-changed", handleGlowChanged);
-    return () => window.removeEventListener("l-mpv-glow-changed", handleGlowChanged);
+    const handleScaleChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<{ mode: UiScaleMode; value?: number }>;
+      if (customEvent.detail) {
+        setUiScale({
+          mode: customEvent.detail.mode,
+          value: customEvent.detail.value ?? 1.0,
+        });
+      }
+    };
+    const handleOpacityChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<number>;
+      if (typeof customEvent.detail === "number") {
+        setUiOpacity(customEvent.detail);
+      }
+    };
+    window.addEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
+    window.addEventListener("l-mpv-ui-scale-changed", handleScaleChanged);
+    window.addEventListener("l-mpv-ui-opacity-changed", handleOpacityChanged);
+    return () => {
+      window.removeEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
+      window.removeEventListener("l-mpv-ui-scale-changed", handleScaleChanged);
+      window.removeEventListener("l-mpv-ui-opacity-changed", handleOpacityChanged);
+    };
   }, []);
   // По умолчанию все категории свернуты (пустой Set / объект)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
@@ -274,12 +324,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       }
     };
     loadDir();
-
-    // Загрузка прозрачности
-    const savedOpacity = localStorage.getItem('l-mpv-ui-opacity');
-    if (savedOpacity) {
-      setUiOpacity(parseFloat(savedOpacity));
-    }
 
     const savedAccent = localStorage.getItem('l-mpv-accent-color');
     if (savedAccent) {
@@ -410,13 +454,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         }
       }, 400);
     }
-  };
-
-  // Выбор и сохранение акцентного цвета интерфейса
-  const handleSelectAccentColor = (color: string) => {
-    applyAccentColor(color);
-    setActiveColor(color);
-    localStorage.setItem("l-mpv-accent-color", color);
   };
 
   // Выбор папки скриншотов через диалог Tauri
@@ -936,265 +973,129 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
           {activeTab === "appearance" && (
             <div className="modal__section" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {/* 1. Акцентный цвет */}
+              {/* 1. Цветовое оформление (Единая категория: цвет плеера, акценты, свечение) */}
               <AccordionSection
-                isOpen={!!openSections["app_accent"]}
-                onToggle={() => toggleSection("app_accent")}
+                isOpen={!!openSections["app_color_scheme"]}
+                onToggle={() => toggleSection("app_color_scheme")}
                 icon={<Palette size={16} />}
-                title="Акцентный цвет"
+                title="Цветовое оформление"
               >
-                <div className="color-columns-grid" style={{ marginTop: 10 }}>
-                  {/* Колонка 1: Пастельные (12 цветов) */}
-                  <div className="color-column-card">
-                    <div className="color-column-card__header">
-                      <span className="color-column-card__title">Пастельные</span>
-                    </div>
-                    <div className="color-column-card__grid">
-                      {PASTEL_PRESETS.slice(0, 12).map((hex) => (
-                        <button
-                          key={hex}
-                          onClick={() => handleSelectAccentColor(hex)}
-                          title={hex}
-                          className={`color-circle ${activeColor === hex ? "color-circle--active" : ""}`}
-                          style={{
-                            backgroundColor: hex,
-                            boxShadow: activeColor === hex ? `0 0 12px ${hex}80` : "none",
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Колонка 2: Стандартные (12 цветов) */}
-                  <div className="color-column-card">
-                    <div className="color-column-card__header">
-                      <span className="color-column-card__title">Стандартные</span>
-                    </div>
-                    <div className="color-column-card__grid">
-                      {STANDARD_PRESETS.slice(0, 12).map((hex) => (
-                        <button
-                          key={hex}
-                          onClick={() => handleSelectAccentColor(hex)}
-                          title={hex}
-                          className={`color-circle ${activeColor === hex ? "color-circle--active" : ""}`}
-                          style={{
-                            backgroundColor: hex,
-                            boxShadow: activeColor === hex ? `0 0 14px ${hex}A0` : "none",
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Колонка 3: Пользовательские (тема Windows + свои цвета до 12) */}
-                  <div className="color-column-card">
-                    <div className="color-column-card__header">
-                      <span className="color-column-card__title">Свои цвета</span>
-                      <span className="color-column-card__badge">{customColors.length}/{MAX_CUSTOM_COLORS}</span>
-                    </div>
-                    <div className="color-column-card__grid">
-                      {/* 1. Кнопка «Цвет темы Windows» */}
-                      <button
-                        onClick={async () => {
-                          try {
-                            const winColor = await invoke<string>("get_windows_accent_color");
-                            handleSelectAccentColor(winColor);
-                            setActiveColor("windows");
-                            localStorage.setItem("l-mpv-accent-color", "windows");
-                          } catch (e) {
-                            console.error("Ошибка получения цвета Windows", e);
-                          }
-                        }}
-                        title="Цвет темы Windows"
-                        className={`color-circle color-circle--windows ${activeColor === "windows" ? "color-circle--active" : ""}`}
-                      >
-                        <Monitor size={15} />
-                      </button>
-
-                      {/* 2. Список добавленных пользователем цветов */}
-                      {customColors.map((hex, idx) => (
-                        <div key={`${hex}-${idx}`} style={{ position: "relative" }}>
-                          <button
-                            onClick={() => handleSelectAccentColor(hex)}
-                            title={hex}
-                            className={`color-circle ${activeColor === hex ? "color-circle--active" : ""}`}
-                            style={{
-                              backgroundColor: hex,
-                              boxShadow: activeColor === hex ? `0 0 14px ${hex}A0` : "none",
-                            }}
-                          >
-                            <span
-                              className="color-circle__remove-btn"
-                              title="Удалить цвет"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const nextColors = customColors.filter((_, i) => i !== idx);
-                                setCustomColors(nextColors);
-                                saveCustomColors(nextColors);
-                              }}
-                            >
-                              <X size={10} />
-                            </span>
-                          </button>
-                        </div>
-                      ))}
-
-                      {/* 3. Кнопка добавления нового цвета + */}
-                      {customColors.length < MAX_CUSTOM_COLORS && (
-                        <button
-                          onClick={() => setShowColorPicker(true)}
-                          className="color-circle color-circle--add"
-                          title="Добавить свой цвет"
-                        >
-                          <Plus size={16} />
-                        </button>
-                      )}
-
-                      {/* 4. Пустые слоты-заполнители для ровной матрицы 3х4 */}
-                      {Array.from({
-                        length: Math.max(0, MAX_CUSTOM_COLORS - customColors.length - (customColors.length < MAX_CUSTOM_COLORS ? 1 : 0)),
-                      }).map((_, i) => (
-                        <div key={`empty-${i}`} className="color-circle color-circle--empty" />
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <ColorSchemeSection onAccentChange={(color) => setActiveColor(color)} />
               </AccordionSection>
 
-              {/* 2. Интенсивность неонового свечения (Glow Intensity) */}
+              {/* 2.1 Настройки интерфейса (Единая категория: скругление, масштаб, прозрачность) */}
               <AccordionSection
-                isOpen={!!openSections["app_glow"]}
-                onToggle={() => toggleSection("app_glow")}
-                icon={<Sparkles size={16} />}
-                title="Интенсивность неонового свечения (Glow Intensity)"
+                isOpen={!!openSections["app_interface"]}
+                onToggle={() => toggleSection("app_interface")}
+                icon={<SlidersHorizontal size={16} />}
+                title="Настройки интерфейса"
               >
-                <div style={{ fontSize: "0.80rem", color: "var(--text-secondary)", marginTop: 10, marginBottom: 12, lineHeight: 1.4 }}>
-                  Настройка яркости и размера неонового свечения вокруг кнопок управления, активных элементов и ползунка прогресса.
+                <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 10, lineHeight: 1.35 }}>
+                  Настройка внешнего вида элементов плеера: степень скругления углов, масштаб и прозрачность панелей управления и окон.
                 </div>
 
-                {/* Аутентичный предпросмотр реального интерфейса плеера (точь-в-точь как на панели управления) */}
+                {/* Компактный интерактивный предпросмотр */}
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    padding: "14px 18px",
-                    marginBottom: 12,
+                    padding: "10px 14px",
+                    marginBottom: 10,
                     background: "rgba(0, 0, 0, 0.35)",
                     borderRadius: "var(--radius-md)",
                     border: "1px solid var(--border)",
-                    gap: 16,
+                    gap: 12,
                   }}
                 >
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: "0.84rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
                         Предпросмотр:
                       </span>
                       <span
                         style={{
-                          fontSize: "0.82rem",
+                          fontSize: "0.80rem",
                           fontWeight: 700,
-                          color: glowIntensity === "off" ? "var(--text-muted)" : "var(--accent)",
-                          textShadow: glowIntensity === "off"
-                            ? "none"
-                            : glowIntensity === "soft"
-                            ? "0 0 6px var(--accent-glow)"
-                            : glowIntensity === "medium"
-                            ? "0 0 10px var(--accent-glow)"
-                            : "0 0 16px var(--accent), 0 0 24px var(--accent-glow)",
-                          transition: "all var(--t-fast) var(--ease-smooth)",
+                          color: "var(--accent)",
                         }}
                       >
-                        {glowIntensity === "off"
-                          ? "Off (Без свечения)"
-                          : glowIntensity === "soft"
-                          ? "Soft (Мягкое свечение)"
-                          : glowIntensity === "medium"
-                          ? "Medium (Сбалансированное)"
-                          : "Cyber Intense (Яркий неон)"}
+                        {uiRadius.level === "custom"
+                          ? `Кастомное (${uiRadius.value} px)`
+                          : `${UI_RADIUS_PRESETS[uiRadius.level as Exclude<UiRadiusLevel, "custom">]?.label || "Стандартный"} (${uiRadius.value} px)`}
+                      </span>
+                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
+                      <span
+                        style={{
+                          fontSize: "0.80rem",
+                          fontWeight: 700,
+                          color: "var(--accent)",
+                        }}
+                      >
+                        Масштаб: {uiScale.mode === "auto" ? "Авто (100%)" : `${Math.round(uiScale.value * 100)}%`}
+                      </span>
+                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
+                      <span
+                        style={{
+                          fontSize: "0.80rem",
+                          fontWeight: 700,
+                          color: "var(--accent)",
+                        }}
+                      >
+                        Прозрачность: {Math.round(uiOpacity * 100)}%
                       </span>
                     </div>
-                    <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", lineHeight: 1.3 }}>
-                      {glowIntensity === "off"
-                        ? "Минималистичный вид: иконки и ползунки без ореола и drop-shadow"
-                        : "Свечение транслируется на все кнопки, активные иконки, таймлайн и регулятор громкости"}
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", lineHeight: 1.25 }}>
+                      Живой отклик нижней панели управления, кнопок плеера, диалогов и контекстных меню
                     </span>
                   </div>
 
-                  {/* Миниатюрная аутентичная панель управления плеера (как на фото 2) */}
+                  {/* Миниатюрная аутентичная панель управления с живым скруглением и прозрачностью */}
                   <div
                     style={{
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
-                      background: "var(--bg-pill, rgba(13, 17, 23, 0.88))",
+                      background: `rgba(var(--bg-pill-rgb, 10, 12, 18), ${uiOpacity})`,
                       backdropFilter: "blur(12px)",
                       WebkitBackdropFilter: "blur(12px)",
                       border: "1px solid var(--border-pill)",
-                      borderRadius: "12px",
-                      padding: "8px 16px 10px",
+                      borderRadius: `${uiRadius.value}px`,
+                      padding: "6px 14px 8px",
                       boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
-                      width: "140px",
+                      width: "130px",
                       flexShrink: 0,
-                      gap: 6,
+                      gap: 5,
+                      transition: "border-radius var(--t-spring) var(--ease-spring-smooth), background 0.15s ease",
                     }}
                   >
-                    {/* Кнопки плеера: перемотка назад, Play с мягким рассеиванием света от иконки, перемотка вперед */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                      <RotateCcw
-                        size={15}
-                        style={{
-                          color: "var(--text-secondary)",
-                          opacity: 0.85,
-                          cursor: "default",
-                        }}
-                      />
+                      <RotateCcw size={14} style={{ color: "var(--text-secondary)", opacity: 0.85, cursor: "default" }} />
                       <div
                         style={{
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          background: "transparent",
                           color: "var(--accent)",
                           cursor: "default",
+                          filter: "var(--play-icon-glow)",
+                          transition: "filter var(--t-fast) var(--ease-smooth)",
                         }}
                       >
-                        <Play
-                          size={22}
-                          fill="currentColor"
-                          style={{
-                            filter: glowIntensity === "off"
-                              ? "none"
-                              : glowIntensity === "soft"
-                              ? "drop-shadow(0 0 3px rgba(var(--accent-rgb, 127, 199, 255), 0.85)) drop-shadow(0 0 9px rgba(var(--accent-rgb, 127, 199, 255), 0.45))"
-                              : glowIntensity === "medium"
-                              ? "drop-shadow(0 0 4px rgba(var(--accent-rgb, 127, 199, 255), 0.95)) drop-shadow(0 0 14px rgba(var(--accent-rgb, 127, 199, 255), 0.65)) drop-shadow(0 0 26px rgba(var(--accent-rgb, 127, 199, 255), 0.35))"
-                              : "drop-shadow(0 0 5px rgba(var(--accent-rgb, 127, 199, 255), 1)) drop-shadow(0 0 18px rgba(var(--accent-rgb, 127, 199, 255), 0.85)) drop-shadow(0 0 36px rgba(var(--accent-rgb, 127, 199, 255), 0.55))",
-                            transition: "filter var(--t-fast) var(--ease-smooth)",
-                          }}
-                        />
+                        <Play size={20} fill="currentColor" />
                       </div>
-                      <RotateCw
-                        size={15}
-                        style={{
-                          color: "var(--text-secondary)",
-                          opacity: 0.85,
-                          cursor: "default",
-                        }}
-                      />
+                      <RotateCw size={14} style={{ color: "var(--text-secondary)", opacity: 0.85, cursor: "default" }} />
                     </div>
-
-                    {/* Полоска прогресса таймлайна со свечением (как на фото 2) */}
+                    {/* Полоска таймлайна */}
                     <div
                       style={{
                         position: "relative",
                         width: "100%",
                         height: 3,
                         background: "rgba(255, 255, 255, 0.15)",
-                        borderRadius: 3,
-                        overflow: "visible",
+                        borderRadius: `${Math.max(1, Math.round(uiRadius.value * 0.25))}px`,
+                        overflow: "hidden",
                       }}
                     >
                       <div
@@ -1205,14 +1106,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           bottom: 0,
                           width: "55%",
                           background: "var(--accent)",
-                          borderRadius: 3,
-                          boxShadow: glowIntensity === "off"
-                            ? "none"
-                            : glowIntensity === "soft"
-                            ? "0 0 6px rgba(var(--accent-rgb, 127, 199, 255), 0.40)"
-                            : glowIntensity === "medium"
-                            ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.55), 0 0 2px rgba(var(--accent-rgb, 127, 199, 255), 0.80)"
-                            : "0 0 12px rgba(var(--accent-rgb, 127, 199, 255), 0.85), 0 0 4px rgba(var(--accent-rgb, 127, 199, 255), 1)",
+                          borderRadius: `${Math.max(1, Math.round(uiRadius.value * 0.25))}px`,
+                          boxShadow: "var(--timeline-glow)",
                           transition: "box-shadow var(--t-fast) var(--ease-smooth)",
                         }}
                       />
@@ -1220,132 +1115,280 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(4, 1fr)",
+                {/* ── Вспомогательные стили для подблоков настроек интерфейса ── */}
+                {(() => {
+                  const cardStyle: React.CSSProperties = {
+                    display: "flex",
+                    flexDirection: "column",
                     gap: 8,
-                    padding: 4,
-                    background: "rgba(255, 255, 255, 0.03)",
+                    padding: "10px 12px",
+                    background: "rgba(255, 255, 255, 0.02)",
                     borderRadius: "var(--radius-md)",
                     border: "1px solid var(--border)",
-                  }}
-                >
-                  {[
-                    {
-                      id: "off" as const,
-                      label: "Off",
-                      desc: "Без свечения",
-                      selectedBg: "rgba(255, 255, 255, 0.08)",
-                      selectedShadow: "inset 0 0 0 1.5px var(--accent)",
-                    },
-                    {
-                      id: "soft" as const,
-                      label: "Soft",
-                      desc: "Мягкое",
-                      selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.12)",
-                      selectedShadow: "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.40), inset 0 0 0 1.5px var(--accent)",
-                    },
-                    {
-                      id: "medium" as const,
-                      label: "Medium",
-                      desc: "Сбалансированное",
-                      selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.22)",
-                      selectedShadow: "0 0 16px rgba(var(--accent-rgb, 127, 199, 255), 0.65), 0 0 4px var(--accent), inset 0 0 0 1.5px var(--accent)",
-                    },
-                    {
-                      id: "intense" as const,
-                      label: "Cyber Intense",
-                      desc: "Яркий неон",
-                      selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.32)",
-                      selectedShadow: "0 0 28px rgba(var(--accent-rgb, 127, 199, 255), 0.95), 0 0 8px var(--accent), inset 0 0 0 2px var(--accent)",
-                    },
-                  ].map((mode) => {
-                    const isSel = glowIntensity === mode.id;
-                    return (
-                      <button
-                        key={mode.id}
-                        type="button"
-                        onClick={() => {
-                          setGlowIntensity(mode.id);
-                          saveGlowIntensity(mode.id);
-                        }}
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 4,
-                          padding: "10px 6px",
-                          borderRadius: "var(--radius-sm)",
-                          border: "none",
-                          cursor: "pointer",
-                          background: isSel ? mode.selectedBg : "transparent",
-                          color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
-                          boxShadow: isSel ? mode.selectedShadow : "none",
-                          transition: "all var(--t-fast) var(--ease-smooth)",
-                        }}
-                      >
-                        <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{mode.label}</span>
-                        <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
-                          {mode.desc}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </AccordionSection>
+                    marginBottom: 10,
+                  };
+                  const resetBtnStyle: React.CSSProperties = {
+                    width: "auto",
+                    height: 22,
+                    padding: "0 6px",
+                    borderRadius: "var(--radius-sm)",
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text-secondary)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: "0.70rem",
+                    cursor: "pointer",
+                  };
+                  const btnStyle = (isSel: boolean, padding = "6px 4px"): React.CSSProperties => ({
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 3,
+                    padding,
+                    borderRadius: "var(--radius-sm)",
+                    border: "none",
+                    cursor: "pointer",
+                    background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
+                    color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+                    boxShadow: isSel
+                      ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                      : "none",
+                    transition: "all var(--t-fast) var(--ease-smooth)",
+                  });
 
-              {/* 3. Прозрачность интерфейса */}
-              <AccordionSection
-                isOpen={!!openSections["app_opacity"]}
-                onToggle={() => toggleSection("app_opacity")}
-                icon={<SlidersHorizontal size={16} />}
-                title="Прозрачность интерфейса"
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12 }}>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="1.0"
-                    step="0.01"
-                    value={uiOpacity}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setUiOpacity(val);
-                      localStorage.setItem('l-mpv-ui-opacity', val.toString());
-                      document.documentElement.style.setProperty('--ui-opacity', val.toString());
-                    }}
-                    style={{ flex: 1, cursor: "pointer", accentColor: "var(--accent)" }}
-                  />
-                  <div style={{ width: "45px", fontSize: "0.9rem", color: "var(--text-secondary)", textAlign: "right" }}>
-                    {Math.round(uiOpacity * 100)}%
-                  </div>
-                  <button
-                    onClick={() => {
-                      setUiOpacity(0.88);
-                      localStorage.setItem('l-mpv-ui-opacity', '0.88');
-                      document.documentElement.style.setProperty('--ui-opacity', '0.88');
-                    }}
-                    className="control-btn"
-                    title="Сбросить на значение по умолчанию (88%)"
-                    style={{
-                      width: "auto",
-                      height: 28,
-                      padding: "0 10px",
-                      borderRadius: "var(--radius-md)",
-                      background: "rgba(255, 255, 255, 0.05)",
-                      border: "1px solid var(--border)",
-                      color: "var(--text-secondary)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: "0.75rem"
-                    }}
-                  >
-                    <RotateCcw size={14} />
-                  </button>
-                </div>
+                  return (
+                    <>
+                      {/* ── Блок 1: Скругление углов ── */}
+                      <div style={cardStyle}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Square size={14} style={{ color: "var(--accent)" }} />
+                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                              Скругление углов интерфейса
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+                              {uiRadius.value} px
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUiRadius({ level: "default", value: 16 });
+                                saveUiRadius("default", 16);
+                              }}
+                              className="control-btn"
+                              title="Сбросить на стандартное скругление (16 px)"
+                              style={resetBtnStyle}
+                            >
+                              <RotateCcw size={11} />
+                              <span>16 px (Стандарт)</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 5 кнопок пресетов скругления в 1 ровный ряд */}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+                          {(Object.keys(UI_RADIUS_PRESETS) as (Exclude<UiRadiusLevel, "custom">)[]).map((level) => {
+                            const preset = UI_RADIUS_PRESETS[level];
+                            const isSel = uiRadius.value === preset.controlsRadius;
+                            const visualRadius = level === "none" ? "0px" : level === "minimal" ? "3px" : level === "default" ? "6px" : level === "smooth" ? "9px" : "14px";
+                            return (
+                              <button
+                                key={level}
+                                type="button"
+                                onClick={() => {
+                                  setUiRadius({ level, value: preset.controlsRadius });
+                                  saveUiRadius(level, preset.controlsRadius);
+                                }}
+                                style={btnStyle(isSel)}
+                              >
+                                <div
+                                  style={{
+                                    width: 22,
+                                    height: 13,
+                                    border: `1.5px solid ${isSel ? "var(--accent)" : "rgba(255, 255, 255, 0.35)"}`,
+                                    borderRadius: visualRadius,
+                                    background: isSel ? "var(--accent-glass)" : "transparent",
+                                    transition: "all var(--t-fast) var(--ease-smooth)",
+                                  }}
+                                />
+                                <span style={{ fontSize: "0.76rem", fontWeight: 600 }}>{preset.label}</span>
+                                <span style={{ fontSize: "0.68rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
+                                  {preset.badge}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Ползунок точной настройки кастомного скругления */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
+                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", width: 65, flexShrink: 0 }}>
+                            Кастомное:
+                          </span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="34"
+                            step="1"
+                            value={uiRadius.value}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              const matched = (Object.keys(UI_RADIUS_PRESETS) as (Exclude<UiRadiusLevel, "custom">)[]).find(
+                                (k) => UI_RADIUS_PRESETS[k].controlsRadius === val
+                              );
+                              const nextLevel: UiRadiusLevel = matched || "custom";
+                              setUiRadius({ level: nextLevel, value: val });
+                              saveUiRadius(nextLevel, val);
+                            }}
+                            style={{ flex: 1, cursor: "pointer", accentColor: "var(--accent)" }}
+                          />
+                          <span style={{ fontSize: "0.76rem", fontWeight: 600, color: "var(--text-secondary)", width: 42, textAlign: "right" }}>
+                            {uiRadius.value} px
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* ── Блок 2: Масштаб и размеры ── */}
+                      <div style={cardStyle}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Maximize2 size={14} style={{ color: "var(--accent)" }} />
+                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                              Масштаб и размеры интерфейса (UI Scale)
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+                              {uiScale.mode === "auto" ? "Авто (100%)" : `${Math.round(uiScale.value * 100)}%`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUiScale({ mode: "auto", value: 1.0 });
+                                saveUiScale("auto", 1.0);
+                              }}
+                              className="control-btn"
+                              title="Сбросить на автоматический масштаб (Стандарт)"
+                              style={resetBtnStyle}
+                            >
+                              <RotateCcw size={11} />
+                              <span>Авто (Стандарт)</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 6 кнопок пресетов масштаба в 1 ровный ряд */}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
+                          {UI_SCALE_PRESETS.map((preset) => {
+                            const isSel =
+                              uiScale.mode === preset.id ||
+                              (uiScale.mode !== "auto" &&
+                                preset.value !== null &&
+                                Math.abs(uiScale.value - preset.value) < 0.01);
+                            return (
+                              <button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => {
+                                  const nextVal = preset.value !== null ? preset.value : 1.0;
+                                  setUiScale({ mode: preset.id, value: nextVal });
+                                  saveUiScale(preset.id, nextVal);
+                                }}
+                                style={btnStyle(isSel, "6px 3px")}
+                              >
+                                <span style={{ fontSize: "0.75rem", fontWeight: 600 }}>{preset.label}</span>
+                                <span style={{ fontSize: "0.68rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
+                                  {preset.badge}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Ползунок точной настройки масштаба */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
+                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", width: 65, flexShrink: 0 }}>
+                            Точная:
+                          </span>
+                          <input
+                            type="range"
+                            min="0.75"
+                            max="1.60"
+                            step="0.05"
+                            value={uiScale.value}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              setUiScale({ mode: "custom", value: val });
+                              saveUiScale("custom", val);
+                            }}
+                            style={{ flex: 1, cursor: "pointer", accentColor: "var(--accent)" }}
+                          />
+                          <span style={{ fontSize: "0.76rem", fontWeight: 600, color: "var(--text-secondary)", width: 42, textAlign: "right" }}>
+                            {Math.round(uiScale.value * 100)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* ── Блок 3: Прозрачность интерфейса ── */}
+                      <div style={{ ...cardStyle, marginBottom: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <SlidersHorizontal size={14} style={{ color: "var(--accent)" }} />
+                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                              Прозрачность интерфейса
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+                              {Math.round(uiOpacity * 100)}%
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUiOpacity(0.88);
+                                saveUiOpacity(0.88);
+                              }}
+                              className="control-btn"
+                              title="Сбросить на стандартную прозрачность (88%)"
+                              style={resetBtnStyle}
+                            >
+                              <RotateCcw size={11} />
+                              <span>88% (Стандарт)</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Ползунок прозрачности */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
+                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", width: 65, flexShrink: 0 }}>
+                            Уровень:
+                          </span>
+                          <input
+                            type="range"
+                            min="0.10"
+                            max="1.00"
+                            step="0.01"
+                            value={uiOpacity}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              setUiOpacity(val);
+                              saveUiOpacity(val);
+                            }}
+                            style={{ flex: 1, cursor: "pointer", accentColor: "var(--accent)" }}
+                          />
+                          <span style={{ fontSize: "0.76rem", fontWeight: 600, color: "var(--text-secondary)", width: 42, textAlign: "right" }}>
+                            {Math.round(uiOpacity * 100)}%
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </AccordionSection>
 
               {/* 4. Плавные анимации интерфейса */}
@@ -1431,6 +1474,12 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 icon={<SlidersHorizontal size={16} />}
                 title="Видимость кнопок панели управления"
               >
+                <div style={{ marginTop: 12 }}>
+                  <ControlButtonsPreviewCard
+                    visibleButtons={visibleButtons}
+                    skipOpeningSeconds={skipOpeningSeconds}
+                  />
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", columnGap: 20, rowGap: 8, marginTop: 12 }}>
                   {[
                     { id: 'repeat', label: 'Повтор', defaultChecked: true },
@@ -1652,7 +1701,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       </span>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         <button
-                          onClick={() => updateAmbient({ color: activeColor === "windows" ? "#7fc7ff" : activeColor }, true)}
+                          onClick={() => updateAmbient({ color: getEffectiveAccentColor() }, true)}
                           title="Использовать текущий акцент плеера"
                           style={{
                             padding: "6px 12px",
@@ -1818,7 +1867,18 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                           return (
                                             <div key={idx} style={{ display: "flex", alignItems: "center" }}>
                                               <button
-                                                onClick={() => setRecordingAction({ id: item.id, index: idx })}
+                                                onClick={(e) => {
+                                                  if (Date.now() < ignoreClickUntilRef.current) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    return;
+                                                  }
+                                                  if (!isRecording) {
+                                                    setRecordingAction({ id: item.id, index: idx });
+                                                  } else {
+                                                    e.preventDefault();
+                                                  }
+                                                }}
                                                 onKeyDown={(e) => {
                                                   if (isRecording) {
                                                     e.preventDefault();
@@ -1850,6 +1910,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                                   if (isRecording) {
                                                     e.preventDefault();
                                                     e.stopPropagation();
+                                                    ignoreClickUntilRef.current = Date.now() + 400;
                                                     const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
                                                     const newCode = btnMap[e.button] || `MouseButton${e.button}`;
                                                     const newCodes = [...currentCodes];
@@ -1861,7 +1922,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                                   }
                                                 }}
                                                 onContextMenu={(e) => {
-                                                  if (isRecording) e.preventDefault();
+                                                  e.preventDefault();
+                                                  e.stopPropagation();
                                                 }}
                                                 style={{
                                                   padding: "4px 10px",
@@ -1943,7 +2005,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                                     if (isRecordingNew) {
                                                       e.preventDefault();
                                                       e.stopPropagation();
-                                                      const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
+                                                      ignoreClickUntilRef.current = Date.now() + 400;
+                                                    const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
                                                       const newCode = btnMap[e.button] || `MouseButton${e.button}`;
                                                       const updatedCodes = [...currentCodes, newCode];
                                                       const updated = { ...customHotkeys, [item.id]: updatedCodes };
@@ -1953,7 +2016,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                                     }
                                                   }}
                                                   onContextMenu={(e) => {
-                                                    if (isRecordingNew) e.preventDefault();
+                                                    e.preventDefault();
+                                                   e.stopPropagation();
                                                   }}
                                                   style={{
                                                     padding: "4px 10px",
@@ -1975,7 +2039,14 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                           
                                           return (
                                             <button
-                                              onClick={() => setRecordingAction({ id: item.id, index: currentCodes.length })}
+                                              onClick={(e) => {
+                                                if (Date.now() < ignoreClickUntilRef.current) {
+                                                  e.preventDefault();
+                                                  e.stopPropagation();
+                                                  return;
+                                                }
+                                                setRecordingAction({ id: item.id, index: currentCodes.length });
+                                              }}
                                               title="Добавить клавишу"
                                               style={{
                                                 padding: "4px 8px",
@@ -2387,22 +2458,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           <span style={{ fontSize: "0.76rem" }}>Портативная редакция</span>
         </div>
       </div>
-
-      {/* Кастомное модальное окно выбора своего цвета с цветовым кругом */}
-      {showColorPicker && (
-        <ColorPickerModal
-          initialColor={activeColor.startsWith("#") ? activeColor : "#7fc7ff"}
-          onSelectColor={(hex) => {
-            const nextColors = [hex, ...customColors.filter((c) => c.toLowerCase() !== hex.toLowerCase())].slice(0, MAX_CUSTOM_COLORS);
-            setCustomColors(nextColors);
-            saveCustomColors(nextColors);
-            applyAccentColor(hex);
-            setActiveColor(hex);
-            localStorage.setItem("l-mpv-accent-color", hex);
-          }}
-          onClose={() => setShowColorPicker(false)}
-        />
-      )}
     </div>
   );
 }

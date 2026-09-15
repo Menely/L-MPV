@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { X, Plus } from "lucide-react";
 import { hslToRgb, rgbToHex, hexToRgb, rgbToHsl } from "../utils/colorUtils";
 
@@ -33,9 +33,27 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   const wheelCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDraggingRef = useRef<boolean>(false);
 
+  // Закрытие модального окна по нажатию клавиши Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   // Текущий вычисленный цвет
   const currentRgb = hslToRgb(hue, saturation, lightness);
   const currentHex = rgbToHex(currentRgb.r, currentRgb.g, currentRgb.b).toUpperCase();
+
+  // Оптимизированный цвет середины спектра для слайдера яркости
+  const sliderMidHex = useMemo(() => {
+    const mid = hslToRgb(hue, saturation, 50);
+    return rgbToHex(mid.r, mid.g, mid.b);
+  }, [hue, saturation]);
 
   // Отрисовка цветового круга спектра на Canvas
   useEffect(() => {
@@ -280,11 +298,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
               borderRadius: 4,
               outline: "none",
               appearance: "none",
-              background: `linear-gradient(90deg, #000000 0%, ${rgbToHex(
-                hslToRgb(hue, saturation, 50).r,
-                hslToRgb(hue, saturation, 50).g,
-                hslToRgb(hue, saturation, 50).b
-              )} 50%, #ffffff 100%)`,
+              background: `linear-gradient(90deg, #000000 0%, ${sliderMidHex} 50%, #ffffff 100%)`,
               cursor: "pointer",
             }}
           />

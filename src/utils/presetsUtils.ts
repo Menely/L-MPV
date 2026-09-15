@@ -12,6 +12,9 @@ import {
   saveGlowIntensity,
   getCustomColors,
   saveCustomColors,
+  PlayerThemeId,
+  getSavedPlayerTheme,
+  savePlayerTheme,
 } from "./colorUtils";
 import {
   VisualizerConfig,
@@ -19,14 +22,32 @@ import {
   saveVisualizerConfig,
 } from "../components/AudioVisualizer";
 import { getCustomHotkeys, saveCustomHotkeys } from "./hotkeyUtils";
+import {
+  UiRadiusLevel,
+  getSavedUiRadius,
+  saveUiRadius,
+  UiScaleMode,
+  getSavedUiScale,
+  saveUiScale,
+  saveUiOpacity,
+} from "./uiThemeUtils";
 
 export interface SettingsPresetData {
+  /** Тема оформления плеера (расцветка фона и поверхностей) */
+  playerTheme?: PlayerThemeId | string;
   /** Акцентный цвет (HEX или "windows") */
   accentColor: string;
   /** Интенсивность неонового свечения */
   glowIntensity: GlowIntensity;
   /** Прозрачность интерфейса (0.2 - 1.0) */
   uiOpacity: number;
+  /** Уровень скругления интерфейса */
+  uiRadius?: UiRadiusLevel | { level: UiRadiusLevel; value?: number };
+  /** Масштаб интерфейса */
+  uiScale?: {
+    mode: UiScaleMode;
+    value?: number;
+  };
   /** Включение плавных пружинящих анимаций */
   animationsEnabled: boolean;
   /** Отображение названий аудио- и субтитров на панели */
@@ -83,6 +104,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     createdAt: 1700000000000,
     isBuiltIn: true,
     data: {
+      playerTheme: "graphite",
       accentColor: "#7fc7ff",
       glowIntensity: "soft",
       uiOpacity: 0.88,
@@ -124,6 +146,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     createdAt: 1700000000001,
     isBuiltIn: true,
     data: {
+      playerTheme: "oled",
       accentColor: "#ff2a85",
       glowIntensity: "intense",
       uiOpacity: 0.94,
@@ -165,6 +188,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     createdAt: 1700000000002,
     isBuiltIn: true,
     data: {
+      playerTheme: "mocha",
       accentColor: "#f59e0b",
       glowIntensity: "soft",
       uiOpacity: 0.72,
@@ -206,6 +230,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     createdAt: 1700000000003,
     isBuiltIn: true,
     data: {
+      playerTheme: "nord",
       accentColor: "#cbd5e1",
       glowIntensity: "off",
       uiOpacity: 1.0,
@@ -300,6 +325,9 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
   const hotloadEnabled = localStorage.getItem("l-mpv-hotload-enabled") === "true";
   const skipOpeningSeconds = Number(localStorage.getItem("l-mpv-skip-opening-seconds") || 90);
   const customHotkeys = getCustomHotkeys();
+  const uiRadius = getSavedUiRadius();
+  const uiScale = getSavedUiScale();
+  const playerTheme = getSavedPlayerTheme();
 
   return {
     id: `preset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -307,9 +335,12 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
     createdAt: Date.now(),
     isBuiltIn: false,
     data: {
+      playerTheme,
       accentColor,
       glowIntensity,
       uiOpacity,
+      uiRadius,
+      uiScale,
       animationsEnabled,
       showTrackNames,
       visibleButtons,
@@ -330,11 +361,17 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
 export async function applySettingsPreset(preset: SettingsPreset): Promise<void> {
   const { data } = preset;
 
+  // 0. Тема оформления плеера (расцветка фона и поверхностей)
+  if (data.playerTheme) {
+    savePlayerTheme(data.playerTheme);
+  }
+
   // 1. Акцентный цвет
   if (data.accentColor) {
     if (data.accentColor === "windows") {
       try {
         const winHex = await invoke<string>("get_windows_accent_color");
+        localStorage.setItem("l-mpv-accent-color-windows", winHex);
         applyAccentColor(winHex);
       } catch {
         applyAccentColor("#7fc7ff");
@@ -353,8 +390,21 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
 
   // 3. Прозрачность UI
   if (typeof data.uiOpacity === "number") {
-    localStorage.setItem("l-mpv-ui-opacity", data.uiOpacity.toString());
-    document.documentElement.style.setProperty("--ui-opacity", data.uiOpacity.toString());
+    saveUiOpacity(data.uiOpacity);
+  }
+
+  // 3.1 Скругление интерфейса
+  if (data.uiRadius) {
+    if (typeof data.uiRadius === "string") {
+      saveUiRadius(data.uiRadius);
+    } else {
+      saveUiRadius(data.uiRadius.level, data.uiRadius.value);
+    }
+  }
+
+  // 3.2 Масштаб интерфейса
+  if (data.uiScale) {
+    saveUiScale(data.uiScale.mode, data.uiScale.value);
   }
 
   // 4. Плавные анимации
@@ -623,9 +673,12 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
           createdAt: Date.now(),
           isBuiltIn: false,
           data: {
+            playerTheme: item.data.playerTheme || "graphite",
             accentColor: item.data.accentColor || "#7fc7ff",
             glowIntensity: item.data.glowIntensity || "medium",
             uiOpacity: typeof item.data.uiOpacity === "number" ? item.data.uiOpacity : 0.88,
+            uiRadius: item.data.uiRadius,
+            uiScale: item.data.uiScale,
             animationsEnabled: item.data.animationsEnabled !== false,
             showTrackNames: item.data.showTrackNames !== false,
             visibleButtons: item.data.visibleButtons || {},
