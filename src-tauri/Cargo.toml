@@ -1,6 +1,6 @@
 [package]
 name = "l-mpv"
-version = "1.6.6"
+version = "1.6.8"
 description = "L-MPV — портативный медиаплеер на базе libmpv"
 authors = ["Leo DiSanche"]
 edition = "2021"

@@ -1,19 +1,281 @@
+/**
+ * Модуль управления цветовым оформлением плеера L-MPV:
+ * темы оформления плеера (расцветки фона, поверхностей, текста),
+ * палитры акцентных цветов, адаптивное неоновое свечение и динамическая гармонизация.
+ */
+
+// ─── Темы оформления плеера (Цвет фона и поверхностей) ───────────────────────
+
+export type PlayerThemeId =
+  | "graphite"
+  | "oled"
+  | "sapphire"
+  | "emerald"
+  | "amethyst"
+  | "mocha"
+  | "nord";
+
+export interface PlayerThemeTokens {
+  bgPrimary: string;
+  bgSurface: string;
+  bgGlassRgb: string; // R, G, B для подложек со стеклом
+  bgPillRgb: string;   // R, G, B для нижней плавающей панели
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  border: string;
+  borderHover: string;
+}
+
+export interface PlayerThemeConfig {
+  id: PlayerThemeId;
+  name: string;
+  badge?: string;
+  desc: string;
+  dotColor: string;
+  surfaceColor: string;
+  tokens: PlayerThemeTokens;
+  recommendedAccents: string[];
+}
+
+export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
+  graphite: {
+    id: "graphite",
+    name: "Тёмный графит",
+    badge: "Стандарт",
+    desc: "Фирменный нейтральный графитовый стиль L-MPV",
+    dotColor: "#1a1f2c",
+    surfaceColor: "#13161d",
+    tokens: {
+      bgPrimary: "#0b0d12",
+      bgSurface: "#13161d",
+      bgGlassRgb: "16, 19, 28",
+      bgPillRgb: "10, 12, 18",
+      textPrimary: "rgba(255, 255, 255, 0.92)",
+      textSecondary: "rgba(255, 255, 255, 0.58)",
+      textMuted: "rgba(255, 255, 255, 0.30)",
+      border: "rgba(255, 255, 255, 0.07)",
+      borderHover: "rgba(255, 255, 255, 0.14)",
+    },
+    recommendedAccents: ["#7fc7ff", "#00FF9D", "#e8a236", "#6ee7b7"],
+  },
+  oled: {
+    id: "oled",
+    name: "Глубокий OLED",
+    desc: "Абсолютно чёрный фон для максимальной контрастности и HDR",
+    dotColor: "#000000",
+    surfaceColor: "#08080a",
+    tokens: {
+      bgPrimary: "#000000",
+      bgSurface: "#09090b",
+      bgGlassRgb: "8, 8, 10",
+      bgPillRgb: "4, 4, 6",
+      textPrimary: "rgba(255, 255, 255, 0.96)",
+      textSecondary: "rgba(255, 255, 255, 0.62)",
+      textMuted: "rgba(255, 255, 255, 0.32)",
+      border: "rgba(255, 255, 255, 0.09)",
+      borderHover: "rgba(255, 255, 255, 0.18)",
+    },
+    recommendedAccents: ["#00E5FF", "#00FF9D", "#FF2A5F", "#fde047"],
+  },
+  sapphire: {
+    id: "sapphire",
+    name: "Сапфировая полночь",
+    desc: "Глубокий тёмно-синий океанский оттенок с кристальным текстом",
+    dotColor: "#0e1a38",
+    surfaceColor: "#0d1629",
+    tokens: {
+      bgPrimary: "#070c18",
+      bgSurface: "#0c1527",
+      bgGlassRgb: "11, 19, 36",
+      bgPillRgb: "7, 12, 23",
+      textPrimary: "rgba(240, 246, 255, 0.94)",
+      textSecondary: "rgba(196, 215, 245, 0.62)",
+      textMuted: "rgba(160, 185, 222, 0.34)",
+      border: "rgba(127, 199, 255, 0.09)",
+      borderHover: "rgba(127, 199, 255, 0.18)",
+    },
+    recommendedAccents: ["#7fc7ff", "#00E5FF", "#3B82F6", "#fdba74"],
+  },
+  emerald: {
+    id: "emerald",
+    name: "Тёмный изумруд",
+    desc: "Благородный хвойно-нефритовый тон с чистой палитрой",
+    dotColor: "#0c281e",
+    surfaceColor: "#0b1f17",
+    tokens: {
+      bgPrimary: "#06130e",
+      bgSurface: "#0a1d15",
+      bgGlassRgb: "10, 26, 19",
+      bgPillRgb: "6, 17, 12",
+      textPrimary: "rgba(240, 255, 248, 0.94)",
+      textSecondary: "rgba(190, 235, 215, 0.62)",
+      textMuted: "rgba(150, 205, 180, 0.34)",
+      border: "rgba(110, 231, 183, 0.09)",
+      borderHover: "rgba(110, 231, 183, 0.18)",
+    },
+    recommendedAccents: ["#00FF9D", "#6ee7b7", "#14B8A6", "#e8a236"],
+  },
+  amethyst: {
+    id: "amethyst",
+    name: "Аметист",
+    desc: "Благородный глубокий пурпурный стиль с лавандовым сиянием",
+    dotColor: "#361b52",
+    surfaceColor: "#231338",
+    tokens: {
+      bgPrimary: "#160b24",
+      bgSurface: "#201133",
+      bgGlassRgb: "30, 17, 48",
+      bgPillRgb: "19, 10, 30",
+      textPrimary: "rgba(250, 244, 255, 0.95)",
+      textSecondary: "rgba(225, 205, 245, 0.65)",
+      textMuted: "rgba(190, 165, 220, 0.38)",
+      border: "rgba(196, 181, 253, 0.12)",
+      borderHover: "rgba(196, 181, 253, 0.22)",
+    },
+    recommendedAccents: ["#c4b5fd", "#8B5CF6", "#D946EF", "#f0abfc"],
+  },
+  mocha: {
+    id: "mocha",
+    name: "Вулканический мокко",
+    desc: "Тёплый кофейно-шоколадный угольный стиль с мягким светом",
+    dotColor: "#2b1b14",
+    surfaceColor: "#1c120e",
+    tokens: {
+      bgPrimary: "#130b08",
+      bgSurface: "#1b110c",
+      bgGlassRgb: "26, 16, 12",
+      bgPillRgb: "16, 10, 7",
+      textPrimary: "rgba(255, 248, 242, 0.94)",
+      textSecondary: "rgba(240, 215, 200, 0.62)",
+      textMuted: "rgba(205, 175, 155, 0.34)",
+      border: "rgba(253, 186, 116, 0.09)",
+      borderHover: "rgba(253, 186, 116, 0.18)",
+    },
+    recommendedAccents: ["#e8a236", "#fdba74", "#FF5722", "#5eead4"],
+  },
+  nord: {
+    id: "nord",
+    name: "Холодный Норд",
+    desc: "Арктический сланцево-стальной стиль с выверенным контрастом",
+    dotColor: "#1b2533",
+    surfaceColor: "#151c27",
+    tokens: {
+      bgPrimary: "#0c1117",
+      bgSurface: "#131a24",
+      bgGlassRgb: "18, 25, 36",
+      bgPillRgb: "11, 16, 23",
+      textPrimary: "rgba(245, 249, 255, 0.94)",
+      textSecondary: "rgba(198, 215, 235, 0.62)",
+      textMuted: "rgba(155, 178, 205, 0.34)",
+      border: "rgba(125, 211, 252, 0.09)",
+      borderHover: "rgba(125, 211, 252, 0.18)",
+    },
+    recommendedAccents: ["#7dd3fc", "#5eead4", "#A3E635", "#7fc7ff"],
+  },
+};
+
+export const PLAYER_THEME_STORAGE_KEY = "l-mpv-player-theme";
+export const DEFAULT_PLAYER_THEME: PlayerThemeId = "graphite";
+
+/**
+ * Получить сохраненную тему оформления плеера.
+ */
+export function getSavedPlayerTheme(): PlayerThemeId {
+  try {
+    const saved = localStorage.getItem(PLAYER_THEME_STORAGE_KEY) as PlayerThemeId | null;
+    if (saved && saved in PLAYER_THEMES) {
+      return saved;
+    }
+  } catch (e) {
+    console.error("Ошибка загрузки темы плеера из localStorage:", e);
+  }
+  return DEFAULT_PLAYER_THEME;
+}
+
+/**
+ * Получить фактический HEX акцентного цвета с учетом сохраненного цвета Windows.
+ */
+export function getEffectiveAccentColor(): string {
+  try {
+    const saved = localStorage.getItem("l-mpv-accent-color");
+    if (saved && saved.startsWith("#")) {
+      return saved;
+    }
+    if (saved === "windows") {
+      const winHex = localStorage.getItem("l-mpv-accent-color-windows");
+      if (winHex && winHex.startsWith("#")) {
+        return winHex;
+      }
+    }
+    const computed = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+    if (computed && computed.startsWith("#")) {
+      return computed;
+    }
+  } catch {}
+  return "#7fc7ff";
+}
+
+/**
+ * Применить тему оформления плеера (цвета фона, поверхностей, текста, бордеров).
+ */
+export function applyPlayerTheme(themeId: string): void {
+  const root = document.documentElement;
+  const config = (PLAYER_THEMES[themeId as PlayerThemeId] || PLAYER_THEMES.graphite);
+  const { tokens } = config;
+
+  root.setAttribute("data-player-theme", config.id);
+  root.style.setProperty("--bg-primary", tokens.bgPrimary);
+  root.style.setProperty("--bg-surface", tokens.bgSurface);
+  root.style.setProperty("--bg-glass-rgb", tokens.bgGlassRgb);
+  root.style.setProperty("--bg-pill-rgb", tokens.bgPillRgb);
+
+  root.style.setProperty("--bg-glass", `rgba(${tokens.bgGlassRgb}, var(--ui-opacity, 0.88))`);
+  root.style.setProperty("--bg-pill", `rgba(${tokens.bgPillRgb}, var(--ui-opacity, 0.88))`);
+
+  root.style.setProperty("--text-primary", tokens.textPrimary);
+  root.style.setProperty("--text-secondary", tokens.textSecondary);
+  root.style.setProperty("--text-muted", tokens.textMuted);
+
+  root.style.setProperty("--border", tokens.border);
+  root.style.setProperty("--border-hover", tokens.borderHover);
+
+  // Пересчитываем текущий акцентный цвет с гармонизацией под новую тему
+  applyAccentColor(getEffectiveAccentColor());
+}
+
+/**
+ * Сохранить и мгновенно применить тему оформления плеера.
+ */
+export function savePlayerTheme(themeId: string): void {
+  const validId = themeId in PLAYER_THEMES ? (themeId as PlayerThemeId) : DEFAULT_PLAYER_THEME;
+  try {
+    localStorage.setItem(PLAYER_THEME_STORAGE_KEY, validId);
+  } catch (e) {
+    console.error("Ошибка сохранения темы плеера в localStorage:", e);
+  }
+  applyPlayerTheme(validId);
+  window.dispatchEvent(new CustomEvent("l-mpv-player-theme-changed", { detail: validId }));
+  window.dispatchEvent(new Event("l-mpv-settings-changed"));
+}
+
+// ─── Пресеты акцентных цветов ───────────────────────────────────────────────
+
 export const PASTEL_PRESETS = [
-  "#7fc7ff", // 1. Original Soft Blue (Default - не трогаем)
-  "#e8a236", // 2. Warm Amber / Gold (не трогаем)
-  "#f9a8d4", // 3. Soft Pink (мягкий розовый)
-  "#c4b5fd", // 4. Soft Lavender (нежная лаванда)
-  "#6ee7b7", // 5. Soft Mint (пастельная мята)
-  "#fde047", // 6. Soft Cream Yellow (пастельно-желтый)
-  "#fca5a5", // 7. Soft Coral Pink (пастельный коралловый)
-  "#7dd3fc", // 8. Soft Sky (нежно-голубой)
-  "#fdba74", // 9. Soft Peach (пастельный персиковый)
-  "#5eead4", // 10. Soft Turquoise Teal (пастельная бирюза)
-  "#f0abfc", // 11. Soft Lilac Magenta (пастельный сиреневый)
-  "#bef264", // 12. Soft Pastel Lime (пастельный салатовый)
+  "#7fc7ff", // 1. Original Soft Blue (Default)
+  "#e8a236", // 2. Warm Amber / Gold
+  "#f9a8d4", // 3. Soft Pink
+  "#c4b5fd", // 4. Soft Lavender
+  "#6ee7b7", // 5. Soft Mint
+  "#fde047", // 6. Soft Cream Yellow
+  "#fca5a5", // 7. Soft Coral Pink
+  "#7dd3fc", // 8. Soft Sky
+  "#fdba74", // 9. Soft Peach
+  "#5eead4", // 10. Soft Turquoise Teal
+  "#f0abfc", // 11. Soft Lilac Magenta
+  "#bef264", // 12. Soft Pastel Lime
 ];
 
-// ─── Пресет «Стандартные» (бывшие Однотонные) ───
 export const STANDARD_PRESETS = [
   "#00FF9D", // Cyber Emerald / Neon Green
   "#00E5FF", // Cyber Cyan / Electric Blue
@@ -29,10 +291,8 @@ export const STANDARD_PRESETS = [
   "#6366F1", // Indigo
 ];
 
-// Для обратной совместимости
 export const VIBRANT_PRESETS = STANDARD_PRESETS;
 
-// Максимум 11 добавленных цветов (+ 1 кнопка Windows = ровно 12 слотов в сетке 3х4)
 export const MAX_CUSTOM_COLORS = 11;
 const CUSTOM_COLORS_STORAGE_KEY = "l-mpv-custom-accent-colors";
 
@@ -89,7 +349,7 @@ export function rgbToHex(r: number, g: number, b: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-// Преобразование HSL (h: 0-360, s: 0-100, l: 0-100) в RGB
+// Преобразование HSL в RGB
 export function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
   h = ((h % 360) + 360) % 360;
   const sNorm = Math.max(0, Math.min(100, s)) / 100;
@@ -106,26 +366,20 @@ export function hslToRgb(h: number, s: number, l: number): { r: number; g: numbe
   if (h < 60) {
     rPrime = c;
     gPrime = x;
-    bPrime = 0;
   } else if (h < 120) {
     rPrime = x;
     gPrime = c;
-    bPrime = 0;
   } else if (h < 180) {
-    rPrime = 0;
     gPrime = c;
     bPrime = x;
   } else if (h < 240) {
-    rPrime = 0;
     gPrime = x;
     bPrime = c;
   } else if (h < 300) {
     rPrime = x;
-    gPrime = 0;
     bPrime = c;
   } else {
     rPrime = c;
-    gPrime = 0;
     bPrime = x;
   }
 
@@ -136,7 +390,7 @@ export function hslToRgb(h: number, s: number, l: number): { r: number; g: numbe
   };
 }
 
-// Преобразование RGB (0-255) в HSL (h: 0-360, s: 0-100, l: 0-100)
+// Преобразование RGB в HSL
 export function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
   const rNorm = r / 255;
   const gNorm = g / 255;
@@ -152,7 +406,6 @@ export function rgbToHsl(r: number, g: number, b: number): { h: number; s: numbe
 
   if (delta !== 0) {
     s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
-
     if (max === rNorm) {
       h = ((gNorm - bNorm) / delta + (gNorm < bNorm ? 6 : 0)) * 60;
     } else if (max === gNorm) {
@@ -169,113 +422,122 @@ export function rgbToHsl(r: number, g: number, b: number): { h: number; s: numbe
   };
 }
 
-// Изменение яркости цвета (percent от -100 до 100)
+// Изменение яркости цвета
 export function adjustBrightness(hex: string, percent: number): string {
   const rgb = hexToRgb(hex);
   if (!rgb) return hex;
-
-  let { r, g, b } = rgb;
-
-  r = Math.floor(r * (1 + percent / 100));
-  g = Math.floor(g * (1 + percent / 100));
-  b = Math.floor(b * (1 + percent / 100));
-
-  r = Math.min(255, Math.max(0, r));
-  g = Math.min(255, Math.max(0, g));
-  b = Math.min(255, Math.max(0, b));
-
-  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+  const factor = 1 + percent / 100;
+  return rgbToHex(rgb.r * factor, rgb.g * factor, rgb.b * factor);
 }
+
+// ─── Интенсивность неонового свечения (Glow Intensity) ───────────────────────
 
 export type GlowIntensity = "off" | "soft" | "medium" | "intense";
 export const GLOW_INTENSITY_STORAGE_KEY = "l-mpv-glow-intensity";
 
 export function getGlowIntensity(): GlowIntensity {
-  const saved = localStorage.getItem(GLOW_INTENSITY_STORAGE_KEY);
-  if (saved === "off" || saved === "soft" || saved === "medium" || saved === "intense") {
-    return saved;
-  }
-  return "medium"; // По умолчанию сбалансированное свечение
+  try {
+    const saved = localStorage.getItem(GLOW_INTENSITY_STORAGE_KEY);
+    if (saved === "off" || saved === "soft" || saved === "medium" || saved === "intense") {
+      return saved;
+    }
+  } catch {}
+  return "medium";
 }
 
 export function saveGlowIntensity(intensity: GlowIntensity): void {
-  localStorage.setItem(GLOW_INTENSITY_STORAGE_KEY, intensity);
-  const currentAccent = localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
-  applyAccentColor(currentAccent);
+  try {
+    localStorage.setItem(GLOW_INTENSITY_STORAGE_KEY, intensity);
+  } catch (e) {
+    console.error("Ошибка сохранения интенсивности свечения:", e);
+  }
+  applyAccentColor(getEffectiveAccentColor());
   window.dispatchEvent(new CustomEvent("l-mpv-glow-changed", { detail: intensity }));
+  window.dispatchEvent(new Event("l-mpv-settings-changed"));
 }
 
-// Применение нового акцентного цвета и неонового свечения
-export function applyAccentColor(value: string) {
-  const root = document.documentElement;
+// ─── Конфигурация слоев неонового свечения ───────────────────────────────────
 
-  // Однотонный цвет (HEX)
-  const hex = value.startsWith("#") ? value : "#7fc7ff";
+interface GlowProfile {
+  alpha: [standard: number, oled: number];
+  shadow: (rgb: string) => string;
+  thumb: (rgb: string) => string;
+  timeline: (rgb: string) => string;
+  activeIcon: (rgb: string) => string;
+  playIcon: (rgb: string) => string;
+  hoverIcon: (rgb: string) => string;
+}
+
+const GLOW_PROFILES: Record<Exclude<GlowIntensity, "off">, GlowProfile> = {
+  soft: {
+    alpha: [0.25, 0.20],
+    shadow: (rgb) => `0 0 10px rgba(${rgb}, 0.35), 0 0 20px rgba(${rgb}, 0.15)`,
+    thumb: (rgb) => `0 0 6px rgba(${rgb}, 0.50), 0 0 12px rgba(${rgb}, 0.25)`,
+    timeline: (rgb) => `0 0 6px rgba(${rgb}, 0.40)`,
+    activeIcon: (rgb) => `drop-shadow(0 0 3px rgba(${rgb}, 0.75)) drop-shadow(0 0 8px rgba(${rgb}, 0.35))`,
+    playIcon: (rgb) => `drop-shadow(0 0 3px rgba(${rgb}, 0.85)) drop-shadow(0 0 9px rgba(${rgb}, 0.45))`,
+    hoverIcon: (rgb) => `drop-shadow(0 0 3px rgba(${rgb}, 0.80)) drop-shadow(0 0 8px rgba(${rgb}, 0.40))`,
+  },
+  medium: {
+    alpha: [0.48, 0.42],
+    shadow: (rgb) => `0 0 14px rgba(${rgb}, 0.60), 0 0 28px rgba(${rgb}, 0.30)`,
+    thumb: (rgb) => `0 0 8px rgba(${rgb}, 0.70), 0 0 16px rgba(${rgb}, 0.35)`,
+    timeline: (rgb) => `0 0 8px rgba(${rgb}, 0.55), 0 0 2px rgba(${rgb}, 0.80)`,
+    activeIcon: (rgb) => `drop-shadow(0 0 4px rgba(${rgb}, 0.95)) drop-shadow(0 0 14px rgba(${rgb}, 0.60)) drop-shadow(0 0 26px rgba(${rgb}, 0.30))`,
+    playIcon: (rgb) => `drop-shadow(0 0 4px rgba(${rgb}, 0.95)) drop-shadow(0 0 14px rgba(${rgb}, 0.65)) drop-shadow(0 0 26px rgba(${rgb}, 0.35))`,
+    hoverIcon: (rgb) => `drop-shadow(0 0 4px rgba(${rgb}, 0.90)) drop-shadow(0 0 12px rgba(${rgb}, 0.50))`,
+  },
+  intense: {
+    alpha: [0.75, 0.68],
+    shadow: (rgb) => `0 0 18px rgba(${rgb}, 0.80), 0 0 36px rgba(${rgb}, 0.45)`,
+    thumb: (rgb) => `0 0 12px rgba(${rgb}, 0.90), 0 0 24px rgba(${rgb}, 0.55), 0 0 4px #fff`,
+    timeline: (rgb) => `0 0 12px rgba(${rgb}, 0.85), 0 0 4px rgba(${rgb}, 1)`,
+    activeIcon: (rgb) => `drop-shadow(0 0 5px rgba(${rgb}, 1)) drop-shadow(0 0 18px rgba(${rgb}, 0.80)) drop-shadow(0 0 34px rgba(${rgb}, 0.50))`,
+    playIcon: (rgb) => `drop-shadow(0 0 5px rgba(${rgb}, 1)) drop-shadow(0 0 18px rgba(${rgb}, 0.85)) drop-shadow(0 0 36px rgba(${rgb}, 0.55))`,
+    hoverIcon: (rgb) => `drop-shadow(0 0 5px rgba(${rgb}, 0.95)) drop-shadow(0 0 16px rgba(${rgb}, 0.75)) drop-shadow(0 0 28px rgba(${rgb}, 0.40))`,
+  },
+};
+
+// ─── Применение акцентного цвета с динамической гармонизацией под тему ───────
+
+export function applyAccentColor(value: string): void {
+  const root = document.documentElement;
+  const hex = value === "windows" || !value.startsWith("#") ? getEffectiveAccentColor() : value;
+
   const hover = adjustBrightness(hex, 15);
   const dim = adjustBrightness(hex, -25);
   const dark = adjustBrightness(hex, -45);
 
   const intensity = getGlowIntensity();
+  const isOled = getSavedPlayerTheme() === "oled";
 
   const rgb = hexToRgb(hex) || { r: 127, g: 199, b: 255 };
   const rgbString = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
 
-  // Переменные рассеивающегося свечения иконок (drop-shadow непосредственно от штрихов SVG)
-  let glowAlpha = 0;
-  let shadowGlow = "none";
-  let thumbGlow = "none";
-  let timelineGlow = "none";
-  let activeIconGlow = "none";
-  let playIconGlow = "none";
-  let hoverIconGlow = "none";
-
-  if (intensity === "soft") {
-    glowAlpha = 0.25;
-    shadowGlow = `0 0 10px rgba(${rgbString}, 0.35), 0 0 20px rgba(${rgbString}, 0.15)`;
-    thumbGlow = `0 0 6px rgba(${rgbString}, 0.50), 0 0 12px rgba(${rgbString}, 0.25)`;
-    timelineGlow = `0 0 6px rgba(${rgbString}, 0.40)`;
-    activeIconGlow = `drop-shadow(0 0 3px rgba(${rgbString}, 0.75)) drop-shadow(0 0 8px rgba(${rgbString}, 0.35))`;
-    playIconGlow = `drop-shadow(0 0 3px rgba(${rgbString}, 0.85)) drop-shadow(0 0 9px rgba(${rgbString}, 0.45))`;
-    hoverIconGlow = `drop-shadow(0 0 3px rgba(${rgbString}, 0.80)) drop-shadow(0 0 8px rgba(${rgbString}, 0.40))`;
-  } else if (intensity === "medium") {
-    glowAlpha = 0.48;
-    shadowGlow = `0 0 14px rgba(${rgbString}, 0.60), 0 0 28px rgba(${rgbString}, 0.30)`;
-    thumbGlow = `0 0 8px rgba(${rgbString}, 0.70), 0 0 16px rgba(${rgbString}, 0.35)`;
-    timelineGlow = `0 0 8px rgba(${rgbString}, 0.55), 0 0 2px rgba(${rgbString}, 0.80)`;
-    activeIconGlow = `drop-shadow(0 0 4px rgba(${rgbString}, 0.95)) drop-shadow(0 0 14px rgba(${rgbString}, 0.60)) drop-shadow(0 0 26px rgba(${rgbString}, 0.30))`;
-    playIconGlow = `drop-shadow(0 0 4px rgba(${rgbString}, 0.95)) drop-shadow(0 0 14px rgba(${rgbString}, 0.65)) drop-shadow(0 0 26px rgba(${rgbString}, 0.35))`;
-    hoverIconGlow = `drop-shadow(0 0 4px rgba(${rgbString}, 0.90)) drop-shadow(0 0 12px rgba(${rgbString}, 0.50))`;
-  } else if (intensity === "intense") {
-    glowAlpha = 0.75;
-    shadowGlow = `0 0 18px rgba(${rgbString}, 0.80), 0 0 36px rgba(${rgbString}, 0.45)`;
-    thumbGlow = `0 0 12px rgba(${rgbString}, 0.90), 0 0 24px rgba(${rgbString}, 0.55), 0 0 4px #fff`;
-    timelineGlow = `0 0 12px rgba(${rgbString}, 0.85), 0 0 4px rgba(${rgbString}, 1)`;
-    activeIconGlow = `drop-shadow(0 0 5px rgba(${rgbString}, 1)) drop-shadow(0 0 18px rgba(${rgbString}, 0.80)) drop-shadow(0 0 34px rgba(${rgbString}, 0.50))`;
-    playIconGlow = `drop-shadow(0 0 5px rgba(${rgbString}, 1)) drop-shadow(0 0 18px rgba(${rgbString}, 0.85)) drop-shadow(0 0 36px rgba(${rgbString}, 0.55))`;
-    hoverIconGlow = `drop-shadow(0 0 5px rgba(${rgbString}, 0.95)) drop-shadow(0 0 16px rgba(${rgbString}, 0.75)) drop-shadow(0 0 28px rgba(${rgbString}, 0.40))`;
-  }
+  const profile = intensity !== "off" ? GLOW_PROFILES[intensity] : null;
+  const glowAlpha = profile ? (isOled ? profile.alpha[1] : profile.alpha[0]) : 0;
 
   root.setAttribute("data-glow", intensity);
   root.style.setProperty("--glow-intensity", intensity);
   root.style.setProperty("--accent-rgb", rgbString);
   root.style.setProperty("--accent-glow", glowAlpha > 0 ? `rgba(${rgbString}, ${glowAlpha})` : "transparent");
-  root.style.setProperty("--accent-glass", `rgba(${rgbString}, 0.08)`);
-  root.style.setProperty("--border-pill", `rgba(${rgbString}, 0.10)`);
-  root.style.setProperty("--bg-hover", `rgba(${rgbString}, 0.08)`);
-  root.style.setProperty("--bg-active", `rgba(${rgbString}, 0.14)`);
+  root.style.setProperty("--accent-glass", `rgba(${rgbString}, 0.10)`);
+  root.style.setProperty("--border-pill", `rgba(${rgbString}, 0.12)`);
+  root.style.setProperty("--bg-hover", `rgba(${rgbString}, 0.09)`);
+  root.style.setProperty("--bg-active", `rgba(${rgbString}, 0.15)`);
 
-  root.style.setProperty("--shadow-glow", shadowGlow);
-  root.style.setProperty("--thumb-glow", thumbGlow);
-  root.style.setProperty("--timeline-glow", timelineGlow);
+  root.style.setProperty("--shadow-glow", profile ? profile.shadow(rgbString) : "none");
+  root.style.setProperty("--thumb-glow", profile ? profile.thumb(rgbString) : "none");
+  root.style.setProperty("--timeline-glow", profile ? profile.timeline(rgbString) : "none");
   root.style.setProperty("--btn-glow", "none");
   root.style.setProperty("--play-btn-glow", "none");
   root.style.setProperty("--active-btn-glow", "none");
-  root.style.setProperty("--active-icon-glow", activeIconGlow);
-  root.style.setProperty("--play-icon-glow", playIconGlow);
-  root.style.setProperty("--hover-icon-glow", hoverIconGlow);
+  root.style.setProperty("--active-icon-glow", profile ? profile.activeIcon(rgbString) : "none");
+  root.style.setProperty("--play-icon-glow", profile ? profile.playIcon(rgbString) : "none");
+  root.style.setProperty("--hover-icon-glow", profile ? profile.hoverIcon(rgbString) : "none");
 
   root.style.setProperty("--accent", hex);
-  root.style.setProperty("--accent-gradient", `linear-gradient(90deg, ${hex}, ${hex})`);
+  root.style.setProperty("--accent-gradient", `linear-gradient(90deg, ${hex}, ${hover})`);
   root.style.setProperty("--accent-hover", hover);
   root.style.setProperty("--accent-dim", dim);
   root.style.setProperty("--accent-dark", dark);

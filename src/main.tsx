@@ -1,11 +1,17 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import App from "./App";
 import { StandaloneMediaInfoWindow } from "./components/StandaloneMediaInfoWindow";
 import "./index.css";
 import { PlayerStateProvider } from "./contexts/PlayerStateContext";
-import { applyAccentColor } from "./utils/colorUtils";
+import {
+  applyAccentColor,
+  applyPlayerTheme,
+  getSavedPlayerTheme,
+  getEffectiveAccentColor,
+} from "./utils/colorUtils";
 import {
   applyUiRadius,
   getSavedUiRadius,
@@ -43,9 +49,19 @@ if (typeof document !== "undefined") {
     document.body.style.background = "transparent";
   }
 
+  // Применение темы оформления плеера при старте
+  applyPlayerTheme(getSavedPlayerTheme());
+
   // Применение акцентного цвета и интенсивности свечения при старте
   const savedAccent = localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
-  if (savedAccent !== "windows") {
+  if (savedAccent === "windows") {
+    invoke<string>("get_windows_accent_color")
+      .then((winHex) => {
+        localStorage.setItem("l-mpv-accent-color-windows", winHex);
+        applyAccentColor(winHex);
+      })
+      .catch(() => {});
+  } else {
     applyAccentColor(savedAccent);
   }
 
@@ -65,6 +81,7 @@ if (typeof document !== "undefined") {
 
   const syncAllVisualSettings = () => {
     syncAnimationsSetting();
+    applyPlayerTheme(getSavedPlayerTheme());
     const curRadius = getSavedUiRadius();
     applyUiRadius(curRadius.level, curRadius.value);
     const curScale = getSavedUiScale();
@@ -76,9 +93,11 @@ if (typeof document !== "undefined") {
     if (e.key === "l-mpv-animations-enabled") {
       syncAnimationsSetting();
     }
+    if (e.key === "l-mpv-player-theme") {
+      applyPlayerTheme(getSavedPlayerTheme());
+    }
     if (e.key === "l-mpv-glow-intensity" || e.key === "l-mpv-accent-color") {
-      const cur = localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
-      if (cur !== "windows") applyAccentColor(cur);
+      applyAccentColor(getEffectiveAccentColor());
     }
     if (e.key === "l-mpv-ui-radius" || e.key === "l-mpv-ui-radius-value") {
       const curRadius = getSavedUiRadius();

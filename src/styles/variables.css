@@ -19,12 +19,14 @@
   --ui-blur: 24px;
   --ui-backdrop: blur(24px) saturate(1.6);
   --ui-backdrop-heavy: blur(24px) saturate(1.8);
-  --bg-primary:  #0b0d12;
-  --bg-surface:  #13161d;
-  --bg-glass:    rgba(16, 19, 28, var(--ui-opacity));
-  --bg-hover:    rgba(127, 199, 255, 0.08);
-  --bg-active:   rgba(127, 199, 255, 0.14);
-  --bg-pill:     rgba(10, 12, 18, var(--ui-opacity));
+  --bg-primary:   #0b0d12;
+  --bg-surface:   #13161d;
+  --bg-glass-rgb: 16, 19, 28;
+  --bg-pill-rgb:  10, 12, 18;
+  --bg-glass:     rgba(var(--bg-glass-rgb), var(--ui-opacity));
+  --bg-hover:     rgba(127, 199, 255, 0.08);
+  --bg-active:    rgba(127, 199, 255, 0.14);
+  --bg-pill:      rgba(var(--bg-pill-rgb), var(--ui-opacity));
 
   /* Текст */
   --text-primary:   rgba(255, 255, 255, 0.92);
