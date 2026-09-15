@@ -592,12 +592,18 @@ function App() {
         break;
       case "upscaleNet1":
       case "upscaleNet2":
-      case "upscaleNet3": {
+      case "upscaleNet3":
+      case "upscaleNet4":
+      case "upscaleNet5":
+      case "upscaleNet6": {
         try {
           const slotMap: Record<string, number> = {
             upscaleNet1: 1001,
             upscaleNet2: 1002,
             upscaleNet3: 1003,
+            upscaleNet4: 1004,
+            upscaleNet5: 1005,
+            upscaleNet6: 1006,
           };
           const slot = slotMap[actionId] || 1001;
           const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";

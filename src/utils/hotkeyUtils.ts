@@ -48,6 +48,9 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   upscaleNet1: ["Shift+Digit2"],
   upscaleNet2: ["Shift+Digit3"],
   upscaleNet3: ["Shift+Digit4"],
+  upscaleNet4: ["Shift+Digit5"],
+  upscaleNet5: ["Shift+Digit6"],
+  upscaleNet6: ["Shift+Digit7"],
 };
 
 export const HOTKEY_ACTIONS: HotkeyAction[] = [
@@ -108,6 +111,9 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "upscaleNet1", label: "Апскейлинг: Нейросеть #1", defaultKeys: DEFAULT_HOTKEYS["upscaleNet1"], category: "Апскейлинг" },
   { id: "upscaleNet2", label: "Апскейлинг: Нейросеть #2", defaultKeys: DEFAULT_HOTKEYS["upscaleNet2"], category: "Апскейлинг" },
   { id: "upscaleNet3", label: "Апскейлинг: Нейросеть #3", defaultKeys: DEFAULT_HOTKEYS["upscaleNet3"], category: "Апскейлинг" },
+  { id: "upscaleNet4", label: "Апскейлинг: Нейросеть #4", defaultKeys: DEFAULT_HOTKEYS["upscaleNet4"], category: "Апскейлинг" },
+  { id: "upscaleNet5", label: "Апскейлинг: Нейросеть #5", defaultKeys: DEFAULT_HOTKEYS["upscaleNet5"], category: "Апскейлинг" },
+  { id: "upscaleNet6", label: "Апскейлинг: Нейросеть #6", defaultKeys: DEFAULT_HOTKEYS["upscaleNet6"], category: "Апскейлинг" },
 ];
 
 export function getCustomHotkeys(): Record<string, string[]> {
