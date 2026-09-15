@@ -500,7 +500,11 @@ export const UpscalingSettingsSection: React.FC = () => {
             <button
               type="button"
               onClick={toggleHideModelNames}
-              title={hideModelNames ? "Показать названия моделей" : "Скрыть названия моделей"}
+              title={
+                hideModelNames
+                  ? "Показать названия моделей и имена файлов"
+                  : "Скрыть названия моделей и имена файлов (маскировать точками)"
+              }
               style={{
                 padding: "8px 10px",
                 borderRadius: "var(--radius-md)",
@@ -589,35 +593,36 @@ export const UpscalingSettingsSection: React.FC = () => {
                     )}
 
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      {!hideModelNames && (
-                        <div style={{ fontSize: "0.88rem", fontWeight: 500, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {model.display_name}
-                        </div>
-                      )}
                       <div
                         style={{
-                          fontSize: hideModelNames ? "0.84rem" : "0.75rem",
-                          fontWeight: hideModelNames ? 500 : 400,
-                          color: hideModelNames ? "var(--text-primary)" : "var(--text-muted)",
-                          fontFamily: hideModelNames ? "inherit" : "monospace",
-                          marginTop: hideModelNames ? 0 : 1,
+                          fontSize: "0.88rem",
+                          fontWeight: 500,
+                          color: hideModelNames ? "var(--text-muted)" : "var(--text-primary)",
+                          letterSpacing: hideModelNames ? "0.15em" : "normal",
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
+                          userSelect: hideModelNames ? "none" : "auto",
                         }}
                       >
-                        {model.filename}
-                        <span
-                          style={{
-                            fontSize: "0.75rem",
-                            color: "var(--text-muted)",
-                            fontFamily: "monospace",
-                            marginLeft: 6,
-                            fontWeight: 400,
-                          }}
-                        >
-                          ({formatFileSize(model.size_bytes)})
-                        </span>
+                        {hideModelNames ? "••••••••••••••••" : model.display_name}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--text-muted)",
+                          fontFamily: "monospace",
+                          letterSpacing: hideModelNames ? "0.15em" : "normal",
+                          marginTop: 1,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          userSelect: hideModelNames ? "none" : "auto",
+                        }}
+                      >
+                        {hideModelNames
+                          ? "••••••••••••••••••••"
+                          : `${model.filename} (${formatFileSize(model.size_bytes)})`}
                       </div>
                     </div>
                   </div>
