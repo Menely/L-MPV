@@ -255,48 +255,96 @@ pub async fn precompile_model_engine_1080p_impl(
     #[cfg(windows)]
     use std::os::windows::process::CommandExt;
 
+    let trtexec_path = inf_dir.join("trtexec.exe");
+    let onnx_path = models_dir.join(&filename);
+    let model_stem = filename
+        .strip_suffix(".onnx")
+        .or_else(|| filename.strip_suffix(".ONNX"))
+        .unwrap_or(&filename);
+    let crc = super::config::crc32_ieee(model_stem.as_bytes());
+
+    let gpu_clean = gpu.name.replace(' ', "-");
+    let sm_suffix = if gpu.sm_architecture == "sm120" {
+        "sm12".to_string()
+    } else {
+        gpu.sm_architecture.clone()
+    };
+
+    let engine_filename = format!(
+        "aji-{:08x}.780037328.trt-11.1.0.gpu-{}-{}.engine",
+        crc, gpu_clean, sm_suffix
+    );
+    let save_engine_path = models_dir.join(&engine_filename);
+
+    let build_log_path = models_dir.join(format!("{}.build.log", engine_filename));
+    let build_log_for_err = build_log_path.clone();
+
     let output = tokio::task::spawn_blocking(move || {
-        let mut cmd = std::process::Command::new(&harness_path);
-        cmd.args([
-            "--engine",
-            &trt_dll_path.to_string_lossy(),
-            "--conf",
-            &conf_path.to_string_lossy(),
-            "--model-dir",
-            &models_dir.to_string_lossy(),
-            "--slot",
-            &slot.to_string(),
-            "--width",
-            "1920",
-            "--height",
-            "1080",
-            "--fps",
-            "24",
-            "--format",
-            "nv12",
-            "--matrix",
-            "709",
-            "--range",
-            "limited",
-            "--frames",
-            "0",
-            "--input",
-            "NUL",
-            "--output",
-            "NUL",
-        ]);
+        if trtexec_path.exists() {
+            let mut cmd = std::process::Command::new(&trtexec_path);
+            cmd.args([
+                format!("--onnx={}", onnx_path.display()),
+                format!("--saveEngine={}", save_engine_path.display()),
+                "--builderOptimizationLevel=5".to_string(),
+                "--optShapes=input:1x3x1080x1920".to_string(),
+                "--skipInference".to_string(),
+            ]);
 
-        // Оптимизация памяти: ленивая загрузка CUDA-модулей снижает расход VRAM при сборке
-        cmd.env("CUDA_MODULE_LOADING", "LAZY");
+            cmd.env("CUDA_MODULE_LOADING", "LAZY");
 
-        #[cfg(windows)]
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: предотвращает моргание консольного окна
+            if let Ok(f) = std::fs::File::create(&build_log_path) {
+                if let Ok(f2) = f.try_clone() {
+                    cmd.stdout(f);
+                    cmd.stderr(f2);
+                }
+            }
 
-        cmd.output()
+            #[cfg(windows)]
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: предотвращает моргание консольного окна
+
+            cmd.output()
+        } else {
+            let mut cmd = std::process::Command::new(&harness_path);
+            cmd.args([
+                "--engine",
+                &trt_dll_path.to_string_lossy(),
+                "--conf",
+                &conf_path.to_string_lossy(),
+                "--model-dir",
+                &models_dir.to_string_lossy(),
+                "--slot",
+                &slot.to_string(),
+                "--width",
+                "1920",
+                "--height",
+                "1080",
+                "--fps",
+                "24",
+                "--format",
+                "nv12",
+                "--matrix",
+                "709",
+                "--range",
+                "limited",
+                "--frames",
+                "0",
+                "--input",
+                "NUL",
+                "--output",
+                "NUL",
+            ]);
+
+            cmd.env("CUDA_MODULE_LOADING", "LAZY");
+
+            #[cfg(windows)]
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+            cmd.output()
+        }
     })
     .await
     .map_err(|e| format!("Ошибка потока выполнения сборщика: {}", e))?
-    .map_err(|e| format!("Не удалось запустить aji_harness.exe: {}", e))?;
+    .map_err(|e| format!("Не удалось запустить компилятор TensorRT: {}", e))?;
 
     is_running.store(false, std::sync::atomic::Ordering::Relaxed);
     let _ = monitor_handle.await;
@@ -307,8 +355,15 @@ pub async fn precompile_model_engine_1080p_impl(
     if !output.status.success() {
         let err_detail = if !stderr_str.trim().is_empty() {
             stderr_str.to_string()
-        } else {
+        } else if !stdout_str.trim().is_empty() {
             stdout_str.to_string()
+        } else if let Ok(log_txt) = std::fs::read_to_string(&build_log_for_err) {
+            let last_lines: Vec<&str> = log_txt.lines().rev().take(8).collect();
+            let mut rev_lines = last_lines;
+            rev_lines.reverse();
+            rev_lines.join("\n")
+        } else {
+            "Неизвестная ошибка сборки движка".to_string()
         };
 
         let _ = app.emit(
@@ -338,6 +393,7 @@ pub async fn precompile_model_engine_1080p_impl(
         },
     );
 
+    let _ = std::fs::remove_file(&build_log_for_err);
     println!("[L-MPV][Upscale] Модель {} успешно скомпилирована для 1080p.", filename);
     Ok(format!("Модель {} успешно оптимизирована для 1080p!", filename))
 }
