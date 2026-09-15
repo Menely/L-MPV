@@ -8,6 +8,7 @@ mod audio_capture;
 mod commands;
 mod mediainfo;
 mod mpv_manager;
+mod settings_store;
 mod system_integration;
 mod updater;
 
@@ -101,7 +102,7 @@ pub fn run() {
         Err(e) => panic!("[L-MPV] Ошибка создания MpvManager: {}", e),
     };
 
-    let settings = commands::AppSettings::load(&exe_dir);
+    let settings = settings_store::get_settings();
 
     let mpv_arc = Arc::new(mpv);
 
@@ -246,6 +247,8 @@ pub fn run() {
             // Аудио-визуализатор
             commands::get_audio_spectrum,
             commands::set_visualizer_active,
+            commands::acquire_visualizer,
+            commands::release_visualizer,
             // Пресеты настроек
             commands::get_settings_presets,
             commands::save_settings_presets,
@@ -263,19 +266,17 @@ pub fn run() {
                     // Предотвращаем уничтожение окна — скрываем его для мгновенного повторного открытия
                     api.prevent_close();
                     let _ = window.hide();
-                    // Оповещаем главное окно о закрытии окна MediaInfo для сброса подсветки кнопки
+                    // Оповещаем главное окно плеера о закрытии окна MediaInfo для сброса подсветки кнопки
                     let _ = window.app_handle().emit("mediainfo-window-closed", ());
                     // Если главное окно плеера скрыто (приложение запущено только для MediaInfo), завершаем процесс
                     if let Some(main_win) = window.app_handle().get_webview_window("main") {
                         if !main_win.is_visible().unwrap_or(false) {
-                            window.app_handle().exit(0);
+                            perform_graceful_exit(window.app_handle());
                         }
                     }
                 } else {
-                    let state = window.state::<PlayerState>();
-                    commands::save_current_playback_position(&state);
                     // Закрытие главного окна плеера обязано полностью завершать процесс приложения
-                    window.app_handle().exit(0);
+                    perform_graceful_exit(window.app_handle());
                 }
             }
             tauri::WindowEvent::Focused(focused) => {
@@ -311,14 +312,12 @@ pub fn run() {
                 }
 
                 // Применяем сохранённые настройки подсветки полос (Ambient Light)
-                if let Ok(exe_p) = std::env::current_exe() {
-                    if let Some(p_dir) = exe_p.parent() {
-                        let saved_cfg = commands::AppSettings::load(p_dir);
-                        if let Err(e) = state.ambient_controller.apply(&saved_cfg.ambient) {
-                            println!("[L-MPV] Ошибка инициализации Ambient Light: {}", e);
-                        } else {
-                            println!("[L-MPV] Режим Ambient Light инициализирован: {:?}", saved_cfg.ambient.mode);
-                        }
+                {
+                    let saved_cfg = settings_store::get_settings();
+                    if let Err(e) = state.ambient_controller.apply(&saved_cfg.ambient) {
+                        println!("[L-MPV] Ошибка инициализации Ambient Light: {}", e);
+                    } else {
+                        println!("[L-MPV] Режим Ambient Light инициализирован: {:?}", saved_cfg.ambient.mode);
                     }
                 }
             }
@@ -349,8 +348,41 @@ pub fn run() {
         .expect("Ошибка сборки приложения L-MPV")
         .run(|app_handle, event| {
             if let tauri::RunEvent::ExitRequested { .. } = event {
-                let state = app_handle.state::<PlayerState>();
-                commands::save_current_playback_position(&state);
+                perform_graceful_exit(app_handle);
             }
         });
+}
+
+/// Корректная последовательность завершения приложения.
+///
+/// Порядок критичен для отсутствия крашей при выходе:
+/// 1. Снятие флага keep-open и сохранение позиции активного файла (обращение к mpv валидно).
+/// 2. Остановка фонового потока WASAPI-захвата (join — в рантайме audio_capture
+///    больше не обращается к системе).
+/// 3. `std::process::exit(0)` — вызывается ПОСЛЕЕ сохранений; Tauri-`exit(0)`
+///    уже вызван вызывающей стороной, поэтому здесь только завершаем процесс.
+fn perform_graceful_exit(app_handle: &tauri::AppHandle) {
+    use tauri::Manager;
+
+    // Атомарная защита от повторного входа (CloseRequested + ExitRequested)
+    static EXITING: std::sync::Once = std::sync::Once::new();
+    EXITING.call_once(|| {
+        let state = app_handle.state::<PlayerState>();
+
+        // 1. Сохраняем позицию воспроизведения и принудительно пишем историю на диск
+        commands::save_current_playback_position(&state);
+
+        // 2. Останавливаем фоновый поток WASAPI loopback (join, а не detach)
+        state.audio_capture.shutdown();
+
+        // 3. Полное завершение процесса: Tauri `exit(0)` запускает RunEvent::ExitRequested,
+        //    который вызывает perform_graceful_exit повторно — защита Once уже отработала,
+        //    поэтому после выхода из обработчика процесс завершает exit(0) ниже.
+        app_handle.exit(0);
+
+        // Ждём завершения цикла событий Tauri, чтобы mpv-контекст (Drop с
+        // mpv_terminate_destroy) успел корректно освобободиться до смерти процесса.
+        std::thread::sleep(std::time::Duration::from_millis(150));
+        std::process::exit(0);
+    });
 }

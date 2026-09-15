@@ -5,7 +5,7 @@
 //! полосы частот (глубокий суб-бас, панч, голос, верхняя середина, воздух)
 //! с логарифмической шкалой децибел (dBFS) и отдаёт спектр в UI.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -33,6 +33,11 @@ pub struct AudioCaptureManager {
     is_active: Arc<AtomicBool>,
     /// Буфер последних вычисленных 32 полос спектра [0.0 .. 1.0].
     spectrum: Arc<Mutex<[f32; BANDS_COUNT]>>,
+    /// Handle фонового потока для гарантированного join при завершении.
+    worker: Mutex<Option<thread::JoinHandle<()>>>,
+    /// Счётчик активных потребителей визуализатора (инстансы Canvas).
+    /// Захват WASAPI реально работает только при наличии хотя бы одного.
+    active_consumers: AtomicU64,
 }
 
 impl AudioCaptureManager {
@@ -46,19 +51,42 @@ impl AudioCaptureManager {
         let active_clone = is_active.clone();
         let spectrum_clone = spectrum.clone();
 
-        thread::Builder::new()
+        let worker = thread::Builder::new()
             .name("l-mpv-audio-capture".to_string())
             .spawn(move || {
                 run_capture_loop(running_clone, active_clone, spectrum_clone);
             })
             .expect("Не удалось запустить фоновый поток захвата звука");
 
-        Self { is_running, is_active, spectrum }
+        Self {
+            is_running,
+            is_active,
+            spectrum,
+            worker: Mutex::new(Some(worker)),
+            active_consumers: AtomicU64::new(0),
+        }
     }
 
-    /// Установка активности захвата (включается при отображении UI визуализатора).
+    /// Регистрация нового потребителя спектра (монтирование Canvas визуализатора).
+    pub fn acquire_consumer(&self) {
+        self.active_consumers.fetch_add(1, Ordering::Release);
+    }
+
+    /// Освобождение потребителя спектра (размонтирование Canvas).
+    /// При достижении нуля потребителей захват переводится в спящий режим.
+    pub fn release_consumer(&self) {
+        let prev = self.active_consumers.fetch_sub(1, Ordering::AcqRel);
+        if prev <= 1 {
+            self.active_consumers.store(0, Ordering::Release);
+            self.is_active.store(false, Ordering::SeqCst);
+        }
+    }
+
+    /// Установка активности захвата с учётом зарегистрированных потребителей.
     pub fn set_active(&self, active: bool) {
-        self.is_active.store(active, Ordering::SeqCst);
+        let has_consumers = self.active_consumers.load(Ordering::Acquire) > 0;
+        self.is_active
+            .store(active && has_consumers, Ordering::SeqCst);
     }
 
     /// Получение текущего среза спектра (32 нормализованных значения от 0.0 до 1.0).
@@ -69,12 +97,22 @@ impl AudioCaptureManager {
             [0.0f32; BANDS_COUNT]
         }
     }
+
+    /// Синхронная остановка фонового потока захвата (join с таймаутом логики потока).
+    pub fn shutdown(&self) {
+        self.is_running.store(false, Ordering::SeqCst);
+        self.is_active.store(false, Ordering::SeqCst);
+        if let Ok(mut guard) = self.worker.lock() {
+            if let Some(handle) = guard.take() {
+                let _ = handle.join();
+            }
+        }
+    }
 }
 
 impl Drop for AudioCaptureManager {
     fn drop(&mut self) {
-        self.is_running.store(false, Ordering::SeqCst);
-        self.is_active.store(false, Ordering::SeqCst);
+        self.shutdown();
     }
 }
 
@@ -180,14 +218,20 @@ fn run_capture_loop(
     }
 
     while is_running.load(Ordering::Relaxed) {
-        // Если визуализатор выключен или UI скрыт — засыпаем (0% CPU)
+        // Если визуализатор выключен или UI скрыт — засыпаем (0% CPU),
+        // дроблёными интервалами для быстрого пробуждения при shutdown
         if !is_active.load(Ordering::Relaxed) {
             if let Ok(mut guard) = spectrum.lock() {
                 if guard.iter().any(|&v| v > 0.001) {
                     *guard = [0.0f32; BANDS_COUNT];
                 }
             }
-            thread::sleep(Duration::from_millis(80));
+            for _ in 0..8 {
+                if !is_running.load(Ordering::Relaxed) {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
             continue;
         }
 
@@ -196,13 +240,23 @@ fn run_capture_loop(
         let (audio_client, capture_client, channels, bits_per_sample, is_float) = match capture_res {
             Ok(c) => c,
             Err(_) => {
-                thread::sleep(Duration::from_millis(300));
+                for _ in 0..15 {
+                    if !is_running.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(20));
+                }
                 continue;
             }
         };
 
         if unsafe { audio_client.Start() }.is_err() {
-            thread::sleep(Duration::from_millis(200));
+            for _ in 0..10 {
+                if !is_running.load(Ordering::Relaxed) {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
             continue;
         }
 
@@ -214,7 +268,14 @@ fn run_capture_loop(
             };
 
             if packet_length == 0 {
-                thread::sleep(Duration::from_millis(6));
+                // Ограниченный сон: поток остаётся отзывчивым к флагу завершения
+                // и завершается за <100 мс даже при полном отсутствии пакетов.
+                for _ in 0..6 {
+                    if !is_running.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(1));
+                }
                 continue;
             }
 
@@ -364,8 +425,14 @@ fn run_capture_loop(
                 *guard = smoothed_bands;
             }
 
-            // Частота кадров спектрального анализа ~50 FPS
-            thread::sleep(Duration::from_millis(20));
+            // Частота кадров спектрального анализа ~50 FPS,
+            // с дроблением сна для быстрого реагирования на shutdown
+            for _ in 0..4 {
+                if !is_running.load(Ordering::Relaxed) {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(5));
+            }
         }
 
         let _ = unsafe { audio_client.Stop() };

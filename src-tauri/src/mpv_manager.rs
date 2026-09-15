@@ -7,6 +7,7 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_double, c_int, c_void};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use libloading::{Library, Symbol};
 
@@ -38,6 +39,7 @@ struct MpvApi {
     create: Symbol<'static, unsafe extern "C" fn() -> *mut MpvHandle>,
     initialize: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle) -> c_int>,
     destroy: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle)>,
+    terminate_destroy: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle)>,
     command_string: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, args: *const c_char) -> c_int>,
     set_option_string: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, data: *const c_char) -> c_int>,
     get_property_string: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char) -> *mut c_char>,
@@ -58,6 +60,7 @@ impl MpvApi {
         let create = std::mem::transmute(lib.get::<unsafe extern "C" fn() -> *mut MpvHandle>(b"mpv_create\0").map_err(|e| e.to_string())?);
         let initialize = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle) -> c_int>(b"mpv_initialize\0").map_err(|e| e.to_string())?);
         let destroy = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle)>(b"mpv_destroy\0").map_err(|e| e.to_string())?);
+        let terminate_destroy = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle)>(b"mpv_terminate_destroy\0").map_err(|e| e.to_string())?);
         let command_string = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, args: *const c_char) -> c_int>(b"mpv_command_string\0").map_err(|e| e.to_string())?);
         let set_option_string = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, data: *const c_char) -> c_int>(b"mpv_set_option_string\0").map_err(|e| e.to_string())?);
         let get_property_string = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char) -> *mut c_char>(b"mpv_get_property_string\0").map_err(|e| e.to_string())?);
@@ -71,6 +74,7 @@ impl MpvApi {
             create,
             initialize,
             destroy,
+            terminate_destroy,
             command_string,
             set_option_string,
             get_property_string,
@@ -86,6 +90,12 @@ impl MpvApi {
 pub struct MpvManager {
     handle: Mutex<*mut MpvHandle>,
     api: MpvApi,
+    /// Кэш последней применённой громкости для подавления избыточных
+    /// вызовов `volume` от высокочастотного драга слайдера (каждый пиксель).
+    last_volume: Mutex<f64>,
+    /// Флаг завершения: после `shutdown` все операции возвращают ошибку,
+    /// что исключает обращение к освобождённому контексту во время выхода.
+    shutting_down: AtomicBool,
 }
 
 unsafe impl Send for MpvManager {}
@@ -134,7 +144,7 @@ impl MpvManager {
             Self::set_option(&api, handle, "config-dir", &config_dir);
 
             // Путь к скриншотам (с восстановлением из config/settings.json)
-            let saved_settings = crate::commands::AppSettings::load(portable_dir);
+            let saved_settings = crate::settings_store::get_settings();
             let screenshots_dir = saved_settings
                 .screenshot_directory
                 .unwrap_or_else(|| {
@@ -207,6 +217,8 @@ impl MpvManager {
             Ok(Self {
                 handle: Mutex::new(handle),
                 api,
+                last_volume: Mutex::new(f64::NAN),
+                shutting_down: AtomicBool::new(false),
             })
         }
     }
@@ -222,6 +234,9 @@ impl MpvManager {
     where
         F: FnOnce(*mut MpvHandle) -> Result<R, String>,
     {
+        if self.shutting_down.load(Ordering::Acquire) {
+            return Err("mpv контекст завершает работу".to_string());
+        }
         let handle = self
             .handle
             .lock()
@@ -282,6 +297,14 @@ impl MpvManager {
     }
 
     pub fn set_property_string(&self, name: &str, value: &str) -> Result<(), String> {
+        // Дедупликация высокочастотных записей громкости: при драге слайдера
+        // UI шлёт до 60+ вызовов/сек. Значения округляются до 0.1 и
+        // идентичные подряд вызовы отфильтровываются до одного запроса к mpv.
+        if name == "volume" {
+            let parsed: f64 = value.parse().map_err(|_| "Некорректное значение громкости".to_string())?;
+            let rounded = (parsed * 10.0).round() / 10.0;
+            return self.set_volume_internal(rounded);
+        }
         self.with_handle(|handle| {
             let c_name = CString::new(name).map_err(|e| format!("Ошибка CString: {}", e))?;
             let c_value = CString::new(value).map_err(|e| format!("Ошибка CString: {}", e))?;
@@ -296,7 +319,39 @@ impl MpvManager {
         })
     }
 
+    /// Установка громкости с подавлением повторных избыточных вызовов.
+    fn set_volume_internal(&self, volume: f64) -> Result<(), String> {
+        let mut last = self
+            .last_volume
+            .lock()
+            .map_err(|_| "Ошибка блокировки кэша громкости".to_string())?;
+        let changed = (*last - volume).abs() >= 0.05;
+        if changed {
+            *last = volume;
+        }
+        drop(last);
+        if !changed {
+            return Ok(());
+        }
+        let value_str = format!("{:.1}", volume);
+        self.with_handle(|handle| {
+            let c_name = CString::new("volume").map_err(|e| format!("Ошибка CString: {}", e))?;
+            let c_value = CString::new(value_str.clone()).map_err(|e| format!("Ошибка CString: {}", e))?;
+            unsafe {
+                let err = (self.api.set_property_string)(handle, c_name.as_ptr(), c_value.as_ptr());
+                if err < 0 {
+                    Err(format!("Ошибка установки громкости: код {}", err))
+                } else {
+                    Ok(())
+                }
+            }
+        })
+    }
+
     pub fn set_property_double(&self, name: &str, value: f64) -> Result<(), String> {
+        if name == "volume" {
+            return self.set_volume_internal((value * 10.0).round() / 10.0);
+        }
         self.with_handle(|handle| {
             let c_name = CString::new(name).map_err(|e| format!("Ошибка CString: {}", e))?;
             unsafe {
@@ -450,11 +505,19 @@ impl MpvManager {
 
 impl Drop for MpvManager {
     fn drop(&mut self) {
-        if let Ok(handle) = self.handle.lock() {
-            if !(*handle).is_null() {
-                unsafe {
-                    (self.api.destroy)(*handle);
-                }
+        // Атомарно запрещаем новые операции и забираем handle.
+        self.shutting_down.store(true, Ordering::Release);
+        let handle = match self.handle.lock() {
+            Ok(mut guard) => std::mem::replace(&mut *guard, std::ptr::null_mut()),
+            Err(_) => std::ptr::null_mut(),
+        };
+        if !handle.is_null() {
+            unsafe {
+                // mpv_terminate_destroy, в отличие от mpv_destroy, полностью
+                // останавливает ядро плеера (demuxer, VO/D3D11, AO/WASAPI)
+                // и ожидает завершения всех его потоков перед освобождением —
+                // это исключает краши и зависания процесса при выходе.
+                (self.api.terminate_destroy)(handle);
             }
         }
     }

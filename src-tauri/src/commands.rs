@@ -5,81 +5,12 @@
 
 use crate::ambient::{AmbientController, AmbientSettings};
 use crate::mpv_manager::MpvManager;
+use crate::settings_store;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::{HashMap, HashSet};
 use tauri::State;
-
-fn default_true() -> bool {
-    true
-}
-
-/// Конфигурация приложения, сохраняемая в config/settings.json.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AppSettings {
-    pub screenshot_directory: Option<String>,
-    #[serde(default)]
-    pub allow_multi_instance: bool,
-    #[serde(default)]
-    pub ambient: AmbientSettings,
-    /// Флаг автоматического поиска и подхвата внешних аудиодорожек и субтитров.
-    #[serde(default)]
-    pub auto_load_tracks: bool,
-    /// Флаг автоматического переключения звука на внешнюю аудиодорожку при её обнаружении (по умолчанию выключен).
-    #[serde(default)]
-    pub auto_select_external_audio: bool,
-    /// Действие по окончании видео: true - включать следующее видео, false - ничего не делать.
-    #[serde(default = "default_true")]
-    pub play_next_on_end: bool,
-    /// Счётчик запусков приложения для периодической фоновой проверки обновлений.
-    #[serde(default)]
-    pub launch_count: u64,
-    /// Номер запуска, до которого проверка обновлений отложена пользователем (при "Отложить" +15).
-    #[serde(default)]
-    pub postponed_until_launch: u64,
-    /// Последняя зафиксированная версия приложения для сброса счётчиков при обновлении.
-    #[serde(default)]
-    pub last_version: String,
-}
-
-impl Default for AppSettings {
-    fn default() -> Self {
-        Self {
-            screenshot_directory: None,
-            allow_multi_instance: false,
-            ambient: AmbientSettings::default(),
-            auto_load_tracks: false,
-            auto_select_external_audio: false,
-            play_next_on_end: true,
-            launch_count: 0,
-            postponed_until_launch: 0,
-            last_version: String::new(),
-        }
-    }
-}
-
-impl AppSettings {
-    pub fn load(portable_dir: &std::path::Path) -> Self {
-        let settings_path = portable_dir.join("config").join("settings.json");
-        if settings_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&settings_path) {
-                if let Ok(settings) = serde_json::from_str::<AppSettings>(&content) {
-                    return settings;
-                }
-            }
-        }
-        AppSettings::default()
-    }
-
-    pub fn save(&self, portable_dir: &std::path::Path) -> Result<(), String> {
-        let config_dir = portable_dir.join("config");
-        std::fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
-        let settings_path = config_dir.join("settings.json");
-        let json = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
-        std::fs::write(&settings_path, json).map_err(|e| e.to_string())
-    }
-}
 
 /// Состояние плеера, передаваемое через Tauri State.
 pub struct PlayerState {
@@ -510,101 +441,7 @@ pub fn load_external_tracks_internal(
     state: &PlayerState,
     video_path: &std::path::Path,
 ) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let (auto_load, auto_select_audio) = if let Some(ref p_dir) = exe_dir {
-        let settings = AppSettings::load(p_dir);
-        (settings.auto_load_tracks, settings.auto_select_external_audio)
-    } else {
-        (false, false)
-    };
-
-    if !auto_load {
-        return Ok(());
-    }
-
-    let (audio_files, subtitle_files) = scan_external_tracks(video_path);
-
-    if audio_files.is_empty() && subtitle_files.is_empty() {
-        return Ok(());
-    }
-
-    // Запоминаем текущую активную аудиодорожку перед добавлением внешних файлов
-    let original_aid = state.mpv.get_property_string("aid").unwrap_or_default();
-
-    // Собираем уже загруженные внешние файлы для предотвращения повторной загрузки
-    let track_count = state.mpv.get_property_double("track-list/count").unwrap_or(0.0) as i64;
-    let mut existing_external_files = HashSet::new();
-    for i in 0..track_count {
-        if let Ok(ext_fn) = state.mpv.get_property_string(&format!("track-list/{}/external-filename", i)) {
-            if !ext_fn.is_empty() {
-                let norm = ext_fn.replace('\\', "/").to_lowercase();
-                existing_external_files.insert(norm);
-            }
-        }
-    }
-
-    let mut newly_added_audio = false;
-
-    // Подключение найденных внешних аудиодорожек
-    for audio_path in audio_files {
-        let path_str = audio_path.to_string_lossy();
-        let safe_path = escape_mpv_path(&path_str);
-        let norm_path = safe_path.to_lowercase();
-
-        if !existing_external_files.contains(&norm_path) {
-            let cmd = format!("audio-add \"{}\" cached", safe_path);
-            if let Err(e) = state.mpv.command(&cmd) {
-                eprintln!("Не удалось подключить внешнюю аудиодорожку {}: {}", path_str, e);
-            } else {
-                existing_external_files.insert(norm_path);
-                newly_added_audio = true;
-            }
-        }
-    }
-
-    // Если подключена внешняя аудиодорожка:
-    // Если автовыбор ВЫКЛЮЧЕН (по умолчанию), принудительно восстанавливаем исходную дорожку видео.
-    // Если автовыбор ВКЛЮЧЕН, переключаем на последнюю внешнюю дорожку.
-    if newly_added_audio {
-        if !auto_select_audio {
-            if !original_aid.is_empty() {
-                let _ = state.mpv.set_property_string("aid", &original_aid);
-            }
-        } else {
-            // Переключаемся на подхваченную аудиодорожку (последний добавившийся ID в track-list)
-            let updated_count = state.mpv.get_property_double("track-list/count").unwrap_or(0.0) as i64;
-            for i in (0..updated_count).rev() {
-                let t_type = state.mpv.get_property_string(&format!("track-list/{}/type", i)).unwrap_or_default();
-                if t_type == "audio" {
-                    if let Ok(id) = state.mpv.get_property_double(&format!("track-list/{}/id", i)) {
-                        let _ = state.mpv.set_property_string("aid", &(id as i64).to_string());
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    // Подключение найденных внешних субтитров с флагом "cached" (без принудительной активации)
-    for sub_path in subtitle_files {
-        let path_str = sub_path.to_string_lossy();
-        let safe_path = escape_mpv_path(&path_str);
-        let norm_path = safe_path.to_lowercase();
-
-        if !existing_external_files.contains(&norm_path) {
-            let cmd = format!("sub-add \"{}\" cached", safe_path);
-            if let Err(e) = state.mpv.command(&cmd) {
-                eprintln!("Не удалось подключить внешние субтитры {}: {}", path_str, e);
-            } else {
-                existing_external_files.insert(norm_path);
-            }
-        }
-    }
-
-    Ok(())
+    load_external_tracks_for_manager(&state.mpv, video_path)
 }
 
 /// Функция естественного сравнения строк (Natural Sort).
@@ -664,18 +501,29 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 }
 
 /// Открытие медиафайла для воспроизведения.
+///
+/// Вся тяжёлая работа (сканирование каталога, сопоставление дорожек) выполняется
+/// асинхронно на отдельном потоке через `spawn_blocking`, чтобы мгновенный
+/// ответ IPC не блокировал UI при медленных сетевых папках и больших каталогах.
 #[tauri::command]
-pub fn open_file(
+pub async fn open_file(
     state: State<'_, PlayerState>,
     path: String,
 ) -> Result<(), String> {
-    open_file_internal(&state, &path)
+    open_file_internal_async(&state, path).await
 }
 
+/// Синхронное открытие файла (CLI-запуск, single-instance callback).
 pub fn open_file_internal(
     state: &PlayerState,
     path: &str,
 ) -> Result<(), String> {
+    open_file_internal_sync(state, path)
+}
+
+fn open_file_internal_sync(state: &PlayerState, path: &str) -> Result<(), String> {
+    let state_mp = state.mpv.clone();
+
     // Сохраняем текущую позицию предыдущего проигрываемого медиафайла перед открытием нового
     save_current_playback_position(state);
 
@@ -687,25 +535,79 @@ pub fn open_file_internal(
     if let Ok(map) = get_history_map().lock() {
         if let Some(item) = map.get(&key) {
             if item.position > 5.0 {
-                let _ = state.mpv.set_property_string("start", &format!("{:.2}", item.position));
+                let _ = state_mp.set_property_string("start", &format!("{:.2}", item.position));
             } else {
-                let _ = state.mpv.set_property_string("start", "0");
+                let _ = state_mp.set_property_string("start", "0");
             }
         } else {
-            let _ = state.mpv.set_property_string("start", "0");
+            let _ = state_mp.set_property_string("start", "0");
         }
     }
 
     // 1. Мгновенно запускаем воспроизведение выбранного файла
-    state.mpv.command(&format!("loadfile \"{}\" replace", safe_target))?;
+    state_mp.command(&format!("loadfile \"{}\" replace", safe_target))?;
 
     // Сбрасываем параметр "start" в "none", чтобы следующие треки плейлиста стартовали с начала
-    let _ = state.mpv.set_property_string("start", "none");
+    let _ = state_mp.set_property_string("start", "none");
 
+    // 2. Синхронно подгружаем внешние дорожки и формируем плейлист из папки
+    finish_open_file(&state_mp, &target_path);
+
+    Ok(())
+}
+
+async fn open_file_internal_async(
+    state: &PlayerState,
+    path: String,
+) -> Result<(), String> {
+    let state_mp = state.mpv.clone();
+    let path_owned = path.clone();
+
+    // Фаза 1 (быстрая, на потоке IPC): сохранение позиции и loadfile replace —
+    // мгновенный отклик на быстрый клик по плейлисту, прерывающий прошлую загрузку.
+    let quick = tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, String> {
+        save_current_playback_position_for(&state_mp);
+
+        let target_path = std::path::PathBuf::from(&path_owned);
+        let safe_target = escape_mpv_path(&path_owned);
+
+        let key = normalize_history_path(&path_owned);
+        if let Ok(map) = get_history_map().lock() {
+            if let Some(item) = map.get(&key) {
+                if item.position > 5.0 {
+                    let _ = state_mp.set_property_string("start", &format!("{:.2}", item.position));
+                } else {
+                    let _ = state_mp.set_property_string("start", "0");
+                }
+            } else {
+                let _ = state_mp.set_property_string("start", "0");
+            }
+        }
+
+        state_mp.command(&format!("loadfile \"{}\" replace", safe_target))?;
+        let _ = state_mp.set_property_string("start", "none");
+        Ok(target_path)
+    })
+    .await
+    .map_err(|e| format!("Сбой задачи открытия файла: {}", e))??;
+
+    // Фаза 2 (тяжёлая, на блокирующем потоке): автоподхват дорожек и построение
+    // плейлиста с файловой системой. Не блокирует IPC-канал.
+    let state_bg = state.mpv.clone();
+    let _ = tokio::task::spawn_blocking(move || {
+        finish_open_file(&state_bg, &quick);
+    })
+    .await;
+
+    Ok(())
+}
+
+/// Фоновая часть открытия файла: автоподхват внешних дорожек и построение плейлиста.
+fn finish_open_file(mpv: &Arc<MpvManager>, target_path: &std::path::Path) {
     // Подгружаем внешние дорожки и субтитры для текущего файла (если опция активна в настройках)
-    let _ = load_external_tracks_internal(state, &target_path);
+    let _ = load_external_tracks_for_manager(mpv, target_path);
 
-    // 2. Фоново формируем плейлист из остальных файлов в той же папке
+    // Фоново формируем плейлист из остальных файлов в той же папке
     if let Some(parent) = target_path.parent() {
         if let Ok(entries) = std::fs::read_dir(parent) {
             let mut video_files: Vec<std::path::PathBuf> = entries
@@ -729,7 +631,7 @@ pub fn open_file_internal(
             if video_files.len() > 1 {
                 let target_canonical = target_path
                     .canonicalize()
-                    .unwrap_or_else(|_| target_path.clone());
+                    .unwrap_or_else(|_| target_path.to_path_buf());
 
                 if let Some(target_idx) = video_files.iter().position(|p| {
                     p.canonicalize().unwrap_or_else(|_| p.clone()) == target_canonical
@@ -738,17 +640,98 @@ pub fn open_file_internal(
                     // сдвигая текущий файл на его корректный алфавитный индекс
                     for (k, f) in video_files[..target_idx].iter().enumerate() {
                         let safe_f = escape_mpv_path(&f.to_string_lossy());
-                        let _ = state.mpv.command(&format!("loadfile \"{}\" append", safe_f));
+                        let _ = mpv.command(&format!("loadfile \"{}\" append", safe_f));
                         let last_idx = k + 1;
-                        let _ = state.mpv.command(&format!("playlist-move {} {}", last_idx, k));
+                        let _ = mpv.command(&format!("playlist-move {} {}", last_idx, k));
                     }
 
                     // Файлы, идущие ПОСЛЕ текущего по алфавиту, добавляем в конец плейлиста
                     for f in &video_files[(target_idx + 1)..] {
                         let safe_f = escape_mpv_path(&f.to_string_lossy());
-                        let _ = state.mpv.command(&format!("loadfile \"{}\" append", safe_f));
+                        let _ = mpv.command(&format!("loadfile \"{}\" append", safe_f));
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Автоподхват внешних дорожек по прямому менеджеру mpv (для фоновых задач).
+fn load_external_tracks_for_manager(
+    mpv: &Arc<MpvManager>,
+    video_path: &std::path::Path,
+) -> Result<(), String> {
+    let settings = settings_store::get_settings();
+    if !settings.auto_load_tracks {
+        return Ok(());
+    }
+
+    let (audio_files, subtitle_files) = scan_external_tracks(video_path);
+    if audio_files.is_empty() && subtitle_files.is_empty() {
+        return Ok(());
+    }
+
+    let original_aid = mpv.get_property_string("aid").unwrap_or_default();
+
+    let track_count = mpv.get_property_double("track-list/count").unwrap_or(0.0) as i64;
+    let mut existing_external_files = HashSet::new();
+    for i in 0..track_count {
+        if let Ok(ext_fn) = mpv.get_property_string(&format!("track-list/{}/external-filename", i)) {
+            if !ext_fn.is_empty() {
+                let norm = ext_fn.replace('\\', "/").to_lowercase();
+                existing_external_files.insert(norm);
+            }
+        }
+    }
+
+    let mut newly_added_audio = false;
+
+    for audio_path in audio_files {
+        let path_str = audio_path.to_string_lossy();
+        let safe_path = escape_mpv_path(&path_str);
+        let norm_path = safe_path.to_lowercase();
+
+        if !existing_external_files.contains(&norm_path) {
+            let cmd = format!("audio-add \"{}\" cached", safe_path);
+            if let Err(e) = mpv.command(&cmd) {
+                eprintln!("Не удалось подключить внешнюю аудиодорожку {}: {}", path_str, e);
+            } else {
+                existing_external_files.insert(norm_path);
+                newly_added_audio = true;
+            }
+        }
+    }
+
+    if newly_added_audio {
+        if !settings.auto_select_external_audio {
+            if !original_aid.is_empty() {
+                let _ = mpv.set_property_string("aid", &original_aid);
+            }
+        } else {
+            let updated_count = mpv.get_property_double("track-list/count").unwrap_or(0.0) as i64;
+            for i in (0..updated_count).rev() {
+                let t_type = mpv.get_property_string(&format!("track-list/{}/type", i)).unwrap_or_default();
+                if t_type == "audio" {
+                    if let Ok(id) = mpv.get_property_double(&format!("track-list/{}/id", i)) {
+                        let _ = mpv.set_property_string("aid", &(id as i64).to_string());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    for sub_path in subtitle_files {
+        let path_str = sub_path.to_string_lossy();
+        let safe_path = escape_mpv_path(&path_str);
+        let norm_path = safe_path.to_lowercase();
+
+        if !existing_external_files.contains(&norm_path) {
+            let cmd = format!("sub-add \"{}\" cached", safe_path);
+            if let Err(e) = mpv.command(&cmd) {
+                eprintln!("Не удалось подключить внешние субтитры {}: {}", path_str, e);
+            } else {
+                existing_external_files.insert(norm_path);
             }
         }
     }
@@ -1155,19 +1138,14 @@ pub fn set_screenshot_dir(
     state: State<'_, PlayerState>,
     path: String,
 ) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
     let safe_path = path.replace("\\", "/");
     let is_reset = safe_path == "screenshots" || safe_path.is_empty();
 
     let target_path = if is_reset {
-        if let Some(ref p_dir) = exe_dir {
-            p_dir.join("screenshots").to_string_lossy().replace("\\", "/")
-        } else {
-            "screenshots".to_string()
-        }
+        settings_store::portable_dir()
+            .join("screenshots")
+            .to_string_lossy()
+            .replace("\\", "/")
     } else {
         safe_path.clone()
     };
@@ -1176,15 +1154,13 @@ pub fn set_screenshot_dir(
         .mpv
         .set_property_string("screenshot-directory", &target_path)?;
 
-    if let Some(p_dir) = exe_dir {
-        let mut settings = AppSettings::load(&p_dir);
+    settings_store::update_settings(|s| {
         if is_reset {
-            settings.screenshot_directory = None;
+            s.screenshot_directory = None;
         } else {
-            settings.screenshot_directory = Some(target_path);
+            s.screenshot_directory = Some(target_path.clone());
         }
-        settings.save(&p_dir).ok();
-    }
+    })?;
 
     Ok(())
 }
@@ -1192,127 +1168,59 @@ pub fn set_screenshot_dir(
 /// Получить настройку multi-instance.
 #[tauri::command]
 pub fn get_multi_instance() -> Result<bool, String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-        
-    if let Some(p_dir) = exe_dir {
-        let settings = AppSettings::load(&p_dir);
-        return Ok(settings.allow_multi_instance);
-    }
-    Ok(false)
+    Ok(settings_store::get_settings().allow_multi_instance)
 }
 
 /// Установить настройку multi-instance.
 #[tauri::command]
 pub fn set_multi_instance(allow: bool) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    if let Some(p_dir) = exe_dir {
-        let mut settings = AppSettings::load(&p_dir);
-        settings.allow_multi_instance = allow;
-        settings.save(&p_dir).ok();
-    }
-
+    settings_store::update_settings(|s| s.allow_multi_instance = allow)?;
     Ok(())
 }
 
 /// Получить текущий статус настройки автоматического подхвата внешних дорожек.
 #[tauri::command]
 pub fn get_auto_load_tracks() -> Result<bool, String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-        
-    if let Some(p_dir) = exe_dir {
-        let settings = AppSettings::load(&p_dir);
-        return Ok(settings.auto_load_tracks);
-    }
-    Ok(false)
+    Ok(settings_store::get_settings().auto_load_tracks)
 }
 
 /// Установить статус настройки автоматического подхвата внешних дорожек с сохранением в settings.json.
 #[tauri::command]
 pub fn set_auto_load_tracks(enabled: bool) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    if let Some(p_dir) = exe_dir {
-        let mut settings = AppSettings::load(&p_dir);
-        settings.auto_load_tracks = enabled;
-        settings.save(&p_dir).ok();
-        return Ok(());
-    }
-    Err("Не удалось определить директорию приложения для сохранения настроек".to_string())
+    settings_store::update_settings(|s| s.auto_load_tracks = enabled)
+        .map_err(|e| format!("Не удалось сохранить настройку: {}", e))
 }
 
 /// Получить текущий статус настройки автоматического переключения звука на внешнюю аудиодорожку.
 #[tauri::command]
 pub fn get_auto_select_external_audio() -> Result<bool, String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-        
-    if let Some(p_dir) = exe_dir {
-        let settings = AppSettings::load(&p_dir);
-        return Ok(settings.auto_select_external_audio);
-    }
-    Ok(false)
+    Ok(settings_store::get_settings().auto_select_external_audio)
 }
 
 /// Установить статус настройки автоматического переключения звука на внешнюю аудиодорожку.
 #[tauri::command]
 pub fn set_auto_select_external_audio(enabled: bool) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    if let Some(p_dir) = exe_dir {
-        let mut settings = AppSettings::load(&p_dir);
-        settings.auto_select_external_audio = enabled;
-        settings.save(&p_dir).ok();
-        return Ok(());
-    }
-    Err("Не удалось определить директорию приложения для сохранения настроек".to_string())
+    settings_store::update_settings(|s| s.auto_select_external_audio = enabled)
+        .map_err(|e| format!("Не удалось сохранить настройку: {}", e))
 }
 
-/// Получить текущий статус настройки автоматического переключения на следующее видео по окончании.
+/// Получить текущий статус настройки автоматического перехода на следующее видео по окончании.
 #[tauri::command]
 pub fn get_play_next_on_end() -> Result<bool, String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-        
-    if let Some(p_dir) = exe_dir {
-        let settings = AppSettings::load(&p_dir);
-        return Ok(settings.play_next_on_end);
-    }
-    Ok(true)
+    Ok(settings_store::get_settings().play_next_on_end)
 }
 
-/// Установить статус настройки автоматического переключения на следующее видео по окончании.
+/// Установить статус настройки автоматического перехода на следующее видео по окончании.
 #[tauri::command]
 pub fn set_play_next_on_end(
     state: State<'_, PlayerState>,
     enabled: bool,
 ) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    settings_store::update_settings(|s| s.play_next_on_end = enabled)?;
 
-    if let Some(p_dir) = exe_dir {
-        let mut settings = AppSettings::load(&p_dir);
-        settings.play_next_on_end = enabled;
-        settings.save(&p_dir).ok();
-
-        let keep_open_val = if enabled { "yes" } else { "always" };
-        let _ = state.mpv.set_property_string("keep-open", keep_open_val);
-        return Ok(());
-    }
-    Err("Не удалось определить директорию приложения для сохранения настроек".to_string())
+    let keep_open_val = if enabled { "yes" } else { "always" };
+    let _ = state.mpv.set_property_string("keep-open", keep_open_val);
+    Ok(())
 }
 
 /// Сканирование и загрузка внешних дорожек и субтитров для указанного медиафайла.
@@ -1358,16 +1266,8 @@ pub fn set_ambient_settings(
 ) -> Result<(), String> {
     state.ambient_controller.apply(&settings)?;
 
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .ok_or_else(|| "Не удалось определить путь к директории приложения".to_string())?;
-
-    let mut current_settings = AppSettings::load(&exe_dir);
-    current_settings.ambient = settings;
-    current_settings.save(&exe_dir).map_err(|e| {
-        format!("Не удалось сохранить настройки подсветки полос: {}", e)
-    })?;
+    settings_store::update_settings(|s| s.ambient = settings.clone())
+        .map_err(|e| format!("Не удалось сохранить настройки подсветки полос: {}", e))?;
 
     Ok(())
 }
@@ -1381,16 +1281,8 @@ pub fn toggle_ambient_mode(
     current.mode = AmbientController::cycle_mode(&current.mode);
     state.ambient_controller.apply(&current)?;
 
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .ok_or_else(|| "Не удалось определить путь к директории приложения".to_string())?;
-
-    let mut current_settings = AppSettings::load(&exe_dir);
-    current_settings.ambient = current.clone();
-    current_settings.save(&exe_dir).map_err(|e| {
-        format!("Не удалось сохранить настройки подсветки полос: {}", e)
-    })?;
+    settings_store::update_settings(|s| s.ambient = current.clone())
+        .map_err(|e| format!("Не удалось сохранить настройки подсветки полос: {}", e))?;
 
     Ok(current)
 }
@@ -1849,12 +1741,14 @@ pub fn update_history_position(path: &str, position: f64, duration: f64) {
 
     if let Ok(mut map) = get_history_map().lock() {
         map.insert(key, WatchHistoryItem { position: target_pos, timestamp: now });
-        
+
+        // Ограничение размера истории: удаляем ВСЕ записи сверх лимита,
+        // отсортировав их по возрастанию времени последнего просмотра.
         if map.len() > 100 {
             let mut items: Vec<_> = map.iter().map(|(k, v)| (k.clone(), v.timestamp)).collect();
             items.sort_by_key(|i| i.1);
-            if let Some(oldest) = items.first() {
-                let k = oldest.0.clone();
+            let excess = map.len() - 100;
+            for (k, _) in items.into_iter().take(excess) {
                 map.remove(&k);
             }
         }
@@ -1872,7 +1766,11 @@ pub fn update_history_position(path: &str, position: f64, duration: f64) {
 
 /// Сохраняет текущую позицию воспроизведения активного медиафайла напрямую из состояния MPV на диск.
 pub fn save_current_playback_position(state: &PlayerState) {
-    let mpv = &state.mpv;
+    save_current_playback_position_for(&state.mpv);
+}
+
+/// Сохранение позиции по прямому менеджеру mpv (для фоновых задач без полного PlayerState).
+pub fn save_current_playback_position_for(mpv: &Arc<MpvManager>) {
     if let Ok(current_path) = mpv.get_property_string("path") {
         if !current_path.trim().is_empty() {
             let position = mpv.get_property_double("time-pos").unwrap_or(0.0);
@@ -1913,7 +1811,7 @@ static LAST_TASKBAR_UPDATE: Mutex<(i32, bool)> = Mutex::new((-1, false));
 
 // ─── Интеграция с Taskbar Windows ───
 #[tauri::command]
-pub fn update_taskbar_progress(progress: f64, paused: bool, app: tauri::AppHandle) -> Result<(), String> {
+pub async fn update_taskbar_progress(progress: f64, paused: bool, app: tauri::AppHandle) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         // Дискретный шаг (0 - 1000, т.е. с точностью до 0.1%)
@@ -1932,28 +1830,43 @@ pub fn update_taskbar_progress(progress: f64, paused: bool, app: tauri::AppHandl
             *last = (discrete_progress, paused);
         }
 
-        use windows::Win32::UI::Shell::{ITaskbarList3, TaskbarList, TBPF_NORMAL, TBPF_PAUSED, TBPF_NOPROGRESS};
-        use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL};
-        use tauri::Manager;
-        
-        let window = app.get_webview_window("main").ok_or("Нет окна")?;
-        let hwnd_val = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
-        let hwnd = windows::Win32::Foundation::HWND(hwnd_val as _);
-        
-        unsafe {
-            if let Ok(taskbar) = CoCreateInstance::<_, ITaskbarList3>(&TaskbarList, None, CLSCTX_ALL) {
-                let max = 10000;
-                let current = (progress * max as f64) as u64;
-                
-                if discrete_progress == 0 || discrete_progress == 1000 {
-                    let _ = taskbar.SetProgressState(hwnd, TBPF_NOPROGRESS);
-                } else {
-                    let state = if paused { TBPF_PAUSED } else { TBPF_NORMAL };
-                    let _ = taskbar.SetProgressState(hwnd, state);
-                    let _ = taskbar.SetProgressValue(hwnd, current, max);
+        // COM-вызовы выполняются на выделенном блокирующем потоке:
+        // потоки tokio-пула не инициализируют COM, из-за чего
+        // CoCreateInstance(ITaskbarList3) мог молча проваливаться,
+        // и прогресс-бар панели задач переставал обновляться.
+        let hwnd_val = {
+            use tauri::Manager;
+            let window = app.get_webview_window("main").ok_or("Нет окна")?;
+            window.hwnd().map_err(|e| e.to_string())?.0 as isize
+        };
+
+        tokio::task::spawn_blocking(move || {
+            use windows::Win32::UI::Shell::{ITaskbarList3, TaskbarList, TBPF_NORMAL, TBPF_PAUSED, TBPF_NOPROGRESS};
+            use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL, COINIT_MULTITHREADED};
+
+            unsafe {
+                // Явная инициализация COM для этого потока (balanced с CoUninitialize)
+                let hr_init = CoInitializeEx(None, COINIT_MULTITHREADED);
+                if let Ok(taskbar) = CoCreateInstance::<_, ITaskbarList3>(&TaskbarList, None, CLSCTX_ALL) {
+                    let max = 10000;
+                    let current = (progress * max as f64) as u64;
+                    let hwnd = windows::Win32::Foundation::HWND(hwnd_val as _);
+
+                    if discrete_progress == 0 || discrete_progress == 1000 {
+                        let _ = taskbar.SetProgressState(hwnd, TBPF_NOPROGRESS);
+                    } else {
+                        let state = if paused { TBPF_PAUSED } else { TBPF_NORMAL };
+                        let _ = taskbar.SetProgressState(hwnd, state);
+                        let _ = taskbar.SetProgressValue(hwnd, current, max);
+                    }
+                }
+                if hr_init.is_ok() {
+                    CoUninitialize();
                 }
             }
-        }
+        })
+        .await
+        .map_err(|e| format!("Сбой задачи обновления панели задач: {}", e))?;
     }
     Ok(())
 }
@@ -2068,8 +1981,10 @@ pub async fn toggle_fullscreen(window: tauri::WebviewWindow) -> Result<bool, Str
                         std::mem::size_of::<BOOL>() as u32,
                     );
 
-                    // Уведомляем оболочку Windows (Explorer/Taskbar) о полноэкранном режиме окна
-                    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+                    // Уведомляем оболочку Windows (Explorer/Taskbar) о полноэкранном режиме окна.
+                    // CoInitializeEx балансируется CoUninitialize: без этого каждый toggle
+                    // полноэкранного режима оставлял незакрытую COM-инициализацию на потоке.
+                    let hr_com = CoInitializeEx(None, COINIT_MULTITHREADED);
                     if let Ok(tbl) = CoCreateInstance::<_, ITaskbarList2>(
                         &TaskbarList,
                         None,
@@ -2077,6 +1992,9 @@ pub async fn toggle_fullscreen(window: tauri::WebviewWindow) -> Result<bool, Str
                     ) {
                         let _ = tbl.HrInit();
                         let _ = tbl.MarkFullscreenWindow(hwnd, !is_fs);
+                    }
+                    if hr_com.is_ok() {
+                        windows::Win32::System::Com::CoUninitialize();
                     }
 
                     let was_ontop =
@@ -2343,6 +2261,19 @@ pub fn get_audio_spectrum(state: State<'_, PlayerState>) -> [f32; 32] {
 #[tauri::command]
 pub fn set_visualizer_active(state: State<'_, PlayerState>, active: bool) {
     state.audio_capture.set_active(active);
+}
+
+/// Регистрация потребителя спектра (монтирование Canvas визуализатора).
+/// Гарантирует, что реальный WASAPI-захват живёт пока жив хотя бы один Canvas.
+#[tauri::command]
+pub fn acquire_visualizer(state: State<'_, PlayerState>) {
+    state.audio_capture.acquire_consumer();
+}
+
+/// Освобождение потребителя спектра (размонтирование Canvas визуализатора).
+#[tauri::command]
+pub fn release_visualizer(state: State<'_, PlayerState>) {
+    state.audio_capture.release_consumer();
 }
 
 /// Очистка имени пресета для безопасного использования в качестве имени файла на Windows.

@@ -35,18 +35,41 @@ export const Timeline = React.memo(() => {
     return segs;
   }, [chapters, duration, mediaPath]);
 
-  // Hover-превью
+  // Hover-превью: обновление позиции карточки через requestAnimationFrame-троттлинг,
+  // чтобы покадровые mousemove (60+ событий/сек) не вызывали React-ререндер каждый раз.
   const [hoverInfo, setHoverInfo] = useState<{ ratio: number; time: number } | null>(null);
+  const hoverRafRef = useRef<number | null>(null);
+  const pendingHoverRef = useRef<{ ratio: number; time: number } | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (hoverRafRef.current !== null) {
+        cancelAnimationFrame(hoverRafRef.current);
+        hoverRafRef.current = null;
+      }
+    };
+  }, []);
 
   const handleTimelineMouseMove = useCallback((e: React.MouseEvent) => {
     if (!timelineRef.current || duration <= 0) return;
     const rect = timelineRef.current.getBoundingClientRect();
     const hoverX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
     const ratio = hoverX / rect.width;
-    setHoverInfo({ ratio, time: ratio * duration });
+    pendingHoverRef.current = { ratio, time: ratio * duration };
+    if (hoverRafRef.current === null) {
+      hoverRafRef.current = requestAnimationFrame(() => {
+        hoverRafRef.current = null;
+        setHoverInfo(pendingHoverRef.current);
+      });
+    }
   }, [duration]);
 
   const handleTimelineMouseLeave = useCallback(() => {
+    if (hoverRafRef.current !== null) {
+      cancelAnimationFrame(hoverRafRef.current);
+      hoverRafRef.current = null;
+    }
+    pendingHoverRef.current = null;
     setHoverInfo(null);
   }, []);
 

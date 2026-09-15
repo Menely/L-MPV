@@ -302,14 +302,36 @@ export function PlayerControls({
     }
   }, []);
 
-  const handleVolumeChange = (newVol: number, commit: boolean = true) => {
+  const volumeSliderRef = useRef<HTMLInputElement>(null);
+
+  // Громкость: локальный стейт во время драга, commit в mpv только на release.
+  // Решает проблему «отменённых» значений: mouseup вне слайдера (pointerup
+  // захватом) и завершение драга клавиатурой гарантированно коммитят значение.
+  const handleVolumeChange = useCallback((newVol: number, commit: boolean = true) => {
     if (commit) {
       setLocalVolume(null);
       setVolume(newVol);
     } else {
       setLocalVolume(newVol);
     }
-  };
+  }, [setVolume]);
+
+  // Pointer Capture: mouseup за пределами слайдера не теряет commit
+  useEffect(() => {
+    const slider = volumeSliderRef.current;
+    if (!slider) return;
+    const onPointerUp = () => {
+      const val = Number(slider.value);
+      setLocalVolume(null);
+      setVolume(val);
+    };
+    slider.addEventListener("pointerup", onPointerUp);
+    slider.addEventListener("pointercancel", onPointerUp);
+    return () => {
+      slider.removeEventListener("pointerup", onPointerUp);
+      slider.removeEventListener("pointercancel", onPointerUp);
+    };
+  }, [setVolume]);
 
   const handleSetSpeed = useCallback(async (s: number) => {
     try {
@@ -585,6 +607,7 @@ export function PlayerControls({
               </button>
               <div className="volume-slider__expandable">
                 <input
+                  ref={volumeSliderRef}
                   type="range"
                   className="volume-slider__input"
                   min="0"
@@ -598,12 +621,10 @@ export function PlayerControls({
                   onChange={(e) =>
                     handleVolumeChange(Number(e.target.value), false)
                   }
-                  onMouseUp={(e) => 
-                    handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
-                  }
-                  onTouchEnd={(e) => 
-                    handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
-                  }
+                  onKeyUp={(e) => {
+                    // Завершение клавиатурной регулировки коммитит значение
+                    handleVolumeChange(Number((e.target as HTMLInputElement).value), true);
+                  }}
                   id="slider-volume"
                 />
               </div>

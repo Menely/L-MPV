@@ -634,12 +634,21 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
   const speed = mediaInfo?.speed ?? 1.0;
   const shouldBeActive = !isPaused && !isIdle && isDocVisible;
 
-  // Управление аппаратным захватом звука через WASAPI
+  // Управление аппаратным захватом звука через WASAPI.
+  // acquire/release вместо прямого set_active: бэкенд ведёт счётчик потребителей,
+  // поэтому размонтирование одного Canvas-инстанса не глушит захват другого
+  // (раньше два инстанса визуализатора конфликтовали: unmount одного
+  // отправлял set_visualizer_active(false) и останавливал спектр второго).
+  useEffect(() => {
+    invoke("acquire_visualizer").catch(() => {});
+    return () => {
+      invoke("release_visualizer").catch(() => {});
+    };
+  }, []);
+
+  // Динамическое включение/выключение по фактическому состоянию (пауза/IDLE/видимость)
   useEffect(() => {
     invoke("set_visualizer_active", { active: shouldBeActive }).catch(() => {});
-    return () => {
-      invoke("set_visualizer_active", { active: false }).catch(() => {});
-    };
   }, [shouldBeActive]);
 
   const animStateRef = useRef<VisualizerAnimState>(createInitialAnimState());

@@ -18,7 +18,8 @@ export interface MediaInfo {
   speed: number;
   volume: number;
   file_size: number;
-  audio_channels: number;
+  /** Количество аудиоканалов из mpv (audio-params/channel-count). */
+  audio_channels: number | string;
   audio_bitrate: number;
   video_bitrate: number;
   total_bitrate: number;
@@ -62,6 +63,9 @@ export interface TrackInfo {
   external_filename?: string;
   ff_index?: number;
 }
+
+/** Общий тип-уния для значений track-id mpv (числовой ID либо "no"). */
+export type MpvTrackId = number | "no";
 
 export interface PlayerProgress {
   position: number;
@@ -257,6 +261,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const lastSaveTimeRef = useRef<number>(0);
   const currentPositionRef = useRef<number>(0);
   const eofReachedRef = useRef<boolean>(false);
+  /** Кэш FPS контента для адаптивной частоты опроса прогресс-бара. */
+  const mediaFpsRef = useRef<number>(0);
 
   // Оптимизированный цикл поллинга
   useEffect(() => {
@@ -272,6 +278,11 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           nextDelay = 1000;
         } else if (dynState.path === "") {
           nextDelay = hasMediaInfoRef.current ? 1000 : 150;
+        } else {
+          // Интерполяция частоты опроса по FPS контента: 24/30 fps — 66 мс,
+          // 50/60 fps — 40 мс. Гладкость таймлайна без перегрузки IPC.
+          const fps = mediaFpsRef.current;
+          nextDelay = fps >= 45 ? 40 : fps >= 20 ? 66 : 100;
         }
         
         if (!hasMediaInfoRef.current || dynState.path !== currentPathRef.current) {
@@ -283,7 +294,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             fullInfo.duration = effectiveDuration;
 
             currentPathRef.current = fullInfo.path;
-            hasMediaInfoRef.current = effectiveDuration > 0;
+            hasMediaInfoRef.current = effectiveDuration > 0 || fullInfo.path !== "";
+            mediaFpsRef.current = fullInfo.fps > 0 ? fullInfo.fps : 0;
             mediaInfoRef.current = fullInfo;
             setMediaInfo(fullInfo);
             setHasMedia(true);
@@ -322,10 +334,12 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           } else {
             currentPathRef.current = "";
             hasMediaInfoRef.current = false;
+            mediaFpsRef.current = 0;
             mediaInfoRef.current = null;
             setMediaInfo(null);
             setHasMedia(false);
             setChapters([]);
+            setLiveState(null);
             setProgress({
               position: 0,
               duration: 0,
@@ -622,44 +636,49 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  /** Показать OSD-уведомление через глобальное событие приложения. */
+  const showOsd = useCallback((text: string) => {
+    window.dispatchEvent(new CustomEvent("show-osd", { detail: text }));
+  }, []);
+
   const selectAudioTrack = useCallback(async (trackId: number) => {
     try {
       setTracks(prev => prev.map(t => t.type === "audio" ? { ...t, selected: t.id === trackId } : t));
       await invoke("set_audio_track", { trackId });
       const t = tracks.find(x => x.type === "audio" && x.id === trackId);
       if (t) {
-         invoke("show_osd", { text: `Аудио: ${t.title || t.lang || ('Дорожка ' + t.id)}` }).catch(() => {});
+        showOsd(`Аудио: ${t.title || t.lang || ("Дорожка " + t.id)}`);
       }
       await loadTracks();
     } catch (e) {
       console.error("Ошибка при выборе аудиодорожки", e);
     }
-  }, [tracks, loadTracks]);
-  
+  }, [tracks, loadTracks, showOsd]);
+
   const selectSubTrack = useCallback(async (trackId: number) => {
     try {
       setTracks(prev => prev.map(t => t.type === "sub" ? { ...t, selected: t.id === trackId } : t));
       await invoke("set_subtitle_track", { trackId });
       const t = tracks.find(x => x.type === "sub" && x.id === trackId);
       if (t) {
-         invoke("show_osd", { text: `Субтитры: ${t.title || t.lang || ('Дорожка ' + t.id)}` }).catch(() => {});
+        showOsd(`Субтитры: ${t.title || t.lang || ("Дорожка " + t.id)}`);
       }
       await loadTracks();
     } catch (e) {
       console.error("Ошибка при выборе дорожки субтитров", e);
     }
-  }, [tracks, loadTracks]);
-  
+  }, [tracks, loadTracks, showOsd]);
+
   const disableSubtitles = useCallback(async () => {
     try {
       setTracks(prev => prev.map(t => t.type === "sub" ? { ...t, selected: false } : t));
       await invoke("disable_subtitles");
-      invoke("show_osd", { text: "Субтитры: Выкл" }).catch(() => {});
+      showOsd("Субтитры: Выкл");
       await loadTracks();
     } catch (e) {
       console.error("Ошибка при отключении субтитров", e);
     }
-  }, [loadTracks]);
+  }, [loadTracks, showOsd]);
   
   const cycleAudioTrack = useCallback(async () => {
     const audioTracks = tracks.filter((t) => t.type === "audio");

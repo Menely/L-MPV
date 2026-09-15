@@ -7,7 +7,6 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { usePlayerState } from "./contexts/PlayerStateContext";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Play } from "lucide-react";
@@ -22,7 +21,11 @@ import { PlaylistDrawer } from "./components/PlaylistDrawer";
 import { UpdateModal, UpdateToast, UpdateInfo } from "./components/UpdateModal";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/AudioVisualizer";
 import { applyAccentColor } from "./utils/colorUtils";
-import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
+import { getCustomHotkeys } from "./utils/hotkeyUtils";
+import { useDragDrop, useGlobalHotkeys, useVideoZoomGesture } from "./hooks/usePlayerInteractions";
+
+/** Текущий угол поворота видео в градусах (кратно 90). */
+const ROTATION_CYCLE: Record<number, number> = { 0: 90, 90: 180, 180: 270, 270: 0 };
 
 function App() {
   const {
@@ -60,16 +63,10 @@ function App() {
   const clickTimerRef = useRef<number | null>(null);
   const hasMediaRef = useRef(hasMedia);
   const isSteppingRef = useRef(false);
-  const videoZoomRef = useRef<number>(0);
-  const videoPanXRef = useRef<number>(0);
-  const videoPanYRef = useRef<number>(0);
-  const rafIdRef = useRef<number | null>(null);
-  
+  const rotationRef = useRef<number>(0);
+
   useEffect(() => {
     hasMediaRef.current = hasMedia;
-    videoZoomRef.current = 0;
-    videoPanXRef.current = 0;
-    videoPanYRef.current = 0;
   }, [hasMedia]);
 
   useEffect(() => {
@@ -300,7 +297,14 @@ function App() {
     setContextMenu(null);
   }, []);
 
-  const [hotkeys, setHotkeys] = useState(getCustomHotkeys());
+  // ─── Жесты масштабирования/панорамирования (вынесено в хук) ───
+  const { handleWheel: handleZoomWheel, resetZoom } = useVideoZoomGesture({
+    hasMedia,
+    isMediaAvailable: () => Boolean(mediaInfo),
+  });
+
+  // ─── Drag&Drop файлов и хотлоад дорожек (вынесено в хук) ───
+  useDragDrop({ hasMedia, loadTracks });
 
   const latestRef = useRef({
     hasMedia,
@@ -314,7 +318,6 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
-    hotkeys,
   });
 
   latestRef.current = {
@@ -329,7 +332,6 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
-    hotkeys,
   };
 
   const handleOpenFile = useCallback(async () => {
@@ -487,8 +489,9 @@ function App() {
       }
       case "rotateVideo": {
         try {
-          const curRot = (mediaInfo as any)?.rotation || 0;
-          const nextRot = (curRot + 90) % 360;
+          const curRot = rotationRef.current;
+          const nextRot = ROTATION_CYCLE[curRot] ?? 90;
+          rotationRef.current = nextRot;
           await invoke("set_rotation", { degrees: nextRot });
           setOsdText(`Поворот: ${nextRot}°`);
           if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
@@ -499,13 +502,7 @@ function App() {
         break;
       }
       case "resetZoom":
-        videoZoomRef.current = 0;
-        videoPanXRef.current = 0;
-        videoPanYRef.current = 0;
-        invoke("set_video_zoom_and_pan", { zoom: 0, panX: 0, panY: 0 }).catch(console.error);
-        setOsdText("Масштаб: 100% (Исходный)");
-        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        resetZoom();
         break;
       case "playlist":
         curSetIsPlaylistOpen(!curIsPlaylistOpen);
@@ -581,7 +578,7 @@ function App() {
         }
         break;
     }
-  }, [handleOpenFile, triggerFrameOsd]);
+  }, [handleOpenFile, triggerFrameOsd, resetZoom]);
 
   const handleVideoClick = useCallback(
     (e: React.MouseEvent) => {
@@ -591,7 +588,7 @@ function App() {
         latestRef.current.setIsPlaylistOpen(false);
       }
 
-      const curHotkeys = latestRef.current.hotkeys;
+      const curHotkeys = getCustomHotkeys();
       let singleClickAction: string | null = null;
       let doubleClickAction: string | null = null;
 
@@ -655,7 +652,7 @@ function App() {
         latestRef.current.setIsPlaylistOpen(false);
       }
 
-      const curHotkeys = latestRef.current.hotkeys;
+      const curHotkeys = getCustomHotkeys();
       let action: string | null = null;
       const allowedContextMenuActions = ["openContextMenu", "fileInfo", "togglePause", "fullscreen"];
       for (const actionId of allowedContextMenuActions) {
@@ -680,7 +677,7 @@ function App() {
     (e: React.MouseEvent) => {
       if (e.button === 1) {
         e.preventDefault();
-        const curHotkeys = latestRef.current.hotkeys;
+        const curHotkeys: Record<string, string[]> = getCustomHotkeys();
         let action: string | null = null;
         for (const [actionId, codes] of Object.entries(curHotkeys)) {
           if (codes.includes("MouseMiddle")) {
@@ -696,122 +693,12 @@ function App() {
     [executeAction]
   );
 
-  useEffect(() => {
-    const updateHotkeys = () => setHotkeys(getCustomHotkeys());
-    window.addEventListener("l-mpv-settings-changed", updateHotkeys);
-    return () => window.removeEventListener("l-mpv-settings-changed", updateHotkeys);
-  }, []);
-
-  // ─── Горячие клавиши ──────────────────────────────
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
-        return;
-      }
-
-      if (e.code === "Escape" && latestRef.current.isFullscreen) {
-        e.preventDefault();
-        latestRef.current.toggleFullscreen();
-        return;
-      }
-
-      const curHotkeys = latestRef.current.hotkeys;
-      for (const actionId of Object.keys(curHotkeys)) {
-        const customCodes = curHotkeys[actionId] || [];
-        const isMatch = customCodes.some(c => isKeyboardEventMatch(e, c));
-        
-        if (isMatch) {
-          e.preventDefault();
-          executeAction(actionId);
-          return;
-        }
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [executeAction]);
-
-  // ─── Обработка перетаскивания (Drag & Drop / Хотлоад) ─────────
-  useEffect(() => {
-    let unlistenFn: (() => void) | undefined;
-
-    const isAudioFile = (p: string) => {
-      const ext = p.split('.').pop()?.toLowerCase() || '';
-      return ['mka', 'm4a', 'aac', 'mp3', 'ogg', 'opus', 'flac', 'wav', 'ac3', 'eac3', 'dts', 'thd', 'wma', 'aiff', 'ape'].includes(ext);
-    };
-
-    const isSubtitleFile = (p: string) => {
-      const ext = p.split('.').pop()?.toLowerCase() || '';
-      return ['srt', 'ass', 'ssa', 'vtt', 'sub', 'idx', 'sup'].includes(ext);
-    };
-
-    const setupDragDrop = async () => {
-      const webview = getCurrentWebview();
-      const unlisten = await webview.onDragDropEvent(
-        async (event) => {
-          if (
-            event.payload.type === "drop" &&
-            event.payload.paths.length > 0
-          ) {
-            const file = event.payload.paths[0];
-            const curHasMedia = latestRef.current.hasMedia;
-            const hotloadEnabled = localStorage.getItem('l-mpv-hotload-enabled') === 'true';
-
-            if (hotloadEnabled && curHasMedia && isAudioFile(file)) {
-              try {
-                await invoke("load_audio_file", { path: file });
-                await latestRef.current.loadTracks();
-                const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-                window.dispatchEvent(
-                  new CustomEvent("show-osd", { detail: `Подключена аудиодорожка: ${fileName}` })
-                );
-              } catch (err) {
-                console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
-              }
-            } else if (hotloadEnabled && curHasMedia && isSubtitleFile(file)) {
-              try {
-                await invoke("load_subtitle_file", { path: file });
-                await latestRef.current.loadTracks();
-                const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-                window.dispatchEvent(
-                  new CustomEvent("show-osd", { detail: `Подключены субтитры: ${fileName}` })
-                );
-              } catch (err) {
-                console.error("Ошибка подключения субтитров (Хотлоад):", err);
-              }
-            } else {
-              try {
-                await invoke("open_file", { path: file });
-              } catch (err) {
-                console.error("Ошибка открытия файла:", err);
-              }
-            }
-          }
-        }
-      );
-      return unlisten;
-    };
-
-    let isMounted = true;
-
-    setupDragDrop().then((unlisten) => {
-      if (!isMounted) {
-        unlisten();
-      } else {
-        unlistenFn = unlisten;
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      if (unlistenFn) unlistenFn();
-    };
-  }, []);
+  // ─── Глобальные горячие клавиши (вынесено в хук) ──────────────
+  useGlobalHotkeys({
+    executeAction,
+    isFullscreen,
+    toggleFullscreen,
+  });
 
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -850,58 +737,7 @@ function App() {
         onWheel={(e) => {
           if (hasMedia && mediaInfo) {
             if (e.ctrlKey) {
-              e.preventDefault();
-              const rect = e.currentTarget.getBoundingClientRect();
-              const relX = (e.clientX - rect.left - rect.width / 2) / rect.width;
-              const relY = (e.clientY - rect.top - rect.height / 2) / rect.height;
-
-              // Уменьшенный шаг (0.04 вместо 0.1) как в IINA/mpv.net для плавной микро-регулировки
-              const step = e.deltaY < 0 ? 0.04 : -0.04;
-              const prevZoom = videoZoomRef.current;
-              let nextZoom = prevZoom + step;
-              
-              // Ограничиваем диапазон зума
-              nextZoom = Math.max(-1.5, Math.min(3.0, nextZoom));
-              
-              // Магнитный сброс в 0 при приближении к 100%
-              if (Math.abs(nextZoom) < 0.025) {
-                nextZoom = 0;
-              }
-              
-              const scalePrev = Math.pow(2, prevZoom);
-              const scaleNext = Math.pow(2, nextZoom);
-
-              if (nextZoom === 0) {
-                videoPanXRef.current = 0;
-                videoPanYRef.current = 0;
-              } else {
-                videoPanXRef.current -= relX * (1 / scalePrev - 1 / scaleNext);
-                videoPanYRef.current -= relY * (1 / scalePrev - 1 / scaleNext);
-              }
-              
-              videoZoomRef.current = nextZoom;
-
-              // Батчинг через requestAnimationFrame (до 60 кадров/сек), убирающий лаги первого зума
-              if (rafIdRef.current === null) {
-                rafIdRef.current = requestAnimationFrame(() => {
-                  rafIdRef.current = null;
-                  const targetZoom = videoZoomRef.current;
-                  const targetPanX = videoPanXRef.current;
-                  const targetPanY = videoPanYRef.current;
-                  invoke("set_video_zoom_and_pan", { 
-                    zoom: targetZoom, 
-                    panX: targetPanX, 
-                    panY: targetPanY 
-                  }).catch(console.error);
-
-                  const percentage = Math.round(Math.pow(2, targetZoom) * 100);
-                  setOsdText(targetZoom === 0 ? "Масштаб: 100% (Исходный)" : `Масштаб: ${percentage}%`);
-                  if (osdTimerRef.current !== null) {
-                    window.clearTimeout(osdTimerRef.current);
-                  }
-                  osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1200);
-                });
-              }
+              handleZoomWheel(e);
             } else {
               const currentVol = mediaInfo.volume;
               const delta = e.deltaY < 0 ? 5 : -5;

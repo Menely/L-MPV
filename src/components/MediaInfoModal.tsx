@@ -149,7 +149,8 @@ export function MediaInfoModal({
         <div className="media-info__row">
           <span className="media-info__label">Аудио:</span>
           <span className="media-info__value">
-            {mediaInfo?.audio_codec || "—"} ({mediaInfo?.audio_channels || "—"} ch)
+            {mediaInfo?.audio_codec || "—"}
+            {mediaInfo?.audio_channels ? ` (${mediaInfo.audio_channels} ch)` : ""}
           </span>
         </div>
         <div className="media-info__row">
