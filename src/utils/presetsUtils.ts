@@ -673,9 +673,12 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
           createdAt: Date.now(),
           isBuiltIn: false,
           data: {
+            playerTheme: item.data.playerTheme || "graphite",
             accentColor: item.data.accentColor || "#7fc7ff",
             glowIntensity: item.data.glowIntensity || "medium",
             uiOpacity: typeof item.data.uiOpacity === "number" ? item.data.uiOpacity : 0.88,
+            uiRadius: item.data.uiRadius,
+            uiScale: item.data.uiScale,
             animationsEnabled: item.data.animationsEnabled !== false,
             showTrackNames: item.data.showTrackNames !== false,
             visibleButtons: item.data.visibleButtons || {},
