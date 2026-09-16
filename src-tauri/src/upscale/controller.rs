@@ -301,7 +301,9 @@ pub async fn precompile_model_engine_1080p_impl(
                 format!("--onnx={}", onnx_path.display()),
                 format!("--saveEngine={}", save_engine_path.display()),
                 "--builderOptimizationLevel=3".to_string(),
+                "--minShapes=input:1x3x240x240".to_string(),
                 "--optShapes=input:1x3x1080x1920".to_string(),
+                "--maxShapes=input:1x3x1080x1920".to_string(),
                 "--memPoolSize=workspace:4096".to_string(),
                 "--skipInference".to_string(),
             ]);
