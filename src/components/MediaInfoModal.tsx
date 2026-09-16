@@ -84,7 +84,6 @@ export function MediaInfoModal({
   // Итоговые значения
   const currentPos = position || mediaInfo?.position || 0;
   const currentFrame = frame || mediaInfo?.frame || 0;
-  const videoBitrate = liveState?.video_bitrate ?? mediaInfo?.video_bitrate ?? 0;
   const audioBitrate = liveState?.audio_bitrate ?? mediaInfo?.audio_bitrate ?? 0;
   const droppedFrames = liveState?.dropped_frames ?? mediaInfo?.dropped_frames ?? 0;
   const currentVolume = liveState?.volume ?? mediaInfo?.volume ?? 100;
@@ -167,19 +166,13 @@ export function MediaInfoModal({
         <div className="media-info__row">
           <span className="media-info__label">Текущий битрейт:</span>
           <span className="media-info__value">
-            {videoBitrate > 0 ? `${Math.round(videoBitrate / 1000)} kbps` : "—"}
+            {instantBitrate > 0 ? `${Math.round(instantBitrate / 1000)} kbps` : "—"}
           </span>
         </div>
         <div className="media-info__row">
           <span className="media-info__label">Общий битрейт:</span>
           <span className="media-info__value">
             {mediaInfo?.total_bitrate ? `${Math.round(mediaInfo.total_bitrate / 1000)} kbps` : "—"}
-          </span>
-        </div>
-        <div className="media-info__row">
-          <span className="media-info__label">Мгновенный общий битрейт:</span>
-          <span className="media-info__value">
-            {instantBitrate > 0 ? `${Math.round(instantBitrate / 1000)} kbps` : "—"}
           </span>
         </div>
         <div className="media-info__row">
