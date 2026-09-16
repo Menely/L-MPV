@@ -203,8 +203,8 @@ pub async fn precompile_model_engine_1080p_impl(
     };
 
     let engine_filename = format!(
-        "aji-{:08x}.{}.780037328.trt-11.1.0.gpu-{}-{}.engine",
-        crc, model_stem, gpu_clean, sm_suffix
+        "aji-{:08x}.780037328.trt-11.1.0.gpu-{}-{}.engine",
+        crc, gpu_clean, sm_suffix
     );
     let save_engine_path = models_dir.join(&engine_filename);
     let save_engine_path_for_err = save_engine_path.clone();
@@ -292,6 +292,7 @@ pub async fn precompile_model_engine_1080p_impl(
     });
 
     let build_log_task = build_log_path.clone();
+    let models_dir_harness = models_dir.clone();
 
     let output = tokio::task::spawn_blocking(move || {
         if trtexec_path.exists() {
@@ -326,7 +327,7 @@ pub async fn precompile_model_engine_1080p_impl(
                 "--conf",
                 &conf_path.to_string_lossy(),
                 "--model-dir",
-                &models_dir.to_string_lossy(),
+                &models_dir_harness.to_string_lossy(),
                 "--slot",
                 &slot.to_string(),
                 "--width",
@@ -442,6 +443,19 @@ pub async fn precompile_model_engine_1080p_impl(
             error: None,
         },
     );
+
+    // Создаем понятный файл-описание для пользователя, чтобы было видно соответствие ONNX и .engine
+    let info_filename = format!("{}.engine.info.txt", model_stem);
+    let info_content = format!(
+        "=== Скомпилированный движок NVIDIA TensorRT 1080p ===\n\
+         Исходная модель: {}\n\
+         Файл движка: {}\n\
+         Целевое разрешение: 1080p -> 4K\n\
+         Видеокарта: {} ({})\n\
+         Статус: Готов к аппаратному воспроизведению\n",
+        filename, engine_filename, gpu.name, sm_suffix
+    );
+    let _ = std::fs::write(models_dir.join(info_filename), info_content);
 
     let _ = std::fs::remove_file(&build_log_for_err);
     println!("[L-MPV][Upscale] Модель {} успешно скомпилирована для 1080p.", filename);
