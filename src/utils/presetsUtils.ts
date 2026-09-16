@@ -477,6 +477,7 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   }
 
   // 12. Глобальные оповещения для синхронизации всех открытых компонентов
+  saveActivePresetId(preset.id);
   window.dispatchEvent(new Event("l-mpv-settings-changed"));
   window.dispatchEvent(new CustomEvent("l-mpv-preset-applied", { detail: preset }));
 }
@@ -719,5 +720,140 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
   } catch (e) {
     throw new Error("Неверный формат JSON файла пресета");
   }
+}
+
+export const ACTIVE_PRESET_STORAGE_KEY = "l-mpv-active-preset-id";
+
+/**
+ * Получить ID последнего применённого или сохранённого пресета.
+ */
+export function getSavedActivePresetId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_PRESET_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Зафиксировать ID активного пресета в хранилище.
+ */
+export function saveActivePresetId(id: string | null): void {
+  try {
+    if (id) {
+      localStorage.setItem(ACTIVE_PRESET_STORAGE_KEY, id);
+    } else {
+      localStorage.removeItem(ACTIVE_PRESET_STORAGE_KEY);
+    }
+  } catch (e) {
+    console.error("Ошибка сохранения активного пресета:", e);
+  }
+}
+
+/**
+ * Проверяет, соответствуют ли текущие настройки плеера конфигурации пресета.
+ */
+export function isSettingsMatchingPreset(
+  current: SettingsPresetData,
+  preset: SettingsPresetData
+): boolean {
+  if (!current || !preset) return false;
+
+  // 1. Тема плеера
+  const curTheme = current.playerTheme || "graphite";
+  const preTheme = preset.playerTheme || "graphite";
+  if (curTheme !== preTheme) return false;
+
+  // 2. Шрифт интерфейса
+  const curFont = current.uiFont || "inter";
+  const preFont = preset.uiFont || "inter";
+  if (curFont !== preFont) return false;
+
+  // 3. Акцентный цвет
+  const curAccent = (current.accentColor || "#7fc7ff").toLowerCase();
+  const preAccent = (preset.accentColor || "#7fc7ff").toLowerCase();
+  if (curAccent !== preAccent) return false;
+
+  // 4. Интенсивность неонового свечения
+  const curGlow = current.glowIntensity || "soft";
+  const preGlow = preset.glowIntensity || "soft";
+  if (curGlow !== preGlow) return false;
+
+  // 5. Прозрачность UI
+  const curOpacity = Math.round(Number(current.uiOpacity ?? 0.88) * 100);
+  const preOpacity = Math.round(Number(preset.uiOpacity ?? 0.88) * 100);
+  if (curOpacity !== preOpacity) return false;
+
+  // 6. Скругление углов
+  const curRadiusLevel = typeof current.uiRadius === "string" ? current.uiRadius : current.uiRadius?.level || "default";
+  const preRadiusLevel = typeof preset.uiRadius === "string" ? preset.uiRadius : preset.uiRadius?.level || "default";
+  if (curRadiusLevel !== preRadiusLevel) return false;
+  if (curRadiusLevel === "custom") {
+    const curVal = typeof current.uiRadius === "object" ? current.uiRadius?.value : undefined;
+    const preVal = typeof preset.uiRadius === "object" ? preset.uiRadius?.value : undefined;
+    if (curVal !== preVal) return false;
+  }
+
+  // 7. Масштаб UI
+  const curScaleMode = current.uiScale?.mode || "fit";
+  const preScaleMode = preset.uiScale?.mode || "fit";
+  if (curScaleMode !== preScaleMode) return false;
+  if (curScaleMode === "custom") {
+    const curScaleVal = Math.round((current.uiScale?.value ?? 1.0) * 100);
+    const preScaleVal = Math.round((preset.uiScale?.value ?? 1.0) * 100);
+    if (curScaleVal !== preScaleVal) return false;
+  }
+
+  // 8. Плавные анимации
+  if (Boolean(current.animationsEnabled) !== Boolean(preset.animationsEnabled)) return false;
+
+  // 9. Названия дорожек
+  if (Boolean(current.showTrackNames) !== Boolean(preset.showTrackNames)) return false;
+
+  // 10. Видимые кнопки
+  if (current.visibleButtons && preset.visibleButtons) {
+    const allKeys = Array.from(new Set([...Object.keys(current.visibleButtons), ...Object.keys(preset.visibleButtons)]));
+    for (const key of allKeys) {
+      const curBtn = current.visibleButtons[key] !== false;
+      const preBtn = preset.visibleButtons[key] !== false;
+      if (curBtn !== preBtn) return false;
+    }
+  }
+
+  // 11. Ambient Light
+  if (current.ambient && preset.ambient) {
+    if (current.ambient.mode !== preset.ambient.mode) return false;
+    if (current.ambient.mode !== "off") {
+      if (current.ambient.blur_radius !== preset.ambient.blur_radius) return false;
+      if (current.ambient.mode === "color" && current.ambient.color.toLowerCase() !== preset.ambient.color.toLowerCase()) return false;
+    }
+  }
+
+  // 12. Аудио-визуализатор
+  if (current.visualizer && preset.visualizer) {
+    const curVisEnabled = Boolean(current.visualizer.enabled && current.visualizer.placement !== "off");
+    const preVisEnabled = Boolean(preset.visualizer.enabled && preset.visualizer.placement !== "off");
+    if (curVisEnabled !== preVisEnabled) return false;
+    if (curVisEnabled) {
+      if (current.visualizer.placement !== preset.visualizer.placement) return false;
+      if (current.visualizer.mode !== preset.visualizer.mode) return false;
+    }
+  }
+
+  // 13. Дополнительные опции
+  if (Boolean(current.saveTracksToVideoDir) !== Boolean(preset.saveTracksToVideoDir)) return false;
+  if (Boolean(current.hotloadEnabled) !== Boolean(preset.hotloadEnabled)) return false;
+  if (Number(current.skipOpeningSeconds || 90) !== Number(preset.skipOpeningSeconds || 90)) return false;
+
+  // 14. Горячие клавиши (если они определены в пресете)
+  if (preset.customHotkeys && Object.keys(preset.customHotkeys).length > 0) {
+    if (!current.customHotkeys) return false;
+    for (const [key, binds] of Object.entries(preset.customHotkeys)) {
+      const curBinds = current.customHotkeys[key] || [];
+      if (binds.join(",") !== curBinds.join(",")) return false;
+    }
+  }
+
+  return true;
 }
 
