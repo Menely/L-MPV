@@ -189,6 +189,10 @@ pub async fn precompile_model_engine_1080p_impl(
 
     let trtexec_path = inf_dir.join("trtexec.exe");
     let onnx_path = models_dir.join(&filename);
+
+    // Автоматическая проверка и оптимизация ONNX-модели в FP16, если сеть FP32
+    ensure_model_fp16(&onnx_path);
+
     let model_stem = filename
         .strip_suffix(".onnx")
         .or_else(|| filename.strip_suffix(".ONNX"))
@@ -463,4 +467,53 @@ pub async fn precompile_model_engine_1080p_impl(
     println!("[L-MPV][Upscale] Модель {} успешно скомпилирована для 1080p.", filename);
     Ok(format!("Модель {} успешно оптимизирована для 1080p!", filename))
 }
+
+/// Проверяет, является ли входная модель FP32, и при необходимости преобразует её в FP16 NCHW
+fn ensure_model_fp16(onnx_path: &std::path::Path) {
+    if !onnx_path.exists() {
+        return;
+    }
+    // Быстрая проверка байтов файла на тип float32 (\x08\x01) у тензора input
+    if let Ok(data) = std::fs::read(onnx_path) {
+        if let Some(pos) = data.windows(5).position(|w| w == b"input") {
+            let search_end = (pos + 150).min(data.len());
+            let is_fp32 = data[pos..search_end].windows(2).any(|w| w == [0x08, 0x01]);
+            if is_fp32 {
+                println!(
+                    "[L-MPV][Upscale] Обнаружена модель FP32: {}. Автоматическая конвертация в FP16...",
+                    onnx_path.display()
+                );
+                let py_script = format!(
+                    "import onnx\n\
+                     try:\n\
+                         from onnxconverter_common import float16\n\
+                         m = onnx.load(r'{0}')\n\
+                         if len(m.graph.input[0].type.tensor_type.shape.dim) == 4:\n\
+                             m.graph.input[0].type.tensor_type.shape.dim[0].dim_param = 'batch_size'\n\
+                             m.graph.input[0].type.tensor_type.shape.dim[2].dim_param = 'height'\n\
+                             m.graph.input[0].type.tensor_type.shape.dim[3].dim_param = 'width'\n\
+                         if len(m.graph.output[0].type.tensor_type.shape.dim) == 4:\n\
+                             m.graph.output[0].type.tensor_type.shape.dim[0].dim_param = 'batch_size'\n\
+                             m.graph.output[0].type.tensor_type.shape.dim[1].dim_value = 3\n\
+                             m.graph.output[0].type.tensor_type.shape.dim[2].dim_param = 'height'\n\
+                             m.graph.output[0].type.tensor_type.shape.dim[3].dim_param = 'width'\n\
+                         m16 = float16.convert_float_to_float16(m, keep_io_types=False)\n\
+                         onnx.save(m16, r'{0}')\n\
+                     except Exception as e:\n\
+                         print('FP16 conversion error:', e)\n",
+                    onnx_path.display()
+                );
+                #[cfg(windows)]
+                {
+                    use std::os::windows::process::CommandExt;
+                    let mut cmd = std::process::Command::new("python");
+                    cmd.args(["-c", &py_script]);
+                    cmd.creation_flags(0x08000000);
+                    let _ = cmd.output();
+                }
+            }
+        }
+    }
+}
+
 
