@@ -310,7 +310,6 @@ pub async fn precompile_model_engine_1080p_impl(
                 "--optShapes=input:1x3x1080x1920".to_string(),
                 "--maxShapes=input:1x3x1080x1920".to_string(),
                 "--memPoolSize=workspace:4096".to_string(),
-                "--fp16".to_string(),
                 "--skipInference".to_string(),
             ]);
 
