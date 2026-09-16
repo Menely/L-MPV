@@ -30,11 +30,16 @@ import {
   getSavedUiScale,
   saveUiScale,
   saveUiOpacity,
+  UiFontId,
+  getSavedUiFont,
+  saveUiFont,
 } from "./uiThemeUtils";
 
 export interface SettingsPresetData {
   /** Тема оформления плеера (расцветка фона и поверхностей) */
   playerTheme?: PlayerThemeId | string;
+  /** Семейство шрифта интерфейса */
+  uiFont?: UiFontId | string;
   /** Акцентный цвет (HEX или "windows") */
   accentColor: string;
   /** Интенсивность неонового свечения */
@@ -105,6 +110,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     isBuiltIn: true,
     data: {
       playerTheme: "graphite",
+      uiFont: "inter",
       accentColor: "#7fc7ff",
       glowIntensity: "soft",
       uiOpacity: 0.88,
@@ -147,6 +153,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     isBuiltIn: true,
     data: {
       playerTheme: "oled",
+      uiFont: "outfit",
       accentColor: "#ff2a85",
       glowIntensity: "intense",
       uiOpacity: 0.94,
@@ -189,6 +196,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     isBuiltIn: true,
     data: {
       playerTheme: "graphite",
+      uiFont: "jakarta",
       accentColor: "#f59e0b",
       glowIntensity: "soft",
       uiOpacity: 0.72,
@@ -231,6 +239,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     isBuiltIn: true,
     data: {
       playerTheme: "nord",
+      uiFont: "inter",
       accentColor: "#cbd5e1",
       glowIntensity: "off",
       uiOpacity: 1.0,
@@ -327,6 +336,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
   const customHotkeys = getCustomHotkeys();
   const uiRadius = getSavedUiRadius();
   const uiScale = getSavedUiScale();
+  const uiFont = getSavedUiFont();
   const playerTheme = getSavedPlayerTheme();
 
   return {
@@ -336,6 +346,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
     isBuiltIn: false,
     data: {
       playerTheme,
+      uiFont,
       accentColor,
       glowIntensity,
       uiOpacity,
@@ -405,6 +416,11 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   // 3.2 Масштаб интерфейса
   if (data.uiScale) {
     saveUiScale(data.uiScale.mode, data.uiScale.value);
+  }
+
+  // 3.3 Шрифт интерфейса
+  if (data.uiFont) {
+    saveUiFont(data.uiFont as UiFontId);
   }
 
   // 4. Плавные анимации
