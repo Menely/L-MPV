@@ -650,7 +650,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
                 className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
-                title={tab.label}
               >
                 <Icon size={16} className="settings-tab-icon" />
                 <span className="settings-tab-label">{tab.label}</span>
