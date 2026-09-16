@@ -48,10 +48,12 @@ function TimeDisplay() {
   return (
     <span className="time-display">
       <span className="time-display__full">
-        {formatTime(position)} / {formatTime(duration)}
+        <span className="time-display__current">{formatTime(position)}</span>
+        <span className="time-display__separator">/</span>
+        <span className="time-display__total">{formatTime(duration)}</span>
       </span>
       <span className="time-display__compact">
-        {formatTime(position)}
+        <span className="time-display__current">{formatTime(position)}</span>
       </span>
     </span>
   );
