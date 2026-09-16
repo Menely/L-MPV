@@ -68,8 +68,16 @@ pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
     "ptx".to_string()
 }
 
-/// Получение сведений о текущем графическом процессоре системы через DXGI
+use std::sync::OnceLock;
+
+static CACHED_GPU: OnceLock<GpuHardwareInfo> = OnceLock::new();
+
+/// Получение сведений о текущем графическом процессоре системы через DXGI (с кэшированием)
 pub fn detect_system_gpu() -> GpuHardwareInfo {
+    CACHED_GPU.get_or_init(detect_system_gpu_uncached).clone()
+}
+
+fn detect_system_gpu_uncached() -> GpuHardwareInfo {
     #[cfg(windows)]
     {
         use windows::Win32::Graphics::Dxgi::{

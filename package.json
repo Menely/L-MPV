@@ -1,7 +1,7 @@
 {
   "name": "l-mpv",
   "private": true,
-  "version": "1.6.8",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

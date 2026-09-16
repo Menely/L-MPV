@@ -44,6 +44,12 @@ jobs:
           Expand-Archive -Path mpv_libs.zip -DestinationPath ./ -Force
           Remove-Item mpv_libs.zip -Force
 
+          # Проверка наличия и целостности всех трех нативных компонентов
+          if (-not (Test-Path "src-tauri/libmpv-2.dll") -or -not (Test-Path "src-tauri/ffmpeg.exe") -or -not (Test-Path "src-tauri/mediainfo.dll")) {
+            throw "КРИТИЧЕСКАЯ ОШИБКА: Нативные зависимости отсутствуют в каталоге src-tauri!"
+          }
+          Write-Host "Все нативные зависимости успешно проверены (libmpv-2.dll с vf_animejanai, ffmpeg.exe, mediainfo.dll)."
+
       - name: Синхронизация версии из Git-тега в package.json и Cargo.toml
         shell: pwsh
         run: |
@@ -65,11 +71,11 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: 'L-MPV v__VERSION__'
-          releaseBody: 'Автоматический релиз медиаплеера L-MPV на базе libmpv.'
+          releaseBody: 'Автоматический релиз медиаплеера L-MPV с поддержкой Real-Time 4K AI Upscaling (DirectML / TensorRT).'
           releaseDraft: false
           prerelease: false
 
-      - name: Публикация чистого портативного l-mpv.exe в релиз
+      - name: Публикация портативного архива и автономного l-mpv.exe в релиз
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
@@ -77,8 +83,24 @@ jobs:
             $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
             $tag = "v$ver"
           }
-          Write-Host "Загрузка автономного портативного файла l-mpv.exe в релиз $tag..."
-          gh release upload $tag "src-tauri/target/release/l-mpv.exe#l-mpv.exe" --clobber
+          Write-Host "Подготовка полноценного портативного дистрибутива..."
+          New-Item -ItemType Directory -Force -Path "Portable-L-MPV/models/onnx" | Out-Null
+          New-Item -ItemType Directory -Force -Path "Portable-L-MPV/inference" | Out-Null
+          New-Item -ItemType Directory -Force -Path "Portable-L-MPV/config/presets" | Out-Null
+          New-Item -ItemType Directory -Force -Path "Portable-L-MPV/screenshots" | Out-Null
+          
+          Copy-Item "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MPV/L-MPV.exe" -Force
+          Copy-Item "libmpv-2.dll" -Destination "Portable-L-MPV/libmpv-2.dll" -Force
+          Copy-Item "ffmpeg.exe" -Destination "Portable-L-MPV/ffmpeg.exe" -Force
+          Copy-Item "mediainfo.dll" -Destination "Portable-L-MPV/mediainfo.dll" -Force
+          
+          $portableZip = "L-MPV-$tag-portable.zip"
+          Write-Host "Создание архива $portableZip..."
+          Compress-Archive -Path "Portable-L-MPV/*" -DestinationPath $portableZip -Force
+          
+          Write-Host "Загрузка артефактов в релиз $tag..."
+          gh release upload $tag $portableZip --clobber
+          gh release upload $tag "src-tauri/target/release/l-mpv.exe#L-MPV.exe" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

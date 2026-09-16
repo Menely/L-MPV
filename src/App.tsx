@@ -597,6 +597,62 @@ function App() {
           console.error("Ошибка переключения подсветки полос:", e);
         }
         break;
+      case "upscaleStats": {
+        try {
+          const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
+          const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+          const slot = parseInt(localStorage.getItem("l-mpv-upscale-slot") || "1001", 10);
+          const selectedModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
+
+          // Если OSD со статистикой уже открыто, повторное нажатие хоткея скрывает его (toggle)
+          if (osdText && osdText.startsWith("✨ 4K AI Upscaling")) {
+            if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+            setOsdText(null);
+            break;
+          }
+
+          const status = await invoke<{
+            models: Array<{ slot: number; display_name: string; filename: string; has_engine_1080p: boolean }>;
+            gpu_info?: { name: string; recommended_backend: string; supports_tensorrt: boolean };
+          }>("get_upscale_status").catch(() => null);
+
+          if (mode === "ai") {
+            const activeModel = status?.models?.find((m) => m.slot === slot || m.filename === selectedModel);
+            const modelName = activeModel?.display_name || (selectedModel ? selectedModel.replace(/\.onnx$/i, "") : `Слот #${slot}`);
+            
+            let backendDesc = backend;
+            if (backend === "TensorRT") {
+              backendDesc = activeModel?.has_engine_1080p
+                ? "NVIDIA TensorRT 11 (1080p Engine)"
+                : "NVIDIA TensorRT 11 (JIT Dynamic)";
+            } else if (backend === "DirectML") {
+              backendDesc = "DirectML (GPU OnnxRuntime)";
+            }
+
+            let videoStats = "";
+            if (mediaInfo?.width && mediaInfo?.height) {
+              const fpsText = mediaInfo.fps ? ` @ ${mediaInfo.fps.toFixed(2)} fps` : "";
+              videoStats = `\nВидео: ${mediaInfo.width}×${mediaInfo.height}${fpsText} ➔ 4K UHD`;
+            }
+
+            const message = `✨ 4K AI Upscaling: Включен (Слот ${slot})\nМодель: ${modelName}\nДвижок: ${backendDesc}${videoStats}`;
+            setOsdText(message);
+          } else {
+            let gpuHint = "";
+            if (status?.gpu_info?.name) {
+              gpuHint = `\nGPU: ${status.gpu_info.name} (${status.gpu_info.recommended_backend})`;
+            }
+            const message = `✨ 4K AI Upscaling: Выключен (Исходное видео)${gpuHint}\nБыстрое включение: Shift+1 (Выкл), Shift+2..7 (Модели)`;
+            setOsdText(message);
+          }
+
+          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 3500);
+        } catch (e) {
+          console.error("Ошибка отображения статистики апскейлинга:", e);
+        }
+        break;
+      }
       case "upscaleOff":
         try {
           const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
@@ -905,9 +961,9 @@ function App() {
     >
       <Titlebar title="L-MPV" mediaTitle={mediaTitle} />
 
-      {/* OSD подписи текущего кадра при покадровой перемотке */}
+      {/* OSD подписи текущего кадра и статистики */}
       {osdText && (
-        <div className="frame-osd">
+        <div className={`frame-osd ${osdText.includes("\n") ? "frame-osd--multiline" : ""}`}>
           {osdText}
         </div>
       )}

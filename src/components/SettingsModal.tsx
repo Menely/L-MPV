@@ -55,6 +55,7 @@ import {
   ExternalLink,
   Trash2,
   Sparkles,
+  Layers,
   RefreshCw,
   Play,
   X,
@@ -167,7 +168,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("1.6.8");
+  const [appVersion, setAppVersion] = useState<string>("2.0.0");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
@@ -604,9 +605,9 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           {[
             { id: "general", label: "Общие", icon: SlidersHorizontal },
             { id: "appearance", label: "Кастом", icon: Palette },
-            { id: "presets", label: "Пресеты", icon: Sparkles },
-            { id: "upscaling", label: "Апскейлинг", icon: Zap },
-            { id: "hotkeys", label: "Горячие клавиши", icon: Keyboard },
+            { id: "presets", label: "Пресеты", icon: Layers },
+            { id: "upscaling", label: "Апскейлинг", icon: Sparkles },
+            { id: "hotkeys", label: "Хоткей", icon: Keyboard },
             { id: "integration", label: "Интеграция", icon: Link },
           ].map((tab) => {
             const Icon = tab.icon;

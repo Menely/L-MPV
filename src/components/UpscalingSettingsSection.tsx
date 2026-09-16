@@ -99,23 +99,46 @@ export const UpscalingSettingsSection: React.FC = () => {
   });
 
   const isMountedRef = useRef<boolean>(true);
+  const isInitialLoadedRef = useRef<boolean>(false);
+  const refreshInProgressRef = useRef<Promise<void> | null>(null);
+  const compileTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const downloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Загрузка статуса подсистемы и списка доступных моделей
   const refreshStatus = useCallback(async () => {
-    try {
-      // Флаг loading отображаем исключительно при самом первом открытии, когда данных еще нет
-      if (isMountedRef.current && status === null) {
-        setLoading(true);
-      }
-      const currentStatus = await invoke<UpscaleStatus>("get_upscale_status");
-      if (isMountedRef.current) setStatus(currentStatus);
-    } catch (err) {
-      console.error("Ошибка загрузки статуса апскейлинга:", err);
-      if (isMountedRef.current) setErrorMessage("Не удалось получить статус компонентов апскейлинга");
-    } finally {
-      if (isMountedRef.current) setLoading(false);
+    if (refreshInProgressRef.current) {
+      return refreshInProgressRef.current;
     }
-  }, [status]);
+    const promise = (async () => {
+      try {
+        // Флаг loading отображаем исключительно при самом первом открытии, когда данных еще нет
+        if (isMountedRef.current && !isInitialLoadedRef.current) {
+          setLoading(true);
+        }
+        const currentStatus = await invoke<UpscaleStatus>("get_upscale_status");
+        if (isMountedRef.current) {
+          setStatus(currentStatus);
+          // Очищаем ошибку загрузки статуса при успешном получении
+          setErrorMessage((prev) =>
+            prev === "Не удалось получить статус компонентов апскейлинга" ? null : prev
+          );
+        }
+      } catch (err) {
+        console.error("Ошибка загрузки статуса апскейлинга:", err);
+        if (isMountedRef.current) {
+          setErrorMessage("Не удалось получить статус компонентов апскейлинга");
+        }
+      } finally {
+        isInitialLoadedRef.current = true;
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
+        refreshInProgressRef.current = null;
+      }
+    })();
+    refreshInProgressRef.current = promise;
+    return promise;
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -130,12 +153,39 @@ export const UpscalingSettingsSection: React.FC = () => {
         setDownloadProgressText(payload.stage);
       }
       if (payload.is_finished) {
-        setIsDownloadingEngine(false);
-        setEngineSuccessMessage(payload.stage || "Движок успешно установлен!");
-        refreshStatus();
+        if (payload.error) {
+          setIsDownloadingEngine(false);
+          setErrorMessage(`Ошибка загрузки: ${payload.error}`);
+          if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
+          downloadTimerRef.current = setTimeout(() => {
+            if (isMountedRef.current) {
+              setDownloadProgress(null);
+              setDownloadProgressText(null);
+            }
+          }, 4000);
+        } else {
+          setEngineSuccessMessage(payload.stage || "Движок успешно установлен!");
+          setErrorMessage(null);
+          refreshStatus();
+          if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
+          downloadTimerRef.current = setTimeout(() => {
+            if (isMountedRef.current) {
+              setIsDownloadingEngine(false);
+              setDownloadProgress(null);
+              setDownloadProgressText(null);
+            }
+          }, 3000);
+        }
       } else if (payload.error) {
         setIsDownloadingEngine(false);
         setErrorMessage(`Ошибка загрузки: ${payload.error}`);
+        if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
+        downloadTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            setDownloadProgress(null);
+            setDownloadProgressText(null);
+          }
+        }, 4000);
       }
     }).then((fn) => {
       unlistenProgress = fn;
@@ -154,13 +204,17 @@ export const UpscalingSettingsSection: React.FC = () => {
           setEngineSuccessMessage(`Модель ${p.filename} успешно оптимизирована для 1080p!`);
         }
         refreshStatus();
-        setTimeout(() => {
+        if (compileTimersRef.current[p.filename]) {
+          clearTimeout(compileTimersRef.current[p.filename]);
+        }
+        compileTimersRef.current[p.filename] = setTimeout(() => {
           if (isMountedRef.current) {
             setCompileProgress((prev) => {
               const copy = { ...prev };
               delete copy[p.filename];
               return copy;
             });
+            delete compileTimersRef.current[p.filename];
           }
         }, 3000);
       }
@@ -191,6 +245,8 @@ export const UpscalingSettingsSection: React.FC = () => {
       if (unlistenProgress) unlistenProgress();
       if (unlistenCompile) unlistenCompile();
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+      if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
+      Object.values(compileTimersRef.current).forEach((t) => clearTimeout(t));
     };
   }, [refreshStatus]);
 
@@ -272,6 +328,10 @@ export const UpscalingSettingsSection: React.FC = () => {
 
   // Фоновое скачивание библиотек инференса с прогресс-баром
   const handleDownloadEngine = async () => {
+    if (downloadTimerRef.current) {
+      clearTimeout(downloadTimerRef.current);
+      downloadTimerRef.current = null;
+    }
     setIsDownloadingEngine(true);
     setEngineSuccessMessage(null);
     setErrorMessage(null);
@@ -287,19 +347,19 @@ export const UpscalingSettingsSection: React.FC = () => {
     try {
       const res = await invoke<string>("download_inference_engine", { engine: engineName });
       setEngineSuccessMessage(res || "Библиотеки инференса успешно установлены");
+      setErrorMessage(null);
       await refreshStatus();
     } catch (err) {
       console.error("Ошибка скачивания библиотек инференса:", err);
       setErrorMessage(`Ошибка загрузки движка: ${err}`);
-    } finally {
       setIsDownloadingEngine(false);
-      // Скрываем прогресс-бар через 2.5 секунды после финиша
-      setTimeout(() => {
+      if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
+      downloadTimerRef.current = setTimeout(() => {
         if (isMountedRef.current) {
           setDownloadProgress(null);
           setDownloadProgressText(null);
         }
-      }, 2500);
+      }, 4000);
     }
   };
 
@@ -332,6 +392,10 @@ export const UpscalingSettingsSection: React.FC = () => {
   // Фоновая предварительная компиляция TensorRT .engine для 1080p
   const handlePrecompileModel = async (model: ModelFileItem) => {
     if (compilingModel) return;
+    if (compileTimersRef.current[model.filename]) {
+      clearTimeout(compileTimersRef.current[model.filename]);
+      delete compileTimersRef.current[model.filename];
+    }
     setCompilingModel(model.filename);
     setErrorMessage(null);
     setEngineSuccessMessage(null);
@@ -345,7 +409,6 @@ export const UpscalingSettingsSection: React.FC = () => {
     } catch (err) {
       console.error("Ошибка компиляции модели:", err);
       setErrorMessage(`Ошибка компиляции модели: ${err}`);
-    } finally {
       setCompilingModel(null);
     }
   };
@@ -632,29 +695,14 @@ export const UpscalingSettingsSection: React.FC = () => {
                     style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {status?.gpu_info?.supports_tensorrt && (
-                      <div>
-                        {model.has_engine_1080p ? (
-                          <span
-                            title="Движок TensorRT (.engine) уже скомпилирован под разрешение 1080p — включение будет мгновенным"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 5,
-                              padding: "4px 8px",
-                              borderRadius: "var(--radius-sm)",
-                              background: "rgba(46, 204, 113, 0.12)",
-                              border: "1px solid rgba(46, 204, 113, 0.3)",
-                              color: "#2ecc71",
-                              fontSize: "0.74rem",
-                              fontWeight: 600,
-                              userSelect: "none",
-                            }}
-                          >
-                            <CheckCircle2 size={13} />
-                            1080p готов
-                          </span>
-                        ) : compilingModel === model.filename || (compileProgress[model.filename] && !compileProgress[model.filename].is_finished) ? (
+                    {status?.gpu_info?.supports_tensorrt && (() => {
+                      const itemCompile = compileProgress[model.filename];
+                      const isCompiling = compilingModel === model.filename || itemCompile !== undefined;
+                      const isCompileFinished = !!(itemCompile && itemCompile.is_finished && !itemCompile.error);
+                      const isCompileError = !!(itemCompile && itemCompile.error);
+
+                      if (isCompiling) {
+                        return (
                           <div
                             style={{
                               display: "flex",
@@ -666,8 +714,18 @@ export const UpscalingSettingsSection: React.FC = () => {
                               boxSizing: "border-box",
                               padding: "4px 8px",
                               borderRadius: "var(--radius-sm)",
-                              background: "rgba(127, 199, 255, 0.08)",
-                              border: "1px solid rgba(127, 199, 255, 0.3)",
+                              background: isCompileError
+                                ? "rgba(231, 76, 60, 0.08)"
+                                : isCompileFinished
+                                ? "rgba(46, 204, 113, 0.08)"
+                                : "rgba(127, 199, 255, 0.08)",
+                              border: `1px solid ${
+                                isCompileError
+                                  ? "rgba(231, 76, 60, 0.35)"
+                                  : isCompileFinished
+                                  ? "rgba(46, 204, 113, 0.35)"
+                                  : "rgba(127, 199, 255, 0.3)"
+                              }`,
                               userSelect: "none",
                               flexShrink: 0,
                             }}
@@ -687,24 +745,38 @@ export const UpscalingSettingsSection: React.FC = () => {
                                   display: "flex",
                                   alignItems: "center",
                                   gap: 5,
-                                  color: "var(--accent)",
-                                  fontWeight: 500,
+                                  color: isCompileError
+                                    ? "#e74c3c"
+                                    : isCompileFinished
+                                    ? "#2ecc71"
+                                    : "var(--accent)",
+                                  fontWeight: isCompileFinished ? 600 : 500,
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
                                   whiteSpace: "nowrap",
                                   flex: 1,
                                   minWidth: 0,
                                 }}
-                                title={compileProgress[model.filename]?.stage || "Сборка 1080p..."}
+                                title={itemCompile?.stage || "Сборка 1080p..."}
                               >
-                                <RefreshCw size={10} className="spin" style={{ flexShrink: 0 }} />
+                                {isCompileError ? (
+                                  <X size={11} color="#e74c3c" style={{ flexShrink: 0 }} />
+                                ) : isCompileFinished ? (
+                                  <CheckCircle2 size={11} color="#2ecc71" style={{ flexShrink: 0 }} />
+                                ) : (
+                                  <RefreshCw size={10} className="spin" style={{ flexShrink: 0 }} />
+                                )}
                                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                  {compileProgress[model.filename]?.stage || "Сборка 1080p..."}
+                                  {itemCompile?.stage || "Сборка 1080p..."}
                                 </span>
                               </span>
                               <span
                                 style={{
-                                  color: "var(--accent)",
+                                  color: isCompileError
+                                    ? "#e74c3c"
+                                    : isCompileFinished
+                                    ? "#2ecc71"
+                                    : "var(--accent)",
                                   fontWeight: 700,
                                   fontVariantNumeric: "tabular-nums",
                                   width: 38,
@@ -712,8 +784,12 @@ export const UpscalingSettingsSection: React.FC = () => {
                                   flexShrink: 0,
                                 }}
                               >
-                                {compileProgress[model.filename]
-                                  ? `${compileProgress[model.filename].percent}%`
+                                {isCompileError
+                                  ? "Ошибка"
+                                  : isCompileFinished
+                                  ? "100%"
+                                  : itemCompile
+                                  ? `${Math.round(itemCompile.percent)}%`
                                   : "..."}
                               </span>
                             </div>
@@ -730,56 +806,130 @@ export const UpscalingSettingsSection: React.FC = () => {
                             >
                               <div
                                 style={{
-                                  width: `${compileProgress[model.filename]?.percent || 8}%`,
+                                  width: isCompileError
+                                    ? "100%"
+                                    : isCompileFinished
+                                    ? "100%"
+                                    : `${itemCompile?.percent || 8}%`,
                                   height: "100%",
-                                  background: "linear-gradient(90deg, #3498db, var(--accent), #2ecc71)",
+                                  background: isCompileError
+                                    ? "#e74c3c"
+                                    : isCompileFinished
+                                    ? "linear-gradient(90deg, #27ae60, #2ecc71)"
+                                    : "linear-gradient(90deg, #3498db, var(--accent), #2ecc71)",
                                   borderRadius: 2,
                                   transition: "width 0.25s ease-out",
-                                  boxShadow: "0 0 6px rgba(127, 199, 255, 0.4)",
+                                  boxShadow: isCompileFinished
+                                    ? "0 0 6px rgba(46, 204, 113, 0.4)"
+                                    : "0 0 6px rgba(127, 199, 255, 0.4)",
                                 }}
                               />
                             </div>
                           </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handlePrecompileModel(model)}
-                            disabled={!!compilingModel}
-                            title="Скомпилировать TensorRT движок под 1080p заранее, чтобы при первом запуске не было пауз"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 5,
-                              padding: "4px 10px",
-                              borderRadius: "var(--radius-sm)",
-                              background: "rgba(255, 255, 255, 0.06)",
-                              border: "1px solid var(--border-pill)",
-                              color: "var(--text-secondary)",
-                              fontSize: "0.75rem",
-                              fontWeight: 500,
-                              cursor: compilingModel ? "default" : "pointer",
-                              opacity: compilingModel ? 0.5 : 1,
-                              transition: "all 0.15s ease",
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!compilingModel) {
-                                e.currentTarget.style.color = "var(--text-primary)";
-                                e.currentTarget.style.borderColor = "var(--accent)";
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!compilingModel) {
-                                e.currentTarget.style.color = "var(--text-secondary)";
-                                e.currentTarget.style.borderColor = "var(--border-pill)";
-                              }
-                            }}
-                          >
-                            <Zap size={12} color="var(--accent)" />
-                            1080p сборка
-                          </button>
-                        )}
-                      </div>
-                    )}
+                        );
+                      }
+
+                      if (model.has_engine_1080p) {
+                        return (
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <span
+                              title="Движок TensorRT (.engine) уже скомпилирован под разрешение 1080p — включение будет мгновенным"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 5,
+                                padding: "4px 8px",
+                                borderRadius: "var(--radius-sm)",
+                                background: "rgba(46, 204, 113, 0.12)",
+                                border: "1px solid rgba(46, 204, 113, 0.3)",
+                                color: "#2ecc71",
+                                fontSize: "0.74rem",
+                                fontWeight: 600,
+                                userSelect: "none",
+                              }}
+                            >
+                              <CheckCircle2 size={13} />
+                              1080p готов
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handlePrecompileModel(model)}
+                              disabled={!!compilingModel}
+                              title="Перекомпилировать движок TensorRT под 1080p"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: "4px 6px",
+                                borderRadius: "var(--radius-sm)",
+                                background: "rgba(255, 255, 255, 0.05)",
+                                border: "1px solid var(--border-pill)",
+                                color: "var(--text-muted)",
+                                fontSize: "0.72rem",
+                                cursor: compilingModel ? "default" : "pointer",
+                                opacity: compilingModel ? 0.4 : 0.8,
+                                transition: "all 0.15s ease",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!compilingModel) {
+                                  e.currentTarget.style.color = "var(--text-primary)";
+                                  e.currentTarget.style.borderColor = "var(--accent)";
+                                  e.currentTarget.style.opacity = "1";
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!compilingModel) {
+                                  e.currentTarget.style.color = "var(--text-muted)";
+                                  e.currentTarget.style.borderColor = "var(--border-pill)";
+                                  e.currentTarget.style.opacity = "0.8";
+                                }
+                              }}
+                            >
+                              <RefreshCw size={11} />
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => handlePrecompileModel(model)}
+                          disabled={!!compilingModel}
+                          title="Скомпилировать TensorRT движок под 1080p заранее, чтобы при первом запуске не было пауз"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            padding: "4px 10px",
+                            borderRadius: "var(--radius-sm)",
+                            background: "rgba(255, 255, 255, 0.06)",
+                            border: "1px solid var(--border-pill)",
+                            color: "var(--text-secondary)",
+                            fontSize: "0.75rem",
+                            fontWeight: 500,
+                            cursor: compilingModel ? "default" : "pointer",
+                            opacity: compilingModel ? 0.5 : 1,
+                            transition: "all 0.15s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!compilingModel) {
+                              e.currentTarget.style.color = "var(--text-primary)";
+                              e.currentTarget.style.borderColor = "var(--accent)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!compilingModel) {
+                              e.currentTarget.style.color = "var(--text-secondary)";
+                              e.currentTarget.style.borderColor = "var(--border-pill)";
+                            }
+                          }}
+                        >
+                          <Zap size={12} color="var(--accent)" />
+                          1080p сборка
+                        </button>
+                      );
+                    })()}
 
                     <button
                       type="button"

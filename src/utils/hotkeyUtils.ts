@@ -44,6 +44,7 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   toggleVisualizer: ["KeyW"],
   cycleVisualizerMode: ["Shift+KeyW"],
   rotateVideo: ["Alt+KeyR"],
+  upscaleStats: ["Ctrl+KeyJ"],
   upscaleOff: ["Shift+Digit1"],
   upscaleNet1: ["Shift+Digit2"],
   upscaleNet2: ["Shift+Digit3"],
@@ -107,6 +108,7 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "openFile", label: "Открыть файл", defaultKeys: DEFAULT_HOTKEYS["openFile"], category: "Плейлист" },
 
   // Апскейлинг 4K
+  { id: "upscaleStats", label: "Статус и статистика 4K AI", defaultKeys: DEFAULT_HOTKEYS["upscaleStats"], category: "Апскейлинг" },
   { id: "upscaleOff", label: "Апскейлинг: Выключить", defaultKeys: DEFAULT_HOTKEYS["upscaleOff"], category: "Апскейлинг" },
   { id: "upscaleNet1", label: "Апскейлинг: Нейросеть #1", defaultKeys: DEFAULT_HOTKEYS["upscaleNet1"], category: "Апскейлинг" },
   { id: "upscaleNet2", label: "Апскейлинг: Нейросеть #2", defaultKeys: DEFAULT_HOTKEYS["upscaleNet2"], category: "Апскейлинг" },
@@ -283,6 +285,7 @@ export function isKeyboardEventMatch(e: KeyboardEvent, bindCode: string): boolea
     (mainKey === "Comma" && (e.key === "б" || e.key === "Б" || e.key === ",")) ||
     (mainKey === "Period" && (e.key === "ю" || e.key === "Ю" || e.key === ".")) ||
     (mainKey === "BracketLeft" && (e.key === "х" || e.key === "Х" || e.key === "[")) ||
-    (mainKey === "BracketRight" && (e.key === "ъ" || e.key === "Ъ" || e.key === "]"))
+    (mainKey === "BracketRight" && (e.key === "ъ" || e.key === "Ъ" || e.key === "]")) ||
+    (mainKey === "KeyJ" && (e.key === "о" || e.key === "О" || e.key.toLowerCase() === "j"))
   );
 }

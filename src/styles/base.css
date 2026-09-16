@@ -142,26 +142,36 @@ html, body, #root {
   display: flex; /* Оставляем только важные кнопки */
 }
 
-/* OSD отображения кадров в левом верхнем углу */
+/* OSD отображения кадров и статистики в левом верхнем углу */
 .frame-osd {
   position: fixed;
   top: 48px;
   left: 24px;
   z-index: 1000;
-  background: rgba(10, 12, 18, 0.75);
+  background: rgba(10, 12, 18, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-md);
   padding: 8px 18px;
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-size: 1.2rem;
+  font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: 0.8px;
+  letter-spacing: 0.5px;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
   pointer-events: none;
   animation: fadeIn 150ms var(--ease-out);
+}
+
+.frame-osd--multiline {
+  white-space: pre-line;
+  line-height: 1.5;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 12px 20px;
+  border-left: 3.5px solid var(--accent);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 16px var(--accent-glass);
 }
 
 /* ─── Всплывающая плашка времени на таймлайне ─── */

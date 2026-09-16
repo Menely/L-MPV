@@ -6,6 +6,7 @@ import {
   Trash2,
   RefreshCw,
   CheckCircle2,
+  X,
 } from "lucide-react";
 import { UpscaleSettings, UpscaleStatus, DownloadProgressPayload } from "./types";
 import { GpuHardwareCard } from "./GpuHardwareCard";
@@ -47,7 +48,13 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
     settings.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
   const isAnyEnginePresent = isDmlInstalled || isTrtInstalled;
 
-  const activePercent = Math.min(100, Math.max(0, Math.round(downloadProgress?.percent || 0)));
+  const isFinished = !!(downloadProgress && downloadProgress.is_finished && !downloadProgress.error);
+  const isError = !!(downloadProgress && downloadProgress.error);
+  const showDownloadBar = isDownloadingEngine || downloadProgress !== null;
+
+  const activePercent = isFinished
+    ? 100
+    : Math.min(100, Math.max(0, Math.round(downloadProgress?.percent || 0)));
 
   return (
     <div
@@ -122,7 +129,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
           <button
             type="button"
             onClick={onDownloadEngine}
-            disabled={isDownloadingEngine || isCurrentBackendInstalled}
+            disabled={isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished) || isCurrentBackendInstalled}
             title={
               isCurrentBackendInstalled
                 ? "Движок уже установлен"
@@ -146,21 +153,21 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               justifyContent: "center",
               gap: 6,
               cursor:
-                isDownloadingEngine || isCurrentBackendInstalled
+                isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished) || isCurrentBackendInstalled
                   ? "default"
                   : "pointer",
-              opacity: isDownloadingEngine || isCurrentBackendInstalled ? 0.6 : 1,
+              opacity: isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished) || isCurrentBackendInstalled ? 0.6 : 1,
               transition: "all 0.2s ease",
             }}
           >
-            {isDownloadingEngine ? (
+            {isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished) ? (
               <RefreshCw size={15} className="spin" />
             ) : isCurrentBackendInstalled ? (
               <CheckCircle2 size={15} color="#2ecc71" />
             ) : (
               <Download size={15} />
             )}
-            {isDownloadingEngine
+            {isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)
               ? `Загрузка ${activePercent}%`
               : isCurrentBackendInstalled
               ? "Установлен"
@@ -201,13 +208,23 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
       <GpuHardwareCard gpuInfo={status?.gpu_info} />
 
       {/* Интерактивный прогресс-бар загрузки библиотек */}
-      {(isDownloadingEngine || (downloadProgress && !downloadProgress.is_finished)) && (
+      {showDownloadBar && (
         <div
           style={{
             padding: "12px 16px",
             borderRadius: "var(--radius-md)",
-            background: "rgba(127, 199, 255, 0.08)",
-            border: "1px solid rgba(127, 199, 255, 0.3)",
+            background: isError
+              ? "rgba(231, 76, 60, 0.08)"
+              : isFinished
+              ? "rgba(46, 204, 113, 0.08)"
+              : "rgba(127, 199, 255, 0.08)",
+            border: `1px solid ${
+              isError
+                ? "rgba(231, 76, 60, 0.35)"
+                : isFinished
+                ? "rgba(46, 204, 113, 0.35)"
+                : "rgba(127, 199, 255, 0.3)"
+            }`,
             display: "flex",
             flexDirection: "column",
             gap: 8,
@@ -233,12 +250,24 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 minWidth: 0,
               }}
             >
-              <RefreshCw size={14} className="spin" color="var(--accent)" />
+              {isError ? (
+                <X size={15} color="#e74c3c" style={{ flexShrink: 0 }} />
+              ) : isFinished ? (
+                <CheckCircle2 size={15} color="#2ecc71" style={{ flexShrink: 0 }} />
+              ) : (
+                <RefreshCw size={14} className="spin" color="var(--accent)" style={{ flexShrink: 0 }} />
+              )}
               <span
                 style={{
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
+                  color: isError
+                    ? "#e74c3c"
+                    : isFinished
+                    ? "#2ecc71"
+                    : "var(--text-primary)",
+                  fontWeight: isFinished ? 600 : 500,
                 }}
               >
                 {downloadProgress?.stage || downloadProgressText || "Загрузка библиотек инференса..."}
@@ -252,12 +281,12 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 gap: 8,
                 fontSize: "0.82rem",
                 fontWeight: 700,
-                color: "var(--accent)",
+                color: isError ? "#e74c3c" : isFinished ? "#2ecc71" : "var(--accent)",
                 fontVariantNumeric: "tabular-nums",
                 flexShrink: 0,
               }}
             >
-              {downloadProgress && downloadProgress.total_bytes > 0 && (
+              {downloadProgress && downloadProgress.total_bytes > 0 ? (
                 <span
                   style={{
                     color: "var(--text-muted)",
@@ -267,15 +296,29 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 >
                   {(downloadProgress.downloaded_bytes / (1024 * 1024)).toFixed(1)} МБ / {(downloadProgress.total_bytes / (1024 * 1024)).toFixed(1)} МБ
                 </span>
-              )}
+              ) : downloadProgress?.stage?.includes("Распаковка") ? (
+                <span
+                  style={{
+                    color: "var(--text-muted)",
+                    fontWeight: 400,
+                    fontSize: "0.77rem",
+                  }}
+                >
+                  Распаковка архива...
+                </span>
+              ) : null}
               <span
                 style={{
                   padding: "1px 6px",
                   borderRadius: 4,
-                  background: "rgba(127, 199, 255, 0.15)",
+                  background: isError
+                    ? "rgba(231, 76, 60, 0.15)"
+                    : isFinished
+                    ? "rgba(46, 204, 113, 0.15)"
+                    : "rgba(127, 199, 255, 0.15)",
                 }}
               >
-                {activePercent}%
+                {isError ? "Ошибка" : `${activePercent}%`}
               </span>
             </div>
           </div>
@@ -293,11 +336,19 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
           >
             <div
               style={{
-                width: `${activePercent}%`,
+                width: isError ? "100%" : `${activePercent}%`,
                 height: "100%",
-                background: "linear-gradient(90deg, #3498db, var(--accent), #2ecc71)",
+                background: isError
+                  ? "#e74c3c"
+                  : isFinished
+                  ? "linear-gradient(90deg, #27ae60, #2ecc71)"
+                  : "linear-gradient(90deg, #3498db, var(--accent), #2ecc71)",
                 borderRadius: 4,
-                boxShadow: "0 0 8px rgba(127, 199, 255, 0.5)",
+                boxShadow: isError
+                  ? "0 0 8px rgba(231, 76, 60, 0.4)"
+                  : isFinished
+                  ? "0 0 10px rgba(46, 204, 113, 0.4)"
+                  : "0 0 8px rgba(127, 199, 255, 0.5)",
                 transition: "width 0.25s ease-out",
               }}
             />
@@ -305,8 +356,8 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
         </div>
       )}
 
-      {/* Уведомление об успешной установке */}
-      {engineSuccessMessage && !isDownloadingEngine && (
+      {/* Уведомление об успешной установке (только когда прогресс-бар уже скрыт) */}
+      {engineSuccessMessage && !isDownloadingEngine && !showDownloadBar && (
         <div
           style={{
             padding: "9px 14px",
@@ -326,7 +377,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
       )}
 
       {/* Сообщение об ошибке */}
-      {errorMessage && !isDownloadingEngine && (
+      {errorMessage && !isDownloadingEngine && !isFinished && !engineSuccessMessage && (
         <div
           style={{
             padding: "9px 14px",

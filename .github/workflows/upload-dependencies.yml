@@ -38,13 +38,22 @@ jobs:
           Write-Host "5. Подготовка папки бинарников..."
           $dll = Get-ChildItem -Path temp_ext -Recurse -Filter "libmpv-2.dll" | Select-Object -First 1
           if (-not $dll) { $dll = Get-ChildItem -Path temp_ext -Recurse -Filter "mpv-2.dll" | Select-Object -First 1 }
+          if (-not $dll) { $dll = Get-ChildItem -Path temp_ext -Recurse -Filter "*mpv*.dll" | Select-Object -First 1 }
+          if (-not $dll) { throw "КРИТИЧЕСКАЯ ОШИБКА: libmpv-2.dll (с vf_animejanai) не найден в распакованном mpv-dev!" }
+          
           $exe = Get-ChildItem -Path temp_ext -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+          if (-not $exe) { throw "КРИТИЧЕСКАЯ ОШИБКА: ffmpeg.exe не найден в распакованном архиве ffmpeg!" }
+          
           $miDll = Get-ChildItem -Path temp_ext -Recurse -Filter "MediaInfo.dll" | Select-Object -First 1
+          if (-not $miDll) { throw "КРИТИЧЕСКАЯ ОШИБКА: MediaInfo.dll не найден в распакованном архиве mediainfo!" }
           
           New-Item -ItemType Directory -Force -Path dist_libs
-          Copy-Item -Path $dll.FullName -Destination "dist_libs/libmpv-2.dll"
-          Copy-Item -Path $exe.FullName -Destination "dist_libs/ffmpeg.exe"
-          Copy-Item -Path $miDll.FullName -Destination "dist_libs/mediainfo.dll"
+          Copy-Item -Path $dll.FullName -Destination "dist_libs/libmpv-2.dll" -Force
+          Copy-Item -Path $exe.FullName -Destination "dist_libs/ffmpeg.exe" -Force
+          Copy-Item -Path $miDll.FullName -Destination "dist_libs/mediainfo.dll" -Force
+          
+          Write-Host "Проверка содержимого dist_libs:"
+          Get-ChildItem -Path dist_libs | Select-Object Name, Length
           
           Write-Host "6. Создание mpv_libs.zip..."
           Compress-Archive -Path "dist_libs/*" -DestinationPath "mpv_libs.zip" -Force

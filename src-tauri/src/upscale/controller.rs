@@ -184,74 +184,6 @@ pub async fn precompile_model_engine_1080p_impl(
         filename, slot
     );
 
-    // Фоновый мониторинг этапов сборки по лог-файлам
-    let is_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
-    let is_running_monitor = is_running.clone();
-    let app_monitor = app.clone();
-    let filename_monitor = filename.clone();
-    let models_dir_monitor = models_dir.clone();
-
-    let monitor_handle = tokio::spawn(async move {
-        let mut current_percent: f64 = 8.0;
-        while is_running_monitor.load(std::sync::atomic::Ordering::Relaxed) {
-            tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
-            if !is_running_monitor.load(std::sync::atomic::Ordering::Relaxed) {
-                break;
-            }
-
-            let mut stage_text = "Подготовка графа нейросети...".to_string();
-            let mut detected_target: f64 = current_percent;
-
-            if let Ok(entries) = std::fs::read_dir(&models_dir_monitor) {
-                for entry in entries.flatten() {
-                    let p = entry.path();
-                    let fname = entry.file_name().to_string_lossy().to_string();
-                    if fname.ends_with(".build.log") {
-                        if let Ok(log_content) = std::fs::read_to_string(&p) {
-                            if log_content.contains("Detected") || log_content.contains("Total Activation Memory") {
-                                stage_text = "Сериализация исполняемого .engine файла...".to_string();
-                                detected_target = detected_target.max(88.0);
-                            } else if log_content.contains("Compiler backend is used") {
-                                stage_text = "Глубокая оптимизация графа TensorRT...".to_string();
-                                detected_target = detected_target.max(65.0);
-                            } else if log_content.contains("Init builder kernel library") {
-                                stage_text = "Подбор тактик и ядер CUDA...".to_string();
-                                detected_target = detected_target.max(45.0);
-                            } else if log_content.contains("Finished parsing network model") {
-                                stage_text = "Построение профилей 1080p -> 4K...".to_string();
-                                detected_target = detected_target.max(25.0);
-                            } else if log_content.contains("Start parsing network model") {
-                                stage_text = "Разбор структуры ONNX графа...".to_string();
-                                detected_target = detected_target.max(15.0);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Плавный рост процентов без дерганий
-            if current_percent < detected_target {
-                current_percent = (current_percent + 2.5).min(detected_target);
-            } else if current_percent < 94.0 {
-                current_percent += 0.4;
-            }
-
-            let rounded_percent = (current_percent * 10.0).round() / 10.0;
-
-            let _ = app_monitor.emit(
-                "upscale-compile-progress",
-                UpscaleCompileProgress {
-                    slot,
-                    filename: filename_monitor.clone(),
-                    stage: stage_text,
-                    percent: rounded_percent,
-                    is_finished: false,
-                    error: None,
-                },
-            );
-        }
-    });
-
     #[cfg(windows)]
     use std::os::windows::process::CommandExt;
 
@@ -279,6 +211,87 @@ pub async fn precompile_model_engine_1080p_impl(
 
     let build_log_path = models_dir.join(format!("{}.build.log", engine_filename));
     let build_log_for_err = build_log_path.clone();
+    let build_log_monitor = build_log_path.clone();
+
+    // Фоновый мониторинг этапов сборки по выделенному лог-файлу
+    let is_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let is_running_monitor = is_running.clone();
+    let app_monitor = app.clone();
+    let filename_monitor = filename.clone();
+
+    let monitor_handle = tokio::spawn(async move {
+        let mut current_percent: f64 = 8.0;
+        while is_running_monitor.load(std::sync::atomic::Ordering::Relaxed) {
+            tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
+            if !is_running_monitor.load(std::sync::atomic::Ordering::Relaxed) {
+                break;
+            }
+
+            let mut stage_text = "Подготовка графа нейросети...".to_string();
+            let mut detected_target: f64 = current_percent;
+
+            if let Ok(log_content) = std::fs::read_to_string(&build_log_monitor) {
+                if log_content.contains("Total Activation Memory")
+                    || log_content.contains("Detected")
+                    || log_content.contains("Serializing to")
+                    || log_content.contains("Engine built")
+                    || log_content.contains("Loaded engine size")
+                {
+                    stage_text = "Сериализация исполняемого .engine файла...".to_string();
+                    detected_target = detected_target.max(90.0);
+                } else if log_content.contains("Compiler backend is used")
+                    || log_content.contains("Building engine")
+                    || log_content.contains("Starting Build Engine")
+                {
+                    stage_text = "Глубокая оптимизация графа TensorRT...".to_string();
+                    detected_target = detected_target.max(68.0);
+                } else if log_content.contains("Init builder kernel library")
+                    || log_content.contains("Selected tactic")
+                    || log_content.contains("optimization level")
+                    || log_content.contains("tactics")
+                {
+                    stage_text = "Подбор тактик и ядер CUDA...".to_string();
+                    detected_target = detected_target.max(48.0);
+                } else if log_content.contains("Finished parsing network model")
+                    || log_content.contains("Parsed ONNX model")
+                    || log_content.contains("Finish parsing")
+                {
+                    stage_text = "Построение профилей 1080p -> 4K...".to_string();
+                    detected_target = detected_target.max(28.0);
+                } else if log_content.contains("Start parsing network model")
+                    || log_content.contains("Parsing model")
+                    || log_content.contains("Input filename")
+                    || log_content.contains("ONNX IR")
+                {
+                    stage_text = "Разбор структуры ONNX графа...".to_string();
+                    detected_target = detected_target.max(15.0);
+                }
+            }
+
+            // Плавный прирост процентов до расчетной целевой отметки
+            if current_percent < detected_target {
+                current_percent = (current_percent + 2.5).min(detected_target);
+            } else if current_percent < 94.0 {
+                current_percent += 0.3;
+            }
+
+            let rounded_percent = (current_percent * 10.0).round() / 10.0;
+
+            let _ = app_monitor.emit(
+                "upscale-compile-progress",
+                UpscaleCompileProgress {
+                    slot,
+                    filename: filename_monitor.clone(),
+                    stage: stage_text,
+                    percent: rounded_percent,
+                    is_finished: false,
+                    error: None,
+                },
+            );
+        }
+    });
+
+    let build_log_task = build_log_path.clone();
 
     let output = tokio::task::spawn_blocking(move || {
         if trtexec_path.exists() {
@@ -294,7 +307,7 @@ pub async fn precompile_model_engine_1080p_impl(
 
             cmd.env("CUDA_MODULE_LOADING", "LAZY");
 
-            if let Ok(f) = std::fs::File::create(&build_log_path) {
+            if let Ok(f) = std::fs::File::create(&build_log_task) {
                 if let Ok(f2) = f.try_clone() {
                     cmd.stdout(f);
                     cmd.stderr(f2);
@@ -338,6 +351,13 @@ pub async fn precompile_model_engine_1080p_impl(
 
             cmd.env("CUDA_MODULE_LOADING", "LAZY");
 
+            if let Ok(f) = std::fs::File::create(&build_log_task) {
+                if let Ok(f2) = f.try_clone() {
+                    cmd.stdout(f);
+                    cmd.stderr(f2);
+                }
+            }
+
             #[cfg(windows)]
             cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
@@ -377,6 +397,31 @@ pub async fn precompile_model_engine_1080p_impl(
                 slot,
                 filename: filename.clone(),
                 stage: "Ошибка компиляции".to_string(),
+                percent: 100.0,
+                is_finished: true,
+                error: Some(err_detail.clone()),
+            },
+        );
+
+        return Err(format!("Ошибка компиляции TensorRT: {}", err_detail));
+    }
+
+    // Проверяем фактическое создание файла движка на диске и его ненулевой размер
+    let engine_created = save_engine_path_for_err.exists()
+        && std::fs::metadata(&save_engine_path_for_err)
+            .map(|m| m.len() > 0)
+            .unwrap_or(false);
+
+    if !engine_created {
+        let err_detail = "Файл движка TensorRT (.engine) не был создан или имеет нулевой размер.".to_string();
+        let _ = std::fs::remove_file(&save_engine_path_for_err);
+
+        let _ = app.emit(
+            "upscale-compile-progress",
+            UpscaleCompileProgress {
+                slot,
+                filename: filename.clone(),
+                stage: "Ошибка сборки".to_string(),
                 percent: 100.0,
                 is_finished: true,
                 error: Some(err_detail.clone()),

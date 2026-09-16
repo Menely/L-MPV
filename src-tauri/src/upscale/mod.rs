@@ -24,7 +24,19 @@ use tauri::State;
 /// Получение статуса подсистемы апскейлинга и списка моделей
 #[tauri::command]
 pub fn get_upscale_status() -> UpscaleStatus {
-    config::check_upscale_status_internal()
+    std::panic::catch_unwind(config::check_upscale_status_internal).unwrap_or_else(|e| {
+        eprintln!("[L-MPV][Upscale] Ошибка получения статуса апскейлинга: {:?}", e);
+        UpscaleStatus {
+            filter_supported: true,
+            aji_present: false,
+            directml_present: false,
+            tensorrt_present: false,
+            models_count: 0,
+            models_dir: String::new(),
+            models: Vec::new(),
+            gpu_info: hardware::detect_system_gpu(),
+        }
+    })
 }
 
 /// Получение детальных сведений об аппаратном видеоадаптере (GPU)
