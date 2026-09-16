@@ -514,7 +514,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   type="button"
                   className="preset-action-btn preset-action-btn--icon preset-action-btn--danger"
                   onClick={() => handleDelete(preset)}
-                  title="Удалить пресет"
                 >
                   <Trash2 size={13} />
                 </button>

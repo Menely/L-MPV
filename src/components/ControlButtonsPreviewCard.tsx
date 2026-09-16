@@ -137,29 +137,50 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
           transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
         }}
       >
-        {/* Имитация полосы прогресса таймлайна */}
+        {/* Имитация таймлайна со временем воспроизведения справа */}
         <div
           style={{
-            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
             width: "100%",
-            height: 4,
-            background: "rgba(255, 255, 255, 0.15)",
-            borderRadius: "var(--radius-xs, 3px)",
-            overflow: "hidden",
           }}
         >
           <div
             style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: "42%",
-              background: "var(--accent-gradient, var(--accent))",
+              position: "relative",
+              flex: 1,
+              height: 4,
+              background: "rgba(255, 255, 255, 0.15)",
               borderRadius: "var(--radius-xs, 3px)",
-              boxShadow: "0 0 6px var(--accent-glow)",
+              overflow: "hidden",
             }}
-          />
+          >
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: "42%",
+                background: "var(--accent-gradient, var(--accent))",
+                borderRadius: "var(--radius-xs, 3px)",
+                boxShadow: "0 0 6px var(--accent-glow)",
+              }}
+            />
+          </div>
+          <span
+            style={{
+              fontSize: "0.64rem",
+              color: "var(--text-secondary)",
+              fontFamily: "monospace",
+              letterSpacing: "0.02em",
+              flexShrink: 0,
+              fontWeight: 500,
+            }}
+          >
+            01:42
+          </span>
         </div>
 
         {/* Строка кнопок с адаптивной flex-сеткой */}
@@ -184,9 +205,6 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             <div title="Громкость" style={roundIconBtnStyle}>
               <Volume2 size={13} />
             </div>
-            <span style={{ fontSize: "0.64rem", color: "var(--text-muted)", marginLeft: 2, fontFamily: "monospace", opacity: 0.85 }}>
-              01:42
-            </span>
           </div>
 
           {/* Центральная группа (основная навигация и плей/пауза) */}

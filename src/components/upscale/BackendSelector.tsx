@@ -151,7 +151,6 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               className="btn btn--danger btn--icon"
               onClick={onDeleteEngine}
               disabled={isDeletingEngine || isDownloadingEngine}
-              title="Удалить файлы выбранного движка инференса"
             >
               {isDeletingEngine ? (
                 <RefreshCw size={14} className="spin" />

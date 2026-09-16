@@ -690,7 +690,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   <button
                     onClick={handlePickFolder}
                     className="btn btn--secondary btn--sm"
-                    title="Выбрать папку"
                     style={{
                       height: 38,
                       padding: "0 16px",
@@ -705,7 +704,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   <button
                     onClick={handleResetDefault}
                     className="btn btn--secondary btn--icon"
-                    title="Сбросить на значение по умолчанию"
                     style={{
                       width: 38,
                       height: 38,
@@ -1157,7 +1155,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 saveUiRadius("default", 16);
                               }}
                               className="btn btn--secondary btn--sm"
-                              title="Сбросить на стандартное скругление (16 px)"
                               style={resetBtnStyle}
                             >
                               <RotateCcw size={11} />
@@ -1249,7 +1246,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 saveUiScale("auto", 1.0);
                               }}
                               className="btn btn--secondary btn--sm"
-                              title="Сбросить на автоматический масштаб (Стандарт)"
                               style={resetBtnStyle}
                             >
                               <RotateCcw size={11} />
@@ -1330,7 +1326,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 saveUiOpacity(0.88);
                               }}
                               className="btn btn--secondary btn--sm"
-                              title="Сбросить на стандартную прозрачность (88%)"
                               style={resetBtnStyle}
                             >
                               <RotateCcw size={11} />
@@ -1383,7 +1378,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 saveUiFont("inter");
                               }}
                               className="btn btn--secondary btn--sm"
-                              title="Сбросить на стандартный шрифт (Inter)"
                               style={resetBtnStyle}
                             >
                               <RotateCcw size={11} />
@@ -1682,7 +1676,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           <button
                             onClick={() => updateAmbient({ blur_radius: 100 }, true)}
                             className="btn btn--secondary btn--icon btn--sm"
-                            title="Сбросить на 100px"
                             style={{
                               width: 24,
                               height: 24,
@@ -1814,7 +1807,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     resetCustomHotkeys();
                     setCustomHotkeys(getCustomHotkeys());
                   }}
-                  title="Сбросить все клавиши по умолчанию"
                   style={{
                     background: "rgba(255, 255, 255, 0.1)",
                     border: "1px solid var(--border)",
@@ -2099,7 +2091,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 const updated = resetSingleHotkey(item.id, customHotkeys);
                                 setCustomHotkeys(updated);
                               }}
-                              title="По умолчанию"
                               style={{
                                 padding: "10px",
                                 background: "rgba(255, 255, 255, 0.03)",
@@ -2218,7 +2209,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       }
                     }}
                     className="settings-action-btn settings-action-btn--danger"
-                    title="Удалить привязку медиаформатов к L-MPV из реестра Windows"
                     style={{ flex: 1 }}
                   >
                     {isUnregistering ? (
@@ -2319,7 +2309,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       }
                     }}
                     className="settings-action-btn settings-action-btn--danger"
-                    title="Удалить пункт 'L-MPV MediaInfo' из контекстного меню Windows"
                     style={{ flex: 1 }}
                   >
                     <Trash2 size={15} />

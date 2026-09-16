@@ -331,14 +331,6 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
-    showMediaInfo,
-    setShowMediaInfo,
-    showChapters,
-    setShowChapters,
-    showSettings,
-    setShowSettings,
-    contextMenu,
-    setContextMenu,
     hotkeys,
   });
 
@@ -354,80 +346,8 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
-    showMediaInfo,
-    setShowMediaInfo,
-    showChapters,
-    setShowChapters,
-    showSettings,
-    setShowSettings,
-    contextMenu,
-    setContextMenu,
     hotkeys,
   };
-
-  const handleOpenMediaInfo = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowChapters(false);
-    setShowSettings(false);
-    setShowMediaInfo(true);
-  }, [setIsPlaylistOpen]);
-
-  const handleToggleMediaInfo = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowChapters(false);
-    setShowSettings(false);
-    setShowMediaInfo((prev) => !prev);
-  }, [setIsPlaylistOpen]);
-
-  const handleToggleDetailedMediaInfo = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowChapters(false);
-    setShowMediaInfo(false);
-    invoke("toggle_mediainfo_window", { path: latestRef.current.mediaInfo?.path || null }).catch(console.error);
-  }, [setIsPlaylistOpen]);
-
-  const handleOpenDetailedMediaInfo = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowChapters(false);
-    setShowMediaInfo(false);
-    invoke("open_mediainfo_window", { path: latestRef.current.mediaInfo?.path || null }).catch(console.error);
-  }, [setIsPlaylistOpen]);
-
-  const handleOpenChapters = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowMediaInfo(false);
-    setShowSettings(false);
-    setShowChapters(true);
-  }, [setIsPlaylistOpen]);
-
-  const handleToggleChapters = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowMediaInfo(false);
-    setShowSettings(false);
-    setShowChapters((prev) => !prev);
-  }, [setIsPlaylistOpen]);
-
-  const handleCloseChapters = useCallback(() => {
-    setShowChapters(false);
-  }, []);
-
-  const handleOpenSettings = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowMediaInfo(false);
-    setShowChapters(false);
-    setShowSettings(true);
-  }, [setIsPlaylistOpen]);
-
-  const handleToggleSettings = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowMediaInfo(false);
-    setShowChapters(false);
-    setShowSettings((prev) => !prev);
-  }, [setIsPlaylistOpen]);
-
-  const handleCloseSettings = useCallback(() => {
-    setShowSettings(false);
-  }, []);
 
   const handleOpenFile = useCallback(async () => {
     try {
@@ -551,16 +471,16 @@ function App() {
         }
         break;
       case "fileInfo":
-        handleToggleMediaInfo();
+        setShowMediaInfo((v) => !v);
         break;
       case "detailedMediaInfo":
-        handleToggleDetailedMediaInfo();
+        invoke("toggle_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
         break;
       case "chapters":
-        handleToggleChapters();
+        setShowChapters((v) => !v);
         break;
       case "settings":
-        handleToggleSettings();
+        setShowSettings((v) => !v);
         break;
       case "toggleVisualizer": {
         const cfg = getVisualizerConfig();
@@ -919,37 +839,9 @@ function App() {
         return;
       }
 
-      if (e.code === "Escape") {
-        if (latestRef.current.contextMenu) {
-          e.preventDefault();
-          latestRef.current.setContextMenu(null);
-          return;
-        }
-        if (latestRef.current.showMediaInfo) {
-          e.preventDefault();
-          latestRef.current.setShowMediaInfo(false);
-          return;
-        }
-        if (latestRef.current.showChapters) {
-          e.preventDefault();
-          latestRef.current.setShowChapters(false);
-          return;
-        }
-        if (latestRef.current.showSettings) {
-          e.preventDefault();
-          latestRef.current.setShowSettings(false);
-          return;
-        }
-        if (latestRef.current.isPlaylistOpen) {
-          e.preventDefault();
-          latestRef.current.setIsPlaylistOpen(false);
-          return;
-        }
-        if (latestRef.current.isFullscreen) {
-          e.preventDefault();
-          latestRef.current.toggleFullscreen();
-          return;
-        }
+      if (e.code === "Escape" && latestRef.current.isFullscreen) {
+        e.preventDefault();
+        latestRef.current.toggleFullscreen();
         return;
       }
 
@@ -1166,10 +1058,23 @@ function App() {
           showMediaInfo={showMediaInfo}
           showDetailedMediaInfo={isMediaInfoOpen}
           showChapters={showChapters}
-          onShowMediaInfo={handleOpenMediaInfo}
-          onToggleMediaInfo={handleToggleMediaInfo}
-          onToggleDetailedMediaInfo={handleToggleDetailedMediaInfo}
-          onCloseChapters={handleCloseChapters}
+          onShowMediaInfo={() => {
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(true);
+          }}
+          onToggleMediaInfo={() => {
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo((v) => !v);
+          }}
+          onToggleDetailedMediaInfo={() => {
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(false);
+            invoke("toggle_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
+          }}
+          onCloseChapters={() => setShowChapters(false)}
         />
       )}
 
@@ -1180,19 +1085,28 @@ function App() {
           onClose={closeContextMenu}
           onOpenFile={handleOpenFile}
           onShowMediaInfo={() => {
-            handleOpenMediaInfo();
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(true);
             closeContextMenu();
           }}
           onShowDetailedMediaInfo={() => {
-            handleOpenDetailedMediaInfo();
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(false);
+            invoke("open_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
             closeContextMenu();
           }}
           onShowChapters={() => {
-            handleOpenChapters();
+            setIsPlaylistOpen(false);
+            setShowMediaInfo(false);
+            setShowChapters(true);
             closeContextMenu();
           }}
           onShowSettings={() => {
-            handleOpenSettings();
+            setIsPlaylistOpen(false);
+            setShowMediaInfo(false);
+            setShowSettings(true);
             closeContextMenu();
           }}
         />
@@ -1206,13 +1120,13 @@ function App() {
 
       {showChapters && (
         <ChaptersModal
-          onClose={handleCloseChapters}
+          onClose={() => setShowChapters(false)}
         />
       )}
 
       {showSettings && (
         <SettingsModal
-          onClose={handleCloseSettings}
+          onClose={() => setShowSettings(false)}
           onShowUpdate={(info) => {
             setPendingUpdate(info);
             setShowUpdateModal(true);

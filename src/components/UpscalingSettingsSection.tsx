@@ -526,11 +526,6 @@ export const UpscalingSettingsSection: React.FC = () => {
               type="button"
               className="btn btn--secondary btn--icon"
               onClick={toggleHideModelNames}
-              title={
-                hideModelNames
-                  ? "Показать названия моделей и имена файлов"
-                  : "Скрыть названия моделей и имена файлов (маскировать точками)"
-              }
             >
               {hideModelNames ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
@@ -820,7 +815,6 @@ export const UpscalingSettingsSection: React.FC = () => {
                       <button
                         type="button"
                         onClick={(e) => handleClearHotkey(e, actionId)}
-                        title="Сбросить привязанную клавишу"
                         className="btn btn--ghost btn--icon btn--sm"
                         style={{ padding: 4 }}
                       >
