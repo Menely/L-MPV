@@ -60,6 +60,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
   const isMountedRef = useRef<boolean>(true);
   const toastTimerRef = useRef<number | null>(null);
+  const userPresetsRef = useRef<SettingsPreset[]>([]);
+  userPresetsRef.current = userPresets;
 
   const showToast = useCallback((msg: string) => {
     if (toastTimerRef.current !== null) {
@@ -79,7 +81,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     try {
       const currentSnapshot = await captureCurrentSettings("");
       const currentSettings = currentSnapshot.data;
-      const presetsToCheck = availablePresets || [...userPresets, ...BUILT_IN_PRESETS];
+      const presetsToCheck = availablePresets || [...userPresetsRef.current, ...BUILT_IN_PRESETS];
       const savedId = getSavedActivePresetId();
 
       // 1. Проверяем сохранённый активный пресет: если он полностью совпадает с текущими настройками
@@ -109,7 +111,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     } catch (e) {
       console.error("Ошибка проверки активного пресета:", e);
     }
-  }, [userPresets]);
+  }, []);
 
   // Первоначальная загрузка пользовательских пресетов
   useEffect(() => {

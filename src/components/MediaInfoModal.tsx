@@ -54,6 +54,15 @@ export function MediaInfoModal({
     const now = performance.now();
     const history = historyRef.current;
     
+    // При перемотке сбрасываем историю для мгновенного чистого расчета от новой позиции
+    if (history.length > 0) {
+      const prev = history[history.length - 1];
+      if (liveState.stream_pos < prev.pos || (liveState.stream_pos - prev.pos) > 50 * 1024 * 1024) {
+        historyRef.current = [{ time: now, pos: liveState.stream_pos }];
+        return;
+      }
+    }
+
     // Добавляем текущую точку
     history.push({ time: now, pos: liveState.stream_pos });
     

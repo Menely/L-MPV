@@ -795,8 +795,8 @@ export function isSettingsMatchingPreset(
   }
 
   // 7. Масштаб UI
-  const curScaleMode = current.uiScale?.mode || "fit";
-  const preScaleMode = preset.uiScale?.mode || "fit";
+  const curScaleMode = current.uiScale?.mode || "auto";
+  const preScaleMode = preset.uiScale?.mode || "auto";
   if (curScaleMode !== preScaleMode) return false;
   if (curScaleMode === "custom") {
     const curScaleVal = Math.round((current.uiScale?.value ?? 1.0) * 100);
