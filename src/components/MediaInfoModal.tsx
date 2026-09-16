@@ -36,8 +36,20 @@ export function MediaInfoModal({
   const historyRef = useRef<{ time: number; pos: number }[]>([]);
   const lastUiUpdateRef = useRef<number>(0);
 
+  // Сброс мгновенного битрейта при смене файла
+  useEffect(() => {
+    setInstantBitrate(0);
+    historyRef.current = [];
+  }, [mediaInfo?.path]);
+
   // Расчет битрейта на основе централизованных данных контекста (без дублирования поллинга)
   useEffect(() => {
+    // При паузе сохраняем последнее рассчитанное значение битрейта и сбрасываем историю точек
+    if (liveState?.paused) {
+      historyRef.current = [];
+      return;
+    }
+
     if (!liveState?.stream_pos) return;
     const now = performance.now();
     const history = historyRef.current;
@@ -52,16 +64,17 @@ export function MediaInfoModal({
     
     // Обновляем UI каждые 250 мс для плавности
     if (now - lastUiUpdateRef.current >= 250) {
-      if (liveState.paused || history.length < 2) {
-        setInstantBitrate(0);
-      } else {
+      if (history.length >= 2) {
         const oldest = history[0];
         const newest = history[history.length - 1];
         const deltaT = (newest.time - oldest.time) / 1000;
         const deltaBytes = newest.pos - oldest.pos;
         
         if (deltaT > 0 && deltaBytes >= 0) {
-          setInstantBitrate((deltaBytes * 8) / deltaT);
+          const calculated = (deltaBytes * 8) / deltaT;
+          if (calculated > 0) {
+            setInstantBitrate(calculated);
+          }
         }
       }
       lastUiUpdateRef.current = now;
