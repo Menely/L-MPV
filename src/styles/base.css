@@ -113,13 +113,15 @@ html, body, #root {
 }
 
 /* Класс idle — скрывает UI после бездействия мыши с кинематографичным микро-сдвигом */
-.app-container--idle .titlebar {
+.app-container--idle .titlebar,
+.app-container--hide-controls .titlebar {
   opacity: 0;
   transform: translateY(-8px);
   pointer-events: none;
 }
 
-.app-container--idle .player-controls-wrapper {
+.app-container--idle .player-controls-wrapper,
+.app-container--hide-controls .player-controls-wrapper {
   opacity: 0;
   transform: translateY(10px);
   pointer-events: none;

@@ -53,6 +53,14 @@ function App() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showUpdateToast, setShowUpdateToast] = useState(false);
   const [osdText, setOsdText] = useState<string | null>(null);
+  const [isCursorInUpperHalf, setIsCursorInUpperHalf] = useState(false);
+  const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("l-mpv-hide-controls-upper-half") === "true";
+    } catch {
+      return false;
+    }
+  });
   
   const mediaTitle = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "";
 
@@ -118,6 +126,41 @@ function App() {
         console.warn("Фоновая проверка обновлений пропущена:", err);
       });
   }, []);
+
+  // Синхронизация настройки автоскрытия панели в верхней половине окна
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setHideControlsInUpperHalf(localStorage.getItem("l-mpv-hide-controls-upper-half") === "true");
+    };
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChange);
+    return () => window.removeEventListener("l-mpv-settings-changed", handleSettingsChange);
+  }, []);
+
+  // Отслеживание положения курсора (верхний край экрана в полноэкранном режиме)
+  useEffect(() => {
+    if (!hideControlsInUpperHalf) {
+      setIsCursorInUpperHalf(false);
+      return;
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Скрывать только если включен полноэкранный режим и курсор поднят к самому верху (зона шапки / верхние 65px)
+      const isTopArea = isFullscreen && e.clientY <= 65;
+      setIsCursorInUpperHalf(isTopArea);
+    };
+
+    const handleMouseLeave = () => {
+      setIsCursorInUpperHalf(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    window.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, [hideControlsInUpperHalf, isFullscreen]);
 
   const isStandaloneModeRef = useRef(false);
 
@@ -951,10 +994,14 @@ function App() {
     e.preventDefault();
   }, []);
 
+  const shouldHideControlsInUpperHalf = hasMedia && hideControlsInUpperHalf && isCursorInUpperHalf;
+
   return (
     <div
       className={`app-container ${
         isIdle && hasMedia ? "app-container--idle" : ""
+      } ${
+        shouldHideControlsInUpperHalf ? "app-container--hide-controls" : ""
       } ${isPlaylistOpen ? "app-container--playlist-open" : ""}`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}

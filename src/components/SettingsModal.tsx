@@ -66,6 +66,7 @@ import {
   Square,
   Maximize2,
   Type,
+  MousePointer2,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -177,6 +178,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
+  const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => localStorage.getItem('l-mpv-hide-controls-upper-half') === 'true');
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(getCustomHotkeys());
   const [recordingAction, setRecordingAction] = useState<{ id: string, index: number } | null>(null);
   const ignoreClickUntilRef = useRef<number>(0);
@@ -935,6 +937,36 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     </div>
                   </label>
                 </div>
+              </AccordionSection>
+
+              {/* 7. Автоматическое скрытие интерфейса */}
+              <AccordionSection
+                isOpen={!!openSections["gen_hide_controls_upper"]}
+                onToggle={() => toggleSection("gen_hide_controls_upper")}
+                icon={<MousePointer2 size={16} />}
+                title="Скрытие интерфейса в полноэкранном режиме"
+              >
+                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
+                  <input
+                    type="checkbox"
+                    className="ui-checkbox"
+                    checked={hideControlsInUpperHalf}
+                    onChange={(e) => {
+                      const val = e.target.checked;
+                      setHideControlsInUpperHalf(val);
+                      localStorage.setItem('l-mpv-hide-controls-upper-half', val ? 'true' : 'false');
+                      window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                    }}
+                  />
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                      Скрывать весь интерфейс при наведении мыши на самый верх в полноэкранном режиме
+                    </span>
+                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
+                      В режиме во весь экран, когда курсор подводится к верхнему краю, весь интерфейс (верхняя шапка и нижняя панель управления) моментально скрывается
+                    </span>
+                  </div>
+                </label>
               </AccordionSection>
             </div>
           )}
