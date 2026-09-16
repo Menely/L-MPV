@@ -144,6 +144,18 @@ function App() {
     }
 
     const handleMouseMove = (e: MouseEvent) => {
+      // Проверяем, наведен ли курсор на блок кнопок управления окном в правом верхнем углу (крестик, развернуть, свернуть)
+      // Расширенная буферная зона (320px от правого края), чтобы интерфейс не исчезал при подведении мыши левее кнопок
+      const target = e.target as HTMLElement | null;
+      const isOverWindowControls = Boolean(target?.closest(".titlebar__controls"));
+      const isWindowControlsArea = e.clientX >= window.innerWidth - 320;
+
+      // Если курсор находится над крестиком, кнопками окна или на подходе к ним — ни в коем случае не скрываем интерфейс
+      if (isOverWindowControls || isWindowControlsArea) {
+        setIsCursorInUpperHalf(false);
+        return;
+      }
+
       // Скрывать только если включен полноэкранный режим и курсор поднят к самому верху (зона шапки / верхние 65px)
       const isTopArea = isFullscreen && e.clientY <= 65;
       setIsCursorInUpperHalf(isTopArea);
