@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState } from "../contexts/PlayerStateContext";
 import { X, Search, Play, Clapperboard } from "lucide-react";
@@ -14,21 +14,67 @@ export function PlaylistDrawer() {
   const { isPlaylistOpen, setIsPlaylistOpen, mediaInfo } = usePlayerState();
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isClosing, setIsClosing] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
 
-  const loadPlaylist = async () => {
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      setIsPlaylistOpen(false);
+      setIsClosing(false);
+    }, 110);
+  }, [isClosing, setIsPlaylistOpen]);
+
+  const loadPlaylist = useCallback(async () => {
     try {
       const items = await invoke<PlaylistItem[]>("get_playlist");
       setPlaylist(items);
     } catch (e) {
       console.error("Ошибка загрузки плейлиста", e);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (isPlaylistOpen) {
       loadPlaylist();
     }
-  }, [isPlaylistOpen, mediaInfo?.path]);
+  }, [isPlaylistOpen, mediaInfo?.path, loadPlaylist]);
+
+  // Закрытие по Escape и клику вне панели
+  useEffect(() => {
+    if (!isPlaylistOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleClose();
+      }
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("#btn-playlist-drawer")) {
+        return;
+      }
+      if (drawerRef.current && !drawerRef.current.contains(target)) {
+        handleClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      document.removeEventListener("mousedown", handleClickOutside);
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, [isPlaylistOpen, handleClose]);
 
   const handlePlayItem = async (index: number) => {
     try {
@@ -46,12 +92,15 @@ export function PlaylistDrawer() {
   );
 
   return (
-    <div className="playlist-drawer">
+    <div
+      ref={drawerRef}
+      className={`playlist-drawer ${isClosing ? "playlist-drawer--closing" : ""}`}
+    >
       <div className="playlist-drawer__header">
         <h2 className="playlist-drawer__title">Плейлист</h2>
         <button
           className="playlist-drawer__close"
-          onClick={() => setIsPlaylistOpen(false)}
+          onClick={handleClose}
           title="Закрыть (Esc)"
         >
           <X size={20} />

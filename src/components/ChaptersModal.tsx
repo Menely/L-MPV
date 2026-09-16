@@ -2,24 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X } from "lucide-react";
 import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
+import { formatTime } from "../utils/timeUtils";
 
 interface ChaptersModalProps {
   /** Обработчик закрытия панели. */
   onClose: () => void;
-}
-
-/**
- * Форматирование секунд в MM:SS или HH:MM:SS.
- */
-function formatChapterTime(seconds: number): string {
-  if (!seconds || seconds < 0) return "00:00";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 /**
@@ -173,7 +160,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
                   {chapter.title}
                 </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  {formatChapterTime(chapter.time)}
+                  {formatTime(chapter.time)}
                 </span>
               </button>
             ))

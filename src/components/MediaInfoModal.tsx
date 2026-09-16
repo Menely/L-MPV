@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { usePlayerState, usePlayerProgress, useLiveState } from "../contexts/PlayerStateContext";
+import { formatTime } from "../utils/timeUtils";
 
 interface MediaInfoModalProps {
   /** Обработчик закрытия модального окна. */
@@ -16,8 +17,6 @@ function formatBytes(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
-
-import { formatTime } from "../utils/timeUtils";
 
 /**
  * Модальное окно с подробной информацией о медиафайле.
@@ -80,13 +79,26 @@ export function MediaInfoModal({
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (isClosing) return;
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
     }, 110);
-  };
+  }, [isClosing, onClose]);
+
+  // Закрытие оверлея инфо по Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [handleClose]);
 
   useEffect(() => {
     return () => {

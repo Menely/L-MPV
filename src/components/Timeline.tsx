@@ -19,7 +19,7 @@ export const Timeline = React.memo(() => {
     ? mousePosition
     : (seeking && seekTarget !== null ? seekTarget : position);
 
-  const progress = duration > 0 ? (displayPosition / duration) * 100 : 0;
+  const progress = duration > 0 ? Math.max(0, Math.min(100, (displayPosition / duration) * 100)) : 0;
 
   // Сборка сегментов по главам
   const segments = useMemo(() => {
@@ -152,7 +152,7 @@ export const Timeline = React.memo(() => {
 
             return (
               <div
-                key={i}
+                key={`${seg.start}-${i}`}
                 style={{
                   flexBasis: `${flexBasis}%`,
                   position: 'relative',
