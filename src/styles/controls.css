@@ -416,7 +416,7 @@
 .volume-slider__value {
   font-size: var(--fs-xs);
   color: var(--text-secondary);
-  min-width: 24px;
+  min-width: 32px;
   text-align: left;
   font-variant-numeric: tabular-nums;
   font-weight: 500;

@@ -611,7 +611,7 @@ export function PlayerControls({
               className="volume-slider"
               onWheel={(e) => {
                 const delta = e.deltaY < 0 ? 5 : -5;
-                const newVol = Math.max(0, Math.min(100, volume + delta));
+                const newVol = Math.max(0, Math.min(150, volume + delta));
                 handleVolumeChange(newVol, true);
               }}
             >
@@ -633,11 +633,11 @@ export function PlayerControls({
                   type="range"
                   className="volume-slider__input"
                   min="0"
-                  max="100"
+                  max="150"
                   value={volume}
                   style={{
                     backgroundImage: "var(--accent-gradient, var(--accent))",
-                    backgroundSize: `${volume}% 100%`,
+                    backgroundSize: `${Math.min(100, (volume / 150) * 100)}% 100%`,
                     backgroundRepeat: "no-repeat",
                   }}
                   onChange={(e) =>

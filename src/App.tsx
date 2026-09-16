@@ -416,7 +416,7 @@ function App() {
         break;
       }
       case "volumeUp":
-        if (curMediaInfo) curSetVolume(Math.min(100, (curMediaInfo.volume ?? 100) + 5));
+        if (curMediaInfo) curSetVolume(Math.min(150, (curMediaInfo.volume ?? 100) + 5));
         break;
       case "volumeDown":
         if (curMediaInfo) curSetVolume(Math.max(0, (curMediaInfo.volume ?? 100) - 5));
@@ -1032,7 +1032,7 @@ function App() {
             } else {
               const currentVol = mediaInfo.volume;
               const delta = e.deltaY < 0 ? 5 : -5;
-              const newVol = Math.max(0, Math.min(100, currentVol + delta));
+              const newVol = Math.max(0, Math.min(150, currentVol + delta));
               setVolume(newVol);
             }
           }
