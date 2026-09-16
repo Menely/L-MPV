@@ -119,7 +119,7 @@ export const Timeline = React.memo(() => {
         const activeSegment = segments.find(seg => hoverInfo.time >= seg.start && hoverInfo.time <= seg.end);
         const showChapter = activeSegment && activeSegment.title && activeSegment.title !== mediaPath;
         return (
-          <div className="timeline-preview-card" style={{ left: `${hoverInfo.ratio * 100}%` }}>
+          <div className="timeline-preview-card" style={{ left: `clamp(42px, ${hoverInfo.ratio * 100}%, calc(100% - 42px))` }}>
             <div className="timeline-preview-card__time">{formatTime(hoverInfo.time)}</div>
             {showChapter && <div className="timeline-preview-card__chapter">{activeSegment.title}</div>}
           </div>

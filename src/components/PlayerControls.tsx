@@ -101,8 +101,48 @@ export function PlayerControls({
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const volume = localVolume !== null ? localVolume : contextVolume;
 
-  // Состояния для всплывающих окон дорожек и скорости
+  // Состояния для всплывающих окон дорожек и скорости с поддержкой exit-анимации
   const [activePopover, setActivePopover] = useState<"audio" | "sub" | "speed" | null>(null);
+  const [closingPopover, setClosingPopover] = useState<"audio" | "sub" | "speed" | null>(null);
+  const closePopoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const closePopover = useCallback((immediate: boolean = false) => {
+    if (closePopoverTimerRef.current) {
+      clearTimeout(closePopoverTimerRef.current);
+      closePopoverTimerRef.current = null;
+    }
+    if (immediate) {
+      setActivePopover(null);
+      setClosingPopover(null);
+      return;
+    }
+    setActivePopover((current) => {
+      if (!current) return null;
+      setClosingPopover(current);
+      closePopoverTimerRef.current = setTimeout(() => {
+        setClosingPopover(null);
+        closePopoverTimerRef.current = null;
+      }, 110);
+      return null;
+    });
+  }, []);
+
+  const openPopover = useCallback((type: "audio" | "sub" | "speed") => {
+    if (closePopoverTimerRef.current) {
+      clearTimeout(closePopoverTimerRef.current);
+      closePopoverTimerRef.current = null;
+    }
+    setClosingPopover(null);
+    setActivePopover(type);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (closePopoverTimerRef.current) {
+        clearTimeout(closePopoverTimerRef.current);
+      }
+    };
+  }, []);
 
   const [repeatMode, setRepeatMode] = useState<0 | 1 | 2>(0); // 0=None, 1=File, 2=Playlist
 
@@ -151,15 +191,23 @@ export function PlayerControls({
     const handleTogglePopover = (e: Event) => {
       const type = (e as CustomEvent).detail?.type;
       if (type === "audio") {
-        setActivePopover(prev => prev === "audio" ? null : "audio");
-        loadTracks();
-        if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
-        if (onCloseChapters) onCloseChapters();
+        if (activePopover === "audio") {
+          closePopover();
+        } else {
+          openPopover("audio");
+          loadTracks();
+          if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
+          if (onCloseChapters) onCloseChapters();
+        }
       } else if (type === "sub") {
-        setActivePopover(prev => prev === "sub" ? null : "sub");
-        loadTracks();
-        if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
-        if (onCloseChapters) onCloseChapters();
+        if (activePopover === "sub") {
+          closePopover();
+        } else {
+          openPopover("sub");
+          loadTracks();
+          if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
+          if (onCloseChapters) onCloseChapters();
+        }
       }
     };
     window.addEventListener('l-mpv-toggle-popover', handleTogglePopover);
@@ -168,7 +216,7 @@ export function PlayerControls({
       window.removeEventListener('l-mpv-settings-changed', updateSetting);
       window.removeEventListener('l-mpv-toggle-popover', handleTogglePopover);
     };
-  }, [loadTracks, showMediaInfo, onToggleMediaInfo, onCloseChapters]);
+  }, [loadTracks, showMediaInfo, onToggleMediaInfo, onCloseChapters, activePopover, closePopover, openPopover]);
 
   const activeAudioTrack = useMemo(() => tracks.find(t => t.type === "audio" && t.selected), [tracks]);
   const activeSubTrack = useMemo(() => tracks.find(t => t.type === "sub" && t.selected), [tracks]);
@@ -215,7 +263,7 @@ export function PlayerControls({
         return; // Кнопки сами управляют закрытием (toggle)
       }
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setActivePopover(null);
+        closePopover();
       }
     };
     if (activePopover) {
@@ -224,14 +272,14 @@ export function PlayerControls({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [activePopover]);
+  }, [activePopover, closePopover]);
 
   // ─── Закрытие поповеров при открытии внешних окон ──
   useEffect(() => {
     if (showMediaInfo || showChapters) {
-      setActivePopover(null);
+      closePopover(true);
     }
-  }, [showMediaInfo, showChapters]);
+  }, [showMediaInfo, showChapters, closePopover]);
 
 
   const handleAudioButtonClick = useCallback((mouseBtn: "MouseLeft" | "MouseRight") => {
@@ -240,17 +288,17 @@ export function PlayerControls({
 
     if (menuBinds.includes(mouseBtn)) {
       if (activePopover === "audio") {
-        setActivePopover(null);
+        closePopover();
       } else {
         if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
         if (onCloseChapters) onCloseChapters();
         loadTracks();
-        setActivePopover("audio");
+        openPopover("audio");
       }
     } else if (cycleBinds.includes(mouseBtn)) {
       cycleAudioTrack();
     }
-  }, [hotkeys, activePopover, showMediaInfo, onToggleMediaInfo, onCloseChapters, loadTracks, cycleAudioTrack]);
+  }, [hotkeys, activePopover, showMediaInfo, onToggleMediaInfo, onCloseChapters, loadTracks, cycleAudioTrack, closePopover, openPopover]);
 
   const handleSubButtonClick = useCallback((mouseBtn: "MouseLeft" | "MouseRight") => {
     const cycleBinds = hotkeys["cycleSubTrack"] || [];
@@ -258,17 +306,17 @@ export function PlayerControls({
 
     if (menuBinds.includes(mouseBtn)) {
       if (activePopover === "sub") {
-        setActivePopover(null);
+        closePopover();
       } else {
         if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
         if (onCloseChapters) onCloseChapters();
         loadTracks();
-        setActivePopover("sub");
+        openPopover("sub");
       }
     } else if (cycleBinds.includes(mouseBtn)) {
       cycleSubTrack();
     }
-  }, [hotkeys, activePopover, showMediaInfo, onToggleMediaInfo, onCloseChapters, loadTracks, cycleSubTrack]);
+  }, [hotkeys, activePopover, showMediaInfo, onToggleMediaInfo, onCloseChapters, loadTracks, cycleSubTrack, closePopover, openPopover]);
 
   const handleTogglePause = useCallback(async () => {
     try {
@@ -314,11 +362,11 @@ export function PlayerControls({
   const handleSetSpeed = useCallback(async (s: number) => {
     try {
       await invoke("set_speed", { speed: s });
-      setActivePopover(null);
+      closePopover();
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [closePopover]);
 
   const handleTakeScreenshot = useCallback(async () => {
     try {
@@ -375,18 +423,22 @@ export function PlayerControls({
   const audioTracks = useMemo(() => tracks.filter((t) => t.type === "audio"), [tracks]);
   const subTracks = useMemo(() => tracks.filter((t) => t.type === "sub"), [tracks]);
 
-
+  const displayedPopover = activePopover || closingPopover;
+  const isPopoverClosing = !activePopover && Boolean(closingPopover);
 
   return (
     <div className="player-controls-wrapper">
       <div className="player-controls">
         {/* Всплывающее меню дорожек */}
-        {(activePopover === "audio" || activePopover === "sub") && (
-          <div className="track-popover" ref={popoverRef}>
+        {(displayedPopover === "audio" || displayedPopover === "sub") && (
+          <div
+            className={`track-popover ${isPopoverClosing ? "track-popover--closing" : ""}`}
+            ref={popoverRef}
+          >
             <div className="track-popover__title">
-              {activePopover === "audio" ? "Аудиодорожки" : "Субтитры"}
+              {displayedPopover === "audio" ? "Аудиодорожки" : "Субтитры"}
             </div>
-            {activePopover === "audio" &&
+            {displayedPopover === "audio" &&
               (audioTracks.length > 0 ? (
                 audioTracks.map((t) => (
                   <div key={t.id} className="track-popover__row">
@@ -395,7 +447,7 @@ export function PlayerControls({
                       className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
                       onClick={() => {
                         selectAudioTrack(t.id);
-                        setActivePopover(null);
+                        closePopover();
                       }}
                     >
                       <span className="track-popover__item-title">
@@ -429,7 +481,7 @@ export function PlayerControls({
                 </div>
               ))}
 
-            {activePopover === "sub" && (
+            {displayedPopover === "sub" && (
               <>
                 <div className="track-popover__row">
                   <button
@@ -442,7 +494,7 @@ export function PlayerControls({
                     style={{ width: "100%" }}
                     onClick={() => {
                       disableSubtitles();
-                      setActivePopover(null);
+                      closePopover();
                     }}
                   >
                     <span className="track-popover__item-title">Выключить субтитры</span>
@@ -458,7 +510,7 @@ export function PlayerControls({
                       className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
                       onClick={() => {
                         selectSubTrack(t.id);
-                        setActivePopover(null);
+                        closePopover();
                       }}
                     >
                       <span className="track-popover__item-title">
@@ -492,8 +544,8 @@ export function PlayerControls({
         )}
 
         {/* Всплывающее окно Скорости */}
-        {activePopover === "speed" && (
-          <div className="track-popover track-popover--speed">
+        {displayedPopover === "speed" && (
+          <div className={`track-popover track-popover--speed ${isPopoverClosing ? "track-popover--closing" : ""}`}>
             <div className="track-popover__title">Скорость</div>
             <div>
               {[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => (
@@ -723,7 +775,7 @@ export function PlayerControls({
                 className={`control-btn control-btn--priority-low ${showMediaInfo ? "control-btn--active" : ""}`}
                 id="btn-file-info"
                 onClick={() => {
-                  setActivePopover(null);
+                  closePopover(true);
                   if (onCloseChapters) onCloseChapters();
                   if (onToggleMediaInfo) {
                     onToggleMediaInfo();
@@ -742,7 +794,7 @@ export function PlayerControls({
                 id="btn-mediainfo"
                 title="Свойства MediaInfo (Shift+F10)"
                 onClick={() => {
-                  setActivePopover(null);
+                  closePopover(true);
                   if (onCloseChapters) onCloseChapters();
                   if (onToggleDetailedMediaInfo) {
                     onToggleDetailedMediaInfo();

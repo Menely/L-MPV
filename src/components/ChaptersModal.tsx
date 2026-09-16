@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X } from "lucide-react";
 import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
@@ -27,6 +28,33 @@ function formatChapterTime(seconds: number): string {
 export function ChaptersModal({ onClose }: ChaptersModalProps) {
   const { chapters } = usePlayerState();
   const { position } = usePlayerProgress();
+  const [isClosing, setIsClosing] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      onClose();
+    }, 110);
+  }, [isClosing, onClose]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, [handleClose]);
 
   // Определение активной главы
   let activeIndex = -1;
@@ -53,7 +81,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
       }}
     >
       <div 
-        className="media-info__section"
+        className={`media-info__section chapters-modal-card ${isClosing ? "chapters-modal-card--closing" : ""}`}
         style={{ 
           display: 'flex',
           flexDirection: 'column',
@@ -85,7 +113,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
           </div>
           <button 
             className="modal__close"
-            onClick={onClose}
+            onClick={handleClose}
             title="Закрыть (Esc)"
             aria-label="Закрыть"
           >

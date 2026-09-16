@@ -30,6 +30,8 @@
   overflow: hidden;
   animation: modalSpringIn var(--t-spring) var(--ease-spring-smooth);
   transform-origin: center center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   transition: background 0.25s var(--ease-smooth),
               border-color 0.25s var(--ease-smooth),
               box-shadow 0.25s var(--ease-smooth),
@@ -39,14 +41,37 @@
 @keyframes modalSpringIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.95);
-  }
-  65% {
-    transform: translate3d(0, -1px, 0) scale(1.005);
+    transform: translate3d(0, 10px, 0) scale(0.98);
   }
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.modal-overlay--closing {
+  animation: modalOverlayFadeOut 140ms var(--ease-out) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes modalOverlayFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.modal--closing {
+  animation: modalFadeOut 140ms var(--ease-out) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes modalFadeOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.98);
   }
 }
 
@@ -432,7 +457,8 @@
 
 .settings-accordion__chevron {
   color: var(--text-secondary);
-  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
+  transform: rotate(0deg);
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
               color var(--t-fast) var(--ease-smooth);
   flex-shrink: 0;
 }
@@ -446,7 +472,8 @@
 .settings-accordion__collapse {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: grid-template-rows 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
 }
 
 .settings-accordion--open .settings-accordion__collapse {
@@ -459,12 +486,12 @@
 }
 
 .settings-accordion__body {
-  padding: 0 14px 14px 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 4px 14px 14px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   opacity: 0;
-  transform: translateY(-8px);
-  transition: opacity 220ms ease,
-              transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(-4px);
+  transition: opacity 200ms ease,
+              transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-accordion--open .settings-accordion__body {
@@ -535,18 +562,19 @@
 }
 
 .settings-tab-content {
-  animation: settingsTabFadeIn var(--t-spring) var(--ease-spring-smooth);
-  will-change: transform, opacity;
+  animation: settingsTabFadeIn 160ms var(--ease-out);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 @keyframes settingsTabFadeIn {
   0% {
-    opacity: 0;
-    transform: translateY(8px) scale(0.995);
+    opacity: 0.35;
+    transform: translateY(4px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 

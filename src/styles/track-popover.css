@@ -19,6 +19,8 @@
   gap: 4px;
   animation: popoverSpringIn var(--t-spring) var(--ease-spring-smooth);
   transform-origin: bottom center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   transition: border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
@@ -34,14 +36,27 @@
 @keyframes popoverSpringIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, 8px, 0) scale(0.96);
-  }
-  65% {
-    transform: translate3d(0, -1px, 0) scale(1.005);
+    transform: translate3d(0, 8px, 0) scale(0.98);
   }
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.track-popover--closing {
+  animation: popoverFadeOut 120ms var(--ease-out) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes popoverFadeOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(0.98);
   }
 }
 

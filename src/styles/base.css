@@ -5,6 +5,9 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Отключение стрелок спиннера у числовых полей ввода */
@@ -93,6 +96,7 @@ html, body, #root {
   background: transparent;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   user-select: none;
 }
 
@@ -108,10 +112,16 @@ html, body, #root {
   zoom: var(--ui-scale);
 }
 
-/* Класс idle — скрывает UI после бездействия мыши */
-.app-container--idle .titlebar,
+/* Класс idle — скрывает UI после бездействия мыши с кинематографичным микро-сдвигом */
+.app-container--idle .titlebar {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+
 .app-container--idle .player-controls-wrapper {
   opacity: 0;
+  transform: translateY(10px);
   pointer-events: none;
 }
 
@@ -120,13 +130,21 @@ html, body, #root {
 }
 
 /* ─── Режим Mini Player (PiP) ─── */
-.app-container--mini .titlebar,
-.app-container--mini .player-controls-wrapper {
+.app-container--mini .titlebar {
   opacity: 0;
+  transform: translateY(-8px);
   pointer-events: none;
 }
+
+.app-container--mini .player-controls-wrapper {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
 .app-container--mini:hover .player-controls-wrapper {
   opacity: 1;
+  transform: translateY(0);
   pointer-events: auto;
 }
 .app-container--mini .player-controls {
@@ -179,27 +197,30 @@ html, body, #root {
   position: absolute;
   bottom: calc(100% + 10px);
   transform: translateX(-50%);
-  background: rgba(10, 12, 18, 0.90);
+  background: rgba(10, 12, 18, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-sm);
   padding: 4px 10px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
   pointer-events: none;
   z-index: 1000;
   white-space: nowrap;
-  animation: previewFadeIn var(--t-fast) var(--ease-out);
+  animation: previewFadeIn 100ms cubic-bezier(0.16, 1, 0.3, 1);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: left;
 }
 
 @keyframes previewFadeIn {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(4px) scale(0.96);
+    transform: translateX(-50%) translateY(3px);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0);
   }
 }
 

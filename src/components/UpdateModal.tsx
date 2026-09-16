@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Sparkles, Download, Loader2, X, AlertCircle, ArrowRight } from "lucide-react";
@@ -85,21 +85,47 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     }
   };
 
+  const [isClosing, setIsClosing] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClose = useCallback(() => {
+    if (isClosing || isDownloading) return;
+    setIsClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      onClose();
+    }, 140);
+  }, [isClosing, isDownloading, onClose]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isDownloading) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, [handleClose, isDownloading]);
+
   const handlePostpone = async () => {
     try {
       await invoke("postpone_update");
     } catch (e) {
       console.error("Ошибка откладывания обновления:", e);
     }
-    onClose();
+    handleClose();
   };
 
   return (
     <div
-      className="modal-overlay"
-      onClick={() => {
-        if (!isDownloading) onClose();
-      }}
+      className={`modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`}
+      onClick={handleClose}
       style={{
         zIndex: 10000,
         display: "flex",
@@ -110,7 +136,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
       }}
     >
       <div
-        className="modal-container update-modal-card"
+        className={`modal-container update-modal-card ${isClosing ? "update-modal-card--closing" : ""}`}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "460px",
@@ -164,7 +190,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
 
           {!isDownloading && (
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="modal__close"
               title="Закрыть (Esc)"
               aria-label="Закрыть"

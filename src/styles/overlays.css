@@ -54,20 +54,47 @@
   box-sizing: border-box;
   animation: mediaInfoSpringIn var(--t-spring) var(--ease-spring-smooth);
   transform-origin: bottom left;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 @keyframes mediaInfoSpringIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, 14px, 0) scale(0.96);
-  }
-  70% {
-    transform: translate3d(0, -2px, 0) scale(1.005);
+    transform: translate3d(0, 10px, 0) scale(0.98);
   }
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
   }
+}
+
+.media-info-overlay--closing {
+  animation: mediaInfoFadeOut 120ms var(--ease-out) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes mediaInfoFadeOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.98);
+  }
+}
+
+.chapters-modal-card {
+  animation: mediaInfoSpringIn var(--t-spring) var(--ease-spring-smooth);
+  transform-origin: bottom right;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.chapters-modal-card--closing {
+  animation: mediaInfoFadeOut 120ms var(--ease-out) forwards !important;
+  pointer-events: none;
 }
 
 .media-info__section {
@@ -150,15 +177,14 @@
   overflow: hidden;
   animation: playlistSpringIn var(--t-spring) var(--ease-spring-smooth);
   transform-origin: bottom right;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 @keyframes playlistSpringIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, 14px, 0) scale(0.96);
-  }
-  70% {
-    transform: translate3d(0, -2px, 0) scale(1.005);
+    transform: translate3d(0, 10px, 0) scale(0.98);
   }
   100% {
     opacity: 1;
@@ -342,6 +368,22 @@
     opacity: 1;
     transform: scale(1) translateY(0);
   }
+}
+
+@keyframes updateModalFadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+}
+
+.update-modal-card--closing {
+  animation: updateModalFadeOut 140ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  pointer-events: none;
 }
 
 @keyframes spin {

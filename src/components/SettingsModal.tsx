@@ -185,6 +185,25 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [uiFont, setUiFont] = useState<UiFontId>(() => getSavedUiFont());
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "upscaling" | "hotkeys" | "integration">("general");
 
+  const [isClosing, setIsClosing] = useState<boolean>(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      onClose();
+    }, 140);
+  }, [isClosing, onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
   // Навигация стрелками влево и вправо для переключения категорий настроек
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -205,7 +224,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        handleClose();
         return;
       }
 
@@ -238,7 +257,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [activeTab, recordingAction, onClose]);
+  }, [activeTab, recordingAction, handleClose]);
 
   // Синхронизация локальных состояний SettingsModal при применении любого пресета
   const handlePresetApplied = useCallback((preset: SettingsPreset) => {
@@ -585,9 +604,9 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className={`modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`} onClick={handleClose}>
       <div
-        className="modal modal--settings"
+        className={`modal modal--settings ${isClosing ? "modal--closing" : ""}`}
         style={{
           width: 720,
           maxWidth: "95vw",
@@ -605,7 +624,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
           <button
             className="modal__close"
-            onClick={onClose}
+            onClick={handleClose}
             id="btn-settings-close"
             title="Закрыть (Esc)"
             aria-label="Закрыть"

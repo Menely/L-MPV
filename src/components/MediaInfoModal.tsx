@@ -77,8 +77,27 @@ export function MediaInfoModal({
   const droppedFrames = liveState?.dropped_frames ?? mediaInfo?.dropped_frames ?? 0;
   const currentVolume = liveState?.volume ?? mediaInfo?.volume ?? 100;
 
+  const [isClosing, setIsClosing] = useState<boolean>(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      onClose();
+    }, 110);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
-    <div className="media-info-overlay" onClick={onClose}>
+    <div className={`media-info-overlay ${isClosing ? "media-info-overlay--closing" : ""}`} onClick={handleClose}>
       {/* Общие данные */}
       <div className="media-info__section">
         <div className="media-info__row media-info__row--filename">

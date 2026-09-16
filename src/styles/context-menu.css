@@ -13,20 +13,35 @@
   z-index: 9999;
   animation: contextMenuSpringIn var(--t-spring) var(--ease-spring-smooth);
   transform-origin: top left;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   transition: border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 @keyframes contextMenuSpringIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, -4px, 0) scale(0.96);
-  }
-  70% {
-    transform: translate3d(0, 1px, 0) scale(1.005);
+    transform: translate3d(0, -4px, 0) scale(0.98);
   }
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.context-menu--closing {
+  animation: contextMenuFadeOut 120ms var(--ease-out) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes contextMenuFadeOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0) scale(0.98);
   }
 }
 

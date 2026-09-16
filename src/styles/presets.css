@@ -4,13 +4,15 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  animation: presetsFadeIn var(--t-normal) var(--ease-smooth);
+  animation: presetsFadeIn 160ms var(--ease-out);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 @keyframes presetsFadeIn {
   from {
-    opacity: 0;
-    transform: translateY(6px);
+    opacity: 0.35;
+    transform: translateY(4px);
   }
   to {
     opacity: 1;

@@ -126,15 +126,34 @@ export function ContextMenu({
     }
   }, [mediaInfo?.speed]);
 
-  // Закрытие по клику вне меню или по Escape
+  const [isClosing, setIsClosing] = useState(false);
+  const closingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    closingTimerRef.current = setTimeout(() => {
+      onClose();
+    }, 110);
+  }, [isClosing, onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (closingTimerRef.current) {
+        clearTimeout(closingTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Закрытие по клику вне меню или по Escape с анимацией
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
+        handleClose();
       }
     };
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     };
     document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleEscape);
@@ -142,22 +161,22 @@ export function ContextMenu({
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [onClose]);
+  }, [handleClose]);
 
   // ─── Обработчики команд ───────────────────────────
   const handleSelectAudio = async (id: number) => {
     await selectAudioTrack(id);
-    onClose();
+    handleClose();
   };
 
   const handleSelectSub = async (id: number) => {
     await selectSubTrack(id);
-    onClose();
+    handleClose();
   };
 
   const handleDisableSubs = async () => {
     await disableSubtitles();
-    onClose();
+    handleClose();
   };
 
   const handleLoadSubFile = async () => {
@@ -170,7 +189,7 @@ export function ContextMenu({
         await invoke("load_subtitle_file", { path: file });
       }
     } catch (e) { console.error(e); }
-    onClose();
+    handleClose();
   };
 
   const handleSetSpeed = async (speed: number) => {
@@ -178,21 +197,21 @@ export function ContextMenu({
       await invoke("set_speed", { speed });
       setCurrentSpeed(speed);
     } catch (e) { console.error(e); }
-    onClose();
+    handleClose();
   };
 
   const handleSetAspect = async (ratio: string) => {
     try {
       await invoke("set_aspect_ratio", { ratio });
     } catch (e) { console.error(e); }
-    onClose();
+    handleClose();
   };
 
   const handleSetRotation = async (degrees: number) => {
     try {
       await invoke("set_rotation", { degrees });
     } catch (e) { console.error(e); }
-    onClose();
+    handleClose();
   };
 
   const handleSetAmbientMode = async (mode: "off" | "blur" | "color") => {
@@ -211,7 +230,7 @@ export function ContextMenu({
     } catch (e) {
       console.error("Ошибка смены режима подсветки полос:", e);
     }
-    onClose();
+    handleClose();
   };
 
   const audioTracks = tracks.filter((t) => t.type === "audio");
@@ -227,7 +246,7 @@ export function ContextMenu({
       shortcut: "Ctrl+O",
       action: () => {
         if (onOpenFile) onOpenFile();
-        onClose();
+        handleClose();
       },
     },
     { type: "divider" },
@@ -289,7 +308,7 @@ export function ContextMenu({
       label: "Главы",
       action: () => {
         onShowChapters();
-        onClose();
+        handleClose();
       },
     },
     { type: "divider" },
@@ -357,16 +376,16 @@ export function ContextMenu({
       icon: <Repeat size={15} />,
       label: "Режим повтора",
       children: [
-        { type: "item", label: "Без повтора", action: () => { invoke("set_repeat_mode", { mode: 0 }); onClose(); } },
-        { type: "item", label: "Повтор одного файла", action: () => { invoke("set_repeat_mode", { mode: 1 }); onClose(); } },
-        { type: "item", label: "Повтор всего плейлиста", action: () => { invoke("set_repeat_mode", { mode: 2 }); onClose(); } },
+        { type: "item", label: "Без повтора", action: () => { invoke("set_repeat_mode", { mode: 0 }); handleClose(); } },
+        { type: "item", label: "Повтор одного файла", action: () => { invoke("set_repeat_mode", { mode: 1 }); handleClose(); } },
+        { type: "item", label: "Повтор всего плейлиста", action: () => { invoke("set_repeat_mode", { mode: 2 }); handleClose(); } },
       ],
     },
     {
       type: "item",
       icon: <Shuffle size={15} />,
       label: "Случайный порядок",
-      action: () => { invoke("toggle_shuffle"); onClose(); },
+      action: () => { invoke("toggle_shuffle"); handleClose(); },
     },
     { type: "divider" },
     {
@@ -379,7 +398,7 @@ export function ContextMenu({
           const isTop = await appWindow.isAlwaysOnTop();
           await appWindow.setAlwaysOnTop(!isTop);
         } catch (e) { console.error(e); }
-        onClose();
+        handleClose();
       },
     },
     {
@@ -395,7 +414,7 @@ export function ContextMenu({
           console.error("Ошибка при сохранении кадра:", e);
           window.dispatchEvent(new CustomEvent("show-osd", { detail: "Ошибка сохранения кадра" }));
         }
-        onClose();
+        handleClose();
       },
     },
     {
@@ -405,7 +424,7 @@ export function ContextMenu({
       shortcut: "I",
       action: () => {
         onShowMediaInfo();
-        onClose();
+        handleClose();
       },
     },
     {
@@ -415,7 +434,7 @@ export function ContextMenu({
       shortcut: "Shift+F10",
       action: () => {
         if (onShowDetailedMediaInfo) onShowDetailedMediaInfo();
-        onClose();
+        handleClose();
       },
     },
     {
@@ -425,7 +444,7 @@ export function ContextMenu({
       shortcut: "F2",
       action: () => {
         onShowSettings();
-        onClose();
+        handleClose();
       },
     },
   ];
@@ -564,7 +583,7 @@ export function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="context-menu"
+      className={`context-menu ${isClosing ? "context-menu--closing" : ""}`}
       style={{
         left: adjustedPos.x,
         top: adjustedPos.y,
