@@ -101,9 +101,9 @@ export function PlayerControls({
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const volume = localVolume !== null ? localVolume : contextVolume;
 
-  // Состояния для всплывающих окон дорожек и скорости с поддержкой exit-анимации
-  const [activePopover, setActivePopover] = useState<"audio" | "sub" | "speed" | null>(null);
-  const [closingPopover, setClosingPopover] = useState<"audio" | "sub" | "speed" | null>(null);
+  // Состояния для всплывающих окон дорожек с поддержкой exit-анимации
+  const [activePopover, setActivePopover] = useState<"audio" | "sub" | null>(null);
+  const [closingPopover, setClosingPopover] = useState<"audio" | "sub" | null>(null);
   const closePopoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const closePopover = useCallback((immediate: boolean = false) => {
@@ -127,7 +127,7 @@ export function PlayerControls({
     });
   }, []);
 
-  const openPopover = useCallback((type: "audio" | "sub" | "speed") => {
+  const openPopover = useCallback((type: "audio" | "sub") => {
     if (closePopoverTimerRef.current) {
       clearTimeout(closePopoverTimerRef.current);
       closePopoverTimerRef.current = null;
@@ -143,6 +143,20 @@ export function PlayerControls({
       }
     };
   }, []);
+
+  // Закрытие активного поповера по Escape
+  useEffect(() => {
+    if (!activePopover) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closePopover();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [activePopover, closePopover]);
 
   const [repeatMode, setRepeatMode] = useState<0 | 1 | 2>(0); // 0=None, 1=File, 2=Playlist
 
@@ -176,6 +190,7 @@ export function PlayerControls({
 
   const [hotkeys, setHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
 
+  // Синхронизация локальных настроек плеера (не зависит от активных поповеров)
   useEffect(() => {
     const updateSetting = () => {
       const saved = localStorage.getItem('l-mpv-show-track-names');
@@ -187,7 +202,11 @@ export function PlayerControls({
       setHotkeys(getCustomHotkeys());
     };
     window.addEventListener('l-mpv-settings-changed', updateSetting);
+    return () => window.removeEventListener('l-mpv-settings-changed', updateSetting);
+  }, []);
 
+  // Обработка внешних событий переключения поповеров дорожек
+  useEffect(() => {
     const handleTogglePopover = (e: Event) => {
       const type = (e as CustomEvent).detail?.type;
       if (type === "audio") {
@@ -213,7 +232,6 @@ export function PlayerControls({
     window.addEventListener('l-mpv-toggle-popover', handleTogglePopover);
 
     return () => {
-      window.removeEventListener('l-mpv-settings-changed', updateSetting);
       window.removeEventListener('l-mpv-toggle-popover', handleTogglePopover);
     };
   }, [loadTracks, showMediaInfo, onToggleMediaInfo, onCloseChapters, activePopover, closePopover, openPopover]);
@@ -259,7 +277,7 @@ export function PlayerControls({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (target.closest('#btn-audio-tracks') || target.closest('#btn-sub-tracks') || target.closest('#btn-speed')) {
+      if (target.closest('#btn-audio-tracks') || target.closest('#btn-sub-tracks')) {
         return; // Кнопки сами управляют закрытием (toggle)
       }
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
@@ -358,15 +376,6 @@ export function PlayerControls({
       setLocalVolume(newVol);
     }
   };
-
-  const handleSetSpeed = useCallback(async (s: number) => {
-    try {
-      await invoke("set_speed", { speed: s });
-      closePopover();
-    } catch (e) {
-      console.error(e);
-    }
-  }, [closePopover]);
 
   const handleTakeScreenshot = useCallback(async () => {
     try {
@@ -540,25 +549,6 @@ export function PlayerControls({
                 ))}
               </>
             )}
-          </div>
-        )}
-
-        {/* Всплывающее окно Скорости */}
-        {displayedPopover === "speed" && (
-          <div className={`track-popover track-popover--speed ${isPopoverClosing ? "track-popover--closing" : ""}`}>
-            <div className="track-popover__title">Скорость</div>
-            <div>
-              {[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => (
-                <button
-                  key={s}
-                  className={`track-popover__item ${mediaInfo?.speed === s ? "track-popover__item--active" : ""}`}
-                  onClick={() => handleSetSpeed(s)}
-                >
-                  <span className="track-item-title">{s}x {s === 1.0 ? "(Нормальная)" : ""}</span>
-                  {mediaInfo?.speed === s && <Check size={14} className="track-item-icon" style={{ marginLeft: "auto" }} />}
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
