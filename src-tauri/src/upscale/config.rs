@@ -89,6 +89,24 @@ pub fn get_upscale_conf_path() -> PathBuf {
     cfg_dir.join("upscale.conf")
 }
 
+/// Возвращает путь к файлу сохраненного порядка моделей `config/models_order.json`
+pub fn get_models_order_path() -> PathBuf {
+    let root = get_app_root_dir();
+    let cfg_dir = root.join("config");
+    if !cfg_dir.exists() {
+        let _ = fs::create_dir_all(&cfg_dir);
+    }
+    cfg_dir.join("models_order.json")
+}
+
+/// Сохраняет пользовательский порядок моделей в файл `config/models_order.json`
+pub fn save_models_order_internal(order: &[String]) -> Result<(), String> {
+    let order_path = get_models_order_path();
+    let json = serde_json::to_string_pretty(order).map_err(|e| e.to_string())?;
+    fs::write(&order_path, json).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Вычисление контрольной суммы CRC32 по стандарту IEEE 802.3
 pub fn crc32_ieee(data: &[u8]) -> u32 {
     let mut crc: u32 = 0xFFFF_FFFF;
@@ -142,8 +160,39 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
             })
             .collect();
 
-        // Сортируем модели по алфавиту для детерминированного порядка
-        paths.sort();
+        // Загружаем сохраненный пользователем порядок моделей (если он был настроен)
+        let order_path = get_models_order_path();
+        let saved_order: Vec<String> = if order_path.exists() {
+            fs::read_to_string(&order_path)
+                .ok()
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        // Сортируем модели: элементы из saved_order идут в строго заданном порядке,
+        // а новые модели, которых еще нет в сохраненном списке — в конце по алфавиту
+        paths.sort_by(|a, b| {
+            let name_a = a
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let name_b = b
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+
+            let pos_a = saved_order.iter().position(|x| x.eq_ignore_ascii_case(&name_a));
+            let pos_b = saved_order.iter().position(|x| x.eq_ignore_ascii_case(&name_b));
+
+            match (pos_a, pos_b) {
+                (Some(idx_a), Some(idx_b)) => idx_a.cmp(&idx_b),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => name_a.cmp(&name_b),
+            }
+        });
 
         for path in paths {
             let filename = path

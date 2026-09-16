@@ -671,9 +671,14 @@ function App() {
             gpu_info?: { name: string; recommended_backend: string; supports_tensorrt: boolean };
           }>("get_upscale_status").catch(() => null);
 
+          const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
+
           if (mode === "ai") {
+            const modelIndex = status?.models?.findIndex((m) => m.slot === slot || m.filename === selectedModel);
+            const modelNumber = modelIndex !== undefined && modelIndex !== -1 ? modelIndex + 1 : 1;
             const activeModel = status?.models?.find((m) => m.slot === slot || m.filename === selectedModel);
-            const modelName = activeModel?.display_name || (selectedModel ? selectedModel.replace(/\.onnx$/i, "") : `Слот #${slot}`);
+            const rawName = activeModel?.display_name || (selectedModel ? selectedModel.replace(/\.onnx$/i, "") : `Слот #${slot}`);
+            const modelName = isHideModelNames ? `Модель #${modelNumber}` : rawName;
             
             let backendDesc = backend;
             if (backend === "TensorRT") {
@@ -747,7 +752,10 @@ function App() {
 
             await invoke("switch_upscale_network_hotkey", { slot, backend });
 
-            setOsdText(`4K AI: ${targetModel.display_name} (Включен)`);
+            const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
+            const modelTitle = isHideModelNames ? `Модель #${index + 1}` : targetModel.display_name;
+
+            setOsdText(`4K AI: ${modelTitle} (Включен)`);
             if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
             osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
 

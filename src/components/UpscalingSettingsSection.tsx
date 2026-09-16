@@ -11,6 +11,8 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import {
   getCustomHotkeys,
@@ -36,10 +38,14 @@ export type {
   UpscaleCompileProgress,
 };
 
+interface UpscalingSettingsSectionProps {
+  onClose?: () => void;
+}
+
 /**
  * Вкладка управления апскейлингом видео в реальном времени (AI Upscaling).
  */
-export const UpscalingSettingsSection: React.FC = () => {
+export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> = ({ onClose: _onClose }) => {
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isDownloadingEngine, setIsDownloadingEngine] = useState<boolean>(false);
@@ -69,11 +75,67 @@ export const UpscalingSettingsSection: React.FC = () => {
       const next = !prev;
       try {
         localStorage.setItem("l-mpv-hide-model-names", next ? "true" : "false");
+        window.dispatchEvent(new Event("l-mpv-settings-changed"));
       } catch (e) {
         console.error("Ошибка сохранения настройки скрытия названий моделей:", e);
       }
       return next;
     });
+  };
+
+  // Перемещение моделей выше / ниже в списке
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const handleMoveModel = async (index: number, direction: "up" | "down", e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!status?.models) return;
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= status.models.length) return;
+
+    const newModels = [...status.models];
+    const [moved] = newModels.splice(index, 1);
+    newModels.splice(targetIndex, 0, moved);
+
+    setStatus((prev) => (prev ? { ...prev, models: newModels } : prev));
+
+    const order = newModels.map((m) => m.filename);
+    try {
+      localStorage.setItem("l-mpv-upscale-models-order", JSON.stringify(order));
+      await invoke("save_models_order", { order });
+      window.dispatchEvent(new Event("l-mpv-settings-changed"));
+    } catch (err) {
+      console.error("Ошибка сохранения порядка моделей:", err);
+    }
+  };
+
+  const handleDragStart = (idx: number, e: React.DragEvent) => {
+    setDraggedIndex(idx);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (targetIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex || !status?.models) return;
+    const newModels = [...status.models];
+    const [draggedItem] = newModels.splice(draggedIndex, 1);
+    newModels.splice(targetIndex, 0, draggedItem);
+    setDraggedIndex(null);
+
+    setStatus((prev) => (prev ? { ...prev, models: newModels } : prev));
+
+    const order = newModels.map((m) => m.filename);
+    try {
+      localStorage.setItem("l-mpv-upscale-models-order", JSON.stringify(order));
+      await invoke("save_models_order", { order });
+      window.dispatchEvent(new Event("l-mpv-settings-changed"));
+    } catch (err) {
+      console.error("Ошибка сохранения порядка моделей:", err);
+    }
   };
 
   const [settings, setSettings] = useState<UpscaleSettings>(() => {
@@ -570,18 +632,95 @@ export const UpscalingSettingsSection: React.FC = () => {
               return (
                 <div
                   key={model.filename}
+                  draggable
+                  onDragStart={(e) => handleDragStart(idx, e)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(idx, e)}
                   onClick={() => updateSettings({ active_slot: model.slot, selected_model: model.filename })}
                   className={`glass-tile glass-tile--clickable ${isSelected ? "glass-tile--active" : ""}`}
                   style={{
-                    padding: "10px 14px",
+                    padding: "8px 12px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    gap: 12,
+                    gap: 10,
                     isolation: "isolate",
+                    opacity: draggedIndex === idx ? 0.4 : 1,
+                    cursor: "grab",
+                    transition: "transform 0.15s ease, opacity 0.15s ease",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                    {/* Кнопки перемещения позиции модели (выше / ниже) */}
+                    <div
+                      style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        className="btn btn--secondary"
+                        style={{
+                          padding: 0,
+                          width: 22,
+                          height: 14,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: idx === 0 ? 0.25 : 0.85,
+                          cursor: idx === 0 ? "default" : "pointer",
+                          borderRadius: 3,
+                          border: "none",
+                          background: "rgba(255, 255, 255, 0.06)",
+                        }}
+                        disabled={idx === 0}
+                        onClick={(e) => handleMoveModel(idx, "up", e)}
+                        title={idx === 0 ? "Первая в списке" : "Переместить выше"}
+                      >
+                        <ChevronUp size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--secondary"
+                        style={{
+                          padding: 0,
+                          width: 22,
+                          height: 14,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          opacity: idx === status.models.length - 1 ? 0.25 : 0.85,
+                          cursor: idx === status.models.length - 1 ? "default" : "pointer",
+                          borderRadius: 3,
+                          border: "none",
+                          background: "rgba(255, 255, 255, 0.06)",
+                        }}
+                        disabled={idx === status.models.length - 1}
+                        onClick={(e) => handleMoveModel(idx, "down", e)}
+                        title={idx === status.models.length - 1 ? "Последняя в списке" : "Переместить ниже"}
+                      >
+                        <ChevronDown size={12} />
+                      </button>
+                    </div>
+
+                    {/* Порядковый номер модели в списке */}
+                    <span
+                      style={{
+                        fontSize: "0.72rem",
+                        fontWeight: 600,
+                        color: isSelected ? "var(--accent)" : "var(--text-muted)",
+                        background: isSelected ? "rgba(var(--accent-rgb, 127, 199, 255), 0.14)" : "rgba(255, 255, 255, 0.05)",
+                        border: `1px solid ${isSelected ? "var(--accent)" : "var(--border-subtle)"}`,
+                        borderRadius: 4,
+                        padding: "1px 6px",
+                        fontVariantNumeric: "tabular-nums",
+                        flexShrink: 0,
+                      }}
+                      title={`Модель #${idx + 1}`}
+                    >
+                      #{idx + 1}
+                    </span>
+
+                    {/* Селектор выбора */}
                     {isSelected ? (
                       <CheckCircle2 size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
                     ) : (

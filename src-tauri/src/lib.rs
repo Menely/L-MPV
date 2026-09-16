@@ -268,6 +268,7 @@ pub fn run() {
             upscale::delete_inference_engine,
             upscale::switch_upscale_network_hotkey,
             upscale::precompile_model_engine_1080p,
+            upscale::save_models_order,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {

@@ -203,8 +203,8 @@ pub async fn precompile_model_engine_1080p_impl(
     };
 
     let engine_filename = format!(
-        "aji-{:08x}.780037328.trt-11.1.0.gpu-{}-{}.engine",
-        crc, gpu_clean, sm_suffix
+        "aji-{:08x}.{}.780037328.trt-11.1.0.gpu-{}-{}.engine",
+        crc, model_stem, gpu_clean, sm_suffix
     );
     let save_engine_path = models_dir.join(&engine_filename);
     let save_engine_path_for_err = save_engine_path.clone();
