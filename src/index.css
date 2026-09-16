@@ -7,6 +7,9 @@
 /* 2. Глобальный сброс, контейнер, idle/mini, OSD */
 @import './styles/base.css';
 
+/* 2.1. Единые компоненты дизайн-системы (поверхности, кнопки, бейджи) */
+@import './styles/components.css';
+
 /* 3. Кастомный Titlebar */
 @import './styles/titlebar.css';
 

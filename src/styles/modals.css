@@ -30,6 +30,10 @@
   overflow: hidden;
   animation: modalSpringIn var(--t-spring) var(--ease-spring-smooth);
   transform-origin: center center;
+  transition: background 0.25s var(--ease-smooth),
+              border-color 0.25s var(--ease-smooth),
+              box-shadow 0.25s var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 @keyframes modalSpringIn {
@@ -78,7 +82,8 @@
   flex-shrink: 0;
   box-sizing: border-box;
   transition: color var(--t-fast) var(--ease-smooth),
-              background var(--t-fast) var(--ease-smooth);
+              background var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 .modal__close:hover {
@@ -514,7 +519,7 @@
 }
 
 .settings-tab-btn:active {
-  transform: scale(0.96);
+  filter: brightness(0.95);
 }
 
 .settings-tab-btn--active {

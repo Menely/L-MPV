@@ -1,0 +1,319 @@
+/* ─── L-MPV Design System v2: Components & Surfaces ────────────────── */
+/* Единая стандартизированная система карточек, обводок, кнопок и бейджей */
+
+/* ─── 1. Поверхности и Уровни глубины (Elevation Surfaces) ─────────── */
+
+/* Level 1: Главные парящие панели, окна, выпадающие меню */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: var(--ui-backdrop-heavy);
+  -webkit-backdrop-filter: var(--ui-backdrop-heavy);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-lg), 0 0 30px rgba(127, 199, 255, 0.05);
+  transition: border-radius var(--t-spring) var(--ease-spring-smooth);
+}
+
+/* Level 2: Контейнеры секций и родительские карточки */
+.glass-section {
+  background: var(--surface-level-2, rgba(255, 255, 255, 0.025));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  border-radius: var(--radius-lg, 12px);
+  padding: 16px 18px;
+  transition: border-color var(--t-base) var(--ease-smooth),
+              background var(--t-base) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
+}
+
+.glass-section:hover {
+  border-color: var(--border-default, rgba(255, 255, 255, 0.10));
+}
+
+/* Level 3: Интерактивные плитки, подблоки, карточки моделей/опций */
+.glass-tile {
+  background: var(--surface-level-3, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  border-radius: var(--radius-md, 10px);
+  padding: 12px 14px;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
+  position: relative;
+}
+
+.glass-tile--clickable {
+  cursor: pointer;
+}
+
+.glass-tile--clickable:hover {
+  background: var(--surface-level-3-hover, rgba(255, 255, 255, 0.075));
+  border-color: var(--border-hover, rgba(255, 255, 255, 0.16));
+}
+
+.glass-tile--clickable:active {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* Активная выбранная плитка (Selected) */
+.glass-tile--active {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent),
+              0 0 10px var(--accent-glow),
+              inset 0 0 10px rgba(var(--accent-rgb, 127, 199, 255), 0.04);
+}
+
+.glass-tile--active:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.12);
+  border-color: var(--accent-hover, var(--accent));
+  box-shadow: 0 0 0 1px var(--accent-hover, var(--accent)),
+              0 0 12px var(--accent-glow);
+}
+
+/* ─── 2. Стандартизированная система кнопок (Buttons) ───────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--radius-sm, 8px);
+  font-family: inherit;
+  font-size: var(--fs-sm, 0.82rem);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  user-select: none;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              filter var(--t-fast) var(--ease-smooth);
+  box-sizing: border-box;
+}
+
+.btn:active:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Размеры кнопок */
+.btn--sm {
+  padding: 6px 10px;
+  font-size: 0.76rem;
+  border-radius: var(--radius-sm, 6px);
+}
+
+.btn--md {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  min-height: 34px;
+}
+
+/* Primary (Главное действие / Акцент) */
+.btn--primary {
+  background: var(--accent);
+  color: #05070a;
+  border: 1px solid transparent;
+}
+
+.btn--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: var(--btn-glow), 0 0 12px var(--accent-glow);
+}
+
+/* Secondary / Surface (Стандартная светлая кнопка интерфейса) */
+.btn--secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-hover, rgba(255, 255, 255, 0.18));
+  color: #fff;
+}
+
+/* Ghost / Transparent */
+.btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Danger (Удаление / Опасное действие) */
+.btn--danger {
+  background: rgba(231, 76, 60, 0.12);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.25);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: rgba(231, 76, 60, 0.22);
+  border-color: rgba(231, 76, 60, 0.45);
+  box-shadow: 0 0 12px rgba(231, 76, 60, 0.25);
+}
+
+/* Квадратная иконочная кнопка (Icon-only) */
+.btn--icon {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0;
+  border-radius: var(--radius-sm, 8px);
+}
+
+.btn--icon-sm {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0;
+  border-radius: var(--radius-sm, 6px);
+}
+
+/* ─── 3. Унифицированные Бейджи статусов (Badges) ──────────────────── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 0.73rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  user-select: none;
+  transition: border-radius var(--t-spring) var(--ease-spring-smooth),
+              background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth);
+}
+
+.badge--success {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.25);
+}
+
+.badge--warning {
+  background: rgba(230, 126, 34, 0.15);
+  color: #e67e22;
+  border: 1px solid rgba(230, 126, 34, 0.25);
+}
+
+.badge--danger {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.25);
+}
+
+.badge--accent {
+  background: var(--accent-glass, rgba(127, 199, 255, 0.12));
+  color: var(--accent);
+  border: 1px solid var(--border-pill, rgba(127, 199, 255, 0.25));
+}
+
+.badge--neutral {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ─── 4. Хоткей-чипы (Keyboard Key Caps) ────────────────────────────── */
+
+.kbd-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 0.70rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-xs, 4px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  user-select: none;
+  transition: border-radius var(--t-spring) var(--ease-spring-smooth);
+}
+
+.kbd-chip--recording {
+  background: var(--accent-glass, rgba(127, 199, 255, 0.25));
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* ─── 5. Унифицированные Чекбоксы (UI Checkboxes) ─────────────────── */
+
+.ui-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  max-width: 18px !important;
+  max-height: 18px !important;
+  border-radius: var(--radius-xs, 4px);
+  border: 1.5px solid var(--border-pill, rgba(255, 255, 255, 0.22));
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0 !important;
+  transition: border-color var(--t-fast) ease,
+              background var(--t-fast) ease,
+              box-shadow var(--t-fast) ease,
+              border-radius var(--t-spring) var(--ease-spring-smooth);
+  position: relative;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.ui-checkbox:hover {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.10);
+}
+
+.ui-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.ui-checkbox:checked::after {
+  content: "";
+  width: 5px;
+  height: 9px;
+  border: solid #05070a;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-bottom: 2px;
+}
+

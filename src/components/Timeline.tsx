@@ -157,7 +157,7 @@ export const Timeline = React.memo(() => {
                   flexBasis: `${flexBasis}%`,
                   position: 'relative',
                   height: '100%',
-                  borderRadius: '4px',
+                  borderRadius: 'var(--radius-xs, 4px)',
                   overflow: 'hidden'
                 }}
               >
@@ -167,7 +167,7 @@ export const Timeline = React.memo(() => {
                     className="timeline__segment-ghost"
                     style={{
                       width: `${segGhostProgress}%`,
-                      borderRadius: '4px'
+                      borderRadius: 'var(--radius-xs, 4px)'
                     }}
                   />
                 )}
@@ -176,7 +176,7 @@ export const Timeline = React.memo(() => {
                     className="timeline__segment-progress"
                     style={{
                       width: `${segProgress}%`,
-                      borderRadius: '4px'
+                      borderRadius: 'var(--radius-xs, 4px)'
                     }}
                   />
                 )}

@@ -188,7 +188,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     createdAt: 1700000000002,
     isBuiltIn: true,
     data: {
-      playerTheme: "mocha",
+      playerTheme: "graphite",
       accentColor: "#f59e0b",
       glowIntensity: "soft",
       uiOpacity: 0.72,

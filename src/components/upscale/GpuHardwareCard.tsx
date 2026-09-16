@@ -15,11 +15,8 @@ export const GpuHardwareCard: React.FC<GpuHardwareCardProps> = ({ gpuInfo }) => 
 
   return (
     <div
+      className="glass-tile"
       style={{
-        padding: "10px 14px",
-        borderRadius: "var(--radius-md)",
-        background: "rgba(255, 255, 255, 0.03)",
-        border: "1px solid var(--border-pill)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -42,20 +39,11 @@ export const GpuHardwareCard: React.FC<GpuHardwareCardProps> = ({ gpuInfo }) => 
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span style={{ color: "var(--text-muted)" }}>Рекомендуется:</span>
         <span
-          style={{
-            padding: "2px 8px",
-            borderRadius: 4,
-            background:
-              gpuInfo.recommended_backend === "TensorRT"
-                ? "rgba(118, 185, 0, 0.15)"
-                : "rgba(127, 199, 255, 0.15)",
-            color:
-              gpuInfo.recommended_backend === "TensorRT"
-                ? "#76b900"
-                : "var(--accent)",
-            fontWeight: 600,
-            fontSize: "0.78rem",
-          }}
+          className={`badge ${
+            gpuInfo.recommended_backend === "TensorRT"
+              ? "badge--success"
+              : "badge--accent"
+          }`}
         >
           {gpuInfo.recommended_backend}{" "}
           {gpuInfo.supports_tensorrt ? `(${gpuInfo.sm_architecture})` : ""}

@@ -8,12 +8,16 @@
 
 export type PlayerThemeId =
   | "graphite"
+  | "discord"
   | "oled"
   | "sapphire"
+  | "nord"
+  | "indigo"
   | "emerald"
+  | "pine"
+  | "mint"
   | "amethyst"
-  | "mocha"
-  | "nord";
+  | "ruby";
 
 export interface PlayerThemeTokens {
   bgPrimary: string;
@@ -44,7 +48,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
     name: "Тёмный графит",
     badge: "Стандарт",
     desc: "Фирменный нейтральный графитовый стиль L-MPV",
-    dotColor: "#1a1f2c",
+    dotColor: "#383f4c",
     surfaceColor: "#13161d",
     tokens: {
       bgPrimary: "#0b0d12",
@@ -63,7 +67,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
     id: "oled",
     name: "Глубокий OLED",
     desc: "Абсолютно чёрный фон для максимальной контрастности и HDR",
-    dotColor: "#000000",
+    dotColor: "#08080a",
     surfaceColor: "#08080a",
     tokens: {
       bgPrimary: "#000000",
@@ -82,7 +86,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
     id: "sapphire",
     name: "Сапфировая полночь",
     desc: "Глубокий тёмно-синий океанский оттенок с кристальным текстом",
-    dotColor: "#0e1a38",
+    dotColor: "#223b68",
     surfaceColor: "#0d1629",
     tokens: {
       bgPrimary: "#070c18",
@@ -101,7 +105,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
     id: "emerald",
     name: "Тёмный изумруд",
     desc: "Благородный хвойно-нефритовый тон с чистой палитрой",
-    dotColor: "#0c281e",
+    dotColor: "#1b5844",
     surfaceColor: "#0b1f17",
     tokens: {
       bgPrimary: "#06130e",
@@ -120,7 +124,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
     id: "amethyst",
     name: "Аметист",
     desc: "Благородный глубокий пурпурный стиль с лавандовым сиянием",
-    dotColor: "#361b52",
+    dotColor: "#552b7e",
     surfaceColor: "#231338",
     tokens: {
       bgPrimary: "#160b24",
@@ -135,30 +139,11 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
     },
     recommendedAccents: ["#c4b5fd", "#8B5CF6", "#D946EF", "#f0abfc"],
   },
-  mocha: {
-    id: "mocha",
-    name: "Вулканический мокко",
-    desc: "Тёплый кофейно-шоколадный угольный стиль с мягким светом",
-    dotColor: "#2b1b14",
-    surfaceColor: "#1c120e",
-    tokens: {
-      bgPrimary: "#130b08",
-      bgSurface: "#1b110c",
-      bgGlassRgb: "26, 16, 12",
-      bgPillRgb: "16, 10, 7",
-      textPrimary: "rgba(255, 248, 242, 0.94)",
-      textSecondary: "rgba(240, 215, 200, 0.62)",
-      textMuted: "rgba(205, 175, 155, 0.34)",
-      border: "rgba(253, 186, 116, 0.09)",
-      borderHover: "rgba(253, 186, 116, 0.18)",
-    },
-    recommendedAccents: ["#e8a236", "#fdba74", "#FF5722", "#5eead4"],
-  },
   nord: {
     id: "nord",
     name: "Холодный Норд",
     desc: "Арктический сланцево-стальной стиль с выверенным контрастом",
-    dotColor: "#1b2533",
+    dotColor: "#354a66",
     surfaceColor: "#151c27",
     tokens: {
       bgPrimary: "#0c1117",
@@ -172,6 +157,101 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       borderHover: "rgba(125, 211, 252, 0.18)",
     },
     recommendedAccents: ["#7dd3fc", "#5eead4", "#A3E635", "#7fc7ff"],
+  },
+  discord: {
+    id: "discord",
+    name: "Discord Gray",
+    desc: "Узнаваемый матовый тёмно-серый стиль Discord с фирменной палитрой",
+    dotColor: "#4e535e",
+    surfaceColor: "#2e3035",
+    tokens: {
+      bgPrimary: "#202225",
+      bgSurface: "#2e3035",
+      bgGlassRgb: "44, 47, 53",
+      bgPillRgb: "30, 31, 34",
+      textPrimary: "rgba(242, 243, 245, 0.96)",
+      textSecondary: "rgba(181, 186, 193, 0.70)",
+      textMuted: "rgba(148, 155, 164, 0.44)",
+      border: "rgba(255, 255, 255, 0.09)",
+      borderHover: "rgba(255, 255, 255, 0.18)",
+    },
+    recommendedAccents: ["#6366F1", "#00FF9D", "#7fc7ff", "#fde047"],
+  },
+  pine: {
+    id: "pine",
+    name: "Лесной шалфей",
+    desc: "Свежий природный шалфейно-хвойный стиль с мягким чистым контрастом",
+    dotColor: "#335e4c",
+    surfaceColor: "#1c352b",
+    tokens: {
+      bgPrimary: "#14261f",
+      bgSurface: "#1c352b",
+      bgGlassRgb: "32, 54, 45",
+      bgPillRgb: "22, 38, 31",
+      textPrimary: "rgba(242, 253, 247, 0.96)",
+      textSecondary: "rgba(188, 228, 208, 0.72)",
+      textMuted: "rgba(145, 192, 170, 0.45)",
+      border: "rgba(110, 231, 183, 0.13)",
+      borderHover: "rgba(110, 231, 183, 0.25)",
+    },
+    recommendedAccents: ["#00FF9D", "#6ee7b7", "#A3E635", "#bef264"],
+  },
+  mint: {
+    id: "mint",
+    name: "Мятный нефрит",
+    desc: "Прохладный бирюзово-мятный стиль с чистым неоновым сиянием",
+    dotColor: "#2c6563",
+    surfaceColor: "#1a3837",
+    tokens: {
+      bgPrimary: "#122827",
+      bgSurface: "#1a3837",
+      bgGlassRgb: "30, 58, 56",
+      bgPillRgb: "20, 40, 38",
+      textPrimary: "rgba(240, 255, 253, 0.96)",
+      textSecondary: "rgba(178, 235, 230, 0.72)",
+      textMuted: "rgba(138, 200, 195, 0.45)",
+      border: "rgba(94, 234, 212, 0.13)",
+      borderHover: "rgba(94, 234, 212, 0.25)",
+    },
+    recommendedAccents: ["#5eead4", "#14B8A6", "#00E5FF", "#6ee7b7"],
+  },
+  ruby: {
+    id: "ruby",
+    name: "Коралловый закат",
+    desc: "Тёплый пастельно-коралловый закатный стиль с мягким гармоничным светом",
+    dotColor: "#6b3240",
+    surfaceColor: "#341b22",
+    tokens: {
+      bgPrimary: "#241318",
+      bgSurface: "#341b22",
+      bgGlassRgb: "54, 30, 38",
+      bgPillRgb: "38, 20, 25",
+      textPrimary: "rgba(255, 245, 247, 0.96)",
+      textSecondary: "rgba(248, 205, 214, 0.72)",
+      textMuted: "rgba(220, 168, 178, 0.45)",
+      border: "rgba(251, 113, 133, 0.13)",
+      borderHover: "rgba(251, 113, 133, 0.25)",
+    },
+    recommendedAccents: ["#FF2A5F", "#fca5a5", "#fdba74", "#EC4899"],
+  },
+  indigo: {
+    id: "indigo",
+    name: "Лавандовый индиго",
+    desc: "Элегантный лавандово-индиговый вечерний стиль с бархатной глубиной",
+    dotColor: "#43477e",
+    surfaceColor: "#242646",
+    tokens: {
+      bgPrimary: "#181932",
+      bgSurface: "#242646",
+      bgGlassRgb: "40, 42, 74",
+      bgPillRgb: "26, 28, 50",
+      textPrimary: "rgba(248, 248, 255, 0.96)",
+      textSecondary: "rgba(210, 210, 248, 0.72)",
+      textMuted: "rgba(170, 170, 222, 0.45)",
+      border: "rgba(129, 140, 248, 0.13)",
+      borderHover: "rgba(129, 140, 248, 0.25)",
+    },
+    recommendedAccents: ["#6366F1", "#c4b5fd", "#8B5CF6", "#00E5FF"],
   },
 };
 
@@ -256,7 +336,6 @@ export function savePlayerTheme(themeId: string): void {
   }
   applyPlayerTheme(validId);
   window.dispatchEvent(new CustomEvent("l-mpv-player-theme-changed", { detail: validId }));
-  window.dispatchEvent(new Event("l-mpv-settings-changed"));
 }
 
 // ─── Пресеты акцентных цветов ───────────────────────────────────────────────

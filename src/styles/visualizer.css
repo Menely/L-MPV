@@ -51,11 +51,10 @@
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: 0 0 10px var(--accent-glow, rgba(127, 199, 255, 0.2));
-  transform: translateY(-1px);
 }
 
 .audio-visualizer--toolbar:active {
-  transform: scale(0.96);
+  filter: brightness(0.92);
 }
 
 /* Безрамочный КРУПНЫЙ вид для радиальных и плазменных визуализаторов в тулбаре */
@@ -79,7 +78,6 @@
   background: transparent;
   border-color: transparent;
   box-shadow: none;
-  transform: translateY(-1px);
 }
 
 

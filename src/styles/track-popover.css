@@ -19,6 +19,7 @@
   gap: 4px;
   animation: popoverSpringIn var(--t-spring) var(--ease-spring-smooth);
   transform-origin: bottom center;
+  transition: border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 .track-popover--speed {
@@ -81,6 +82,7 @@
   transition: transform var(--t-spring) var(--ease-spring-smooth),
               background var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth),
               color var(--t-fast) var(--ease-smooth);
   transform: translateX(0);
 }

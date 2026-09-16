@@ -335,3 +335,94 @@ export function saveUiOpacity(opacity: number): void {
   window.dispatchEvent(new CustomEvent("l-mpv-ui-opacity-changed", { detail: clamped }));
   window.dispatchEvent(new Event("l-mpv-settings-changed"));
 }
+
+// ─── Шрифтовая экосистема интерфейса (UI Font) ───────────────────────────────
+
+export type UiFontId = "inter" | "system" | "outfit" | "jakarta" | "manrope" | "mono";
+
+export interface UiFontPreset {
+  id: UiFontId;
+  label: string;
+  desc: string;
+  fontFamilyVar: string;
+}
+
+export const UI_FONT_PRESETS: UiFontPreset[] = [
+  {
+    id: "inter",
+    label: "Inter",
+    desc: "Строгий эталон читаемости и нейтральности для любых интерфейсов",
+    fontFamilyVar: "var(--font-inter)",
+  },
+  {
+    id: "system",
+    label: "Системный",
+    desc: "Нативный системный шрифт интерфейса (Segoe UI / San Francisco)",
+    fontFamilyVar: "var(--font-system)",
+  },
+  {
+    id: "outfit",
+    label: "Outfit",
+    desc: "Футуристичный, технологичный и геометрический стиль",
+    fontFamilyVar: "var(--font-outfit)",
+  },
+  {
+    id: "jakarta",
+    label: "Plus Jakarta Sans",
+    desc: "Утончённый, плавный и мягкий нео-гротеск европейского стиля",
+    fontFamilyVar: "var(--font-jakarta)",
+  },
+  {
+    id: "manrope",
+    label: "Manrope",
+    desc: "Сбалансированный современный полугеометрический гротеск",
+    fontFamilyVar: "var(--font-manrope)",
+  },
+  {
+    id: "mono",
+    label: "JetBrains Mono",
+    desc: "Прецизионный моноширинный шрифт для точных цифровых данных",
+    fontFamilyVar: "var(--font-mono)",
+  },
+];
+
+export const UI_FONT_STORAGE_KEY = "l-mpv-ui-font";
+
+/**
+ * Получить сохранённый идентификатор шрифта интерфейса.
+ */
+export function getSavedUiFont(): UiFontId {
+  try {
+    const raw = localStorage.getItem(UI_FONT_STORAGE_KEY) as UiFontId;
+    if (raw && UI_FONT_PRESETS.some((f) => f.id === raw)) {
+      return raw;
+    }
+  } catch (e) {
+    console.error("Ошибка загрузки шрифта UI из localStorage:", e);
+  }
+  return "inter";
+}
+
+/**
+ * Применить выбранный шрифт к CSS-переменной --active-font на :root.
+ */
+export function applyUiFont(fontId: UiFontId): void {
+  const preset = UI_FONT_PRESETS.find((f) => f.id === fontId) || UI_FONT_PRESETS[0];
+  document.documentElement.style.setProperty("--active-font", preset.fontFamilyVar);
+  document.documentElement.setAttribute("data-ui-font", fontId);
+}
+
+/**
+ * Сохранить и мгновенно применить шрифт интерфейса.
+ */
+export function saveUiFont(fontId: UiFontId): void {
+  try {
+    localStorage.setItem(UI_FONT_STORAGE_KEY, fontId);
+  } catch (e) {
+    console.error("Ошибка сохранения шрифта UI в localStorage:", e);
+  }
+  applyUiFont(fontId);
+  window.dispatchEvent(new CustomEvent("l-mpv-ui-font-changed", { detail: fontId }));
+  window.dispatchEvent(new Event("l-mpv-settings-changed"));
+}
+

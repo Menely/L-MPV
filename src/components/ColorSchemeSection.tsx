@@ -98,7 +98,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
     const handleThemeChanged = (e: Event) => {
       const customEvent = e as CustomEvent<PlayerThemeId>;
       if (customEvent.detail) {
-        setPlayerTheme(customEvent.detail);
+        setPlayerTheme((prev) => (prev !== customEvent.detail ? customEvent.detail : prev));
       }
     };
     const handleGlowChanged = (e: Event) => {
@@ -321,16 +321,12 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
             <button
               type="button"
               onClick={() => handleSelectTheme(DEFAULT_PLAYER_THEME)}
-              className="control-btn"
+              className="btn btn--secondary btn--sm"
               title="Сбросить на стандартную тему (Тёмный графит)"
               style={{
-                width: "auto",
                 height: 22,
-                padding: "0 6px",
+                padding: "0 8px",
                 borderRadius: "var(--radius-sm)",
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid var(--border)",
-                color: "var(--text-secondary)",
                 display: "flex",
                 alignItems: "center",
                 gap: 4,
@@ -344,12 +340,15 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
           </div>
         </div>
 
-        {/* Сетка 7 тем плеера */}
+        {/* Палитра 11 тем оформления плеера (в один ряд с выкатными pill-метками) */}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+            display: "flex",
+            flexWrap: "nowrap",
+            alignItems: "center",
             gap: 6,
+            padding: "6px 2px",
+            overflow: "visible",
           }}
         >
           {(Object.keys(PLAYER_THEMES) as PlayerThemeId[]).map((themeKey) => {
@@ -360,23 +359,28 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 key={themeKey}
                 type="button"
                 onClick={() => handleSelectTheme(themeKey)}
+                title={theme.name}
                 style={{
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
-                  gap: 8,
-                  padding: "6px 8px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "none",
+                  height: 34,
+                  padding: isSel ? "0 12px 0 5px" : "0 5px",
+                  borderRadius: "var(--radius-pill)",
+                  border: isSel
+                    ? "1.5px solid var(--accent)"
+                    : "1.5px solid rgba(255, 255, 255, 0.10)",
                   cursor: "pointer",
                   background: isSel
-                    ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
-                    : "rgba(255, 255, 255, 0.03)",
+                    ? "rgba(var(--accent-rgb, 127, 199, 255), 0.14)"
+                    : "rgba(255, 255, 255, 0.04)",
                   color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                   boxShadow: isSel
-                    ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                    ? "0 0 10px var(--accent-glow), inset 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.08)"
                     : "none",
-                  transition: "all var(--t-fast) var(--ease-smooth)",
-                  textAlign: "left",
+                  transition:
+                    "background var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth), padding 0.25s cubic-bezier(0.2, 1.15, 0.3, 1)",
+                  outline: "none",
+                  flexShrink: 0,
                 }}
               >
                 {/* Индикатор цвета фона темы */}
@@ -386,20 +390,43 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                     height: 20,
                     borderRadius: "50%",
                     background: theme.dotColor,
-                    border: "1.5px solid rgba(255, 255, 255, 0.20)",
-                    boxShadow: "inset 0 0 4px rgba(0, 0, 0, 0.60)",
+                    border: isSel
+                      ? "1.5px solid rgba(255, 255, 255, 0.40)"
+                      : "1.5px solid rgba(255, 255, 255, 0.22)",
+                    boxShadow: isSel
+                      ? "0 0 8px rgba(255, 255, 255, 0.25), 0 1px 4px rgba(0, 0, 0, 0.45)"
+                      : "0 1px 3px rgba(0, 0, 0, 0.35)",
                     flexShrink: 0,
+                    transition:
+                      "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                   }}
                 />
-                <div style={{ display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-                  <span style={{ fontSize: "0.74rem", fontWeight: 600, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>
+                {/* Выезжающая плашка с названием темы */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    maxWidth: isSel ? 140 : 0,
+                    opacity: isSel ? 1 : 0,
+                    marginLeft: isSel ? 7 : 0,
+                    transform: isSel ? "translateX(0)" : "translateX(-6px)",
+                    transition:
+                      "max-width 0.25s cubic-bezier(0.2, 1.15, 0.3, 1), opacity 0.2s ease, transform 0.25s cubic-bezier(0.2, 1.15, 0.3, 1), margin-left 0.25s cubic-bezier(0.2, 1.15, 0.3, 1)",
+                    pointerEvents: isSel ? "auto" : "none",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "0.76rem",
+                      fontWeight: 600,
+                      color: "var(--text-primary)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {theme.name}
                   </span>
-                  {theme.badge && (
-                    <span style={{ fontSize: "0.64rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
-                      {theme.badge}
-                    </span>
-                  )}
                 </div>
               </button>
             );
@@ -441,7 +468,9 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               </div>
               <div className="color-column-card__grid">
                 {presets.map((hex) => {
-                  const isRec = PLAYER_THEMES[playerTheme]?.recommendedAccents?.includes(hex);
+                  const isRec = PLAYER_THEMES[playerTheme]?.recommendedAccents?.some(
+                    (recHex) => recHex.toLowerCase() === hex.toLowerCase()
+                  );
                   return (
                     <button
                       key={hex}

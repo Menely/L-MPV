@@ -19,6 +19,8 @@ import {
   getSavedUiScale,
   applyUiOpacity,
   getSavedUiOpacity,
+  applyUiFont,
+  getSavedUiFont,
 } from "./utils/uiThemeUtils";
 
 // Безопасное определение текущего окна Tauri (главное окно плеера или отдельное окно MediaInfo)
@@ -51,8 +53,22 @@ if (typeof document !== "undefined") {
     localStorage.setItem("l-mpv-upscale-mode", "off");
   }
 
-  // Применение темы оформления плеера при старте
-  applyPlayerTheme(getSavedPlayerTheme());
+  // Применение настройки анимаций (по умолчанию включено)
+  const syncAnimationsSetting = () => {
+    const isOff = localStorage.getItem("l-mpv-animations-enabled") === "false";
+    document.documentElement.classList.toggle("no-animations", isOff);
+  };
+
+  const syncAllVisualSettings = () => {
+    syncAnimationsSetting();
+    applyPlayerTheme(getSavedPlayerTheme());
+    const curRadius = getSavedUiRadius();
+    applyUiRadius(curRadius.level, curRadius.value);
+    const curScale = getSavedUiScale();
+    applyUiScale(curScale.mode, curScale.value);
+    applyUiOpacity(getSavedUiOpacity());
+    applyUiFont(getSavedUiFont());
+  };
 
   // Применение акцентного цвета и интенсивности свечения при старте
   const savedAccent = localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
@@ -67,29 +83,8 @@ if (typeof document !== "undefined") {
     applyAccentColor(savedAccent);
   }
 
-  // Применение скругления интерфейса, масштаба и прозрачности при старте
-  const initialRadius = getSavedUiRadius();
-  applyUiRadius(initialRadius.level, initialRadius.value);
-  const initialScale = getSavedUiScale();
-  applyUiScale(initialScale.mode, initialScale.value);
-  applyUiOpacity(getSavedUiOpacity());
-
-  // Применение настройки анимаций (по умолчанию включено)
-  const syncAnimationsSetting = () => {
-    const isOff = localStorage.getItem("l-mpv-animations-enabled") === "false";
-    document.documentElement.classList.toggle("no-animations", isOff);
-  };
-  syncAnimationsSetting();
-
-  const syncAllVisualSettings = () => {
-    syncAnimationsSetting();
-    applyPlayerTheme(getSavedPlayerTheme());
-    const curRadius = getSavedUiRadius();
-    applyUiRadius(curRadius.level, curRadius.value);
-    const curScale = getSavedUiScale();
-    applyUiScale(curScale.mode, curScale.value);
-    applyUiOpacity(getSavedUiOpacity());
-  };
+  // Единовременная инициализация всех визуальных параметров оформления при старте
+  syncAllVisualSettings();
 
   window.addEventListener("storage", (e) => {
     if (e.key === "l-mpv-animations-enabled") {
@@ -111,6 +106,16 @@ if (typeof document !== "undefined") {
     }
     if (e.key === "l-mpv-ui-opacity") {
       applyUiOpacity(getSavedUiOpacity());
+    }
+    if (e.key === "l-mpv-ui-font") {
+      applyUiFont(getSavedUiFont());
+    }
+  });
+
+  window.addEventListener("l-mpv-player-theme-changed", (e: Event) => {
+    const detail = (e as CustomEvent<string>).detail;
+    if (detail) {
+      applyPlayerTheme(detail);
     }
   });
   window.addEventListener("l-mpv-settings-changed", syncAllVisualSettings);

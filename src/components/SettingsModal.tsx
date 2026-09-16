@@ -65,6 +65,7 @@ import {
   Film,
   Square,
   Maximize2,
+  Type,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -93,6 +94,10 @@ import {
   saveUiScale,
   getSavedUiOpacity,
   saveUiOpacity,
+  UiFontId,
+  UI_FONT_PRESETS,
+  getSavedUiFont,
+  saveUiFont,
 } from "../utils/uiThemeUtils";
 
 interface AmbientSettings {
@@ -177,6 +182,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const ignoreClickUntilRef = useRef<number>(0);
   const [uiRadius, setUiRadius] = useState<{ level: UiRadiusLevel; value: number }>(() => getSavedUiRadius());
   const [uiScale, setUiScale] = useState<{ mode: UiScaleMode; value: number }>(() => getSavedUiScale());
+  const [uiFont, setUiFont] = useState<UiFontId>(() => getSavedUiFont());
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "upscaling" | "hotkeys" | "integration">("general");
 
   // Навигация стрелками влево и вправо для переключения категорий настроек
@@ -319,13 +325,21 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         setUiOpacity(customEvent.detail);
       }
     };
+    const handleFontChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<UiFontId>;
+      if (customEvent.detail) {
+        setUiFont(customEvent.detail);
+      }
+    };
     window.addEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
     window.addEventListener("l-mpv-ui-scale-changed", handleScaleChanged);
     window.addEventListener("l-mpv-ui-opacity-changed", handleOpacityChanged);
+    window.addEventListener("l-mpv-ui-font-changed", handleFontChanged);
     return () => {
       window.removeEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
       window.removeEventListener("l-mpv-ui-scale-changed", handleScaleChanged);
       window.removeEventListener("l-mpv-ui-opacity-changed", handleOpacityChanged);
+      window.removeEventListener("l-mpv-ui-font-changed", handleFontChanged);
     };
   }, []);
   // По умолчанию все категории свернуты (пустой Set / объект)
@@ -657,16 +671,12 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   />
                   <button
                     onClick={handlePickFolder}
-                    className="control-btn"
+                    className="btn btn--secondary btn--sm"
                     title="Выбрать папку"
                     style={{
-                      width: "auto",
                       height: 38,
                       padding: "0 16px",
                       borderRadius: "var(--radius-md)",
-                      background: "var(--accent-glass)",
-                      border: "1px solid var(--border-pill)",
-                      color: "var(--accent)",
                       fontSize: "0.88rem",
                       fontWeight: 600,
                       gap: 8,
@@ -676,19 +686,12 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   </button>
                   <button
                     onClick={handleResetDefault}
-                    className="control-btn"
+                    className="btn btn--secondary btn--icon"
                     title="Сбросить на значение по умолчанию"
                     style={{
-                      width: "auto",
+                      width: 38,
                       height: 38,
-                      padding: "0 12px",
                       borderRadius: "var(--radius-md)",
-                      background: "rgba(255, 255, 255, 0.05)",
-                      border: "1px solid var(--border)",
-                      color: "var(--text-secondary)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6
                     }}
                   >
                     <RotateCcw size={16} />
@@ -706,6 +709,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
+                    className="ui-checkbox"
                     checked={multiInstance}
                     onChange={async (e) => {
                       const val = e.target.checked;
@@ -716,14 +720,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                         console.error(err);
                       }
                     }}
-                    style={{
-                      width: 18,
-                      height: 18,
-                      accentColor: "var(--accent)",
-                      cursor: "pointer"
-                    }}
                   />
-                  <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
                       Разрешить открытие нескольких копий плеера одновременно
                     </span>
@@ -744,20 +742,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
+                    className="ui-checkbox"
                     checked={saveTracksToVideoDir}
                     onChange={(e) => {
                       const val = e.target.checked;
                       setSaveTracksToVideoDir(val);
                       localStorage.setItem('l-mpv-save-tracks-to-video-dir', val ? 'true' : 'false');
                     }}
-                    style={{
-                      width: 18,
-                      height: 18,
-                      accentColor: "var(--accent)",
-                      cursor: "pointer"
-                    }}
                   />
-                  <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
                       Скачивать дорожки в ту же папку, где находится видео
                     </span>
@@ -778,6 +771,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
+                    className="ui-checkbox"
                     checked={autoLoadTracks}
                     onChange={async (e) => {
                       const val = e.target.checked;
@@ -788,14 +782,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                         console.error("Ошибка сохранения настройки auto_load_tracks:", err);
                       }
                     }}
-                    style={{
-                      width: 18,
-                      height: 18,
-                      accentColor: "var(--accent)",
-                      cursor: "pointer"
-                    }}
                   />
-                  <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
                       Автоматически подхватывать внешние аудиодорожки и субтитры
                     </span>
@@ -809,6 +797,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10, marginLeft: 28, cursor: "pointer", userSelect: "none" }}>
                     <input
                       type="checkbox"
+                      className="ui-checkbox"
                       checked={autoSelectExternalAudio}
                       onChange={async (e) => {
                         const val = e.target.checked;
@@ -819,14 +808,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           console.error("Ошибка сохранения настройки auto_select_external_audio:", err);
                         }
                       }}
-                      style={{
-                        width: 18,
-                        height: 18,
-                        accentColor: "var(--accent)",
-                        cursor: "pointer"
-                      }}
                     />
-                    <div style={{ display: "flex", flexDirection: "column" }}>
+                    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                       <span style={{ fontSize: "0.86rem", color: "var(--text-primary)", fontWeight: 500 }}>
                         Автоматически переключать звук на подхваченную внешнюю аудиодорожку
                       </span>
@@ -848,6 +831,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
+                    className="ui-checkbox"
                     checked={hotloadEnabled}
                     onChange={(e) => {
                       const val = e.target.checked;
@@ -855,14 +839,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       localStorage.setItem('l-mpv-hotload-enabled', val ? 'true' : 'false');
                       window.dispatchEvent(new Event('l-mpv-settings-changed'));
                     }}
-                    style={{
-                      width: 18,
-                      height: 18,
-                      accentColor: "var(--accent)",
-                      cursor: "pointer"
-                    }}
                   />
-                  <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
                       Подключать перетаскиваемые файлы к видео на лету (Хотлоад)
                     </span>
@@ -1018,6 +996,16 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       >
                         Прозрачность: {Math.round(uiOpacity * 100)}%
                       </span>
+                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
+                      <span
+                        style={{
+                          fontSize: "0.80rem",
+                          fontWeight: 700,
+                          color: "var(--accent)",
+                        }}
+                      >
+                        Шрифт: {UI_FONT_PRESETS.find((f) => f.id === uiFont)?.label || "Inter"}
+                      </span>
                     </div>
                     <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", lineHeight: 1.25 }}>
                       Живой отклик нижней панели управления, кнопок плеера, диалогов и контекстных меню
@@ -1102,13 +1090,9 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     marginBottom: 10,
                   };
                   const resetBtnStyle: React.CSSProperties = {
-                    width: "auto",
                     height: 22,
-                    padding: "0 6px",
+                    padding: "0 8px",
                     borderRadius: "var(--radius-sm)",
-                    background: "rgba(255, 255, 255, 0.05)",
-                    border: "1px solid var(--border)",
-                    color: "var(--text-secondary)",
                     display: "flex",
                     alignItems: "center",
                     gap: 4,
@@ -1154,7 +1138,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 setUiRadius({ level: "default", value: 16 });
                                 saveUiRadius("default", 16);
                               }}
-                              className="control-btn"
+                              className="btn btn--secondary btn--sm"
                               title="Сбросить на стандартное скругление (16 px)"
                               style={resetBtnStyle}
                             >
@@ -1246,7 +1230,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 setUiScale({ mode: "auto", value: 1.0 });
                                 saveUiScale("auto", 1.0);
                               }}
-                              className="control-btn"
+                              className="btn btn--secondary btn--sm"
                               title="Сбросить на автоматический масштаб (Стандарт)"
                               style={resetBtnStyle}
                             >
@@ -1327,7 +1311,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 setUiOpacity(0.88);
                                 saveUiOpacity(0.88);
                               }}
-                              className="control-btn"
+                              className="btn btn--secondary btn--sm"
                               title="Сбросить на стандартную прозрачность (88%)"
                               style={resetBtnStyle}
                             >
@@ -1360,6 +1344,73 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           </span>
                         </div>
                       </div>
+
+                      {/* ── Блок 4: Шрифт интерфейса (UI Font) ── */}
+                      <div style={{ ...cardStyle, marginBottom: 0, marginTop: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Type size={14} style={{ color: "var(--accent)" }} />
+                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                              Шрифт интерфейса (UI Font)
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+                              {UI_FONT_PRESETS.find((f) => f.id === uiFont)?.label || "Inter"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUiFont("inter");
+                                saveUiFont("inter");
+                              }}
+                              className="btn btn--secondary btn--sm"
+                              title="Сбросить на стандартный шрифт (Inter)"
+                              style={resetBtnStyle}
+                            >
+                              <RotateCcw size={11} />
+                              <span>Inter (Стандарт)</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 6 кнопок пресетов шрифтов в 1 ровный ряд */}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
+                          {UI_FONT_PRESETS.map((fontPreset) => {
+                            const isSel = uiFont === fontPreset.id;
+                            return (
+                              <button
+                                key={fontPreset.id}
+                                type="button"
+                                onClick={() => {
+                                  setUiFont(fontPreset.id);
+                                  saveUiFont(fontPreset.id);
+                                }}
+                                style={{
+                                  ...btnStyle(isSel, "10px 4px"),
+                                  fontFamily: `var(--font-${fontPreset.id})`,
+                                }}
+                                title={`${fontPreset.label} — ${fontPreset.desc}`}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: "1.1rem",
+                                    fontWeight: 700,
+                                    lineHeight: 1,
+                                    marginBottom: 4,
+                                    color: isSel ? "var(--accent)" : "var(--text-primary)",
+                                  }}
+                                >
+                                  Aa
+                                </span>
+                                <span style={{ fontSize: "0.75rem", fontWeight: 600, whiteSpace: "nowrap" }}>
+                                  {fontPreset.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </>
                   );
                 })()}
@@ -1376,6 +1427,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", userSelect: "none" }}>
                     <input
                       type="checkbox"
+                      className="ui-checkbox"
                       checked={animationsEnabled}
                       onChange={(e) => {
                         const val = e.target.checked;
@@ -1387,12 +1439,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           document.documentElement.classList.add('no-animations');
                         }
                         window.dispatchEvent(new Event('l-mpv-settings-changed'));
-                      }}
-                      style={{
-                        width: 18,
-                        height: 18,
-                        accentColor: "var(--accent)",
-                        cursor: "pointer"
                       }}
                     />
                     <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
@@ -1415,18 +1461,13 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
+                    className="ui-checkbox"
                     checked={showTrackNames}
                     onChange={(e) => {
                       const val = e.target.checked;
                       setShowTrackNames(val);
                       localStorage.setItem('l-mpv-show-track-names', val ? 'true' : 'false');
                       window.dispatchEvent(new Event('l-mpv-settings-changed'));
-                    }}
-                    style={{
-                      width: 18,
-                      height: 18,
-                      accentColor: "var(--accent)",
-                      cursor: "pointer"
                     }}
                   />
                   <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
@@ -1474,6 +1515,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       <label key={btn.id} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 24, height: 24, cursor: "pointer", userSelect: "none", boxSizing: "border-box" }}>
                         <input
                           type="checkbox"
+                          className="ui-checkbox"
                           checked={isChecked}
                           onChange={(e) => {
                             const val = e.target.checked;
@@ -1481,12 +1523,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                             setVisibleButtons(updated);
                             localStorage.setItem('l-mpv-visible-buttons', JSON.stringify(updated));
                             window.dispatchEvent(new Event('l-mpv-settings-changed'));
-                          }}
-                          style={{
-                            width: 16,
-                            height: 16,
-                            accentColor: "var(--accent)",
-                            cursor: "pointer"
                           }}
                         />
                         <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500, lineHeight: 1 }}>
@@ -1627,18 +1663,12 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           </span>
                           <button
                             onClick={() => updateAmbient({ blur_radius: 100 }, true)}
-                            className="control-btn"
+                            className="btn btn--secondary btn--icon btn--sm"
                             title="Сбросить на 100px"
                             style={{
                               width: 24,
                               height: 24,
                               borderRadius: "var(--radius-sm)",
-                              background: "rgba(255, 255, 255, 0.05)",
-                              border: "1px solid var(--border)",
-                              color: "var(--text-secondary)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
                             }}
                           >
                             <RotateCcw size={12} />
@@ -2210,7 +2240,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       style={{
                         fontSize: "0.75rem",
                         padding: "2px 8px",
-                        borderRadius: "10px",
+                        borderRadius: "var(--radius-sm)",
                         background: isContextMenuRegistered ? "rgba(34, 197, 94, 0.15)" : "rgba(148, 163, 184, 0.15)",
                         color: isContextMenuRegistered ? "#4ade80" : "var(--text-muted)",
                         fontWeight: 500,
@@ -2343,7 +2373,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   padding: "1px 2px",
                   cursor: "pointer",
                   color: "var(--text-muted)",
-                  borderRadius: "6px",
+                  borderRadius: "var(--radius-sm)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -2364,7 +2394,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   padding: "1px 2px",
                   cursor: "pointer",
                   color: "var(--text-muted)",
-                  borderRadius: "6px",
+                  borderRadius: "var(--radius-sm)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",

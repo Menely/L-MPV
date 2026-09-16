@@ -206,13 +206,14 @@ const VisualizerPreviewCard: React.FC<{ config: VisualizerConfig; isVisible: boo
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
           border: "1px solid var(--border-pill)",
-          borderRadius: "12px",
+          borderRadius: "var(--radius-controls, 16px)",
           padding: "8px 14px 10px",
           boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
           width: "210px",
           flexShrink: 0,
           gap: 6,
           boxSizing: "border-box",
+          transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
         }}
       >
         {/* Расположение 1: Над таймлайном */}
@@ -221,7 +222,7 @@ const VisualizerPreviewCard: React.FC<{ config: VisualizerConfig; isVisible: boo
             style={{
               width: "100%",
               height: `${previewHeight}px`,
-              borderRadius: "4px",
+              borderRadius: "var(--radius-xs, 4px)",
               overflow: "hidden",
               display: "flex",
             }}
@@ -238,7 +239,7 @@ const VisualizerPreviewCard: React.FC<{ config: VisualizerConfig; isVisible: boo
               width: "100%",
               height: "18px",
               background: "rgba(255, 255, 255, 0.08)",
-              borderRadius: "4px",
+              borderRadius: "var(--radius-xs, 4px)",
               overflow: "hidden",
             }}
           >
@@ -409,7 +410,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
             style={{
               fontSize: "0.72rem",
               padding: "2px 8px",
-              borderRadius: "10px",
+              borderRadius: "var(--radius-sm)",
               background: "var(--accent-glow, rgba(127, 199, 255, 0.2))",
               color: "var(--accent, #7fc7ff)",
               fontWeight: 600,
@@ -427,7 +428,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
             style={{
               fontSize: "0.72rem",
               padding: "2px 8px",
-              borderRadius: "10px",
+              borderRadius: "var(--radius-sm)",
               background: "rgba(255, 255, 255, 0.06)",
               color: "var(--text-muted)",
               fontWeight: 500,
@@ -451,14 +452,9 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
         <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", userSelect: "none" }}>
           <input
             type="checkbox"
+            className="ui-checkbox"
             checked={visualizerConfig.enabled}
             onChange={(e) => updateVisualizer({ enabled: e.target.checked })}
-            style={{
-              width: 18,
-              height: 18,
-              accentColor: "var(--accent)",
-              cursor: "pointer",
-            }}
           />
           <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
             Включить аудио-визуалайзер
@@ -628,16 +624,12 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                   <button
                     type="button"
                     onClick={() => updateVisualizer({ height: 22 })}
-                    className="control-btn"
+                    className="btn btn--secondary btn--sm"
                     title="Сбросить высоту по умолчанию (22px)"
                     style={{
-                      width: "auto",
                       height: 26,
                       padding: "0 8px",
-                      borderRadius: "var(--radius-md)",
-                      background: "rgba(255, 255, 255, 0.05)",
-                      border: "1px solid var(--border)",
-                      color: "var(--text-secondary)",
+                      borderRadius: "var(--radius-sm)",
                       display: "flex",
                       alignItems: "center",
                       gap: 4,

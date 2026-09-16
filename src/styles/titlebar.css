@@ -97,6 +97,7 @@
   border-radius: var(--radius-sm);
   transition: transform var(--t-spring) var(--ease-spring-bounce),
               background var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth),
               color var(--t-fast) var(--ease-smooth);
 }
 

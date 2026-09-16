@@ -56,7 +56,8 @@
   border-radius: var(--radius-sm);
   transition: transform var(--t-spring) var(--ease-spring-bounce),
               color var(--t-fast) var(--ease-smooth),
-              background var(--t-fast) var(--ease-smooth);
+              background var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 .side-panel__close:hover {
@@ -90,6 +91,7 @@
   text-align: left;
   transition: transform var(--t-spring) var(--ease-spring-smooth),
               background var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth),
               color var(--t-fast) var(--ease-smooth);
   transform: translateX(0);
 }

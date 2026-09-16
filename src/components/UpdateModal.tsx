@@ -52,20 +52,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
   const [isDone, setIsDone] = useState(false);
 
   useEffect(() => {
-    let unlistenFn: (() => void) | null = null;
-
-    listen<UpdateProgress>("update-download-progress", (event) => {
+    const unlistenPromise = listen<UpdateProgress>("update-download-progress", (event) => {
       setProgress(Math.min(100, Math.max(0, event.payload.percentage)));
       setDownloadedBytes(event.payload.downloaded);
       setTotalBytes(event.payload.total);
-    }).then((unlisten) => {
-      unlistenFn = unlisten;
     });
 
     return () => {
-      if (unlistenFn) {
-        unlistenFn();
-      }
+      unlistenPromise.then((unlisten) => unlisten && unlisten()).catch(() => {});
     };
   }, []);
 
@@ -121,13 +115,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
         style={{
           width: "460px",
           maxWidth: "92vw",
-          borderRadius: "16px",
+          borderRadius: "var(--radius-lg)",
           background: "linear-gradient(180deg, rgba(26, 28, 35, 0.96) 0%, rgba(18, 19, 24, 0.98) 100%)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px var(--accent-glass, rgba(64, 150, 255, 0.15))",
           overflow: "hidden",
           color: "var(--text, #fff)",
           animation: "updateModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+          transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
         }}
       >
         {/* Шапка модального окна */}
@@ -145,13 +140,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               style={{
                 width: 44,
                 height: 44,
-                borderRadius: 12,
+                borderRadius: "var(--radius-md)",
                 background: "linear-gradient(135deg, var(--accent, #3b82f6) 0%, rgba(59, 130, 246, 0.5) 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 boxShadow: "0 4px 15px var(--accent-glass, rgba(59, 130, 246, 0.4))",
                 flexShrink: 0,
+                transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
             >
               <Sparkles size={22} color="#ffffff" />
@@ -189,9 +185,10 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               gap: 12,
               padding: "10px 16px",
               background: "rgba(255, 255, 255, 0.04)",
-              borderRadius: 10,
+              borderRadius: "var(--radius-md)",
               border: "1px solid rgba(255, 255, 255, 0.06)",
               marginBottom: 16,
+              transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
             }}
           >
             <span style={{ fontSize: "0.85rem", color: "var(--text-muted, #9ca3af)" }}>
@@ -234,13 +231,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 overflowY: "auto",
                 background: "rgba(0, 0, 0, 0.3)",
                 border: "1px solid rgba(255, 255, 255, 0.06)",
-                borderRadius: 8,
+                borderRadius: "var(--radius-sm)",
                 padding: "10px 14px",
                 fontSize: "0.84rem",
                 lineHeight: "1.5",
                 color: "var(--text-secondary, #e5e7eb)",
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
+                transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
             >
               {updateInfo.release_notes && updateInfo.release_notes.trim()
@@ -259,10 +257,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 padding: "10px 14px",
                 background: "rgba(239, 68, 68, 0.15)",
                 border: "1px solid rgba(239, 68, 68, 0.3)",
-                borderRadius: 8,
+                borderRadius: "var(--radius-sm)",
                 color: "#fca5a5",
                 fontSize: "0.82rem",
                 marginBottom: 16,
+                transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
             >
               <AlertCircle size={18} style={{ flexShrink: 0 }} />
@@ -296,10 +295,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 style={{
                   width: "100%",
                   height: 8,
-                  borderRadius: 4,
+                  borderRadius: "var(--radius-xs)",
                   background: "rgba(255, 255, 255, 0.08)",
                   overflow: "hidden",
                   position: "relative",
+                  transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
                 }}
               >
                 <div
@@ -307,8 +307,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                     width: `${progress}%`,
                     height: "100%",
                     background: "linear-gradient(90deg, var(--accent, #3b82f6) 0%, #60a5fa 100%)",
-                    borderRadius: 4,
-                    transition: "width 0.2s ease-out",
+                    borderRadius: "var(--radius-xs)",
+                    transition: "width 0.2s ease-out, border-radius var(--t-spring) var(--ease-spring-smooth)",
                     boxShadow: "0 0 10px var(--accent, rgba(59, 130, 246, 0.6))",
                   }}
                 />
@@ -345,14 +345,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               onClick={handlePostpone}
               style={{
                 padding: "8px 18px",
-                borderRadius: 8,
+                borderRadius: "var(--radius-sm)",
                 background: "rgba(255, 255, 255, 0.06)",
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 color: "var(--text-secondary, #d1d5db)",
                 fontSize: "0.85rem",
                 fontWeight: 500,
                 cursor: "pointer",
-                transition: "all 0.15s ease",
+                transition: "all 0.15s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
               className="hover-bright"
             >
@@ -365,7 +365,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             disabled={isDownloading}
             style={{
               padding: "8px 22px",
-              borderRadius: 8,
+              borderRadius: "var(--radius-sm)",
               background: isDownloading
                 ? "rgba(59, 130, 246, 0.4)"
                 : "linear-gradient(135deg, var(--accent, #3b82f6) 0%, var(--accent-dim, #2563eb) 100%)",
@@ -381,7 +381,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               boxShadow: isDownloading
                 ? "none"
                 : "0 4px 14px var(--accent-glow, rgba(59, 130, 246, 0.35))",
-              transition: "all 0.15s ease",
+              transition: "all 0.15s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
             }}
             className={!isDownloading ? "hover-scale" : ""}
           >

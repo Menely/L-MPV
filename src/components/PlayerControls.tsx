@@ -513,8 +513,11 @@ export function PlayerControls({
         {/* Аудио-визуалайзер над таймлайном */}
         <AudioVisualizer placement="above_timeline" />
 
-        {/* Таймлайн */}
-        <Timeline />
+        {/* Строка таймлайна со временем воспроизведения справа */}
+        <div className="timeline-row">
+          <Timeline />
+          <TimeDisplay />
+        </div>
 
         {/* Кнопки управления */}
         <div className="controls-row">
@@ -611,8 +614,6 @@ export function PlayerControls({
                 {Math.round(volume)}%
               </span>
             </div>
-            
-            <TimeDisplay />
 
             {/* Компактный аудио-визуалайзер в тулбаре */}
             <AudioVisualizer placement="toolbar" />

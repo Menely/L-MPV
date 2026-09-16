@@ -20,6 +20,7 @@
   overflow: hidden;
   animation: mediainfoSpringIn var(--t-spring) var(--ease-spring-smooth);
   transform-origin: center center;
+  transition: border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 @keyframes mediainfoSpringIn {
@@ -128,9 +129,10 @@
   padding: 0;
   width: 18px;
   height: 18px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs, 3px);
   line-height: 1;
-  transition: color var(--t-fast) var(--ease-smooth);
+  transition: color var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 .mediainfo-floating-window__search-clear:hover {
@@ -194,7 +196,7 @@
 .mediainfo-floating-window__line--match {
   background: rgba(255, 220, 100, 0.22);
   color: #fff;
-  border-radius: 2px;
+  border-radius: var(--radius-xs, 2px);
 }
 
 /* ─── Универсальные секции и категории MediaInfo ──── */

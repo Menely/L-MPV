@@ -144,8 +144,7 @@ export const UpscalingSettingsSection: React.FC = () => {
     isMountedRef.current = true;
     refreshStatus();
 
-    let unlistenProgress: (() => void) | null = null;
-    listen<DownloadProgressPayload>("upscale-download-progress", (event) => {
+    const progressPromise = listen<DownloadProgressPayload>("upscale-download-progress", (event) => {
       if (!isMountedRef.current) return;
       const payload = event.payload;
       setDownloadProgress(payload);
@@ -187,12 +186,9 @@ export const UpscalingSettingsSection: React.FC = () => {
           }
         }, 4000);
       }
-    }).then((fn) => {
-      unlistenProgress = fn;
     });
 
-    let unlistenCompile: (() => void) | null = null;
-    listen<UpscaleCompileProgress>("upscale-compile-progress", (event) => {
+    const compilePromise = listen<UpscaleCompileProgress>("upscale-compile-progress", (event) => {
       if (!isMountedRef.current) return;
       const p = event.payload;
       setCompileProgress((prev) => ({ ...prev, [p.filename]: p }));
@@ -218,8 +214,6 @@ export const UpscalingSettingsSection: React.FC = () => {
           }
         }, 3000);
       }
-    }).then((fn) => {
-      unlistenCompile = fn;
     });
 
     const handleSettingsChanged = () => {
@@ -242,8 +236,8 @@ export const UpscalingSettingsSection: React.FC = () => {
 
     return () => {
       isMountedRef.current = false;
-      if (unlistenProgress) unlistenProgress();
-      if (unlistenCompile) unlistenCompile();
+      progressPromise.then((unlisten) => unlisten && unlisten()).catch(() => {});
+      compilePromise.then((unlisten) => unlisten && unlisten()).catch(() => {});
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
       if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
       Object.values(compileTimersRef.current).forEach((t) => clearTimeout(t));
@@ -464,17 +458,7 @@ export const UpscalingSettingsSection: React.FC = () => {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* 1. Выбор основного режима работы */}
-      <div
-        style={{
-          background: "rgba(255, 255, 255, 0.03)",
-          border: "1px solid var(--border-pill)",
-          borderRadius: "var(--radius-lg)",
-          padding: "16px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-        }}
-      >
+      <div className="glass-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <h3 style={{ fontSize: "1.05rem", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
@@ -488,22 +472,10 @@ export const UpscalingSettingsSection: React.FC = () => {
           {/* Интерактивная кнопка-тумблер Включен / Выключен */}
           <button
             type="button"
+            className={`btn ${isAiActive ? "btn--primary" : "btn--secondary"}`}
             onClick={() => updateSettings({ mode: isAiActive ? "off" : "ai" })}
             title={isAiActive ? "Нажмите, чтобы выключить апскейлинг" : "Нажмите, чтобы включить апскейлинг"}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "6px 14px",
-              borderRadius: "var(--radius-pill)",
-              fontWeight: 600,
-              fontSize: "0.84rem",
-              background: isAiActive ? "rgba(127, 199, 255, 0.2)" : "rgba(255, 255, 255, 0.06)",
-              color: isAiActive ? "var(--accent)" : "var(--text-muted)",
-              border: `1px solid ${isAiActive ? "var(--accent)" : "var(--border-pill)"}`,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
+            style={{ borderRadius: "var(--radius-pill)", padding: "6px 14px", fontWeight: 600, fontSize: "0.84rem" }}
           >
             <span
               style={{
@@ -538,17 +510,7 @@ export const UpscalingSettingsSection: React.FC = () => {
       />
 
       {/* 3. Универсальная библиотека ONNX-моделей (`models/onnx/`) с биндом клавиш */}
-      <div
-        style={{
-          background: "rgba(255, 255, 255, 0.03)",
-          border: "1px solid var(--border-pill)",
-          borderRadius: "var(--radius-lg)",
-          padding: "16px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
+      <div className="glass-section" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <h3 style={{ fontSize: "1.02rem", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
@@ -562,44 +524,22 @@ export const UpscalingSettingsSection: React.FC = () => {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button
               type="button"
+              className="btn btn--secondary btn--icon"
               onClick={toggleHideModelNames}
               title={
                 hideModelNames
                   ? "Показать названия моделей и имена файлов"
                   : "Скрыть названия моделей и имена файлов (маскировать точками)"
               }
-              style={{
-                padding: "8px 10px",
-                borderRadius: "var(--radius-md)",
-                background: hideModelNames ? "rgba(127, 199, 255, 0.12)" : "rgba(255, 255, 255, 0.06)",
-                border: `1px solid ${hideModelNames ? "var(--accent)" : "var(--border-pill)"}`,
-                color: hideModelNames ? "var(--accent)" : "var(--text-primary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
             >
               {hideModelNames ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
 
             <button
               type="button"
+              className="btn btn--secondary btn--icon"
               onClick={handleOpenModelsFolder}
               title="Открыть папку моделей в Проводнике"
-              style={{
-                padding: "8px 10px",
-                borderRadius: "var(--radius-md)",
-                background: "rgba(255, 255, 255, 0.06)",
-                border: "1px solid var(--border-pill)",
-                color: "var(--text-primary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
             >
               <FolderOpen size={16} />
             </button>
@@ -615,8 +555,9 @@ export const UpscalingSettingsSection: React.FC = () => {
             display: "flex",
             flexDirection: "column",
             gap: 6,
-            marginTop: 4,
-            paddingRight: 4,
+            padding: "5px 6px",
+            margin: "2px -6px 0",
+            boxSizing: "border-box",
           }}
         >
           {loading && !status ? (
@@ -635,17 +576,14 @@ export const UpscalingSettingsSection: React.FC = () => {
                 <div
                   key={model.filename}
                   onClick={() => updateSettings({ active_slot: model.slot, selected_model: model.filename })}
+                  className={`glass-tile glass-tile--clickable ${isSelected ? "glass-tile--active" : ""}`}
                   style={{
                     padding: "10px 14px",
-                    borderRadius: "var(--radius-md)",
-                    background: isSelected ? "rgba(127, 199, 255, 0.12)" : "rgba(0, 0, 0, 0.2)",
-                    border: `1px solid ${isSelected ? "var(--accent)" : "var(--border-pill)"}`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
                     gap: 12,
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
+                    isolation: "isolate",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
@@ -674,7 +612,7 @@ export const UpscalingSettingsSection: React.FC = () => {
                         style={{
                           fontSize: "0.75rem",
                           color: "var(--text-muted)",
-                          fontFamily: "monospace",
+                          fontFamily: "var(--font-mono)",
                           letterSpacing: hideModelNames ? "0.15em" : "normal",
                           marginTop: 1,
                           whiteSpace: "nowrap",
@@ -833,57 +771,18 @@ export const UpscalingSettingsSection: React.FC = () => {
                         return (
                           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <span
+                              className="badge badge--success"
                               title="Движок TensorRT (.engine) уже скомпилирован под разрешение 1080p — включение будет мгновенным"
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 5,
-                                padding: "4px 8px",
-                                borderRadius: "var(--radius-sm)",
-                                background: "rgba(46, 204, 113, 0.12)",
-                                border: "1px solid rgba(46, 204, 113, 0.3)",
-                                color: "#2ecc71",
-                                fontSize: "0.74rem",
-                                fontWeight: 600,
-                                userSelect: "none",
-                              }}
                             >
                               <CheckCircle2 size={13} />
                               1080p готов
                             </span>
                             <button
                               type="button"
+                              className="btn btn--secondary btn--icon btn--sm"
                               onClick={() => handlePrecompileModel(model)}
                               disabled={!!compilingModel}
                               title="Перекомпилировать движок TensorRT под 1080p"
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                padding: "4px 6px",
-                                borderRadius: "var(--radius-sm)",
-                                background: "rgba(255, 255, 255, 0.05)",
-                                border: "1px solid var(--border-pill)",
-                                color: "var(--text-muted)",
-                                fontSize: "0.72rem",
-                                cursor: compilingModel ? "default" : "pointer",
-                                opacity: compilingModel ? 0.4 : 0.8,
-                                transition: "all 0.15s ease",
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!compilingModel) {
-                                  e.currentTarget.style.color = "var(--text-primary)";
-                                  e.currentTarget.style.borderColor = "var(--accent)";
-                                  e.currentTarget.style.opacity = "1";
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!compilingModel) {
-                                  e.currentTarget.style.color = "var(--text-muted)";
-                                  e.currentTarget.style.borderColor = "var(--border-pill)";
-                                  e.currentTarget.style.opacity = "0.8";
-                                }
-                              }}
                             >
                               <RefreshCw size={11} />
                             </button>
@@ -894,36 +793,10 @@ export const UpscalingSettingsSection: React.FC = () => {
                       return (
                         <button
                           type="button"
+                          className="btn btn--secondary btn--sm"
                           onClick={() => handlePrecompileModel(model)}
                           disabled={!!compilingModel}
                           title="Скомпилировать TensorRT движок под 1080p заранее, чтобы при первом запуске не было пауз"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 5,
-                            padding: "4px 10px",
-                            borderRadius: "var(--radius-sm)",
-                            background: "rgba(255, 255, 255, 0.06)",
-                            border: "1px solid var(--border-pill)",
-                            color: "var(--text-secondary)",
-                            fontSize: "0.75rem",
-                            fontWeight: 500,
-                            cursor: compilingModel ? "default" : "pointer",
-                            opacity: compilingModel ? 0.5 : 1,
-                            transition: "all 0.15s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!compilingModel) {
-                              e.currentTarget.style.color = "var(--text-primary)";
-                              e.currentTarget.style.borderColor = "var(--accent)";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!compilingModel) {
-                              e.currentTarget.style.color = "var(--text-secondary)";
-                              e.currentTarget.style.borderColor = "var(--border-pill)";
-                            }
-                          }}
                         >
                           <Zap size={12} color="var(--accent)" />
                           1080p сборка
@@ -937,20 +810,7 @@ export const UpscalingSettingsSection: React.FC = () => {
                       onClick={() => setRecordingActionId(isRecording ? null : actionId)}
                       onKeyDown={(e) => isRecording && handleKeyRecord(e, actionId)}
                       title={isRecording ? "Нажмите желаемую комбинацию клавиш (Esc для отмены)" : "Нажмите для переназначения клавиши активации"}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "4px 10px",
-                        fontSize: "0.78rem",
-                        borderRadius: "var(--radius-sm)",
-                        background: isRecording ? "rgba(127, 199, 255, 0.25)" : "rgba(255, 255, 255, 0.06)",
-                        border: `1px solid ${isRecording ? "var(--accent)" : "var(--border-pill)"}`,
-                        color: isRecording ? "var(--accent)" : bindCodes.length > 0 ? "var(--text-primary)" : "var(--text-muted)",
-                        cursor: "pointer",
-                        outline: "none",
-                        transition: "all 0.15s ease",
-                      }}
+                      className={`kbd-chip ${isRecording ? "kbd-chip--recording" : ""}`}
                     >
                       <Keyboard size={13} />
                       <span>{isRecording ? "Нажмите клавишу..." : displayBind}</span>
@@ -961,16 +821,8 @@ export const UpscalingSettingsSection: React.FC = () => {
                         type="button"
                         onClick={(e) => handleClearHotkey(e, actionId)}
                         title="Сбросить привязанную клавишу"
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          color: "var(--text-muted)",
-                          padding: 4,
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
+                        className="btn btn--ghost btn--icon btn--sm"
+                        style={{ padding: 4 }}
                       >
                         <X size={13} />
                       </button>
