@@ -69,6 +69,7 @@ import {
   MousePointer2,
   Clock,
   PanelBottom,
+  Timer,
 } from "lucide-react";
 import {
   TimeDisplayPosition,
@@ -86,7 +87,6 @@ import {
   ControlBarStyle,
   getSavedControlBarStyle,
   saveControlBarStyle,
-  CONTROL_BAR_STYLE_OPTIONS,
 } from "../utils/controlBarStyleUtils";
 import {
   HOTKEY_ACTIONS,
@@ -1466,13 +1466,10 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <Type size={14} style={{ color: "var(--accent)" }} />
                             <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                              Шрифт интерфейса (UI Font)
+                              Шрифт интерфейса
                             </span>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
-                              {UI_FONT_PRESETS.find((f) => f.id === uiFont)?.label || "Inter"}
-                            </span>
+                          {uiFont !== "inter" && (
                             <button
                               type="button"
                               onClick={() => {
@@ -1481,14 +1478,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                               }}
                               className="btn btn--secondary btn--sm"
                               style={resetBtnStyle}
+                              title="Сбросить на Inter (Стандарт)"
                             >
                               <RotateCcw size={11} />
-                              <span>Inter (Стандарт)</span>
+                              <span>Inter</span>
                             </button>
-                          </div>
+                          )}
                         </div>
 
-                        {/* 6 кнопок пресетов шрифтов в адаптивной сетке */}
+                        {/* 6 кнопок пресетов шрифтов в компактном исполнении */}
                         <div className="font-presets-grid">
                           {UI_FONT_PRESETS.map((fontPreset) => {
                             const isSel = uiFont === fontPreset.id;
@@ -1501,23 +1499,23 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                   saveUiFont(fontPreset.id);
                                 }}
                                 style={{
-                                  ...btnStyle(isSel, "10px 4px"),
+                                  ...btnStyle(isSel, "5px 3px"),
                                   fontFamily: `var(--font-${fontPreset.id})`,
                                 }}
                                 title={`${fontPreset.label} — ${fontPreset.desc}`}
                               >
                                 <span
                                   style={{
-                                    fontSize: "1.1rem",
+                                    fontSize: "0.92rem",
                                     fontWeight: 700,
                                     lineHeight: 1,
-                                    marginBottom: 4,
+                                    marginBottom: 2,
                                     color: isSel ? "var(--accent)" : "var(--text-primary)",
                                   }}
                                 >
                                   Aa
                                 </span>
-                                <span style={{ fontSize: "0.75rem", fontWeight: 600, whiteSpace: "nowrap" }}>
+                                <span style={{ fontSize: "0.72rem", fontWeight: 600, whiteSpace: "nowrap" }}>
                                   {fontPreset.label}
                                 </span>
                               </button>
@@ -1526,77 +1524,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                         </div>
                       </div>
 
-                      {/* ── Блок 5: Расположение времени видео ── */}
-                      <div style={{ ...cardStyle, marginBottom: 0, marginTop: 10 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <Clock size={14} style={{ color: "var(--accent)" }} />
-                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                              Расположение времени видео
-                            </span>
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
-                              {TIME_POSITION_OPTIONS.find((p) => p.id === timePosition)?.label || "Справа от таймлайна"}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setTimePosition("timeline_right");
-                                saveTimePosition("timeline_right");
-                              }}
-                              className="btn btn--secondary btn--sm"
-                              style={resetBtnStyle}
-                            >
-                              <RotateCcw size={11} />
-                              <span>Справа (Стандарт)</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* 3 кнопки пресетов расположения времени в адаптивной сетке */}
-                        <div className="time-pos-presets-grid">
-                          {TIME_POSITION_OPTIONS.map((posOption) => {
-                            const isSel = timePosition === posOption.id;
-                            return (
-                              <button
-                                key={posOption.id}
-                                type="button"
-                                className="time-pos-preset-btn"
-                                onClick={() => {
-                                  setTimePosition(posOption.id);
-                                  saveTimePosition(posOption.id);
-                                }}
-                                style={btnStyle(isSel, "10px 6px")}
-                                title={`${posOption.label} — ${posOption.desc}`}
-                              >
-                                <span
-                                  style={{
-                                    fontSize: "0.78rem",
-                                    fontWeight: 700,
-                                    color: isSel ? "var(--accent)" : "var(--text-primary)",
-                                    textAlign: "center",
-                                  }}
-                                >
-                                  {posOption.label}
-                                </span>
-                                <span
-                                  style={{
-                                    fontSize: "0.68rem",
-                                    color: isSel ? "var(--accent-hover)" : "var(--text-muted)",
-                                    textAlign: "center",
-                                    marginTop: 2,
-                                  }}
-                                >
-                                  {posOption.desc}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* ── Блок 6: Стиль панели управления (Control Bar Style) ── */}
+                      {/* ── Блок 5: Стиль панели управления (Визуальный переключатель) ── */}
                       <div style={{ ...cardStyle, marginBottom: 0, marginTop: 10 }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -1605,10 +1533,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                               Стиль панели управления
                             </span>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
-                              {CONTROL_BAR_STYLE_OPTIONS.find((s) => s.id === controlBarStyle)?.label || "Парящая"}
-                            </span>
+                          {controlBarStyle !== "floating" && (
                             <button
                               type="button"
                               onClick={() => {
@@ -1617,133 +1542,156 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                               }}
                               className="btn btn--secondary btn--sm"
                               style={resetBtnStyle}
+                              title="Сбросить на Парящий остров"
                             >
                               <RotateCcw size={11} />
-                              <span>Парящая (Стандарт)</span>
+                              <span>Парящая</span>
                             </button>
-                          </div>
+                          )}
                         </div>
 
-                        {/* 2 кнопки стилей панели управления */}
-                        <div className="bar-style-presets-grid">
-                          {CONTROL_BAR_STYLE_OPTIONS.map((styleOption) => {
-                            const isSel = controlBarStyle === styleOption.id;
-                            return (
-                              <button
-                                key={styleOption.id}
-                                type="button"
-                                className="bar-style-preset-btn"
-                                onClick={() => {
-                                  setControlBarStyle(styleOption.id);
-                                  saveControlBarStyle(styleOption.id);
-                                }}
-                                style={btnStyle(isSel, "10px 8px")}
-                                title={`${styleOption.label} — ${styleOption.desc}`}
-                              >
-                                <span
-                                  style={{
-                                    fontSize: "0.78rem",
-                                    fontWeight: 700,
-                                    color: isSel ? "var(--accent)" : "var(--text-primary)",
-                                    textAlign: "center",
-                                  }}
-                                >
-                                  {styleOption.label}
-                                </span>
-                                <span
-                                  style={{
-                                    fontSize: "0.68rem",
-                                    color: isSel ? "var(--accent-hover)" : "var(--text-muted)",
-                                    textAlign: "center",
-                                    marginTop: 2,
-                                  }}
-                                >
-                                  {styleOption.desc}
-                                </span>
-                              </button>
-                            );
-                          })}
+                        {/* Наглядные визуальные карточки плеера */}
+                        <div className="visual-bar-selector">
+                          {/* 1: Парящий остров */}
+                          <div
+                            className={`visual-bar-card ${controlBarStyle === "floating" ? "visual-bar-card--active" : ""}`}
+                            onClick={() => {
+                              setControlBarStyle("floating");
+                              saveControlBarStyle("floating");
+                            }}
+                            title="Парящий остров: скругленная капсула с воздушными отступами от краев окна"
+                          >
+                            <div className="visual-bar-card__mockup">
+                              <div className="visual-bar-card__bar-floating">
+                                <div className="visual-bar-card__mock-dot" />
+                                <div className="visual-bar-card__mock-line" />
+                              </div>
+                            </div>
+                            <span className="visual-bar-card__label">Парящий остров</span>
+                          </div>
+
+                          {/* 2: Пристыкованная плашка */}
+                          <div
+                            className={`visual-bar-card ${controlBarStyle === "docked" ? "visual-bar-card--active" : ""}`}
+                            onClick={() => {
+                              setControlBarStyle("docked");
+                              saveControlBarStyle("docked");
+                            }}
+                            title="Пристыкованная плашка: сплошная полоса во всю ширину окна у нижнего края без зазоров"
+                          >
+                            <div className="visual-bar-card__mockup">
+                              <div className="visual-bar-card__bar-docked">
+                                <div className="visual-bar-card__mock-dot" />
+                                <div className="visual-bar-card__mock-line" />
+                              </div>
+                            </div>
+                            <span className="visual-bar-card__label">Пристыкованная плашка</span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* ── Блок 7: Формат отображения времени ── */}
-                      <div style={{ ...cardStyle, marginBottom: 0, marginTop: 10 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <Clock size={14} style={{ color: "var(--accent)" }} />
-                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                              Формат отображения времени
-                            </span>
+                      {/* ── Блок 6: Время видео (Позиция и Формат в одну строку) ── */}
+                      <div className="time-settings-row">
+                        {/* Колонка 1: Позиция времени */}
+                        <div style={{ ...cardStyle, marginBottom: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <Clock size={14} style={{ color: "var(--accent)" }} />
+                              <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                                Позиция времени
+                              </span>
+                            </div>
+                            {timePosition !== "timeline_right" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTimePosition("timeline_right");
+                                  saveTimePosition("timeline_right");
+                                }}
+                                className="btn btn--secondary btn--sm"
+                                style={resetBtnStyle}
+                                title="Сбросить на Справа"
+                              >
+                                <RotateCcw size={11} />
+                              </button>
+                            )}
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
-                              {TIME_FORMAT_OPTIONS.find((f) => f.id === timeFormat)?.label || "Прошедшее / Общее"}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setTimeFormat("elapsed_total");
-                                saveTimeFormat("elapsed_total");
-                              }}
-                              className="btn btn--secondary btn--sm"
-                              style={resetBtnStyle}
-                            >
-                              <RotateCcw size={11} />
-                              <span>Стандарт</span>
-                            </button>
+
+                          {/* 3 компактные сегментные кнопки */}
+                          <div className="time-pos-compact-grid">
+                            {TIME_POSITION_OPTIONS.map((posOption) => {
+                              const isSel = timePosition === posOption.id;
+                              const shortLabel =
+                                posOption.id === "timeline_left"
+                                  ? "Слева"
+                                  : posOption.id === "timeline_right"
+                                  ? "Справа"
+                                  : "У звука";
+                              return (
+                                <button
+                                  key={posOption.id}
+                                  type="button"
+                                  className={`compact-segment-btn ${isSel ? "compact-segment-btn--active" : ""}`}
+                                  onClick={() => {
+                                    setTimePosition(posOption.id);
+                                    saveTimePosition(posOption.id);
+                                  }}
+                                  title={`${posOption.label}: ${posOption.desc}`}
+                                >
+                                  {shortLabel}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
 
-                        {/* 4 кнопки пресетов формата времени */}
-                        <div className="time-format-presets-grid">
-                          {TIME_FORMAT_OPTIONS.map((formatOption) => {
-                            const isSel = timeFormat === formatOption.id;
-                            return (
+                        {/* Колонка 2: Формат отображения времени */}
+                        <div style={{ ...cardStyle, marginBottom: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <Timer size={14} style={{ color: "var(--accent)" }} />
+                              <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                                Формат времени
+                              </span>
+                            </div>
+                            {timeFormat !== "elapsed_total" && (
                               <button
-                                key={formatOption.id}
                                 type="button"
-                                className="time-format-preset-btn"
                                 onClick={() => {
-                                  setTimeFormat(formatOption.id);
-                                  saveTimeFormat(formatOption.id);
+                                  setTimeFormat("elapsed_total");
+                                  saveTimeFormat("elapsed_total");
                                 }}
-                                style={btnStyle(isSel, "10px 8px")}
-                                title={`${formatOption.label} — ${formatOption.desc}`}
+                                className="btn btn--secondary btn--sm"
+                                style={resetBtnStyle}
+                                title="Сбросить на Прошедшее / Общее"
                               >
-                                <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
-                                  <span
-                                    style={{
-                                      fontSize: "0.78rem",
-                                      fontWeight: 700,
-                                      color: isSel ? "var(--accent)" : "var(--text-primary)",
-                                    }}
-                                  >
-                                    {formatOption.label}
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: "0.70rem",
-                                      color: "var(--accent)",
-                                      opacity: 0.85,
-                                      fontFamily: "monospace",
-                                    }}
-                                  >
-                                    [{formatOption.example}]
-                                  </span>
-                                </div>
-                                <span
-                                  style={{
-                                    fontSize: "0.68rem",
-                                    color: isSel ? "var(--accent-hover)" : "var(--text-muted)",
-                                    textAlign: "center",
-                                    marginTop: 2,
-                                  }}
-                                >
-                                  {formatOption.desc}
-                                </span>
+                                <RotateCcw size={11} />
                               </button>
-                            );
-                          })}
+                            )}
+                          </div>
+
+                          {/* 4 компактные сегментные кнопки с примерами тайминга */}
+                          <div className="time-format-compact-grid">
+                            {TIME_FORMAT_OPTIONS.map((formatOption) => {
+                              const isSel = timeFormat === formatOption.id;
+                              return (
+                                <button
+                                  key={formatOption.id}
+                                  type="button"
+                                  className={`compact-segment-btn compact-segment-btn--mono ${
+                                    isSel ? "compact-segment-btn--active" : ""
+                                  }`}
+                                  onClick={() => {
+                                    setTimeFormat(formatOption.id);
+                                    saveTimeFormat(formatOption.id);
+                                  }}
+                                  title={`${formatOption.label} — ${formatOption.desc}`}
+                                >
+                                  {formatOption.example}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     </>
