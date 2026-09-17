@@ -500,9 +500,11 @@ impl MpvManager {
             if aji_present {
                 let _ = self.command("vf remove @aji");
             }
-            // Полный набор параметров фильтра animejanai (идентично оригинальному mpv-animejanai.conf)
+            // Полный набор параметров фильтра animejanai.
+            // ВАЖНО: Весь аргумент фильтра нужно обернуть в двойные кавычки ("..."), 
+            // а внутренние пути экранировать (\"), чтобы парсер команд MPV не разбивал строку по пробелам в путях (например "Program Files").
             let cmd_add = format!(
-                "vf add @aji:animejanai=lib=\"{}\":conf=\"{}\":model-dir=\"{}\":rife-model-dir=\"{}\":trtexec=\"{}\":stats=\"{}\":slot={}",
+                r#"vf add "@aji:animejanai=lib=\"{}\":conf=\"{}\":model-dir=\"{}\":rife-model-dir=\"{}\":trtexec=\"{}\":stats=\"{}\":slot={}""#,
                 aji_lib, norm_conf, norm_models_dir, rife_dir, trtexec, stats_path, slot
             );
             let _ = self.command(&cmd_add);
