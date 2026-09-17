@@ -545,19 +545,18 @@
 
 .time-pos-presets-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
-@media (max-width: 560px) {
-  .time-pos-presets-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 440px) {
+@media (max-width: 540px) {
   .time-pos-presets-grid {
     grid-template-columns: 1fr;
+  }
+  .time-pos-preset-btn {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    padding: 8px 12px !important;
   }
 }
 

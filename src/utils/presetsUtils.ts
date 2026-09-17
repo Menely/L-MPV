@@ -34,12 +34,19 @@ import {
   getSavedUiFont,
   saveUiFont,
 } from "./uiThemeUtils";
+import {
+  TimeDisplayPosition,
+  getSavedTimePosition,
+  saveTimePosition,
+} from "./timePositionUtils";
 
 export interface SettingsPresetData {
   /** Тема оформления плеера (расцветка фона и поверхностей) */
   playerTheme?: PlayerThemeId | string;
   /** Семейство шрифта интерфейса */
   uiFont?: UiFontId | string;
+  /** Положение отображения времени воспроизведения видео */
+  timePosition?: TimeDisplayPosition;
   /** Акцентный цвет (HEX или "windows") */
   accentColor: string;
   /** Интенсивность неонового свечения */
@@ -347,6 +354,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
     data: {
       playerTheme,
       uiFont,
+      timePosition: getSavedTimePosition(),
       accentColor,
       glowIntensity,
       uiOpacity,
@@ -421,6 +429,11 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   // 3.3 Шрифт интерфейса
   if (data.uiFont) {
     saveUiFont(data.uiFont as UiFontId);
+  }
+
+  // 3.4 Положение времени воспроизведения
+  if (data.timePosition) {
+    saveTimePosition(data.timePosition);
   }
 
   // 4. Плавные анимации

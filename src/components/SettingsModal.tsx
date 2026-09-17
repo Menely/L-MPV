@@ -290,6 +290,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       }
     }
     if (data.uiScale) setUiScale({ mode: data.uiScale.mode, value: data.uiScale.value ?? 1.0 });
+    if (data.uiFont) setUiFont(data.uiFont as UiFontId);
+    if (data.timePosition) setTimePosition(data.timePosition);
     if (typeof data.animationsEnabled === "boolean") setAnimationsEnabled(data.animationsEnabled);
     if (typeof data.showTrackNames === "boolean") setShowTrackNames(data.showTrackNames);
     if (data.visibleButtons) setVisibleButtons(data.visibleButtons);
@@ -1502,6 +1504,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                               <button
                                 key={posOption.id}
                                 type="button"
+                                className="time-pos-preset-btn"
                                 onClick={() => {
                                   setTimePosition(posOption.id);
                                   saveTimePosition(posOption.id);

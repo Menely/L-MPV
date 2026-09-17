@@ -382,6 +382,7 @@
   padding: 2px 4px;
   user-select: none;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .frame-display {
