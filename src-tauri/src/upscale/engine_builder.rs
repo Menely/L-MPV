@@ -17,17 +17,17 @@ pub async fn precompile_model_engine_1080p_impl(
     }
 
     let inf_dir = get_inference_dir();
-    let harness_path = inf_dir.join("aji_harness.exe");
+    let trtexec_path = inf_dir.join("trtexec.exe");
     let trt_dll_path = inf_dir.join("aji_trt.dll");
 
-    if !harness_path.exists() || !trt_dll_path.exists() {
-        return Err("Библиотеки TensorRT не найдены в inference/. Нажмите «Скачать движок» перед оптимизацией.".to_string());
+    if !trtexec_path.exists() || !trt_dll_path.exists() {
+        return Err("Библиотеки TensorRT (trtexec.exe, aji_trt.dll) не найдены в inference/. Нажмите «Скачать движок» перед оптимизацией.".to_string());
     }
 
     super::config::ensure_inference_environment();
 
     // Записываем конфигурацию с нужным слотом
-    let conf_path = write_upscale_conf("TensorRT", slot)?;
+    let _ = write_upscale_conf("TensorRT", slot)?;
     let models_dir = get_models_dir();
 
     // Очищаем старые/битые файлы кэшей и логов, чтобы не вызывать конфликтов аллокатора
@@ -60,7 +60,6 @@ pub async fn precompile_model_engine_1080p_impl(
         filename, slot
     );
 
-    let trtexec_path = inf_dir.join("trtexec.exe");
     let onnx_path = models_dir.join(&filename);
 
     // Проверяем формат тензоров ONNX модели (FP16 vs FP32).
@@ -77,23 +76,10 @@ pub async fn precompile_model_engine_1080p_impl(
         .to_string();
     let crc = super::config::crc32_ieee(model_stem.as_bytes());
 
-    let gpu_clean = gpu.name.replace(' ', "-");
-    let sm_suffix = if gpu.sm_architecture.starts_with("sm") {
-        let digits = gpu.sm_architecture.trim_start_matches("sm");
-        if digits.starts_with("12") {
-            "sm12".to_string()
-        } else if digits.starts_with('8') {
-            "sm8".to_string()
-        } else if digits.starts_with('7') {
-            "sm7".to_string()
-        } else if digits.starts_with('6') {
-            "sm6".to_string()
-        } else {
-            gpu.sm_architecture.clone()
-        }
-    } else {
-        gpu.sm_architecture.clone()
-    };
+    // Очистка имени GPU строго по правилам libaji (sanitize_token)
+    let gpu_clean = super::hardware::sanitize_gpu_token(&gpu.name);
+    // Определение поколения архитектуры для суффикса имени движка (-sm12, -sm8, -sm7, -sm6)
+    let sm_suffix = super::hardware::determine_nvidia_sm_major(&gpu.name, &gpu.sm_architecture);
 
     // ВАЖНО: Хэш 780037328 соответствует настройке aji.dll: 
     // "--builderOptimizationLevel=5 --optShapes=input:1x3x1080x1920 --skipInference"
@@ -188,65 +174,30 @@ pub async fn precompile_model_engine_1080p_impl(
     });
 
     let build_log_task = build_log_path.clone();
-    let models_dir_harness = models_dir.clone();
+    let models_dir_task = models_dir.clone();
     let inf_dir_task = inf_dir.clone();
     let model_stem_task = model_stem.clone();
 
     let output = tokio::task::spawn_blocking(move || {
-        let mut cmd = if harness_path.exists() {
-            // Приоритетно используем нативный aji_harness, так как он автоматически
-            // определяет параметры графа ONNX модели (динамические/статические оси,
-            // размерности), формирует persistent timing cache и вызывает trtexec
-            // со строго выверенным хэшем параметров под mpv.
-            let mut c = std::process::Command::new(&harness_path);
-            c.args([
-                "--engine",
-                &trt_dll_path.to_string_lossy(),
-                "--conf",
-                &conf_path.to_string_lossy(),
-                "--model-dir",
-                &models_dir_harness.to_string_lossy(),
-                "--slot",
-                &slot.to_string(),
-                "--width",
-                "1920",
-                "--height",
-                "1080",
-                "--fps",
-                "24",
-                "--format",
-                "nv12",
-                "--matrix",
-                "709",
-                "--range",
-                "limited",
-                "--frames",
-                "0",
-                "--input",
-                "NUL",
-                "--output",
-                "NUL",
-            ]);
-            c
-        } else {
-            let mut c = std::process::Command::new(&trtexec_path);
-            let tcache = models_dir_harness.join(format!("{}.timing.cache", model_stem_task));
-            c.args([
-                format!("--onnx={}", onnx_path.display()),
-                format!("--saveEngine={}", save_engine_path.display()),
-                "--builderOptimizationLevel=5".to_string(),
-                "--optShapes=input:1x3x1080x1920".to_string(),
-                "--skipInference".to_string(),
-                format!("--timingCacheFile={}", tcache.display()),
-            ]);
-            if let Ok(f) = std::fs::File::create(&build_log_task) {
-                if let Ok(f2) = f.try_clone() {
-                    c.stdout(f);
-                    c.stderr(f2);
-                }
+        // Напрямую вызываем компилятор trtexec.exe (идентично поведению libaji/aji_trt.cpp:build_engine)
+        // с созданием persistent timing cache и сохранением лога сборки
+        let mut cmd = std::process::Command::new(&trtexec_path);
+        let tcache = models_dir_task.join(format!("{}.timing.cache", model_stem_task));
+        cmd.args([
+            format!("--onnx={}", onnx_path.display()),
+            format!("--saveEngine={}", save_engine_path.display()),
+            "--builderOptimizationLevel=5".to_string(),
+            "--optShapes=input:1x3x1080x1920".to_string(),
+            "--skipInference".to_string(),
+            format!("--timingCacheFile={}", tcache.display()),
+        ]);
+
+        if let Ok(f) = std::fs::File::create(&build_log_task) {
+            if let Ok(f2) = f.try_clone() {
+                cmd.stdout(f);
+                cmd.stderr(f2);
             }
-            c
-        };
+        }
 
         cmd.current_dir(&inf_dir_task);
         if let Some(path) = std::env::var_os("PATH") {

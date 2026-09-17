@@ -123,15 +123,24 @@ pub fn crc32_ieee(data: &[u8]) -> u32 {
     !crc
 }
 
-/// Проверка наличия скомпилированного движка TensorRT (.engine) для модели в каталоге
-pub fn has_compiled_engine_for_model(models_dir: &std::path::Path, model_stem: &str) -> bool {
+/// Проверка наличия скомпилированного движка TensorRT (.engine) для модели в каталоге под текущий GPU
+pub fn has_compiled_engine_for_model(
+    models_dir: &std::path::Path,
+    model_stem: &str,
+    gpu_clean: Option<&str>,
+    sm_suffix: Option<&str>,
+) -> bool {
     let crc = crc32_ieee(model_stem.as_bytes());
     let prefix = format!("aji-{:08x}.", crc);
+    let target_suffix = match (gpu_clean, sm_suffix) {
+        (Some(g), Some(s)) => format!(".trt-11.3.0.gpu-{}-{}.engine", g, s),
+        _ => ".engine".to_string(),
+    };
 
     if let Ok(entries) = fs::read_dir(models_dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with(&prefix) && name.ends_with(".engine") {
+            if name.starts_with(&prefix) && name.ends_with(&target_suffix) {
                 if let Ok(meta) = entry.metadata() {
                     if meta.len() > 0 {
                         return true;
@@ -147,6 +156,15 @@ pub fn has_compiled_engine_for_model(models_dir: &std::path::Path, model_stem: &
 pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
     let models_dir = get_models_dir();
     let mut items = Vec::new();
+    let gpu = detect_system_gpu();
+    let (gpu_clean, sm_suffix) = if gpu.supports_tensorrt {
+        (
+            Some(super::hardware::sanitize_gpu_token(&gpu.name)),
+            Some(super::hardware::determine_nvidia_sm_major(&gpu.name, &gpu.sm_architecture)),
+        )
+    } else {
+        (None, None)
+    };
 
     if let Ok(entries) = fs::read_dir(&models_dir) {
         let mut paths: Vec<PathBuf> = entries
@@ -216,7 +234,12 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
             // Генерируем уникальный слот: от 2000 до 9999 (чтобы не пересекаться со слотами 10xx)
             let slot = (hasher.finish() % 8000 + 2000) as u32;
 
-            let has_engine_1080p = has_compiled_engine_for_model(&models_dir, model_stem);
+            let has_engine_1080p = has_compiled_engine_for_model(
+                &models_dir,
+                model_stem,
+                gpu_clean.as_deref(),
+                sm_suffix.as_deref(),
+            );
 
             items.push(ModelFileItem {
                 filename,

@@ -361,6 +361,15 @@ pub async fn download_inference_engine_impl(
             let _ = fs::remove_file(&dml_zip);
             println!("[L-MPV][Upscale] Библиотека DirectML.dll успешно извлечена.");
 
+            // Верификация всех установленных компонентов DirectML
+            let required_dml = ["aji.dll", "aji_dml.dll", "DirectML.dll", "onnxruntime.dll"];
+            for f in required_dml {
+                let p = inf_dir.join(f);
+                if !p.exists() || fs::metadata(&p).map(|m| m.len() == 0).unwrap_or(true) {
+                    return Err(format!("Файл {} поврежден или не найден после установки DirectML", f));
+                }
+            }
+
             let msg = "Движок DirectML успешно установлен (aji_dml.dll, DirectML.dll, onnxruntime.dll)".to_string();
             let _ = app.emit(
                 "upscale-download-progress",
@@ -447,43 +456,80 @@ pub async fn download_inference_engine_impl(
             if let Err(e) = download_sm_res {
                 println!("[L-MPV][Upscale] Архитектура {} не найдена ({}), пробуем универсальный ptx...", sm, e);
                 let ptx_url = "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-ptx.7z";
+                let _ = fs::remove_file(&sm_path); // Удаляем возможный пустой/битый файл
+                let ptx_path = inf_dir.join("component-trt-ptx.7z");
                 download_file_with_progress(
                     &client,
                     &app,
                     &engine,
                     ptx_url,
-                    &sm_path,
+                    &ptx_path,
                     "Скачивание универсального билдера TensorRT (ptx) (3/3)...",
                     52.0,
                     95.0,
                 )
                 .await?;
+
+                let ptx_path_clone = ptx_path.clone();
+                let inf_dir_clone = inf_dir.clone();
+                tokio::task::spawn_blocking(move || {
+                    extract_7z_archive(&ptx_path_clone, &inf_dir_clone)
+                })
+                .await
+                .map_err(|e| format!("Ошибка потока распаковки универсального билдера: {}", e))??;
+
+                let _ = fs::remove_file(&ptx_path);
+            } else {
+                let _ = app.emit(
+                    "upscale-download-progress",
+                    &UpscaleDownloadProgress {
+                        engine: engine.clone(),
+                        stage: format!("Распаковка билдера TensorRT ({})...", sm),
+                        percent: 95.0,
+                        downloaded_bytes: 0,
+                        total_bytes: 0,
+                        is_finished: false,
+                        error: None,
+                    },
+                );
+
+                let sm_path_clone = sm_path.clone();
+                let inf_dir_clone = inf_dir.clone();
+                tokio::task::spawn_blocking(move || {
+                    extract_7z_archive(&sm_path_clone, &inf_dir_clone)
+                })
+                .await
+                .map_err(|e| format!("Ошибка потока распаковки билдера TensorRT: {}", e))??;
+
+                let _ = fs::remove_file(&sm_path);
             }
 
-            let _ = app.emit(
-                "upscale-download-progress",
-                &UpscaleDownloadProgress {
-                    engine: engine.clone(),
-                    stage: format!("Распаковка билдера TensorRT ({})...", sm),
-                    percent: 95.0,
-                    downloaded_bytes: 0,
-                    total_bytes: 0,
-                    is_finished: false,
-                    error: None,
-                },
-            );
-
-            let sm_path_clone = sm_path.clone();
-            let inf_dir_clone = inf_dir.clone();
-            tokio::task::spawn_blocking(move || {
-                extract_7z_archive(&sm_path_clone, &inf_dir_clone)
-            })
-            .await
-            .map_err(|e| format!("Ошибка потока распаковки билдера TensorRT: {}", e))??;
-
-            let _ = fs::remove_file(&sm_path);
-
             move_nested_animejanai_files(&inf_dir);
+
+            // Строгая верификация наличия абсолютно всех необходимых библиотек TensorRT
+            let required_trt = ["aji.dll", "aji_trt.dll", "trtexec.exe", "nvinfer_11.dll", "cudart64_13.dll"];
+            for f in required_trt {
+                let p = inf_dir.join(f);
+                if !p.exists() || fs::metadata(&p).map(|m| m.len() == 0).unwrap_or(true) {
+                    return Err(format!("Файл {} поврежден или не найден после установки TensorRT", f));
+                }
+            }
+
+            // Проверка наличия хотя бы одного архитектурного билдера nvinfer_builder_resource_*.dll
+            let has_builder = fs::read_dir(&inf_dir)
+                .map(|entries| {
+                    entries.flatten().any(|e| {
+                        let name = e.file_name().to_string_lossy().to_string();
+                        name.starts_with("nvinfer_builder_resource_")
+                            && e.metadata().map(|m| m.len() > 0).unwrap_or(false)
+                    })
+                })
+                .unwrap_or(false);
+
+            if !has_builder {
+                return Err("Архитектурный билдер TensorRT (nvinfer_builder_resource_*.dll) не был обнаружен после установки.".to_string());
+            }
+
             println!("[L-MPV][Upscale] Установка движка TensorRT завершена успешно.");
 
             let msg = format!(
