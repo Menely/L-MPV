@@ -23,7 +23,14 @@ import {
   Loader2,
   Sparkles,
   FileText,
+  Clock,
 } from "lucide-react";
+import {
+  TimeDisplayPosition,
+  getSavedTimePosition,
+  saveTimePosition,
+  TIME_POSITION_OPTIONS,
+} from "../utils/timePositionUtils";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */
@@ -84,11 +91,20 @@ export function ContextMenu({
   } = usePlayerState();
   const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
   const [ambientMode, setAmbientMode] = useState<string>("off");
+  const [currentTimePos, setCurrentTimePos] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
 
   useEffect(() => {
     invoke<{ mode: string }>("get_ambient_settings")
       .then((cfg) => setAmbientMode(cfg.mode))
       .catch(console.error);
+
+    const handleSettingsChanged = () => {
+      setCurrentTimePos(getSavedTimePosition());
+    };
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    };
   }, []);
 
   // Позиционирование меню с учётом границ экрана
@@ -462,6 +478,27 @@ export function ContextMenu({
         if (onShowDetailedMediaInfo) onShowDetailedMediaInfo();
         handleClose();
       },
+    },
+    { type: "divider" },
+    {
+      type: "submenu",
+      icon: <Clock size={15} />,
+      label: "Расположение времени",
+      children: TIME_POSITION_OPTIONS.map((posOption) => ({
+        type: "item" as const,
+        label: posOption.label,
+        active: currentTimePos === posOption.id,
+        action: () => {
+          saveTimePosition(posOption.id);
+          setCurrentTimePos(posOption.id);
+          window.dispatchEvent(
+            new CustomEvent("show-osd", {
+              detail: `Время: ${posOption.label}`,
+            })
+          );
+          handleClose();
+        },
+      })),
     },
     {
       type: "item",

@@ -67,7 +67,14 @@ import {
   Maximize2,
   Type,
   MousePointer2,
+  Clock,
 } from "lucide-react";
+import {
+  TimeDisplayPosition,
+  getSavedTimePosition,
+  saveTimePosition,
+  TIME_POSITION_OPTIONS,
+} from "../utils/timePositionUtils";
 import {
   HOTKEY_ACTIONS,
   getCustomHotkeys,
@@ -185,6 +192,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [uiRadius, setUiRadius] = useState<{ level: UiRadiusLevel; value: number }>(() => getSavedUiRadius());
   const [uiScale, setUiScale] = useState<{ mode: UiScaleMode; value: number }>(() => getSavedUiScale());
   const [uiFont, setUiFont] = useState<UiFontId>(() => getSavedUiFont());
+  const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "upscaling" | "hotkeys" | "integration">("general");
 
   const [isClosing, setIsClosing] = useState<boolean>(false);
@@ -357,15 +365,20 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         setUiFont(customEvent.detail);
       }
     };
+    const handleTimePosChanged = () => {
+      setTimePosition(getSavedTimePosition());
+    };
     window.addEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
     window.addEventListener("l-mpv-ui-scale-changed", handleScaleChanged);
     window.addEventListener("l-mpv-ui-opacity-changed", handleOpacityChanged);
     window.addEventListener("l-mpv-ui-font-changed", handleFontChanged);
+    window.addEventListener("l-mpv-settings-changed", handleTimePosChanged);
     return () => {
       window.removeEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
       window.removeEventListener("l-mpv-ui-scale-changed", handleScaleChanged);
       window.removeEventListener("l-mpv-ui-opacity-changed", handleOpacityChanged);
       window.removeEventListener("l-mpv-ui-font-changed", handleFontChanged);
+      window.removeEventListener("l-mpv-settings-changed", handleTimePosChanged);
     };
   }, []);
   // По умолчанию все категории свернуты (пустой Set / объект)
@@ -1047,6 +1060,16 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       >
                         Шрифт: {UI_FONT_PRESETS.find((f) => f.id === uiFont)?.label || "Inter"}
                       </span>
+                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
+                      <span
+                        style={{
+                          fontSize: "0.80rem",
+                          fontWeight: 700,
+                          color: "var(--accent)",
+                        }}
+                      >
+                        Время: {TIME_POSITION_OPTIONS.find((p) => p.id === timePosition)?.label || "Справа от таймлайна"}
+                      </span>
                     </div>
                     <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", lineHeight: 1.25 }}>
                       Живой отклик нижней панели управления, кнопок плеера, диалогов и контекстных меню
@@ -1436,6 +1459,75 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 </span>
                                 <span style={{ fontSize: "0.75rem", fontWeight: 600, whiteSpace: "nowrap" }}>
                                   {fontPreset.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* ── Блок 5: Расположение времени видео ── */}
+                      <div style={{ ...cardStyle, marginBottom: 0, marginTop: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Clock size={14} style={{ color: "var(--accent)" }} />
+                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                              Расположение времени видео
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+                              {TIME_POSITION_OPTIONS.find((p) => p.id === timePosition)?.label || "Справа от таймлайна"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTimePosition("timeline_right");
+                                saveTimePosition("timeline_right");
+                              }}
+                              className="btn btn--secondary btn--sm"
+                              style={resetBtnStyle}
+                            >
+                              <RotateCcw size={11} />
+                              <span>Справа (Стандарт)</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 3 кнопки пресетов расположения времени в адаптивной сетке */}
+                        <div className="time-pos-presets-grid">
+                          {TIME_POSITION_OPTIONS.map((posOption) => {
+                            const isSel = timePosition === posOption.id;
+                            return (
+                              <button
+                                key={posOption.id}
+                                type="button"
+                                onClick={() => {
+                                  setTimePosition(posOption.id);
+                                  saveTimePosition(posOption.id);
+                                }}
+                                style={btnStyle(isSel, "10px 6px")}
+                                title={`${posOption.label} — ${posOption.desc}`}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: "0.78rem",
+                                    fontWeight: 700,
+                                    color: isSel ? "var(--accent)" : "var(--text-primary)",
+                                    textAlign: "center",
+                                  }}
+                                >
+                                  {posOption.label}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: "0.68rem",
+                                    color: isSel ? "var(--accent-hover)" : "var(--text-muted)",
+                                    textAlign: "center",
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  {posOption.desc}
                                 </span>
                               </button>
                             );

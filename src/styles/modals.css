@@ -543,6 +543,24 @@
   }
 }
 
+.time-pos-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 560px) {
+  .time-pos-presets-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 440px) {
+  .time-pos-presets-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ─── Футер настроек ─────────────────────────────────── */
 .settings-footer {
   padding: 10px 14px;

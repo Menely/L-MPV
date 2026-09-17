@@ -40,13 +40,15 @@ import {
   VisualizerMode,
 } from "./AudioVisualizer";
 import { getCustomHotkeys } from "../utils/hotkeyUtils";
+import {
+  TimeDisplayPosition,
+  getSavedTimePosition,
+} from "../utils/timePositionUtils";
 
-
-
-function TimeDisplay() {
+function TimeDisplay({ className = "" }: { className?: string }) {
   const { position, duration } = usePlayerProgress();
   return (
-    <span className="time-display">
+    <span className={`time-display ${className}`}>
       <span className="time-display__full">
         {formatTime(position)} / {formatTime(duration)}
       </span>
@@ -190,6 +192,7 @@ export function PlayerControls({
   });
 
   const [hotkeys, setHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
+  const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
 
   // Синхронизация локальных настроек плеера (не зависит от активных поповеров)
   useEffect(() => {
@@ -201,6 +204,7 @@ export function PlayerControls({
       setVisualizerConfig(getVisualizerConfig());
       setSkipOpeningSeconds(Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
       setHotkeys(getCustomHotkeys());
+      setTimePosition(getSavedTimePosition());
     };
     window.addEventListener('l-mpv-settings-changed', updateSetting);
     return () => window.removeEventListener('l-mpv-settings-changed', updateSetting);
@@ -556,10 +560,11 @@ export function PlayerControls({
         {/* Аудио-визуалайзер над таймлайном */}
         <AudioVisualizer placement="above_timeline" />
 
-        {/* Строка таймлайна со временем воспроизведения справа */}
-        <div className="timeline-row">
+        {/* Строка таймлайна со временем (справа, слева или во всю ширину) */}
+        <div className={`timeline-row ${timePosition === "volume_right" ? "timeline-row--full" : ""}`}>
+          {timePosition === "timeline_left" && <TimeDisplay />}
           <Timeline />
-          <TimeDisplay />
+          {timePosition === "timeline_right" && <TimeDisplay />}
         </div>
 
         {/* Кнопки управления */}
@@ -657,6 +662,11 @@ export function PlayerControls({
                 {Math.round(volume)}%
               </span>
             </div>
+
+            {/* Время воспроизведения справа от громкости */}
+            {timePosition === "volume_right" && (
+              <TimeDisplay className="time-display--toolbar" />
+            )}
 
             {/* Компактный аудио-визуалайзер в тулбаре */}
             <AudioVisualizer placement="toolbar" />

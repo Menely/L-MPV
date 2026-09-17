@@ -33,13 +33,17 @@
               0 0 20px rgba(127, 199, 255, 0.06);
 }
 
-/* ─── Строка таймлайна со временем справа ────────────── */
+/* ─── Строка таймлайна со временем (справа, слева или на всю ширину) ── */
 .timeline-row {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
   margin-bottom: 2px;
+}
+
+.timeline-row--full {
+  gap: 0;
 }
 
 .timeline-row .timeline {
@@ -370,6 +374,14 @@
 .time-display__full {
   display: inline-flex;
   align-items: center;
+}
+
+.time-display--toolbar {
+  font-size: var(--fs-xs, 0.74rem);
+  margin: 0 4px 0 2px;
+  padding: 2px 4px;
+  user-select: none;
+  flex-shrink: 0;
 }
 
 .frame-display {
