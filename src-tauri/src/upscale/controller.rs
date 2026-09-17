@@ -28,7 +28,19 @@ pub fn apply_upscale_settings_impl(
     state: &State<'_, PlayerState>,
     settings: UpscaleSettings,
 ) -> Result<(), String> {
-    let conf_path = write_upscale_conf(&settings.backend, settings.active_slot)?;
+    let mut active_slot = settings.active_slot;
+    
+    // Миграция старых CRC-слотов (2000-9999) на новые 1-9
+    if active_slot >= 2000 {
+        let models = super::config::scan_onnx_models_internal();
+        if let Some(m) = models.iter().find(|m| m.filename == settings.selected_model) {
+            active_slot = m.slot;
+        } else {
+            active_slot = 1001; // Сброс на встроенный Balanced слот, если модель не найдена
+        }
+    }
+
+    let conf_path = write_upscale_conf(&settings.backend, active_slot)?;
     let conf_str = conf_path.to_string_lossy();
 
     let backend_changed = {
@@ -59,7 +71,7 @@ pub fn apply_upscale_settings_impl(
         let _ = state.mpv.enable_ai_upscale(
             &conf_str,
             &models_dir.to_string_lossy(),
-            settings.active_slot,
+            active_slot,
             backend_changed,
         );
         force_frame_refresh(&state.mpv);

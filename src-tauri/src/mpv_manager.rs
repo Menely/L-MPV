@@ -133,6 +133,15 @@ impl MpvManager {
             Self::set_option(&api, handle, "config", "yes");
             Self::set_option(&api, handle, "config-dir", &config_dir);
 
+            // Настройка логирования MPV в отдельный файл (сохраняет только ошибки)
+            let log_file = portable_dir
+                .join("logs")
+                .join("mpv.log")
+                .to_string_lossy()
+                .to_string();
+            Self::set_option(&api, handle, "log-file", &log_file);
+            Self::set_option(&api, handle, "msg-level", "all=error");
+
             // Путь к скриншотам (с восстановлением из config/settings.json)
             let saved_settings = crate::commands::AppSettings::load(portable_dir);
             let screenshots_dir = saved_settings
@@ -460,9 +469,29 @@ impl MpvManager {
         slot: u32,
         backend_changed: bool,
     ) -> Result<(), String> {
+        use crate::upscale::config::get_inference_dir;
+
         let norm_conf = conf_path.replace('\\', "/");
         let norm_models_dir = models_dir.replace('\\', "/");
-        
+
+        // Пути к aji.dll, trtexec.exe и файлу статистики (обязательные параметры фильтра).
+        // Без trtexec= фильтр aji_trt не может автоматически собрать .engine при первом
+        // воспроизведении, что приводит к молчаливому отказу на RTX 20xx/30xx/40xx.
+        let inf_dir = get_inference_dir();
+        let norm_inf = inf_dir.to_string_lossy().replace('\\', "/");
+        let aji_lib = format!("{}/aji.dll", norm_inf);
+        let trtexec = format!("{}/trtexec.exe", norm_inf);
+        // Каталог RIFE-моделей рядом с каталогом ONNX-моделей (../rife/ относительно onnx/)
+        let rife_dir = std::path::Path::new(models_dir)
+            .parent()
+            .map(|p| p.join("rife").to_string_lossy().replace('\\', "/"))
+            .unwrap_or_else(|| format!("{}/rife", norm_models_dir));
+        // Файл статистики текущего состояния инференса
+        let stats_path = inf_dir
+            .parent()
+            .map(|p| p.join("currentanimejanai.log").to_string_lossy().replace('\\', "/"))
+            .unwrap_or_else(|| format!("{}/currentanimejanai.log", norm_inf));
+
         let vf_list = self.get_property_string("vf").unwrap_or_default();
         let aji_present = vf_list.contains("aji");
 
@@ -471,13 +500,14 @@ impl MpvManager {
             if aji_present {
                 let _ = self.command("vf remove @aji");
             }
+            // Полный набор параметров фильтра animejanai (идентично оригинальному mpv-animejanai.conf)
             let cmd_add = format!(
-                "vf add @aji:animejanai=conf=\"{}\":model-dir=\"{}\"",
-                norm_conf, norm_models_dir
+                "vf add @aji:animejanai=lib=\"{}\":conf=\"{}\":model-dir=\"{}\":rife-model-dir=\"{}\":trtexec=\"{}\":stats=\"{}\":slot={}",
+                aji_lib, norm_conf, norm_models_dir, rife_dir, trtexec, stats_path, slot
             );
             let _ = self.command(&cmd_add);
         }
-        
+
         // Мгновенное переключение активного слота в AnimeJaNai
         let cmd_slot = format!("vf-command aji slot {}", slot);
         let _ = self.command(&cmd_slot);

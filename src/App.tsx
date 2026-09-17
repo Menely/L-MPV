@@ -359,8 +359,9 @@ function App() {
       if (mode === "ai") {
         const slot = parseInt(localStorage.getItem("l-mpv-upscale-slot") || "1001", 10);
         const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+        const selectedModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
         invoke("apply_upscale_settings", { 
-          settings: { mode, active_slot: slot, backend, selected_model: "" }
+          settings: { mode, active_slot: slot, backend, selected_model: selectedModel }
         }).catch(console.error);
       }
     }

@@ -88,11 +88,35 @@ pub fn run() {
     let data_dir = exe_dir.join("data");
     let config_dir = exe_dir.join("config");
     let thumb_dir = data_dir.join("thumbs");
+    let logs_dir = exe_dir.join("logs");
     
     std::fs::create_dir_all(&screenshots_dir).ok();
     std::fs::create_dir_all(&data_dir).ok();
     std::fs::create_dir_all(&config_dir).ok();
     std::fs::create_dir_all(&thumb_dir).ok();
+    std::fs::create_dir_all(&logs_dir).ok();
+
+    // Установка глобального обработчика паник для записи вылетов в файл
+    let crash_log_path = logs_dir.join("crash.log");
+    std::panic::set_hook(Box::new(move |panic_info| {
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&crash_log_path)
+            .unwrap_or_else(|_| std::fs::File::create("fallback_crash.log").unwrap());
+        
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+            
+        let payload = panic_info.payload().downcast_ref::<&str>()
+            .unwrap_or(&"Box<dyn Any>");
+        let location = panic_info.location().map(|l| format!("{}:{}", l.file(), l.line())).unwrap_or_default();
+        
+        let _ = writeln!(file, "[{}] CRASH (Panic) at {}: {}", timestamp, location, payload);
+    }));
 
     println!("[L-MPV] Создание MpvManager (Основной плеер)...");
     let mpv = match MpvManager::new(&exe_dir) {

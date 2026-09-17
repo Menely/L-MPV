@@ -1,6 +1,6 @@
 //! Модуль для фоновой ручной предкомпиляции TensorRT движков и подготовки ONNX моделей.
 
-use super::config::{get_inference_dir, get_models_dir, write_upscale_conf};
+use super::config::{get_inference_dir, get_logs_dir, get_models_dir, write_upscale_conf};
 use super::hardware::detect_system_gpu;
 use super::types::UpscaleCompileProgress;
 use tauri::Emitter;
@@ -29,8 +29,9 @@ pub async fn precompile_model_engine_1080p_impl(
     // Записываем конфигурацию с нужным слотом
     let _ = write_upscale_conf("TensorRT", slot)?;
     let models_dir = get_models_dir();
+    let logs_dir = get_logs_dir();
 
-    // Очищаем временные блокировки кэшей, старые логи сборщика и поврежденные пустые кэши
+    // Очищаем временные блокировки кэшей и поврежденные пустые кэши
     if let Ok(entries) = std::fs::read_dir(&models_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -38,7 +39,7 @@ pub async fn precompile_model_engine_1080p_impl(
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or_default();
-            if name.ends_with(".timing.cache.lock") || name.ends_with(".build.log") {
+            if name.ends_with(".timing.cache.lock") {
                 let _ = std::fs::remove_file(&path);
             } else if name.ends_with(".timing.cache") {
                 if let Ok(meta) = entry.metadata() {
@@ -99,7 +100,8 @@ pub async fn precompile_model_engine_1080p_impl(
     let save_engine_path = models_dir.join(&engine_filename);
     let save_engine_path_for_err = save_engine_path.clone();
 
-    let build_log_path = models_dir.join(format!("{}.build.log", engine_filename));
+    // Сохраняем логи сборки в постоянную папку logs/, чтобы пользователи могли присылать их при ошибках
+    let build_log_path = logs_dir.join(format!("compile_{}.log", engine_filename));
     let build_log_for_err = build_log_path.clone();
     let build_log_monitor = build_log_path.clone();
 

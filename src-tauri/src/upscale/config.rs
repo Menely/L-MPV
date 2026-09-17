@@ -25,6 +25,16 @@ pub fn get_models_dir() -> PathBuf {
     models_dir
 }
 
+/// Возвращает путь к каталогу логов `logs/`
+pub fn get_logs_dir() -> PathBuf {
+    let root = get_app_root_dir();
+    let logs_dir = root.join("logs");
+    if !logs_dir.exists() {
+        let _ = fs::create_dir_all(&logs_dir);
+    }
+    logs_dir
+}
+
 /// Возвращает путь к каталогу библиотек инференса `inference/`
 pub fn get_inference_dir() -> PathBuf {
     let root = get_app_root_dir();
@@ -221,7 +231,7 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
             _ => ".engine".to_string(),
         };
 
-        for path in paths {
+        for (idx, path) in paths.into_iter().enumerate() {
             let filename = path
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
@@ -238,9 +248,10 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
 
             let size_bytes = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
 
-            // Детерминированный слот на основе CRC32 от имени файла (от 2000 до 9999)
-            let crc_filename = crc32_ieee(filename.as_bytes());
-            let slot = (crc_filename % 8000 + 2000) as u32;
+            // Слот от 1 до 9 включительно — единственный поддерживаемый диапазон
+            // пользовательских слотов в aji_trt.dll. Модели сверх 9 получают slot=0
+            // (отключён), но на практике пользователи держат 1-3 модели.
+            let slot = if idx < 9 { (idx + 1) as u32 } else { 0 };
 
             let crc_stem = crc32_ieee(model_stem.as_bytes());
             let prefix = format!("aji-{:08x}.", crc_stem);
@@ -327,6 +338,11 @@ pub fn write_upscale_conf(backend: &str, default_slot: u32) -> Result<PathBuf, S
     );
 
     for model in models {
+        // Модели с slot=0 выходят за пределы диапазона 1-9 — пропускаем
+        if model.slot == 0 {
+            continue;
+        }
+
         let model_stem = model
             .filename
             .strip_suffix(".onnx")
