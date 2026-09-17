@@ -377,7 +377,7 @@ pub async fn download_inference_engine_impl(
             Ok(msg)
         } else {
             // TensorRT (NVIDIA)
-            let trt_runtime_url = "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.0/component-trt-runtime.7z";
+            let trt_runtime_url = "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-runtime.7z";
             let trt_runtime_path = inf_dir.join("component-trt-runtime.7z");
 
             download_file_with_progress(
@@ -426,7 +426,7 @@ pub async fn download_inference_engine_impl(
             };
 
             let sm_url = format!(
-                "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.0/component-trt-{}.7z",
+                "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-{}.7z",
                 sm
             );
             let sm_path = inf_dir.join(format!("component-trt-{}.7z", sm));
@@ -446,7 +446,7 @@ pub async fn download_inference_engine_impl(
 
             if let Err(e) = download_sm_res {
                 println!("[L-MPV][Upscale] Архитектура {} не найдена ({}), пробуем универсальный ptx...", sm, e);
-                let ptx_url = "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.0/component-trt-ptx.7z";
+                let ptx_url = "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-ptx.7z";
                 download_file_with_progress(
                     &client,
                     &app,

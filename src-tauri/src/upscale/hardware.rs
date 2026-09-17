@@ -4,9 +4,32 @@ use super::types::GpuHardwareInfo;
 
 /// Определение архитектуры шейдерных блоков NVIDIA (Streaming Multiprocessors)
 pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
+    // 1. Попытка запросить точную compute capability через nvidia-smi
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = std::process::Command::new("nvidia-smi");
+        cmd.args(["--query-gpu=compute_cap", "--format=csv,noheader"]);
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        if let Ok(output) = cmd.output() {
+            if output.status.success() {
+                let out = String::from_utf8_lossy(&output.stdout);
+                if let Some(first_line) = out.lines().next() {
+                    let cleaned: String = first_line
+                        .chars()
+                        .filter(|c| c.is_ascii_digit())
+                        .collect();
+                    if !cleaned.is_empty() {
+                        return format!("sm{}", cleaned);
+                    }
+                }
+            }
+        }
+    }
+
     let lower = name.to_lowercase();
 
-    // Архитектура Blackwell (RTX 5090, 5080, 5070 Ti, 5070, 5060 и их модификации)
+    // 2. Архитектура Blackwell (RTX 5090, 5080, 5070 Ti, 5070, 5060 и их модификации) -> sm120
     if lower.contains("5090")
         || lower.contains("5080")
         || lower.contains("5070")
@@ -17,7 +40,7 @@ pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
         return "sm120".to_string();
     }
 
-    // Архитектура Ada Lovelace (RTX 4090, 4080, 4070, 4060, 4050, RTX Ada, L40, L4)
+    // Архитектура Ada Lovelace (RTX 40xx, L40, L4) -> sm89
     if lower.contains("4090")
         || lower.contains("4080")
         || lower.contains("4070")
@@ -30,12 +53,7 @@ pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
         return "sm89".to_string();
     }
 
-    // Архитектура Ampere Datacenter (A100)
-    if lower.contains("a100") {
-        return "sm80".to_string();
-    }
-
-    // Архитектура Ampere Consumer & Pro (RTX 3090, 3080, 3070, 3060, 3050, A2000, A3000, A4000, A5000, A6000)
+    // Архитектура Ampere (RTX 30xx, A-серия кроме A100) -> sm86
     if lower.contains("3090")
         || lower.contains("3080")
         || lower.contains("3070")
@@ -46,11 +64,17 @@ pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
         || lower.contains("a4000")
         || lower.contains("a5000")
         || lower.contains("a6000")
+        || lower.contains("ampere")
     {
         return "sm86".to_string();
     }
 
-    // Архитектура Turing (RTX 2080, 2070, 2060, Titan RTX, GTX 1660, 1650, 1630, T4)
+    // Архитектура Ampere datacenter (A100) -> sm80
+    if lower.contains("a100") {
+        return "sm80".to_string();
+    }
+
+    // Архитектура Turing (RTX 20xx, GTX 16xx, T4) -> sm75
     if lower.contains("2080")
         || lower.contains("2070")
         || lower.contains("2060")
@@ -62,6 +86,17 @@ pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
         || lower.contains(" t4")
     {
         return "sm75".to_string();
+    }
+
+    // Архитектура Pascal (GTX 10xx) -> sm61
+    if lower.contains("1080")
+        || lower.contains("1070")
+        || lower.contains("1060")
+        || lower.contains("1050")
+        || lower.contains("titan x")
+        || lower.contains("pascal")
+    {
+        return "sm61".to_string();
     }
 
     // Универсальный forward-compatible байт-код PTX для компиляции JIT под любую версию

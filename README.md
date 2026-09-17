@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.0.1-blueviolet?style=for-the-badge" alt="Version 2.0.1">
+  <img src="https://img.shields.io/badge/Version-2.0.2-blueviolet?style=for-the-badge" alt="Version 2.0.2">
   <img src="https://img.shields.io/badge/Tauri-v2.1-blue?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri v2">
   <img src="https://img.shields.io/badge/React-19.1-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19">
   <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
@@ -108,7 +108,11 @@
   - Неблокирующая фоновая распаковка через `spawn_blocking` без зависаний UI и без всплывающих консольных окон.
 - **Предварительная компиляция TensorRT 1080p (.engine):**
   - Фоновая оптимизация ONNX моделей под разрешение 1080p -> 4K с многоступенчатым отслеживанием фаз (разбор ONNX, тактики CUDA, оптимизация графа, сериализация).
+  - Компиляция через нативный `aji_harness.exe` с точным соответствием динамических осей `dyn-HW` и оптимизационных параметров.
   - Устранение задержек при первом включении видео и поддержка перекомпиляции в один клик.
+- **Автоматическая FP16-нормализация и поддержка моделей всех поколений (V1, V2, V3):**
+  - Встроенный алгоритм аппаратной валидации и автоконвертации типов ONNX: модели в формате FP32 автоматически приводятся к стандарту IEEE Float16 перед компиляцией.
+  - Полное устранение артефактов «радужного шума» и расхождения памяти шейдера: идеальная четкость и чистота картинки как на компактных сетях V2, так и на тяжелых моделях V1 и HD V3 / V3Sharp1.
 - **Универсальная библиотека ONNX (`models/onnx/`):**
   - Возможность использования любых сторонних моделей формата `.onnx`.
   - Кнопка **«Папка моделей»** для быстрого перехода в Проводник Windows.
