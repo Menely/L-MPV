@@ -194,20 +194,8 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       </div>
 
       {/* Живой аутентичный предпросмотр цветовой темы и акцента */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "10px 14px",
-          marginBottom: 12,
-          background: "rgba(0, 0, 0, 0.35)",
-          borderRadius: "var(--radius-md)",
-          border: "1px solid var(--border)",
-          gap: 12,
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, minWidth: 0 }}>
+      <div className="settings-preview-card">
+        <div className="settings-preview-card__info">
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
               Предпросмотр:
@@ -231,11 +219,8 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
 
         {/* Миниатюрная плавающая панель в стиле выбранной темы */}
         <div
+          className="settings-preview-card__mini-player"
           style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
             background: "var(--bg-pill)",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
@@ -243,9 +228,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
             borderRadius: "var(--radius-controls, 16px)",
             padding: "6px 14px 8px",
             boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
-            width: "130px",
-            flexShrink: 0,
-            gap: 5,
             transition: "all var(--t-fast) var(--ease-smooth)",
           }}
         >
@@ -307,14 +289,14 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
           marginBottom: 10,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="player-themes-header">
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Palette size={14} style={{ color: "var(--accent)" }} />
             <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
               Цвет плеера (Тема оформления)
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="player-themes-header__right">
             <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
               {PLAYER_THEMES[playerTheme]?.name || "Тёмный графит"}
             </span>
@@ -339,17 +321,8 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
           </div>
         </div>
 
-        {/* Палитра 11 тем оформления плеера (в один ряд с выкатными pill-метками) */}
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "nowrap",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 2px",
-            overflow: "visible",
-          }}
-        >
+        {/* Палитра 11 тем оформления плеера (адаптивная сетка с выкатными pill-метками) */}
+        <div className="player-themes-selector">
           {(Object.keys(PLAYER_THEMES) as PlayerThemeId[]).map((themeKey) => {
             const theme = PLAYER_THEMES[themeKey];
             const isSel = playerTheme === themeKey;
@@ -358,16 +331,14 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 key={themeKey}
                 type="button"
                 onClick={() => handleSelectTheme(themeKey)}
+                className="player-theme-btn"
+                title={theme.name}
+                aria-label={theme.name}
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  height: 34,
                   padding: isSel ? "0 12px 0 5px" : "0 5px",
-                  borderRadius: "var(--radius-pill)",
                   border: isSel
                     ? "1.5px solid var(--accent)"
                     : "1.5px solid rgba(255, 255, 255, 0.10)",
-                  cursor: "pointer",
                   background: isSel
                     ? "rgba(var(--accent-rgb, 127, 199, 255), 0.14)"
                     : "rgba(255, 255, 255, 0.04)",
@@ -375,10 +346,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                   boxShadow: isSel
                     ? "0 0 10px var(--accent-glow), inset 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.08)"
                     : "none",
-                  transition:
-                    "background var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth), padding 0.25s cubic-bezier(0.2, 1.15, 0.3, 1)",
-                  outline: "none",
-                  flexShrink: 0,
                 }}
               >
                 {/* Индикатор цвета фона темы */}
@@ -583,13 +550,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
           </div>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 6,
-          }}
-        >
+        <div className="glow-intensity-grid">
           {GLOW_OPTIONS.map((mode) => {
             const isSel = glowIntensity === mode.id;
             return (

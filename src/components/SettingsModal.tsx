@@ -1000,20 +1000,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 </div>
 
                 {/* Компактный интерактивный предпросмотр */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "10px 14px",
-                    marginBottom: 10,
-                    background: "rgba(0, 0, 0, 0.35)",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--border)",
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, minWidth: 0 }}>
+                <div className="settings-preview-card">
+                  <div className="settings-preview-card__info">
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
                         Предпросмотр:
@@ -1067,11 +1055,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
                   {/* Миниатюрная аутентичная панель управления с живым скруглением и прозрачностью */}
                   <div
+                    className="settings-preview-card__mini-player"
                     style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
                       background: `rgba(var(--bg-pill-rgb, 10, 12, 18), ${uiOpacity})`,
                       backdropFilter: "blur(12px)",
                       WebkitBackdropFilter: "blur(12px)",
@@ -1079,9 +1064,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       borderRadius: `${uiRadius.value}px`,
                       padding: "6px 14px 8px",
                       boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
-                      width: "130px",
-                      flexShrink: 0,
-                      gap: 5,
                       transition: "border-radius var(--t-spring) var(--ease-spring-smooth), background 0.15s ease",
                     }}
                   >
@@ -1200,8 +1182,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           </div>
                         </div>
 
-                        {/* 5 кнопок пресетов скругления в 1 ровный ряд */}
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+                        {/* 5 кнопок пресетов скругления в адаптивной сетке */}
+                        <div className="radius-presets-grid">
                           {(Object.keys(UI_RADIUS_PRESETS) as (Exclude<UiRadiusLevel, "custom">)[]).map((level) => {
                             const preset = UI_RADIUS_PRESETS[level];
                             const isSel = uiRadius.value === preset.controlsRadius;
@@ -1291,8 +1273,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           </div>
                         </div>
 
-                        {/* 6 кнопок пресетов масштаба в 1 ровный ряд */}
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
+                        {/* 6 кнопок пресетов масштаба в адаптивной сетке */}
+                        <div className="scale-presets-grid">
                           {UI_SCALE_PRESETS.map((preset) => {
                             const isSel =
                               uiScale.mode === preset.id ||
@@ -1423,8 +1405,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           </div>
                         </div>
 
-                        {/* 6 кнопок пресетов шрифтов в 1 ровный ряд */}
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
+                        {/* 6 кнопок пресетов шрифтов в адаптивной сетке */}
+                        <div className="font-presets-grid">
                           {UI_FONT_PRESETS.map((fontPreset) => {
                             const isSel = uiFont === fontPreset.id;
                             return (
@@ -2391,21 +2373,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         </div>
 
         {/* Футер с версией приложения и проверкой обновлений */}
-        <div
-          style={{
-            padding: "10px 14px",
-            borderTop: "1px solid var(--border)",
-            background: "rgba(0, 0, 0, 0.25)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            fontSize: "0.82rem",
-            color: "var(--text-muted)",
-            flexShrink: 0,
-            borderRadius: "0 0 var(--radius-lg, 12px) var(--radius-lg, 12px)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="settings-footer">
+          <div className="settings-footer__left">
             {/* Иконки социальных сетей слева от названия L-MPV */}
             <div style={{ display: "flex", alignItems: "center", gap: 1 }}>
               <button

@@ -34,6 +34,11 @@
   .settings-tabs {
     padding: 6px 8px !important;
     gap: 3px !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .settings-tabs::-webkit-scrollbar {
+    display: none;
   }
   .settings-tab-btn {
     padding: 6px 4px !important;
@@ -42,7 +47,7 @@
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 580px) {
   .settings-tab-btn:not(.settings-tab-btn--active) .settings-tab-label {
     display: none;
   }
@@ -53,6 +58,9 @@
   .settings-tab-btn--active {
     flex: 1 1 auto !important;
   }
+}
+
+@media (max-width: 520px) {
 
   /* Всплывающие карточки (Playlist, MediaInfo, Chapters) */
   .media-info-overlay,

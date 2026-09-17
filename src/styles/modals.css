@@ -393,6 +393,179 @@
   }
 }
 
+/* ─── Селектор тем оформления плеера ─────────────────── */
+.player-themes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.player-themes-header__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.player-themes-selector {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 2px;
+  overflow: visible;
+}
+
+.player-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              padding 0.25s cubic-bezier(0.2, 1.15, 0.3, 1);
+}
+
+/* ─── Интерактивные карточки живого предпросмотра ────── */
+.settings-preview-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  gap: 12px;
+}
+
+.settings-preview-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-preview-card__mini-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 130px;
+  flex-shrink: 0;
+  gap: 5px;
+}
+
+@media (max-width: 540px) {
+  .settings-preview-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .settings-preview-card__mini-player {
+    align-self: center;
+    width: 140px;
+  }
+}
+
+/* ─── Сетка кнопок интенсивности свечения ────────────── */
+.glow-intensity-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 540px) {
+  .glow-intensity-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ─── Адаптивные сетки пресетов интерфейса ───────────── */
+.radius-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 560px) {
+  .radius-presets-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .radius-presets-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.scale-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 560px) {
+  .scale-presets-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .scale-presets-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.font-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 560px) {
+  .font-presets-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .font-presets-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ─── Футер настроек ─────────────────────────────────── */
+.settings-footer {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  border-radius: 0 0 var(--radius-lg, 12px) var(--radius-lg, 12px);
+}
+
+.settings-footer__left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 /* ─── Сворачиваемые секции (Аккордеон) ────────────────── */
 .settings-accordion {
   background: rgba(255, 255, 255, 0.02);
@@ -577,6 +750,3 @@
     transform: translateY(0);
   }
 }
-
-
-
