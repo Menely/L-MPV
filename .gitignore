@@ -97,7 +97,5 @@ scratch/
 # ==============================================================================
 .agents/rules/
 agents/rules/
-.codebase-memory/
-
-.codebase-memory
+.codebase-memory/*
 
