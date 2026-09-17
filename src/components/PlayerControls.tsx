@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
+import { usePlayerState } from "../contexts/PlayerStateContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   Undo,
@@ -48,46 +48,13 @@ import {
   getSavedTimeFormat,
   saveTimeFormat,
   getNextTimeFormat,
-  formatTimeByMode,
   TIME_FORMAT_OPTIONS,
 } from "../utils/timeFormatUtils";
 import {
   ControlBarStyle,
   getSavedControlBarStyle,
 } from "../utils/controlBarStyleUtils";
-
-function TimeDisplay({
-  className = "",
-  timeFormat,
-  onCycleFormat,
-  speed = 1.0,
-}: {
-  className?: string;
-  timeFormat: TimeFormatMode;
-  onCycleFormat: () => void;
-  speed?: number;
-}) {
-  const { position, duration } = usePlayerProgress();
-  const formatted = formatTimeByMode(position, duration, timeFormat, speed);
-
-  return (
-    <span
-      className={`time-display ${className}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        onCycleFormat();
-      }}
-      title="Нажмите для смены формата времени"
-    >
-      <span className="time-display__full">
-        {formatted.full}
-      </span>
-      <span className="time-display__compact">
-        {formatted.compact}
-      </span>
-    </span>
-  );
-}
+import { TimeDisplay } from "./TimeDisplay";
 
 export function PlayerControls({
   onShowMediaInfo,
