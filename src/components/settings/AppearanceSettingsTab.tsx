@@ -9,6 +9,7 @@ import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESE
 import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../utils/timePositionUtils";
 import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../utils/timeFormatUtils";
 import { ControlBarStyle } from "../../utils/controlBarStyleUtils";
+import { AmbientSettings } from "../SettingsModal";
 
 interface AppearanceSettingsTabProps {
   activeColor: string;
@@ -34,8 +35,8 @@ interface AppearanceSettingsTabProps {
   controlBarStyle: ControlBarStyle;
   saveControlBarStyle: (s: ControlBarStyle) => void;
   setControlBarStyle: (s: ControlBarStyle) => void;
-  ambientSettings: any;
-  updateAmbient: (updates: any, save?: boolean) => void;
+  ambientSettings: AmbientSettings;
+  updateAmbient: (updates: Partial<AmbientSettings>, immediateSave?: boolean) => void;
   visibleButtons: Record<string, boolean>;
   setVisibleButtons: (v: Record<string, boolean>) => void;
   showTrackNames: boolean;
