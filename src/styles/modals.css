@@ -560,6 +560,40 @@
   }
 }
 
+.bar-style-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (max-width: 540px) {
+  .bar-style-presets-grid {
+    grid-template-columns: 1fr;
+  }
+  .bar-style-preset-btn {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    padding: 8px 12px !important;
+  }
+}
+
+.time-format-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (max-width: 540px) {
+  .time-format-presets-grid {
+    grid-template-columns: 1fr;
+  }
+  .time-format-preset-btn {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    padding: 8px 12px !important;
+  }
+}
+
 /* ─── Футер настроек ─────────────────────────────────── */
 .settings-footer {
   padding: 10px 14px;

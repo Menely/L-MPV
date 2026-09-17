@@ -24,6 +24,10 @@ import {
   Sparkles,
   FileText,
   Clock,
+  Film,
+  Trash2,
+  LayoutTemplate,
+  Timer,
 } from "lucide-react";
 import {
   TimeDisplayPosition,
@@ -31,6 +35,23 @@ import {
   saveTimePosition,
   TIME_POSITION_OPTIONS,
 } from "../utils/timePositionUtils";
+import {
+  RecentFile,
+  getRecentFiles,
+  clearRecentFiles,
+} from "../utils/recentFilesUtils";
+import {
+  TimeFormatMode,
+  getSavedTimeFormat,
+  saveTimeFormat,
+  TIME_FORMAT_OPTIONS,
+} from "../utils/timeFormatUtils";
+import {
+  ControlBarStyle,
+  getSavedControlBarStyle,
+  saveControlBarStyle,
+  CONTROL_BAR_STYLE_OPTIONS,
+} from "../utils/controlBarStyleUtils";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */
@@ -40,7 +61,7 @@ interface ContextMenuProps {
   /** Обработчик закрытия меню. */
   onClose: () => void;
   /** Открытие файла. */
-  onOpenFile?: () => void;
+  onOpenFile?: (filePath?: string) => void;
   /** Открытие модального окна информации о файле. */
   onShowMediaInfo: () => void;
   /** Открытие окна детальных свойств MediaInfo. */
@@ -58,6 +79,8 @@ interface MenuItem {
   shortcut?: string;
   action?: () => void;
   active?: boolean;
+  disabled?: boolean;
+  title?: string;
   children?: MenuItem[];
   submenuClassName?: string;
   track?: TrackInfo;
@@ -92,6 +115,9 @@ export function ContextMenu({
   const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
   const [ambientMode, setAmbientMode] = useState<string>("off");
   const [currentTimePos, setCurrentTimePos] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
+  const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const [recentFiles, setRecentFiles] = useState<RecentFile[]>(() => getRecentFiles());
 
   useEffect(() => {
     invoke<{ mode: string }>("get_ambient_settings")
@@ -100,10 +126,24 @@ export function ContextMenu({
 
     const handleSettingsChanged = () => {
       setCurrentTimePos(getSavedTimePosition());
+      setTimeFormat(getSavedTimeFormat());
+      setControlBarStyle(getSavedControlBarStyle());
+      setRecentFiles(getRecentFiles());
     };
+    const handleRecentChanged = () => {
+      setRecentFiles(getRecentFiles());
+    };
+
     window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-time-format-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-recent-files-changed", handleRecentChanged);
+
     return () => {
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-time-format-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-recent-files-changed", handleRecentChanged);
     };
   }, []);
 
@@ -282,14 +322,57 @@ export function ContextMenu({
   // ─── Определение пунктов меню ─────────────────────
   const menuItems: MenuItem[] = [
     {
-      type: "item",
+      type: "submenu",
       icon: <FolderOpen size={15} />,
       label: "Открыть файл...",
-      shortcut: "Ctrl+O",
       action: () => {
         if (onOpenFile) onOpenFile();
         handleClose();
       },
+      submenuClassName: "context-menu__submenu--recent",
+      children: [
+        {
+          type: "item",
+          icon: <FolderOpen size={14} />,
+          label: "Выбрать на диске...",
+          shortcut: "Ctrl+O",
+          action: () => {
+            if (onOpenFile) onOpenFile();
+            handleClose();
+          },
+        },
+        { type: "divider" },
+        ...(recentFiles.length > 0
+          ? [
+              ...recentFiles.map((rf) => ({
+                type: "item" as const,
+                icon: <Film size={14} />,
+                label: rf.title,
+                title: rf.path,
+                action: () => {
+                  if (onOpenFile) onOpenFile(rf.path);
+                  handleClose();
+                },
+              })),
+              { type: "divider" as const },
+              {
+                type: "item" as const,
+                icon: <Trash2 size={14} />,
+                label: "Очистить историю",
+                action: () => {
+                  clearRecentFiles();
+                  setRecentFiles([]);
+                },
+              },
+            ]
+          : [
+              {
+                type: "item" as const,
+                label: "История файлов пуста",
+                disabled: true,
+              },
+            ]),
+      ],
     },
     { type: "divider" },
     {
@@ -501,6 +584,46 @@ export function ContextMenu({
       })),
     },
     {
+      type: "submenu",
+      icon: <Timer size={15} />,
+      label: "Формат времени",
+      children: TIME_FORMAT_OPTIONS.map((fmtOption) => ({
+        type: "item" as const,
+        label: fmtOption.label,
+        active: timeFormat === fmtOption.id,
+        action: () => {
+          saveTimeFormat(fmtOption.id);
+          setTimeFormat(fmtOption.id);
+          window.dispatchEvent(
+            new CustomEvent("show-osd", {
+              detail: `Формат: ${fmtOption.label}`,
+            })
+          );
+          handleClose();
+        },
+      })),
+    },
+    {
+      type: "submenu",
+      icon: <LayoutTemplate size={15} />,
+      label: "Стиль панели",
+      children: CONTROL_BAR_STYLE_OPTIONS.map((barOption) => ({
+        type: "item" as const,
+        label: barOption.label,
+        active: controlBarStyle === barOption.id,
+        action: () => {
+          saveControlBarStyle(barOption.id);
+          setControlBarStyle(barOption.id);
+          window.dispatchEvent(
+            new CustomEvent("show-osd", {
+              detail: `Стиль панели: ${barOption.label}`,
+            })
+          );
+          handleClose();
+        },
+      })),
+    },
+    {
       type: "item",
       icon: <Settings size={15} />,
       label: "Настройки",
@@ -590,7 +713,11 @@ export function ContextMenu({
               }, 300); // 300ms delay to prevent accidental closing
             }}
           >
-            <button className="context-menu__item">
+            <button
+              className="context-menu__item"
+              onClick={item.action}
+              title={item.title || (typeof item.label === "string" ? item.label : undefined)}
+            >
               <span className="context-menu__item-icon">
                 {item.icon}
               </span>
@@ -620,15 +747,17 @@ export function ContextMenu({
           key={`item-${index}`}
           className={`context-menu__item ${
             item.active ? "context-menu__item--active" : ""
-          }`}
+          } ${item.disabled ? "context-menu__item--disabled" : ""}`}
           onClick={item.action}
+          disabled={item.disabled}
+          title={item.title || (typeof item.label === "string" ? item.label : undefined)}
         >
           {item.icon && (
             <span className="context-menu__item-icon">
               {item.icon}
             </span>
           )}
-          <span className="context-menu__item-label">
+          <span className="context-menu__item-label context-menu__item-label--truncate">
             {item.label}
           </span>
           {item.active && <Check size={14} style={{ marginLeft: 6 }} />}

@@ -23,6 +23,7 @@ import { UpdateModal, UpdateToast, UpdateInfo } from "./components/UpdateModal";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/AudioVisualizer";
 import { applyAccentColor } from "./utils/colorUtils";
 import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
+import { addRecentFile } from "./utils/recentFilesUtils";
 
 function App() {
   const {
@@ -254,10 +255,11 @@ function App() {
     };
   }, []);
 
-  // Синхронизация пути воспроизводимого файла с открытым независимым окном MediaInfo
+  // Синхронизация пути воспроизводимого файла с открытым независимым окном MediaInfo и сохранение в недавние
   useEffect(() => {
     if (mediaInfo?.path) {
       emit("load-mediainfo-path", mediaInfo.path).catch(() => {});
+      addRecentFile(mediaInfo.path);
     }
   }, [mediaInfo?.path]);
 
@@ -444,8 +446,12 @@ function App() {
     hotkeys,
   };
 
-  const handleOpenFile = useCallback(async () => {
+  const handleOpenFile = useCallback(async (filePath?: string) => {
     try {
+      if (filePath) {
+        await invoke("open_file", { path: filePath });
+        return;
+      }
       const file = await open({
         multiple: false,
         directory: false,

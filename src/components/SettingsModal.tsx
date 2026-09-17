@@ -68,6 +68,7 @@ import {
   Type,
   MousePointer2,
   Clock,
+  PanelBottom,
 } from "lucide-react";
 import {
   TimeDisplayPosition,
@@ -75,6 +76,18 @@ import {
   saveTimePosition,
   TIME_POSITION_OPTIONS,
 } from "../utils/timePositionUtils";
+import {
+  TimeFormatMode,
+  getSavedTimeFormat,
+  saveTimeFormat,
+  TIME_FORMAT_OPTIONS,
+} from "../utils/timeFormatUtils";
+import {
+  ControlBarStyle,
+  getSavedControlBarStyle,
+  saveControlBarStyle,
+  CONTROL_BAR_STYLE_OPTIONS,
+} from "../utils/controlBarStyleUtils";
 import {
   HOTKEY_ACTIONS,
   getCustomHotkeys,
@@ -193,6 +206,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [uiScale, setUiScale] = useState<{ mode: UiScaleMode; value: number }>(() => getSavedUiScale());
   const [uiFont, setUiFont] = useState<UiFontId>(() => getSavedUiFont());
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
+  const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "upscaling" | "hotkeys" | "integration">("general");
 
   const [isClosing, setIsClosing] = useState<boolean>(false);
@@ -292,6 +307,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     if (data.uiScale) setUiScale({ mode: data.uiScale.mode, value: data.uiScale.value ?? 1.0 });
     if (data.uiFont) setUiFont(data.uiFont as UiFontId);
     if (data.timePosition) setTimePosition(data.timePosition);
+    if (data.timeFormat) setTimeFormat(data.timeFormat);
+    if (data.controlBarStyle) setControlBarStyle(data.controlBarStyle);
     if (typeof data.animationsEnabled === "boolean") setAnimationsEnabled(data.animationsEnabled);
     if (typeof data.showTrackNames === "boolean") setShowTrackNames(data.showTrackNames);
     if (data.visibleButtons) setVisibleButtons(data.visibleButtons);
@@ -367,20 +384,22 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         setUiFont(customEvent.detail);
       }
     };
-    const handleTimePosChanged = () => {
+    const handleSettingsChanged = () => {
       setTimePosition(getSavedTimePosition());
+      setTimeFormat(getSavedTimeFormat());
+      setControlBarStyle(getSavedControlBarStyle());
     };
     window.addEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
     window.addEventListener("l-mpv-ui-scale-changed", handleScaleChanged);
     window.addEventListener("l-mpv-ui-opacity-changed", handleOpacityChanged);
     window.addEventListener("l-mpv-ui-font-changed", handleFontChanged);
-    window.addEventListener("l-mpv-settings-changed", handleTimePosChanged);
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
     return () => {
       window.removeEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
       window.removeEventListener("l-mpv-ui-scale-changed", handleScaleChanged);
       window.removeEventListener("l-mpv-ui-opacity-changed", handleOpacityChanged);
       window.removeEventListener("l-mpv-ui-font-changed", handleFontChanged);
-      window.removeEventListener("l-mpv-settings-changed", handleTimePosChanged);
+      window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
     };
   }, []);
   // По умолчанию все категории свернуты (пустой Set / объект)
@@ -1072,6 +1091,26 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       >
                         Время: {TIME_POSITION_OPTIONS.find((p) => p.id === timePosition)?.label || "Справа от таймлайна"}
                       </span>
+                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
+                      <span
+                        style={{
+                          fontSize: "0.80rem",
+                          fontWeight: 700,
+                          color: "var(--accent)",
+                        }}
+                      >
+                        Панель: {controlBarStyle === "docked" ? "Пристыкованная (Docked)" : "Парящая (Floating)"}
+                      </span>
+                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
+                      <span
+                        style={{
+                          fontSize: "0.80rem",
+                          fontWeight: 700,
+                          color: "var(--accent)",
+                        }}
+                      >
+                        Формат: {TIME_FORMAT_OPTIONS.find((f) => f.id === timeFormat)?.label || "Прошедшее / Общее"}
+                      </span>
                     </div>
                     <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", lineHeight: 1.25 }}>
                       Живой отклик нижней панели управления, кнопок плеера, диалогов и контекстных меню
@@ -1085,10 +1124,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       background: `rgba(var(--bg-pill-rgb, 10, 12, 18), ${uiOpacity})`,
                       backdropFilter: "blur(12px)",
                       WebkitBackdropFilter: "blur(12px)",
-                      border: "1px solid var(--border-pill)",
-                      borderRadius: `${uiRadius.value}px`,
+                      borderTop: "1px solid var(--border-pill)",
+                      borderLeft: controlBarStyle === "docked" ? "none" : "1px solid var(--border-pill)",
+                      borderRight: controlBarStyle === "docked" ? "none" : "1px solid var(--border-pill)",
+                      borderBottom: controlBarStyle === "docked" ? "none" : "1px solid var(--border-pill)",
+                      borderRadius: controlBarStyle === "docked" ? 0 : `${uiRadius.value}px`,
                       padding: "6px 14px 8px",
-                      boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
+                      boxShadow: controlBarStyle === "docked"
+                        ? "0 -4px 16px rgba(0, 0, 0, 0.45)"
+                        : "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
                       transition: "border-radius var(--t-spring) var(--ease-spring-smooth), background 0.15s ease",
                     }}
                   >
@@ -1187,6 +1231,20 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                             <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
                               Скругление углов интерфейса
                             </span>
+                            {controlBarStyle === "docked" && (
+                              <span
+                                style={{
+                                  fontSize: "0.68rem",
+                                  color: "var(--accent)",
+                                  background: "rgba(var(--accent-rgb, 127, 199, 255), 0.12)",
+                                  padding: "2px 6px",
+                                  borderRadius: 4,
+                                }}
+                                title="В режиме 'Пристыкованная планка' нижняя панель зафиксирована плоской, а скругление применяется к окнам, меню и карточкам"
+                              >
+                                Панель зафиксирована плоской
+                              </span>
+                            )}
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
@@ -1531,6 +1589,157 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                   }}
                                 >
                                   {posOption.desc}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* ── Блок 6: Стиль панели управления (Control Bar Style) ── */}
+                      <div style={{ ...cardStyle, marginBottom: 0, marginTop: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <PanelBottom size={14} style={{ color: "var(--accent)" }} />
+                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                              Стиль панели управления
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+                              {CONTROL_BAR_STYLE_OPTIONS.find((s) => s.id === controlBarStyle)?.label || "Парящая"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setControlBarStyle("floating");
+                                saveControlBarStyle("floating");
+                              }}
+                              className="btn btn--secondary btn--sm"
+                              style={resetBtnStyle}
+                            >
+                              <RotateCcw size={11} />
+                              <span>Парящая (Стандарт)</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 2 кнопки стилей панели управления */}
+                        <div className="bar-style-presets-grid">
+                          {CONTROL_BAR_STYLE_OPTIONS.map((styleOption) => {
+                            const isSel = controlBarStyle === styleOption.id;
+                            return (
+                              <button
+                                key={styleOption.id}
+                                type="button"
+                                className="bar-style-preset-btn"
+                                onClick={() => {
+                                  setControlBarStyle(styleOption.id);
+                                  saveControlBarStyle(styleOption.id);
+                                }}
+                                style={btnStyle(isSel, "10px 8px")}
+                                title={`${styleOption.label} — ${styleOption.desc}`}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: "0.78rem",
+                                    fontWeight: 700,
+                                    color: isSel ? "var(--accent)" : "var(--text-primary)",
+                                    textAlign: "center",
+                                  }}
+                                >
+                                  {styleOption.label}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: "0.68rem",
+                                    color: isSel ? "var(--accent-hover)" : "var(--text-muted)",
+                                    textAlign: "center",
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  {styleOption.desc}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* ── Блок 7: Формат отображения времени ── */}
+                      <div style={{ ...cardStyle, marginBottom: 0, marginTop: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Clock size={14} style={{ color: "var(--accent)" }} />
+                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                              Формат отображения времени
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+                              {TIME_FORMAT_OPTIONS.find((f) => f.id === timeFormat)?.label || "Прошедшее / Общее"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTimeFormat("elapsed_total");
+                                saveTimeFormat("elapsed_total");
+                              }}
+                              className="btn btn--secondary btn--sm"
+                              style={resetBtnStyle}
+                            >
+                              <RotateCcw size={11} />
+                              <span>Стандарт</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 4 кнопки пресетов формата времени */}
+                        <div className="time-format-presets-grid">
+                          {TIME_FORMAT_OPTIONS.map((formatOption) => {
+                            const isSel = timeFormat === formatOption.id;
+                            return (
+                              <button
+                                key={formatOption.id}
+                                type="button"
+                                className="time-format-preset-btn"
+                                onClick={() => {
+                                  setTimeFormat(formatOption.id);
+                                  saveTimeFormat(formatOption.id);
+                                }}
+                                style={btnStyle(isSel, "10px 8px")}
+                                title={`${formatOption.label} — ${formatOption.desc}`}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+                                  <span
+                                    style={{
+                                      fontSize: "0.78rem",
+                                      fontWeight: 700,
+                                      color: isSel ? "var(--accent)" : "var(--text-primary)",
+                                    }}
+                                  >
+                                    {formatOption.label}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: "0.70rem",
+                                      color: "var(--accent)",
+                                      opacity: 0.85,
+                                      fontFamily: "monospace",
+                                    }}
+                                  >
+                                    [{formatOption.example}]
+                                  </span>
+                                </div>
+                                <span
+                                  style={{
+                                    fontSize: "0.68rem",
+                                    color: isSel ? "var(--accent-hover)" : "var(--text-muted)",
+                                    textAlign: "center",
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  {formatOption.desc}
                                 </span>
                               </button>
                             );

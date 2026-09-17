@@ -30,7 +30,6 @@ import {
   FileText,
   AudioWaveform,
 } from "lucide-react";
-import { formatTime } from "../utils/timeUtils";
 import { Timeline } from "./Timeline";
 import {
   AudioVisualizer,
@@ -44,16 +43,47 @@ import {
   TimeDisplayPosition,
   getSavedTimePosition,
 } from "../utils/timePositionUtils";
+import {
+  TimeFormatMode,
+  getSavedTimeFormat,
+  saveTimeFormat,
+  getNextTimeFormat,
+  formatTimeByMode,
+  TIME_FORMAT_OPTIONS,
+} from "../utils/timeFormatUtils";
+import {
+  ControlBarStyle,
+  getSavedControlBarStyle,
+} from "../utils/controlBarStyleUtils";
 
-function TimeDisplay({ className = "" }: { className?: string }) {
+function TimeDisplay({
+  className = "",
+  timeFormat,
+  onCycleFormat,
+  speed = 1.0,
+}: {
+  className?: string;
+  timeFormat: TimeFormatMode;
+  onCycleFormat: () => void;
+  speed?: number;
+}) {
   const { position, duration } = usePlayerProgress();
+  const formatted = formatTimeByMode(position, duration, timeFormat, speed);
+
   return (
-    <span className={`time-display ${className}`}>
+    <span
+      className={`time-display ${className}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onCycleFormat();
+      }}
+      title="Нажмите для смены формата времени"
+    >
       <span className="time-display__full">
-        {formatTime(position)} / {formatTime(duration)}
+        {formatted.full}
       </span>
       <span className="time-display__compact">
-        {formatTime(position)}
+        {formatted.compact}
       </span>
     </span>
   );
@@ -193,6 +223,20 @@ export function PlayerControls({
 
   const [hotkeys, setHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
+  const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+
+  const handleCycleTimeFormat = useCallback(() => {
+    const nextFormat = getNextTimeFormat(timeFormat);
+    setTimeFormat(nextFormat);
+    saveTimeFormat(nextFormat);
+    const option = TIME_FORMAT_OPTIONS.find((opt) => opt.id === nextFormat);
+    window.dispatchEvent(
+      new CustomEvent("show-osd", {
+        detail: `Формат времени: ${option?.label || nextFormat}`,
+      })
+    );
+  }, [timeFormat]);
 
   // Синхронизация локальных настроек плеера (не зависит от активных поповеров)
   useEffect(() => {
@@ -205,6 +249,8 @@ export function PlayerControls({
       setSkipOpeningSeconds(Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
       setHotkeys(getCustomHotkeys());
       setTimePosition(getSavedTimePosition());
+      setTimeFormat(getSavedTimeFormat());
+      setControlBarStyle(getSavedControlBarStyle());
     };
     window.addEventListener('l-mpv-settings-changed', updateSetting);
     return () => window.removeEventListener('l-mpv-settings-changed', updateSetting);
@@ -441,7 +487,11 @@ export function PlayerControls({
   const isPopoverClosing = !activePopover && Boolean(closingPopover);
 
   return (
-    <div className="player-controls-wrapper">
+    <div
+      className={`player-controls-wrapper ${
+        controlBarStyle === "docked" ? "player-controls-wrapper--docked" : ""
+      }`}
+    >
       <div className="player-controls">
         {/* Всплывающее меню дорожек */}
         {(displayedPopover === "audio" || displayedPopover === "sub") && (
@@ -562,9 +612,21 @@ export function PlayerControls({
 
         {/* Строка таймлайна со временем (справа, слева или во всю ширину) */}
         <div className={`timeline-row ${timePosition === "volume_right" ? "timeline-row--full" : ""}`}>
-          {timePosition === "timeline_left" && <TimeDisplay />}
+          {timePosition === "timeline_left" && (
+            <TimeDisplay
+              timeFormat={timeFormat}
+              onCycleFormat={handleCycleTimeFormat}
+              speed={mediaInfo?.speed}
+            />
+          )}
           <Timeline />
-          {timePosition === "timeline_right" && <TimeDisplay />}
+          {timePosition === "timeline_right" && (
+            <TimeDisplay
+              timeFormat={timeFormat}
+              onCycleFormat={handleCycleTimeFormat}
+              speed={mediaInfo?.speed}
+            />
+          )}
         </div>
 
         {/* Кнопки управления */}
@@ -665,7 +727,12 @@ export function PlayerControls({
 
             {/* Время воспроизведения справа от громкости */}
             {timePosition === "volume_right" && (
-              <TimeDisplay className="time-display--toolbar" />
+              <TimeDisplay
+                className="time-display--toolbar"
+                timeFormat={timeFormat}
+                onCycleFormat={handleCycleTimeFormat}
+                speed={mediaInfo?.speed}
+              />
             )}
 
             {/* Компактный аудио-визуалайзер в тулбаре */}

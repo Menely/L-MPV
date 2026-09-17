@@ -143,6 +143,26 @@
   gap: 3px;
 }
 
+.context-menu__submenu--recent {
+  min-width: 250px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.context-menu__item--disabled {
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
+}
+
+.context-menu__item-label--truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .context-menu__track-row {
   display: flex;
   align-items: center;

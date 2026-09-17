@@ -33,6 +33,29 @@
               0 0 20px rgba(127, 199, 255, 0.06);
 }
 
+/* ─── Пристыкованная ко дну панель управления (Docked Bar) ── */
+.player-controls-wrapper--docked {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+}
+
+.player-controls-wrapper--docked .player-controls {
+  border-radius: 0 !important;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-top: 1px solid var(--border-pill);
+  padding: 6px 18px 9px;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+}
+
+.app-container--idle .player-controls-wrapper--docked,
+.app-container--hide-controls .player-controls-wrapper--docked {
+  transform: translateY(100%);
+}
+
 /* ─── Строка таймлайна со временем (справа, слева или на всю ширину) ── */
 .timeline-row {
   display: flex;
@@ -359,12 +382,26 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  padding: 0 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs, 4px);
   letter-spacing: 0.3px;
   display: inline-flex;
   align-items: center;
   line-height: 1;
-  transition: color var(--t-fast) var(--ease-smooth);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-smooth);
+}
+
+.time-display:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.14);
+  color: var(--accent-hover, var(--accent));
+}
+
+.time-display:active {
+  transform: scale(0.96);
 }
 
 .time-display__compact {

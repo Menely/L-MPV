@@ -39,6 +39,16 @@ import {
   getSavedTimePosition,
   saveTimePosition,
 } from "./timePositionUtils";
+import {
+  TimeFormatMode,
+  getSavedTimeFormat,
+  saveTimeFormat,
+} from "./timeFormatUtils";
+import {
+  ControlBarStyle,
+  getSavedControlBarStyle,
+  saveControlBarStyle,
+} from "./controlBarStyleUtils";
 
 export interface SettingsPresetData {
   /** Тема оформления плеера (расцветка фона и поверхностей) */
@@ -47,6 +57,10 @@ export interface SettingsPresetData {
   uiFont?: UiFontId | string;
   /** Положение отображения времени воспроизведения видео */
   timePosition?: TimeDisplayPosition;
+  /** Формат отображения времени (прошедшее/общее, оставшееся, расчет окончания) */
+  timeFormat?: TimeFormatMode;
+  /** Стиль панели управления (парящий остров или пристыкованная плашка) */
+  controlBarStyle?: ControlBarStyle;
   /** Акцентный цвет (HEX или "windows") */
   accentColor: string;
   /** Интенсивность неонового свечения */
@@ -355,6 +369,8 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
       playerTheme,
       uiFont,
       timePosition: getSavedTimePosition(),
+      timeFormat: getSavedTimeFormat(),
+      controlBarStyle: getSavedControlBarStyle(),
       accentColor,
       glowIntensity,
       uiOpacity,
@@ -434,6 +450,16 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   // 3.4 Положение времени воспроизведения
   if (data.timePosition) {
     saveTimePosition(data.timePosition);
+  }
+
+  // 3.5 Формат времени воспроизведения
+  if (data.timeFormat) {
+    saveTimeFormat(data.timeFormat);
+  }
+
+  // 3.6 Стиль панели управления (парящий остров или пристыкованная плашка)
+  if (data.controlBarStyle) {
+    saveControlBarStyle(data.controlBarStyle);
   }
 
   // 4. Плавные анимации
