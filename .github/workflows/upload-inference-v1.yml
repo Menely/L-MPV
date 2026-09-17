@@ -56,7 +56,6 @@ jobs:
           files: |
             l-mpv_convert_fp16.zip
             aji-windows-x64.zip
-            component-trt-runtime.7z
             component-trt-*.7z
           draft: false
           prerelease: false
