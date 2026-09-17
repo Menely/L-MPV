@@ -179,6 +179,29 @@ pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
     "ptx".to_string()
 }
 
+/// Получение точного наименования GPU через утилиту nvidia-smi (соответствует CUDA Runtime `cudaGetDeviceProperties`)
+pub fn get_cuda_gpu_name() -> Option<String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = std::process::Command::new("nvidia-smi");
+        cmd.args(["--query-gpu=name", "--format=csv,noheader"]);
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: скрывает консольное окно
+        if let Ok(output) = cmd.output() {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if let Some(first_line) = stdout.lines().next() {
+                    let trimmed = first_line.trim();
+                    if !trimmed.is_empty() {
+                        return Some(trimmed.to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 use std::sync::OnceLock;
 
 static CACHED_GPU: OnceLock<GpuHardwareInfo> = OnceLock::new();
@@ -209,7 +232,7 @@ fn detect_system_gpu_uncached() -> GpuHardwareInfo {
                             .iter()
                             .position(|&c| c == 0)
                             .unwrap_or(desc.Description.len());
-                        let name = String::from_utf16_lossy(&desc.Description[..name_len])
+                        let raw_name = String::from_utf16_lossy(&desc.Description[..name_len])
                             .trim()
                             .to_string();
                         let vendor_id = desc.VendorId;
@@ -230,6 +253,14 @@ fn detect_system_gpu_uncached() -> GpuHardwareInfo {
                             "TensorRT".to_string()
                         } else {
                             "DirectML".to_string()
+                        };
+
+                        // Для карт NVIDIA отдаем приоритет наименованию из CUDA/nvidia-smi,
+                        // поскольку именно его libaji использует для поиска скомпилированных .engine файлов
+                        let name = if supports_tensorrt {
+                            get_cuda_gpu_name().unwrap_or(raw_name)
+                        } else {
+                            raw_name
                         };
 
                         let sm_architecture = if supports_tensorrt {
@@ -331,14 +362,22 @@ mod tests {
 
         // Ada Lovelace (RTX 40xx)
         assert_eq!(determine_nvidia_sm("NVIDIA GeForce RTX 4090", 0), "sm89");
+        assert_eq!(determine_nvidia_sm("NVIDIA GeForce RTX 4080 SUPER", 0), "sm89");
+        assert_eq!(determine_nvidia_sm("NVIDIA GeForce RTX 4070 Ti SUPER", 0), "sm89");
+        assert_eq!(determine_nvidia_sm("NVIDIA GeForce RTX 4070 Ti", 0), "sm89");
         assert_eq!(determine_nvidia_sm("NVIDIA GeForce RTX 4070 Laptop GPU", 0), "sm89");
+        assert_eq!(determine_nvidia_sm("NVIDIA GeForce RTX 4060 Ti", 0), "sm89");
         assert_eq!(determine_nvidia_sm("NVIDIA RTX 4000 Ada Generation", 0), "sm89");
         assert_eq!(determine_nvidia_sm_major("NVIDIA GeForce RTX 4090", "sm89"), "sm8");
+        assert_eq!(determine_nvidia_sm_major("NVIDIA GeForce RTX 4070 Ti", "sm89"), "sm8");
 
         // Ampere (RTX 30xx)
+        assert_eq!(determine_nvidia_sm("NVIDIA GeForce RTX 3090", 0), "sm86");
         assert_eq!(determine_nvidia_sm("NVIDIA GeForce RTX 3080", 0), "sm86");
+        assert_eq!(determine_nvidia_sm("NVIDIA GeForce RTX 3070", 0), "sm86");
         assert_eq!(determine_nvidia_sm("NVIDIA GeForce RTX 3060 Ti", 0), "sm86");
         assert_eq!(determine_nvidia_sm("NVIDIA RTX A4000", 0), "sm86");
+        assert_eq!(determine_nvidia_sm_major("NVIDIA GeForce RTX 3090", "sm86"), "sm8");
         assert_eq!(determine_nvidia_sm_major("NVIDIA GeForce RTX 3080", "sm86"), "sm8");
 
         // Ampere datacenter (A100)

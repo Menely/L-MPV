@@ -30,7 +30,7 @@ pub async fn precompile_model_engine_1080p_impl(
     let _ = write_upscale_conf("TensorRT", slot)?;
     let models_dir = get_models_dir();
 
-    // Очищаем временные блокировки кэшей и старые логи сборщика
+    // Очищаем временные блокировки кэшей, старые логи сборщика и поврежденные пустые кэши
     if let Ok(entries) = std::fs::read_dir(&models_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -39,7 +39,13 @@ pub async fn precompile_model_engine_1080p_impl(
                 .and_then(|n| n.to_str())
                 .unwrap_or_default();
             if name.ends_with(".timing.cache.lock") || name.ends_with(".build.log") {
-                let _ = std::fs::remove_file(path);
+                let _ = std::fs::remove_file(&path);
+            } else if name.ends_with(".timing.cache") {
+                if let Ok(meta) = entry.metadata() {
+                    if meta.len() == 0 {
+                        let _ = std::fs::remove_file(&path);
+                    }
+                }
             }
         }
     }
@@ -164,8 +170,11 @@ pub async fn precompile_model_engine_1080p_impl(
             // Плавный прирост процентов до расчетной целевой отметки
             if current_percent < detected_target {
                 current_percent = (current_percent + 2.5).min(detected_target);
-            } else if current_percent < 94.0 {
-                current_percent += 0.3;
+            } else if current_percent < 98.5 {
+                // Плавное замедляющееся приближение к 98.5%, предотвращающее замирание индикатора на 94%
+                let remaining = 98.5 - current_percent;
+                let step = (remaining * 0.04).max(0.05);
+                current_percent = (current_percent + step).min(98.5);
             }
 
             let rounded_percent = (current_percent * 10.0).round() / 10.0;
@@ -189,9 +198,9 @@ pub async fn precompile_model_engine_1080p_impl(
     let inf_dir_task = inf_dir.clone();
     let model_stem_task = model_stem.clone();
 
-    let output = tokio::task::spawn_blocking(move || {
+    let status = tokio::task::spawn_blocking(move || -> Result<std::process::ExitStatus, String> {
         // Напрямую вызываем компилятор trtexec.exe (идентично поведению libaji/aji_trt.cpp:build_engine)
-        // с созданием persistent timing cache и сохранением лога сборки
+        // с созданием persistent timing cache и перенаправлением вывода в файл лога
         let mut cmd = std::process::Command::new(&trtexec_path);
         let tcache = models_dir_task.join(format!("{}.timing.cache", model_stem_task));
         cmd.args([
@@ -203,12 +212,16 @@ pub async fn precompile_model_engine_1080p_impl(
             format!("--timingCacheFile={}", tcache.display()),
         ]);
 
-        if let Ok(f) = std::fs::File::create(&build_log_task) {
-            if let Ok(f2) = f.try_clone() {
-                cmd.stdout(f);
-                cmd.stderr(f2);
-            }
-        }
+        let log_file = std::fs::File::create(&build_log_task)
+            .map_err(|e| format!("Не удалось создать файл журнала компиляции: {}", e))?;
+        let log_err = log_file
+            .try_clone()
+            .map_err(|e| format!("Не удалось дублировать дескриптор файла журнала: {}", e))?;
+
+        // Используем cmd.status() вместо cmd.output(), чтобы stdout/stderr записывались
+        // напрямую в лог-файл в реальном времени, а монитор мог считывать прогресс
+        cmd.stdout(log_file);
+        cmd.stderr(log_err);
 
         cmd.current_dir(&inf_dir_task);
         if let Some(path) = std::env::var_os("PATH") {
@@ -228,22 +241,25 @@ pub async fn precompile_model_engine_1080p_impl(
             cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: предотвращает моргание консольного окна
         }
 
-        cmd.output()
+        cmd.status()
+            .map_err(|e| format!("Ошибка запуска процесса trtexec: {}", e))
     })
     .await
-    .map_err(|e| format!("Ошибка потока выполнения сборщика: {}", e))?
-    .map_err(|e| format!("Не удалось запустить компилятор TensorRT: {}", e))?;
+    .map_err(|e| format!("Ошибка потока выполнения сборщика: {}", e))??;
 
     is_running.store(false, std::sync::atomic::Ordering::Relaxed);
     let _ = monitor_handle.await;
 
-    if !output.status.success() {
+    if !status.success() {
         let err_detail = if let Ok(log_txt) = std::fs::read_to_string(&build_log_for_err) {
             let err_lines: Vec<&str> = log_txt
                 .lines()
                 .filter(|line| {
                     let lower = line.to_lowercase();
-                    lower.contains("[e]") || lower.contains("error") || lower.contains("failed")
+                    lower.contains("[e]")
+                        || lower.contains("error")
+                        || lower.contains("failed")
+                        || lower.contains("cuda error")
                 })
                 .collect();
 
@@ -257,13 +273,23 @@ pub async fn precompile_model_engine_1080p_impl(
                     .collect::<Vec<_>>()
                     .join("\n")
             } else {
-                let last_lines: Vec<&str> = log_txt.lines().rev().take(10).collect();
+                let last_lines: Vec<&str> = log_txt
+                    .lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .rev()
+                    .take(10)
+                    .collect();
                 let mut rev_lines = last_lines;
                 rev_lines.reverse();
-                rev_lines.join("\n")
+                let joined = rev_lines.join("\n");
+                if joined.is_empty() {
+                    format!("Процесс trtexec завершился с кодом ошибки {:?}", status.code())
+                } else {
+                    joined
+                }
             }
         } else {
-            "Неизвестная ошибка сборки движка".to_string()
+            format!("Процесс trtexec завершился с кодом ошибки {:?}", status.code())
         };
 
         // Удаляем битый/пустой файл .engine, если он был создан
