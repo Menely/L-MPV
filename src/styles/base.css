@@ -267,13 +267,15 @@ html, body, #root {
 
 /* ─── Унифицированное центрированное вращение крестиков (Close & Clear) ── */
 .modal__close svg,
+.titlebar__btn--close svg,
 .playlist-drawer__close svg,
 .side-panel__close svg,
 .mediainfo-floating-window__btn--close svg,
 .mediainfo-standalone__control-btn--close svg,
 .update-toast__close svg,
 .mediainfo-standalone__btn-icon svg,
-.mediainfo-floating-window__search-clear svg {
+.mediainfo-floating-window__search-clear svg,
+.color-circle__remove-btn svg {
   display: block;
   flex-shrink: 0;
   margin: 0;
@@ -284,13 +286,15 @@ html, body, #root {
 }
 
 .modal__close:hover svg,
+.titlebar__btn--close:hover svg,
 .playlist-drawer__close:hover svg,
 .side-panel__close:hover svg,
 .mediainfo-floating-window__btn--close:hover svg,
 .mediainfo-standalone__control-btn--close:hover svg,
 .update-toast__close:hover svg,
 .mediainfo-standalone__btn-icon:hover svg,
-.mediainfo-floating-window__search-clear:hover svg {
+.mediainfo-floating-window__search-clear:hover svg,
+.color-circle__remove-btn:hover svg {
   transform: rotate(90deg);
 }
 
