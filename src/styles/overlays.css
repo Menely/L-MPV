@@ -324,11 +324,10 @@
 
 .playlist-item:hover {
   background: var(--bg-hover);
-  transform: translateX(4px);
 }
 
 .playlist-item:active {
-  transform: translateX(2px) scale(0.98);
+  transform: scale(0.985);
 }
 
 .playlist-item--current {
@@ -338,7 +337,7 @@
 }
 
 .playlist-item--current:hover {
-  transform: translateX(4px);
+  background: var(--bg-active);
 }
 
 .playlist-item__icon {
@@ -465,6 +464,22 @@
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.update-toast--closing {
+  animation: updateToastSpringOut 120ms var(--ease-out) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes updateToastSpringOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.96);
   }
 }
 

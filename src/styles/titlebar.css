@@ -13,8 +13,8 @@
   border: none;
   box-shadow: none;
   transform: translateY(0);
-  transition: opacity var(--t-slow) var(--ease-smooth),
-              transform var(--t-slow) var(--ease-out);
+  transition: opacity var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-out);
 }
 
 .titlebar::before {

@@ -152,10 +152,15 @@ export function ContextMenu({
 
   const handleClose = useCallback(() => {
     if (isClosing) return;
+    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
+    if (isNoAnim) {
+      onClose();
+      return;
+    }
     setIsClosing(true);
     closingTimerRef.current = setTimeout(() => {
       onClose();
-    }, 110);
+    }, 120);
   }, [isClosing, onClose]);
 
   useEffect(() => {

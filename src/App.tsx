@@ -53,6 +53,7 @@ function App() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showUpdateToast, setShowUpdateToast] = useState(false);
   const [osdText, setOsdText] = useState<string | null>(null);
+  const [isOsdClosing, setIsOsdClosing] = useState<boolean>(false);
   const [isCursorInUpperHalf, setIsCursorInUpperHalf] = useState(false);
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => {
     try {
@@ -65,6 +66,7 @@ function App() {
   const mediaTitle = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "";
 
   const osdTimerRef = useRef<number | null>(null);
+  const osdFadeTimerRef = useRef<number | null>(null);
   const clickTimerRef = useRef<number | null>(null);
   const hasMediaRef = useRef(hasMedia);
   const isSteppingRef = useRef(false);
@@ -72,6 +74,37 @@ function App() {
   const videoPanXRef = useRef<number>(0);
   const videoPanYRef = useRef<number>(0);
   const rafIdRef = useRef<number | null>(null);
+
+  const triggerOsd = useCallback((text: string, durationMs: number = 1400) => {
+    if (osdTimerRef.current !== null) {
+      window.clearTimeout(osdTimerRef.current);
+      osdTimerRef.current = null;
+    }
+    if (osdFadeTimerRef.current !== null) {
+      window.clearTimeout(osdFadeTimerRef.current);
+      osdFadeTimerRef.current = null;
+    }
+    setIsOsdClosing(false);
+    setOsdText(text);
+
+    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
+    const fadeDuration = isNoAnim ? 0 : 200;
+
+    osdTimerRef.current = window.setTimeout(() => {
+      if (fadeDuration > 0) {
+        setIsOsdClosing(true);
+        osdFadeTimerRef.current = window.setTimeout(() => {
+          setOsdText(null);
+          setIsOsdClosing(false);
+          osdFadeTimerRef.current = null;
+        }, fadeDuration);
+      } else {
+        setOsdText(null);
+        setIsOsdClosing(false);
+      }
+      osdTimerRef.current = null;
+    }, durationMs);
+  }, []);
   
   useEffect(() => {
     hasMediaRef.current = hasMedia;
@@ -179,15 +212,21 @@ function App() {
   useEffect(() => {
     const handleOsd = (e: Event) => {
       const text = (e as CustomEvent).detail;
-      setOsdText(text);
-      if (osdTimerRef.current !== null) {
-        window.clearTimeout(osdTimerRef.current);
-      }
-      osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+      triggerOsd(text, 1400);
     };
     window.addEventListener("show-osd", handleOsd);
-    return () => window.removeEventListener("show-osd", handleOsd);
-  }, []);
+    return () => {
+      window.removeEventListener("show-osd", handleOsd);
+      if (osdTimerRef.current !== null) {
+        window.clearTimeout(osdTimerRef.current);
+        osdTimerRef.current = null;
+      }
+      if (osdFadeTimerRef.current !== null) {
+        window.clearTimeout(osdFadeTimerRef.current);
+        osdFadeTimerRef.current = null;
+      }
+    };
+  }, [triggerOsd]);
 
   useEffect(() => {
     invoke<boolean>("is_standalone_mode")
@@ -1030,7 +1069,11 @@ function App() {
 
       {/* OSD подписи текущего кадра и статистики */}
       {osdText && (
-        <div className={`frame-osd ${osdText.includes("\n") ? "frame-osd--multiline" : ""}`}>
+        <div
+          className={`frame-osd ${osdText.includes("\n") ? "frame-osd--multiline" : ""} ${
+            isOsdClosing ? "frame-osd--closing" : ""
+          }`}
+        >
           {osdText}
         </div>
       )}
@@ -1089,11 +1132,7 @@ function App() {
                   }).catch(console.error);
 
                   const percentage = Math.round(Math.pow(2, targetZoom) * 100);
-                  setOsdText(targetZoom === 0 ? "Масштаб: 100% (Исходный)" : `Масштаб: ${percentage}%`);
-                  if (osdTimerRef.current !== null) {
-                    window.clearTimeout(osdTimerRef.current);
-                  }
-                  osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1200);
+                  triggerOsd(targetZoom === 0 ? "Масштаб: 100% (Исходный)" : `Масштаб: ${percentage}%`, 1100);
                 });
               }
             } else {

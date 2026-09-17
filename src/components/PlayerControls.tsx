@@ -111,7 +111,8 @@ export function PlayerControls({
       clearTimeout(closePopoverTimerRef.current);
       closePopoverTimerRef.current = null;
     }
-    if (immediate) {
+    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
+    if (immediate || isNoAnim) {
       setActivePopover(null);
       setClosingPopover(null);
       return;
@@ -122,7 +123,7 @@ export function PlayerControls({
       closePopoverTimerRef.current = setTimeout(() => {
         setClosingPopover(null);
         closePopoverTimerRef.current = null;
-      }, 110);
+      }, 120);
       return null;
     });
   }, []);

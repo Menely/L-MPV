@@ -104,11 +104,10 @@
 .track-popover__item:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
-  transform: translateX(3px);
 }
 
 .track-popover__item:active {
-  transform: translateX(1px) scale(0.98);
+  transform: scale(0.985);
 }
 
 .track-popover__item--active {
@@ -125,7 +124,7 @@
 }
 
 .track-popover__item--active:hover {
-  transform: translateX(3px);
+  background: var(--bg-active);
 }
 
 [data-glow="off"] .track-popover__item--active svg,
@@ -153,11 +152,11 @@ html[data-glow="off"] .track-popover__item--active svg {
 @keyframes popoverCheckIn {
   0% {
     opacity: 0;
-    transform: scale(0.4) rotate(-20deg);
+    transform: scale(0.4);
   }
   100% {
     opacity: 1;
-    transform: scale(1) rotate(0deg);
+    transform: scale(1);
   }
 }
 

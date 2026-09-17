@@ -10,8 +10,8 @@
   container-type: inline-size;
   container-name: controls;
   transform: translateY(0);
-  transition: opacity var(--t-slow) var(--ease-smooth),
-              transform var(--t-slow) var(--ease-out);
+  transition: opacity var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-out);
 }
 
 /* ─── Таблетка управления ─────────────────────────────── */
@@ -72,7 +72,8 @@
   transition: height var(--t-fast) var(--ease-smooth);
 }
 
-.timeline:hover .timeline__track {
+.timeline:hover .timeline__track,
+.timeline--dragging .timeline__track {
   height: 8px;
 }
 
@@ -111,7 +112,8 @@
   will-change: width;
 }
 
-.timeline:hover .timeline__segment-progress {
+.timeline:hover .timeline__segment-progress,
+.timeline--dragging .timeline__segment-progress {
   box-shadow: var(--timeline-glow, none), 0 0 10px var(--accent-glow);
 }
 
@@ -132,7 +134,9 @@
   will-change: transform;
 }
 
-.timeline:hover .timeline__thumb {
+.timeline:hover .timeline__thumb,
+.timeline--dragging .timeline__thumb,
+.timeline__thumb--dragging {
   transform: translate(-50%, -50%) scale(1.15);
 }
 
@@ -282,15 +286,15 @@
 
 @keyframes playPausePop {
   0% {
-    opacity: 0.4;
-    transform: scale3d(0.75, 0.75, 1) rotate(-10deg);
+    opacity: 0.5;
+    transform: scale3d(0.82, 0.82, 1);
   }
   65% {
-    transform: scale3d(1.1, 1.1, 1) rotate(2deg);
+    transform: scale3d(1.08, 1.08, 1);
   }
   100% {
     opacity: 1;
-    transform: scale3d(1, 1, 1) rotate(0deg);
+    transform: scale3d(1, 1, 1);
   }
 }
 
@@ -318,14 +322,14 @@
 @keyframes volumeIconPop {
   0% {
     opacity: 0.5;
-    transform: translate3d(-2px, 0, 0) scale3d(0.8, 0.8, 1);
+    transform: scale3d(0.82, 0.82, 1);
   }
   60% {
-    transform: translate3d(1px, 0, 0) scale3d(1.08, 1.08, 1);
+    transform: scale3d(1.08, 1.08, 1);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    transform: scale3d(1, 1, 1);
   }
 }
 
@@ -393,27 +397,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 0;
+  width: 58px;
   height: 28px;
-  padding: 0;
-  opacity: 0;
-  overflow: hidden;
+  padding: 0 4px;
+  opacity: 0.72;
+  overflow: visible;
   box-sizing: border-box;
-  transition: width var(--t-spring) var(--ease-spring-smooth),
-              opacity var(--t-base) var(--ease-smooth),
-              margin var(--t-spring) var(--ease-spring-smooth);
-  pointer-events: none;
+  margin: 0 3px;
+  pointer-events: auto;
+  transition: opacity var(--t-fast) var(--ease-smooth);
 }
 
 .volume-slider:hover .volume-slider__expandable,
 .volume-slider__expandable:focus-within {
-  width: 64px;
-  padding: 0 4px;
   opacity: 1;
-  overflow: visible;
-  pointer-events: auto;
-  margin-left: 2px;
-  margin-right: 2px;
 }
 
 .volume-slider__value {
@@ -559,10 +556,11 @@ html[data-glow="off"] .timeline__thumb {
   .volume-slider__value {
     display: none !important;
   }
-  .volume-slider:hover .volume-slider__expandable,
-  .volume-slider__expandable:focus-within {
+  .volume-slider__expandable {
     width: 44px;
-    overflow: visible;
+  }
+  .volume-slider__input {
+    width: 44px;
   }
   .control-btn--priority-medium {
     display: none !important;

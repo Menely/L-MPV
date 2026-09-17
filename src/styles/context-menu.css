@@ -68,11 +68,10 @@
 
 .context-menu__item:hover {
   background: var(--bg-hover);
-  transform: translateX(3px);
 }
 
 .context-menu__item:active {
-  transform: translateX(1px) scale(0.98);
+  transform: scale(0.985);
 }
 
 .context-menu__item--active {

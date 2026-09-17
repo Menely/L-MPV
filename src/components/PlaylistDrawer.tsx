@@ -20,11 +20,16 @@ export function PlaylistDrawer() {
 
   const handleClose = useCallback(() => {
     if (isClosing) return;
+    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
+    if (isNoAnim) {
+      setIsPlaylistOpen(false);
+      return;
+    }
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       setIsPlaylistOpen(false);
       setIsClosing(false);
-    }, 110);
+    }, 120);
   }, [isClosing, setIsPlaylistOpen]);
 
   const loadPlaylist = useCallback(async () => {

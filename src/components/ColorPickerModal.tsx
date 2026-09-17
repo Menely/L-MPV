@@ -33,17 +33,42 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   const wheelCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDraggingRef = useRef<boolean>(false);
 
+  const [isClosing, setIsClosing] = useState<boolean>(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
+    if (isNoAnim) {
+      onClose();
+      return;
+    }
+    setIsClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      onClose();
+      setIsClosing(false);
+    }, 140);
+  }, [isClosing, onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
   // Закрытие модального окна по нажатию клавиши Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [handleClose]);
 
   // Текущий вычисленный цвет
   const currentRgb = hslToRgb(hue, saturation, lightness);
@@ -184,16 +209,16 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
 
   return (
     <div
-      className="modal-overlay"
+      className={`modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`}
       style={{
         zIndex: 11000,
         background: "rgba(0, 0, 0, 0.65)",
         backdropFilter: "blur(10px)",
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
-        className="modal color-picker-modal"
+        className={`modal color-picker-modal ${isClosing ? "modal--closing" : ""}`}
         style={{
           width: 330,
           maxWidth: "92vw",
@@ -219,7 +244,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             Выбор своего цвета
           </span>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="modal__close"
             title="Закрыть (Esc)"
             aria-label="Закрыть"

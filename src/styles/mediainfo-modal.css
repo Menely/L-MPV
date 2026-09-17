@@ -36,6 +36,22 @@
   }
 }
 
+.mediainfo-floating-window--closing {
+  animation: mediainfoSpringOut 120ms var(--ease-out) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes mediainfoSpringOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.97);
+  }
+}
+
 .mediainfo-floating-window__header {
   display: flex;
   align-items: center;

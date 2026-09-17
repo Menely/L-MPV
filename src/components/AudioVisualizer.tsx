@@ -705,10 +705,9 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
 
-      // Энергосбережение при невидимом интерфейсе
+      // Энергосбережение при невидимом интерфейсе (остановка rAF-лупа)
       if (isIdle || !isDocVisible) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        animId = requestAnimationFrame(render);
         return;
       }
 
@@ -762,7 +761,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       cancelAnimationFrame(animId);
       resizeObserver.disconnect();
     };
-  }, [config.mode, config.theme, isPaused, rawVolume, speed, placement, shouldBeActive]);
+  }, [config.mode, config.theme, isPaused, rawVolume, speed, placement, shouldBeActive, isIdle, isDocVisible]);
 
   const height = placement === "toolbar"
     ? (config.mode === "circular" || config.mode === "blob" ? 34 : 22)

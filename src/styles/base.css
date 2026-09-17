@@ -118,6 +118,8 @@ html, body, #root {
   opacity: 0;
   transform: translateY(-8px);
   pointer-events: none;
+  transition: opacity var(--t-slow) var(--ease-smooth),
+              transform var(--t-slow) var(--ease-out);
 }
 
 .app-container--idle .player-controls-wrapper,
@@ -125,6 +127,8 @@ html, body, #root {
   opacity: 0;
   transform: translateY(10px);
   pointer-events: none;
+  transition: opacity var(--t-slow) var(--ease-smooth),
+              transform var(--t-slow) var(--ease-out);
 }
 
 .app-container--idle {
@@ -182,6 +186,22 @@ html, body, #root {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
   pointer-events: none;
   animation: fadeIn 150ms var(--ease-out);
+}
+
+.frame-osd--closing {
+  animation: osdFadeOut 200ms var(--ease-out) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes osdFadeOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 
 .frame-osd--multiline {
@@ -247,15 +267,13 @@ html, body, #root {
 
 /* ─── Унифицированное центрированное вращение крестиков (Close & Clear) ── */
 .modal__close svg,
-.titlebar__btn--close svg,
 .playlist-drawer__close svg,
 .side-panel__close svg,
 .mediainfo-floating-window__btn--close svg,
 .mediainfo-standalone__control-btn--close svg,
 .update-toast__close svg,
 .mediainfo-standalone__btn-icon svg,
-.mediainfo-floating-window__search-clear svg,
-.color-circle__remove-btn svg {
+.mediainfo-floating-window__search-clear svg {
   display: block;
   flex-shrink: 0;
   margin: 0;
@@ -266,15 +284,13 @@ html, body, #root {
 }
 
 .modal__close:hover svg,
-.titlebar__btn--close:hover svg,
 .playlist-drawer__close:hover svg,
 .side-panel__close:hover svg,
 .mediainfo-floating-window__btn--close:hover svg,
 .mediainfo-standalone__control-btn--close:hover svg,
 .update-toast__close:hover svg,
 .mediainfo-standalone__btn-icon:hover svg,
-.mediainfo-floating-window__search-clear:hover svg,
-.color-circle__remove-btn:hover svg {
+.mediainfo-floating-window__search-clear:hover svg {
   transform: rotate(90deg);
 }
 

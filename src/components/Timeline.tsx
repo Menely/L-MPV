@@ -10,6 +10,7 @@ export const Timeline = React.memo(() => {
 
   // Локальная позиция мыши — только во время drag
   const [mousePosition, setMousePosition] = useState<number | null>(null);
+  const [isDraggingState, setIsDraggingState] = useState(false);
   const isDragging = useRef(false);
   const timelineRef = useRef<HTMLDivElement>(null);
 
@@ -74,6 +75,7 @@ export const Timeline = React.memo(() => {
   const handleTimelineMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0 || duration <= 0) return;
     isDragging.current = true;
+    setIsDraggingState(true);
     const newPos = calcPositionFromMouse(e.clientX);
     setMousePosition(newPos);
 
@@ -92,6 +94,7 @@ export const Timeline = React.memo(() => {
     const handleGlobalMouseUp = (upEvent: MouseEvent) => {
       if (isDragging.current) {
         isDragging.current = false;
+        setIsDraggingState(false);
         const finalPos = calcPositionFromMouse(upEvent.clientX);
         setMousePosition(null);
         seekTo(finalPos);
@@ -106,7 +109,7 @@ export const Timeline = React.memo(() => {
 
   return (
     <div
-      className="timeline"
+      className={`timeline ${isDraggingState ? "timeline--dragging" : ""}`}
       ref={timelineRef}
       onMouseDown={handleTimelineMouseDown}
       onMouseMove={handleTimelineMouseMove}
@@ -185,7 +188,10 @@ export const Timeline = React.memo(() => {
           })}
         </div>
 
-        <div className="timeline__thumb" style={{ left: `${progress}%` }} />
+        <div
+          className={`timeline__thumb ${isDraggingState ? "timeline__thumb--dragging" : ""}`}
+          style={{ left: `${progress}%` }}
+        />
       </div>
     </div>
   );

@@ -90,6 +90,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
 
   const handleClose = useCallback(() => {
     if (isClosing || isDownloading) return;
+    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
+    if (isNoAnim) {
+      onClose();
+      return;
+    }
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
@@ -443,17 +448,41 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   onOpenModal,
   onClose,
 }) => {
+  const [isClosing, setIsClosing] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
+    if (isNoAnim) {
+      onClose();
+      return;
+    }
+    setIsClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      onClose();
+    }, 120);
+  }, [isClosing, onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
   const handlePostpone = async () => {
     try {
       await invoke("postpone_update");
     } catch (e) {
       console.error("Ошибка откладывания обновления:", e);
     }
-    onClose();
+    handleClose();
   };
 
   return (
-    <div className="update-toast">
+    <div className={`update-toast ${isClosing ? "update-toast--closing" : ""}`}>
       <div className="update-toast__header">
         <div className="update-toast__title-group">
           <div className="update-toast__icon">
@@ -468,7 +497,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
         </div>
         <button
           className="update-toast__close"
-          onClick={onClose}
+          onClick={handleClose}
           title="Закрыть"
           aria-label="Закрыть"
         >

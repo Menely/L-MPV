@@ -28,6 +28,22 @@
   }
 }
 
+.side-panel--closing {
+  animation: slidePanelOut 120ms var(--ease-out) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes slidePanelOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
 .side-panel__header {
   display: flex;
   align-items: center;
@@ -97,11 +113,10 @@
 
 .side-panel__item:hover {
   background: var(--bg-hover);
-  transform: translateX(3px);
 }
 
 .side-panel__item:active {
-  transform: translateX(1px) scale(0.98);
+  transform: scale(0.985);
 }
 
 .side-panel__item--active {

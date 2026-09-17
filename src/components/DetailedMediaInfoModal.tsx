@@ -166,6 +166,31 @@ export function DetailedMediaInfoModal({
     };
   }, [isOpen, currentPath]);
 
+  const [isClosing, setIsClosing] = useState<boolean>(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
+    if (isNoAnim) {
+      onClose();
+      return;
+    }
+    setIsClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      onClose();
+      setIsClosing(false);
+    }, 120);
+  }, [isClosing, onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
   // Закрытие по Escape или Shift+F10 (если в поиске есть текст — первый Esc очищает поиск)
   useEffect(() => {
     if (!isOpen) return;
@@ -176,12 +201,12 @@ export function DetailedMediaInfoModal({
         if (searchQuery) {
           setSearchQuery("");
         } else {
-          onClose();
+          handleClose();
         }
       } else if (e.shiftKey && (e.key === "F10" || e.code === "F10")) {
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        handleClose();
       }
     };
 
@@ -189,7 +214,7 @@ export function DetailedMediaInfoModal({
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [isOpen, onClose, searchQuery]);
+  }, [isOpen, handleClose, searchQuery]);
 
   // Базовый парсинг и структурирование отчёта по секциям
   const baseReport = useMemo(() => {
@@ -304,7 +329,7 @@ export function DetailedMediaInfoModal({
   return (
     <div
       ref={modalRef}
-      className="mediainfo-floating-window"
+      className={`mediainfo-floating-window ${isClosing ? "mediainfo-floating-window--closing" : ""}`}
       style={{ left: pos.x, top: pos.y }}
       role="region"
       aria-label="Свойства MediaInfo"
@@ -357,7 +382,7 @@ export function DetailedMediaInfoModal({
           {/* Закрыть */}
           <button
             className="mediainfo-floating-window__btn mediainfo-floating-window__btn--close"
-            onClick={onClose}
+            onClick={handleClose}
             title="Закрыть (Esc)"
             aria-label="Закрыть"
           >

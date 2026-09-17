@@ -102,10 +102,15 @@ export function MediaInfoModal({
 
   const handleClose = useCallback(() => {
     if (isClosing) return;
+    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
+    if (isNoAnim) {
+      onClose();
+      return;
+    }
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 110);
+    }, 120);
   }, [isClosing, onClose]);
 
   // Закрытие оверлея инфо по Escape
