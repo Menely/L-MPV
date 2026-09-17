@@ -30,14 +30,16 @@ pub async fn precompile_model_engine_1080p_impl(
     let _ = write_upscale_conf("TensorRT", slot)?;
     let models_dir = get_models_dir();
 
-    // Очищаем старые/битые файлы кэшей и логов, чтобы не вызывать конфликтов аллокатора
+    // Очищаем временные блокировки кэшей и старые логи сборщика
     if let Ok(entries) = std::fs::read_dir(&models_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if let Some(ext) = path.extension().and_then(|x| x.to_str()) {
-                if ext.eq_ignore_ascii_case("cache") || ext.eq_ignore_ascii_case("log") {
-                    let _ = std::fs::remove_file(path);
-                }
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default();
+            if name.ends_with(".timing.cache.lock") || name.ends_with(".build.log") {
+                let _ = std::fs::remove_file(path);
             }
         }
     }
@@ -100,6 +102,15 @@ pub async fn precompile_model_engine_1080p_impl(
     let is_running_monitor = is_running.clone();
     let app_monitor = app.clone();
     let filename_monitor = filename.clone();
+
+    // RAII-гарда гарантирует, что задача мониторинга будет остановлена при любом выходе из функции
+    struct MonitorGuard(std::sync::Arc<std::sync::atomic::AtomicBool>);
+    impl Drop for MonitorGuard {
+        fn drop(&mut self) {
+            self.0.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+    let _monitor_guard = MonitorGuard(is_running.clone());
 
     let monitor_handle = tokio::spawn(async move {
         let mut current_percent: f64 = 8.0;
@@ -226,19 +237,31 @@ pub async fn precompile_model_engine_1080p_impl(
     is_running.store(false, std::sync::atomic::Ordering::Relaxed);
     let _ = monitor_handle.await;
 
-    let stdout_str = String::from_utf8_lossy(&output.stdout);
-    let stderr_str = String::from_utf8_lossy(&output.stderr);
-
     if !output.status.success() {
-        let err_detail = if !stderr_str.trim().is_empty() {
-            stderr_str.to_string()
-        } else if !stdout_str.trim().is_empty() {
-            stdout_str.to_string()
-        } else if let Ok(log_txt) = std::fs::read_to_string(&build_log_for_err) {
-            let last_lines: Vec<&str> = log_txt.lines().rev().take(8).collect();
-            let mut rev_lines = last_lines;
-            rev_lines.reverse();
-            rev_lines.join("\n")
+        let err_detail = if let Ok(log_txt) = std::fs::read_to_string(&build_log_for_err) {
+            let err_lines: Vec<&str> = log_txt
+                .lines()
+                .filter(|line| {
+                    let lower = line.to_lowercase();
+                    lower.contains("[e]") || lower.contains("error") || lower.contains("failed")
+                })
+                .collect();
+
+            if !err_lines.is_empty() {
+                err_lines
+                    .iter()
+                    .rev()
+                    .take(6)
+                    .rev()
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            } else {
+                let last_lines: Vec<&str> = log_txt.lines().rev().take(10).collect();
+                let mut rev_lines = last_lines;
+                rev_lines.reverse();
+                rev_lines.join("\n")
+            }
         } else {
             "Неизвестная ошибка сборки движка".to_string()
         };
@@ -338,10 +361,21 @@ except Exception as e:
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        let mut cmd = std::process::Command::new("python");
-        cmd.args(["-c", py_code, &onnx_path.to_string_lossy()]);
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        let _ = cmd.status();
+        let binaries = ["python", "py", "python3"];
+        for bin in binaries {
+            let mut cmd = std::process::Command::new(bin);
+            if bin == "py" {
+                cmd.args(["-3", "-c", py_code, &onnx_path.to_string_lossy()]);
+            } else {
+                cmd.args(["-c", py_code, &onnx_path.to_string_lossy()]);
+            }
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+            if let Ok(status) = cmd.status() {
+                if status.success() {
+                    break;
+                }
+            }
+        }
     }
 }
 

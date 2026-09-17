@@ -76,7 +76,10 @@ pub fn switch_upscale_network_hotkey_impl(
     slot: u32,
     backend: Option<String>,
 ) -> Result<(), String> {
-    let chosen_backend = backend.unwrap_or_else(|| "DirectML".to_string());
+    let chosen_backend = backend.unwrap_or_else(|| {
+        let last = LAST_APPLIED_BACKEND.lock().unwrap();
+        last.clone().unwrap_or_else(|| "DirectML".to_string())
+    });
     let backend_changed = {
         let mut last = LAST_APPLIED_BACKEND.lock().unwrap();
         let changed = last.as_deref() != Some(&chosen_backend);
@@ -87,6 +90,19 @@ pub fn switch_upscale_network_hotkey_impl(
     if slot == 0 {
         let _ = state.mpv.disable_ai_upscale();
     } else {
+        // Проверяем, установлены ли необходимые библиотеки выбранного движка
+        let status = super::config::check_upscale_status_internal();
+        let is_installed = if chosen_backend.eq_ignore_ascii_case("TensorRT") {
+            status.tensorrt_present && status.aji_present
+        } else {
+            status.directml_present && status.aji_present
+        };
+
+        if !is_installed {
+            let _ = state.mpv.disable_ai_upscale();
+            return Err(format!("Движок {} еще не установлен.", chosen_backend));
+        }
+
         ensure_inference_environment();
         let models_dir = get_models_dir();
         let conf_path = write_upscale_conf(&chosen_backend, slot)?;

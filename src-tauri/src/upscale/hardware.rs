@@ -19,6 +19,28 @@ pub fn sanitize_gpu_token(name: &str) -> String {
     }
 }
 
+const BLACKWELL_KEYWORDS: &[&str] = &["5090", "5080", "5070", "5060", "5050", "blackwell"];
+const ADA_KEYWORDS: &[&str] = &["4090", "4080", "4070", "4060", "4050", "ada", "l40", "l4"];
+const AMPERE_KEYWORDS: &[&str] = &[
+    "3090", "3080", "3070", "3060", "3050", "a2000", "a3000", "a4000", "a4500", "a5000",
+    "a5500", "a6000", "ampere",
+];
+const TURING_KEYWORDS: &[&str] = &[
+    "2080", "2070", "2060", "1660", "1650", "1630", "titan rtx", "quadro rtx", "turing",
+    " t4", "t1000", "t2000", "t600", "t400",
+];
+const VOLTA_KEYWORDS: &[&str] = &["titan v", "v100", "volta"];
+const PASCAL_KEYWORDS: &[&str] = &[
+    "1080", "1070", "1060", "1050", "1030", "titan x", "pascal", "p1000", "p2000", "p4000",
+    "mx150", "mx250", "mx350",
+];
+const MAXWELL_KEYWORDS: &[&str] = &["980", "970", "960", "950", "750 ti", "maxwell"];
+
+#[inline]
+fn contains_any(haystack: &str, keywords: &[&str]) -> bool {
+    keywords.iter().any(|&k| haystack.contains(k))
+}
+
 /// Вычисление мажорного суффикса поколения архитектуры NVIDIA (-sm{major})
 /// В libaji имя движка строится через: tok + "-sm" + std::to_string(prop.major).
 /// Например: RTX 50xx -> sm12, RTX 40xx/30xx -> sm8, RTX 20xx/16xx -> sm7, GTX 10xx -> sm6.
@@ -44,66 +66,22 @@ pub fn determine_nvidia_sm_major(name: &str, sm_arch: &str) -> String {
 
     // Для универсального ptx определяем точную старшую версию вычислительной архитектуры
     let lower = name.to_lowercase();
-    if lower.contains("5090")
-        || lower.contains("5080")
-        || lower.contains("5070")
-        || lower.contains("5060")
-        || lower.contains("blackwell")
-    {
+    if contains_any(&lower, BLACKWELL_KEYWORDS) {
         return "sm12".to_string();
     }
-    if lower.contains("4090")
-        || lower.contains("4080")
-        || lower.contains("4070")
-        || lower.contains("4060")
-        || lower.contains("4050")
-        || lower.contains("ada")
-        || lower.contains("3090")
-        || lower.contains("3080")
-        || lower.contains("3070")
-        || lower.contains("3060")
-        || lower.contains("3050")
-        || lower.contains("ampere")
+    if contains_any(&lower, ADA_KEYWORDS)
+        || contains_any(&lower, AMPERE_KEYWORDS)
         || lower.contains("a100")
     {
         return "sm8".to_string();
     }
-    if lower.contains("2080")
-        || lower.contains("2070")
-        || lower.contains("2060")
-        || lower.contains("1660")
-        || lower.contains("1650")
-        || lower.contains("1630")
-        || lower.contains("titan v")
-        || lower.contains("v100")
-        || lower.contains("volta")
-        || lower.contains("turing")
-    {
+    if contains_any(&lower, TURING_KEYWORDS) || contains_any(&lower, VOLTA_KEYWORDS) {
         return "sm7".to_string();
     }
-    if lower.contains("1080")
-        || lower.contains("1070")
-        || lower.contains("1060")
-        || lower.contains("1050")
-        || lower.contains("1030")
-        || lower.contains("titan x")
-        || lower.contains("pascal")
-        || lower.contains("p1000")
-        || lower.contains("p2000")
-        || lower.contains("p4000")
-        || lower.contains("mx150")
-        || lower.contains("mx250")
-        || lower.contains("mx350")
-    {
+    if contains_any(&lower, PASCAL_KEYWORDS) {
         return "sm6".to_string();
     }
-    if lower.contains("980")
-        || lower.contains("970")
-        || lower.contains("960")
-        || lower.contains("950")
-        || lower.contains("750 ti")
-        || lower.contains("maxwell")
-    {
+    if contains_any(&lower, MAXWELL_KEYWORDS) {
         return "sm5".to_string();
     }
 
@@ -163,13 +141,7 @@ pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
     let lower = name.to_lowercase();
 
     // 2. Архитектура Blackwell (RTX 5090, 5080, 5070 Ti, 5070, 5060, 5050 и модификации) -> sm120
-    if lower.contains("5090")
-        || lower.contains("5080")
-        || lower.contains("5070")
-        || lower.contains("5060")
-        || lower.contains("5050")
-        || lower.contains("blackwell")
-    {
+    if contains_any(&lower, BLACKWELL_KEYWORDS) {
         return "sm120".to_string();
     }
 
@@ -184,33 +156,12 @@ pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
     }
 
     // Архитектура Ada Lovelace (RTX 40xx, RTX 2000/4000/4500/5000 Ada, L40, L4) -> sm89
-    if lower.contains("4090")
-        || lower.contains("4080")
-        || lower.contains("4070")
-        || lower.contains("4060")
-        || lower.contains("4050")
-        || lower.contains("ada")
-        || lower.contains("l40")
-        || lower.contains("l4")
-    {
+    if contains_any(&lower, ADA_KEYWORDS) {
         return "sm89".to_string();
     }
 
     // Архитектура Ampere (RTX 30xx, RTX A2000-A6000) -> sm86
-    if lower.contains("3090")
-        || lower.contains("3080")
-        || lower.contains("3070")
-        || lower.contains("3060")
-        || lower.contains("3050")
-        || lower.contains("a2000")
-        || lower.contains("a3000")
-        || lower.contains("a4000")
-        || lower.contains("a4500")
-        || lower.contains("a5000")
-        || lower.contains("a5500")
-        || lower.contains("a6000")
-        || lower.contains("ampere")
-    {
+    if contains_any(&lower, AMPERE_KEYWORDS) {
         return "sm86".to_string();
     }
 
@@ -220,21 +171,7 @@ pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
     }
 
     // Архитектура Turing (RTX 20xx, GTX 16xx, Quadro RTX, T4, T1000/T600/T400) -> sm75
-    if lower.contains("2080")
-        || lower.contains("2070")
-        || lower.contains("2060")
-        || lower.contains("1660")
-        || lower.contains("1650")
-        || lower.contains("1630")
-        || lower.contains("titan rtx")
-        || lower.contains("quadro rtx")
-        || lower.contains("turing")
-        || lower.contains(" t4")
-        || lower.contains("t1000")
-        || lower.contains("t2000")
-        || lower.contains("t600")
-        || lower.contains("t400")
-    {
+    if contains_any(&lower, TURING_KEYWORDS) {
         return "sm75".to_string();
     }
 

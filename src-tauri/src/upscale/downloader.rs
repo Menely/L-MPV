@@ -65,6 +65,57 @@ pub fn extract_zip_file(archive_path: &Path, dest_dir: &Path) -> Result<(), Stri
     Ok(())
 }
 
+/// Извлечение конкретных файлов из ZIP-архива по списку (внутренний_путь, имя_целевого_файла)
+pub fn extract_specific_files_from_zip(
+    archive_path: &Path,
+    dest_dir: &Path,
+    targets: &[(&str, &str)],
+) -> Result<(), String> {
+    let file = fs::File::open(archive_path)
+        .map_err(|e| format!("Не удалось открыть zip-архив {}: {}", archive_path.display(), e))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| format!("Некорректный zip-архив: {}", e))?;
+
+    for (target_name, out_filename) in targets {
+        let mut found = false;
+        if let Ok(mut item) = archive.by_name(target_name) {
+            let outpath = dest_dir.join(out_filename);
+            if let Ok(mut outfile) = fs::File::create(&outpath) {
+                let _ = std::io::copy(&mut item, &mut outfile);
+                found = true;
+            }
+        }
+        if !found {
+            for i in 0..archive.len() {
+                if let Ok(mut item) = archive.by_index(i) {
+                    if item.name().eq_ignore_ascii_case(target_name) {
+                        let outpath = dest_dir.join(out_filename);
+                        if let Ok(mut outfile) = fs::File::create(&outpath) {
+                            let _ = std::io::copy(&mut item, &mut outfile);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Фоновая распаковка 7z-архива с последующим удалением исходного файла архива
+pub async fn extract_7z_and_cleanup(
+    archive_path: std::path::PathBuf,
+    dest_dir: std::path::PathBuf,
+) -> Result<(), String> {
+    let p = archive_path.clone();
+    let d = dest_dir.clone();
+    tokio::task::spawn_blocking(move || extract_7z_archive(&p, &d))
+        .await
+        .map_err(|e| format!("Ошибка потока распаковки: {}", e))??;
+    let _ = fs::remove_file(&archive_path);
+    Ok(())
+}
+
 /// Перемещение файлов из вложенных каталогов animejanai/inference/ в целевую папку inference/
 pub fn move_nested_animejanai_files(inf_dir: &Path) {
     let nested = inf_dir.join("animejanai").join("inference");
@@ -274,31 +325,24 @@ pub async fn download_inference_engine_impl(
                 },
             );
 
-            // Извлекаем только нативные win-x64 dll
+            // Извлекаем только нативные win-x64 dll через модульный хелпер
             let ort_zip_clone = ort_zip.clone();
             let inf_dir_clone = inf_dir.clone();
-            tokio::task::spawn_blocking(move || -> Result<(), String> {
-                let ort_file = fs::File::open(&ort_zip_clone).map_err(|e| e.to_string())?;
-                let mut ort_archive = zip::ZipArchive::new(ort_file)
-                    .map_err(|e| format!("Ошибка открытия архива OnnxRuntime: {}", e))?;
-
-                for i in 0..ort_archive.len() {
-                    if let Ok(mut item) = ort_archive.by_index(i) {
-                        let name = item.name().to_string();
-                        if name == "runtimes/win-x64/native/onnxruntime.dll" {
-                            let outpath = inf_dir_clone.join("onnxruntime.dll");
-                            if let Ok(mut outfile) = fs::File::create(&outpath) {
-                                let _ = std::io::copy(&mut item, &mut outfile);
-                            }
-                        } else if name == "runtimes/win-x64/native/onnxruntime_providers_shared.dll" {
-                            let outpath = inf_dir_clone.join("onnxruntime_providers_shared.dll");
-                            if let Ok(mut outfile) = fs::File::create(&outpath) {
-                                let _ = std::io::copy(&mut item, &mut outfile);
-                            }
-                        }
-                    }
-                }
-                Ok(())
+            tokio::task::spawn_blocking(move || {
+                extract_specific_files_from_zip(
+                    &ort_zip_clone,
+                    &inf_dir_clone,
+                    &[
+                        (
+                            "runtimes/win-x64/native/onnxruntime.dll",
+                            "onnxruntime.dll",
+                        ),
+                        (
+                            "runtimes/win-x64/native/onnxruntime_providers_shared.dll",
+                            "onnxruntime_providers_shared.dll",
+                        ),
+                    ],
+                )
             })
             .await
             .map_err(|e| format!("Ошибка потока распаковки OnnxRuntime: {}", e))??;
@@ -337,23 +381,12 @@ pub async fn download_inference_engine_impl(
 
             let dml_zip_clone = dml_zip.clone();
             let inf_dir_clone = inf_dir.clone();
-            tokio::task::spawn_blocking(move || -> Result<(), String> {
-                let dml_file = fs::File::open(&dml_zip_clone).map_err(|e| e.to_string())?;
-                let mut dml_archive = zip::ZipArchive::new(dml_file)
-                    .map_err(|e| format!("Ошибка открытия архива DirectML: {}", e))?;
-
-                for i in 0..dml_archive.len() {
-                    if let Ok(mut item) = dml_archive.by_index(i) {
-                        let name = item.name().to_string();
-                        if name == "bin/x64-win/DirectML.dll" {
-                            let outpath = inf_dir_clone.join("DirectML.dll");
-                            if let Ok(mut outfile) = fs::File::create(&outpath) {
-                                let _ = std::io::copy(&mut item, &mut outfile);
-                            }
-                        }
-                    }
-                }
-                Ok(())
+            tokio::task::spawn_blocking(move || {
+                extract_specific_files_from_zip(
+                    &dml_zip_clone,
+                    &inf_dir_clone,
+                    &[("bin/x64-win/DirectML.dll", "DirectML.dll")],
+                )
             })
             .await
             .map_err(|e| format!("Ошибка потока распаковки DirectML: {}", e))??;
@@ -414,15 +447,7 @@ pub async fn download_inference_engine_impl(
                 },
             );
 
-            let trt_runtime_clone = trt_runtime_path.clone();
-            let inf_dir_clone = inf_dir.clone();
-            tokio::task::spawn_blocking(move || {
-                extract_7z_archive(&trt_runtime_clone, &inf_dir_clone)
-            })
-            .await
-            .map_err(|e| format!("Ошибка потока распаковки рантайма TensorRT: {}", e))??;
-
-            let _ = fs::remove_file(&trt_runtime_path);
+            extract_7z_and_cleanup(trt_runtime_path, inf_dir.clone()).await?;
 
             move_nested_animejanai_files(&inf_dir);
             println!("[L-MPV][Upscale] Базовый рантайм TensorRT 11 успешно установлен.");
@@ -470,15 +495,7 @@ pub async fn download_inference_engine_impl(
                 )
                 .await?;
 
-                let ptx_path_clone = ptx_path.clone();
-                let inf_dir_clone = inf_dir.clone();
-                tokio::task::spawn_blocking(move || {
-                    extract_7z_archive(&ptx_path_clone, &inf_dir_clone)
-                })
-                .await
-                .map_err(|e| format!("Ошибка потока распаковки универсального билдера: {}", e))??;
-
-                let _ = fs::remove_file(&ptx_path);
+                extract_7z_and_cleanup(ptx_path, inf_dir.clone()).await?;
             } else {
                 let _ = app.emit(
                     "upscale-download-progress",
@@ -493,15 +510,7 @@ pub async fn download_inference_engine_impl(
                     },
                 );
 
-                let sm_path_clone = sm_path.clone();
-                let inf_dir_clone = inf_dir.clone();
-                tokio::task::spawn_blocking(move || {
-                    extract_7z_archive(&sm_path_clone, &inf_dir_clone)
-                })
-                .await
-                .map_err(|e| format!("Ошибка потока распаковки билдера TensorRT: {}", e))??;
-
-                let _ = fs::remove_file(&sm_path);
+                extract_7z_and_cleanup(sm_path, inf_dir.clone()).await?;
             }
 
             move_nested_animejanai_files(&inf_dir);
@@ -558,6 +567,18 @@ pub async fn download_inference_engine_impl(
         Ok(msg) => Ok(msg),
         Err(err_msg) => {
             println!("[L-MPV][Upscale] Ошибка во время установки движка {}: {}", engine, err_msg);
+            // Удаляем временные zip и 7z файлы, оставшиеся от прерванной загрузки
+            if let Ok(entries) = fs::read_dir(&inf_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name.starts_with("temp_") || name.ends_with(".7z") {
+                            let _ = fs::remove_file(path);
+                        }
+                    }
+                }
+            }
+
             let _ = app.emit(
                 "upscale-download-progress",
                 &UpscaleDownloadProgress {
@@ -591,7 +612,7 @@ pub fn delete_inference_engine_impl(backend: String) -> Result<String, String> {
             "nvonnxparser_11.dll",
             "cudart64_13.dll",
             "trtexec.exe",
-            "DirectML_LICENSE.txt",
+            "CUDA_LICENSE.txt",
         ];
         for f in files {
             let p = inf_dir.join(f);
@@ -615,6 +636,7 @@ pub fn delete_inference_engine_impl(backend: String) -> Result<String, String> {
             "DirectML.dll",
             "onnxruntime.dll",
             "onnxruntime_providers_shared.dll",
+            "DirectML_LICENSE.txt",
         ];
         for f in files {
             let p = inf_dir.join(f);
