@@ -375,9 +375,9 @@ fn ensure_onnx_model_fp16(onnx_path: &std::path::Path, inf_dir: &std::path::Path
     {
         use std::os::windows::process::CommandExt;
         
-        let converter_exe = inf_dir.join("convert_fp16.exe");
+        let converter_exe = inf_dir.join("l-mpv_convert_fp16.exe");
         if converter_exe.exists() {
-            println!("[L-MPV][Upscale] Найден нативный конвертер convert_fp16.exe, запуск...");
+            println!("[L-MPV][Upscale] Найден нативный конвертер l-mpv_convert_fp16.exe, запуск...");
             let mut cmd = std::process::Command::new(&converter_exe);
             cmd.arg(&onnx_path.to_string_lossy().to_string());
             cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW

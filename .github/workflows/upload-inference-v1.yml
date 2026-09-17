@@ -1,0 +1,64 @@
+name: "Загрузка инференс-движков (inference-v1)"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    runs-on: windows-latest
+
+    steps:
+      - name: Проверка исходного кода
+        uses: actions/checkout@v4
+
+      - name: Установка Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Установка зависимостей Python
+        run: pip install onnx onnxconverter-common pyinstaller
+
+      - name: Компиляция convert_fp16.exe
+        shell: pwsh
+        run: |
+          Write-Host "Компиляция нативного конвертера FP16..."
+          pyinstaller --onefile scripts/convert_fp16.py
+          Move-Item -Path "dist/convert_fp16.exe" -Destination "l-mpv_convert_fp16.exe" -Force
+          Compress-Archive -Path "l-mpv_convert_fp16.exe" -DestinationPath "l-mpv_convert_fp16.zip" -Force
+          Write-Host "Готово! l-mpv_convert_fp16.zip создан."
+
+      - name: Загрузка оригинальных библиотек AnimeJaNai
+        shell: pwsh
+        run: |
+          Write-Host "Скачивание aji-windows-x64.zip..."
+          Invoke-WebRequest -Uri "https://github.com/the-database/animejanai-inference/releases/download/v0.9.0/aji-windows-x64.zip" -OutFile "aji-windows-x64.zip"
+
+          Write-Host "Скачивание component-trt-runtime.7z..."
+          Invoke-WebRequest -Uri "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-runtime.7z" -OutFile "component-trt-runtime.7z"
+
+          Write-Host "Скачивание билдеров архитектур TensorRT..."
+          $architectures = @("sm120", "sm100", "sm90", "sm89", "sm86", "sm80", "sm75", "ptx")
+          foreach ($arch in $architectures) {
+            Write-Host "Скачивание component-trt-${arch}.7z..."
+            Invoke-WebRequest -Uri "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-${arch}.7z" -OutFile "component-trt-${arch}.7z"
+          }
+
+      - name: Публикация релиза inference-v1 на GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: inference-v1
+          name: "L-MPV Inference Engines v1"
+          body: "Автоматически собранные зависимости для апскейлинга L-MPV: оригинальные библиотеки AnimeJaNai (TensorRT/aji) и скомпилированный нативный конвертер l-mpv_convert_fp16."
+          files: |
+            l-mpv_convert_fp16.zip
+            aji-windows-x64.zip
+            component-trt-runtime.7z
+            component-trt-*.7z
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -254,7 +254,7 @@ pub async fn download_inference_engine_impl(
 
     let result: Result<String, String> = async {
         // 1. Загрузка и распаковка базовых мостов aji (aji.dll, aji_dml.dll, aji_trt.dll)
-        let aji_url = "https://github.com/the-database/animejanai-inference/releases/download/v0.9.0/aji-windows-x64.zip";
+        let aji_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/aji-windows-x64.zip";
         let aji_zip = inf_dir.join("temp_aji.zip");
 
         let aji_end_pct = if engine.eq_ignore_ascii_case("DirectML") { 5.0 } else { 3.0 };
@@ -419,7 +419,7 @@ pub async fn download_inference_engine_impl(
             Ok(msg)
         } else {
             // TensorRT (NVIDIA)
-            let trt_runtime_url = "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-runtime.7z";
+            let trt_runtime_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-runtime.7z";
             let trt_runtime_path = inf_dir.join("component-trt-runtime.7z");
 
             download_file_with_progress(
@@ -428,9 +428,9 @@ pub async fn download_inference_engine_impl(
                 &engine,
                 trt_runtime_url,
                 &trt_runtime_path,
-                "Скачивание рантайма NVIDIA TensorRT 11 (2/3)...",
+                "Скачивание рантайма NVIDIA TensorRT 11 (2/4)...",
                 3.0,
-                48.0,
+                45.0,
             )
             .await?;
 
@@ -452,6 +452,42 @@ pub async fn download_inference_engine_impl(
             move_nested_animejanai_files(&inf_dir);
             println!("[L-MPV][Upscale] Базовый рантайм TensorRT 11 успешно установлен.");
 
+            // L-MPV Нативный конвертер FP16
+            let conv_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/l-mpv_convert_fp16.zip";
+            let conv_zip = inf_dir.join("temp_conv.zip");
+            
+            download_file_with_progress(
+                &client,
+                &app,
+                &engine,
+                conv_url,
+                &conv_zip,
+                "Скачивание нативного конвертера FP16 (3/4)...",
+                45.0,
+                50.0,
+            ).await?;
+
+            let _ = app.emit(
+                "upscale-download-progress",
+                &UpscaleDownloadProgress {
+                    engine: engine.clone(),
+                    stage: "Распаковка конвертера FP16...".to_string(),
+                    percent: 50.0,
+                    downloaded_bytes: 0,
+                    total_bytes: 0,
+                    is_finished: false,
+                    error: None,
+                },
+            );
+
+            let conv_zip_clone = conv_zip.clone();
+            let inf_dir_clone = inf_dir.clone();
+            tokio::task::spawn_blocking(move || {
+                extract_zip_file(&conv_zip_clone, &inf_dir_clone)
+            }).await.map_err(|e| format!("Ошибка потока распаковки конвертера: {}", e))??;
+            
+            let _ = fs::remove_file(&conv_zip);
+
             // SM Architecture
             let sm = if gpu_info.supports_tensorrt {
                 gpu_info.sm_architecture.as_str()
@@ -460,11 +496,11 @@ pub async fn download_inference_engine_impl(
             };
 
             let sm_url = format!(
-                "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-{}.7z",
+                "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-{}.7z",
                 sm
             );
             let sm_path = inf_dir.join(format!("component-trt-{}.7z", sm));
-            let sm_stage = format!("Скачивание билдера TensorRT ({}) (3/3)...", sm);
+            let sm_stage = format!("Скачивание билдера TensorRT ({}) (4/4)...", sm);
 
             let download_sm_res = download_file_with_progress(
                 &client,
@@ -480,7 +516,7 @@ pub async fn download_inference_engine_impl(
 
             if let Err(e) = download_sm_res {
                 println!("[L-MPV][Upscale] Архитектура {} не найдена ({}), пробуем универсальный ptx...", sm, e);
-                let ptx_url = "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-ptx.7z";
+                let ptx_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-ptx.7z";
                 let _ = fs::remove_file(&sm_path); // Удаляем возможный пустой/битый файл
                 let ptx_path = inf_dir.join("component-trt-ptx.7z");
                 download_file_with_progress(
@@ -489,7 +525,7 @@ pub async fn download_inference_engine_impl(
                     &engine,
                     ptx_url,
                     &ptx_path,
-                    "Скачивание универсального билдера TensorRT (ptx) (3/3)...",
+                    "Скачивание универсального билдера TensorRT (ptx) (4/4)...",
                     52.0,
                     95.0,
                 )
