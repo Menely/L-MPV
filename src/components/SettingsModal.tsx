@@ -48,19 +48,15 @@ import {
   Palette,
   Monitor,
   Link,
-  Link2,
   Loader2,
   Download,
   AudioLines,
-  ExternalLink,
-  Trash2,
   Sparkles,
   Layers,
   RefreshCw,
   Play,
   X,
   ChevronDown,
-  FileText,
   Zap,
   Film,
   Square,
@@ -88,14 +84,6 @@ import {
   getSavedControlBarStyle,
   saveControlBarStyle,
 } from "../utils/controlBarStyleUtils";
-import {
-  HOTKEY_ACTIONS,
-  getCustomHotkeys,
-  saveCustomHotkeys,
-  resetCustomHotkeys,
-  resetSingleHotkey,
-  getKeyDisplay,
-} from "../utils/hotkeyUtils";
 import { UpdateInfo } from "./UpdateModal";
 import { ColorSchemeSection } from "./ColorSchemeSection";
 import { getEffectiveAccentColor } from "../utils/colorUtils";
@@ -103,6 +91,8 @@ import { VisualizerSettingsSection } from "./VisualizerSettingsSection";
 import { PresetsSection } from "./PresetsSection";
 import { UpscalingSettingsSection } from "./UpscalingSettingsSection";
 import { ControlButtonsPreviewCard } from "./ControlButtonsPreviewCard";
+import { HotkeysSettingsTab } from "./settings/HotkeysSettingsTab";
+import { IntegrationSettingsTab } from "./settings/IntegrationSettingsTab";
 import { SettingsPreset } from "../utils/presetsUtils";
 import {
   UiRadiusLevel,
@@ -199,10 +189,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => localStorage.getItem('l-mpv-hide-controls-upper-half') === 'true');
-  const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(getCustomHotkeys());
-  const [recordingAction, setRecordingAction] = useState<{ id: string, index: number } | null>(null);
-  const ignoreClickUntilRef = useRef<number>(0);
-  const [uiRadius, setUiRadius] = useState<{ level: UiRadiusLevel; value: number }>(() => getSavedUiRadius());
+    const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
+    const [uiRadius, setUiRadius] = useState<{ level: UiRadiusLevel; value: number }>(() => getSavedUiRadius());
   const [uiScale, setUiScale] = useState<{ mode: UiScaleMode; value: number }>(() => getSavedUiScale());
   const [uiFont, setUiFont] = useState<UiFontId>(() => getSavedUiFont());
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
@@ -238,7 +226,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Игнорируем переключение, если идет запись горячей клавиши
-      if (recordingAction !== null) return;
+      if (isRecordingHotkey) return;
 
       const target = e.target as HTMLElement | null;
       if (
@@ -287,7 +275,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [activeTab, recordingAction, handleClose]);
+  }, [activeTab, isRecordingHotkey, handleClose]);
 
   // Синхронизация локальных состояний SettingsModal при применении любого пресета
   const handlePresetApplied = useCallback((preset: SettingsPreset) => {
@@ -316,30 +304,10 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     if (typeof data.saveTracksToVideoDir === "boolean") setSaveTracksToVideoDir(data.saveTracksToVideoDir);
     if (typeof data.hotloadEnabled === "boolean") setHotloadEnabled(data.hotloadEnabled);
     if (typeof data.skipOpeningSeconds === "number") setSkipOpeningSeconds(data.skipOpeningSeconds);
-    if (data.customHotkeys) setCustomHotkeys(data.customHotkeys);
-  }, []);
+      }, []);
 
-  const [integrationLogs, setIntegrationLogs] = useState<string[]>([]);
-  const [isRegistering, setIsRegistering] = useState<boolean>(false);
-  const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
-  const [isContextMenuRegistered, setIsContextMenuRegistered] = useState<boolean | null>(null);
-  const [isContextMenuLoading, setIsContextMenuLoading] = useState<boolean>(false);
-
-  const checkContextMenuStatus = useCallback(async () => {
-    try {
-      const reg = await invoke<boolean>("is_explorer_context_menu_registered");
-      setIsContextMenuRegistered(reg);
-    } catch {
-      setIsContextMenuRegistered(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === "integration") {
-      checkContextMenuStatus();
-    }
-  }, [activeTab, checkContextMenuStatus]);
-  const [ambientSettings, setAmbientSettings] = useState<AmbientSettings>({
+          
+    const [ambientSettings, setAmbientSettings] = useState<AmbientSettings>({
     mode: "off",
     blur_radius: 100,
     color: "#7fc7ff",
@@ -2055,575 +2023,18 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           )}
 
           {activeTab === "hotkeys" && (
-            <div className="modal__section">
-              <div
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: "var(--radius-md)",
-                  background: "var(--accent-glass)",
-                  border: "1px solid var(--border-pill)",
-                  color: "var(--accent)",
-                  fontSize: "0.86rem",
-                  lineHeight: "1.4",
-                  marginBottom: 16,
-                  fontWeight: 500,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <span>💡 Нажмите на любую клавишу в списке ниже, чтобы назначить свою комбинацию!</span>
-                <button
-                  onClick={() => {
-                    resetCustomHotkeys();
-                    setCustomHotkeys(getCustomHotkeys());
-                  }}
-                  style={{
-                    background: "rgba(255, 255, 255, 0.1)",
-                    border: "1px solid var(--border)",
-                    color: "white",
-                    borderRadius: "var(--radius-sm)",
-                    padding: "4px 8px",
-                    fontSize: "0.78rem",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    flexShrink: 0,
-                  }}
-                >
-                  <RotateCcw size={12} /> Сбросить
-                </button>
-              </div>
-
-              <div
-                className="modal__section-title"
-                style={{ fontSize: "0.92rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginBottom: 10 }}
-              >
-                Назначения горячих клавиш
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {(() => {
-                  const categorizedHotkeys = HOTKEY_ACTIONS.reduce((acc, item) => {
-                    if (!acc[item.category]) acc[item.category] = [];
-                    acc[item.category].push(item);
-                    return acc;
-                  }, {} as Record<string, typeof HOTKEY_ACTIONS>);
-
-                  return Object.entries(categorizedHotkeys).map(([category, items]) => {
-                    const secKey = `hk_${category}`;
-                    const isOpen = !!openSections[secKey];
-
-                    return (
-                      <AccordionSection
-                        key={category}
-                        isOpen={isOpen}
-                        onToggle={() => toggleSection(secKey)}
-                        icon={<Keyboard size={16} />}
-                        title={category}
-                        badge={
-                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 500, marginLeft: 4 }}>
-                            ({items.length})
-                          </span>
-                        }
-                      >
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 12 }}>
-                          {items.map((item) => {
-                                const currentCodes = customHotkeys[item.id] || [];
-
-                                return (
-                                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <div
-                                      className="modal__row"
-                                      style={{
-                                        flex: 1,
-                                        padding: "10px 14px",
-                                        background: "rgba(255, 255, 255, 0.03)",
-                                        border: "1px solid rgba(255, 255, 255, 0.04)",
-                                        borderRadius: "var(--radius-md)",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "space-between",
-                                        flexWrap: "wrap",
-                                        gap: 10,
-                                      }}
-                                    >
-                                      <span style={{ color: "var(--text-primary)", fontSize: "0.9rem", fontWeight: 500, flex: 1, minWidth: 200 }}>
-                                        {item.label}
-                                      </span>
-                                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                                        {currentCodes.map((code, idx) => {
-                                          const isRecording = recordingAction?.id === item.id && recordingAction.index === idx;
-                                          return (
-                                            <div key={idx} style={{ display: "flex", alignItems: "center" }}>
-                                              <button
-                                                onClick={(e) => {
-                                                  if (Date.now() < ignoreClickUntilRef.current) {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    return;
-                                                  }
-                                                  if (!isRecording) {
-                                                    setRecordingAction({ id: item.id, index: idx });
-                                                  } else {
-                                                    e.preventDefault();
-                                                  }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                  if (isRecording) {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    if (
-                                                      e.key === "Control" ||
-                                                      e.key === "Shift" ||
-                                                      e.key === "Alt" ||
-                                                      e.key === "Meta"
-                                                    ) {
-                                                      return;
-                                                    }
-                                                    const parts: string[] = [];
-                                                    if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
-                                                    if (e.shiftKey) parts.push("Shift");
-                                                    if (e.altKey) parts.push("Alt");
-                                                    parts.push(e.code || e.key);
-                                                    const newCode = parts.join("+");
-
-                                                    const newCodes = [...currentCodes];
-                                                    newCodes[idx] = newCode;
-                                                    const updated = { ...customHotkeys, [item.id]: newCodes };
-                                                    setCustomHotkeys(updated);
-                                                    saveCustomHotkeys(updated);
-                                                    setRecordingAction(null);
-                                                  }
-                                                }}
-                                                onMouseDown={(e) => {
-                                                  if (isRecording) {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    ignoreClickUntilRef.current = Date.now() + 400;
-                                                    const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
-                                                    const newCode = btnMap[e.button] || `MouseButton${e.button}`;
-                                                    const newCodes = [...currentCodes];
-                                                    newCodes[idx] = newCode;
-                                                    const updated = { ...customHotkeys, [item.id]: newCodes };
-                                                    setCustomHotkeys(updated);
-                                                    saveCustomHotkeys(updated);
-                                                    setRecordingAction(null);
-                                                  }
-                                                }}
-                                                onContextMenu={(e) => {
-                                                  e.preventDefault();
-                                                  e.stopPropagation();
-                                                }}
-                                                style={{
-                                                  padding: "4px 10px",
-                                                  background: isRecording ? "var(--accent)" : "rgba(127, 199, 255, 0.12)",
-                                                  border: isRecording ? "1px solid white" : "1px solid rgba(127, 199, 255, 0.2)",
-                                                  borderRadius: "var(--radius-sm)",
-                                                  fontFamily: "monospace",
-                                                  fontSize: "0.84rem",
-                                                  fontWeight: 600,
-                                                  color: isRecording ? "#000" : "var(--accent)",
-                                                  cursor: "pointer",
-                                                  outline: "none",
-                                                  borderTopRightRadius: 0,
-                                                  borderBottomRightRadius: 0,
-                                                }}
-                                              >
-                                                {isRecording ? "Нажмите..." : getKeyDisplay(code)}
-                                              </button>
-                                              <button
-                                                onClick={() => {
-                                                  const newCodes = currentCodes.filter((_, i) => i !== idx);
-                                                  const updated = { ...customHotkeys, [item.id]: newCodes };
-                                                  setCustomHotkeys(updated);
-                                                  saveCustomHotkeys(updated);
-                                                }}
-                                                title="Удалить"
-                                                style={{
-                                                  padding: "4px 6px",
-                                                  background: "rgba(255, 50, 50, 0.15)",
-                                                  border: "1px solid rgba(255, 50, 50, 0.3)",
-                                                  borderLeft: "none",
-                                                  borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
-                                                  color: "#ff8888",
-                                                  cursor: "pointer",
-                                                  display: "flex",
-                                                  alignItems: "center",
-                                                  justifyContent: "center",
-                                                }}
-                                              >
-                                                <Trash2 size={13} />
-                                              </button>
-                                            </div>
-                                          );
-                                        })}
-                                        
-                                        {/* Кнопка добавления нового бинда */}
-                                        {(() => {
-                                          const isRecordingNew = recordingAction?.id === item.id && recordingAction.index === currentCodes.length;
-                                          if (isRecordingNew) {
-                                            return (
-                                              <button
-                                                  onKeyDown={(e) => {
-                                                    if (isRecordingNew) {
-                                                      e.preventDefault();
-                                                      e.stopPropagation();
-                                                      if (
-                                                        e.key === "Control" ||
-                                                        e.key === "Shift" ||
-                                                        e.key === "Alt" ||
-                                                        e.key === "Meta"
-                                                      ) {
-                                                        return;
-                                                      }
-                                                      const parts: string[] = [];
-                                                      if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
-                                                      if (e.shiftKey) parts.push("Shift");
-                                                      if (e.altKey) parts.push("Alt");
-                                                      parts.push(e.code || e.key);
-                                                      const newCode = parts.join("+");
-
-                                                      const updatedCodes = [...currentCodes, newCode];
-                                                      const updated = { ...customHotkeys, [item.id]: updatedCodes };
-                                                      setCustomHotkeys(updated);
-                                                      saveCustomHotkeys(updated);
-                                                      setRecordingAction(null);
-                                                    }
-                                                  }}
-                                                  onMouseDown={(e) => {
-                                                    if (isRecordingNew) {
-                                                      e.preventDefault();
-                                                      e.stopPropagation();
-                                                      ignoreClickUntilRef.current = Date.now() + 400;
-                                                    const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
-                                                      const newCode = btnMap[e.button] || `MouseButton${e.button}`;
-                                                      const updatedCodes = [...currentCodes, newCode];
-                                                      const updated = { ...customHotkeys, [item.id]: updatedCodes };
-                                                      setCustomHotkeys(updated);
-                                                      saveCustomHotkeys(updated);
-                                                      setRecordingAction(null);
-                                                    }
-                                                  }}
-                                                  onContextMenu={(e) => {
-                                                    e.preventDefault();
-                                                   e.stopPropagation();
-                                                  }}
-                                                  style={{
-                                                    padding: "4px 10px",
-                                                    background: "var(--accent)",
-                                                    border: "1px solid white",
-                                                    borderRadius: "var(--radius-sm)",
-                                                    fontFamily: "monospace",
-                                                    fontSize: "0.84rem",
-                                                    fontWeight: 600,
-                                                    color: "#000",
-                                                    cursor: "pointer",
-                                                    outline: "none",
-                                                  }}
-                                              >
-                                                Нажмите...
-                                              </button>
-                                            );
-                                          }
-                                          
-                                          return (
-                                            <button
-                                              onClick={(e) => {
-                                                if (Date.now() < ignoreClickUntilRef.current) {
-                                                  e.preventDefault();
-                                                  e.stopPropagation();
-                                                  return;
-                                                }
-                                                setRecordingAction({ id: item.id, index: currentCodes.length });
-                                              }}
-                                              title="Добавить клавишу"
-                                              style={{
-                                                padding: "4px 8px",
-                                                background: "rgba(255, 255, 255, 0.05)",
-                                                border: "1px dashed rgba(255, 255, 255, 0.2)",
-                                                borderRadius: "var(--radius-sm)",
-                                                color: "var(--text-secondary)",
-                                                cursor: "pointer",
-                                                fontSize: "1rem",
-                                                lineHeight: 1,
-                                              }}
-                                            >
-                                              +
-                                            </button>
-                                          );
-                                        })()}
-                                      </div>
-                                    </div>
-                            
-                            <button
-                              onClick={() => {
-                                const updated = resetSingleHotkey(item.id, customHotkeys);
-                                setCustomHotkeys(updated);
-                              }}
-                              style={{
-                                padding: "10px",
-                                background: "rgba(255, 255, 255, 0.03)",
-                                border: "1px solid rgba(255, 255, 255, 0.04)",
-                                borderRadius: "var(--radius-md)",
-                                color: "var(--text-muted)",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                flexShrink: 0,
-                                transition: "all 0.15s ease",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.color = "var(--text-primary)";
-                                e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.color = "var(--text-muted)";
-                                e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
-                              }}
-                            >
-                              <RotateCcw size={16} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                        </div>
-                      </AccordionSection>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
+            <HotkeysSettingsTab
+              openSections={openSections}
+              onToggleSection={toggleSection}
+              onRecordingChange={setIsRecordingHotkey}
+            />
           )}
 
           {activeTab === "integration" && (
-            <div className="modal__section">
-              <div
-                className="modal__section-title"
-                style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal" }}
-              >
-                <Link size={16} /> Ассоциации файлов (Windows)
-              </div>
-              <div style={{ fontSize: "0.86rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
-                Настройте ассоциации видео- и аудиофайлов с L-MPV. Это позволит открывать файлы напрямую по двойному клику в Проводнике Windows.
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
-                <button
-                  disabled={isRegistering || isUnregistering}
-                  onClick={async () => {
-                    setIsRegistering(true);
-                    try {
-                      const logs = await invoke<string[]>("register_file_associations");
-                      setIntegrationLogs(logs);
-                      await checkContextMenuStatus();
-                    } catch (e) {
-                      setIntegrationLogs([`[ERROR] Не удалось зарегистрировать: ${e}`]);
-                    } finally {
-                      setIsRegistering(false);
-                    }
-                  }}
-                  className="settings-action-btn settings-action-btn--primary"
-                  title="Зарегистрировать ассоциации всех поддерживаемых видео- и аудиоформатов с L-MPV"
-                  style={{ width: "100%" }}
-                >
-                  {isRegistering ? (
-                    <>
-                      <Loader2 size={16} className="spin-animation" />
-                      Связывание файлов...
-                    </>
-                  ) : (
-                    <>
-                      <Link2 size={16} />
-                      Связать медиафайлы с L-MPV
-                    </>
-                  )}
-                </button>
-
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await invoke("open_default_apps_settings");
-                        setIntegrationLogs((prev) => [
-                          ...prev,
-                          "[INFO] Открыто системное окно Windows 'Приложения по умолчанию'",
-                        ]);
-                      } catch (e) {
-                        setIntegrationLogs((prev) => [
-                          ...prev,
-                          `[ERROR] Не удалось открыть настройки: ${e}`,
-                        ]);
-                      }
-                    }}
-                    className="settings-action-btn settings-action-btn--secondary"
-                    title="Открыть системные параметры Windows 'Приложения по умолчанию'"
-                    style={{ flex: 1 }}
-                  >
-                    <ExternalLink size={15} /> Настройки Windows
-                  </button>
-
-                  <button
-                    disabled={isRegistering || isUnregistering}
-                    onClick={async () => {
-                      setIsUnregistering(true);
-                      try {
-                        const logs = await invoke<string[]>("unregister_file_associations");
-                        setIntegrationLogs(logs);
-                        await checkContextMenuStatus();
-                      } catch (e) {
-                        setIntegrationLogs([`[ERROR] Не удалось удалить: ${e}`]);
-                      } finally {
-                        setIsUnregistering(false);
-                      }
-                    }}
-                    className="settings-action-btn settings-action-btn--danger"
-                    style={{ flex: 1 }}
-                  >
-                    {isUnregistering ? (
-                      <>
-                        <Loader2 size={15} className="spin-animation" />
-                        Удаление...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 size={15} /> Удалить ассоциации
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Контекстное меню Windows Explorer (MediaInfo) */}
-              <div style={{ marginTop: 24, marginBottom: 16 }}>
-                <div
-                  className="modal__section-title"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    fontSize: "0.95rem",
-                    color: "var(--accent)",
-                    fontWeight: 600,
-                    textTransform: "none",
-                    letterSpacing: "normal",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <FileText size={16} /> Контекстное меню Проводника
-                  </div>
-                  {isContextMenuRegistered !== null && (
-                    <span
-                      style={{
-                        fontSize: "0.75rem",
-                        padding: "2px 8px",
-                        borderRadius: "var(--radius-sm)",
-                        background: isContextMenuRegistered ? "rgba(34, 197, 94, 0.15)" : "rgba(148, 163, 184, 0.15)",
-                        color: isContextMenuRegistered ? "#4ade80" : "var(--text-muted)",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {isContextMenuRegistered ? "Активно" : "Не добавлено"}
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: "0.86rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
-                  Добавляет пункт <strong>«L-MPV MediaInfo»</strong> в контекстное меню правой кнопки мыши Windows. Позволяет мгновенно посмотреть технический отчёт о любом медиафайле.
-                </div>
-
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button
-                    disabled={isContextMenuLoading || isRegistering || isUnregistering}
-                    onClick={async () => {
-                      setIsContextMenuLoading(true);
-                      try {
-                        const logs = await invoke<string[]>("register_explorer_context_menu");
-                        setIntegrationLogs(logs);
-                        await checkContextMenuStatus();
-                      } catch (e) {
-                        setIntegrationLogs([`[ERROR] Не удалось зарегистрировать меню: ${e}`]);
-                      } finally {
-                        setIsContextMenuLoading(false);
-                      }
-                    }}
-                    className="settings-action-btn settings-action-btn--primary"
-                    title="Добавить пункт 'L-MPV MediaInfo' в контекстное меню Windows"
-                    style={{ flex: 1 }}
-                  >
-                    {isContextMenuLoading ? (
-                      <>
-                        <Loader2 size={15} className="spin-animation" />
-                        Применение...
-                      </>
-                    ) : (
-                      <>
-                        <FileText size={15} />
-                        Добавить в контекстное меню
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    disabled={isContextMenuLoading || isRegistering || isUnregistering}
-                    onClick={async () => {
-                      setIsContextMenuLoading(true);
-                      try {
-                        const logs = await invoke<string[]>("unregister_explorer_context_menu");
-                        setIntegrationLogs(logs);
-                        await checkContextMenuStatus();
-                      } catch (e) {
-                        setIntegrationLogs([`[ERROR] Не удалось удалить меню: ${e}`]);
-                      } finally {
-                        setIsContextMenuLoading(false);
-                      }
-                    }}
-                    className="settings-action-btn settings-action-btn--danger"
-                    style={{ flex: 1 }}
-                  >
-                    <Trash2 size={15} />
-                    Удалить из меню
-                  </button>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: "#0c0c0c",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: "12px",
-                  height: "200px",
-                  overflowY: "auto",
-                  fontFamily: "monospace",
-                  fontSize: "0.8rem",
-                  color: "#d4d4d4",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4
-                }}
-              >
-                {integrationLogs.length === 0 ? (
-                  <span style={{ color: "#808080" }}>Здесь появится вывод процесса...</span>
-                ) : (
-                  integrationLogs.map((log, i) => {
-                    let color = "#d4d4d4";
-                    if (log.startsWith("[OK]") || log.startsWith("[DONE]")) color = "#4caf50";
-                    if (log.startsWith("[ERROR]")) color = "#f44336";
-                    if (log.startsWith("[WARN]")) color = "#ff9800";
-                    if (log.startsWith("[INFO]")) color = "#2196f3";
-                    return (
-                      <div key={i} style={{ color }}>{log}</div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
+            <IntegrationSettingsTab />
           )}
           </div>
         </div>
-
         {/* Футер с версией приложения и проверкой обновлений */}
         <div className="settings-footer">
           <div className="settings-footer__left">
