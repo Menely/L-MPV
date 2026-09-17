@@ -52,16 +52,16 @@
   max-width: min(420px, calc(100vw - 28px));
   pointer-events: auto;
   box-sizing: border-box;
-  animation: mediaInfoSpringIn var(--t-spring) var(--ease-spring-smooth);
+  animation: mediaInfoFadeIn 160ms var(--ease-out);
   transform-origin: bottom left;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
 
-@keyframes mediaInfoSpringIn {
+@keyframes mediaInfoFadeIn {
   0% {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
@@ -81,12 +81,12 @@
   }
   100% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
 }
 
 .chapters-modal-card {
-  animation: mediaInfoSpringIn var(--t-spring) var(--ease-spring-smooth);
+  animation: mediaInfoFadeIn 160ms var(--ease-out);
   transform-origin: bottom right;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
@@ -175,16 +175,16 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: playlistSpringIn var(--t-spring) var(--ease-spring-smooth);
+  animation: playlistFadeIn 160ms var(--ease-out);
   transform-origin: bottom right;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
 
-@keyframes playlistSpringIn {
+@keyframes playlistFadeIn {
   0% {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
@@ -204,7 +204,7 @@
   }
   100% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
 }
 

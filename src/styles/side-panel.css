@@ -12,19 +12,19 @@
   z-index: 900;
   display: flex;
   flex-direction: column;
-  animation: slidePanelSpringIn var(--t-spring) var(--ease-spring-smooth);
+  animation: slidePanelIn 160ms var(--ease-out);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
 
-@keyframes slidePanelSpringIn {
+@keyframes slidePanelIn {
   0% {
     opacity: 0;
-    transform: translate3d(16px, 0, 0);
+    transform: translateX(12px);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translateX(0);
   }
 }
 

@@ -17,7 +17,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  animation: popoverSpringIn var(--t-spring) var(--ease-spring-smooth);
+  animation: popoverFadeIn 150ms var(--ease-out);
   transform-origin: bottom center;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
@@ -33,10 +33,10 @@
   transform-origin: bottom right;
 }
 
-@keyframes popoverSpringIn {
+@keyframes popoverFadeIn {
   0% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(5px);
   }
   100% {
     opacity: 1;

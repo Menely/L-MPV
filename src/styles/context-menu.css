@@ -11,17 +11,17 @@
   padding: 5px;
   box-shadow: var(--shadow-lg);
   z-index: 9999;
-  animation: contextMenuSpringIn var(--t-spring) var(--ease-spring-smooth);
+  animation: contextMenuFadeIn 140ms var(--ease-out);
   transform-origin: top left;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   transition: border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
-@keyframes contextMenuSpringIn {
+@keyframes contextMenuFadeIn {
   0% {
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateY(-4px);
   }
   100% {
     opacity: 1;
