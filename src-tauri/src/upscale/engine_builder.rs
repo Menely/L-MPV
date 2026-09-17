@@ -75,7 +75,7 @@ pub async fn precompile_model_engine_1080p_impl(
     // Движок AnimeJaNai libaji ожидает строго FP16 (__half). Если модель в FP32,
     // происходит переполнение буфера в 2 раза и рассинхронизация форматов,
     // что приводит к «радужному шуму» на экране.
-    ensure_onnx_model_fp16(&onnx_path);
+    ensure_onnx_model_fp16(&onnx_path, &inf_dir);
 
     // Подготавливаем команду сборки TensorRT движка
     let model_stem = filename
@@ -370,8 +370,27 @@ pub async fn precompile_model_engine_1080p_impl(
 /// Проверяет разрядность тензоров ONNX модели и при необходимости преобразует FP32 в FP16.
 /// Библиотека aji.dll передает на вход тензора буфер формата FP16 (__half).
 /// Если граф модели находится в FP32, происходит сдвиг байтов и появление радужного шума.
-fn ensure_onnx_model_fp16(onnx_path: &std::path::Path) {
-    let py_code = r#"
+fn ensure_onnx_model_fp16(onnx_path: &std::path::Path, inf_dir: &std::path::Path) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        
+        let converter_exe = inf_dir.join("convert_fp16.exe");
+        if converter_exe.exists() {
+            println!("[L-MPV][Upscale] Найден нативный конвертер convert_fp16.exe, запуск...");
+            let mut cmd = std::process::Command::new(&converter_exe);
+            cmd.arg(&onnx_path.to_string_lossy().to_string());
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+            if let Ok(status) = cmd.status() {
+                if status.success() {
+                    println!("[L-MPV][Upscale] Успешно выполнена проверка/конвертация нативным конвертером.");
+                    return;
+                }
+            }
+            println!("[L-MPV][Upscale] Нативный конвертер завершился с ошибкой, попытка использовать Python...");
+        }
+
+        let py_code = r#"
 import sys, onnx
 try:
     from onnxconverter_common import float16
@@ -386,16 +405,13 @@ except Exception as e:
     print(f"[L-MPV][Upscale] Ошибка проверки/конвертации FP16: {e}")
 "#;
 
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
         let binaries = ["python", "py", "python3"];
         for bin in binaries {
             let mut cmd = std::process::Command::new(bin);
             if bin == "py" {
-                cmd.args(["-3", "-c", py_code, &onnx_path.to_string_lossy()]);
+                cmd.args(["-3", "-c", py_code, &onnx_path.to_string_lossy().to_string()]);
             } else {
-                cmd.args(["-c", py_code, &onnx_path.to_string_lossy()]);
+                cmd.args(["-c", py_code, &onnx_path.to_string_lossy().to_string()]);
             }
             cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
             if let Ok(status) = cmd.status() {
