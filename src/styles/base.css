@@ -259,7 +259,8 @@ html, body, #root {
   margin: 0;
   padding: 0;
   transform-origin: 50% 50%;
-  transition: transform var(--t-spring, 260ms) var(--ease-spring-bounce);
+  transform: rotate(0deg);
+  transition: transform var(--t-spring, 260ms) var(--ease-spring-smooth);
 }
 
 .modal__close:hover svg,

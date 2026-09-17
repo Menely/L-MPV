@@ -400,12 +400,13 @@
 
 .volume-slider:hover .volume-slider__expandable,
 .volume-slider__expandable:focus-within {
-  width: 58px;
-  padding: 0 1px;
+  width: 60px;
+  padding: 0 4px;
   opacity: 1;
   pointer-events: auto;
   margin-left: 2px;
   margin-right: 2px;
+  overflow: visible;
 }
 
 .volume-slider__value {

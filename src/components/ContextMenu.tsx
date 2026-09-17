@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState, useMemo } from "react";
+import { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from "react";
 import { usePlayerState, TrackInfo } from "../contexts/PlayerStateContext";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -92,9 +92,30 @@ export function ContextMenu({
   }, []);
 
   // Позиционирование меню с учётом границ экрана
-  const [adjustedPos, setAdjustedPos] = useState({ x, y });
+  const [adjustedPos, setAdjustedPos] = useState(() => {
+    if (typeof window === "undefined") return { x, y };
+    const zoomStr = getComputedStyle(document.documentElement).getPropertyValue('--ui-scale').trim();
+    const zoom = zoomStr ? parseFloat(zoomStr) : 1;
 
-  useEffect(() => {
+    const cssX = x / zoom;
+    const cssY = y / zoom;
+    const cssInnerWidth = window.innerWidth / zoom;
+    const cssInnerHeight = window.innerHeight / zoom;
+
+    // Предварительная оценка габаритов меню
+    const estWidth = 220;
+    const estHeight = 440;
+
+    const newX = cssX + estWidth > cssInnerWidth ? cssX - estWidth : cssX;
+    const newY = cssY + estHeight > cssInnerHeight ? cssY - estHeight : cssY;
+
+    return {
+      x: Math.max(0, newX),
+      y: Math.max(0, newY),
+    };
+  });
+
+  useLayoutEffect(() => {
     if (menuRef.current) {
       const zoomStr = getComputedStyle(document.documentElement).getPropertyValue('--ui-scale').trim();
       const zoom = zoomStr ? parseFloat(zoomStr) : 1;

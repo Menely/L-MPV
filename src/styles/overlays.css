@@ -61,11 +61,11 @@
 @keyframes mediaInfoSpringIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.98);
+    transform: translateY(10px);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -77,11 +77,11 @@
 @keyframes mediaInfoFadeOut {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateY(0);
   }
   100% {
     opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.98);
+    transform: translateY(8px);
   }
 }
 
@@ -184,11 +184,11 @@
 @keyframes playlistSpringIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.98);
+    transform: translateY(10px);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -200,11 +200,11 @@
 @keyframes playlistFadeOut {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateY(0);
   }
   100% {
     opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.98);
+    transform: translateY(8px);
   }
 }
 
@@ -320,7 +320,6 @@
   border: 1px solid transparent;
   text-align: left;
   width: 100%;
-  transform: translateX(0);
 }
 
 .playlist-item:hover {
@@ -348,7 +347,8 @@
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
-  transition: transform var(--t-spring) var(--ease-spring-bounce),
+  transform: scale(1);
+  transition: transform var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth);
 }
 

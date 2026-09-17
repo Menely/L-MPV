@@ -21,11 +21,11 @@
 @keyframes contextMenuSpringIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, -4px, 0) scale(0.98);
+    transform: translateY(-6px);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -37,11 +37,11 @@
 @keyframes contextMenuFadeOut {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateY(0);
   }
   100% {
     opacity: 0;
-    transform: translate3d(0, -4px, 0) scale(0.98);
+    transform: translateY(-4px);
   }
 }
 
@@ -64,7 +64,6 @@
               border-radius var(--t-spring) var(--ease-spring-smooth),
               color var(--t-fast) var(--ease-smooth);
   position: relative;
-  transform: translateX(0);
 }
 
 .context-menu__item:hover {

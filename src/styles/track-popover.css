@@ -36,11 +36,11 @@
 @keyframes popoverSpringIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, 8px, 0) scale(0.98);
+    transform: translateY(8px);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -52,11 +52,11 @@
 @keyframes popoverFadeOut {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateY(0);
   }
   100% {
     opacity: 0;
-    transform: translate3d(0, 6px, 0) scale(0.98);
+    transform: translateY(6px);
   }
 }
 
@@ -99,7 +99,6 @@
               border-color var(--t-fast) var(--ease-smooth),
               border-radius var(--t-spring) var(--ease-spring-smooth),
               color var(--t-fast) var(--ease-smooth);
-  transform: translateX(0);
 }
 
 .track-popover__item:hover {
