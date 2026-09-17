@@ -1,7 +1,8 @@
 {
   "name": "l-mpv",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.0.2",
+  "description": "L-MPV — Modern & Portable Media Player",
   "type": "module",
   "scripts": {
     "dev": "vite",

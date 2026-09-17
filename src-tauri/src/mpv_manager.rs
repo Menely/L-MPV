@@ -175,6 +175,7 @@ impl MpvManager {
             Self::set_option(&api, handle, "audio-channels", "auto-safe"); // Автоопределение каналов оборудования
             Self::set_option(&api, handle, "audio-pitch-correction", "yes"); // Сохранение тональности при изменении скорости
             Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от клиппинга при даунмиксе
+            Self::set_option(&api, handle, "volume-max", "150.0"); // Максимальная громкость с софтверным усилением (до 150%)
 
             // ─── Субтитры ───────────────────────────────
             Self::set_option(&api, handle, "demuxer-mkv-subtitle-preroll", "yes");

@@ -4,6 +4,7 @@
 pub mod config;
 pub mod controller;
 pub mod downloader;
+pub mod engine_builder;
 pub mod hardware;
 pub mod types;
 
@@ -104,7 +105,13 @@ pub async fn precompile_model_engine_1080p(
     slot: u32,
     filename: String,
 ) -> Result<String, String> {
-    controller::precompile_model_engine_1080p_impl(app, slot, filename).await
+    engine_builder::precompile_model_engine_1080p_impl(app, slot, filename).await
+}
+
+/// Сохранение пользовательского порядка моделей в config/models_order.json
+#[tauri::command]
+pub fn save_models_order(order: Vec<String>) -> Result<(), String> {
+    config::save_models_order_internal(&order)
 }
 
 #[cfg(test)]

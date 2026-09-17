@@ -66,6 +66,7 @@ import {
   Square,
   Maximize2,
   Type,
+  MousePointer2,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -173,10 +174,11 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.0.0");
+  const [appVersion, setAppVersion] = useState<string>("2.0.2");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
+  const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => localStorage.getItem('l-mpv-hide-controls-upper-half') === 'true');
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(getCustomHotkeys());
   const [recordingAction, setRecordingAction] = useState<{ id: string, index: number } | null>(null);
   const ignoreClickUntilRef = useRef<number>(0);
@@ -690,7 +692,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   <button
                     onClick={handlePickFolder}
                     className="btn btn--secondary btn--sm"
-                    title="Выбрать папку"
                     style={{
                       height: 38,
                       padding: "0 16px",
@@ -705,7 +706,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   <button
                     onClick={handleResetDefault}
                     className="btn btn--secondary btn--icon"
-                    title="Сбросить на значение по умолчанию"
                     style={{
                       width: 38,
                       height: 38,
@@ -938,6 +938,36 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   </label>
                 </div>
               </AccordionSection>
+
+              {/* 7. Автоматическое скрытие интерфейса */}
+              <AccordionSection
+                isOpen={!!openSections["gen_hide_controls_upper"]}
+                onToggle={() => toggleSection("gen_hide_controls_upper")}
+                icon={<MousePointer2 size={16} />}
+                title="Скрытие интерфейса в полноэкранном режиме"
+              >
+                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
+                  <input
+                    type="checkbox"
+                    className="ui-checkbox"
+                    checked={hideControlsInUpperHalf}
+                    onChange={(e) => {
+                      const val = e.target.checked;
+                      setHideControlsInUpperHalf(val);
+                      localStorage.setItem('l-mpv-hide-controls-upper-half', val ? 'true' : 'false');
+                      window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                    }}
+                  />
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
+                      Скрывать весь интерфейс при наведении мыши на самый верх в полноэкранном режиме
+                    </span>
+                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
+                      В режиме во весь экран, когда курсор подводится к верхнему краю, весь интерфейс (верхняя шапка и нижняя панель управления) моментально скрывается
+                    </span>
+                  </div>
+                </label>
+              </AccordionSection>
             </div>
           )}
 
@@ -1157,7 +1187,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 saveUiRadius("default", 16);
                               }}
                               className="btn btn--secondary btn--sm"
-                              title="Сбросить на стандартное скругление (16 px)"
                               style={resetBtnStyle}
                             >
                               <RotateCcw size={11} />
@@ -1249,7 +1278,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 saveUiScale("auto", 1.0);
                               }}
                               className="btn btn--secondary btn--sm"
-                              title="Сбросить на автоматический масштаб (Стандарт)"
                               style={resetBtnStyle}
                             >
                               <RotateCcw size={11} />
@@ -1330,7 +1358,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 saveUiOpacity(0.88);
                               }}
                               className="btn btn--secondary btn--sm"
-                              title="Сбросить на стандартную прозрачность (88%)"
                               style={resetBtnStyle}
                             >
                               <RotateCcw size={11} />
@@ -1383,7 +1410,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 saveUiFont("inter");
                               }}
                               className="btn btn--secondary btn--sm"
-                              title="Сбросить на стандартный шрифт (Inter)"
                               style={resetBtnStyle}
                             >
                               <RotateCcw size={11} />
@@ -1682,7 +1708,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                           <button
                             onClick={() => updateAmbient({ blur_radius: 100 }, true)}
                             className="btn btn--secondary btn--icon btn--sm"
-                            title="Сбросить на 100px"
                             style={{
                               width: 24,
                               height: 24,
@@ -1814,7 +1839,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     resetCustomHotkeys();
                     setCustomHotkeys(getCustomHotkeys());
                   }}
-                  title="Сбросить все клавиши по умолчанию"
                   style={{
                     background: "rgba(255, 255, 255, 0.1)",
                     border: "1px solid var(--border)",
@@ -2099,7 +2123,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                                 const updated = resetSingleHotkey(item.id, customHotkeys);
                                 setCustomHotkeys(updated);
                               }}
-                              title="По умолчанию"
                               style={{
                                 padding: "10px",
                                 background: "rgba(255, 255, 255, 0.03)",
@@ -2218,7 +2241,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       }
                     }}
                     className="settings-action-btn settings-action-btn--danger"
-                    title="Удалить привязку медиаформатов к L-MPV из реестра Windows"
                     style={{ flex: 1 }}
                   >
                     {isUnregistering ? (
@@ -2319,7 +2341,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                       }
                     }}
                     className="settings-action-btn settings-action-btn--danger"
-                    title="Удалить пункт 'L-MPV MediaInfo' из контекстного меню Windows"
                     style={{ flex: 1 }}
                   >
                     <Trash2 size={15} />

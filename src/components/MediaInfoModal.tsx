@@ -36,12 +36,33 @@ export function MediaInfoModal({
   const historyRef = useRef<{ time: number; pos: number }[]>([]);
   const lastUiUpdateRef = useRef<number>(0);
 
+  // Сброс мгновенного битрейта при смене файла
+  useEffect(() => {
+    setInstantBitrate(0);
+    historyRef.current = [];
+  }, [mediaInfo?.path]);
+
   // Расчет битрейта на основе централизованных данных контекста (без дублирования поллинга)
   useEffect(() => {
+    // При паузе сохраняем последнее рассчитанное значение битрейта и сбрасываем историю точек
+    if (liveState?.paused) {
+      historyRef.current = [];
+      return;
+    }
+
     if (!liveState?.stream_pos) return;
     const now = performance.now();
     const history = historyRef.current;
     
+    // При перемотке сбрасываем историю для мгновенного чистого расчета от новой позиции
+    if (history.length > 0) {
+      const prev = history[history.length - 1];
+      if (liveState.stream_pos < prev.pos || (liveState.stream_pos - prev.pos) > 50 * 1024 * 1024) {
+        historyRef.current = [{ time: now, pos: liveState.stream_pos }];
+        return;
+      }
+    }
+
     // Добавляем текущую точку
     history.push({ time: now, pos: liveState.stream_pos });
     
@@ -52,16 +73,17 @@ export function MediaInfoModal({
     
     // Обновляем UI каждые 250 мс для плавности
     if (now - lastUiUpdateRef.current >= 250) {
-      if (liveState.paused || history.length < 2) {
-        setInstantBitrate(0);
-      } else {
+      if (history.length >= 2) {
         const oldest = history[0];
         const newest = history[history.length - 1];
         const deltaT = (newest.time - oldest.time) / 1000;
         const deltaBytes = newest.pos - oldest.pos;
         
         if (deltaT > 0 && deltaBytes >= 0) {
-          setInstantBitrate((deltaBytes * 8) / deltaT);
+          const calculated = (deltaBytes * 8) / deltaT;
+          if (calculated > 0) {
+            setInstantBitrate(calculated);
+          }
         }
       }
       lastUiUpdateRef.current = now;
@@ -71,7 +93,6 @@ export function MediaInfoModal({
   // Итоговые значения
   const currentPos = position || mediaInfo?.position || 0;
   const currentFrame = frame || mediaInfo?.frame || 0;
-  const videoBitrate = liveState?.video_bitrate ?? mediaInfo?.video_bitrate ?? 0;
   const audioBitrate = liveState?.audio_bitrate ?? mediaInfo?.audio_bitrate ?? 0;
   const droppedFrames = liveState?.dropped_frames ?? mediaInfo?.dropped_frames ?? 0;
   const currentVolume = liveState?.volume ?? mediaInfo?.volume ?? 100;
@@ -154,19 +175,13 @@ export function MediaInfoModal({
         <div className="media-info__row">
           <span className="media-info__label">Текущий битрейт:</span>
           <span className="media-info__value">
-            {videoBitrate > 0 ? `${Math.round(videoBitrate / 1000)} kbps` : "—"}
+            {instantBitrate > 0 ? `${Math.round(instantBitrate / 1000)} kbps` : "—"}
           </span>
         </div>
         <div className="media-info__row">
           <span className="media-info__label">Общий битрейт:</span>
           <span className="media-info__value">
             {mediaInfo?.total_bitrate ? `${Math.round(mediaInfo.total_bitrate / 1000)} kbps` : "—"}
-          </span>
-        </div>
-        <div className="media-info__row">
-          <span className="media-info__label">Мгновенный общий битрейт:</span>
-          <span className="media-info__value">
-            {instantBitrate > 0 ? `${Math.round(instantBitrate / 1000)} kbps` : "—"}
           </span>
         </div>
         <div className="media-info__row">

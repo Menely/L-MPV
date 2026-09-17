@@ -849,7 +849,7 @@ pub fn frame_back_step(
 
 // ─── Команды управления громкостью и скоростью ──────────
 
-/// Установка громкости (0-100).
+/// Установка громкости (0-150).
 #[tauri::command]
 pub fn set_volume(
     state: State<'_, PlayerState>,

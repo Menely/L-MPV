@@ -2,9 +2,7 @@
 
 use super::hardware::detect_system_gpu;
 use super::types::{ModelFileItem, UpscaleStatus};
-use std::collections::hash_map::DefaultHasher;
 use std::fs;
-use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 
 /// Возвращает корневой каталог приложения
@@ -37,36 +35,33 @@ pub fn get_inference_dir() -> PathBuf {
     inf_dir
 }
 
-/// Ленивая инициализация путей к библиотекам инференса.
-/// Вызывается только при первом реальном включении AI-апскейлинга,
-/// гарантируя мгновенный старт плеера без задержек.
+/// Инициализация путей к библиотекам инференса.
+/// Регистрирует каталоги в системном PATH и вызывает SetDllDirectoryW.
 pub fn ensure_inference_environment() {
-    use std::sync::atomic::{AtomicBool, Ordering};
-    static INITIALIZED: AtomicBool = AtomicBool::new(false);
-
-    if INITIALIZED.swap(true, Ordering::SeqCst) {
-        return;
-    }
-
     let inf_dir = get_inference_dir();
     let root = get_app_root_dir();
     let animejanai_inf = root.join("animejanai").join("inference");
 
     if let Some(path) = std::env::var_os("PATH") {
         let mut paths = std::env::split_paths(&path).collect::<Vec<_>>();
-        if !paths.contains(&inf_dir) {
+        let mut changed = false;
+        if inf_dir.exists() && !paths.contains(&inf_dir) {
             paths.insert(0, inf_dir.clone());
+            changed = true;
         }
         if animejanai_inf.exists() && !paths.contains(&animejanai_inf) {
             paths.insert(0, animejanai_inf);
+            changed = true;
         }
-        if let Ok(new_path) = std::env::join_paths(paths) {
-            std::env::set_var("PATH", new_path);
+        if changed {
+            if let Ok(new_path) = std::env::join_paths(paths) {
+                std::env::set_var("PATH", new_path);
+            }
         }
     }
 
     #[cfg(windows)]
-    {
+    if inf_dir.exists() {
         use std::os::windows::ffi::OsStrExt;
         let mut wide: Vec<u16> = inf_dir.as_os_str().encode_wide().collect();
         wide.push(0);
@@ -89,6 +84,24 @@ pub fn get_upscale_conf_path() -> PathBuf {
     cfg_dir.join("upscale.conf")
 }
 
+/// Возвращает путь к файлу сохраненного порядка моделей `config/models_order.json`
+pub fn get_models_order_path() -> PathBuf {
+    let root = get_app_root_dir();
+    let cfg_dir = root.join("config");
+    if !cfg_dir.exists() {
+        let _ = fs::create_dir_all(&cfg_dir);
+    }
+    cfg_dir.join("models_order.json")
+}
+
+/// Сохраняет пользовательский порядок моделей в файл `config/models_order.json`
+pub fn save_models_order_internal(order: &[String]) -> Result<(), String> {
+    let order_path = get_models_order_path();
+    let json = serde_json::to_string_pretty(order).map_err(|e| e.to_string())?;
+    fs::write(&order_path, json).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Вычисление контрольной суммы CRC32 по стандарту IEEE 802.3
 pub fn crc32_ieee(data: &[u8]) -> u32 {
     let mut crc: u32 = 0xFFFF_FFFF;
@@ -105,15 +118,24 @@ pub fn crc32_ieee(data: &[u8]) -> u32 {
     !crc
 }
 
-/// Проверка наличия скомпилированного движка TensorRT (.engine) для модели в каталоге
-pub fn has_compiled_engine_for_model(models_dir: &std::path::Path, model_stem: &str) -> bool {
+/// Проверка наличия скомпилированного движка TensorRT (.engine) для модели в каталоге под текущий GPU
+pub fn has_compiled_engine_for_model(
+    models_dir: &std::path::Path,
+    model_stem: &str,
+    gpu_clean: Option<&str>,
+    sm_suffix: Option<&str>,
+) -> bool {
     let crc = crc32_ieee(model_stem.as_bytes());
     let prefix = format!("aji-{:08x}.", crc);
+    let target_suffix = match (gpu_clean, sm_suffix) {
+        (Some(g), Some(s)) => format!(".trt-11.3.0.gpu-{}-{}.engine", g, s),
+        _ => ".engine".to_string(),
+    };
 
     if let Ok(entries) = fs::read_dir(models_dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with(&prefix) && name.ends_with(".engine") {
+            if name.starts_with(&prefix) && name.ends_with(&target_suffix) {
                 if let Ok(meta) = entry.metadata() {
                     if meta.len() > 0 {
                         return true;
@@ -129,21 +151,75 @@ pub fn has_compiled_engine_for_model(models_dir: &std::path::Path, model_stem: &
 pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
     let models_dir = get_models_dir();
     let mut items = Vec::new();
+    let gpu = detect_system_gpu();
+    let (gpu_clean, sm_suffix) = if gpu.supports_tensorrt {
+        (
+            Some(super::hardware::sanitize_gpu_token(&gpu.name)),
+            Some(super::hardware::determine_nvidia_sm_major(&gpu.name, &gpu.sm_architecture)),
+        )
+    } else {
+        (None, None)
+    };
 
     if let Ok(entries) = fs::read_dir(&models_dir) {
-        let mut paths: Vec<PathBuf> = entries
-            .filter_map(|e| e.ok().map(|x| x.path()))
-            .filter(|p| {
-                p.is_file()
-                    && p.extension()
-                        .and_then(|ext| ext.to_str())
-                        .map(|ext| ext.eq_ignore_ascii_case("onnx"))
-                        .unwrap_or(false)
-            })
-            .collect();
+        let mut paths: Vec<PathBuf> = Vec::new();
+        let mut engine_files: Vec<String> = Vec::new();
 
-        // Сортируем модели по алфавиту для детерминированного порядка
-        paths.sort();
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_file() {
+                if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                    if ext.eq_ignore_ascii_case("onnx") {
+                        paths.push(p);
+                    } else if ext.eq_ignore_ascii_case("engine") {
+                        if let Ok(meta) = entry.metadata() {
+                            if meta.len() > 0 {
+                                engine_files.push(entry.file_name().to_string_lossy().to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Загружаем сохраненный пользователем порядок моделей (если он был настроен)
+        let order_path = get_models_order_path();
+        let saved_order: Vec<String> = if order_path.exists() {
+            fs::read_to_string(&order_path)
+                .ok()
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        // Сортируем модели: элементы из saved_order идут в строго заданном порядке,
+        // а новые модели, которых еще нет в сохраненном списке — в конце по алфавиту
+        paths.sort_by(|a, b| {
+            let name_a = a
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let name_b = b
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+
+            let pos_a = saved_order.iter().position(|x| x.eq_ignore_ascii_case(&name_a));
+            let pos_b = saved_order.iter().position(|x| x.eq_ignore_ascii_case(&name_b));
+
+            match (pos_a, pos_b) {
+                (Some(idx_a), Some(idx_b)) => idx_a.cmp(&idx_b),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => name_a.cmp(&name_b),
+            }
+        });
+
+        let target_engine_suffix = match (gpu_clean.as_deref(), sm_suffix.as_deref()) {
+            (Some(g), Some(s)) => format!(".trt-11.3.0.gpu-{}-{}.engine", g, s),
+            _ => ".engine".to_string(),
+        };
 
         for path in paths {
             let filename = path
@@ -162,12 +238,15 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
 
             let size_bytes = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
 
-            let mut hasher = DefaultHasher::new();
-            filename.hash(&mut hasher);
-            // Генерируем уникальный слот: от 2000 до 9999 (чтобы не пересекаться со слотами 10xx)
-            let slot = (hasher.finish() % 8000 + 2000) as u32;
+            // Детерминированный слот на основе CRC32 от имени файла (от 2000 до 9999)
+            let crc_filename = crc32_ieee(filename.as_bytes());
+            let slot = (crc_filename % 8000 + 2000) as u32;
 
-            let has_engine_1080p = has_compiled_engine_for_model(&models_dir, model_stem);
+            let crc_stem = crc32_ieee(model_stem.as_bytes());
+            let prefix = format!("aji-{:08x}.", crc_stem);
+            let has_engine_1080p = engine_files.iter().any(|eng| {
+                eng.starts_with(&prefix) && eng.ends_with(&target_engine_suffix)
+            });
 
             items.push(ModelFileItem {
                 filename,

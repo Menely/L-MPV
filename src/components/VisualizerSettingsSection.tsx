@@ -625,7 +625,6 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                     type="button"
                     onClick={() => updateVisualizer({ height: 22 })}
                     className="btn btn--secondary btn--sm"
-                    title="Сбросить высоту по умолчанию (22px)"
                     style={{
                       height: 26,
                       padding: "0 8px",

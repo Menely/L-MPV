@@ -160,7 +160,7 @@
 /* ─── Кнопки управления (Grid с математическим центрированием) ── */
 .controls-row {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   width: 100%;
 }
@@ -170,6 +170,7 @@
   align-items: center;
   gap: 6px;
   justify-self: start;
+  min-width: 0;
 }
 
 .controls-row__center {
@@ -177,6 +178,7 @@
   align-items: center;
   gap: 12px;
   justify-self: center;
+  flex-shrink: 0;
 }
 
 .controls-row__right {
@@ -184,6 +186,7 @@
   align-items: center;
   gap: 6px;
   justify-self: end;
+  min-width: 0;
 }
 
 .control-btn {
@@ -343,15 +346,17 @@
 
 /* ─── Текстовые метки (время, кадры) ─────────────────── */
 .time-display {
-  font-size: var(--fs-xs);
-  color: var(--text-secondary);
+  font-size: var(--fs-sm, 0.78rem);
+  color: var(--accent);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   padding: 0 4px;
-  font-weight: 500;
   letter-spacing: 0.3px;
   display: inline-flex;
   align-items: center;
+  line-height: 1;
+  transition: color var(--t-fast) var(--ease-smooth);
 }
 
 .time-display__compact {
@@ -359,7 +364,8 @@
 }
 
 .time-display__full {
-  display: inline;
+  display: inline-flex;
+  align-items: center;
 }
 
 .frame-display {
@@ -392,6 +398,7 @@
   padding: 0;
   opacity: 0;
   overflow: hidden;
+  box-sizing: border-box;
   transition: width var(--t-spring) var(--ease-spring-smooth),
               opacity var(--t-base) var(--ease-smooth),
               margin var(--t-spring) var(--ease-spring-smooth);
@@ -400,36 +407,37 @@
 
 .volume-slider:hover .volume-slider__expandable,
 .volume-slider__expandable:focus-within {
-  width: 60px;
+  width: 64px;
   padding: 0 4px;
   opacity: 1;
+  overflow: visible;
   pointer-events: auto;
   margin-left: 2px;
   margin-right: 2px;
-  overflow: visible;
 }
 
 .volume-slider__value {
   font-size: var(--fs-xs);
   color: var(--text-secondary);
-  min-width: 24px;
+  min-width: 32px;
   text-align: left;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   user-select: none;
-  margin-left: 2px;
+  margin-left: 5px;
   transition: color var(--t-fast) var(--ease-smooth);
 }
 
 .volume-slider__input {
   -webkit-appearance: none;
   appearance: none;
-  width: 56px;
-  height: 3px;
+  width: 58px;
+  height: 4px;
   background-color: rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-xs, 3px);
   outline: none;
   cursor: pointer;
+  overflow: visible;
   accent-color: var(--accent);
   transition: filter var(--t-fast) var(--ease-smooth),
               border-radius var(--t-spring) var(--ease-spring-smooth);
@@ -453,7 +461,7 @@
 }
 
 .volume-slider__input:hover::-webkit-slider-thumb {
-  transform: scale(1.35);
+  transform: scale(1.3);
   box-shadow: var(--thumb-glow, none);
 }
 
@@ -489,7 +497,23 @@ html[data-glow="off"] .timeline__thumb {
 }
 
 /* ─── Адаптивность Панели Управления (Container Queries) ─── */
-@container controls (max-width: 780px) {
+
+/* 1. Плавное компактное сужение при ширине <= 1040px */
+@container controls (max-width: 1040px) {
+  .control-btn__label {
+    max-width: 80px;
+  }
+  .controls-row__left,
+  .controls-row__right {
+    gap: 4px;
+  }
+  .controls-row__center {
+    gap: 8px;
+  }
+}
+
+/* 2. Скрытие текстовых подписей дорожек при ширине <= 920px (визуализатор остаётся активным) */
+@container controls (max-width: 920px) {
   .control-btn__label {
     display: none !important;
   }
@@ -498,30 +522,24 @@ html[data-glow="off"] .timeline__thumb {
     padding: 0 !important;
     border-radius: 50% !important;
   }
-  .controls-row__center {
-    gap: 8px;
+  .audio-visualizer--toolbar {
+    max-width: 65px;
   }
   .controls-row__left,
   .controls-row__right {
-    gap: 4px;
+    gap: 3px;
   }
-  .control-btn--priority-low {
-    display: none !important;
+  .controls-row__center {
+    gap: 6px;
   }
 }
 
-@container controls (max-width: 580px) {
-  .player-controls {
-    padding: 5px 10px 8px;
-  }
-  .volume-slider__value {
+/* 3. Скрытие визуализатора и низкоприоритетных кнопок при ширине <= 780px */
+@container controls (max-width: 780px) {
+  .audio-visualizer--toolbar {
     display: none !important;
   }
-  .volume-slider:hover .volume-slider__expandable,
-  .volume-slider__expandable:focus-within {
-    width: 44px;
-  }
-  .control-btn--priority-medium {
+  .control-btn--priority-low {
     display: none !important;
   }
   .controls-row__center {
@@ -533,6 +551,32 @@ html[data-glow="off"] .timeline__thumb {
   }
 }
 
+/* 4. Скрытие среднеприоритетных кнопок и компактный слайдер при ширине <= 580px */
+@container controls (max-width: 580px) {
+  .player-controls {
+    padding: 5px 10px 8px;
+  }
+  .volume-slider__value {
+    display: none !important;
+  }
+  .volume-slider:hover .volume-slider__expandable,
+  .volume-slider__expandable:focus-within {
+    width: 44px;
+    overflow: visible;
+  }
+  .control-btn--priority-medium {
+    display: none !important;
+  }
+  .controls-row__center {
+    gap: 4px;
+  }
+  .controls-row__left,
+  .controls-row__right {
+    gap: 2px;
+  }
+}
+
+/* 5. Мобильный / ультракомпактный режим при ширине <= 460px */
 @container controls (max-width: 460px) {
   .player-controls {
     padding: 4px 8px 7px;
@@ -574,6 +618,7 @@ html[data-glow="off"] .timeline__thumb {
   }
 }
 
+/* 6. Экстремально узкое окно при ширине <= 340px */
 @container controls (max-width: 340px) {
   .time-display {
     display: none !important;

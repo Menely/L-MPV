@@ -53,6 +53,14 @@ function App() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showUpdateToast, setShowUpdateToast] = useState(false);
   const [osdText, setOsdText] = useState<string | null>(null);
+  const [isCursorInUpperHalf, setIsCursorInUpperHalf] = useState(false);
+  const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("l-mpv-hide-controls-upper-half") === "true";
+    } catch {
+      return false;
+    }
+  });
   
   const mediaTitle = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "";
 
@@ -118,6 +126,53 @@ function App() {
         console.warn("Фоновая проверка обновлений пропущена:", err);
       });
   }, []);
+
+  // Синхронизация настройки автоскрытия панели в верхней половине окна
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setHideControlsInUpperHalf(localStorage.getItem("l-mpv-hide-controls-upper-half") === "true");
+    };
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChange);
+    return () => window.removeEventListener("l-mpv-settings-changed", handleSettingsChange);
+  }, []);
+
+  // Отслеживание положения курсора (верхний край экрана в полноэкранном режиме)
+  useEffect(() => {
+    if (!hideControlsInUpperHalf) {
+      setIsCursorInUpperHalf(false);
+      return;
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Проверяем, наведен ли курсор на блок кнопок управления окном в правом верхнем углу (крестик, развернуть, свернуть)
+      // Расширенная буферная зона (320px от правого края), чтобы интерфейс не исчезал при подведении мыши левее кнопок
+      const target = e.target as HTMLElement | null;
+      const isOverWindowControls = Boolean(target?.closest(".titlebar__controls"));
+      const isWindowControlsArea = e.clientX >= window.innerWidth - 320;
+
+      // Если курсор находится над крестиком, кнопками окна или на подходе к ним — ни в коем случае не скрываем интерфейс
+      if (isOverWindowControls || isWindowControlsArea) {
+        setIsCursorInUpperHalf(false);
+        return;
+      }
+
+      // Скрывать только если включен полноэкранный режим и курсор поднят к самому верху (зона шапки / верхние 65px)
+      const isTopArea = isFullscreen && e.clientY <= 65;
+      setIsCursorInUpperHalf(isTopArea);
+    };
+
+    const handleMouseLeave = () => {
+      setIsCursorInUpperHalf(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    window.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, [hideControlsInUpperHalf, isFullscreen]);
 
   const isStandaloneModeRef = useRef(false);
 
@@ -331,14 +386,6 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
-    showMediaInfo,
-    setShowMediaInfo,
-    showChapters,
-    setShowChapters,
-    showSettings,
-    setShowSettings,
-    contextMenu,
-    setContextMenu,
     hotkeys,
   });
 
@@ -354,80 +401,8 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
-    showMediaInfo,
-    setShowMediaInfo,
-    showChapters,
-    setShowChapters,
-    showSettings,
-    setShowSettings,
-    contextMenu,
-    setContextMenu,
     hotkeys,
   };
-
-  const handleOpenMediaInfo = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowChapters(false);
-    setShowSettings(false);
-    setShowMediaInfo(true);
-  }, [setIsPlaylistOpen]);
-
-  const handleToggleMediaInfo = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowChapters(false);
-    setShowSettings(false);
-    setShowMediaInfo((prev) => !prev);
-  }, [setIsPlaylistOpen]);
-
-  const handleToggleDetailedMediaInfo = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowChapters(false);
-    setShowMediaInfo(false);
-    invoke("toggle_mediainfo_window", { path: latestRef.current.mediaInfo?.path || null }).catch(console.error);
-  }, [setIsPlaylistOpen]);
-
-  const handleOpenDetailedMediaInfo = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowChapters(false);
-    setShowMediaInfo(false);
-    invoke("open_mediainfo_window", { path: latestRef.current.mediaInfo?.path || null }).catch(console.error);
-  }, [setIsPlaylistOpen]);
-
-  const handleOpenChapters = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowMediaInfo(false);
-    setShowSettings(false);
-    setShowChapters(true);
-  }, [setIsPlaylistOpen]);
-
-  const handleToggleChapters = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowMediaInfo(false);
-    setShowSettings(false);
-    setShowChapters((prev) => !prev);
-  }, [setIsPlaylistOpen]);
-
-  const handleCloseChapters = useCallback(() => {
-    setShowChapters(false);
-  }, []);
-
-  const handleOpenSettings = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowMediaInfo(false);
-    setShowChapters(false);
-    setShowSettings(true);
-  }, [setIsPlaylistOpen]);
-
-  const handleToggleSettings = useCallback(() => {
-    setIsPlaylistOpen(false);
-    setShowMediaInfo(false);
-    setShowChapters(false);
-    setShowSettings((prev) => !prev);
-  }, [setIsPlaylistOpen]);
-
-  const handleCloseSettings = useCallback(() => {
-    setShowSettings(false);
-  }, []);
 
   const handleOpenFile = useCallback(async () => {
     try {
@@ -496,7 +471,7 @@ function App() {
         break;
       }
       case "volumeUp":
-        if (curMediaInfo) curSetVolume(Math.min(100, (curMediaInfo.volume ?? 100) + 5));
+        if (curMediaInfo) curSetVolume(Math.min(150, (curMediaInfo.volume ?? 100) + 5));
         break;
       case "volumeDown":
         if (curMediaInfo) curSetVolume(Math.max(0, (curMediaInfo.volume ?? 100) - 5));
@@ -551,16 +526,16 @@ function App() {
         }
         break;
       case "fileInfo":
-        handleToggleMediaInfo();
+        setShowMediaInfo((v) => !v);
         break;
       case "detailedMediaInfo":
-        handleToggleDetailedMediaInfo();
+        invoke("toggle_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
         break;
       case "chapters":
-        handleToggleChapters();
+        setShowChapters((v) => !v);
         break;
       case "settings":
-        handleToggleSettings();
+        setShowSettings((v) => !v);
         break;
       case "toggleVisualizer": {
         const cfg = getVisualizerConfig();
@@ -696,9 +671,14 @@ function App() {
             gpu_info?: { name: string; recommended_backend: string; supports_tensorrt: boolean };
           }>("get_upscale_status").catch(() => null);
 
+          const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
+
           if (mode === "ai") {
+            const modelIndex = status?.models?.findIndex((m) => m.slot === slot || m.filename === selectedModel);
+            const modelNumber = modelIndex !== undefined && modelIndex !== -1 ? modelIndex + 1 : 1;
             const activeModel = status?.models?.find((m) => m.slot === slot || m.filename === selectedModel);
-            const modelName = activeModel?.display_name || (selectedModel ? selectedModel.replace(/\.onnx$/i, "") : `Слот #${slot}`);
+            const rawName = activeModel?.display_name || (selectedModel ? selectedModel.replace(/\.onnx$/i, "") : `Слот #${slot}`);
+            const modelName = isHideModelNames ? `Модель #${modelNumber}` : rawName;
             
             let backendDesc = backend;
             if (backend === "TensorRT") {
@@ -772,7 +752,10 @@ function App() {
 
             await invoke("switch_upscale_network_hotkey", { slot, backend });
 
-            setOsdText(`4K AI: ${targetModel.display_name} (Включен)`);
+            const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
+            const modelTitle = isHideModelNames ? `Модель #${index + 1}` : targetModel.display_name;
+
+            setOsdText(`4K AI: ${modelTitle} (Включен)`);
             if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
             osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
 
@@ -919,37 +902,9 @@ function App() {
         return;
       }
 
-      if (e.code === "Escape") {
-        if (latestRef.current.contextMenu) {
-          e.preventDefault();
-          latestRef.current.setContextMenu(null);
-          return;
-        }
-        if (latestRef.current.showMediaInfo) {
-          e.preventDefault();
-          latestRef.current.setShowMediaInfo(false);
-          return;
-        }
-        if (latestRef.current.showChapters) {
-          e.preventDefault();
-          latestRef.current.setShowChapters(false);
-          return;
-        }
-        if (latestRef.current.showSettings) {
-          e.preventDefault();
-          latestRef.current.setShowSettings(false);
-          return;
-        }
-        if (latestRef.current.isPlaylistOpen) {
-          e.preventDefault();
-          latestRef.current.setIsPlaylistOpen(false);
-          return;
-        }
-        if (latestRef.current.isFullscreen) {
-          e.preventDefault();
-          latestRef.current.toggleFullscreen();
-          return;
-        }
+      if (e.code === "Escape" && latestRef.current.isFullscreen) {
+        e.preventDefault();
+        latestRef.current.toggleFullscreen();
         return;
       }
 
@@ -1059,10 +1014,14 @@ function App() {
     e.preventDefault();
   }, []);
 
+  const shouldHideControlsInUpperHalf = hasMedia && hideControlsInUpperHalf && isCursorInUpperHalf;
+
   return (
     <div
       className={`app-container ${
         isIdle && hasMedia ? "app-container--idle" : ""
+      } ${
+        shouldHideControlsInUpperHalf ? "app-container--hide-controls" : ""
       } ${isPlaylistOpen ? "app-container--playlist-open" : ""}`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
@@ -1140,7 +1099,7 @@ function App() {
             } else {
               const currentVol = mediaInfo.volume;
               const delta = e.deltaY < 0 ? 5 : -5;
-              const newVol = Math.max(0, Math.min(100, currentVol + delta));
+              const newVol = Math.max(0, Math.min(150, currentVol + delta));
               setVolume(newVol);
             }
           }
@@ -1166,10 +1125,23 @@ function App() {
           showMediaInfo={showMediaInfo}
           showDetailedMediaInfo={isMediaInfoOpen}
           showChapters={showChapters}
-          onShowMediaInfo={handleOpenMediaInfo}
-          onToggleMediaInfo={handleToggleMediaInfo}
-          onToggleDetailedMediaInfo={handleToggleDetailedMediaInfo}
-          onCloseChapters={handleCloseChapters}
+          onShowMediaInfo={() => {
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(true);
+          }}
+          onToggleMediaInfo={() => {
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo((v) => !v);
+          }}
+          onToggleDetailedMediaInfo={() => {
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(false);
+            invoke("toggle_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
+          }}
+          onCloseChapters={() => setShowChapters(false)}
         />
       )}
 
@@ -1180,19 +1152,28 @@ function App() {
           onClose={closeContextMenu}
           onOpenFile={handleOpenFile}
           onShowMediaInfo={() => {
-            handleOpenMediaInfo();
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(true);
             closeContextMenu();
           }}
           onShowDetailedMediaInfo={() => {
-            handleOpenDetailedMediaInfo();
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(false);
+            invoke("open_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
             closeContextMenu();
           }}
           onShowChapters={() => {
-            handleOpenChapters();
+            setIsPlaylistOpen(false);
+            setShowMediaInfo(false);
+            setShowChapters(true);
             closeContextMenu();
           }}
           onShowSettings={() => {
-            handleOpenSettings();
+            setIsPlaylistOpen(false);
+            setShowMediaInfo(false);
+            setShowSettings(true);
             closeContextMenu();
           }}
         />
@@ -1206,13 +1187,13 @@ function App() {
 
       {showChapters && (
         <ChaptersModal
-          onClose={handleCloseChapters}
+          onClose={() => setShowChapters(false)}
         />
       )}
 
       {showSettings && (
         <SettingsModal
-          onClose={handleCloseSettings}
+          onClose={() => setShowSettings(false)}
           onShowUpdate={(info) => {
             setPendingUpdate(info);
             setShowUpdateModal(true);

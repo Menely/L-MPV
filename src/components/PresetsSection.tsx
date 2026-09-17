@@ -30,6 +30,9 @@ import {
   exportAllPresetsToFile,
   importPresetsFromNativeDialog,
   openPresetsFolder,
+  getSavedActivePresetId,
+  saveActivePresetId,
+  isSettingsMatchingPreset,
 } from "../utils/presetsUtils";
 import { PLAYER_THEMES, PlayerThemeId } from "../utils/colorUtils";
 
@@ -51,12 +54,14 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [activePresetId, setActivePresetId] = useState<string | null>(() => getSavedActivePresetId());
   const [isUserPresetsOpen, setIsUserPresetsOpen] = useState<boolean>(true);
   const [isBuiltInPresetsOpen, setIsBuiltInPresetsOpen] = useState<boolean>(false);
 
   const isMountedRef = useRef<boolean>(true);
   const toastTimerRef = useRef<number | null>(null);
+  const userPresetsRef = useRef<SettingsPreset[]>([]);
+  userPresetsRef.current = userPresets;
 
   const showToast = useCallback((msg: string) => {
     if (toastTimerRef.current !== null) {
@@ -71,6 +76,43 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     }, 2800);
   }, []);
 
+  // Определение пресета, соответствующего текущим настройкам плеера
+  const detectActivePreset = useCallback(async (availablePresets?: SettingsPreset[]) => {
+    try {
+      const currentSnapshot = await captureCurrentSettings("");
+      const currentSettings = currentSnapshot.data;
+      const presetsToCheck = availablePresets || [...userPresetsRef.current, ...BUILT_IN_PRESETS];
+      const savedId = getSavedActivePresetId();
+
+      // 1. Проверяем сохранённый активный пресет: если он полностью совпадает с текущими настройками
+      if (savedId) {
+        const target = presetsToCheck.find((p) => p.id === savedId);
+        if (target && isSettingsMatchingPreset(currentSettings, target.data)) {
+          if (isMountedRef.current) {
+            setActivePresetId(savedId);
+          }
+          return;
+        }
+      }
+
+      // 2. Если сохранённого нет или настройки разошлись, ищем совпадение среди всех доступных пресетов
+      const matching = presetsToCheck.find((p) => isSettingsMatchingPreset(currentSettings, p.data));
+      if (matching) {
+        saveActivePresetId(matching.id);
+        if (isMountedRef.current) {
+          setActivePresetId(matching.id);
+        }
+      } else {
+        // Текущие настройки были изменены пользователем и не совпадают ни с одним пресетом
+        if (isMountedRef.current) {
+          setActivePresetId(null);
+        }
+      }
+    } catch (e) {
+      console.error("Ошибка проверки активного пресета:", e);
+    }
+  }, []);
+
   // Первоначальная загрузка пользовательских пресетов
   useEffect(() => {
     isMountedRef.current = true;
@@ -78,36 +120,57 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       .then((presets) => {
         if (isMountedRef.current) {
           setUserPresets(presets);
+          detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
         }
       })
       .catch((err) => {
         console.error("Ошибка загрузки пресетов:", err);
       });
 
-    // Автоматическая синхронизация при возврате фокуса в окно L-MPV (например, после изменения файлов в Проводнике)
+    // Автоматическая синхронизация при возврате фокуса в окно L-MPV
     const handleFocus = () => {
       loadUserPresets()
         .then((presets) => {
-          if (isMountedRef.current) setUserPresets(presets);
+          if (isMountedRef.current) {
+            setUserPresets(presets);
+            detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
+          }
         })
         .catch(() => {});
     };
+
+    const handleSettingsChanged = () => {
+      detectActivePreset();
+    };
+
+    const handlePresetAppliedEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<SettingsPreset>;
+      if (customEvent.detail?.id && isMountedRef.current) {
+        setActivePresetId(customEvent.detail.id);
+      }
+    };
+
     window.addEventListener("focus", handleFocus);
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-preset-applied", handlePresetAppliedEvent);
 
     return () => {
       isMountedRef.current = false;
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-preset-applied", handlePresetAppliedEvent);
       if (toastTimerRef.current !== null) {
         window.clearTimeout(toastTimerRef.current);
       }
     };
-  }, []);
+  }, [detectActivePreset]);
 
   // Ручное обновление списка пресетов
   const handleReload = async () => {
     try {
       const presets = await loadUserPresets();
       setUserPresets(presets);
+      detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
       showToast("Список пресетов обновлён");
     } catch (err) {
       console.error("Ошибка перезагрузки пресетов:", err);
@@ -130,11 +193,14 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         (p) => p.name.trim().toLowerCase() === name.toLowerCase()
       );
       let updated: SettingsPreset[];
+      let targetId = newPreset.id;
+
       if (existingIdx !== -1) {
+        targetId = userPresets[existingIdx].id;
         updated = [...userPresets];
         updated[existingIdx] = {
           ...newPreset,
-          id: userPresets[existingIdx].id,
+          id: targetId,
           createdAt: userPresets[existingIdx].createdAt,
           updatedAt: Date.now(),
         };
@@ -146,7 +212,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       setUserPresets(updated);
       await saveUserPresets(updated);
       setNewPresetName("");
-      setActivePresetId(newPreset.id);
+      saveActivePresetId(targetId);
+      setActivePresetId(targetId);
     } catch (err) {
       console.error("Ошибка сохранения пресета:", err);
       showToast("Не удалось сохранить пресет");
@@ -157,6 +224,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   const handleApply = async (preset: SettingsPreset) => {
     try {
       await applySettingsPreset(preset);
+      saveActivePresetId(preset.id);
       setActivePresetId(preset.id);
       showToast(`Пресет «${preset.name}» применён`);
       if (onPresetApplied) {
@@ -177,6 +245,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       );
       setUserPresets(updated);
       await saveUserPresets(updated);
+      saveActivePresetId(preset.id);
+      setActivePresetId(preset.id);
       showToast(`Пресет «${preset.name}» обновлён текущими настройками!`);
     } catch (err) {
       console.error("Ошибка обновления пресета:", err);
@@ -193,6 +263,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     setUserPresets(updated);
     await saveUserPresets(updated);
     if (activePresetId === preset.id) {
+      saveActivePresetId(null);
       setActivePresetId(null);
     }
     showToast(`Пресет «${preset.name}» удалён`);
@@ -514,7 +585,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   type="button"
                   className="preset-action-btn preset-action-btn--icon preset-action-btn--danger"
                   onClick={() => handleDelete(preset)}
-                  title="Удалить пресет"
                 >
                   <Trash2 size={13} />
                 </button>

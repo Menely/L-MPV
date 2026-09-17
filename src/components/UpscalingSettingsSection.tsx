@@ -4,18 +4,13 @@ import { listen } from "@tauri-apps/api/event";
 import {
   Zap,
   FolderOpen,
-  CheckCircle2,
   Layers,
-  Keyboard,
-  X,
-  RefreshCw,
   Eye,
   EyeOff,
 } from "lucide-react";
 import {
   getCustomHotkeys,
   saveCustomHotkeys,
-  getKeyDisplay,
 } from "../utils/hotkeyUtils";
 import {
   ModelFileItem,
@@ -26,6 +21,7 @@ import {
   UpscaleCompileProgress,
 } from "./upscale/types";
 import { BackendSelector } from "./upscale/BackendSelector";
+import { ModelListItem } from "./upscale/ModelListItem";
 
 export type {
   ModelFileItem,
@@ -36,10 +32,14 @@ export type {
   UpscaleCompileProgress,
 };
 
+interface UpscalingSettingsSectionProps {
+  onClose?: () => void;
+}
+
 /**
  * Вкладка управления апскейлингом видео в реальном времени (AI Upscaling).
  */
-export const UpscalingSettingsSection: React.FC = () => {
+export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> = ({ onClose: _onClose }) => {
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isDownloadingEngine, setIsDownloadingEngine] = useState<boolean>(false);
@@ -69,11 +69,59 @@ export const UpscalingSettingsSection: React.FC = () => {
       const next = !prev;
       try {
         localStorage.setItem("l-mpv-hide-model-names", next ? "true" : "false");
+        window.dispatchEvent(new Event("l-mpv-settings-changed"));
       } catch (e) {
         console.error("Ошибка сохранения настройки скрытия названий моделей:", e);
       }
       return next;
     });
+  };
+
+  // Перемещение моделей выше / ниже в списке
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const persistModelOrder = async (newModels: ModelFileItem[]) => {
+    setStatus((prev) => (prev ? { ...prev, models: newModels } : prev));
+    const order = newModels.map((m) => m.filename);
+    try {
+      localStorage.setItem("l-mpv-upscale-models-order", JSON.stringify(order));
+      await invoke("save_models_order", { order });
+      window.dispatchEvent(new Event("l-mpv-settings-changed"));
+    } catch (err) {
+      console.error("Ошибка сохранения порядка моделей:", err);
+    }
+  };
+
+  const handleMoveModel = async (index: number, direction: "up" | "down", e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!status?.models) return;
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= status.models.length) return;
+
+    const newModels = [...status.models];
+    const [moved] = newModels.splice(index, 1);
+    newModels.splice(targetIndex, 0, moved);
+    await persistModelOrder(newModels);
+  };
+
+  const handleDragStart = (idx: number, e: React.DragEvent) => {
+    setDraggedIndex(idx);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (targetIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex || !status?.models) return;
+    const newModels = [...status.models];
+    const [draggedItem] = newModels.splice(draggedIndex, 1);
+    newModels.splice(targetIndex, 0, draggedItem);
+    setDraggedIndex(null);
+    await persistModelOrder(newModels);
   };
 
   const [settings, setSettings] = useState<UpscaleSettings>(() => {
@@ -444,15 +492,6 @@ export const UpscalingSettingsSection: React.FC = () => {
     setRecordingActionId(null);
   };
 
-  // Форматирование размера файлов
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  };
-
   const isAiActive = settings.mode === "ai";
 
   return (
@@ -526,11 +565,6 @@ export const UpscalingSettingsSection: React.FC = () => {
               type="button"
               className="btn btn--secondary btn--icon"
               onClick={toggleHideModelNames}
-              title={
-                hideModelNames
-                  ? "Показать названия моделей и имена файлов"
-                  : "Скрыть названия моделей и имена файлов (маскировать точками)"
-              }
             >
               {hideModelNames ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
@@ -566,269 +600,33 @@ export const UpscalingSettingsSection: React.FC = () => {
             </div>
           ) : status?.models && status.models.length > 0 ? (
             status.models.map((model, idx) => {
-              const isSelected = settings.active_slot === model.slot || settings.selected_model === model.filename;
               const actionId = `upscaleNet${idx + 1}`;
-              const bindCodes = customHotkeys[actionId] || [];
-              const isRecording = recordingActionId === actionId;
-              const displayBind = bindCodes.length > 0 ? getKeyDisplay(bindCodes[0]) : "Назначить";
-
               return (
-                <div
+                <ModelListItem
                   key={model.filename}
-                  onClick={() => updateSettings({ active_slot: model.slot, selected_model: model.filename })}
-                  className={`glass-tile glass-tile--clickable ${isSelected ? "glass-tile--active" : ""}`}
-                  style={{
-                    padding: "10px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    isolation: "isolate",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-                    {isSelected ? (
-                      <CheckCircle2 size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
-                    ) : (
-                      <div style={{ width: 18, height: 18, borderRadius: "50%", border: "1px solid var(--border-pill)", flexShrink: 0 }} />
-                    )}
-
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div
-                        style={{
-                          fontSize: "0.88rem",
-                          fontWeight: 500,
-                          color: hideModelNames ? "var(--text-muted)" : "var(--text-primary)",
-                          letterSpacing: hideModelNames ? "0.15em" : "normal",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          userSelect: hideModelNames ? "none" : "auto",
-                        }}
-                      >
-                        {hideModelNames ? "••••••••••••••••" : model.display_name}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "0.75rem",
-                          color: "var(--text-muted)",
-                          fontFamily: "var(--font-mono)",
-                          letterSpacing: hideModelNames ? "0.15em" : "normal",
-                          marginTop: 1,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          userSelect: hideModelNames ? "none" : "auto",
-                        }}
-                      >
-                        {hideModelNames
-                          ? "••••••••••••••••••••"
-                          : `${model.filename} (${formatFileSize(model.size_bytes)})`}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Блок предкомпиляции 1080p для NVIDIA TensorRT и кнопка горячей клавиши */}
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {status?.gpu_info?.supports_tensorrt && (() => {
-                      const itemCompile = compileProgress[model.filename];
-                      const isCompiling = compilingModel === model.filename || itemCompile !== undefined;
-                      const isCompileFinished = !!(itemCompile && itemCompile.is_finished && !itemCompile.error);
-                      const isCompileError = !!(itemCompile && itemCompile.error);
-
-                      if (isCompiling) {
-                        return (
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 3,
-                              width: 175,
-                              minWidth: 175,
-                              maxWidth: 175,
-                              boxSizing: "border-box",
-                              padding: "4px 8px",
-                              borderRadius: "var(--radius-sm)",
-                              background: isCompileError
-                                ? "rgba(231, 76, 60, 0.08)"
-                                : isCompileFinished
-                                ? "rgba(46, 204, 113, 0.08)"
-                                : "rgba(127, 199, 255, 0.08)",
-                              border: `1px solid ${
-                                isCompileError
-                                  ? "rgba(231, 76, 60, 0.35)"
-                                  : isCompileFinished
-                                  ? "rgba(46, 204, 113, 0.35)"
-                                  : "rgba(127, 199, 255, 0.3)"
-                              }`,
-                              userSelect: "none",
-                              flexShrink: 0,
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                gap: 6,
-                                fontSize: "0.72rem",
-                                width: "100%",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 5,
-                                  color: isCompileError
-                                    ? "#e74c3c"
-                                    : isCompileFinished
-                                    ? "#2ecc71"
-                                    : "var(--accent)",
-                                  fontWeight: isCompileFinished ? 600 : 500,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                  flex: 1,
-                                  minWidth: 0,
-                                }}
-                                title={itemCompile?.stage || "Сборка 1080p..."}
-                              >
-                                {isCompileError ? (
-                                  <X size={11} color="#e74c3c" style={{ flexShrink: 0 }} />
-                                ) : isCompileFinished ? (
-                                  <CheckCircle2 size={11} color="#2ecc71" style={{ flexShrink: 0 }} />
-                                ) : (
-                                  <RefreshCw size={10} className="spin" style={{ flexShrink: 0 }} />
-                                )}
-                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                  {itemCompile?.stage || "Сборка 1080p..."}
-                                </span>
-                              </span>
-                              <span
-                                style={{
-                                  color: isCompileError
-                                    ? "#e74c3c"
-                                    : isCompileFinished
-                                    ? "#2ecc71"
-                                    : "var(--accent)",
-                                  fontWeight: 700,
-                                  fontVariantNumeric: "tabular-nums",
-                                  width: 38,
-                                  textAlign: "right",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {isCompileError
-                                  ? "Ошибка"
-                                  : isCompileFinished
-                                  ? "100%"
-                                  : itemCompile
-                                  ? `${Math.round(itemCompile.percent)}%`
-                                  : "..."}
-                              </span>
-                            </div>
-
-                            {/* Полоса прогресса */}
-                            <div
-                              style={{
-                                width: "100%",
-                                height: 3.5,
-                                borderRadius: 2,
-                                background: "rgba(255, 255, 255, 0.1)",
-                                overflow: "hidden",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: isCompileError
-                                    ? "100%"
-                                    : isCompileFinished
-                                    ? "100%"
-                                    : `${itemCompile?.percent || 8}%`,
-                                  height: "100%",
-                                  background: isCompileError
-                                    ? "#e74c3c"
-                                    : isCompileFinished
-                                    ? "linear-gradient(90deg, #27ae60, #2ecc71)"
-                                    : "linear-gradient(90deg, #3498db, var(--accent), #2ecc71)",
-                                  borderRadius: 2,
-                                  transition: "width 0.25s ease-out",
-                                  boxShadow: isCompileFinished
-                                    ? "0 0 6px rgba(46, 204, 113, 0.4)"
-                                    : "0 0 6px rgba(127, 199, 255, 0.4)",
-                                }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      if (model.has_engine_1080p) {
-                        return (
-                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <span
-                              className="badge badge--success"
-                              title="Движок TensorRT (.engine) уже скомпилирован под разрешение 1080p — включение будет мгновенным"
-                            >
-                              <CheckCircle2 size={13} />
-                              1080p готов
-                            </span>
-                            <button
-                              type="button"
-                              className="btn btn--secondary btn--icon btn--sm"
-                              onClick={() => handlePrecompileModel(model)}
-                              disabled={!!compilingModel}
-                              title="Перекомпилировать движок TensorRT под 1080p"
-                            >
-                              <RefreshCw size={11} />
-                            </button>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <button
-                          type="button"
-                          className="btn btn--secondary btn--sm"
-                          onClick={() => handlePrecompileModel(model)}
-                          disabled={!!compilingModel}
-                          title="Скомпилировать TensorRT движок под 1080p заранее, чтобы при первом запуске не было пауз"
-                        >
-                          <Zap size={12} color="var(--accent)" />
-                          1080p сборка
-                        </button>
-                      );
-                    })()}
-
-                    <button
-                      type="button"
-                      tabIndex={0}
-                      onClick={() => setRecordingActionId(isRecording ? null : actionId)}
-                      onKeyDown={(e) => isRecording && handleKeyRecord(e, actionId)}
-                      title={isRecording ? "Нажмите желаемую комбинацию клавиш (Esc для отмены)" : "Нажмите для переназначения клавиши активации"}
-                      className={`kbd-chip ${isRecording ? "kbd-chip--recording" : ""}`}
-                    >
-                      <Keyboard size={13} />
-                      <span>{isRecording ? "Нажмите клавишу..." : displayBind}</span>
-                    </button>
-
-                    {bindCodes.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleClearHotkey(e, actionId)}
-                        title="Сбросить привязанную клавишу"
-                        className="btn btn--ghost btn--icon btn--sm"
-                        style={{ padding: 4 }}
-                      >
-                        <X size={13} />
-                      </button>
-                    )}
-                  </div>
-                </div>
+                  model={model}
+                  idx={idx}
+                  isSelected={settings.active_slot === model.slot || settings.selected_model === model.filename}
+                  isFirst={idx === 0}
+                  isLast={idx === status.models.length - 1}
+                  isDragged={draggedIndex === idx}
+                  hideModelNames={hideModelNames}
+                  customHotkeys={customHotkeys}
+                  recordingActionId={recordingActionId}
+                  supportsTensorrt={!!status.gpu_info?.supports_tensorrt}
+                  compilingModel={compilingModel}
+                  compileProgressItem={compileProgress[model.filename]}
+                  onSelect={() => updateSettings({ active_slot: model.slot, selected_model: model.filename })}
+                  onMoveUp={(e) => handleMoveModel(idx, "up", e)}
+                  onMoveDown={(e) => handleMoveModel(idx, "down", e)}
+                  onDragStart={(e) => handleDragStart(idx, e)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(idx, e)}
+                  onPrecompile={() => handlePrecompileModel(model)}
+                  onStartRecordKey={() => setRecordingActionId(recordingActionId === actionId ? null : actionId)}
+                  onKeyRecord={(e) => handleKeyRecord(e, actionId)}
+                  onClearKey={(e) => handleClearHotkey(e, actionId)}
+                />
               );
             })
           ) : (

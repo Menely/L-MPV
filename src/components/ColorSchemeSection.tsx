@@ -322,7 +322,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               type="button"
               onClick={() => handleSelectTheme(DEFAULT_PLAYER_THEME)}
               className="btn btn--secondary btn--sm"
-              title="Сбросить на стандартную тему (Тёмный графит)"
               style={{
                 height: 22,
                 padding: "0 8px",
@@ -359,7 +358,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 key={themeKey}
                 type="button"
                 onClick={() => handleSelectTheme(themeKey)}
-                title={theme.name}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -475,7 +473,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                     <button
                       key={hex}
                       onClick={() => handleSelectAccentColor(hex)}
-                      title={`${hex}${isRec ? " (Рекомендуется)" : ""}`}
                       className={`color-circle ${activeColor === hex ? "color-circle--active" : ""}`}
                       style={{
                         backgroundColor: hex,
@@ -514,7 +511,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               {/* 1. Кнопка «Цвет темы Windows» */}
               <button
                 onClick={handleSelectWindowsColor}
-                title="Цвет темы Windows"
                 className={`color-circle color-circle--windows ${activeColor === "windows" ? "color-circle--active" : ""}`}
               >
                 <Monitor size={15} />
@@ -525,7 +521,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 <div key={`${hex}-${idx}`} style={{ position: "relative" }}>
                   <button
                     onClick={() => handleSelectAccentColor(hex)}
-                    title={hex}
                     className={`color-circle ${activeColor === hex ? "color-circle--active" : ""}`}
                     style={{
                       backgroundColor: hex,
@@ -534,7 +529,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                   >
                     <span
                       className="color-circle__remove-btn"
-                      title="Удалить цвет"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRemoveCustomColor(idx);
