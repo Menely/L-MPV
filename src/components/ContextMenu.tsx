@@ -223,6 +223,11 @@ export function ContextMenu({
     return () => {
       if (closingTimerRef.current) {
         clearTimeout(closingTimerRef.current);
+        closingTimerRef.current = null;
+      }
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
       }
     };
   }, []);

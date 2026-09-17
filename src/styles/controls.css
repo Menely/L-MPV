@@ -53,7 +53,9 @@
 
 .app-container--idle .player-controls-wrapper--docked,
 .app-container--hide-controls .player-controls-wrapper--docked {
+  opacity: 0;
   transform: translateY(100%);
+  pointer-events: none;
 }
 
 /* ─── Строка таймлайна со временем (справа, слева или на всю ширину) ── */

@@ -45,7 +45,14 @@ export function getRecentFiles(): RecentFile[] {
  * Добавление файла в историю воспроизведения с дедупликацией и перемещением в начало списка.
  */
 export function addRecentFile(fullPath: string): void {
-  if (!fullPath || typeof fullPath !== "string" || fullPath.trim().length === 0) {
+  if (
+    !fullPath ||
+    typeof fullPath !== "string" ||
+    fullPath.trim().length <= 1 ||
+    fullPath === "-" ||
+    fullPath.toLowerCase() === "null" ||
+    fullPath.toLowerCase() === "undefined"
+  ) {
     return;
   }
   try {
