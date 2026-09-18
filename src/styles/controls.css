@@ -83,6 +83,41 @@
   user-select: none;
 }
 
+/* ─── Плавающий бейдж со временем над центром таймлайна ── */
+.timeline-floating-time {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 4px;
+  pointer-events: none;
+}
+
+.time-display--floating-center {
+  pointer-events: auto;
+  background: rgba(14, 20, 30, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 2px 11px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.time-display--floating-center:hover {
+  background: rgba(20, 30, 48, 0.92);
+  border-color: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(var(--accent-rgb, 127, 199, 255), 0.4);
+  transform: translateY(-1px);
+}
+
 /* ─── Таймлайн ───────────────────────────────────────── */
 .timeline {
   position: relative;

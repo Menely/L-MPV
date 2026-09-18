@@ -577,8 +577,20 @@ export function PlayerControls({
         {/* Аудио-визуалайзер над таймлайном */}
         <AudioVisualizer placement="above_timeline" />
 
+        {/* Плавающий бейдж со временем над центром таймлайна */}
+        {timePosition === "timeline_floating_center" && (
+          <div className="timeline-floating-time">
+            <TimeDisplay
+              className="time-display--floating-center"
+              timeFormat={timeFormat}
+              onCycleFormat={handleCycleTimeFormat}
+              speed={mediaInfo?.speed}
+            />
+          </div>
+        )}
+
         {/* Строка таймлайна со временем (справа, слева или во всю ширину) */}
-        <div className={`timeline-row ${timePosition === "volume_right" ? "timeline-row--full" : ""}`}>
+        <div className={`timeline-row ${timePosition !== "timeline_left" && timePosition !== "timeline_right" ? "timeline-row--full" : ""}`}>
           {timePosition === "timeline_left" && (
             <TimeDisplay
               timeFormat={timeFormat}
@@ -773,6 +785,15 @@ export function PlayerControls({
 
           {/* Правый блок: Полный экран и новые кнопки */}
           <div className="controls-row__right">
+            {timePosition === "toolbar_right" && (
+              <TimeDisplay
+                className="time-display--toolbar"
+                timeFormat={timeFormat}
+                onCycleFormat={handleCycleTimeFormat}
+                speed={mediaInfo?.speed}
+              />
+            )}
+
             {visibleButtons.skipOpening === true && (
               <button
                 className="control-btn control-btn--with-label control-btn--priority-low"

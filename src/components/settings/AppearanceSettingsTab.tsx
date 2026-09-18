@@ -603,173 +603,208 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                         </div>
                       </div>
 
-                      {/* ── Блок 5: Стиль панели управления (Визуальный переключатель) ── */}
-                      <div style={{ ...cardStyle, marginBottom: 0, marginTop: 10 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <PanelBottom size={14} style={{ color: "var(--accent)" }} />
-                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                              Стиль панели управления
-                            </span>
+                      {/* ── Блок 5 и 6: Стиль панели управления (слева) + Позиция и Формат времени (справа) ── */}
+                      <div className="controls-and-time-grid">
+                        {/* Левая колонка: Стиль панели управления (друг под другом) */}
+                        <div style={{ ...cardStyle, margin: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <PanelBottom size={14} style={{ color: "var(--accent)" }} />
+                              <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                                Стиль панели управления
+                              </span>
+                            </div>
+                            {controlBarStyle !== "floating" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setControlBarStyle("floating");
+                                  saveControlBarStyle("floating");
+                                }}
+                                className="btn btn--secondary btn--sm"
+                                style={resetBtnStyle}
+                                title="Сбросить на Парящую"
+                              >
+                                <RotateCcw size={11} />
+                              </button>
+                            )}
                           </div>
-                          {controlBarStyle !== "floating" && (
-                            <button
-                              type="button"
+
+                          {/* Наглядные реалистичные превью плеера друг под другом */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, justifyContent: "center" }}>
+                            {/* 1: Парящий остров */}
+                            <div
+                              className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "floating" ? "visual-bar-card--active" : ""}`}
                               onClick={() => {
                                 setControlBarStyle("floating");
                                 saveControlBarStyle("floating");
                               }}
-                              className="btn btn--secondary btn--sm"
-                              style={resetBtnStyle}
-                              title="Сбросить на Парящий остров"
+                              title="Парящий остров: скругленная капсула с воздушными отступами от краев окна"
                             >
-                              <RotateCcw size={11} />
-                              <span>Парящая</span>
-                            </button>
-                          )}
-                        </div>
+                              {/* Мини-превью плеера */}
+                              <div className="visual-bar-preview">
+                                <div className="visual-bar-preview__screen">
+                                  <div className="visual-bar-preview__glow" />
+                                  <div className="visual-bar-preview__floating-island">
+                                    <div className="visual-bar-preview__btn-play" />
+                                    <div className="visual-bar-preview__track">
+                                      <div className="visual-bar-preview__progress" style={{ width: "45%" }} />
+                                    </div>
+                                    <div className="visual-bar-preview__dot" />
+                                  </div>
+                                </div>
+                              </div>
 
-                        {/* Наглядные визуальные карточки плеера */}
-                        <div className="visual-bar-selector">
-                          {/* 1: Парящий остров */}
-                          <div
-                            className={`visual-bar-card ${controlBarStyle === "floating" ? "visual-bar-card--active" : ""}`}
-                            onClick={() => {
-                              setControlBarStyle("floating");
-                              saveControlBarStyle("floating");
-                            }}
-                            title="Парящий остров: скругленная капсула с воздушными отступами от краев окна"
-                          >
-                            <div className="visual-bar-card__mockup">
-                              <div className="visual-bar-card__bar-floating">
-                                <div className="visual-bar-card__mock-dot" />
-                                <div className="visual-bar-card__mock-line" />
+                              <div className="visual-bar-card__info">
+                                <span className="visual-bar-card__label">Парящий остров</span>
+                                <span className="visual-bar-card__desc">Скругленная капсула с отступами от краев окна</span>
                               </div>
                             </div>
-                            <span className="visual-bar-card__label">Парящий остров</span>
-                          </div>
 
-                          {/* 2: Пристыкованная плашка */}
-                          <div
-                            className={`visual-bar-card ${controlBarStyle === "docked" ? "visual-bar-card--active" : ""}`}
-                            onClick={() => {
-                              setControlBarStyle("docked");
-                              saveControlBarStyle("docked");
-                            }}
-                            title="Пристыкованная плашка: сплошная полоса во всю ширину окна у нижнего края без зазоров"
-                          >
-                            <div className="visual-bar-card__mockup">
-                              <div className="visual-bar-card__bar-docked">
-                                <div className="visual-bar-card__mock-dot" />
-                                <div className="visual-bar-card__mock-line" />
+                            {/* 2: Пристыкованная плашка */}
+                            <div
+                              className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "docked" ? "visual-bar-card--active" : ""}`}
+                              onClick={() => {
+                                setControlBarStyle("docked");
+                                saveControlBarStyle("docked");
+                              }}
+                              title="Пристыкованная плашка: сплошная полоса во всю ширину окна у нижнего края без зазоров"
+                            >
+                              {/* Мини-превью плеера */}
+                              <div className="visual-bar-preview">
+                                <div className="visual-bar-preview__screen">
+                                  <div className="visual-bar-preview__glow" />
+                                  <div className="visual-bar-preview__docked-bar">
+                                    <div className="visual-bar-preview__docked-timeline">
+                                      <div className="visual-bar-preview__progress" style={{ width: "65%" }} />
+                                    </div>
+                                    <div className="visual-bar-preview__docked-controls">
+                                      <div className="visual-bar-preview__btn-play" />
+                                      <div className="visual-bar-preview__line" />
+                                      <div className="visual-bar-preview__dot" />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="visual-bar-card__info">
+                                <span className="visual-bar-card__label">Пристыкованная плашка</span>
+                                <span className="visual-bar-card__desc">Сплошная панель во всю ширину у нижнего края</span>
                               </div>
                             </div>
-                            <span className="visual-bar-card__label">Пристыкованная плашка</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ── Блок 6: Время видео (Позиция и Формат в одну строку) ── */}
-                      <div className="time-settings-row">
-                        {/* Колонка 1: Позиция времени */}
-                        <div style={{ ...cardStyle, marginBottom: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <Clock size={14} style={{ color: "var(--accent)" }} />
-                              <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                                Позиция времени
-                              </span>
-                            </div>
-                            {timePosition !== "timeline_right" && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setTimePosition("timeline_right");
-                                  saveTimePosition("timeline_right");
-                                }}
-                                className="btn btn--secondary btn--sm"
-                                style={resetBtnStyle}
-                                title="Сбросить на Справа"
-                              >
-                                <RotateCcw size={11} />
-                              </button>
-                            )}
-                          </div>
-
-                          {/* 3 компактные сегментные кнопки */}
-                          <div className="time-pos-compact-grid">
-                            {TIME_POSITION_OPTIONS.map((posOption) => {
-                              const isSel = timePosition === posOption.id;
-                              const shortLabel =
-                                posOption.id === "timeline_left"
-                                  ? "Слева"
-                                  : posOption.id === "timeline_right"
-                                  ? "Справа"
-                                  : "У звука";
-                              return (
-                                <button
-                                  key={posOption.id}
-                                  type="button"
-                                  className={`compact-segment-btn ${isSel ? "compact-segment-btn--active" : ""}`}
-                                  onClick={() => {
-                                    setTimePosition(posOption.id);
-                                    saveTimePosition(posOption.id);
-                                  }}
-                                  title={`${posOption.label}: ${posOption.desc}`}
-                                >
-                                  {shortLabel}
-                                </button>
-                              );
-                            })}
                           </div>
                         </div>
 
-                        {/* Колонка 2: Формат отображения времени */}
-                        <div style={{ ...cardStyle, marginBottom: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <Timer size={14} style={{ color: "var(--accent)" }} />
-                              <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                                Формат времени
-                              </span>
+                        {/* Правая колонка: Время видео (Позиция времени сверху, Формат времени снизу) */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+                          {/* Справа сверху: Позиция времени */}
+                          <div style={{ ...cardStyle, margin: 0, flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <Clock size={14} style={{ color: "var(--accent)" }} />
+                                <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                                  Позиция времени
+                                </span>
+                              </div>
+                              {timePosition !== "timeline_right" && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTimePosition("timeline_right");
+                                    saveTimePosition("timeline_right");
+                                  }}
+                                  className="btn btn--secondary btn--sm"
+                                  style={resetBtnStyle}
+                                  title="Сбросить на Справа"
+                                >
+                                  <RotateCcw size={11} />
+                                </button>
+                              )}
                             </div>
-                            {timeFormat !== "elapsed_total" && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setTimeFormat("elapsed_total");
-                                  saveTimeFormat("elapsed_total");
-                                }}
-                                className="btn btn--secondary btn--sm"
-                                style={resetBtnStyle}
-                                title="Сбросить на Прошедшее / Общее"
-                              >
-                                <RotateCcw size={11} />
-                              </button>
-                            )}
+
+                            {/* Компактные сегментные кнопки позиций времени */}
+                            <div className="time-pos-compact-grid">
+                              {TIME_POSITION_OPTIONS.map((posOption) => {
+                                const isSel = timePosition === posOption.id;
+                                const shortLabel =
+                                  posOption.id === "timeline_left"
+                                    ? "Слева"
+                                    : posOption.id === "timeline_right"
+                                    ? "Справа"
+                                    : posOption.id === "volume_right"
+                                    ? "У звука"
+                                    : posOption.id === "toolbar_right"
+                                    ? "В тулбаре"
+                                    : posOption.id === "timeline_floating_center"
+                                    ? "По центру"
+                                    : "Titlebar";
+                                return (
+                                  <button
+                                    key={posOption.id}
+                                    type="button"
+                                    className={`compact-segment-btn ${isSel ? "compact-segment-btn--active" : ""}`}
+                                    onClick={() => {
+                                      setTimePosition(posOption.id);
+                                      saveTimePosition(posOption.id);
+                                    }}
+                                    title={`${posOption.label}: ${posOption.desc}`}
+                                    style={{ height: 28 }}
+                                  >
+                                    {shortLabel}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
 
-                          {/* 4 компактные сегментные кнопки с примерами тайминга */}
-                          <div className="time-format-compact-grid">
-                            {TIME_FORMAT_OPTIONS.map((formatOption) => {
-                              const isSel = timeFormat === formatOption.id;
-                              return (
+                          {/* Справа снизу: Формат отображения времени */}
+                          <div style={{ ...cardStyle, margin: 0, flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <Timer size={14} style={{ color: "var(--accent)" }} />
+                                <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                                  Формат времени
+                                </span>
+                              </div>
+                              {timeFormat !== "elapsed_total" && (
                                 <button
-                                  key={formatOption.id}
                                   type="button"
-                                  className={`compact-segment-btn compact-segment-btn--mono ${
-                                    isSel ? "compact-segment-btn--active" : ""
-                                  }`}
                                   onClick={() => {
-                                    setTimeFormat(formatOption.id);
-                                    saveTimeFormat(formatOption.id);
+                                    setTimeFormat("elapsed_total");
+                                    saveTimeFormat("elapsed_total");
                                   }}
-                                  title={`${formatOption.label} — ${formatOption.desc}`}
+                                  className="btn btn--secondary btn--sm"
+                                  style={resetBtnStyle}
+                                  title="Сбросить на Прошедшее / Общее"
                                 >
-                                  {formatOption.example}
+                                  <RotateCcw size={11} />
                                 </button>
-                              );
-                            })}
+                              )}
+                            </div>
+
+                            {/* 4 компактные сегментные кнопки с примерами тайминга */}
+                            <div className="time-format-compact-grid">
+                              {TIME_FORMAT_OPTIONS.map((formatOption) => {
+                                const isSel = timeFormat === formatOption.id;
+                                return (
+                                  <button
+                                    key={formatOption.id}
+                                    type="button"
+                                    className={`compact-segment-btn compact-segment-btn--mono ${
+                                      isSel ? "compact-segment-btn--active" : ""
+                                    }`}
+                                    onClick={() => {
+                                      setTimeFormat(formatOption.id);
+                                      saveTimeFormat(formatOption.id);
+                                    }}
+                                    title={`${formatOption.label} — ${formatOption.desc}`}
+                                    style={{ height: 28 }}
+                                  >
+                                    {formatOption.example}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
                       </div>

@@ -7,7 +7,13 @@
  * - "volume_right": Справа от процентов громкости (в нижнем тулбаре управления)
  */
 
-export type TimeDisplayPosition = "timeline_right" | "timeline_left" | "volume_right";
+export type TimeDisplayPosition =
+  | "timeline_right"
+  | "timeline_left"
+  | "volume_right"
+  | "toolbar_right"
+  | "timeline_floating_center"
+  | "titlebar";
 
 export const TIME_POSITION_STORAGE_KEY = "l-mpv-time-position";
 export const DEFAULT_TIME_POSITION: TimeDisplayPosition = "timeline_right";
@@ -34,6 +40,21 @@ export const TIME_POSITION_OPTIONS: TimePositionOption[] = [
     label: "Справа от громкости",
     desc: "В тулбаре рядом со звуком",
   },
+  {
+    id: "toolbar_right",
+    label: "Справа в тулбаре",
+    desc: "Перед кнопками масштаба",
+  },
+  {
+    id: "timeline_floating_center",
+    label: "По центру над таймлайном",
+    desc: "Парящая капсула",
+  },
+  {
+    id: "titlebar",
+    label: "В заголовке окна (Titlebar)",
+    desc: "В верхней системной панели",
+  },
 ];
 
 /**
@@ -41,8 +62,16 @@ export const TIME_POSITION_OPTIONS: TimePositionOption[] = [
  */
 export function getSavedTimePosition(): TimeDisplayPosition {
   try {
-    const saved = localStorage.getItem(TIME_POSITION_STORAGE_KEY);
-    if (saved === "timeline_left" || saved === "volume_right" || saved === "timeline_right") {
+    const saved = localStorage.getItem(TIME_POSITION_STORAGE_KEY) as TimeDisplayPosition;
+    const validPositions: TimeDisplayPosition[] = [
+      "timeline_left",
+      "timeline_right",
+      "volume_right",
+      "toolbar_right",
+      "timeline_floating_center",
+      "titlebar",
+    ];
+    if (saved && validPositions.includes(saved)) {
       return saved;
     }
   } catch (e) {
