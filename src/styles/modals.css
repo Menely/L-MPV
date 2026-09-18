@@ -858,22 +858,26 @@
 /* ─── Сворачиваемые секции (Аккордеон) ────────────────── */
 .settings-accordion {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-md);
   margin-bottom: 10px;
   overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.22);
   transition: border-color var(--t-fast) var(--ease-smooth),
-              background var(--t-fast) var(--ease-smooth);
+              background var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
 
 .settings-accordion:hover {
-  border-color: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.028);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.42), 0 1px 4px rgba(0, 0, 0, 0.26);
 }
 
 .settings-accordion--open {
   border-color: var(--border-pill);
   background: rgba(255, 255, 255, 0.035);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.48), 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
 .settings-accordion__header {
@@ -882,17 +886,25 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.015);
   border: none;
   cursor: pointer;
   user-select: none;
   color: var(--text-primary);
   text-align: left;
-  transition: background var(--t-fast) var(--ease-smooth);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: background var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
 
 .settings-accordion__header:hover {
   background: var(--bg-hover);
+}
+
+.settings-accordion--open .settings-accordion__header {
+  background: rgba(255, 255, 255, 0.028);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
 }
 
 .settings-accordion__title {
@@ -1048,112 +1060,6 @@
 }
 
 @media (max-width: 600px) {
-}
-
-/* ─── Сворачиваемые секции (Аккордеон) ────────────────── */
-.settings-accordion {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-md);
-  margin-bottom: 10px;
-  overflow: hidden;
-  transition: border-color var(--t-fast) var(--ease-smooth),
-              background var(--t-fast) var(--ease-smooth);
-}
-
-.settings-accordion:hover {
-  border-color: rgba(255, 255, 255, 0.09);
-  background: rgba(255, 255, 255, 0.028);
-}
-
-.settings-accordion--open {
-  border-color: var(--border-pill);
-  background: rgba(255, 255, 255, 0.035);
-}
-
-.settings-accordion__header {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  user-select: none;
-  color: var(--text-primary);
-  text-align: left;
-  transition: background var(--t-fast) var(--ease-smooth);
-}
-
-.settings-accordion__header:hover {
-  background: var(--bg-hover);
-}
-
-.settings-accordion__title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  transition: color var(--t-fast) var(--ease-smooth);
-}
-
-.settings-accordion--open .settings-accordion__title {
-  color: var(--accent);
-}
-
-.settings-accordion__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-.settings-accordion__chevron {
-  color: var(--text-secondary);
-  transform: rotate(0deg);
-  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
-              color var(--t-fast) var(--ease-smooth);
-  flex-shrink: 0;
-}
-
-.settings-accordion--open .settings-accordion__chevron {
-  transform: rotate(180deg);
-  color: var(--accent);
-}
-
-/* Плавный аккордеон через CSS Grid 0fr -> 1fr */
-.settings-accordion__collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 260ms cubic-bezier(0.16, 1, 0.3, 1);
-  overflow: hidden;
-}
-
-.settings-accordion--open .settings-accordion__collapse {
-  grid-template-rows: 1fr;
-}
-
-.settings-accordion__inner {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.settings-accordion__body {
-  padding: 4px 14px 14px 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 200ms ease,
-              transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.settings-accordion--open .settings-accordion__body {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 /* ─── Вкладки и анимация переключения категорий в настройках ─── */

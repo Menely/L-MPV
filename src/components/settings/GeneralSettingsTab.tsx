@@ -1,5 +1,6 @@
+import React from "react";
 import {
-  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles, MousePointer2
+  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles, MousePointer2, Play, CornerDownRight
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { AccordionSection } from "./AccordionSection";
@@ -39,313 +40,386 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
     screenshotDir, handlePickFolder, handleResetDefault
   } = props;
 
+  // Стиль карточки подблока с парящей тенью и полупрозрачным фоном темы
+  const cardStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    padding: "12px 14px",
+    background: "rgba(255, 255, 255, 0.025)",
+    borderRadius: "var(--radius-md)",
+    border: "1px solid var(--border)",
+    boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.22)",
+    transition: "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
+  };
+
   return (
-    <>
-                    <div className="modal__section" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {/* 1. Папка сохранения скриншотов */}
-              <AccordionSection
-                isOpen={!!openSections["gen_screenshots"]}
-                onToggle={() => toggleSection("gen_screenshots")}
-                icon={<Camera size={16} />}
-                title="Папка сохранения скриншотов"
-              >
-                <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12 }}>
-                  <input
-                    type="text"
-                    readOnly
-                    value={screenshotDir || "Загрузка..."}
-                    style={{
-                      flex: 1,
-                      padding: "10px 14px",
-                      background: "rgba(0, 0, 0, 0.45)",
-                      border: "1px solid var(--border-pill)",
-                      borderRadius: "var(--radius-md)",
-                      color: "var(--text-primary)",
-                      fontSize: "0.88rem",
-                      fontFamily: "monospace",
-                      outline: "none",
-                    }}
-                  />
-                  <button
-                    onClick={handlePickFolder}
-                    className="btn btn--secondary btn--sm"
-                    style={{
-                      height: 38,
-                      padding: "0 16px",
-                      borderRadius: "var(--radius-md)",
-                      fontSize: "0.88rem",
-                      fontWeight: 600,
-                      gap: 8,
-                    }}
-                  >
-                    <FolderOpen size={16} /> Обзор...
-                  </button>
-                  <button
-                    onClick={handleResetDefault}
-                    className="btn btn--secondary btn--icon"
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: "var(--radius-md)",
-                    }}
-                  >
-                    <RotateCcw size={16} />
-                  </button>
-                </div>
-              </AccordionSection>
+    <div className="modal__section" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 
-              {/* 2. Режим нескольких окон (Multi-instance) */}
-              <AccordionSection
-                isOpen={!!openSections["gen_multi_instance"]}
-                onToggle={() => toggleSection("gen_multi_instance")}
-                icon={<Monitor size={16} />}
-                title="Режим нескольких окон (Multi-instance)"
-              >
-                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
-                  <input
-                    type="checkbox"
-                    className="ui-checkbox"
-                    checked={multiInstance}
-                    onChange={async (e) => {
-                      const val = e.target.checked;
-                      setMultiInstance(val);
-                      try {
-                        await invoke("set_multi_instance", { allow: val });
-                      } catch (err) {
-                        console.error(err);
-                      }
-                    }}
-                  />
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                      Разрешить открытие нескольких копий плеера одновременно
-                    </span>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
-                      (Изменение вступит в силу после полного перезапуска приложения)
-                    </span>
-                  </div>
-                </label>
-              </AccordionSection>
-
-              {/* 3. Извлечение аудио и субтитров */}
-              <AccordionSection
-                isOpen={!!openSections["gen_track_extraction"]}
-                onToggle={() => toggleSection("gen_track_extraction")}
-                icon={<Download size={16} />}
-                title="Извлечение аудио и субтитров"
-              >
-                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
-                  <input
-                    type="checkbox"
-                    className="ui-checkbox"
-                    checked={saveTracksToVideoDir}
-                    onChange={(e) => {
-                      const val = e.target.checked;
-                      setSaveTracksToVideoDir(val);
-                      localStorage.setItem('l-mpv-save-tracks-to-video-dir', val ? 'true' : 'false');
-                    }}
-                  />
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                      Скачивать дорожки в ту же папку, где находится видео
-                    </span>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
-                      Если отключено, при нажатии «Скачать» будет открываться диалоговое окно Проводника с выбором папки
-                    </span>
-                  </div>
-                </label>
-              </AccordionSection>
-
-              {/* 4. Автоматическое подключение дорожек */}
-              <AccordionSection
-                isOpen={!!openSections["gen_auto_tracks"]}
-                onToggle={() => toggleSection("gen_auto_tracks")}
-                icon={<AudioLines size={16} />}
-                title="Автоматическое подключение дорожек"
-              >
-                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
-                  <input
-                    type="checkbox"
-                    className="ui-checkbox"
-                    checked={autoLoadTracks}
-                    onChange={async (e) => {
-                      const val = e.target.checked;
-                      setAutoLoadTracks(val);
-                      try {
-                        await invoke("set_auto_load_tracks", { enabled: val });
-                      } catch (err) {
-                        console.error("Ошибка сохранения настройки auto_load_tracks:", err);
-                      }
-                    }}
-                  />
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                      Автоматически подхватывать внешние аудиодорожки и субтитры
-                    </span>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
-                      Подключает файлы для текущей серии из папки с видео и её подпапок первого уровня (Audio, Subs и др.)
-                    </span>
-                  </div>
-                </label>
-
-                {autoLoadTracks && (
-                  <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10, marginLeft: 28, cursor: "pointer", userSelect: "none" }}>
-                    <input
-                      type="checkbox"
-                      className="ui-checkbox"
-                      checked={autoSelectExternalAudio}
-                      onChange={async (e) => {
-                        const val = e.target.checked;
-                        setAutoSelectExternalAudio(val);
-                        try {
-                          await invoke("set_auto_select_external_audio", { enabled: val });
-                        } catch (err) {
-                          console.error("Ошибка сохранения настройки auto_select_external_audio:", err);
-                        }
-                      }}
-                    />
-                    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: "0.86rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                        Автоматически переключать звук на подхваченную внешнюю аудиодорожку
-                      </span>
-                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", marginTop: 2 }}>
-                        Если выключено (по умолчанию), внешнее аудио добавляется в список, но воспроизводится оригинальный звук видео
-                      </span>
-                    </div>
-                  </label>
-                )}
-              </AccordionSection>
-
-              {/* 5. Хотлоад дорожек (Drag & Drop) */}
-              <AccordionSection
-                isOpen={!!openSections["gen_hotload"]}
-                onToggle={() => toggleSection("gen_hotload")}
-                icon={<Sparkles size={16} />}
-                title="Хотлоад дорожек (Drag & Drop)"
-              >
-                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
-                  <input
-                    type="checkbox"
-                    className="ui-checkbox"
-                    checked={hotloadEnabled}
-                    onChange={(e) => {
-                      const val = e.target.checked;
-                      setHotloadEnabled(val);
-                      localStorage.setItem('l-mpv-hotload-enabled', val ? 'true' : 'false');
-                      window.dispatchEvent(new Event('l-mpv-settings-changed'));
-                    }}
-                  />
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                      Подключать перетаскиваемые файлы к видео на лету (Хотлоад)
-                    </span>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
-                      Если включено, перетаскивание аудиофайла или субтитров в окно плеера во время воспроизведения подключит их к текущему видео вместо открытия нового файла
-                    </span>
-                  </div>
-                </label>
-              </AccordionSection>
-
-              {/* 6. Поведение по окончании видео */}
-              <AccordionSection
-                isOpen={!!openSections["gen_end_action"]}
-                onToggle={() => toggleSection("gen_end_action")}
-                icon={<Film size={16} />}
-                title="Поведение по окончании видео"
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", userSelect: "none" }}>
-                    <input
-                      type="radio"
-                      name="playNextOnEnd"
-                      checked={playNextOnEnd}
-                      onChange={async () => {
-                        setPlayNextOnEnd(true);
-                        try {
-                          await invoke("set_play_next_on_end", { enabled: true });
-                        } catch (err) {
-                          console.error("Ошибка сохранения настройки play_next_on_end:", err);
-                        }
-                      }}
-                      style={{
-                        width: 18,
-                        height: 18,
-                        accentColor: "var(--accent)",
-                        cursor: "pointer"
-                      }}
-                    />
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                      <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                        Переключать на следующее видео (по умолчанию)
-                      </span>
-                      <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
-                        Автоматически воспроизводить следующий файл в плейлисте после завершения текущего
-                      </span>
-                    </div>
-                  </label>
-
-                  <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", userSelect: "none" }}>
-                    <input
-                      type="radio"
-                      name="playNextOnEnd"
-                      checked={!playNextOnEnd}
-                      onChange={async () => {
-                        setPlayNextOnEnd(false);
-                        try {
-                          await invoke("set_play_next_on_end", { enabled: false });
-                        } catch (err) {
-                          console.error("Ошибка сохранения настройки play_next_on_end:", err);
-                        }
-                      }}
-                      style={{
-                        width: 18,
-                        height: 18,
-                        accentColor: "var(--accent)",
-                        cursor: "pointer"
-                      }}
-                    />
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                      <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                        Ничего не делать
-                      </span>
-                      <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
-                        Останавливать воспроизведение на последнем кадре (нажатие на пуск перезапустит видео с начала)
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              </AccordionSection>
-
-              {/* 7. Автоматическое скрытие интерфейса */}
-              <AccordionSection
-                isOpen={!!openSections["gen_hide_controls_upper"]}
-                onToggle={() => toggleSection("gen_hide_controls_upper")}
-                icon={<MousePointer2 size={16} />}
-                title="Скрытие интерфейса в полноэкранном режиме"
-              >
-                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
-                  <input
-                    type="checkbox"
-                    className="ui-checkbox"
-                    checked={hideControlsInUpperHalf}
-                    onChange={(e) => {
-                      const val = e.target.checked;
-                      setHideControlsInUpperHalf(val);
-                      localStorage.setItem('l-mpv-hide-controls-upper-half', val ? 'true' : 'false');
-                      window.dispatchEvent(new Event('l-mpv-settings-changed'));
-                    }}
-                  />
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                      Скрывать весь интерфейс при наведении мыши на самый верх в полноэкранном режиме
-                    </span>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
-                      В режиме во весь экран, когда курсор подводится к верхнему краю, весь интерфейс (верхняя шапка и нижняя панель управления) моментально скрывается
-                    </span>
-                  </div>
-                </label>
-              </AccordionSection>
+      {/* ── 1. Воспроизведение и окна ── */}
+      <AccordionSection
+        isOpen={openSections["gen_playback"] !== undefined ? openSections["gen_playback"] : true}
+        onToggle={() => toggleSection("gen_playback")}
+        icon={<Play size={16} />}
+        title="Воспроизведение и окна"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+          
+          {/* 1.1 Поведение по окончании видео (Сегментный селектор) */}
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+              <Film size={14} style={{ color: "var(--accent)" }} />
+              <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                Поведение по окончании видео
+              </span>
             </div>
-    </>
+            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35, marginBottom: 4 }}>
+              Выберите, какое действие выполняет плеер после завершения воспроизведения текущего файла.
+            </span>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
+              <button
+                type="button"
+                className={`compact-segment-btn ${playNextOnEnd ? "compact-segment-btn--active" : ""}`}
+                style={{ height: 42, padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: 2 }}
+                onClick={async () => {
+                  setPlayNextOnEnd(true);
+                  try {
+                    await invoke("set_play_next_on_end", { enabled: true });
+                  } catch (err) {
+                    console.error("Ошибка сохранения настройки play_next_on_end:", err);
+                  }
+                }}
+              >
+                <span style={{ fontSize: "0.78rem", fontWeight: 600, color: playNextOnEnd ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                  Следующее видео (по умолчанию)
+                </span>
+                <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 400 }}>
+                  Автоматический переход к следующему файлу в плейлисте
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className={`compact-segment-btn ${!playNextOnEnd ? "compact-segment-btn--active" : ""}`}
+                style={{ height: 42, padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: 2 }}
+                onClick={async () => {
+                  setPlayNextOnEnd(false);
+                  try {
+                    await invoke("set_play_next_on_end", { enabled: false });
+                  } catch (err) {
+                    console.error("Ошибка сохранения настройки play_next_on_end:", err);
+                  }
+                }}
+              >
+                <span style={{ fontSize: "0.78rem", fontWeight: 600, color: !playNextOnEnd ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                  Остановить воспроизведение
+                </span>
+                <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 400 }}>
+                  Пауза на финальном кадре (Play запустит сначала)
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* 1.2 Режим нескольких окон (Multi-instance) */}
+          <div style={cardStyle}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                style={{ marginTop: 2 }}
+                checked={multiInstance}
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setMultiInstance(val);
+                  try {
+                    await invoke("set_multi_instance", { allow: val });
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Monitor size={14} style={{ color: "var(--accent)" }} />
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                    Режим нескольких окон (Multi-instance)
+                  </span>
+                </div>
+                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                  Разрешить открытие нескольких независимых копий плеера одновременно при запуске новых файлов.
+                  <span style={{ color: "var(--accent)", marginLeft: 4 }}>
+                    (Вступает в силу после перезапуска приложения)
+                  </span>
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* 1.3 Скрытие интерфейса в полноэкранном режиме */}
+          <div style={cardStyle}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                style={{ marginTop: 2 }}
+                checked={hideControlsInUpperHalf}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setHideControlsInUpperHalf(val);
+                  localStorage.setItem('l-mpv-hide-controls-upper-half', val ? 'true' : 'false');
+                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <MousePointer2 size={14} style={{ color: "var(--accent)" }} />
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                    Скрытие интерфейса у верхнего края экрана
+                  </span>
+                </div>
+                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                  В режиме во весь экран моментально скрывать шапку окна и панель управления, когда курсор подводится к верхней части экрана, для чистого погружения в просмотр.
+                </span>
+              </div>
+            </label>
+          </div>
+
+        </div>
+      </AccordionSection>
+
+      {/* ── 2. Аудиодорожки и субтитры ── */}
+      <AccordionSection
+        isOpen={openSections["gen_tracks"] !== undefined ? openSections["gen_tracks"] : true}
+        onToggle={() => toggleSection("gen_tracks")}
+        icon={<AudioLines size={16} />}
+        title="Аудиодорожки и субтитры"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+          
+          {/* 2.1 Автоматический подхват внешних дорожек */}
+          <div style={cardStyle}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                style={{ marginTop: 2 }}
+                checked={autoLoadTracks}
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setAutoLoadTracks(val);
+                  try {
+                    await invoke("set_auto_load_tracks", { enabled: val });
+                  } catch (err) {
+                    console.error("Ошибка сохранения настройки auto_load_tracks:", err);
+                  }
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <AudioLines size={14} style={{ color: "var(--accent)" }} />
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                    Автоматический подхват внешних дорожек
+                  </span>
+                </div>
+                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                  Автоматически подключает совместимые аудиофайлы и субтитры из папки с видео и её подпапок (Audio, Subs, Subtitles...).
+                </span>
+              </div>
+            </label>
+
+            {/* Вложенная опция: авто-переключение на подхваченную дорожку */}
+            {autoLoadTracks && (
+              <div
+                style={{
+                  marginTop: 6,
+                  marginLeft: 26,
+                  paddingLeft: 12,
+                  borderLeft: "2px solid var(--accent)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", userSelect: "none" }}>
+                  <input
+                    type="checkbox"
+                    className="ui-checkbox"
+                    style={{ marginTop: 2 }}
+                    checked={autoSelectExternalAudio}
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      setAutoSelectExternalAudio(val);
+                      try {
+                        await invoke("set_auto_select_external_audio", { enabled: val });
+                      } catch (err) {
+                        console.error("Ошибка сохранения настройки auto_select_external_audio:", err);
+                      }
+                    }}
+                  />
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <CornerDownRight size={13} style={{ color: "var(--accent)" }} />
+                      <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                        Переключать воспроизведение на найденную внешнюю аудиодорожку
+                      </span>
+                    </div>
+                    <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: 2, lineHeight: 1.3 }}>
+                      Если отключено, внешний звук добавляется в меню дорожек, но по умолчанию играет встроенная дорожка видео.
+                    </span>
+                  </div>
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* 2.2 Хотлоад дорожек перетаскиванием (Drag & Drop) */}
+          <div style={cardStyle}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                style={{ marginTop: 2 }}
+                checked={hotloadEnabled}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setHotloadEnabled(val);
+                  localStorage.setItem('l-mpv-hotload-enabled', val ? 'true' : 'false');
+                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Sparkles size={14} style={{ color: "var(--accent)" }} />
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                    Хотлоад дорожек на лету (Drag & Drop)
+                  </span>
+                </div>
+                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                  Перетаскивание файла аудио или субтитров в окно плеера во время воспроизведения мгновенно подключит его к текущему видео вместо открытия нового файла.
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* 2.3 Папка для извлечения аудио и субтитров */}
+          <div style={cardStyle}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                style={{ marginTop: 2 }}
+                checked={saveTracksToVideoDir}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setSaveTracksToVideoDir(val);
+                  localStorage.setItem('l-mpv-save-tracks-to-video-dir', val ? 'true' : 'false');
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Download size={14} style={{ color: "var(--accent)" }} />
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                    Сохранять извлеченные дорожки в папку видео
+                  </span>
+                </div>
+                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                  При экспорте дорожки через кнопку «Скачать» сохранять файл прямо в каталог с фильмом. Если выключено — открывается окно Проводника для выбора папки вручную.
+                </span>
+              </div>
+            </label>
+          </div>
+
+        </div>
+      </AccordionSection>
+
+      {/* ── 3. Скриншоты и медиатека ── */}
+      <AccordionSection
+        isOpen={openSections["gen_screenshots"] !== undefined ? openSections["gen_screenshots"] : true}
+        onToggle={() => toggleSection("gen_screenshots")}
+        icon={<Camera size={16} />}
+        title="Скриншоты и медиатека"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Camera size={14} style={{ color: "var(--accent)" }} />
+                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                  Папка сохранения скриншотов
+                </span>
+              </div>
+              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                Горячая клавиша: <strong style={{ color: "var(--accent)" }}>S</strong> (без субтитров: <strong style={{ color: "var(--accent)" }}>Shift+S</strong>)
+              </span>
+            </div>
+            
+            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+              Кадры сохраняются в оригинальном исходном разрешении видеопотока без сжатия интерфейсом.
+            </span>
+
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+              <input
+                type="text"
+                readOnly
+                value={screenshotDir || "Загрузка..."}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  background: "rgba(0, 0, 0, 0.4)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--text-primary)",
+                  fontSize: "0.80rem",
+                  fontFamily: "var(--font-mono, monospace)",
+                  outline: "none",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+                title={screenshotDir}
+              />
+              <button
+                type="button"
+                onClick={handlePickFolder}
+                className="btn btn--secondary btn--sm"
+                style={{
+                  height: 32,
+                  padding: "0 12px",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  gap: 6,
+                  display: "flex",
+                  alignItems: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <FolderOpen size={14} /> Обзор...
+              </button>
+              <button
+                type="button"
+                onClick={handleResetDefault}
+                className="btn btn--secondary btn--icon"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "var(--radius-sm)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+                title="Сбросить на папку screenshots по умолчанию"
+              >
+                <RotateCcw size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </AccordionSection>
+
+    </div>
   );
 }
