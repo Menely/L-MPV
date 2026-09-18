@@ -31,20 +31,37 @@ jobs:
           Compress-Archive -Path "l-mpv_convert_fp16.exe" -DestinationPath "l-mpv_convert_fp16.zip" -Force
           Write-Host "Готово! l-mpv_convert_fp16.zip создан."
 
-      - name: Загрузка оригинальных библиотек AnimeJaNai
+      - name: Загрузка и перепаковка библиотек TensorRT (без вложенных папок animejanai)
         shell: pwsh
         run: |
+          $7z = if (Get-Command 7z -ErrorAction SilentlyContinue) { "7z" } elseif (Test-Path "C:\Program Files\7-Zip\7z.exe") { "C:\Program Files\7-Zip\7z.exe" } else { "7z" }
+
           Write-Host "Скачивание aji-windows-x64.zip..."
           Invoke-WebRequest -Uri "https://github.com/the-database/animejanai-inference/releases/download/v0.9.0/aji-windows-x64.zip" -OutFile "aji-windows-x64.zip"
 
-          Write-Host "Скачивание component-trt-runtime.7z..."
-          Invoke-WebRequest -Uri "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-runtime.7z" -OutFile "component-trt-runtime.7z"
+          Write-Host "Скачивание и перепаковка component-trt-runtime.7z..."
+          Invoke-WebRequest -Uri "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-runtime.7z" -OutFile "raw_runtime.7z"
+          & $7z x -y "raw_runtime.7z" -o"temp_runtime" | Out-Null
+          $runtimeSource = if (Test-Path ".\temp_runtime\animejanai\inference") { ".\temp_runtime\animejanai\inference\*" } else { ".\temp_runtime\*" }
+          & $7z a -y -mx=9 "component-trt-runtime.7z" $runtimeSource | Out-Null
+          Remove-Item -Force "raw_runtime.7z"
+          Remove-Item -Recurse -Force "temp_runtime"
+          Write-Host "Готово: component-trt-runtime.7z перепакован без папки animejanai."
 
-          Write-Host "Скачивание билдеров архитектур TensorRT..."
+          Write-Host "Скачивание и перепаковка билдеров архитектур TensorRT..."
           $architectures = @("sm120", "sm100", "sm90", "sm89", "sm86", "sm80", "sm75", "ptx")
           foreach ($arch in $architectures) {
-            Write-Host "Скачивание component-trt-${arch}.7z..."
-            Invoke-WebRequest -Uri "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/component-trt-${arch}.7z" -OutFile "component-trt-${arch}.7z"
+            Write-Host "Обработка component-trt-${arch}.7z..."
+            $rawName = "raw_${arch}.7z"
+            $targetName = "component-trt-${arch}.7z"
+            $tempDir = "temp_${arch}"
+            Invoke-WebRequest -Uri "https://github.com/the-database/mpv-AnimeJaNai/releases/download/3.6.2/${targetName}" -OutFile $rawName
+            & $7z x -y $rawName -o"$tempDir" | Out-Null
+            $sourcePath = if (Test-Path ".\${tempDir}\animejanai\inference") { ".\${tempDir}\animejanai\inference\*" } else { ".\${tempDir}\*" }
+            & $7z a -y -mx=9 $targetName $sourcePath | Out-Null
+            Remove-Item -Force $rawName
+            Remove-Item -Recurse -Force $tempDir
+            Write-Host "Готово: ${targetName} перепакован без папки animejanai."
           }
 
       - name: Публикация релиза inference-v1 на GitHub
@@ -52,10 +69,11 @@ jobs:
         with:
           tag_name: inference-v1
           name: "L-MPV Inference Engines v1"
-          body: "Автоматически собранные зависимости для апскейлинга L-MPV: оригинальные библиотеки AnimeJaNai (TensorRT/aji) и скомпилированный нативный конвертер l-mpv_convert_fp16."
+          body: "Автоматически собранные зависимости для апскейлинга L-MPV: оптимизированные библиотеки TensorRT/aji (в плоском корне архивов без лишних промежуточных папок animejanai) и скомпилированный нативный конвертер l-mpv_convert_fp16."
           files: |
             l-mpv_convert_fp16.zip
             aji-windows-x64.zip
+            component-trt-runtime.7z
             component-trt-*.7z
           draft: false
           prerelease: false
