@@ -1,0 +1,39 @@
+# Maintainer: L-MPV contributors
+pkgname=l-mpv
+pkgver=2.0.2
+pkgrel=1
+pkgdesc='Modern desktop media player powered by Tauri and libmpv'
+arch=('x86_64')
+url='https://github.com/Menely/L-MPV'
+license=('MIT')
+depends=('ffmpeg' 'mediainfo' 'webkit2gtk-4.1' 'gtk3' 'python' 'vulkan-icd-loader' 'libplacebo' 'libass' 'zimg')
+makedepends=('cargo' 'npm' 'rust' 'git' 'cmake' 'ninja' 'meson' 'cython' 'vulkan-headers' 'glslang' 'patchelf')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
+        'l-mpv.desktop')
+sha256sums=('SKIP' 'SKIP')
+
+prepare() {
+  cd "L-MPV-$pkgver"
+  npm version "$pkgver" --no-git-tag-version
+  sed -i -E "0,/^version = \"[^\"]+\"/s//version = \"$pkgver\"/" src-tauri/Cargo.toml
+  npm ci
+}
+
+build() {
+  cd "L-MPV-$pkgver"
+  L_MPV_RUNTIME_BUILD_DIR="$srcdir/runtime-build" \
+    L_MPV_RUNTIME_PREFIX="$srcdir/runtime" \
+    bash scripts/build-linux-runtime.sh
+  npm run build
+  cargo build --manifest-path src-tauri/Cargo.toml --release
+}
+
+package() {
+  cd "L-MPV-$pkgver"
+  install -Dm755 src-tauri/target/release/l-mpv "$pkgdir/usr/bin/l-mpv"
+  install -d "$pkgdir/usr/lib/l-mpv"
+  cp -a "$srcdir/runtime/." "$pkgdir/usr/lib/l-mpv/"
+  install -Dm644 src-tauri/icons/128x128.png "$pkgdir/usr/share/icons/hicolor/128x128/apps/l-mpv.png"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 "$srcdir/l-mpv.desktop" "$pkgdir/usr/share/applications/l-mpv.desktop"
+}

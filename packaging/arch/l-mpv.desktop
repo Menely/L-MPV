@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=L-MPV
+Comment=Modern media player powered by libmpv
+Exec=l-mpv %U
+Icon=l-mpv
+Terminal=false
+Categories=AudioVideo;Player;
+MimeType=video/mp4;video/x-matroska;video/x-msvideo;video/quicktime;video/webm;video/mp2t;video/mpeg;audio/mpeg;audio/flac;audio/x-wav;audio/aac;audio/ogg;audio/mp4;audio/opus;
+StartupNotify=true
