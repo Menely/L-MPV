@@ -665,7 +665,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
           {activeTab === "upscaling" && (
             <div className="modal__section" style={{ display: "flex", flexDirection: "column" }}>
-              <UpscalingSettingsSection />
+              <UpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
             </div>
           )}
 

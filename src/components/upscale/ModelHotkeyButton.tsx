@@ -20,7 +20,7 @@ export interface ModelHotkeyButtonProps {
  * Выровнена по общей высоте 24px, обладает акцентным свечением при записи
  * и интуитивной индикацией статуса.
  */
-export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = ({
+export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
   bindCodes,
   isRecording,
   onStartRecordKey,
@@ -33,6 +33,7 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = ({
     <button
       type="button"
       tabIndex={0}
+      data-hotkey-recording={isRecording ? "true" : undefined}
       onClick={(e) => {
         e.stopPropagation();
         onStartRecordKey();
@@ -90,4 +91,4 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = ({
       <span>{isRecording ? "Нажмите..." : displayBind}</span>
     </button>
   );
-};
+});

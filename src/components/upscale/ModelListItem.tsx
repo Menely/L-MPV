@@ -54,7 +54,7 @@ function formatFileSize(bytes: number): string {
  * индикатор активного выбора, предкомпиляцию 1080p для TensorRT
  * и унифицированные компактные кнопки управления единой высоты (24px).
  */
-export const ModelListItem: React.FC<ModelListItemProps> = ({
+export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
   model,
   idx,
   isSelected,
@@ -229,4 +229,4 @@ export const ModelListItem: React.FC<ModelListItemProps> = ({
       </div>
     </div>
   );
-};
+});

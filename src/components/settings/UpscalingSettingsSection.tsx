@@ -49,12 +49,16 @@ export type {
 
 interface UpscalingSettingsSectionProps {
   onClose?: () => void;
+  onRecordingChange?: (isRecording: boolean) => void;
 }
 
 /**
  * Вкладка управления апскейлингом видео в реальном времени (AI Upscaling).
  */
-export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> = ({ onClose: _onClose }) => {
+export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> = ({
+  onClose: _onClose,
+  onRecordingChange,
+}) => {
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isDownloadingEngine, setIsDownloadingEngine] = useState<boolean>(false);
@@ -508,6 +512,43 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     }
     setRecordingActionId((prev) => (prev === actionId ? null : actionId));
   };
+
+  // Синхронизация состояния записи с родительским окном для блокировки переключения табов/закрытия
+  useEffect(() => {
+    if (onRecordingChange) {
+      onRecordingChange(recordingActionId !== null);
+    }
+  }, [recordingActionId, onRecordingChange]);
+
+  // Глобальный перехват Escape и клика мимо кнопки при активном режиме записи хоткея модели
+  useEffect(() => {
+    if (!recordingActionId) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setRecordingActionId(null);
+      }
+    };
+
+    const handleGlobalMouseDown = (e: MouseEvent) => {
+      if (Date.now() < ignoreClickUntilRef.current) return;
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest("[data-hotkey-recording='true']")) {
+        return;
+      }
+      setRecordingActionId(null);
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown, true);
+    window.addEventListener("mousedown", handleGlobalMouseDown, true);
+
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown, true);
+      window.removeEventListener("mousedown", handleGlobalMouseDown, true);
+    };
+  }, [recordingActionId]);
 
   const isAiActive = settings.mode === "ai";
 

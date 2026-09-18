@@ -20,7 +20,7 @@ export interface ModelTensorRtActionProps {
  * TensorRT-движка (.engine) для разрешения 1080p.
  * Все элементы жестко выровнены по высоте 24px и имеют единый радиус скругления 6px.
  */
-export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = ({
+export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.memo(({
   model,
   supportsTensorrt,
   compilingModel,
@@ -198,4 +198,4 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = ({
       <span>1080p сборка</span>
     </button>
   );
-};
+});
