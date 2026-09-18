@@ -187,6 +187,18 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
     saveGlowIntensity(intensity);
   }, []);
 
+  const cardStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    padding: "10px 12px",
+    background: "rgba(255, 255, 255, 0.025)",
+    borderRadius: "var(--radius-md)",
+    border: "1px solid var(--border)",
+    boxShadow: "0 6px 18px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.28)",
+    transition: "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
+  };
+
   return (
     <>
       <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 12, lineHeight: 1.35 }}>
@@ -277,18 +289,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       </div>
 
       {/* ── Блок 1: Цвет самого плеера (Тема оформления) ── */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          padding: "10px 12px",
-          background: "rgba(255, 255, 255, 0.02)",
-          borderRadius: "var(--radius-md)",
-          border: "1px solid var(--border)",
-          marginBottom: 10,
-        }}
-      >
+      <div style={{ ...cardStyle, marginBottom: 10 }}>
         <div className="player-themes-header">
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Palette size={14} style={{ color: "var(--accent)" }} />
@@ -400,18 +401,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       </div>
 
       {/* ── Блок 2: Акцентный цвет ── */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          padding: "10px 12px",
-          background: "rgba(255, 255, 255, 0.02)",
-          borderRadius: "var(--radius-md)",
-          border: "1px solid var(--border)",
-          marginBottom: 10,
-        }}
-      >
+      <div style={{ ...cardStyle, marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
             Акцентный цвет (Кнопки и подсветка)
@@ -530,17 +520,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       </div>
 
       {/* ── Блок 3: Интенсивность неонового свечения (Glow Intensity) ── */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          padding: "10px 12px",
-          background: "rgba(255, 255, 255, 0.02)",
-          borderRadius: "var(--radius-md)",
-          border: "1px solid var(--border)",
-        }}
-      >
+      <div style={cardStyle}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Sparkles size={14} style={{ color: "var(--accent)" }} />

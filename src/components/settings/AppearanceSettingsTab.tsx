@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, memo, useCallback } from "react";
 import {
   Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, AudioLines, Clock, RotateCcw, PanelBottom, Timer, Zap
 } from "lucide-react";
@@ -21,26 +21,46 @@ interface VerticalSliderProps {
   ariaLabel?: string;
 }
 
-function VerticalSlider({ value, min, max, step = 1, onChange, ariaLabel }: VerticalSliderProps) {
+const VerticalSlider = memo(function VerticalSlider({
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+  ariaLabel,
+}: VerticalSliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
-  const percent = Math.min(1, Math.max(0, (value - min) / (max - min)));
+  const range = max - min;
+  const percent = range > 0 ? Math.min(1, Math.max(0, (value - min) / range)) : 0;
+  const decimals = (step.toString().split(".")[1] || "").length;
 
-  const updateFromPointer = (clientY: number) => {
-    if (!trackRef.current) return;
-    const rect = trackRef.current.getBoundingClientRect();
-    const offsetY = rect.bottom - clientY;
-    const rawFrac = Math.min(1, Math.max(0, offsetY / rect.height));
-    const rawVal = min + rawFrac * (max - min);
-    const steppedVal = Math.round(rawVal / step) * step;
-    const finalVal = Math.min(max, Math.max(min, Number(steppedVal.toFixed(2))));
-    onChange(finalVal);
-  };
+  const updateFromPointer = useCallback(
+    (clientY: number) => {
+      if (!trackRef.current || range <= 0) return;
+      const rect = trackRef.current.getBoundingClientRect();
+      if (rect.height <= 0) return;
+      const offsetY = rect.bottom - clientY;
+      const rawFrac = Math.min(1, Math.max(0, offsetY / rect.height));
+      const rawVal = min + rawFrac * range;
+      const steppedVal = Math.round((rawVal - min) / step) * step + min;
+      const finalVal = Math.min(max, Math.max(min, Number(steppedVal.toFixed(decimals))));
+      if (finalVal !== value) {
+        onChange(finalVal);
+      }
+    },
+    [decimals, max, min, onChange, range, step, value]
+  );
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
     setIsDragging(true);
     updateFromPointer(e.clientY);
   };
@@ -54,7 +74,9 @@ function VerticalSlider({ value, min, max, step = 1, onChange, ariaLabel }: Vert
     if (isDragging) {
       setIsDragging(false);
       try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        }
       } catch {
         // ignore
       }
@@ -68,6 +90,9 @@ function VerticalSlider({ value, min, max, step = 1, onChange, ariaLabel }: Vert
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onLostPointerCapture={() => setIsDragging(false)}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
       role="slider"
       aria-label={ariaLabel}
       aria-valuenow={value}
@@ -77,17 +102,19 @@ function VerticalSlider({ value, min, max, step = 1, onChange, ariaLabel }: Vert
       onKeyDown={(e) => {
         if (e.key === "ArrowUp" || e.key === "ArrowRight") {
           e.preventDefault();
-          onChange(Math.min(max, Number((value + step).toFixed(2))));
+          const nextVal = Math.min(max, Number((value + step).toFixed(decimals)));
+          if (nextVal !== value) onChange(nextVal);
         } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
           e.preventDefault();
-          onChange(Math.max(min, Number((value - step).toFixed(2))));
+          const nextVal = Math.max(min, Number((value - step).toFixed(decimals)));
+          if (nextVal !== value) onChange(nextVal);
         }
       }}
       style={{
         position: "relative",
-        width: 16,
+        width: 20,
+        minWidth: 20,
         height: "100%",
-        minHeight: 110,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -96,7 +123,7 @@ function VerticalSlider({ value, min, max, step = 1, onChange, ariaLabel }: Vert
         userSelect: "none",
         flexShrink: 0,
         outline: "none",
-        padding: "0 2px",
+        padding: "0 4px",
       }}
     >
       {/* Background Track */}
@@ -104,10 +131,14 @@ function VerticalSlider({ value, min, max, step = 1, onChange, ariaLabel }: Vert
         style={{
           position: "absolute",
           width: 4,
+          left: "50%",
+          transform: "translateX(-50%)",
           top: 6,
           bottom: 6,
           borderRadius: 999,
-          background: "rgba(255, 255, 255, 0.12)",
+          background: isHovered || isDragging ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.12)",
+          filter: isHovered || isDragging ? "brightness(1.2)" : "none",
+          transition: "filter var(--t-fast, 0.15s) var(--ease-smooth, ease), background var(--t-fast, 0.15s) ease",
         }}
       />
       {/* Active Filled Track */}
@@ -115,33 +146,49 @@ function VerticalSlider({ value, min, max, step = 1, onChange, ariaLabel }: Vert
         style={{
           position: "absolute",
           width: 4,
+          left: "50%",
+          transform: "translateX(-50%)",
           bottom: 6,
           height: `calc(${percent * 100}% - ${percent * 12}px)`,
           borderRadius: 999,
           background: "var(--accent)",
-          boxShadow: isDragging ? "0 0 8px var(--accent)" : "none",
-          transition: isDragging ? "none" : "height 0.08s ease",
+          boxShadow: isDragging
+            ? "0 0 8px var(--accent)"
+            : isHovered
+            ? "0 0 6px rgba(var(--accent-rgb, 127, 199, 255), 0.5)"
+            : "none",
+          filter: isHovered || isDragging ? "brightness(1.15)" : "none",
+          transition: isDragging ? "none" : "height 0.08s ease, box-shadow var(--t-fast, 0.15s) ease, filter var(--t-fast, 0.15s) ease",
         }}
       />
-      {/* Thumb */}
+      {/* Thumb (Бегунок точно с таким же поведением как у горизонтального ползунка) */}
       <div
         style={{
           position: "absolute",
-          bottom: `calc(6px + ${percent} * (100% - 12px) - 6px)`,
+          left: "50%",
+          bottom: `calc(${percent} * (100% - 12px))`,
           width: 12,
           height: 12,
           borderRadius: "50%",
           background: "var(--accent)",
           boxShadow: isDragging
-            ? "0 0 10px var(--accent), 0 0 2px #fff"
-            : "0 0 6px rgba(var(--accent-rgb, 127, 199, 255), 0.4)",
-          transform: isDragging ? "scale(1.25)" : "scale(1)",
-          transition: isDragging ? "transform 0.1s ease" : "all 0.08s ease",
+            ? "0 0 12px var(--accent), 0 0 2px #fff"
+            : isHovered
+            ? "0 0 12px var(--accent)"
+            : "0 0 6px rgba(var(--accent-rgb, 127, 199, 255), 0.45)",
+          transform: isDragging
+            ? "translateX(-50%) scale(1.1)"
+            : isHovered
+            ? "translateX(-50%) scale(1.25)"
+            : "translateX(-50%) scale(1)",
+          transition: isDragging
+            ? "transform 0.08s ease"
+            : "transform var(--t-spring, 0.25s) var(--ease-spring-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)), box-shadow var(--t-fast, 0.15s) var(--ease-smooth, ease), height 0.08s ease",
         }}
       />
     </div>
   );
-}
+});
 
 interface AppearanceSettingsTabProps {
   activeColor: string;
@@ -232,9 +279,11 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     flexDirection: "column",
                     gap: 8,
                     padding: "10px 12px",
-                    background: "rgba(255, 255, 255, 0.02)",
+                    background: "rgba(255, 255, 255, 0.025)",
                     borderRadius: "var(--radius-md)",
                     border: "1px solid var(--border)",
+                    boxShadow: "0 6px 18px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.28)",
+                    transition: "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                   };
                   const resetBtnStyle: React.CSSProperties = {
                     height: 22,
@@ -254,13 +303,13 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     gap: 3,
                     padding,
                     borderRadius: "var(--radius-sm)",
-                    border: "none",
+                    border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                     cursor: "pointer",
                     background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                     color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                     boxShadow: isSel
                       ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
-                      : "none",
+                      : "0 1px 3px rgba(0, 0, 0, 0.2)",
                     transition: "all var(--t-fast) var(--ease-smooth)",
                   });
 
@@ -376,7 +425,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
                           {/* Колонка 1: Скругление */}
                           <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                            <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Square size={14} style={{ color: "var(--accent)" }} />
                                 <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
@@ -394,9 +443,10 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 style={{
                                   display: "grid",
                                   gridTemplateColumns: "1fr 1fr",
-                                  gridTemplateRows: "1fr 1fr",
+                                  gridTemplateRows: "repeat(2, minmax(0, 1fr))",
                                   gap: 6,
                                   flex: 1,
+                                  minWidth: 0,
                                   minHeight: 0,
                                 }}
                               >
@@ -405,7 +455,14 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                   .map((level) => {
                                     const preset = UI_RADIUS_PRESETS[level];
                                     const isSel = uiRadius.value === preset.controlsRadius;
-                                    const visualRadius = level === "minimal" ? "3px" : level === "default" ? "6px" : level === "smooth" ? "9px" : "14px";
+                                    const visualRadius =
+                                      level === "minimal"
+                                        ? "1.5px"
+                                        : level === "default"
+                                        ? "6px"
+                                        : level === "smooth"
+                                        ? "13px"
+                                        : "999px";
                                     return (
                                       <button
                                         key={level}
@@ -415,22 +472,37 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                           saveUiRadius(level, preset.controlsRadius);
                                         }}
                                         style={{
-                                          ...btnStyle(isSel, "8px 6px"),
-                                          gap: 6,
+                                          ...btnStyle(isSel, "5px 4px"),
+                                          gap: 4,
                                           minHeight: 56,
                                         }}
                                       >
                                         <div
                                           style={{
-                                            width: 22,
-                                            height: 13,
-                                            border: `1.5px solid ${isSel ? "var(--accent)" : "rgba(255, 255, 255, 0.4)"}`,
+                                            width: 46,
+                                            height: 25,
+                                            border: `1.5px solid ${isSel ? "var(--accent)" : "rgba(255, 255, 255, 0.35)"}`,
                                             borderRadius: visualRadius,
-                                            background: isSel ? "var(--accent-glass)" : "transparent",
+                                            background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.18)" : "rgba(255, 255, 255, 0.04)",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            boxShadow: isSel ? "0 0 10px rgba(var(--accent-rgb, 127, 199, 255), 0.35)" : "none",
                                             transition: "all var(--t-fast) var(--ease-smooth)",
+                                            flexShrink: 0,
                                           }}
-                                        />
-                                        <span style={{ fontSize: "0.68rem", fontWeight: 600, lineHeight: 1.15, textAlign: "center" }}>
+                                        >
+                                          <div
+                                            style={{
+                                              width: 20,
+                                              height: 3,
+                                              borderRadius: visualRadius === "1.5px" ? "1px" : "999px",
+                                              background: isSel ? "var(--accent)" : "rgba(255, 255, 255, 0.25)",
+                                              transition: "all var(--t-fast) var(--ease-smooth)",
+                                            }}
+                                          />
+                                        </div>
+                                        <span style={{ fontSize: "0.70rem", fontWeight: 600, lineHeight: 1.15, textAlign: "center", whiteSpace: "nowrap" }}>
                                           {preset.label}
                                         </span>
                                       </button>
@@ -439,27 +511,29 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </div>
 
                               {/* Вертикальный ползунок */}
-                              <VerticalSlider
-                                value={uiRadius.value}
-                                min={0}
-                                max={34}
-                                step={1}
-                                onChange={(val) => {
-                                  const matched = (Object.keys(UI_RADIUS_PRESETS) as (Exclude<UiRadiusLevel, "custom">)[]).find(
-                                    (k) => UI_RADIUS_PRESETS[k].controlsRadius === val
-                                  );
-                                  const nextLevel: UiRadiusLevel = matched || "custom";
-                                  setUiRadius({ level: nextLevel, value: val });
-                                  saveUiRadius(nextLevel, val);
-                                }}
-                                ariaLabel="Степень скругления углов интерфейса"
-                              />
+                              <div style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
+                                <VerticalSlider
+                                  value={uiRadius.value}
+                                  min={0}
+                                  max={34}
+                                  step={1}
+                                  onChange={(val: number) => {
+                                    const matched = (Object.keys(UI_RADIUS_PRESETS) as (Exclude<UiRadiusLevel, "custom">)[]).find(
+                                      (k) => UI_RADIUS_PRESETS[k].controlsRadius === val
+                                    );
+                                    const nextLevel: UiRadiusLevel = matched || "custom";
+                                    setUiRadius({ level: nextLevel, value: val });
+                                    saveUiRadius(nextLevel, val);
+                                  }}
+                                  ariaLabel="Степень скругления углов интерфейса"
+                                />
+                              </div>
                             </div>
                           </div>
 
                           {/* Колонка 2: Масштаб */}
                           <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                            <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Maximize2 size={14} style={{ color: "var(--accent)" }} />
                                 <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
@@ -504,9 +578,10 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 style={{
                                   display: "grid",
                                   gridTemplateColumns: "1fr 1fr",
-                                  gridTemplateRows: "1fr 1fr",
+                                  gridTemplateRows: "repeat(2, minmax(0, 1fr))",
                                   gap: 6,
                                   flex: 1,
+                                  minWidth: 0,
                                   minHeight: 0,
                                 }}
                               >
@@ -522,12 +597,23 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                         saveUiScale(preset.id, nextVal);
                                       }}
                                       style={{
-                                        ...btnStyle(isSel, "8px 6px"),
-                                        gap: 4,
+                                        ...btnStyle(isSel, "5px 4px"),
+                                        gap: 3,
                                         minHeight: 56,
                                       }}
                                     >
-                                      <span style={{ fontSize: "0.72rem", fontWeight: 600, lineHeight: 1.15, textAlign: "center" }}>
+                                      <span
+                                        style={{
+                                          fontSize: "0.70rem",
+                                          fontWeight: 600,
+                                          lineHeight: 1.15,
+                                          textAlign: "center",
+                                          whiteSpace: "nowrap",
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          maxWidth: "100%",
+                                        }}
+                                      >
                                         {preset.label}
                                       </span>
                                       <span style={{ fontSize: "0.65rem", color: isSel ? "var(--text-primary)" : "var(--text-muted)", opacity: 0.85, fontWeight: 500 }}>
@@ -539,25 +625,27 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </div>
 
                               {/* Вертикальный ползунок */}
-                              <VerticalSlider
-                                value={uiScale.value}
-                                min={0.70}
-                                max={2.00}
-                                step={0.05}
-                                onChange={(val) => {
-                                  const matched = UI_SCALE_PRESETS.find((p) => p.value !== null && Math.abs(p.value - val) < 0.01);
-                                  const nextMode = matched ? matched.id : "custom";
-                                  setUiScale({ mode: nextMode, value: val });
-                                  saveUiScale(nextMode, val);
-                                }}
-                                ariaLabel="Масштаб интерфейса"
-                              />
+                              <div style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
+                                <VerticalSlider
+                                  value={uiScale.value}
+                                  min={0.70}
+                                  max={2.00}
+                                  step={0.05}
+                                  onChange={(val: number) => {
+                                    const matched = UI_SCALE_PRESETS.find((p) => p.value !== null && Math.abs(p.value - val) < 0.01);
+                                    const nextMode = matched ? matched.id : "custom";
+                                    setUiScale({ mode: nextMode, value: val });
+                                    saveUiScale(nextMode, val);
+                                  }}
+                                  ariaLabel="Масштаб интерфейса"
+                                />
+                              </div>
                             </div>
                           </div>
 
                           {/* Колонка 3: Шрифты */}
                           <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                            <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Type size={14} style={{ color: "var(--accent)" }} />
                                 <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
@@ -584,7 +672,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                       padding: "6px 8px",
                                       borderRadius: "var(--radius-sm)",
                                       border: "1px solid",
-                                      borderColor: isSel ? "var(--accent)" : "rgba(255,255,255,0.05)",
+                                      borderColor: isSel ? "var(--accent)" : "rgba(255, 255, 255, 0.05)",
                                       background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.12)" : "rgba(255, 255, 255, 0.02)",
                                       color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                                       cursor: "pointer",
