@@ -35,6 +35,27 @@ import {
   isSettingsMatchingPreset,
 } from "../../utils/presetsUtils";
 import { PLAYER_THEMES, PlayerThemeId } from "../../utils/colorUtils";
+import { getPreloadedUserPresets, storeUserPresets } from "./settingsTabPreload";
+
+const PRESETS_USER_OPEN_KEY = "l-mpv-presets-user-open";
+const PRESETS_BUILTIN_OPEN_KEY = "l-mpv-presets-builtin-open";
+
+function readGroupOpen(key: string, def: boolean): boolean {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? def : v === "true";
+  } catch {
+    return def;
+  }
+}
+
+function writeGroupOpen(key: string, val: boolean): void {
+  try {
+    localStorage.setItem(key, val ? "true" : "false");
+  } catch {
+    /* ignore — портативность не страдает, просто не запомнится */
+  }
+}
 
 interface PresetsSectionProps {
   /** Опциональный callback при применении пресета для внешних обработчиков */
@@ -49,14 +70,18 @@ interface PresetsSectionProps {
  * а также экспортировать и импортировать пресеты.
  */
 export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied }) => {
-  const [userPresets, setUserPresets] = useState<SettingsPreset[]>([]);
+  // Синхронное чтение предзагруженного кэша: первый paint уже полный,
+  // окно настроек не прыгает после прилёта данных.
+  const [userPresets, setUserPresets] = useState<SettingsPreset[]>(() => getPreloadedUserPresets() ?? []);
   const [newPresetName, setNewPresetName] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>(() => getSavedActivePresetId());
-  const [isUserPresetsOpen, setIsUserPresetsOpen] = useState<boolean>(true);
-  const [isBuiltInPresetsOpen, setIsBuiltInPresetsOpen] = useState<boolean>(false);
+  // Группы по умолчанию свёрнуты: высота вкладки стабильна с первого paint,
+  // выбор запоминается и переживает перезапуски.
+  const [isUserPresetsOpen, setIsUserPresetsOpen] = useState<boolean>(() => readGroupOpen(PRESETS_USER_OPEN_KEY, false));
+  const [isBuiltInPresetsOpen, setIsBuiltInPresetsOpen] = useState<boolean>(() => readGroupOpen(PRESETS_BUILTIN_OPEN_KEY, false));
 
   const isMountedRef = useRef<boolean>(true);
   const toastTimerRef = useRef<number | null>(null);
@@ -119,6 +144,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     loadUserPresets()
       .then((presets) => {
         if (isMountedRef.current) {
+          storeUserPresets(presets);
           setUserPresets(presets);
           detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
         }
@@ -132,6 +158,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       loadUserPresets()
         .then((presets) => {
           if (isMountedRef.current) {
+            storeUserPresets(presets);
             setUserPresets(presets);
             detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
           }
@@ -169,6 +196,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   const handleReload = async () => {
     try {
       const presets = await loadUserPresets();
+      storeUserPresets(presets);
       setUserPresets(presets);
       detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
       showToast("Список пресетов обновлён");
@@ -211,6 +239,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       }
       setUserPresets(updated);
       await saveUserPresets(updated);
+      storeUserPresets(updated);
       setNewPresetName("");
       saveActivePresetId(targetId);
       setActivePresetId(targetId);
@@ -245,6 +274,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       );
       setUserPresets(updated);
       await saveUserPresets(updated);
+      storeUserPresets(updated);
       saveActivePresetId(preset.id);
       setActivePresetId(preset.id);
       showToast(`Пресет «${preset.name}» обновлён текущими настройками!`);
@@ -292,6 +322,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       const updated = [...imported, ...userPresets];
       setUserPresets(updated);
       await saveUserPresets(updated);
+      storeUserPresets(updated);
       showToast(`Импортировано пресетов: ${imported.length}`);
     } catch (err) {
       console.error("Ошибка импорта:", err);
@@ -670,7 +701,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           <button
             type="button"
             className="presets-section-heading__title"
-            onClick={() => setIsUserPresetsOpen(!isUserPresetsOpen)}
+            onClick={() => setIsUserPresetsOpen((prev) => {
+              const next = !prev;
+              writeGroupOpen(PRESETS_USER_OPEN_KEY, next);
+              return next;
+            })}
           >
             <ChevronDown
               size={15}
@@ -726,23 +761,29 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           </div>
         </div>
 
-        {isUserPresetsOpen && (
-          <div style={{ marginTop: 8 }}>
-            {userPresets.length === 0 ? (
-              <div className="presets-empty">
-                <Palette size={24} style={{ color: "var(--text-muted)", opacity: 0.7 }} />
-                <span className="presets-empty__title">Нет сохранённых пресетов</span>
-                <span className="presets-empty__desc">
-                  Настройте желаемый визуальный стиль плеера и сохраните его с помощью формы выше.
-                </span>
-              </div>
-            ) : (
-              <div className="presets-list">
-                {userPresets.map((preset) => renderPresetCard(preset))}
-              </div>
-            )}
+        {/*
+          Группа всегда смонтирована: раскрытие идёт плавной складкой
+          collapse-fold (как аккордеон), высота вкладки не прыгает.
+        */}
+        <div className={`collapse-fold ${isUserPresetsOpen ? "collapse-fold--open" : ""}`}>
+          <div className="collapse-fold__inner">
+            <div className="collapse-fold__body" style={{ marginTop: 8 }}>
+              {userPresets.length === 0 ? (
+                <div className="presets-empty">
+                  <Palette size={24} style={{ color: "var(--text-muted)", opacity: 0.7 }} />
+                  <span className="presets-empty__title">Нет сохранённых пресетов</span>
+                  <span className="presets-empty__desc">
+                    Настройте желаемый визуальный стиль плеера и сохраните его с помощью формы выше.
+                  </span>
+                </div>
+              ) : (
+                <div className="presets-list">
+                  {userPresets.map((preset) => renderPresetCard(preset))}
+                </div>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* ── Список 2: Готовые встроенные стили ── */}
@@ -751,7 +792,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           <button
             type="button"
             className="presets-section-heading__title"
-            onClick={() => setIsBuiltInPresetsOpen(!isBuiltInPresetsOpen)}
+            onClick={() => setIsBuiltInPresetsOpen((prev) => {
+              const next = !prev;
+              writeGroupOpen(PRESETS_BUILTIN_OPEN_KEY, next);
+              return next;
+            })}
           >
             <ChevronDown
               size={15}
@@ -764,11 +809,13 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           </button>
         </div>
 
-        {isBuiltInPresetsOpen && (
-          <div className="presets-list" style={{ marginTop: 8 }}>
-            {BUILT_IN_PRESETS.map((preset) => renderPresetCard(preset))}
+        <div className={`collapse-fold ${isBuiltInPresetsOpen ? "collapse-fold--open" : ""}`}>
+          <div className="collapse-fold__inner">
+            <div className="collapse-fold__body presets-list" style={{ marginTop: 8 }}>
+              {BUILT_IN_PRESETS.map((preset) => renderPresetCard(preset))}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
