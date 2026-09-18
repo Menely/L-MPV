@@ -20,13 +20,16 @@
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
   border-radius: var(--radius-lg, 12px);
   padding: 16px 18px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.28);
   transition: border-color var(--t-base) var(--ease-smooth),
               background var(--t-base) var(--ease-smooth),
+              box-shadow var(--t-base) var(--ease-smooth),
               border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 .glass-section:hover {
   border-color: var(--border-default, rgba(255, 255, 255, 0.10));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.48), 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
 /* Level 3: Интерактивные плитки, подблоки, карточки моделей/опций */
@@ -35,6 +38,7 @@
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
   border-radius: var(--radius-md, 10px);
   padding: 12px 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.24);
   transition: background var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth),
@@ -49,6 +53,7 @@
 .glass-tile--clickable:hover {
   background: var(--surface-level-3-hover, rgba(255, 255, 255, 0.075));
   border-color: var(--border-hover, rgba(255, 255, 255, 0.16));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.32);
 }
 
 .glass-tile--clickable:active {
