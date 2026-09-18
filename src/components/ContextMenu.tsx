@@ -590,7 +590,7 @@ export function ContextMenu({
           { type: "divider" },
           ...(recentFiles.length > 0
             ? [
-                ...recentFiles.map((rf) => ({ type: "item" as const, icon: STATIC_ICONS.film, label: rf.title, title: rf.path, action: () => { onOpenFile?.(rf.path); handleClose(); } })),
+                ...recentFiles.map((rf) => ({ type: "item" as const, icon: STATIC_ICONS.film, label: rf.title, action: () => { onOpenFile?.(rf.path); handleClose(); } })),
                 { type: "divider" as const },
                 { type: "item" as const, icon: STATIC_ICONS.trash, label: "Очистить историю", action: handleClearRecent },
               ]
@@ -806,20 +806,38 @@ export function ContextMenu({
           <div
             key={`divider-${index}`}
             className="context-menu__divider"
+            onMouseEnter={() => {
+              if (closeTimerRef.current !== null) {
+                window.clearTimeout(closeTimerRef.current);
+              }
+              closeTimerRef.current = window.setTimeout(() => {
+                setActiveSubmenu(null);
+              }, 150);
+            }}
           />
         );
       }
 
       if (item.type === "track") {
         return (
-          <div key={`track-${index}`} className="context-menu__track-row">
+          <div
+            key={`track-${index}`}
+            className="context-menu__track-row"
+            onMouseEnter={() => {
+              if (closeTimerRef.current !== null) {
+                window.clearTimeout(closeTimerRef.current);
+              }
+              closeTimerRef.current = window.setTimeout(() => {
+                setActiveSubmenu(null);
+              }, 150);
+            }}
+          >
             <button
               type="button"
               className={`context-menu__track-btn ${
                 item.active ? "context-menu__track-btn--active" : ""
               }`}
               onClick={item.action}
-              title={item.label}
             >
               <span className="context-menu__track-title">{item.label}</span>
               <span className="context-menu__track-check">
@@ -830,7 +848,6 @@ export function ContextMenu({
               <button
                 type="button"
                 className="track-download-btn"
-                title={item.downloadTitle || "Скачать"}
                 disabled={item.isDownloading}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -851,10 +868,14 @@ export function ContextMenu({
       if (item.type === "submenu") {
         const submenuId = `submenu-${index}`;
         const isBottomHalf = index > menuItems.length / 2;
+        const isSubmenuOpen = activeSubmenu === submenuId;
         return (
           <div
             key={submenuId}
-            style={{ position: "relative" }}
+            style={{
+              position: "relative",
+              zIndex: isSubmenuOpen ? 100 : 1,
+            }}
             onMouseEnter={() => {
               if (closeTimerRef.current !== null) {
                 window.clearTimeout(closeTimerRef.current);
@@ -868,14 +889,13 @@ export function ContextMenu({
               }
               closeTimerRef.current = window.setTimeout(() => {
                 setActiveSubmenu(null);
-              }, 300);
+              }, 250);
             }}
           >
             <button
               type="button"
-              className="context-menu__item"
+              className={`context-menu__item ${isSubmenuOpen ? "context-menu__item--submenu-open" : ""}`}
               onClick={item.action}
-              title={item.title || (typeof item.label === "string" ? item.label : undefined)}
             >
               <span className="context-menu__item-icon">
                 {item.icon}
@@ -886,7 +906,7 @@ export function ContextMenu({
               <ChevronRight size={14} style={{ opacity: 0.5 }} />
             </button>
 
-            {activeSubmenu === submenuId && item.children && (
+            {isSubmenuOpen && item.children && (
               <div
                 className={`context-menu context-menu__submenu ${
                   item.submenuClassName || ""
@@ -910,7 +930,14 @@ export function ContextMenu({
           } ${item.disabled ? "context-menu__item--disabled" : ""}`}
           onClick={item.action}
           disabled={item.disabled}
-          title={item.title || (typeof item.label === "string" ? item.label : undefined)}
+          onMouseEnter={() => {
+            if (closeTimerRef.current !== null) {
+              window.clearTimeout(closeTimerRef.current);
+            }
+            closeTimerRef.current = window.setTimeout(() => {
+              setActiveSubmenu(null);
+            }, 150);
+          }}
         >
           {item.icon && (
             <span className="context-menu__item-icon">
