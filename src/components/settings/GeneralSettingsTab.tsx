@@ -26,6 +26,8 @@ interface GeneralSettingsTabProps {
   screenshotDir: string;
   handlePickFolder: () => void;
   handleResetDefault: () => void;
+  showTrackNames: boolean;
+  setShowTrackNames: (v: boolean) => void;
 }
 
 export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
@@ -38,7 +40,8 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
     hotloadEnabled, setHotloadEnabled,
     hideControlsInUpperHalf, setHideControlsInUpperHalf,
     openSections, onToggleSection: toggleSection,
-    screenshotDir, handlePickFolder, handleResetDefault
+    screenshotDir, handlePickFolder, handleResetDefault,
+    showTrackNames, setShowTrackNames
   } = props;
 
   // Стиль карточки подблока с парящей тенью и полупрозрачным фоном темы
@@ -390,7 +393,36 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             </label>
           </div>
 
-          {/* 2.3 Папка для извлечения аудио и субтитров */}
+          {/* 2.3 Названия дорожек на панели управления */}
+          <div style={cardStyle}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                style={{ marginTop: 2 }}
+                checked={showTrackNames}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setShowTrackNames(val);
+                  localStorage.setItem('l-mpv-show-track-names', val ? 'true' : 'false');
+                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <AudioLines size={14} style={{ color: "var(--accent)" }} />
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                    Названия дорожек на панели управления
+                  </span>
+                </div>
+                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                  Отображать короткое название выбранной аудиодорожки и субтитров рядом с иконками на панели плеера.
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* 2.4 Папка для извлечения аудио и субтитров */}
           <div style={cardStyle}>
             <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
               <input

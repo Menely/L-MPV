@@ -20,6 +20,21 @@ import {
   DownloadProgressPayload,
   UpscaleCompileProgress,
 } from "../upscale/types";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  MouseSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { BackendSelector } from "../upscale/BackendSelector";
 import { ModelListItem } from "../upscale/ModelListItem";
 
@@ -34,12 +49,16 @@ export type {
 
 interface UpscalingSettingsSectionProps {
   onClose?: () => void;
+  onRecordingChange?: (isRecording: boolean) => void;
 }
 
 /**
  * Вкладка управления апскейлингом видео в реальном времени (AI Upscaling).
  */
-export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> = ({ onClose: _onClose }) => {
+export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> = ({
+  onClose: _onClose,
+  onRecordingChange,
+}) => {
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isDownloadingEngine, setIsDownloadingEngine] = useState<boolean>(false);
@@ -77,8 +96,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     });
   };
 
-  // Перемещение моделей выше / ниже в списке
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const ignoreClickUntilRef = useRef<number>(0);
 
   const persistModelOrder = async (newModels: ModelFileItem[]) => {
     setStatus((prev) => (prev ? { ...prev, models: newModels } : prev));
@@ -92,36 +110,27 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     }
   };
 
-  const handleMoveModel = async (index: number, direction: "up" | "down", e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!status?.models) return;
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= status.models.length) return;
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 4,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
-    const newModels = [...status.models];
-    const [moved] = newModels.splice(index, 1);
-    newModels.splice(targetIndex, 0, moved);
-    await persistModelOrder(newModels);
-  };
-
-  const handleDragStart = (idx: number, e: React.DragEvent) => {
-    setDraggedIndex(idx);
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  };
-
-  const handleDrop = async (targetIndex: number, e: React.DragEvent) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === targetIndex || !status?.models) return;
-    const newModels = [...status.models];
-    const [draggedItem] = newModels.splice(draggedIndex, 1);
-    newModels.splice(targetIndex, 0, draggedItem);
-    setDraggedIndex(null);
-    await persistModelOrder(newModels);
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id && status?.models) {
+      const oldIndex = status.models.findIndex((m) => m.filename === active.id);
+      const newIndex = status.models.findIndex((m) => m.filename === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newModels = arrayMove(status.models, oldIndex, newIndex);
+        await persistModelOrder(newModels);
+      }
+    }
   };
 
   const [settings, setSettings] = useState<UpscaleSettings>(() => {
@@ -456,12 +465,12 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   };
 
 
-  // Назначение горячей клавиши для модели
+  // Назначение горячей клавиши для модели (с клавиатуры)
   const handleKeyRecord = (e: React.KeyboardEvent, actionId: string) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (e.key === "Control" || e.key === "Shift" || e.key === "Alt" || e.key === "Meta") {
+    if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) {
       return;
     }
 
@@ -483,14 +492,63 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     setRecordingActionId(null);
   };
 
-  // Очистка бинда
-  const handleClearHotkey = (e: React.MouseEvent, actionId: string) => {
+  // Назначение кнопки мыши для модели
+  const handleMouseRecord = (e: React.MouseEvent, actionId: string) => {
+    e.preventDefault();
     e.stopPropagation();
-    const updated = { ...customHotkeys, [actionId]: [] };
+    ignoreClickUntilRef.current = Date.now() + 400;
+    const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
+    const newCode = btnMap[e.button] || `MouseButton${e.button}`;
+    const updated = { ...customHotkeys, [actionId]: [newCode] };
     setCustomHotkeys(updated);
     saveCustomHotkeys(updated);
     setRecordingActionId(null);
   };
+
+  // Переключение режима записи горячей клавиши
+  const handleStartRecordKey = (actionId: string) => {
+    if (Date.now() < ignoreClickUntilRef.current) {
+      return;
+    }
+    setRecordingActionId((prev) => (prev === actionId ? null : actionId));
+  };
+
+  // Синхронизация состояния записи с родительским окном для блокировки переключения табов/закрытия
+  useEffect(() => {
+    if (onRecordingChange) {
+      onRecordingChange(recordingActionId !== null);
+    }
+  }, [recordingActionId, onRecordingChange]);
+
+  // Глобальный перехват Escape и клика мимо кнопки при активном режиме записи хоткея модели
+  useEffect(() => {
+    if (!recordingActionId) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setRecordingActionId(null);
+      }
+    };
+
+    const handleGlobalMouseDown = (e: MouseEvent) => {
+      if (Date.now() < ignoreClickUntilRef.current) return;
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest("[data-hotkey-recording='true']")) {
+        return;
+      }
+      setRecordingActionId(null);
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown, true);
+    window.addEventListener("mousedown", handleGlobalMouseDown, true);
+
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown, true);
+      window.removeEventListener("mousedown", handleGlobalMouseDown, true);
+    };
+  }, [recordingActionId]);
 
   const isAiActive = settings.mode === "ai";
 
@@ -599,36 +657,39 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
               Загрузка списка моделей...
             </div>
           ) : status?.models && status.models.length > 0 ? (
-            status.models.map((model, idx) => {
-              const actionId = `upscaleNet${idx + 1}`;
-              return (
-                <ModelListItem
-                  key={model.filename}
-                  model={model}
-                  idx={idx}
-                  isSelected={settings.active_slot === model.slot || settings.selected_model === model.filename}
-                  isFirst={idx === 0}
-                  isLast={idx === status.models.length - 1}
-                  isDragged={draggedIndex === idx}
-                  hideModelNames={hideModelNames}
-                  customHotkeys={customHotkeys}
-                  recordingActionId={recordingActionId}
-                  supportsTensorrt={!!status.gpu_info?.supports_tensorrt}
-                  compilingModel={compilingModel}
-                  compileProgressItem={compileProgress[model.filename]}
-                  onSelect={() => updateSettings({ active_slot: model.slot, selected_model: model.filename })}
-                  onMoveUp={(e) => handleMoveModel(idx, "up", e)}
-                  onMoveDown={(e) => handleMoveModel(idx, "down", e)}
-                  onDragStart={(e) => handleDragStart(idx, e)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(idx, e)}
-                  onPrecompile={() => handlePrecompileModel(model)}
-                  onStartRecordKey={() => setRecordingActionId(recordingActionId === actionId ? null : actionId)}
-                  onKeyRecord={(e) => handleKeyRecord(e, actionId)}
-                  onClearKey={(e) => handleClearHotkey(e, actionId)}
-                />
-              );
-            })
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={status.models.map((m) => m.filename)}
+                strategy={verticalListSortingStrategy}
+              >
+                {status.models.map((model, idx) => {
+                  const actionId = `upscaleNet${idx + 1}`;
+                  return (
+                    <ModelListItem
+                      key={model.filename}
+                      model={model}
+                      idx={idx}
+                      isSelected={settings.active_slot === model.slot || settings.selected_model === model.filename}
+                      hideModelNames={hideModelNames}
+                      customHotkeys={customHotkeys}
+                      recordingActionId={recordingActionId}
+                      supportsTensorrt={!!status.gpu_info?.supports_tensorrt}
+                      compilingModel={compilingModel}
+                      compileProgressItem={compileProgress[model.filename]}
+                      onSelect={() => updateSettings({ active_slot: model.slot, selected_model: model.filename })}
+                      onPrecompile={() => handlePrecompileModel(model)}
+                      onStartRecordKey={() => handleStartRecordKey(actionId)}
+                      onKeyRecord={(e) => handleKeyRecord(e, actionId)}
+                      onMouseRecord={(e) => handleMouseRecord(e, actionId)}
+                    />
+                  );
+                })}
+              </SortableContext>
+            </DndContext>
           ) : (
             <div style={{ padding: 18, textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
               В папке models/onnx/ не найдено совместимых моделей .onnx.

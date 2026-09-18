@@ -633,6 +633,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               screenshotDir={screenshotDir}
               handlePickFolder={handlePickFolder}
               handleResetDefault={handleResetDefault}
+              showTrackNames={showTrackNames}
+              setShowTrackNames={setShowTrackNames}
             />
           )}
 
@@ -648,7 +650,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               controlBarStyle={controlBarStyle} saveControlBarStyle={saveControlBarStyle} setControlBarStyle={setControlBarStyle}
               ambientSettings={ambientSettings} updateAmbient={updateAmbient}
               visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons}
-              showTrackNames={showTrackNames} setShowTrackNames={setShowTrackNames}
               skipOpeningSeconds={skipOpeningSeconds} setSkipOpeningSeconds={setSkipOpeningSeconds}
               animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
               openSections={openSections} onToggleSection={toggleSection}
@@ -664,7 +665,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
           {activeTab === "upscaling" && (
             <div className="modal__section" style={{ display: "flex", flexDirection: "column" }}>
-              <UpscalingSettingsSection />
+              <UpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
             </div>
           )}
 

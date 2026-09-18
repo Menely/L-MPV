@@ -545,7 +545,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               onClick={() => handleApply(preset)}
               title={isBuiltIn ? "Применить данный встроенный пресет" : "Применить данный пресет к плееру"}
             >
-              {isApplied ? <Check size={13} /> : <Play size={13} />}
+              {isApplied ? (
+                <Check size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+              ) : (
+                <Play size={13} style={{ flexShrink: 0 }} />
+              )}
               <span>{isApplied ? "Активен" : "Применить"}</span>
             </button>
 

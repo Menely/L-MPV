@@ -334,6 +334,11 @@
   font-weight: 500;
   cursor: pointer;
   transition: all var(--t-fast) var(--ease-smooth);
+  box-sizing: border-box;
+}
+
+.preset-action-btn svg {
+  flex-shrink: 0;
 }
 
 .preset-action-btn:hover:not(.preset-action-btn--apply) {
@@ -445,12 +450,21 @@
   justify-content: flex-start;
   gap: 6px;
   flex-shrink: 0;
-  width: 82px;
+  width: 90px;
   align-self: center;
 }
 
 .preset-card__actions-col .preset-action-btn {
   width: 100%;
+}
+
+.preset-action-btn--apply,
+.preset-action-btn--applied {
+  height: 28px;
+  font-size: 0.78rem;
+  padding: 0 8px;
+  gap: 5px;
+  box-sizing: border-box;
 }
 
 .preset-action-btn--apply {
@@ -459,10 +473,6 @@
   font-weight: 600;
   border-color: transparent;
   box-shadow: 0 2px 8px var(--accent-glow, rgba(127, 199, 255, 0.25));
-  height: 28px;
-  font-size: 0.79rem;
-  padding: 0 8px;
-  gap: 5px;
 }
 
 .preset-card__actions-grid {
