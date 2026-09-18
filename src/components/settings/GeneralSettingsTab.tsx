@@ -56,9 +56,95 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   return (
     <div className="modal__section" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 
-      {/* ── 1. Воспроизведение и окна ── */}
+      {/* ── 1. Скриншоты и медиатека ── */}
       <AccordionSection
-        isOpen={openSections["gen_playback"] !== undefined ? openSections["gen_playback"] : true}
+        isOpen={openSections["gen_screenshots"] === true}
+        onToggle={() => toggleSection("gen_screenshots")}
+        icon={<Camera size={16} />}
+        title="Скриншоты и медиатека"
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Camera size={14} style={{ color: "var(--accent)" }} />
+                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                  Папка сохранения скриншотов
+                </span>
+              </div>
+              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                Горячая клавиша: <strong style={{ color: "var(--accent)" }}>S</strong> (без субтитров: <strong style={{ color: "var(--accent)" }}>Shift+S</strong>)
+              </span>
+            </div>
+            
+            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+              Кадры сохраняются в оригинальном исходном разрешении видеопотока без сжатия интерфейсом.
+            </span>
+
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+              <input
+                type="text"
+                readOnly
+                value={screenshotDir || "Загрузка..."}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  background: "rgba(0, 0, 0, 0.4)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--text-primary)",
+                  fontSize: "0.80rem",
+                  fontFamily: "var(--font-mono, monospace)",
+                  outline: "none",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+                title={screenshotDir}
+              />
+              <button
+                type="button"
+                onClick={handlePickFolder}
+                className="btn btn--secondary btn--sm"
+                style={{
+                  height: 32,
+                  padding: "0 12px",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  gap: 6,
+                  display: "flex",
+                  alignItems: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <FolderOpen size={14} /> Обзор...
+              </button>
+              <button
+                type="button"
+                onClick={handleResetDefault}
+                className="btn btn--secondary btn--icon"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "var(--radius-sm)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+                title="Сбросить на папку screenshots по умолчанию"
+              >
+                <RotateCcw size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </AccordionSection>
+
+      {/* ── 2. Воспроизведение и окна ── */}
+      <AccordionSection
+        isOpen={openSections["gen_playback"] === true}
         onToggle={() => toggleSection("gen_playback")}
         icon={<Play size={16} />}
         title="Воспроизведение и окна"
@@ -189,9 +275,9 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         </div>
       </AccordionSection>
 
-      {/* ── 2. Аудиодорожки и субтитры ── */}
+      {/* ── 3. Аудиодорожки и субтитры ── */}
       <AccordionSection
-        isOpen={openSections["gen_tracks"] !== undefined ? openSections["gen_tracks"] : true}
+        isOpen={openSections["gen_tracks"] === true}
         onToggle={() => toggleSection("gen_tracks")}
         icon={<AudioLines size={16} />}
         title="Аудиодорожки и субтитры"
@@ -331,92 +417,6 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             </label>
           </div>
 
-        </div>
-      </AccordionSection>
-
-      {/* ── 3. Скриншоты и медиатека ── */}
-      <AccordionSection
-        isOpen={openSections["gen_screenshots"] !== undefined ? openSections["gen_screenshots"] : true}
-        onToggle={() => toggleSection("gen_screenshots")}
-        icon={<Camera size={16} />}
-        title="Скриншоты и медиатека"
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
-          <div style={cardStyle}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Camera size={14} style={{ color: "var(--accent)" }} />
-                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                  Папка сохранения скриншотов
-                </span>
-              </div>
-              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                Горячая клавиша: <strong style={{ color: "var(--accent)" }}>S</strong> (без субтитров: <strong style={{ color: "var(--accent)" }}>Shift+S</strong>)
-              </span>
-            </div>
-            
-            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-              Кадры сохраняются в оригинальном исходном разрешении видеопотока без сжатия интерфейсом.
-            </span>
-
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-              <input
-                type="text"
-                readOnly
-                value={screenshotDir || "Загрузка..."}
-                style={{
-                  flex: 1,
-                  padding: "8px 12px",
-                  background: "rgba(0, 0, 0, 0.4)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-sm)",
-                  color: "var(--text-primary)",
-                  fontSize: "0.80rem",
-                  fontFamily: "var(--font-mono, monospace)",
-                  outline: "none",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-                title={screenshotDir}
-              />
-              <button
-                type="button"
-                onClick={handlePickFolder}
-                className="btn btn--secondary btn--sm"
-                style={{
-                  height: 32,
-                  padding: "0 12px",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: "0.78rem",
-                  fontWeight: 600,
-                  gap: 6,
-                  display: "flex",
-                  alignItems: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <FolderOpen size={14} /> Обзор...
-              </button>
-              <button
-                type="button"
-                onClick={handleResetDefault}
-                className="btn btn--secondary btn--icon"
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: "var(--radius-sm)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-                title="Сбросить на папку screenshots по умолчанию"
-              >
-                <RotateCcw size={13} />
-              </button>
-            </div>
-          </div>
         </div>
       </AccordionSection>
 
