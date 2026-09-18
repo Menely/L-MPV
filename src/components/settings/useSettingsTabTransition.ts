@@ -19,11 +19,16 @@ function motionAllowed(): boolean {
  * Плавное переключение вкладок: анимация высоты панели (старая -> новая)
  * + направление слайда контента. Логика вкладок не затрагивается —
  * хук лишь замеряет DOM и анимирует обёртку.
+ * Важно: обрезка лишнего контента делается через clip-path с запасом -20px,
+ * а НЕ через overflow: hidden — иначе box-shadow свёрнутых аккордеонов
+ * (уходят на ~14-18px за границы панели) срезаются на время анимации
+ * и моргают в конце перехода.
  * Портативно: только чтение размеров, никаких внешних записей.
  */
 export function useSettingsTabTransition(activeTab: string, tabOrder: readonly string[]) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const prevTabRef = useRef(activeTab);
   const startHeightRef = useRef(0);
   const [slideDir, setSlideDir] = useState<1 | -1>(1);
@@ -35,9 +40,9 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     setSlideDir(order.indexOf(next) >= order.indexOf(prevTabRef.current) ? 1 : -1);
     const panel = panelRef.current;
     if (panel && motionAllowed()) {
-      startHeightRef.current = panel.offsetHeight;
+      startHeightRef.current = Math.round(panel.offsetHeight);
       panel.style.height = `${startHeightRef.current}px`;
-      panel.style.overflow = "hidden";
+      panel.style.clipPath = "inset(-20px)";
     } else {
       startHeightRef.current = 0;
     }
@@ -51,7 +56,7 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     if (!panel || !motionAllowed() || startHeightRef.current <= 0) {
       if (panel) {
         panel.style.height = "";
-        panel.style.overflow = "";
+        panel.style.clipPath = "";
         panel.style.transition = "";
       }
       startHeightRef.current = 0;
@@ -60,10 +65,10 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     const h0 = startHeightRef.current;
     startHeightRef.current = 0;
     panel.style.height = "auto";
-    const h1 = panel.offsetHeight;
+    const h1 = Math.round(panel.offsetHeight);
     if (Math.abs(h1 - h0) < 2) {
       panel.style.height = "";
-      panel.style.overflow = "";
+      panel.style.clipPath = "";
       return;
     }
     panel.style.height = `${h0}px`;
@@ -76,19 +81,20 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
       done = true;
       panel.style.transition = "";
       panel.style.height = "";
-      panel.style.overflow = "";
+      panel.style.clipPath = "";
       panel.removeEventListener("transitionend", onEnd);
     };
     const onEnd = (e: TransitionEvent) => {
       if (e.propertyName === "height") finish();
     };
     panel.addEventListener("transitionend", onEnd);
-    const timer = window.setTimeout(finish, TRANSITION_MS + 60);
+    const timer = window.setTimeout(finish, TRANSITION_MS + 40);
+
     return () => {
       window.clearTimeout(timer);
       panel.removeEventListener("transitionend", onEnd);
     };
   }, [activeTab]);
 
-  return { bodyRef, panelRef, slideDir, beginSwitch };
+  return { bodyRef, panelRef, contentRef, slideDir, beginSwitch };
 }

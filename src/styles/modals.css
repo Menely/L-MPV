@@ -1053,6 +1053,13 @@
   min-height: 0;
 }
 
+/* У последней секции вкладки нет висячего отступа — без мёртвого места над футером */
+.settings-tab-panel .modal__section:last-child,
+.settings-tab-content > .modal__section:last-child,
+.settings-tab-content .modal__section:last-of-type {
+  margin-bottom: 0 !important;
+}
+
 .modal--settings .modal__body {
   overflow-anchor: none;
 }
@@ -1261,7 +1268,7 @@
   border-radius: var(--radius-md);
   padding: 12px 10px 10px 12px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
-  height: 480px;
+  height: 440px;
   min-height: 200px;
   overflow: hidden;
   position: relative;
@@ -1521,7 +1528,7 @@
   border-radius: var(--radius-md);
   padding: 12px 10px 10px 12px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
-  height: 480px;
+  height: 440px;
   min-height: 200px;
   overflow: hidden;
   position: relative;

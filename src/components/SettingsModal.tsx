@@ -147,7 +147,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
   const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
-  const { bodyRef, panelRef, slideDir, beginSwitch } = useSettingsTabTransition(activeTab, SETTINGS_TABS);
+  const { bodyRef, panelRef, contentRef, slideDir, beginSwitch } = useSettingsTabTransition(activeTab, SETTINGS_TABS);
 
   // Единая точка смены вкладки: плавный переход высоты + слайд, логика табов не меняется
   const handleTabChange = useCallback((next: SettingsTabId) => {
@@ -617,9 +617,9 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         </div>
 
         {/* Тело модального окна */}
-        <div className="modal__body" ref={bodyRef} style={{ padding: "20px" }}>
+        <div className="modal__body" ref={bodyRef} style={{ padding: "16px 20px 10px 20px" }}>
           <div ref={panelRef} className="settings-tab-panel">
-          <div key={activeTab} data-slide-dir={slideDir} className="settings-tab-content">
+          <div ref={contentRef} key={activeTab} data-slide-dir={slideDir} className="settings-tab-content">
             {activeTab === "general" && (
             <GeneralSettingsTab
               multiInstance={multiInstance} setMultiInstance={setMultiInstance}
