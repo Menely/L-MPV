@@ -12,7 +12,7 @@ export interface GpuHardwareInfo {
   vendor: string;
   vendor_id: number;
   device_id: number;
-  recommended_backend: "TensorRT" | "DirectML";
+  recommended_backend: "TensorRT" | "DirectML" | "NCNN Vulkan";
   supports_tensorrt: boolean;
   sm_architecture: string;
   vram_bytes: number;
@@ -23,6 +23,8 @@ export interface UpscaleStatus {
   aji_present: boolean;
   directml_present: boolean;
   tensorrt_present: boolean;
+  ncnn_present: boolean;
+  platform: string;
   models_count: number;
   models_dir: string;
   models: ModelFileItem[];
@@ -32,7 +34,7 @@ export interface UpscaleStatus {
 export interface UpscaleSettings {
   mode: "off" | "ai";
   active_slot: number;
-  backend: "DirectML" | "TensorRT";
+  backend: "DirectML" | "TensorRT" | "NCNN Vulkan";
   selected_model: string;
 }
 
@@ -54,4 +56,3 @@ export interface UpscaleCompileProgress {
   is_finished: boolean;
   error?: string | null;
 }
-

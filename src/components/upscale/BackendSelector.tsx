@@ -20,7 +20,7 @@ interface BackendSelectorProps {
   downloadProgress: DownloadProgressPayload | null;
   engineSuccessMessage: string | null;
   errorMessage: string | null;
-  onSelectBackend: (backend: "DirectML" | "TensorRT") => void;
+  onSelectBackend: (backend: "DirectML" | "TensorRT" | "NCNN Vulkan") => void;
   onOpenInferenceFolder: () => void;
   onDownloadEngine: () => void;
   onDeleteEngine: () => void;
@@ -44,9 +44,11 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
 }) => {
   const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
   const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
+  const isLinux = status?.platform === "linux";
+  const isNcnnInstalled = !!status?.ncnn_present;
   const isCurrentBackendInstalled =
-    settings.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
-  const isAnyEnginePresent = isDmlInstalled || isTrtInstalled;
+    settings.backend === "NCNN Vulkan" ? isNcnnInstalled : settings.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
+  const isAnyEnginePresent = isDmlInstalled || isTrtInstalled || isNcnnInstalled;
 
   const isFinished = !!(downloadProgress && downloadProgress.is_finished && !downloadProgress.error);
   const isError = !!(downloadProgress && downloadProgress.error);
@@ -91,7 +93,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               textOverflow: "ellipsis",
             }}
           >
-            Библиотеки выполнения нейросетей (aji.dll, DirectML, OnnxRuntime, TensorRT)
+            {isLinux ? "NCNN с Vulkan для NVIDIA, AMD и Intel" : "Библиотеки выполнения нейросетей (aji.dll, DirectML, OnnxRuntime, TensorRT)"}
           </p>
         </div>
 
@@ -125,6 +127,10 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               <CheckCircle2 size={15} color="#2ecc71" />
               <span>Установлен</span>
             </div>
+          ) : isLinux ? (
+            <div className="badge" style={{ height: 32, padding: "0 14px", display: "inline-flex", alignItems: "center" }}>
+              NCNN runtime отсутствует
+            </div>
           ) : (
             <button
               type="button"
@@ -145,7 +151,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             </button>
           )}
 
-          {isAnyEnginePresent && (
+          {!isLinux && isAnyEnginePresent && (
             <button
               type="button"
               className="btn btn--danger btn--icon"
@@ -327,7 +333,26 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
         </div>
       )}
 
-      {/* Выбор между DirectML и TensorRT */}
+      {isLinux ? (
+        <div className="glass-tile glass-tile--active" style={{ padding: "12px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                NCNN Vulkan
+              </span>
+              <span className={`badge ${isNcnnInstalled ? "badge--success" : "badge--warning"}`}>
+                {isNcnnInstalled ? "Установлен" : "Не установлен"}
+              </span>
+              <span className="badge badge--accent">Рекомендуется</span>
+            </div>
+            <CheckCircle2 size={16} color="var(--accent)" />
+          </div>
+          <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.3 }}>
+            Кросс-вендорный Vulkan-инференс для NVIDIA, AMD и Intel. При недостаточной скорости плеер автоматически включает FSRCNNX/Anime4K.
+          </p>
+        </div>
+      ) : (
+      /* Выбор между DirectML и TensorRT */
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {/* Карточка DirectML */}
         <div
@@ -467,6 +492,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
           </p>
         </div>
       </div>
+      )}
     </div>
   );
 };

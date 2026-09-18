@@ -44,3 +44,27 @@
 /* 13. Пресеты настроек */
 @import './styles/presets.css';
 
+/* WASAPI visualizer is intentionally unavailable in the Linux build. */
+html[data-platform='linux'] #btn-visualizer {
+  display: none !important;
+}
+
+html[data-platform='linux'] .color-circle--windows {
+  display: none !important;
+}
+
+/* X11 native child windows do not forward pointer motion through GtkGLArea,
+   so the DOM idle timer cannot reliably reveal controls again. Keep Linux
+   controls available; Windows retains the cinematic auto-hide behavior. */
+html[data-platform='linux'] .app-container--idle .titlebar,
+html[data-platform='linux'] .app-container--hide-controls .titlebar,
+html[data-platform='linux'] .app-container--idle .player-controls-wrapper,
+html[data-platform='linux'] .app-container--hide-controls .player-controls-wrapper {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+html[data-platform='linux'] .app-container--idle {
+  cursor: default;
+}
