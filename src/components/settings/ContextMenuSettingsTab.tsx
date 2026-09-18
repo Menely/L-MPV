@@ -1,92 +1,63 @@
-import React, { useState, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   DndContext,
   closestCenter,
+  MeasuringStrategy,
+  type CollisionDetection,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
   UniqueIdentifier,
+  getClientRect,
+  useDndContext,
 } from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import {
-  GripVertical,
-  X,
   Plus,
-  Minus,
   RotateCcw,
   MousePointerClick,
   ChevronRight,
   Check,
+  SlidersHorizontal,
   FolderOpen,
-  AudioLines,
-  Subtitles,
-  BookOpen,
-  Monitor,
-  RotateCw,
-  Sparkles,
-  Zap,
-  Repeat,
-  Shuffle,
-  Pin,
-  Camera,
-  Info,
-  FileText,
-  Clock,
-  Timer,
-  LayoutTemplate,
-  Settings,
 } from "lucide-react";
 import {
   type LayoutEntry,
   getSavedLayout,
   saveLayout,
   resetLayout,
+  LAYOUT_CHANGED_EVENT,
 } from "../../utils/contextMenuLayout";
 import {
   MENU_ITEM_REGISTRY,
   MENU_ITEM_MAP,
   type MenuItemDescriptor,
 } from "../../utils/contextMenuRegistry";
-
-/** Маппинг имени иконки в статичный React-элемент превью. */
-const ICON_MAP: Record<string, React.ReactNode> = {
-  FolderOpen: <FolderOpen size={14} />,
-  AudioLines: <AudioLines size={14} />,
-  Subtitles: <Subtitles size={14} />,
-  BookOpen: <BookOpen size={14} />,
-  Monitor: <Monitor size={14} />,
-  RotateCw: <RotateCw size={14} />,
-  Sparkles: <Sparkles size={14} />,
-  Zap: <Zap size={14} />,
-  Repeat: <Repeat size={14} />,
-  Shuffle: <Shuffle size={14} />,
-  Pin: <Pin size={14} />,
-  Camera: <Camera size={14} />,
-  Info: <Info size={14} />,
-  FileText: <FileText size={14} />,
-  Clock: <Clock size={14} />,
-  Timer: <Timer size={14} />,
-  LayoutTemplate: <LayoutTemplate size={14} />,
-  Settings: <Settings size={14} />,
-};
+import {
+  SortableCard,
+  OverlayCard,
+  MENU_ICON_MAP,
+} from "./ContextMenuEntryCard";
 
 let uniqueKeyCounter = 0;
 
-/** Генерирует гарантированно уникальный ключ для записи раскладки. */
-function generateKey(prefix: string): string {
+/** Генерирует стабильный уникальный ключ для записи раскладки. */
+function generateStableKey(entry: LayoutEntry): string {
+  if (entry.type === "item") {
+    return `item-${entry.id}`;
+  }
   uniqueKeyCounter += 1;
-  return `${prefix}-${Date.now()}-${uniqueKeyCounter}`;
+  return `divider-${Date.now()}-${uniqueKeyCounter}`;
 }
 
 interface KeyedEntry {
@@ -95,145 +66,49 @@ interface KeyedEntry {
 }
 
 function attachKeys(layout: LayoutEntry[]): KeyedEntry[] {
-  return layout.map((entry, index) => ({
-    key: entry.type === "divider" ? `divider-${index}` : `item-${entry.id}-${index}`,
+  return layout.map((entry) => ({
+    key: generateStableKey(entry),
     entry,
   }));
 }
 
-// ─── Мемоизированная карточка элемента меню ─────────────────────────────────
-
-interface SortableCardProps {
-  id: string;
-  entry: LayoutEntry;
-  descriptor?: MenuItemDescriptor;
-  onRemove: (key: string) => void;
-  onAddDividerBefore: (key: string) => void;
-}
-
-const SortableCard = memo(function SortableCard({
-  id,
-  entry,
-  descriptor,
-  onRemove,
-  onAddDividerBefore,
-}: SortableCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.35 : 1,
-    zIndex: isDragging ? 10 : undefined,
-  };
-
-  const handleRemove = useCallback(() => {
-    onRemove(id);
-  }, [onRemove, id]);
-
-  const handleAddDivider = useCallback(() => {
-    onAddDividerBefore(id);
-  }, [onAddDividerBefore, id]);
-
-  if (entry.type === "divider") {
-    return (
-      <div ref={setNodeRef} style={style} className="cmenu-entry cmenu-entry--divider">
-        <span {...attributes} {...listeners} className="cmenu-entry__grip" title="Перетащить">
-          <GripVertical size={14} />
-        </span>
-        <div className="cmenu-entry__divider-line">
-          <span className="cmenu-entry__divider-label">── Разделитель ──</span>
-        </div>
-        <button
-          type="button"
-          className="cmenu-entry__remove"
-          onClick={handleRemove}
-          title="Удалить разделитель"
-        >
-          <X size={12} />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div ref={setNodeRef} style={style} className="cmenu-entry">
-      <button
-        type="button"
-        className="cmenu-entry__add-divider"
-        onClick={handleAddDivider}
-        title="Добавить разделитель перед этим пунктом"
-      >
-        <Minus size={11} />
-      </button>
-      <span
-        {...attributes}
-        {...listeners}
-        className="cmenu-entry__grip"
-        title="Перетащить для изменения порядка"
-      >
-        <GripVertical size={14} />
-      </span>
-      <span className="cmenu-entry__icon">
-        {descriptor ? ICON_MAP[descriptor.iconName] : null}
-      </span>
-      <div className="cmenu-entry__info">
-        <span className="cmenu-entry__label">{descriptor?.label ?? entry.id}</span>
-        {descriptor?.hasSubmenu && (
-          <ChevronRight size={11} className="cmenu-entry__submenu-hint" />
-        )}
-      </div>
-      <button
-        type="button"
-        className="cmenu-entry__remove"
-        onClick={handleRemove}
-        title="Убрать из меню"
-      >
-        <X size={12} />
-      </button>
-    </div>
-  );
-});
-
-/** Статичная карточка для DragOverlay при перетаскивании. */
-function OverlayCard({
-  entry,
-  descriptor,
+/**
+ * Вспомогательный компонент синхронизации скролла с @dnd-kit.
+ * Подключает слушатель scroll ТОЛЬКО во время активного перетаскивания (isDragging).
+ * Вызывает measureDroppableContainers([]) на каждом кадре скролла (через requestAnimationFrame),
+ * благодаря чему внутренние кэши dnd-kit мгновенно обновляются во время авто-скролла.
+ */
+function ScrollSync({
+  containerRef,
+  isDragging,
 }: {
-  entry: LayoutEntry;
-  descriptor?: MenuItemDescriptor;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  isDragging: boolean;
 }) {
-  if (entry.type === "divider") {
-    return (
-      <div className="cmenu-entry cmenu-entry--divider cmenu-entry--overlay">
-        <span className="cmenu-entry__grip"><GripVertical size={14} /></span>
-        <div className="cmenu-entry__divider-line">
-          <span className="cmenu-entry__divider-label">── Разделитель ──</span>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="cmenu-entry cmenu-entry--overlay">
-      <span className="cmenu-entry__grip"><GripVertical size={14} /></span>
-      <span className="cmenu-entry__icon">
-        {descriptor ? ICON_MAP[descriptor.iconName] : null}
-      </span>
-      <div className="cmenu-entry__info">
-        <span className="cmenu-entry__label">{descriptor?.label ?? entry.id}</span>
-        {descriptor?.hasSubmenu && (
-          <ChevronRight size={11} className="cmenu-entry__submenu-hint" />
-        )}
-      </div>
-    </div>
-  );
+  const { measureDroppableContainers } = useDndContext();
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    let rafId: number | null = null;
+    const handleScroll = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        measureDroppableContainers([]);
+      });
+    };
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [containerRef, isDragging, measureDroppableContainers]);
+
+  return null;
 }
 
 // ─── Основной компонент конфигуратора ───────────────────────────────────────
@@ -244,11 +119,138 @@ export function ContextMenuSettingsTab() {
   );
   const [saved, setSaved] = useState(true);
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isSelfUpdateRef = useRef(false);
+
+  // Синхронизация раскладки при фоновой загрузке из файла config/context_menu.json
+  useEffect(() => {
+    const handleLayoutChanged = () => {
+      // Игнорируем события, инициированные действиями самой этой вкладки
+      if (isSelfUpdateRef.current) {
+        isSelfUpdateRef.current = false;
+        return;
+      }
+      const currentEntriesJson = JSON.stringify(entries.map((e) => e.entry));
+      const saved = getSavedLayout();
+      if (JSON.stringify(saved) !== currentEntriesJson) {
+        setEntries(attachKeys(saved));
+      }
+    };
+    window.addEventListener(LAYOUT_CHANGED_EVENT, handleLayoutChanged);
+    return () => {
+      window.removeEventListener(LAYOUT_CHANGED_EVENT, handleLayoutChanged);
+    };
+  }, [entries]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 4,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
+
+  /**
+   * Прецизионный 1D-алгоритм определения коллизий для вертикального списка меню.
+   * Читает реальные физические границы DOM-узлов (с учетом текущего скролла контейнера
+   * и без артефактов временных CSS transform анимаций).
+   * Исключает рассинхронизацию между курсором мыши и местом раздвигания пунктов (gap)
+   * даже при непрерывном авто-скроллинге контейнера вверх или вниз.
+   */
+  const collisionDetectionStrategy: CollisionDetection = useCallback((args) => {
+    const { droppableContainers, droppableRects, pointerCoordinates } = args;
+
+    // При перетаскивании с клавиатуры координат курсора нет — используем closestCenter
+    if (!pointerCoordinates) {
+      return closestCenter(args);
+    }
+
+    const { y: pointerY } = pointerCoordinates;
+    let exactMatchId: UniqueIdentifier | null = null;
+    let closestContainer: { id: UniqueIdentifier; distance: number } | null = null;
+
+    interface ItemBound {
+      id: UniqueIdentifier;
+      top: number;
+      bottom: number;
+      centerY: number;
+    }
+
+    const bounds: ItemBound[] = [];
+
+    for (const container of droppableContainers) {
+      if (container.disabled) continue;
+      const node = container.node.current;
+      let top: number;
+      let bottom: number;
+      let centerY: number;
+
+      if (node) {
+        // Получаем реальные экранные координаты DOM-узла карточки,
+        // игнорируя временный смещающий transform анимации раздвигания
+        const rect = getClientRect(node, { ignoreTransform: true });
+        top = rect.top;
+        bottom = rect.bottom;
+        centerY = rect.top + rect.height / 2;
+      } else {
+        const cached = droppableRects.get(container.id);
+        if (!cached) continue;
+        top = cached.top;
+        bottom = cached.bottom;
+        centerY = cached.top + cached.height / 2;
+      }
+
+      bounds.push({ id: container.id, top, bottom, centerY });
+
+      // Прямое попадание по вертикали курсора внутрь карточки
+      if (pointerY >= top && pointerY <= bottom) {
+        exactMatchId = container.id;
+      }
+
+      // Если курсор окажется в межэлементном зазоре — расстояние до центра карточки
+      const distance = Math.abs(centerY - pointerY);
+      if (!closestContainer || distance < closestContainer.distance) {
+        closestContainer = { id: container.id, distance };
+      }
+    }
+
+    // 1. Если курсор строго внутри карточки — мгновенное точное попадание
+    if (exactMatchId) {
+      return [{ id: exactMatchId }];
+    }
+
+    if (bounds.length > 0) {
+      // Сортируем по реальной вертикальной координате на экране
+      bounds.sort((a, b) => a.top - b.top);
+
+      // 2. Если курсор выше верхней границы самого верхнего элемента списка
+      // (например, пользователь поднял курсор к заголовку или краю для автоскролла)
+      if (pointerY < bounds[0].top) {
+        return [{ id: bounds[0].id }];
+      }
+
+      // 3. Если курсор ниже нижней границы самого последнего элемента списка
+      if (pointerY > bounds[bounds.length - 1].bottom) {
+        return [{ id: bounds[bounds.length - 1].id }];
+      }
+    }
+
+    // 4. Если курсор между элементами — выбираем ближайший по вертикали
+    if (closestContainer) {
+      return [{ id: closestContainer.id }];
+    }
+
+    return closestCenter(args);
+  }, []);
 
   /** Набор уже добавленных идентификаторов (вычисление за O(N)). */
   const addedIds = useMemo(() => {
@@ -273,25 +275,38 @@ export function ContextMenuSettingsTab() {
     setActiveId(event.active.id);
   }, []);
 
+  const handleDragCancel = useCallback(() => {
+    setActiveId(null);
+  }, []);
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
     setEntries((prev) => {
-      const oldIndex = prev.findIndex((e) => e.key === active.id);
-      const newIndex = prev.findIndex((e) => e.key === over.id);
+      const oldIndex = prev.findIndex((e) => String(e.key) === String(active.id));
+      const newIndex = prev.findIndex((e) => String(e.key) === String(over.id));
       if (oldIndex < 0 || newIndex < 0) return prev;
-      return arrayMove(prev, oldIndex, newIndex);
+      const updated = arrayMove(prev, oldIndex, newIndex);
+      // Сразу сохраняем обновленный порядок на диск и в память
+      isSelfUpdateRef.current = true;
+      saveLayout(updated.map((e) => e.entry));
+      return updated;
     });
-    setSaved(false);
+    setSaved(true);
   }, []);
 
   // ── Мутации ─────────────────────────────────────────────────────────────
 
   const removeEntry = useCallback((key: string) => {
-    setEntries((prev) => prev.filter((e) => e.key !== key));
-    setSaved(false);
+    setEntries((prev) => {
+      const next = prev.filter((e) => e.key !== key);
+      isSelfUpdateRef.current = true;
+      saveLayout(next.map((e) => e.entry));
+      return next;
+    });
+    setSaved(true);
   }, []);
 
   const addDividerBefore = useCallback((key: string) => {
@@ -299,42 +314,57 @@ export function ContextMenuSettingsTab() {
       const idx = prev.findIndex((e) => e.key === key);
       if (idx < 0) return prev;
       const newEntry: KeyedEntry = {
-        key: generateKey("divider"),
+        key: generateStableKey({ type: "divider" }),
         entry: { type: "divider" },
       };
       const copy = [...prev];
       copy.splice(idx, 0, newEntry);
+      isSelfUpdateRef.current = true;
+      saveLayout(copy.map((e) => e.entry));
       return copy;
     });
-    setSaved(false);
+    setSaved(true);
   }, []);
 
   const addItem = useCallback((descriptor: MenuItemDescriptor) => {
+    const entry: LayoutEntry = { type: "item", id: descriptor.id };
     const newEntry: KeyedEntry = {
-      key: generateKey(`item-${descriptor.id}`),
-      entry: { type: "item", id: descriptor.id },
+      key: generateStableKey(entry),
+      entry,
     };
-    setEntries((prev) => [...prev, newEntry]);
-    setSaved(false);
+    setEntries((prev) => {
+      const next = [...prev, newEntry];
+      isSelfUpdateRef.current = true;
+      saveLayout(next.map((e) => e.entry));
+      return next;
+    });
+    setSaved(true);
   }, []);
 
   const addDividerAtEnd = useCallback(() => {
     const newEntry: KeyedEntry = {
-      key: generateKey("divider"),
+      key: generateStableKey({ type: "divider" }),
       entry: { type: "divider" },
     };
-    setEntries((prev) => [...prev, newEntry]);
-    setSaved(false);
+    setEntries((prev) => {
+      const next = [...prev, newEntry];
+      isSelfUpdateRef.current = true;
+      saveLayout(next.map((e) => e.entry));
+      return next;
+    });
+    setSaved(true);
   }, []);
 
   // ── Сохранение / сброс ──────────────────────────────────────────────────
 
   const handleSave = useCallback(() => {
+    isSelfUpdateRef.current = true;
     saveLayout(entries.map((e) => e.entry));
     setSaved(true);
   }, [entries]);
 
   const handleReset = useCallback(() => {
+    isSelfUpdateRef.current = true;
     const layout = resetLayout();
     setEntries(attachKeys(layout));
     setSaved(true);
@@ -343,7 +373,7 @@ export function ContextMenuSettingsTab() {
   // ── Данные для DragOverlay ───────────────────────────────────────────────
 
   const activeEntry = activeId
-    ? entries.find((e) => e.key === activeId)
+    ? entries.find((e) => String(e.key) === String(activeId))
     : null;
 
   const activeDescriptor =
@@ -374,10 +404,9 @@ export function ContextMenuSettingsTab() {
             type="button"
             className={`btn btn--sm ${saved ? "btn--secondary" : "btn--accent"}`}
             onClick={handleSave}
-            disabled={saved}
             title="Сохранить текущую раскладку меню"
           >
-            {saved ? <><Check size={13} /> Сохранено</> : "Сохранить"}
+            <Check size={13} /> Сохранено
           </button>
         </div>
       </div>
@@ -387,21 +416,41 @@ export function ContextMenuSettingsTab() {
         {/* Левая колонка — текущее меню */}
         <div className="cmenu-editor__current">
           <div className="cmenu-editor__col-header">
-            Текущее меню
+            <SlidersHorizontal size={14} style={{ color: "var(--accent)" }} />
+            <span>Текущее меню</span>
             <span className="cmenu-editor__count">{entries.length}</span>
           </div>
 
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={collisionDetectionStrategy}
+            measuring={{
+              droppable: {
+                strategy: MeasuringStrategy.Always,
+                frequency: 20,
+              },
+            }}
+            autoScroll={{
+              threshold: {
+                x: 0.15,
+                y: 0.15,
+              },
+              acceleration: 10,
+              layoutShiftCompensation: false,
+            }}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
+            <ScrollSync
+              containerRef={scrollContainerRef}
+              isDragging={activeId !== null}
+            />
             <SortableContext
               items={itemKeys}
               strategy={verticalListSortingStrategy}
             >
-              <div className="cmenu-editor__list">
+              <div className="cmenu-editor__list" ref={scrollContainerRef}>
                 {entries.length === 0 ? (
                   <div className="cmenu-editor__empty">
                     <span>Меню пусто. Добавьте пункты из правой колонки.</span>
@@ -427,9 +476,11 @@ export function ContextMenuSettingsTab() {
               </div>
             </SortableContext>
 
-            <DragOverlay>
+            <DragOverlay dropAnimation={null}>
               {activeEntry ? (
-                <OverlayCard entry={activeEntry.entry} descriptor={activeDescriptor} />
+                <div style={{ pointerEvents: "none", cursor: "grabbing" }}>
+                  <OverlayCard entry={activeEntry.entry} descriptor={activeDescriptor} />
+                </div>
               ) : null}
             </DragOverlay>
           </DndContext>
@@ -447,7 +498,8 @@ export function ContextMenuSettingsTab() {
         {/* Правая колонка — доступные пункты */}
         <div className="cmenu-editor__available">
           <div className="cmenu-editor__col-header">
-            Доступные пункты
+            <FolderOpen size={14} style={{ color: "var(--accent)" }} />
+            <span>Доступные пункты</span>
             <span className="cmenu-editor__count">{availableItems.length}</span>
           </div>
           <div className="cmenu-editor__available-list">
@@ -460,7 +512,7 @@ export function ContextMenuSettingsTab() {
               availableItems.map((descriptor) => (
                 <div key={descriptor.id} className="cmenu-available-item">
                   <span className="cmenu-available-item__icon">
-                    {ICON_MAP[descriptor.iconName]}
+                    {MENU_ICON_MAP[descriptor.iconName]}
                   </span>
                   <div className="cmenu-available-item__info">
                     <span className="cmenu-available-item__label">{descriptor.label}</span>

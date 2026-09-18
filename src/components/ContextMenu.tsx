@@ -29,6 +29,9 @@ import {
   Trash2,
   LayoutTemplate,
   Timer,
+  SlidersHorizontal,
+  Cpu,
+  Eye,
 } from "lucide-react";
 import {
   type TimeDisplayPosition,
@@ -53,6 +56,14 @@ import {
   saveControlBarStyle,
   CONTROL_BAR_STYLE_OPTIONS,
 } from "../utils/controlBarStyleUtils";
+import {
+  loadUserPresets,
+  applySettingsPreset,
+  getSavedActivePresetId,
+  BUILT_IN_PRESETS,
+  type SettingsPreset,
+} from "../utils/presetsUtils";
+import type { ModelFileItem, UpscaleStatus, UpscaleSettings } from "./upscale/types";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */
@@ -98,6 +109,20 @@ function getUiScale(): number {
   return Number.isNaN(zoom) || zoom <= 0 ? 1 : zoom;
 }
 
+/** Список переключаемых кнопок нижней панели управления. */
+const CONTROL_BUTTON_ITEMS = [
+  { id: "repeat", label: "Повтор", defaultChecked: true },
+  { id: "shuffle", label: "Случайный порядок", defaultChecked: true },
+  { id: "alwaysOnTop", label: "Поверх всех окон", defaultChecked: true },
+  { id: "info", label: "Информация о файле", defaultChecked: true },
+  { id: "mediaInfo", label: "Свойства MediaInfo", defaultChecked: true },
+  { id: "visualizer", label: "Аудио-визуалайзер", defaultChecked: true },
+  { id: "screenshot", label: "Сделать скриншот", defaultChecked: true },
+  { id: "playlist", label: "Плейлист", defaultChecked: true },
+  { id: "fullscreen", label: "Полный экран", defaultChecked: true },
+  { id: "skipOpening", label: "Перемотка опенинга", defaultChecked: false },
+];
+
 /** Статические узлы иконок для предотвращения лишних пересозданий VNode при рендере. */
 const STATIC_ICONS = {
   openFile: <FolderOpen size={15} />,
@@ -111,15 +136,18 @@ const STATIC_ICONS = {
   rotation: <RotateCw size={15} />,
   ambient: <Sparkles size={15} />,
   speed: <Zap size={15} />,
+  upscale: <Cpu size={15} />,
   repeatMode: <Repeat size={15} />,
   shuffle: <Shuffle size={15} />,
   alwaysOnTop: <Pin size={15} />,
   screenshot: <Camera size={15} />,
   mediaInfo: <Info size={15} />,
   detailedMediaInfo: <FileText size={15} />,
+  presets: <SlidersHorizontal size={15} />,
   timePosition: <Clock size={15} />,
   timeFormat: <Timer size={15} />,
   controlBarStyle: <LayoutTemplate size={15} />,
+  controlButtonsVisibility: <Eye size={15} />,
   settings: <Settings size={15} />,
 };
 
@@ -155,9 +183,52 @@ export function ContextMenu({
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>(() => getRecentFiles());
   const [menuLayout, setMenuLayout] = useState<LayoutEntry[]>(() => getSavedLayout());
 
+  // Стейты пресетов пользователя
+  const [userPresets, setUserPresets] = useState<SettingsPreset[]>([]);
+  const [activePresetId, setActivePresetId] = useState<string | null>(() => getSavedActivePresetId());
+
+  // Стейты моделей апскейлинга
+  const [upscaleModels, setUpscaleModels] = useState<ModelFileItem[]>([]);
+  const [upscaleMode, setUpscaleMode] = useState<"off" | "ai">(() =>
+    (localStorage.getItem("l-mpv-upscale-mode") as "off" | "ai") || "off"
+  );
+  const [selectedModel, setSelectedModel] = useState<string>(() =>
+    localStorage.getItem("l-mpv-upscale-selected-model") || ""
+  );
+  const [selectedSlot, setSelectedSlot] = useState<number>(() =>
+    Number(localStorage.getItem("l-mpv-upscale-slot") || 1001)
+  );
+  const [upscaleBackend, setUpscaleBackend] = useState<"DirectML" | "TensorRT">(() =>
+    (localStorage.getItem("l-mpv-upscale-backend") as "DirectML" | "TensorRT") || "DirectML"
+  );
+
+  // Стейт видимости кнопок нижней панели
+  const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem("l-mpv-visible-buttons");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
   useEffect(() => {
     invoke<{ mode: string }>("get_ambient_settings")
       .then((cfg) => setAmbientMode(cfg.mode))
+      .catch(console.error);
+
+    // Загрузка пресетов
+    loadUserPresets()
+      .then((presets) => setUserPresets(presets))
+      .catch(console.error);
+
+    // Загрузка моделей апскейлинга
+    invoke<UpscaleStatus>("get_upscale_status")
+      .then((st) => {
+        if (st && Array.isArray(st.models)) {
+          setUpscaleModels(st.models);
+        }
+      })
       .catch(console.error);
 
     const handleSettingsChanged = () => {
@@ -165,12 +236,38 @@ export function ContextMenu({
       setTimeFormat(getSavedTimeFormat());
       setControlBarStyle(getSavedControlBarStyle());
       setRecentFiles(getRecentFiles());
+      setActivePresetId(getSavedActivePresetId());
+      setUpscaleMode((localStorage.getItem("l-mpv-upscale-mode") as "off" | "ai") || "off");
+      setSelectedModel(localStorage.getItem("l-mpv-upscale-selected-model") || "");
+      setSelectedSlot(Number(localStorage.getItem("l-mpv-upscale-slot") || 1001));
+      setUpscaleBackend((localStorage.getItem("l-mpv-upscale-backend") as "DirectML" | "TensorRT") || "DirectML");
+      try {
+        const raw = localStorage.getItem("l-mpv-visible-buttons");
+        if (raw) setVisibleButtons(JSON.parse(raw));
+      } catch (e) {
+        console.error(e);
+      }
     };
+
     const handleRecentChanged = () => {
       setRecentFiles(getRecentFiles());
     };
+
     const handleLayoutChanged = () => {
       setMenuLayout(getSavedLayout());
+    };
+
+    const handlePresetsUpdated = () => {
+      loadUserPresets().then(setUserPresets).catch(console.error);
+    };
+
+    const handlePresetApplied = (e: Event) => {
+      const customEvent = e as CustomEvent<SettingsPreset>;
+      if (customEvent.detail?.id) {
+        setActivePresetId(customEvent.detail.id);
+      } else {
+        setActivePresetId(getSavedActivePresetId());
+      }
     };
 
     window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
@@ -178,6 +275,8 @@ export function ContextMenu({
     window.addEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
     window.addEventListener("l-mpv-recent-files-changed", handleRecentChanged);
     window.addEventListener(LAYOUT_CHANGED_EVENT, handleLayoutChanged);
+    window.addEventListener("l-mpv-presets-updated", handlePresetsUpdated);
+    window.addEventListener("l-mpv-preset-applied", handlePresetApplied);
 
     return () => {
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
@@ -185,6 +284,8 @@ export function ContextMenu({
       window.removeEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
       window.removeEventListener("l-mpv-recent-files-changed", handleRecentChanged);
       window.removeEventListener(LAYOUT_CHANGED_EVENT, handleLayoutChanged);
+      window.removeEventListener("l-mpv-presets-updated", handlePresetsUpdated);
+      window.removeEventListener("l-mpv-preset-applied", handlePresetApplied);
     };
   }, []);
 
@@ -399,6 +500,78 @@ export function ContextMenu({
     setRecentFiles([]);
   }, []);
 
+  // ── Обработчики пресетов ──────────────────────────
+  const handleApplyPreset = useCallback(async (preset: SettingsPreset) => {
+    try {
+      await applySettingsPreset(preset);
+      setActivePresetId(preset.id);
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: `Пресет: ${preset.name}` }));
+    } catch (e) {
+      console.error("Ошибка применения пресета:", e);
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Ошибка применения пресета" }));
+    }
+    handleClose();
+  }, [handleClose]);
+
+  // ── Обработчики апскейлинга ────────────────────────
+  const handleSetUpscaleOff = useCallback(async () => {
+    const updated: UpscaleSettings = {
+      mode: "off",
+      active_slot: selectedSlot,
+      backend: upscaleBackend,
+      selected_model: selectedModel,
+    };
+    try {
+      await invoke("apply_upscale_settings", { settings: updated });
+      setUpscaleMode("off");
+      localStorage.setItem("l-mpv-upscale-mode", "off");
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Апскейлинг выключен" }));
+      window.dispatchEvent(new Event("l-mpv-settings-changed"));
+    } catch (e) {
+      console.error("Ошибка выключения апскейлинга:", e);
+    }
+    handleClose();
+  }, [selectedSlot, upscaleBackend, selectedModel, handleClose]);
+
+  const handleSelectUpscaleModel = useCallback(async (model: ModelFileItem) => {
+    const updated: UpscaleSettings = {
+      mode: "ai",
+      active_slot: model.slot,
+      backend: upscaleBackend,
+      selected_model: model.filename,
+    };
+    try {
+      await invoke("apply_upscale_settings", { settings: updated });
+      setUpscaleMode("ai");
+      setSelectedModel(model.filename);
+      setSelectedSlot(model.slot);
+      localStorage.setItem("l-mpv-upscale-mode", "ai");
+      localStorage.setItem("l-mpv-upscale-selected-model", model.filename);
+      localStorage.setItem("l-mpv-upscale-slot", String(model.slot));
+      window.dispatchEvent(new CustomEvent("show-osd", {
+        detail: `Апскейлинг: ${model.display_name || model.filename}`,
+      }));
+      window.dispatchEvent(new Event("l-mpv-settings-changed"));
+    } catch (e) {
+      console.error("Ошибка включения модели апскейлинга:", e);
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Ошибка переключения модели апскейлинга" }));
+    }
+    handleClose();
+  }, [upscaleBackend, handleClose]);
+
+  // ── Обработчик переключения видимости кнопки панели ─
+  const handleToggleControlButton = useCallback((buttonId: string, label: string, currentVal: boolean) => {
+    const nextVal = !currentVal;
+    const updated = { ...visibleButtons, [buttonId]: nextVal };
+    setVisibleButtons(updated);
+    localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(updated));
+    window.dispatchEvent(new Event("l-mpv-settings-changed"));
+    window.dispatchEvent(new CustomEvent("show-osd", {
+      detail: `Кнопка «${label}»: ${nextVal ? "Включена" : "Скрыта"}`,
+    }));
+    handleClose();
+  }, [visibleButtons, handleClose]);
+
   const audioTracks = useMemo(() => tracks.filter((t) => t.type === "audio"), [tracks]);
   const subTracks = useMemo(() => tracks.filter((t) => t.type === "sub"), [tracks]);
 
@@ -472,6 +645,28 @@ export function ContextMenu({
         type: "submenu", icon: STATIC_ICONS.speed, label: "Скорость воспроизведения",
         children: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => ({ type: "item" as const, label: `${s}x${s === 1.0 ? " (Нормальная)" : ""}`, active: currentSpeed === s, action: () => handleSetSpeed(s) })),
       }),
+      upscale: () => ({
+        type: "submenu",
+        icon: STATIC_ICONS.upscale,
+        label: "Апскейлинг",
+        children: [
+          {
+            type: "item",
+            label: "Выключен",
+            active: upscaleMode === "off",
+            action: handleSetUpscaleOff,
+          },
+          { type: "divider" },
+          ...(upscaleModels.length > 0
+            ? upscaleModels.map((m) => ({
+                type: "item" as const,
+                label: m.display_name || m.filename,
+                active: upscaleMode === "ai" && (selectedModel === m.filename || selectedSlot === m.slot),
+                action: () => handleSelectUpscaleModel(m),
+              }))
+            : [{ type: "item" as const, label: "Нет доступных моделей", disabled: true }]),
+        ],
+      }),
       repeat_mode: () => ({
         type: "submenu", icon: STATIC_ICONS.repeatMode, label: "Режим повтора",
         children: [
@@ -491,6 +686,30 @@ export function ContextMenu({
       }),
       media_info: () => ({ type: "item", icon: STATIC_ICONS.mediaInfo, label: "Информация о файле", shortcut: "I", action: () => { onShowMediaInfo(); handleClose(); } }),
       detailed_media_info: () => ({ type: "item", icon: STATIC_ICONS.detailedMediaInfo, label: "L-MPV MediaInfo", shortcut: "Shift+F10", action: () => { onShowDetailedMediaInfo?.(); handleClose(); } }),
+      presets: () => ({
+        type: "submenu",
+        icon: STATIC_ICONS.presets,
+        label: "Пресеты",
+        children: [
+          ...(userPresets.length > 0
+            ? [
+                ...userPresets.map((p) => ({
+                  type: "item" as const,
+                  label: p.name,
+                  active: p.id === activePresetId,
+                  action: () => handleApplyPreset(p),
+                })),
+                { type: "divider" as const },
+              ]
+            : [{ type: "item" as const, label: "Нет пользовательских пресетов", disabled: true }, { type: "divider" as const }]),
+          ...BUILT_IN_PRESETS.map((p) => ({
+            type: "item" as const,
+            label: p.name,
+            active: p.id === activePresetId,
+            action: () => handleApplyPreset(p),
+          })),
+        ],
+      }),
       time_position: () => ({
         type: "submenu", icon: STATIC_ICONS.timePosition, label: "Расположение времени",
         children: TIME_POSITION_OPTIONS.map((posOption) => ({ type: "item" as const, label: posOption.label, active: currentTimePos === posOption.id, action: () => { saveTimePosition(posOption.id); setCurrentTimePos(posOption.id); window.dispatchEvent(new CustomEvent("show-osd", { detail: `Время: ${posOption.label}` })); handleClose(); } })),
@@ -502,6 +721,20 @@ export function ContextMenu({
       control_bar_style: () => ({
         type: "submenu", icon: STATIC_ICONS.controlBarStyle, label: "Стиль панели",
         children: CONTROL_BAR_STYLE_OPTIONS.map((barOption) => ({ type: "item" as const, label: barOption.label, active: controlBarStyle === barOption.id, action: () => { saveControlBarStyle(barOption.id); setControlBarStyle(barOption.id); window.dispatchEvent(new CustomEvent("show-osd", { detail: `Стиль панели: ${barOption.label}` })); handleClose(); } })),
+      }),
+      control_buttons_visibility: () => ({
+        type: "submenu",
+        icon: STATIC_ICONS.controlButtonsVisibility,
+        label: "Кнопки панели управления",
+        children: CONTROL_BUTTON_ITEMS.map((btn) => {
+          const isChecked = visibleButtons[btn.id] !== undefined ? visibleButtons[btn.id] : btn.defaultChecked;
+          return {
+            type: "item" as const,
+            label: btn.label,
+            active: isChecked,
+            action: () => handleToggleControlButton(btn.id, btn.label, isChecked),
+          };
+        }),
       }),
       settings: () => ({ type: "item", icon: STATIC_ICONS.settings, label: "Настройки", shortcut: "F2", action: () => { onShowSettings(); handleClose(); } }),
     };
@@ -534,13 +767,16 @@ export function ContextMenu({
     menuLayout, recentFiles, audioTracks, subTracks,
     downloadingTrackKey, ambientMode, currentSpeed,
     currentTimePos, timeFormat, controlBarStyle,
+    userPresets, activePresetId, upscaleModels, upscaleMode,
+    selectedModel, selectedSlot, visibleButtons,
     onOpenFile, onShowChapters, onShowMediaInfo,
     onShowDetailedMediaInfo, onShowSettings, handleClose,
     handleSelectAudio, handleSelectSub, handleDisableSubs,
     handleLoadSubFile, handleSetSpeed, handleSetAspect,
     handleSetRotation, handleSetAmbientMode, handleDownloadTrack,
     handleToggleAlwaysOnTop, handleTakeScreenshot, handleSetRepeatMode,
-    handleToggleShuffle, handleClearRecent,
+    handleToggleShuffle, handleClearRecent, handleApplyPreset,
+    handleSetUpscaleOff, handleSelectUpscaleModel, handleToggleControlButton,
   ]);
 
   // Проверка близости к правому краю для открытия подменю влево

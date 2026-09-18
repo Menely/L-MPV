@@ -6,6 +6,7 @@
  * Сохраняется в localStorage под ключом STORAGE_KEY.
  */
 
+import { invoke } from "@tauri-apps/api/core";
 import { type MenuItemId, isMenuItemId } from "./contextMenuRegistry";
 
 /** Запись раскладки меню: пункт или разделитель. */
@@ -34,6 +35,7 @@ export const DEFAULT_LAYOUT: LayoutEntry[] = [
   { type: "item", id: "rotation" },
   { type: "item", id: "ambient" },
   { type: "item", id: "speed" },
+  { type: "item", id: "upscale" },
   { type: "divider" },
   { type: "item", id: "repeat_mode" },
   { type: "item", id: "shuffle" },
@@ -43,11 +45,17 @@ export const DEFAULT_LAYOUT: LayoutEntry[] = [
   { type: "item", id: "media_info" },
   { type: "item", id: "detailed_media_info" },
   { type: "divider" },
+  { type: "item", id: "presets" },
+  { type: "divider" },
   { type: "item", id: "time_position" },
   { type: "item", id: "time_format" },
   { type: "item", id: "control_bar_style" },
+  { type: "item", id: "control_buttons_visibility" },
   { type: "item", id: "settings" },
 ];
+
+/** Кэш раскладки в памяти для мгновенного синхронного доступа. */
+let cachedLayout: LayoutEntry[] | null = null;
 
 /**
  * Валидирует сохранённую раскладку: отфильтровывает
@@ -67,30 +75,76 @@ function validateLayout(raw: unknown): LayoutEntry[] {
   return valid.some((e) => e.type === "item") ? valid : [...DEFAULT_LAYOUT];
 }
 
-/** Загружает сохранённую раскладку из localStorage. */
+/** Загружает сохранённую раскладку из портативного файла или кэша. */
 export function getSavedLayout(): LayoutEntry[] {
+  if (cachedLayout) return [...cachedLayout];
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [...DEFAULT_LAYOUT];
-    return validateLayout(JSON.parse(raw));
+    if (raw) {
+      cachedLayout = validateLayout(JSON.parse(raw));
+      return [...cachedLayout];
+    }
   } catch {
-    return [...DEFAULT_LAYOUT];
+    // Игнорируем ошибку чтения локального кэша
   }
+
+  cachedLayout = [...DEFAULT_LAYOUT];
+  return [...DEFAULT_LAYOUT];
 }
 
-/** Сохраняет раскладку в localStorage и диспатчит событие обновления. */
+/**
+ * Инициализирует и синхронизирует раскладку из портативного
+ * файла config/context_menu.json на диске.
+ */
+export async function initLayoutFromBackend(): Promise<LayoutEntry[]> {
+  try {
+    const json = await invoke<string>("get_context_menu_layout");
+    if (json && json.trim().length > 0) {
+      const parsed = JSON.parse(json);
+      const validated = validateLayout(parsed);
+      cachedLayout = validated;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(validated));
+      window.dispatchEvent(new Event(LAYOUT_CHANGED_EVENT));
+      return [...validated];
+    }
+  } catch (err) {
+    console.error("Ошибка чтения портативного файла config/context_menu.json:", err);
+  }
+  return getSavedLayout();
+}
+
+/** Автоматический фоновый запрос чтения раскладки из портативной папки config/. */
+if (typeof window !== "undefined") {
+  initLayoutFromBackend().catch(() => {});
+}
+
+/**
+ * Сохраняет раскладку в портативный файл config/context_menu.json
+ * и диспатчит событие обновления интерфейса.
+ */
 export function saveLayout(layout: LayoutEntry[]): void {
+  cachedLayout = [...layout];
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
-    window.dispatchEvent(new Event(LAYOUT_CHANGED_EVENT));
-  } catch (err) {
-    console.error("Ошибка сохранения раскладки меню:", err);
+  } catch {
+    // Игнорируем ошибку локального кэша
   }
+
+  // Физическое сохранение в портативную директорию плеера
+  invoke("save_context_menu_layout", {
+    layoutJson: JSON.stringify(layout, null, 2),
+  }).catch((err) => {
+    console.error("Ошибка сохранения в config/context_menu.json:", err);
+  });
+
+  window.dispatchEvent(new Event(LAYOUT_CHANGED_EVENT));
 }
 
-/** Сбрасывает раскладку на дефолтную и сохраняет изменение. */
+/** Сбрасывает раскладку на дефолтную и сохраняет в портативный файл. */
 export function resetLayout(): LayoutEntry[] {
   const layout = [...DEFAULT_LAYOUT];
   saveLayout(layout);
   return layout;
 }
+

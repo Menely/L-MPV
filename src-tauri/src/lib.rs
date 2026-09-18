@@ -89,12 +89,17 @@ pub fn run() {
     let config_dir = exe_dir.join("config");
     let thumb_dir = data_dir.join("thumbs");
     let logs_dir = exe_dir.join("logs");
+    let webview_dir = data_dir.join("webview");
     
     std::fs::create_dir_all(&screenshots_dir).ok();
     std::fs::create_dir_all(&data_dir).ok();
     std::fs::create_dir_all(&config_dir).ok();
     std::fs::create_dir_all(&thumb_dir).ok();
     std::fs::create_dir_all(&logs_dir).ok();
+    std::fs::create_dir_all(&webview_dir).ok();
+
+    // Полная изоляция WebView2: localStorage, кэш и профиль хранятся строго в папке плеера
+    std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", &webview_dir);
 
     // Установка глобального обработчика паник для записи вылетов в файл
     let crash_log_path = logs_dir.join("crash.log");
@@ -281,6 +286,9 @@ pub fn run() {
             commands::open_presets_folder,
             commands::write_text_file,
             commands::read_text_file,
+            // Раскладка контекстного меню (config/context_menu.json)
+            commands::get_context_menu_layout,
+            commands::save_context_menu_layout,
             // AI Upscaling & Models
             upscale::get_upscale_status,
             upscale::get_system_gpu_info,

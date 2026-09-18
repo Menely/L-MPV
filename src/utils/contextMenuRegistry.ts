@@ -16,15 +16,18 @@ export type MenuItemId =
   | "rotation"
   | "ambient"
   | "speed"
+  | "upscale"
   | "repeat_mode"
   | "shuffle"
   | "always_on_top"
   | "screenshot"
   | "media_info"
   | "detailed_media_info"
+  | "presets"
   | "time_position"
   | "time_format"
   | "control_bar_style"
+  | "control_buttons_visibility"
   | "settings";
 
 /** Статический дескриптор пункта меню для конфигуратора. */
@@ -46,15 +49,18 @@ export const MENU_ITEM_REGISTRY: MenuItemDescriptor[] = [
   { id: "rotation", label: "Поворот видео", iconName: "RotateCw", hasSubmenu: true, description: "Поворот видео на 0°, 90°, 180° или 270°" },
   { id: "ambient", label: "Подсветка полос", iconName: "Sparkles", hasSubmenu: true, description: "Режим Ambient Light: выкл / размытие / цветной фон" },
   { id: "speed", label: "Скорость воспроизведения", iconName: "Zap", hasSubmenu: true, description: "Скорость воспроизведения: 0.25× – 2×" },
+  { id: "upscale", label: "Апскейлинг", iconName: "Cpu", hasSubmenu: true, description: "Выбор нейросетевых моделей апскейлинга и качества видео" },
   { id: "repeat_mode", label: "Режим повтора", iconName: "Repeat", hasSubmenu: true, description: "Без повтора / повтор файла / повтор плейлиста" },
   { id: "shuffle", label: "Случайный порядок", iconName: "Shuffle", hasSubmenu: false, description: "Переключить случайный порядок воспроизведения плейлиста" },
   { id: "always_on_top", label: "Поверх всех окон", iconName: "Pin", hasSubmenu: false, description: "Закрепить окно плеера поверх всех приложений" },
   { id: "screenshot", label: "Сохранить кадр", iconName: "Camera", hasSubmenu: false, description: "Сохранить текущий кадр в папку скриншотов (горячая клавиша S)" },
   { id: "media_info", label: "Информация о файле", iconName: "Info", hasSubmenu: false, description: "Открыть компактное окно с техническими данными медиафайла" },
   { id: "detailed_media_info", label: "L-MPV MediaInfo", iconName: "FileText", hasSubmenu: false, description: "Открыть детальное окно MediaInfo (Shift+F10)" },
+  { id: "presets", label: "Пресеты", iconName: "SlidersHorizontal", hasSubmenu: true, description: "Выбор пользовательских и встроенных пресетов настроек" },
   { id: "time_position", label: "Расположение времени", iconName: "Clock", hasSubmenu: true, description: "Выбор позиции отображения таймера в интерфейсе" },
   { id: "time_format", label: "Формат времени", iconName: "Timer", hasSubmenu: true, description: "Формат таймера: прошедшее / оставшееся / до конца / …" },
   { id: "control_bar_style", label: "Стиль панели", iconName: "LayoutTemplate", hasSubmenu: true, description: "Стиль нижней панели управления плеером" },
+  { id: "control_buttons_visibility", label: "Кнопки панели управления", iconName: "Eye", hasSubmenu: true, description: "Настройка видимости кнопок на нижней панели управления" },
   { id: "settings", label: "Настройки", iconName: "Settings", hasSubmenu: false, description: "Открыть окно настроек L-MPV (F2)" },
 ];
 
