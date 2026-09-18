@@ -62,6 +62,16 @@ interface HotkeyConflict {
   reserved?: boolean;
 }
 
+/** Группировка статична — считаем один раз на модуль, а не на каждый рендер. */
+const CATEGORIZED_HOTKEYS: Record<string, typeof HOTKEY_ACTIONS> = HOTKEY_ACTIONS.reduce(
+  (acc, item) => {
+    if (!acc[item.category]) acc[item.category] = [];
+    acc[item.category].push(item);
+    return acc;
+  },
+  {} as Record<string, typeof HOTKEY_ACTIONS>
+);
+
 /**
  * Вкладка настроек горячих клавиш.
  * Управляет своими состояниями самостоятельно.
@@ -88,19 +98,18 @@ export function HotkeysSettingsTab({
   };
 
   // Финальная запись бинда. stealFrom — забрать комбинацию у другого действия.
+  // Без сайд-эффектов внутри апдейтера: считаем от свежего стейта замыкания.
   const applyBinding = (targetId: string, index: number, code: string, stealFrom: string | null) => {
-    setCustomHotkeys((prev) => {
-      const next: Record<string, string[]> = { ...prev };
-      if (stealFrom) {
-        next[stealFrom] = (next[stealFrom] || []).filter((c) => c !== code);
-      }
-      const arr = [...(next[targetId] || [])];
-      if (index < arr.length) arr[index] = code;
-      else arr.push(code);
-      next[targetId] = arr;
-      saveCustomHotkeys(next);
-      return next;
-    });
+    const next: Record<string, string[]> = { ...customHotkeys };
+    if (stealFrom) {
+      next[stealFrom] = (next[stealFrom] || []).filter((c) => c !== code);
+    }
+    const arr = [...(next[targetId] || [])];
+    if (index < arr.length) arr[index] = code;
+    else arr.push(code);
+    next[targetId] = arr;
+    setCustomHotkeys(next);
+    saveCustomHotkeys(next);
     setRecordingAction(null);
     setConflict(null);
   };
@@ -143,15 +152,6 @@ export function HotkeysSettingsTab({
       onRecordingChange(recordingAction !== null);
     }
   }, [recordingAction, onRecordingChange]);
-
-  const categorizedHotkeys = HOTKEY_ACTIONS.reduce(
-    (acc, item) => {
-      if (!acc[item.category]) acc[item.category] = [];
-      acc[item.category].push(item);
-      return acc;
-    },
-    {} as Record<string, typeof HOTKEY_ACTIONS>
-  );
 
   return (
     <div className="modal__section">
@@ -203,7 +203,7 @@ export function HotkeysSettingsTab({
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {Object.entries(categorizedHotkeys).map(([category, items]) => {
+        {Object.entries(CATEGORIZED_HOTKEYS).map(([category, items]) => {
           const secKey = `hk_${category}`;
           const isOpen = !!openSections[secKey];
 
