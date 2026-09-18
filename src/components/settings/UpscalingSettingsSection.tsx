@@ -37,6 +37,7 @@ import {
 } from "@dnd-kit/sortable";
 import { BackendSelector } from "../upscale/BackendSelector";
 import { ModelListItem } from "../upscale/ModelListItem";
+import { getPreloadedUpscaleStatus, storeUpscaleStatus } from "./settingsTabPreload";
 
 export type {
   ModelFileItem,
@@ -59,8 +60,10 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   onClose: _onClose,
   onRecordingChange,
 }) => {
-  const [status, setStatus] = useState<UpscaleStatus | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  // Синхронное чтение предзагруженного кэша: первый paint уже полный
+  // (список моделей + GPU), окно настроек не прыгает после прилёта данных.
+  const [status, setStatus] = useState<UpscaleStatus | null>(() => getPreloadedUpscaleStatus());
+  const [loading, setLoading] = useState<boolean>(() => getPreloadedUpscaleStatus() === null);
   const [isDownloadingEngine, setIsDownloadingEngine] = useState<boolean>(false);
   const [isDeletingEngine, setIsDeletingEngine] = useState<boolean>(false);
   const [compilingModel, setCompilingModel] = useState<string | null>(null);
@@ -169,11 +172,13 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     const promise = (async () => {
       try {
         // Флаг loading отображаем исключительно при самом первом открытии, когда данных еще нет
-        if (isMountedRef.current && !isInitialLoadedRef.current) {
+        // (с предзагруженным кэшем скелетон не мелькает — сразу полный контент)
+        if (isMountedRef.current && !isInitialLoadedRef.current && !getPreloadedUpscaleStatus()) {
           setLoading(true);
         }
         const currentStatus = await invoke<UpscaleStatus>("get_upscale_status");
         if (isMountedRef.current) {
+          storeUpscaleStatus(currentStatus);
           setStatus(currentStatus);
           // Очищаем ошибку загрузки статуса при успешном получении
           setErrorMessage((prev) =>

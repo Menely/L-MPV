@@ -51,7 +51,11 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
-    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+    const body = bodyRef.current;
+    if (body) body.scrollTop = 0;
+    const restoreBody = () => {
+      if (body) body.style.overflowY = "";
+    };
     if (!panel || !motionAllowed() || startHeightRef.current <= 0) {
       if (panel) {
         panel.style.height = "";
@@ -59,6 +63,7 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
         panel.style.transition = "";
       }
       startHeightRef.current = 0;
+      restoreBody();
       return;
     }
     const h0 = startHeightRef.current;
@@ -68,8 +73,12 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     if (Math.abs(h1 - h0) < 2) {
       panel.style.height = "";
       panel.style.clipPath = "";
+      restoreBody();
       return;
     }
+    // Пока окно едет — скроллбар тела прячем, иначе при сужении
+    // он мелькает на время анимации, хотя по факту не нужен.
+    if (body) body.style.overflowY = "hidden";
     panel.style.height = `${h0}px`;
     void panel.offsetHeight; // reflow: transition стартует со старой высоты
     panel.style.transition = `height ${TRANSITION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`;
@@ -81,6 +90,7 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
       panel.style.transition = "";
       panel.style.height = "";
       panel.style.clipPath = "";
+      restoreBody();
       panel.removeEventListener("transitionend", onEnd);
     };
     const onEnd = (e: TransitionEvent) => {
@@ -92,6 +102,10 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     return () => {
       window.clearTimeout(timer);
       panel.removeEventListener("transitionend", onEnd);
+      restoreBody();
+      panel.style.transition = "";
+      panel.style.height = "";
+      panel.style.clipPath = "";
     };
   }, [activeTab]);
 

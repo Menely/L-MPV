@@ -73,6 +73,7 @@ import { IntegrationSettingsTab } from "./settings/IntegrationSettingsTab";
 import { AppearanceSettingsTab } from "./settings/AppearanceSettingsTab";
 import { GeneralSettingsTab } from "./settings/GeneralSettingsTab";
 import { useSettingsTabTransition } from "./settings/useSettingsTabTransition";
+import { preloadSettingsTabs } from "./settings/settingsTabPreload";
 import { SettingsPreset } from "../utils/presetsUtils";
 import {
   UiRadiusLevel,
@@ -176,6 +177,12 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         clearTimeout(closeTimerRef.current);
       }
     };
+  }, []);
+
+  // Прогрев тяжёлых вкладок (пресеты, апскейлинг) при открытии окна:
+  // к моменту переключения данные уже в кэше, первый paint полный.
+  useEffect(() => {
+    preloadSettingsTabs();
   }, []);
 
   // Навигация стрелками влево и вправо для переключения категорий настроек
