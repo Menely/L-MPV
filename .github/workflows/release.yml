@@ -104,3 +104,97 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  publish-linux-appimage:
+    name: Linux AppImage x86_64
+    needs: publish-tauri
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Проверка исходного кода
+        uses: actions/checkout@v4
+
+      - name: Установка системных зависимостей
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
+            patchelf libmpv-dev mpv ffmpeg mediainfo libfuse2 curl git cmake ninja-build \
+            meson python3-dev cython3 nasm libvulkan-dev glslang-tools libavcodec-dev \
+            libavformat-dev libavutil-dev libswresample-dev libswscale-dev libass-dev \
+            libplacebo-dev libpipewire-0.3-dev libpulse-dev libx11-dev libwayland-dev \
+            wayland-protocols libegl1-mesa-dev libzimg-dev
+
+      - name: Настройка Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Настройка Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Кэширование сборок Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Синхронизация версии
+        shell: bash
+        run: |
+          tag='${{ github.ref_name }}'
+          version="${tag#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            version="$(node -p "require('./package.json').version")"
+          fi
+          npm version "$version" --no-git-tag-version
+          sed -i -E "0,/^version = \"[^\"]+\"/s//version = \"$version\"/" src-tauri/Cargo.toml
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Сборка самодостаточного AppImage
+        run: bash scripts/build-linux-appimage.sh
+
+      - name: Публикация AppImage
+        run: |
+          tag='${{ github.ref_name }}'
+          [[ "$tag" =~ ^v[0-9] ]] || tag="v$VERSION"
+          gh release upload "$tag" dist-linux/*.AppImage --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-arch-linux:
+    name: Arch Linux package x86_64
+    needs: publish-tauri
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Установка инструментов CI
+        run: pacman -Syu --noconfirm git github-cli nodejs npm rust webkit2gtk-4.1 gtk3 ffmpeg mediainfo cmake ninja meson python cython vulkan-headers glslang libplacebo libass zimg patchelf
+
+      - name: Проверка исходного кода
+        uses: actions/checkout@v4
+
+      - name: Сборка pacman-пакета
+        shell: bash
+        run: |
+          tag='${{ github.ref_name }}'
+          version="${tag#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            version="$(node -p "require('./package.json').version")"
+          fi
+          sed -i "s/^pkgver=.*/pkgver=$version/" packaging/arch/PKGBUILD
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          su builder -c "cd '$GITHUB_WORKSPACE/packaging/arch' && makepkg --printsrcinfo > .SRCINFO && makepkg --noconfirm --cleanbuild --nodeps"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Публикация Arch Linux пакета и PKGBUILD
+        shell: bash
+        run: |
+          tag='${{ github.ref_name }}'
+          [[ "$tag" =~ ^v[0-9] ]] || tag="v$VERSION"
+          gh release upload "$tag" packaging/arch/*.pkg.tar.zst packaging/arch/PKGBUILD packaging/arch/.SRCINFO packaging/arch/l-mpv.desktop --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
