@@ -287,13 +287,15 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                   };
                   const resetBtnStyle: React.CSSProperties = {
                     height: 22,
-                    padding: "0 8px",
+                    width: 26,
+                    padding: 0,
                     borderRadius: "var(--radius-sm)",
                     display: "flex",
                     alignItems: "center",
-                    gap: 4,
+                    justifyContent: "center",
                     fontSize: "0.70rem",
                     cursor: "pointer",
+                    flexShrink: 0,
                   };
                   const btnStyle = (isSel: boolean, padding = "6px 4px"): React.CSSProperties => ({
                     display: "flex",
@@ -410,8 +412,16 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     saveUiOpacity(0.88);
                                   }}
                                   className="btn btn--secondary btn--sm"
-                                  style={resetBtnStyle}
+                                  style={{
+                                    ...resetBtnStyle,
+                                    opacity: Math.abs(uiOpacity - 0.88) > 0.005 ? 1 : 0,
+                                    visibility: Math.abs(uiOpacity - 0.88) > 0.005 ? "visible" : "hidden",
+                                    pointerEvents: Math.abs(uiOpacity - 0.88) > 0.005 ? "auto" : "none",
+                                    transform: Math.abs(uiOpacity - 0.88) > 0.005 ? "scale(1)" : "scale(0.85)",
+                                    transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                                  }}
                                   title="Сбросить на 88%"
+                                  tabIndex={Math.abs(uiOpacity - 0.88) > 0.005 ? 0 : -1}
                                 >
                                   <RotateCcw size={11} />
                                 </button>
@@ -695,27 +705,33 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                       <div className="controls-and-time-grid">
                         {/* Левая колонка: Стиль панели управления (друг под другом) */}
                         <div style={{ ...cardStyle, margin: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <PanelBottom size={14} style={{ color: "var(--accent)" }} />
-                              <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                          <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                              <PanelBottom size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
+                              <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
                                 Стиль панели управления
                               </span>
                             </div>
-                            {controlBarStyle !== "floating" && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setControlBarStyle("floating");
-                                  saveControlBarStyle("floating");
-                                }}
-                                className="btn btn--secondary btn--sm"
-                                style={resetBtnStyle}
-                                title="Сбросить на Парящую"
-                              >
-                                <RotateCcw size={11} />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setControlBarStyle("floating");
+                                saveControlBarStyle("floating");
+                              }}
+                              className="btn btn--secondary btn--sm"
+                              style={{
+                                ...resetBtnStyle,
+                                opacity: controlBarStyle !== "floating" ? 1 : 0,
+                                visibility: controlBarStyle !== "floating" ? "visible" : "hidden",
+                                pointerEvents: controlBarStyle !== "floating" ? "auto" : "none",
+                                transform: controlBarStyle !== "floating" ? "scale(1)" : "scale(0.85)",
+                                transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                              }}
+                              title="Сбросить на Парящую"
+                              tabIndex={controlBarStyle !== "floating" ? 0 : -1}
+                            >
+                              <RotateCcw size={11} />
+                            </button>
                           </div>
 
                           {/* Наглядные реалистичные превью плеера друг под другом */}
@@ -787,27 +803,33 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                         <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
                           {/* Справа сверху: Позиция времени */}
                           <div style={{ ...cardStyle, margin: 0, flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <Clock size={14} style={{ color: "var(--accent)" }} />
-                                <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                            <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                                <Clock size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
+                                <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
                                   Позиция времени
                                 </span>
                               </div>
-                              {timePosition !== "timeline_right" && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setTimePosition("timeline_right");
-                                    saveTimePosition("timeline_right");
-                                  }}
-                                  className="btn btn--secondary btn--sm"
-                                  style={resetBtnStyle}
-                                  title="Сбросить на Справа"
-                                >
-                                  <RotateCcw size={11} />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTimePosition("timeline_right");
+                                  saveTimePosition("timeline_right");
+                                }}
+                                className="btn btn--secondary btn--sm"
+                                style={{
+                                  ...resetBtnStyle,
+                                  opacity: timePosition !== "timeline_right" ? 1 : 0,
+                                  visibility: timePosition !== "timeline_right" ? "visible" : "hidden",
+                                  pointerEvents: timePosition !== "timeline_right" ? "auto" : "none",
+                                  transform: timePosition !== "timeline_right" ? "scale(1)" : "scale(0.85)",
+                                  transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                                }}
+                                title="Сбросить на Справа"
+                                tabIndex={timePosition !== "timeline_right" ? 0 : -1}
+                              >
+                                <RotateCcw size={11} />
+                              </button>
                             </div>
 
                             {/* Компактные сегментные кнопки позиций времени */}
@@ -847,27 +869,33 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
                           {/* Справа снизу: Формат отображения времени */}
                           <div style={{ ...cardStyle, margin: 0, flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <Timer size={14} style={{ color: "var(--accent)" }} />
-                                <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                            <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                                <Timer size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
+                                <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
                                   Формат времени
                                 </span>
                               </div>
-                              {timeFormat !== "elapsed_total" && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setTimeFormat("elapsed_total");
-                                    saveTimeFormat("elapsed_total");
-                                  }}
-                                  className="btn btn--secondary btn--sm"
-                                  style={resetBtnStyle}
-                                  title="Сбросить на Прошедшее / Общее"
-                                >
-                                  <RotateCcw size={11} />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTimeFormat("elapsed_total");
+                                  saveTimeFormat("elapsed_total");
+                                }}
+                                className="btn btn--secondary btn--sm"
+                                style={{
+                                  ...resetBtnStyle,
+                                  opacity: timeFormat !== "elapsed_total" ? 1 : 0,
+                                  visibility: timeFormat !== "elapsed_total" ? "visible" : "hidden",
+                                  pointerEvents: timeFormat !== "elapsed_total" ? "auto" : "none",
+                                  transform: timeFormat !== "elapsed_total" ? "scale(1)" : "scale(0.85)",
+                                  transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                                }}
+                                title="Сбросить на Прошедшее / Общее"
+                                tabIndex={timeFormat !== "elapsed_total" ? 0 : -1}
+                              >
+                                <RotateCcw size={11} />
+                              </button>
                             </div>
 
                             {/* 4 компактные сегментные кнопки с примерами тайминга */}
