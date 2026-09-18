@@ -126,6 +126,13 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     }
   });
   const [showTrackNames, setShowTrackNames] = useState<boolean>(true);
+  const [subtitlesAvoidUi, setSubtitlesAvoidUi] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('l-mpv-subtitles-avoid-ui') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [animationsEnabled, setAnimationsEnabled] = useState<boolean>(() => {
     const saved = localStorage.getItem('l-mpv-animations-enabled');
     return saved !== null ? saved === 'true' : true;
@@ -135,7 +142,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.0.2");
+  const [appVersion, setAppVersion] = useState<string>("2.5.0");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
@@ -312,6 +319,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       setTimePosition(getSavedTimePosition());
       setTimeFormat(getSavedTimeFormat());
       setControlBarStyle(getSavedControlBarStyle());
+      setSubtitlesAvoidUi(localStorage.getItem('l-mpv-subtitles-avoid-ui') === 'true');
     };
     window.addEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
     window.addEventListener("l-mpv-ui-scale-changed", handleScaleChanged);
@@ -439,6 +447,17 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       }
     };
     loadPlayNextOnEnd();
+
+    const loadSubtitlesAvoidUi = async () => {
+      try {
+        const val = await invoke<boolean>("get_subtitles_avoid_ui");
+        setSubtitlesAvoidUi(val);
+        localStorage.setItem("l-mpv-subtitles-avoid-ui", val ? "true" : "false");
+      } catch (e) {
+        console.error("Ошибка загрузки настройки subtitles_avoid_ui:", e);
+      }
+    };
+    loadSubtitlesAvoidUi();
 
     const loadVersion = async () => {
       try {
@@ -642,6 +661,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               handleResetDefault={handleResetDefault}
               showTrackNames={showTrackNames}
               setShowTrackNames={setShowTrackNames}
+              subtitlesAvoidUi={subtitlesAvoidUi}
+              setSubtitlesAvoidUi={setSubtitlesAvoidUi}
             />
           )}
 

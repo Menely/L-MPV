@@ -189,6 +189,8 @@ impl MpvManager {
             // ─── Субтитры ───────────────────────────────
             Self::set_option(&api, handle, "demuxer-mkv-subtitle-preroll", "yes");
             Self::set_option(&api, handle, "sub-auto", "fuzzy");
+            Self::set_option(&api, handle, "sub-ass-force-margins", "yes");
+            Self::set_option(&api, handle, "sub-use-margins", "yes");
 
             // ─── Поведение при конце файла ──────────────
             Self::set_option(
@@ -486,11 +488,20 @@ impl MpvManager {
             .parent()
             .map(|p| p.join("rife").to_string_lossy().replace('\\', "/"))
             .unwrap_or_else(|| format!("{}/rife", norm_models_dir));
-        // Файл статистики текущего состояния инференса
-        let stats_path = inf_dir
-            .parent()
-            .map(|p| p.join("currentanimejanai.log").to_string_lossy().replace('\\', "/"))
-            .unwrap_or_else(|| format!("{}/currentanimejanai.log", norm_inf));
+        // Файл статистики текущего состояния инференса в директории logs/
+        let logs_dir = crate::upscale::config::get_logs_dir();
+        let stats_path = logs_dir
+            .join("current_vf_ai.log")
+            .to_string_lossy()
+            .replace('\\', "/");
+
+        // Удаление старого устаревшего лог-файла currentanimejanai.log, если он остался в корне/parent
+        if let Some(parent) = inf_dir.parent() {
+            let old_log = parent.join("currentanimejanai.log");
+            if old_log.exists() {
+                let _ = std::fs::remove_file(old_log);
+            }
+        }
 
         let vf_list = self.get_property_string("vf").unwrap_or_default();
         let aji_present = vf_list.contains("aji");

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.0.2-blueviolet?style=for-the-badge" alt="Version 2.0.2">
+  <img src="https://img.shields.io/badge/Version-2.5.0-blueviolet?style=for-the-badge" alt="Version 2.5.0">
   <img src="https://img.shields.io/badge/Tauri-v2.1-blue?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri v2">
   <img src="https://img.shields.io/badge/React-19.1-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19">
   <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
@@ -26,7 +26,7 @@
 
 ## 🌟 О проекте
 
-<img src="https://github.com/Menely/L-MPV/blob/main/src-tauri/icons/icon.png" width="23" height="23" align="absmiddle"> **L-MPV** — это современный настольный медиаплеер для Windows, объединяющий эталонное качество воспроизведения нативного видеодвижка **MPV** (`vo=gpu-next`, Direct3D 11, HDR, WASAPI, студийный 32-tap sinc-ресемплинг), аппаратный **Real-Time 4K AI Апскейлинг** ( ONNX инференс через DirectML и TensorRT) с утонченным, отзывчивым интерфейсом в стиле **Glassmorphism**, созданным на **React 19** и **TypeScript**.
+<img src="https://github.com/Menely/L-MPV/blob/main/src-tauri/icons/icon.png" width="23" height="23" align="absmiddle"> **L-MPV** — это современный настольный медиаплеер для Windows, объединяющий эталонное качество воспроизведения нативного видеодвижка **MPV** (`vo=gpu-next`, Direct3D 11, HDR, WASAPI, студийный 32-tap sinc-ресемплинг), аппаратный **Real-Time 4K AI Апскейлинг** ( ONNX инференс через DirectML и TensorRT) с утонченным, отзывчивым интерфейсом в стиле **Glassmorphism**, созданным на **React 19** и **TypeScript**. ТГК - <img src="https://github.com/Menely/L-MPV/blob/main/src-tauri/icons/L-MPV_icon_watercolor.png" width="23" height="23" align="absmiddle"> [L-MPV](https://t.me/+45xNDoaEpHBjY2Qy)
 
 Плеер спроектирован по строгой концепции **True Portable Architecture (Zero-Install)**: он полностью автономен, не привязан к системному реестру Windows и не создает мусор в системных каталогах пользователя. Все конфигурации, кэш, скриншоты, универсальная папка ONNX-моделей (`models/onnx/`) и нативные бинарные библиотеки (`libmpv-2.dll`, `ffmpeg.exe`, `mediainfo.dll`) расположены непосредственно в каталоге приложения.
 
@@ -538,12 +538,12 @@ L-MPV/
 
 ## ⚡ IPC-Архитектура (Rust ↔ React)
 
-Связь интерфейса React с движком MPV, подсистемой апскейлинга и системными модулями осуществляется через **91 нативную IPC-команду**, гарантирующую мгновенный отклик и отсутствие задержек:
+Связь интерфейса React с движком MPV, подсистемой апскейлинга и системными модулями осуществляется через **94 нативные IPC-команды**, гарантирующие мгновенный отклик и отсутствие задержек:
 
 - **Апскейлинг и AI Модели (6 команд):** `get_upscale_status`, `scan_onnx_models`, `open_models_folder`, `apply_upscale_settings`, `download_recommended_models`, `switch_upscale_network_hotkey`.
 - **Воспроизведение и Плейлист (16 команд):** `open_file`, `toggle_pause`, `set_pause`, `seek`, `seek_absolute`, `frame_step`, `frame_back_step`, `playlist_prev`, `playlist_next`, `get_playlist`, `play_playlist_item`, `set_loop_file`, `set_loop_playlist`, `toggle_shuffle`, `get_play_next_on_end`, `set_play_next_on_end`.
 - **Громкость и Скорость (2 команды):** `set_volume`, `set_speed`.
-- **Дорожки и FFmpeg Извлечение (11 команд):** `get_tracks`, `set_audio_track`, `set_subtitle_track`, `disable_subtitles`, `load_subtitle_file`, `load_audio_file`, `set_video_track`, `extract_track`, `get_auto_load_tracks`, `set_auto_load_tracks`, `load_external_tracks_for_file`.
+- **Дорожки, Субтитры и FFmpeg (14 команд):** `get_tracks`, `set_audio_track`, `set_subtitle_track`, `disable_subtitles`, `load_subtitle_file`, `load_audio_file`, `set_video_track`, `extract_track`, `get_auto_load_tracks`, `set_auto_load_tracks`, `load_external_tracks_for_file`, `get_subtitles_avoid_ui`, `set_subtitles_avoid_ui_setting`, `update_subtitles_avoid_ui`.
 - **Вид, Зумирование и Окно (7 команд):** `set_aspect_ratio`, `set_rotation`, `set_video_zoom_and_pan`, `get_video_zoom`, `get_video_dimensions`, `toggle_fullscreen`.
 - **Анализ MediaInfo (5 команд):** `get_detailed_media_info`, `is_standalone_mode`, `get_standalone_mediainfo_path`, `open_mediainfo_window`, `toggle_mediainfo_window`.
 - **Скриншоты и Буфер Обмена (4 команды):** `take_screenshot`, `copy_frame_to_clipboard`, `get_screenshot_dir`, `set_screenshot_dir`.
@@ -610,7 +610,7 @@ Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MP
 ## 💬 Сообщество и Связь
 
 Присоединяйтесь к нашему Telegram-каналу для получения последних новостей, обновлений и обратной связи:
-👉 **[Telegram-канал L-MPV](https://t.me/+45xNDoaEpHBjY2Qy)**
+👉 **[Telegram-канал L-MPV](https://t.me/+iiwyl0cV6uszYTZi)**
 
 ---
 

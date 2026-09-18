@@ -30,6 +30,9 @@ pub struct AppSettings {
     /// Флаг автоматического переключения звука на внешнюю аудиодорожку при её обнаружении (по умолчанию выключен).
     #[serde(default)]
     pub auto_select_external_audio: bool,
+    /// Флаг динамического смещения субтитров выше интерфейса при его активности (по умолчанию выключен).
+    #[serde(default)]
+    pub subtitles_avoid_ui: bool,
     /// Действие по окончании видео: true - включать следующее видео, false - ничего не делать.
     #[serde(default = "default_true")]
     pub play_next_on_end: bool,
@@ -52,6 +55,7 @@ impl Default for AppSettings {
             ambient: AmbientSettings::default(),
             auto_load_tracks: false,
             auto_select_external_audio: false,
+            subtitles_avoid_ui: false,
             play_next_on_end: true,
             launch_count: 0,
             postponed_until_launch: 0,
@@ -1277,6 +1281,45 @@ pub fn set_play_next_on_end(
     let keep_open_val = if enabled { "yes" } else { "always" };
     let _ = state.mpv.set_property_string("keep-open", keep_open_val);
     settings.save_portable()
+}
+
+/// Получить текущий статус настройки динамического смещения субтитров выше интерфейса.
+#[tauri::command]
+pub fn get_subtitles_avoid_ui() -> Result<bool, String> {
+    Ok(AppSettings::load_portable().subtitles_avoid_ui)
+}
+
+/// Установить статус настройки динамического смещения субтитров с сохранением в settings.json.
+#[tauri::command]
+pub fn set_subtitles_avoid_ui_setting(
+    state: State<'_, PlayerState>,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = AppSettings::load_portable();
+    settings.subtitles_avoid_ui = enabled;
+    if !enabled {
+        let _ = state.mpv.set_property_string("sub-pos", "100");
+        let _ = state.mpv.set_property_string("sub-margin-y", "22");
+    }
+    settings.save_portable()
+}
+
+/// Динамическое обновление позиции субтитров при изменении видимости элементов управления.
+#[tauri::command]
+pub fn update_subtitles_avoid_ui(
+    state: State<'_, PlayerState>,
+    controls_visible: bool,
+) -> Result<(), String> {
+    if controls_visible {
+        // Приподнимаем субтитры выше всплывающей панели управления
+        let _ = state.mpv.set_property_string("sub-pos", "86");
+        let _ = state.mpv.set_property_string("sub-margin-y", "70");
+    } else {
+        // Возвращаем субтитры к стандартной нижней позиции
+        let _ = state.mpv.set_property_string("sub-pos", "100");
+        let _ = state.mpv.set_property_string("sub-margin-y", "22");
+    }
+    Ok(())
 }
 
 /// Сканирование и загрузка внешних дорожек и субтитров для указанного медиафайла.

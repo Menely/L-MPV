@@ -80,6 +80,13 @@ function App() {
       return false;
     }
   });
+  const [subtitlesAvoidUi, setSubtitlesAvoidUi] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("l-mpv-subtitles-avoid-ui") === "true";
+    } catch {
+      return false;
+    }
+  });
   
   const mediaTitle = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "";
 
@@ -183,10 +190,18 @@ function App() {
     return () => window.clearTimeout(updateCheckTimer);
   }, []);
 
-  // Синхронизация настройки автоскрытия панели в верхней половине окна
+  // Синхронизация настройки автоскрытия панели и привязки субтитров к интерфейсу
   useEffect(() => {
+    invoke<boolean>("get_subtitles_avoid_ui")
+      .then((val) => {
+        setSubtitlesAvoidUi(val);
+        localStorage.setItem("l-mpv-subtitles-avoid-ui", val ? "true" : "false");
+      })
+      .catch(() => {});
+
     const handleSettingsChange = () => {
       setHideControlsInUpperHalf(localStorage.getItem("l-mpv-hide-controls-upper-half") === "true");
+      setSubtitlesAvoidUi(localStorage.getItem("l-mpv-subtitles-avoid-ui") === "true");
     };
     window.addEventListener("l-mpv-settings-changed", handleSettingsChange);
     return () => window.removeEventListener("l-mpv-settings-changed", handleSettingsChange);
@@ -229,6 +244,34 @@ function App() {
       window.removeEventListener("mouseleave", handleMouseLeave);
     };
   }, [hideControlsInUpperHalf, isFullscreen]);
+
+  const shouldHideControlsInUpperHalf = hasMedia && hideControlsInUpperHalf && isCursorInUpperHalf;
+  const isControlsVisible = hasMedia && !isIdle && !shouldHideControlsInUpperHalf;
+  const lastAppliedAvoidControlsRef = useRef<boolean | null>(null);
+  const lastAvoidMediaPathRef = useRef<string | undefined>(undefined);
+
+  // Динамическое смещение субтитров выше интерфейса при его активности
+  useEffect(() => {
+    if (!hasMedia) {
+      lastAppliedAvoidControlsRef.current = null;
+      lastAvoidMediaPathRef.current = undefined;
+      return;
+    }
+
+    const isNewMedia = lastAvoidMediaPathRef.current !== mediaInfo?.path;
+    lastAvoidMediaPathRef.current = mediaInfo?.path;
+    if (isNewMedia) {
+      lastAppliedAvoidControlsRef.current = null;
+    }
+
+    const targetVisible = subtitlesAvoidUi ? isControlsVisible : false;
+    if (lastAppliedAvoidControlsRef.current === targetVisible) {
+      return;
+    }
+    lastAppliedAvoidControlsRef.current = targetVisible;
+
+    invoke("update_subtitles_avoid_ui", { controlsVisible: targetVisible }).catch(console.error);
+  }, [hasMedia, mediaInfo?.path, subtitlesAvoidUi, isControlsVisible]);
 
   const isStandaloneModeRef = useRef(false);
 
@@ -1081,8 +1124,6 @@ function App() {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
   }, []);
-
-  const shouldHideControlsInUpperHalf = hasMedia && hideControlsInUpperHalf && isCursorInUpperHalf;
 
   return (
     <div

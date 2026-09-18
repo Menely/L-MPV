@@ -23,18 +23,13 @@
   ; При тихой установке (/S) пропускаем диалоговые окна
   IfSilent skip_file_associations
 
-  ; Запрос у пользователя подтверждения ассоциаций файлов
-  MessageBox MB_YESNO|MB_ICONQUESTION "Связать видео- и аудиофайлы (.mp4, .mkv, .avi, .mp3 и др.) с L-MPV и сделать его плеером по умолчанию?" IDNO skip_file_associations
+  ; Запрос у пользователя подтверждения ассоциаций видеофайлов
+  MessageBox MB_YESNO|MB_ICONQUESTION "Связать видеофайлы (.mp4, .mkv, .avi и др.) с L-MPV?" IDNO skip_file_associations
 
   ; Регистрация ProgID для видеофайлов
   WriteRegStr SHCTX "Software\Classes\L-MPV.Video" "" "Видеофайл L-MPV"
   WriteRegStr SHCTX "Software\Classes\L-MPV.Video\DefaultIcon" "" "$INSTDIR\L-MPV.exe,0"
   WriteRegStr SHCTX "Software\Classes\L-MPV.Video\shell\open\command" "" "$\"$INSTDIR\L-MPV.exe$\" $\"%1$\""
-
-  ; Регистрация ProgID для аудиофайлов
-  WriteRegStr SHCTX "Software\Classes\L-MPV.Audio" "" "Аудиофайл L-MPV"
-  WriteRegStr SHCTX "Software\Classes\L-MPV.Audio\DefaultIcon" "" "$INSTDIR\L-MPV.exe,0"
-  WriteRegStr SHCTX "Software\Classes\L-MPV.Audio\shell\open\command" "" "$\"$INSTDIR\L-MPV.exe$\" $\"%1$\""
 
   ; Регистрация возможностей программы (Capabilities) для страницы "Приложения по умолчанию" Windows 10/11
   WriteRegStr SHCTX "Software\L-MPV\Capabilities" "ApplicationName" "L-MPV"
@@ -55,21 +50,8 @@
   !insertmacro REGISTER_EXT ".mpeg" "L-MPV.Video"
   !insertmacro REGISTER_EXT ".mpg" "L-MPV.Video"
 
-  ; Регистрация аудиоформатов
-  !insertmacro REGISTER_EXT ".mp3" "L-MPV.Audio"
-  !insertmacro REGISTER_EXT ".flac" "L-MPV.Audio"
-  !insertmacro REGISTER_EXT ".wav" "L-MPV.Audio"
-  !insertmacro REGISTER_EXT ".aac" "L-MPV.Audio"
-  !insertmacro REGISTER_EXT ".ogg" "L-MPV.Audio"
-  !insertmacro REGISTER_EXT ".m4a" "L-MPV.Audio"
-  !insertmacro REGISTER_EXT ".opus" "L-MPV.Audio"
-  !insertmacro REGISTER_EXT ".wma" "L-MPV.Audio"
-
   ; Оповещение Проводника Windows об обновлении ассоциаций и иконок
   System::Call 'Shell32::SHChangeNotify(i 0x08000000, i 0, i 0, i 0)'
-
-  ; Открытие системного диалога "Приложения по умолчанию" Windows
-  ExecShell "open" "ms-settings:defaultapps"
 
   skip_file_associations:
 !macroend

@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles, MousePointer2, Play, CornerDownRight, MousePointerClick
+  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles, MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { AccordionSection } from "./AccordionSection";
@@ -29,6 +29,8 @@ interface GeneralSettingsTabProps {
   handleResetDefault: () => void;
   showTrackNames: boolean;
   setShowTrackNames: (v: boolean) => void;
+  subtitlesAvoidUi: boolean;
+  setSubtitlesAvoidUi: (v: boolean) => void;
 }
 
 export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
@@ -42,7 +44,8 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
     hideControlsInUpperHalf, setHideControlsInUpperHalf,
     openSections, onToggleSection: toggleSection,
     screenshotDir, handlePickFolder, handleResetDefault,
-    showTrackNames, setShowTrackNames
+    showTrackNames, setShowTrackNames,
+    subtitlesAvoidUi, setSubtitlesAvoidUi
   } = props;
 
   // Стиль карточки подблока с парящей тенью и полупрозрачным фоном темы
@@ -417,7 +420,42 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             </label>
           </div>
 
-          {/* 2.4 Папка для извлечения аудио и субтитров */}
+          {/* 2.4 Привязка субтитров к интерфейсу */}
+          <div style={cardStyle}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                style={{ marginTop: 2 }}
+                checked={subtitlesAvoidUi}
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setSubtitlesAvoidUi(val);
+                  localStorage.setItem('l-mpv-subtitles-avoid-ui', val ? 'true' : 'false');
+                  try {
+                    await invoke("set_subtitles_avoid_ui_setting", { enabled: val });
+                    await invoke("update_subtitles_avoid_ui", { controlsVisible: val });
+                  } catch (err) {
+                    console.error("Ошибка сохранения настройки subtitles_avoid_ui:", err);
+                  }
+                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Subtitles size={14} style={{ color: "var(--accent)" }} />
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                    Привязка субтитров к интерфейсу
+                  </span>
+                </div>
+                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                  Приподнимает субтитры выше элементов управления, когда панель активна, и опускает их к нижнему краю экрана при её скрытии.
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* 2.5 Папка для извлечения аудио и субтитров */}
           <div style={cardStyle}>
             <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
               <input

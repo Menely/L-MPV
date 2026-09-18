@@ -296,6 +296,7 @@ pub async fn precompile_model_engine_1080p_impl(
 
         // Удаляем битый/пустой файл .engine, если он был создан
         let _ = std::fs::remove_file(&save_engine_path_for_err);
+        crate::log_error("TensorRT Compiler", &format!("Сбой оптимизации модели {}: {}", filename, err_detail));
 
         let _ = app.emit(
             "upscale-compile-progress",

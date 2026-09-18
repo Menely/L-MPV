@@ -101,26 +101,34 @@ pub fn run() {
     // Полная изоляция WebView2: localStorage, кэш и профиль хранятся строго в папке плеера
     std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", &webview_dir);
 
-    // Установка глобального обработчика паник для записи вылетов в файл
-    let crash_log_path = logs_dir.join("crash.log");
+    // Установка глобального обработчика паник для записи аварийных вылетов в logs/error.log
+    let error_log_path = logs_dir.join("error.log");
     std::panic::set_hook(Box::new(move |panic_info| {
         use std::io::Write;
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&crash_log_path)
-            .unwrap_or_else(|_| std::fs::File::create("fallback_crash.log").unwrap());
+            .open(&error_log_path)
+            .unwrap_or_else(|_| std::fs::File::create("fallback_error.log").unwrap());
         
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
             
-        let payload = panic_info.payload().downcast_ref::<&str>()
-            .unwrap_or(&"Box<dyn Any>");
-        let location = panic_info.location().map(|l| format!("{}:{}", l.file(), l.line())).unwrap_or_default();
+        let payload = panic_info
+            .payload()
+            .downcast_ref::<&str>()
+            .cloned()
+            .or_else(|| panic_info.payload().downcast_ref::<String>().map(|s| s.as_str()))
+            .unwrap_or("Критический сбой выполнения (Box<dyn Any>)");
+            
+        let location = panic_info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()))
+            .unwrap_or_else(|| "неизвестный модуль".to_string());
         
-        let _ = writeln!(file, "[{}] CRASH (Panic) at {}: {}", timestamp, location, payload);
+        let _ = writeln!(file, "[{}] [CRASH/PANIC] Локация: {}, Ошибка: {}", timestamp, location, payload);
     }));
 
     println!("[L-MPV] Создание MpvManager (Основной плеер)...");
@@ -129,7 +137,10 @@ pub fn run() {
             println!("[L-MPV] MpvManager успешно создан!");
             m
         }
-        Err(e) => panic!("[L-MPV] Ошибка создания MpvManager: {}", e),
+        Err(e) => {
+            log_error("Менеджер MPV", &format!("Фатальный сбой создания MpvManager: {}", e));
+            panic!("[L-MPV] Ошибка создания MpvManager: {}", e);
+        }
     };
 
     let settings = commands::AppSettings::load(&exe_dir);
@@ -267,6 +278,9 @@ pub fn run() {
             commands::set_auto_select_external_audio,
             commands::get_play_next_on_end,
             commands::set_play_next_on_end,
+            commands::get_subtitles_avoid_ui,
+            commands::set_subtitles_avoid_ui_setting,
+            commands::update_subtitles_avoid_ui,
             commands::load_external_tracks_for_file,
             commands::get_app_version,
             // Автообновление
@@ -399,4 +413,28 @@ pub fn run() {
                 commands::save_current_playback_position(&state);
             }
         });
+}
+
+/// Запись системных ошибок бэкенда в файл `logs/error.log`
+pub fn log_error(context: &str, error_details: &str) {
+    use std::io::Write;
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let logs_dir = exe_dir.join("logs");
+    let _ = std::fs::create_dir_all(&logs_dir);
+    let error_log_path = logs_dir.join("error.log");
+
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&error_log_path)
+    {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let _ = writeln!(file, "[{}] [ERROR] [{}] {}", timestamp, context, error_details);
+    }
 }
