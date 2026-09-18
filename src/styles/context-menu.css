@@ -70,6 +70,19 @@
   background: var(--bg-hover);
 }
 
+/* Невидимый мост наведения у открытого пункта: перекрывает 8px зазор
+   до подменю с обеих сторон, курсор не теряет ховер при переходе.
+   (На самом подменю мост бесполезен — там overflow его обрежет.) */
+.context-menu__item--submenu-open::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: -8px;
+  right: -8px;
+  background: transparent;
+}
+
 .context-menu__item:active {
   transform: scale(0.985);
 }
@@ -119,10 +132,11 @@
   margin: 3px 10px;
 }
 
-/* Подменю */
+/* Подменю: визуальный зазор 8px от родителя + невидимый мост,
+   чтобы курсор не терял ховер при переходе через зазор */
 .context-menu__submenu {
   position: absolute;
-  left: calc(100% - 2px);
+  left: calc(100% + 8px);
   top: -6px;
   max-height: min(420px, calc(100vh - 40px));
   overflow-y: auto;
@@ -134,7 +148,7 @@
 
 .context-menu__submenu--left {
   left: auto;
-  right: calc(100% - 2px);
+  right: calc(100% + 8px);
   transform-origin: top right;
 }
 

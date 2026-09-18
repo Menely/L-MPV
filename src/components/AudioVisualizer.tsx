@@ -746,8 +746,28 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
     const container = containerRef.current;
     if (!canvas || !container) return;
 
-    let animId: number;
+    let animId: number | null = null;
+    let sleepTimer: number | null = null;
     let lastTime = performance.now();
+
+    const scheduleFrame = () => {
+      // На тишине (пауза/нет звука/скрыто) — редкие кадры ~8fps вместо 60:
+      // затухание продолжается, CPU почти не тратится, цикл не умирает.
+      // Возврат к 60fps занимает не более одного сонного тика (~120мс).
+      const live = liveRef.current;
+      const quiet =
+        !live.shouldBeActive || live.isIdle || !live.isDocVisible || animStateRef.current.currentAmp < 0.01;
+      if (quiet) {
+        if (sleepTimer === null) {
+          sleepTimer = window.setTimeout(() => {
+            sleepTimer = null;
+            animId = requestAnimationFrame(render);
+          }, 120);
+        }
+        return;
+      }
+      animId = requestAnimationFrame(render);
+    };
 
     const updateCanvasSize = () => {
       if (!canvas || !container) return;
@@ -774,7 +794,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
 
       const ctx = canvas.getContext("2d");
       if (!ctx) {
-        animId = requestAnimationFrame(render);
+        scheduleFrame();
         return;
       }
 
@@ -782,14 +802,14 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
 
-      // Пауза кадра без смерти цикла: обязательно планируем следующий rAF
+      // Пауза кадра без смерти цикла: затухание + планирование через scheduleFrame
       if (live.isIdle || !live.isDocVisible) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         // Плавное затухание энергии чтобы не было щелчка при возврате
         const spec = realSpectrumRef.current;
         for (let i = 0; i < 32; i++) spec[i] *= 0.9;
         animStateRef.current.currentAmp *= 0.9;
-        animId = requestAnimationFrame(render);
+        scheduleFrame();
         return;
       }
 
@@ -835,12 +855,16 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       );
 
       ctx.restore();
-      animId = requestAnimationFrame(render);
+      scheduleFrame();
     };
 
-    animId = requestAnimationFrame(render);
+    scheduleFrame();
     return () => {
-      cancelAnimationFrame(animId);
+      if (animId !== null) cancelAnimationFrame(animId);
+      if (sleepTimer !== null) {
+        window.clearTimeout(sleepTimer);
+        sleepTimer = null;
+      }
       resizeObserver.disconnect();
     };
   }, [config.mode, config.theme, placement]);

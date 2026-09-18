@@ -435,8 +435,8 @@
   width: 320px;
   max-width: calc(100vw - 36px);
   background: var(--bg-pill, rgba(16, 19, 28, 0.92));
-  backdrop-filter: var(--ui-backdrop, blur(24px));
-  -webkit-backdrop-filter: var(--ui-backdrop, blur(24px));
+  backdrop-filter: var(--ui-backdrop, blur(16px));
+  -webkit-backdrop-filter: var(--ui-backdrop, blur(16px));
   border: 1px solid var(--border-pill, rgba(127, 199, 255, 0.15));
   border-radius: var(--radius-lg, 14px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glass, rgba(127, 199, 255, 0.1));

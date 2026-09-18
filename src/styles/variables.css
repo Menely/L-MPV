@@ -1,7 +1,7 @@
 /* ─── L-MPV Design System v2 ─────────────────────────── */
 /* Современная минималистичная тёмная тема с glassmorphism  */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* БЕЗ внешних шрифтов: системный стек мгновенный и работает офлайн.
+   Inter подхватится автоматически, если установлен в Windows. */
 
 /* ─── CSS Переменные (Design Tokens) ─────────────────── */
 :root {
@@ -14,11 +14,12 @@
   --accent-glow:     rgba(127, 199, 255, 0.30);
   --accent-glass:    rgba(127, 199, 255, 0.08);
 
-  /* Фоны */
+  /* Фоны (блюр заведомо умеренный: крупные радиусы + saturate
+     убивают FPS на слабых iGPU, визуально неотличимо от 24px) */
   --ui-opacity: 0.88;
-  --ui-blur: 24px;
-  --ui-backdrop: blur(24px) saturate(1.6);
-  --ui-backdrop-heavy: blur(24px) saturate(1.8);
+  --ui-blur: 16px;
+  --ui-backdrop: blur(16px);
+  --ui-backdrop-heavy: blur(18px);
   --bg-primary:   #0b0d12;
   --bg-surface:   #13161d;
   --bg-glass-rgb: 16, 19, 28;

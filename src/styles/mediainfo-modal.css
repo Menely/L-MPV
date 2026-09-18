@@ -11,8 +11,8 @@
   display: flex;
   flex-direction: column;
   background: rgba(14, 16, 24, 0.94);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-md);
   box-shadow: 0 16px 45px rgba(0, 0, 0, 0.75), 0 0 1px rgba(255, 255, 255, 0.2);

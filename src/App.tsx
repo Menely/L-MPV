@@ -3,6 +3,8 @@ import {
   useCallback,
   useEffect,
   useRef,
+  lazy,
+  Suspense,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
@@ -15,15 +17,30 @@ import "./index.css";
 import { Titlebar } from "./components/Titlebar";
 import { PlayerControls } from "./components/PlayerControls";
 import { ContextMenu } from "./components/ContextMenu";
-import { MediaInfoModal } from "./components/MediaInfoModal";
-import { ChaptersModal } from "./components/ChaptersModal";
-import { SettingsModal } from "./components/SettingsModal";
 import { PlaylistDrawer } from "./components/PlaylistDrawer";
-import { UpdateModal, UpdateToast, UpdateInfo } from "./components/UpdateModal";
+import { UpdateInfo } from "./components/UpdateModal";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/AudioVisualizer";
 import { applyAccentColor } from "./utils/colorUtils";
 import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
+
+// Тяжёлые модалки грузятся лениво: в стартовый бандл не попадают,
+// парсятся только при первом открытии (dnd-kit едет вместе с настройками).
+const MediaInfoModal = lazy(() =>
+  import("./components/MediaInfoModal").then((m) => ({ default: m.MediaInfoModal }))
+);
+const ChaptersModal = lazy(() =>
+  import("./components/ChaptersModal").then((m) => ({ default: m.ChaptersModal }))
+);
+const SettingsModal = lazy(() =>
+  import("./components/SettingsModal").then((m) => ({ default: m.SettingsModal }))
+);
+const UpdateModal = lazy(() =>
+  import("./components/UpdateModal").then((m) => ({ default: m.UpdateModal }))
+);
+const UpdateToast = lazy(() =>
+  import("./components/UpdateModal").then((m) => ({ default: m.UpdateToast }))
+);
 
 function App() {
   const {
@@ -148,17 +165,22 @@ function App() {
     // При каждом запуске плеера апскейлинг всегда гарантированно отключен по умолчанию
     localStorage.setItem("l-mpv-upscale-mode", "off");
 
-    // Фоновая проверка обновлений (показываем ненавязчивое уведомление в правом углу)
-    invoke<UpdateInfo | null>("check_launch_and_update")
-      .then((info) => {
-        if (info && info.has_update) {
-          setPendingUpdate(info);
-          setShowUpdateToast(true);
-        }
-      })
-      .catch((err) => {
-        console.warn("Фоновая проверка обновлений пропущена:", err);
-      });
+    // Фоновая проверка обновлений (показываем ненавязчивое уведомление в правом углу).
+    // Отложена на 5с после старта: TLS-хендшейк GitHub API не должен
+    // конкурировать с инициализацией окна и первым paint.
+    const updateCheckTimer = window.setTimeout(() => {
+      invoke<UpdateInfo | null>("check_launch_and_update")
+        .then((info) => {
+          if (info && info.has_update) {
+            setPendingUpdate(info);
+            setShowUpdateToast(true);
+          }
+        })
+        .catch((err) => {
+          console.warn("Фоновая проверка обновлений пропущена:", err);
+        });
+    }, 5000);
+    return () => window.clearTimeout(updateCheckTimer);
   }, []);
 
   // Синхронизация настройки автоскрытия панели в верхней половине окна
@@ -1226,43 +1248,53 @@ function App() {
       )}
 
       {showMediaInfo && (
-        <MediaInfoModal
-          onClose={() => setShowMediaInfo(false)}
-        />
+        <Suspense fallback={null}>
+          <MediaInfoModal
+            onClose={() => setShowMediaInfo(false)}
+          />
+        </Suspense>
       )}
 
       {showChapters && (
-        <ChaptersModal
-          onClose={() => setShowChapters(false)}
-        />
+        <Suspense fallback={null}>
+          <ChaptersModal
+            onClose={() => setShowChapters(false)}
+          />
+        </Suspense>
       )}
 
       {showSettings && (
-        <SettingsModal
-          onClose={() => setShowSettings(false)}
-          onShowUpdate={(info) => {
-            setPendingUpdate(info);
-            setShowUpdateModal(true);
-          }}
-        />
+        <Suspense fallback={null}>
+          <SettingsModal
+            onClose={() => setShowSettings(false)}
+            onShowUpdate={(info) => {
+              setPendingUpdate(info);
+              setShowUpdateModal(true);
+            }}
+          />
+        </Suspense>
       )}
 
       {showUpdateModal && pendingUpdate && (
-        <UpdateModal
-          updateInfo={pendingUpdate}
-          onClose={() => setShowUpdateModal(false)}
-        />
+        <Suspense fallback={null}>
+          <UpdateModal
+            updateInfo={pendingUpdate}
+            onClose={() => setShowUpdateModal(false)}
+          />
+        </Suspense>
       )}
 
       {showUpdateToast && pendingUpdate && !showUpdateModal && (
-        <UpdateToast
-          updateInfo={pendingUpdate}
-          onOpenModal={() => {
-            setShowUpdateToast(false);
-            setShowUpdateModal(true);
-          }}
-          onClose={() => setShowUpdateToast(false)}
-        />
+        <Suspense fallback={null}>
+          <UpdateToast
+            updateInfo={pendingUpdate}
+            onOpenModal={() => {
+              setShowUpdateToast(false);
+              setShowUpdateModal(true);
+            }}
+            onClose={() => setShowUpdateToast(false)}
+          />
+        </Suspense>
       )}
 
       <PlaylistDrawer />
