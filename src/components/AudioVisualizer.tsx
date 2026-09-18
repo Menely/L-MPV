@@ -14,7 +14,17 @@ export type VisualizerMode =
   | "strings";
 
 export type VisualizerPlacement = "above_timeline" | "toolbar" | "inside_timeline" | "off";
-export type VisualizerTheme = "accent" | "pastel" | "neon" | "sunset" | "aurora";
+export type VisualizerTheme =
+  | "accent"
+  | "pastel"
+  | "neon"
+  | "sunset"
+  | "aurora"
+  | "ocean"
+  | "crimson"
+  | "mint"
+  | "violet"
+  | "gold";
 
 export interface VisualizerConfig {
   enabled: boolean;
@@ -132,6 +142,41 @@ export function getVisualizerThemeColors(theme: VisualizerTheme): {
       secondary: "#00BB77",
       tertiary: "#0077B6",
       glow: "rgba(0, 245, 212, 0.55)",
+    };
+  } else if (theme === "ocean") {
+    return {
+      primary: "#38BDF8",
+      secondary: "#0EA5E9",
+      tertiary: "#6366F1",
+      glow: "rgba(56, 189, 248, 0.55)",
+    };
+  } else if (theme === "crimson") {
+    return {
+      primary: "#FB7185",
+      secondary: "#E11D48",
+      tertiary: "#881337",
+      glow: "rgba(244, 63, 94, 0.55)",
+    };
+  } else if (theme === "mint") {
+    return {
+      primary: "#5EEAD4",
+      secondary: "#10B981",
+      tertiary: "#065F46",
+      glow: "rgba(45, 212, 191, 0.55)",
+    };
+  } else if (theme === "violet") {
+    return {
+      primary: "#A78BFA",
+      secondary: "#8B5CF6",
+      tertiary: "#5B21B6",
+      glow: "rgba(139, 92, 246, 0.55)",
+    };
+  } else if (theme === "gold") {
+    return {
+      primary: "#FBBF24",
+      secondary: "#F59E0B",
+      tertiary: "#92400E",
+      glow: "rgba(251, 191, 36, 0.55)",
     };
   } else {
     let primary = "#7fc7ff";

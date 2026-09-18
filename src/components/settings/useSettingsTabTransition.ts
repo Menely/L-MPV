@@ -28,7 +28,6 @@ function motionAllowed(): boolean {
 export function useSettingsTabTransition(activeTab: string, tabOrder: readonly string[]) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const contentRef = useRef<HTMLDivElement | null>(null);
   const prevTabRef = useRef(activeTab);
   const startHeightRef = useRef(0);
   const [slideDir, setSlideDir] = useState<1 | -1>(1);
@@ -96,5 +95,5 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     };
   }, [activeTab]);
 
-  return { bodyRef, panelRef, contentRef, slideDir, beginSwitch };
+  return { bodyRef, panelRef, slideDir, beginSwitch };
 }

@@ -1146,6 +1146,61 @@
   transition: filter var(--t-fast) var(--ease-smooth);
 }
 
+/* ─── Компоновка секции аудио-визуализатора ──────────── */
+.viz-grid-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.viz-grid-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.viz-grid-top > *,
+.viz-grid-main > * {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .viz-grid-top,
+  .viz-grid-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ─── Круглая кнопка питания визуализатора ─────────── */
+.viz-power-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.12);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+  transition: transform var(--t-fast) var(--ease-out),
+              filter var(--t-fast) var(--ease-smooth),
+              background-color var(--t-fast) var(--ease-smooth);
+}
+
+.viz-power-btn:hover {
+  transform: scale(1.08);
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.20);
+  filter: drop-shadow(0 0 10px var(--accent-glow));
+}
+
+.viz-power-btn:active {
+  transform: scale(0.92);
+}
+
 .ui-premium-slider:hover::-webkit-slider-runnable-track {
   filter: brightness(1.2);
 }

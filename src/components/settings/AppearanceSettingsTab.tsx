@@ -6,6 +6,7 @@ import { AccordionSection } from "./AccordionSection";
 import { ColorSchemeSection } from "./ColorSchemeSection";
 import { VisualizerSettingsSection } from "./VisualizerSettingsSection";
 import { ControlButtonsPreviewCard } from "./ControlButtonsPreviewCard";
+import { optionCardStyle, optionResetBtnStyle, optionBtnStyle } from "./optionCardStyles";
 import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESETS, UI_FONT_PRESETS } from "../../utils/uiThemeUtils";
 import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../utils/timePositionUtils";
 import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../utils/timeFormatUtils";
@@ -274,46 +275,9 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
                 {/* ── Вспомогательные стили для подблоков настроек интерфейса ── */}
                 {(() => {
-                  const cardStyle: React.CSSProperties = {
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                    padding: "10px 12px",
-                    background: "rgba(255, 255, 255, 0.025)",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--border)",
-                    boxShadow: "0 6px 18px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.28)",
-                    transition: "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
-                  };
-                  const resetBtnStyle: React.CSSProperties = {
-                    height: 22,
-                    width: 26,
-                    padding: 0,
-                    borderRadius: "var(--radius-sm)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "0.70rem",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                  };
-                  const btnStyle = (isSel: boolean, padding = "6px 4px"): React.CSSProperties => ({
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 3,
-                    padding,
-                    borderRadius: "var(--radius-sm)",
-                    border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
-                    cursor: "pointer",
-                    background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
-                    color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
-                    boxShadow: isSel
-                      ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
-                      : "0 1px 3px rgba(0, 0, 0, 0.2)",
-                    transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
-                  });
+                  const cardStyle = optionCardStyle;
+                  const resetBtnStyle = optionResetBtnStyle;
+                  const btnStyle = optionBtnStyle;
 
                   return (
                     <>

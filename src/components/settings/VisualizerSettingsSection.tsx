@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
-import { AudioWaveform, RotateCcw, RotateCw, Play } from "lucide-react";
+import { AudioWaveform, RotateCcw, RotateCw, Play, Power, Monitor, Layers, Palette, Ruler } from "lucide-react";
 import { AccordionSection } from "../SettingsModal";
+import {
+  optionCardStyle,
+  optionResetBtnStyle,
+  optionBtnStyle,
+  optionSectionDescStyle,
+  optionBlockHeaderStyle,
+  optionBlockTitleStyle,
+  optionBlockTitleTextStyle,
+  optionValueBadgeStyle,
+} from "./optionCardStyles";
 import {
   VisualizerConfig,
   VisualizerMode,
@@ -36,6 +46,11 @@ const THEME_LABELS: Record<VisualizerTheme, string> = {
   neon: "Кибернеон",
   sunset: "Огненный закат",
   aurora: "Северное сияние",
+  ocean: "Глубокий океан",
+  crimson: "Малиновый",
+  mint: "Мятная волна",
+  violet: "Ультрафиолет",
+  gold: "Золотой песок",
 };
 
 const PLACEMENT_LABELS: Record<string, string> = {
@@ -43,6 +58,51 @@ const PLACEMENT_LABELS: Record<string, string> = {
   inside_timeline: "В таймлайне",
   toolbar: "В панели кнопок",
   off: "Отключен",
+};
+
+const PLACEMENT_ITEMS = [
+  { id: "above_timeline" as const, label: "Над таймлайном", desc: "Панорамная волна" },
+  { id: "inside_timeline" as const, label: "В таймлайне", desc: "SoundCloud стиль" },
+  { id: "toolbar" as const, label: "В панели кнопок", desc: "Компактный виджет" },
+];
+
+const MODE_ITEMS = [
+  { id: "waveform" as const, label: "Плавная волна", desc: "Waveform Безье" },
+  { id: "spectrum" as const, label: "Частотный спектр", desc: "Спектр с пиками" },
+  { id: "bars" as const, label: "Ритм-бары", desc: "Капсулы эквалайзера" },
+  { id: "matrix" as const, label: "LED-матрица", desc: "Диодные столбики" },
+  { id: "ribbon" as const, label: "Жидкая лента", desc: "Шелковая волна" },
+  { id: "particles" as const, label: "Звездная пыль", desc: "Салют аудио-частиц" },
+  { id: "circular" as const, label: "Радиальный радар", desc: "Кольцевой пульсар" },
+  { id: "blob" as const, label: "Плазменная сфера", desc: "Органическая капля" },
+  { id: "strings" as const, label: "Резонанс струн", desc: "3 осциллографа" },
+];
+
+const THEME_ITEMS = [
+  { id: "accent" as const, label: "Тема плеера", desc: "Акцент и Glow" },
+  { id: "pastel" as const, label: "Пастельная аура", desc: "Лаванда и мята" },
+  { id: "neon" as const, label: "Кибернеон", desc: "Бирюза и фуксия" },
+  { id: "sunset" as const, label: "Огненный закат", desc: "Янтарь и рубин" },
+  { id: "aurora" as const, label: "Северное сияние", desc: "Изумруд и бирюза" },
+  { id: "ocean" as const, label: "Глубокий океан", desc: "Синева и глубина" },
+  { id: "crimson" as const, label: "Малиновый", desc: "Рубин и роза" },
+  { id: "mint" as const, label: "Мятная волна", desc: "Мята и теал" },
+  { id: "violet" as const, label: "Ультрафиолет", desc: "Фиолет и маджента" },
+  { id: "gold" as const, label: "Золотой песок", desc: "Золото и янтарь" },
+];
+
+/** Градиент-индикатор палитры для кнопок выбора темы. */
+const THEME_SWATCH: Record<VisualizerTheme, string> = {
+  accent: "var(--accent)",
+  pastel: "linear-gradient(135deg, #c4b5fd 0%, #6ee7b7 55%, #fbcfe8 100%)",
+  neon: "linear-gradient(135deg, #00E5FF 0%, #FF2A5F 55%, #FFE600 100%)",
+  sunset: "linear-gradient(135deg, #FFB300 0%, #FF5722 55%, #E91E63 100%)",
+  aurora: "linear-gradient(135deg, #00F5D4 0%, #00BB77 55%, #0077B6 100%)",
+  ocean: "linear-gradient(135deg, #38BDF8 0%, #0EA5E9 55%, #6366F1 100%)",
+  crimson: "linear-gradient(135deg, #FB7185 0%, #E11D48 55%, #881337 100%)",
+  mint: "linear-gradient(135deg, #5EEAD4 0%, #10B981 55%, #065F46 100%)",
+  violet: "linear-gradient(135deg, #A78BFA 0%, #8B5CF6 55%, #5B21B6 100%)",
+  gold: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 55%, #92400E 100%)",
 };
 
 /**
@@ -143,27 +203,26 @@ const VisualizerPreviewCard: React.FC<{ config: VisualizerConfig; isVisible: boo
 
   const themeColors = getVisualizerThemeColors(config.theme);
 
-  const previewHeight = config.placement === "above_timeline"
-    ? Math.min(26, Math.max(16, (config.height || 22) * 0.85))
-    : config.placement === "toolbar"
-    ? (config.mode === "circular" || config.mode === "blob" ? 28 : 20)
-    : 16;
+  // Фиксированная сцена 30px: canvas любого режима/расположения центрируется
+  // внутри, карточка превью не меняет высоту -> окно настроек не скачет.
+  const previewHeight =
+    config.placement === "above_timeline"
+      ? Math.min(26, Math.max(16, (config.height || 22) * 0.85))
+      : 16;
+  const TOOLBAR_WIDGET_H = 26;
 
   return (
     <div
       style={{
-        display: "flex",
+        ...optionCardStyle,
+        flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
-        padding: "14px 18px",
-        marginBottom: 4,
-        background: "rgba(0, 0, 0, 0.35)",
-        borderRadius: "var(--radius-md)",
-        border: "1px solid var(--border)",
-        gap: 16,
+        padding: "10px 14px",
+        gap: 14,
+        flexWrap: "wrap",
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 180, minHeight: 56, justifyContent: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: "0.84rem", fontWeight: 600, color: "var(--text-primary)" }}>
             Предпросмотр:
@@ -174,7 +233,7 @@ const VisualizerPreviewCard: React.FC<{ config: VisualizerConfig; isVisible: boo
               fontWeight: 700,
               color: !config.enabled ? "var(--text-muted)" : themeColors.primary,
               textShadow: !config.enabled ? "none" : `0 0 10px ${themeColors.glow}`,
-              transition: "all var(--t-fast) var(--ease-smooth)",
+              transition: "color var(--t-fast) var(--ease-smooth), text-shadow var(--t-fast) var(--ease-smooth)",
             }}
           >
             {!config.enabled
@@ -213,9 +272,20 @@ const VisualizerPreviewCard: React.FC<{ config: VisualizerConfig; isVisible: boo
           flexShrink: 0,
           gap: 6,
           boxSizing: "border-box",
-          transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
         }}
       >
+        {/* Фиксированная сцена таймлайна: все расположения центрируются в 30px */}
+        <div
+          style={{
+            width: "100%",
+            height: 30,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+            flexShrink: 0,
+          }}
+        >
         {/* Расположение 1: Над таймлайном */}
         {config.enabled && config.placement === "above_timeline" && (
           <div
@@ -290,20 +360,22 @@ const VisualizerPreviewCard: React.FC<{ config: VisualizerConfig; isVisible: boo
                 background: config.enabled ? "var(--accent)" : "rgba(255, 255, 255, 0.4)",
                 borderRadius: 3,
                 boxShadow: config.enabled ? "0 0 6px var(--accent-glow)" : "none",
-                transition: "all var(--t-fast) var(--ease-smooth)",
+                transition: "background-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
               }}
             />
           </div>
         )}
+        </div>
 
-        {/* Строка кнопок управления */}
+        {/* Строка кнопок управления: фиксированная высота */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             width: "100%",
-            marginTop: 2,
+            height: 28,
+            flexShrink: 0,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -329,7 +401,7 @@ const VisualizerPreviewCard: React.FC<{ config: VisualizerConfig; isVisible: boo
                 fill="currentColor"
                 style={{
                   filter: config.enabled ? "drop-shadow(0 0 5px var(--accent-glow))" : "none",
-                  transition: "all var(--t-fast) var(--ease-smooth)",
+                  transition: "filter var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth)",
                 }}
               />
             </div>
@@ -343,17 +415,18 @@ const VisualizerPreviewCard: React.FC<{ config: VisualizerConfig; isVisible: boo
             />
           </div>
 
-          {/* Расположение 3: Виджет в тулбаре */}
+          {/* Расположение 3: Виджет в тулбаре (фиксированная высота) */}
           {config.enabled && config.placement === "toolbar" ? (
             <div
               style={{
                 width: "68px",
-                height: `${previewHeight}px`,
+                height: `${TOOLBAR_WIDGET_H}px`,
                 borderRadius: "4px",
                 overflow: "hidden",
                 display: "flex",
                 background: "rgba(0, 0, 0, 0.25)",
                 border: "1px solid var(--border)",
+                flexShrink: 0,
               }}
             >
               <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
@@ -398,6 +471,16 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
     });
   };
 
+  // Заблокированные (серые, некликабельные) контролы вместо скрытия:
+  // раскладка не прыгает при вкл/выкл, окно настроек стабильно.
+  const controlsLocked = !visualizerConfig.enabled;
+  const lockedStyle: React.CSSProperties = {
+    opacity: controlsLocked ? 0.45 : 1,
+    pointerEvents: controlsLocked ? "none" : "auto",
+    filter: controlsLocked ? "saturate(0.5)" : "none",
+    transition: "opacity var(--t-fast) var(--ease-smooth), filter var(--t-fast) var(--ease-smooth)",
+  };
+
   return (
     <AccordionSection
       isOpen={isOpen}
@@ -440,215 +523,276 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
         )
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 10 }}>
-        <span style={{ fontSize: "0.80rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <span style={optionSectionDescStyle}>
           Интерактивные пастельные, неоновые или закатные аудио-волны и спектральные эффекты над таймлайном, в тулбаре или прямо внутри полосы прогресса (SoundCloud Style).
         </span>
 
         {/* Интерактивный предпросмотр аудио-визуализатора */}
         <VisualizerPreviewCard config={visualizerConfig} isVisible={isOpen} />
 
-        {/* Чекбокс включения */}
-        <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", userSelect: "none" }}>
-          <input
-            type="checkbox"
-            className="ui-checkbox"
-            checked={visualizerConfig.enabled}
-            onChange={(e) => updateVisualizer({ enabled: e.target.checked })}
-          />
-          <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
-            Включить аудио-визуалайзер
-          </span>
-        </label>
-
-        {visualizerConfig.enabled && (
-          <>
-            {/* Расположение */}
-            <div>
-              <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>
-                Расположение на панели:
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-                {[
-                  { id: "above_timeline" as const, label: "Над таймлайном", desc: "Панорамная волна" },
-                  { id: "inside_timeline" as const, label: "В таймлайне", desc: "SoundCloud стиль" },
-                  { id: "toolbar" as const, label: "В панели кнопок", desc: "Компактный виджет" },
-                ].map((item) => {
-                  const isSel = visualizerConfig.placement === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => updateVisualizer({ placement: item.id })}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 3,
-                        padding: "8px 6px",
-                        borderRadius: "var(--radius-sm)",
-                        border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
-                        cursor: "pointer",
-                        background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
-                        color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
-                        boxShadow: isSel
-                          ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
-                          : "0 1px 3px rgba(0, 0, 0, 0.2)",
-                        transition: "all var(--t-fast) var(--ease-smooth)",
-                      }}
-                    >
-                      <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{item.label}</span>
-                      <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
-                        {item.desc}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+        {/* Включение: компактная строка, когда выключено */}
+        {!visualizerConfig.enabled && (
+          <label style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 10, cursor: "pointer", userSelect: "none" }}>
+            <Power size={15} style={{ color: "var(--accent)", flexShrink: 0 }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                Включить аудио-визуалайзер
+              </span>
+              <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                Живой спектр звука на панели плеера во время воспроизведения
+              </span>
             </div>
-
-            {/* Стиль визуализации (9 режимов) */}
-            <div>
-              <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>
-                Стиль визуализации (9 режимов):
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-                {[
-                  { id: "waveform" as const, label: "Плавная волна", desc: "Waveform Безье" },
-                  { id: "spectrum" as const, label: "Частотный спектр", desc: "Спектр с пиками" },
-                  { id: "bars" as const, label: "Ритм-бары", desc: "Капсулы эквалайзера" },
-                  { id: "matrix" as const, label: "LED-матрица", desc: "Диодные столбики" },
-                  { id: "ribbon" as const, label: "Жидкая лента", desc: "Шелковая волна" },
-                  { id: "particles" as const, label: "Звездная пыль", desc: "Салют аудио-частиц" },
-                  { id: "circular" as const, label: "Радиальный радар", desc: "Кольцевой пульсар" },
-                  { id: "blob" as const, label: "Плазменная сфера", desc: "Органическая капля" },
-                  { id: "strings" as const, label: "Резонанс струн", desc: "3 осциллографа" },
-                ].map((item) => {
-                  const isSel = visualizerConfig.mode === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => updateVisualizer({ mode: item.id })}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 3,
-                        padding: "8px 6px",
-                        borderRadius: "var(--radius-sm)",
-                        border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
-                        cursor: "pointer",
-                        background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
-                        color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
-                        boxShadow: isSel
-                          ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
-                          : "0 1px 3px rgba(0, 0, 0, 0.2)",
-                        transition: "all var(--t-fast) var(--ease-smooth)",
-                      }}
-                    >
-                      <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{item.label}</span>
-                      <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
-                        {item.desc}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Цветовая схема (5 палитр) */}
-            <div>
-              <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>
-                Цветовая палитра:
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 8 }}>
-                {[
-                  { id: "accent" as const, label: "Тема плеера", desc: "Акцент и Glow" },
-                  { id: "pastel" as const, label: "Пастельная аура", desc: "Лаванда и мята" },
-                  { id: "neon" as const, label: "Кибернеон", desc: "Бирюза и фуксия" },
-                  { id: "sunset" as const, label: "Огненный закат", desc: "Янтарь и рубин" },
-                  { id: "aurora" as const, label: "Северное сияние", desc: "Изумруд и бирюза" },
-                ].map((item) => {
-                  const isSel = visualizerConfig.theme === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => updateVisualizer({ theme: item.id })}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 3,
-                        padding: "8px 6px",
-                        borderRadius: "var(--radius-sm)",
-                        border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
-                        cursor: "pointer",
-                        background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
-                        color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
-                        boxShadow: isSel
-                          ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
-                          : "0 1px 3px rgba(0, 0, 0, 0.2)",
-                        transition: "all var(--t-fast) var(--ease-smooth)",
-                      }}
-                    >
-                      <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{item.label}</span>
-                      <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
-                        {item.desc}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Высота над таймлайном */}
-            {visualizerConfig.placement === "above_timeline" && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                    Высота волн над таймлайном:
-                  </span>
-                  <span style={{ fontSize: "0.82rem", color: "var(--accent)", fontWeight: 600 }}>
-                    {visualizerConfig.height || 22} px
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <input
-                    type="range"
-                    min="14"
-                    max="36"
-                    step="2"
-                    value={visualizerConfig.height || 22}
-                    onChange={(e) => updateVisualizer({ height: Number(e.target.value) })}
-                    style={{ flex: 1, cursor: "pointer", accentColor: "var(--accent)" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => updateVisualizer({ height: 22 })}
-                    className="btn btn--secondary btn--sm"
-                    style={{
-                      height: 26,
-                      padding: "0 8px",
-                      borderRadius: "var(--radius-sm)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                      fontSize: "0.74rem",
-                    }}
-                  >
-                    <RotateCcw size={12} />
-                    <span>22px</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
+            <input
+              type="checkbox"
+              className="ui-checkbox"
+              checked={visualizerConfig.enabled}
+              onChange={(e) => updateVisualizer({ enabled: e.target.checked })}
+              aria-label="Включить аудио-визуалайзер"
+            />
+          </label>
         )}
+
+        {/* Сетки всегда смонтированы (не прыгают при вкл/выкл);
+            при выкл. контролы сереют через lockedStyle + inert */}
+        <>
+            {/* Верхний ряд: палитра (широкая) + карточка включения */}
+            <div className="viz-grid-top">
+              <div
+                style={{ ...optionCardStyle, padding: "8px 12px", gap: 6, ...lockedStyle }}
+                inert={controlsLocked}
+                aria-disabled={controlsLocked}
+              >
+                <div style={{ ...optionBlockHeaderStyle, marginBottom: 4 }}>
+                  <div style={optionBlockTitleStyle}>
+                    <Palette size={14} style={{ color: "var(--accent)" }} />
+                    <span style={optionBlockTitleTextStyle}>Цветовая палитра</span>
+                  </div>
+                  <span style={optionValueBadgeStyle}>
+                    {THEME_ITEMS.find((t) => t.id === visualizerConfig.theme)?.desc || ""}
+                  </span>
+                </div>
+                <div className="player-themes-selector" style={{ padding: "2px" }}>
+                  {THEME_ITEMS.map((item) => {
+                    const isSel = visualizerConfig.theme === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => updateVisualizer({ theme: item.id })}
+                        className="player-theme-btn"
+                        title={`${item.label} — ${item.desc}`}
+                        aria-label={item.label}
+                        style={{
+                          height: 30,
+                          padding: isSel ? "0 12px 0 5px" : "0 5px",
+                          border: isSel
+                            ? "1.5px solid var(--accent)"
+                            : "1.5px solid rgba(255, 255, 255, 0.10)",
+                          background: isSel
+                            ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
+                            : "rgba(255, 255, 255, 0.04)",
+                          color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+                          boxShadow: isSel
+                            ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                            : "none",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: "50%",
+                            background: THEME_SWATCH[item.id],
+                            border: isSel
+                              ? "1.5px solid rgba(255, 255, 255, 0.40)"
+                              : "1.5px solid rgba(255, 255, 255, 0.22)",
+                            boxShadow: isSel
+                              ? "0 0 8px rgba(255, 255, 255, 0.25), 0 1px 4px rgba(0, 0, 0, 0.45)"
+                              : "0 1px 3px rgba(0, 0, 0, 0.35)",
+                            flexShrink: 0,
+                            transition:
+                              "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
+                          }}
+                        />
+                        <span
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            overflow: "hidden",
+                            whiteSpace: "nowrap",
+                            maxWidth: isSel ? 140 : 0,
+                            opacity: isSel ? 1 : 0,
+                            marginLeft: isSel ? 7 : 0,
+                            transform: isSel ? "translateX(0)" : "translateX(-6px)",
+                            transition:
+                              "max-width 0.25s cubic-bezier(0.2, 1.15, 0.3, 1), opacity 0.2s ease, transform 0.25s cubic-bezier(0.2, 1.15, 0.3, 1), margin-left 0.25s cubic-bezier(0.2, 1.15, 0.3, 1)",
+                            pointerEvents: isSel ? "auto" : "none",
+                          }}
+                        >
+                          <span style={{ fontSize: "0.76rem", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
+                            {item.label}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Карточка включения: только кликабельная иконка */}
+              <div style={{ ...optionCardStyle, alignItems: "center", justifyContent: "center", height: "100%", boxSizing: "border-box", padding: "6px 10px" }}>
+                <button
+                  type="button"
+                  onClick={() => updateVisualizer({ enabled: false })}
+                  className="viz-power-btn"
+                  title="Выключить визуализатор"
+                  aria-label="Выключить аудио-визуалайзер"
+                  aria-pressed={visualizerConfig.enabled}
+                >
+                  <Power size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Нижний ряд: расположение (уже) + стили (шире) */}
+            <div
+              className="viz-grid-main"
+              style={lockedStyle}
+              inert={controlsLocked}
+              aria-disabled={controlsLocked}
+            >
+              <div style={optionCardStyle}>
+                <div style={optionBlockHeaderStyle}>
+                  <div style={optionBlockTitleStyle}>
+                    <Monitor size={14} style={{ color: "var(--accent)" }} />
+                    <span style={optionBlockTitleTextStyle}>Расположение</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {PLACEMENT_ITEMS.map((item) => {
+                    const isSel = visualizerConfig.placement === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => updateVisualizer({ placement: item.id })}
+                        style={optionBtnStyle(isSel, "8px 6px")}
+                      >
+                        <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{item.label}</span>
+                        <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
+                          {item.desc}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={optionCardStyle}>
+                <div style={optionBlockHeaderStyle}>
+                  <div style={optionBlockTitleStyle}>
+                    <Layers size={14} style={{ color: "var(--accent)" }} />
+                    <span style={optionBlockTitleTextStyle}>Стиль визуализации</span>
+                  </div>
+                  <span style={optionValueBadgeStyle}>
+                    {MODE_LABELS[visualizerConfig.mode] || visualizerConfig.mode}
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+                  {MODE_ITEMS.map((item) => {
+                    const isSel = visualizerConfig.mode === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => updateVisualizer({ mode: item.id })}
+                        style={optionBtnStyle(isSel, "8px 6px")}
+                      >
+                        <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{item.label}</span>
+                        <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
+                          {item.desc}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Высота волн: всегда смонтирована (не прыгает окно),
+                активна только для расположения над таймлайном */}
+            {(() => {
+              const hMin = 14;
+              const hMax = 36;
+              const hDef = 22;
+              const hVal = visualizerConfig.height || hDef;
+              const hPct = Math.round(((hVal - hMin) / (hMax - hMin)) * 100);
+              const isDefault = hVal === hDef;
+              const heightActive = visualizerConfig.enabled && visualizerConfig.placement === "above_timeline";
+              return (
+                <div
+                  style={{
+                    ...optionCardStyle,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    padding: "10px 14px",
+                    gap: 14,
+                    opacity: heightActive ? 1 : 0.45,
+                    pointerEvents: heightActive ? "auto" : "none",
+                    filter: heightActive ? "none" : "saturate(0.5)",
+                    transition: "opacity var(--t-fast) var(--ease-smooth), filter var(--t-fast) var(--ease-smooth)",
+                  }}
+                  inert={!heightActive}
+                  aria-disabled={!heightActive}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0, lineHeight: 1 }}>
+                    <Ruler size={15} style={{ color: "var(--accent)" }} />
+                    <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
+                      Высота волн
+                    </span>
+                  </div>
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", minWidth: 0, height: 20 }}>
+                    <input
+                      type="range"
+                      min={hMin}
+                      max={hMax}
+                      step={2}
+                      value={hVal}
+                      onChange={(e) => updateVisualizer({ height: Number(e.target.value) })}
+                      className="ui-premium-slider"
+                      style={{
+                        "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${hPct}%, rgba(255, 255, 255, 0.12) ${hPct}%, rgba(255, 255, 255, 0.12) 100%)`,
+                      } as React.CSSProperties}
+                      aria-label="Высота волн над таймлайном"
+                    />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, lineHeight: 1 }}>
+                    <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                      {hVal} px
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateVisualizer({ height: hDef })}
+                      className="btn btn--secondary btn--sm"
+                      style={{
+                        ...optionResetBtnStyle,
+                        opacity: isDefault ? 0 : 1,
+                        visibility: isDefault ? "hidden" : "visible",
+                        pointerEvents: isDefault ? "none" : "auto",
+                        transform: isDefault ? "scale(0.85)" : "scale(1)",
+                        transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                      }}
+                      title="Сбросить на 22px"
+                      tabIndex={isDefault ? -1 : 0}
+                    >
+                      <RotateCcw size={11} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </>
       </div>
     </AccordionSection>
   );
