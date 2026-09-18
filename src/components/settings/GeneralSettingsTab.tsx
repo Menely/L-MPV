@@ -1,9 +1,10 @@
 import React from "react";
 import {
-  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles, MousePointer2, Play, CornerDownRight
+  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles, MousePointer2, Play, CornerDownRight, MousePointerClick
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { AccordionSection } from "./AccordionSection";
+import { ContextMenuSettingsTab } from "./ContextMenuSettingsTab";
 
 interface GeneralSettingsTabProps {
   multiInstance: boolean;
@@ -417,6 +418,18 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             </label>
           </div>
 
+        </div>
+      </AccordionSection>
+
+      {/* ── 4. Настройка контекстного меню (PКМ) ── */}
+      <AccordionSection
+        isOpen={openSections["gen_context_menu"] === true}
+        onToggle={() => toggleSection("gen_context_menu")}
+        icon={<MousePointerClick size={16} />}
+        title="Контекстное меню (ПКМ)"
+      >
+        <div style={{ marginTop: 8 }}>
+          <ContextMenuSettingsTab />
         </div>
       </AccordionSection>
 

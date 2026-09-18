@@ -1220,3 +1220,375 @@
   cursor: pointer;
   border: none;
 }
+
+/* ─── Конфигуратор ПКМ-меню ──────────────────────────────────────────────── */
+
+.cmenu-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cmenu-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.cmenu-editor__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cmenu-editor__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cmenu-editor__body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.cmenu-editor__col-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 4px 6px 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+.cmenu-editor__count {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-glass);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-pill);
+}
+
+/* Левая колонка */
+.cmenu-editor__current {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  min-height: 200px;
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+.cmenu-editor__list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Карточка пункта */
+.cmenu-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: background 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  touch-action: none;
+}
+
+.cmenu-entry:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+
+/* Карточка-оверлей при перетаскивании */
+.cmenu-entry--overlay {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45),
+              0 0 0 2px var(--accent),
+              0 0 20px rgba(127, 199, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent);
+  cursor: grabbing;
+  transform: scale(1.02);
+}
+
+/* Разделитель */
+.cmenu-entry--divider {
+  background: transparent;
+  border-color: transparent;
+  padding: 2px 8px;
+}
+
+.cmenu-entry--divider:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.cmenu-entry__divider-line {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cmenu-entry__divider-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+/* Grip-ручка */
+.cmenu-entry__grip {
+  color: var(--text-muted);
+  opacity: 0.4;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+  touch-action: none;
+}
+
+.cmenu-entry__grip:hover,
+.cmenu-entry--overlay .cmenu-entry__grip {
+  opacity: 0.9;
+  color: var(--text-primary);
+}
+
+.cmenu-entry__grip:active {
+  cursor: grabbing;
+}
+
+/* Иконка пункта */
+.cmenu-entry__icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+/* Название пункта */
+.cmenu-entry__info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cmenu-entry__label {
+  font-size: 0.79rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmenu-entry__submenu-hint {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* Кнопка удаления */
+.cmenu-entry__remove {
+  background: transparent;
+  border: none;
+  padding: 3px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.cmenu-entry:hover .cmenu-entry__remove {
+  opacity: 1;
+}
+
+.cmenu-entry__remove:hover {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.12);
+}
+
+/* Кнопка добавить разделитель перед пунктом */
+.cmenu-entry__add-divider {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  border-radius: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+
+.cmenu-entry:hover .cmenu-entry__add-divider {
+  opacity: 0.6;
+}
+
+.cmenu-entry__add-divider:hover {
+  opacity: 1 !important;
+  color: var(--accent);
+}
+
+/* Кнопка добавить разделитель в конец */
+.cmenu-editor__add-divider-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  cursor: pointer;
+  width: 100%;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.cmenu-editor__add-divider-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glass);
+}
+
+/* Правая колонка */
+.cmenu-editor__available {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+.cmenu-editor__available-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cmenu-editor__empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 10px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  justify-content: center;
+}
+
+/* Карточка доступного пункта */
+.cmenu-available-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.cmenu-available-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.cmenu-available-item__icon {
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.cmenu-available-item__info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cmenu-available-item__label {
+  font-size: 0.79rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmenu-available-item__add {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 3px 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: all 0.12s ease;
+}
+
+.cmenu-available-item:hover .cmenu-available-item__add {
+  opacity: 1;
+}
+
+.cmenu-available-item__add:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glass);
+}
+
+@media (max-width: 640px) {
+  .cmenu-editor__body {
+    grid-template-columns: 1fr;
+  }
+}
