@@ -1,6 +1,6 @@
 import { useState, useRef, memo, useCallback } from "react";
 import {
-  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, AudioLines, Clock, RotateCcw, PanelBottom, Timer, Zap
+  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, Clock, RotateCcw, PanelBottom, Timer, Zap
 } from "lucide-react";
 import { AccordionSection } from "./AccordionSection";
 import { ColorSchemeSection } from "./ColorSchemeSection";
@@ -219,8 +219,6 @@ interface AppearanceSettingsTabProps {
   updateAmbient: (updates: Partial<AmbientSettings>, immediateSave?: boolean) => void;
   visibleButtons: Record<string, boolean>;
   setVisibleButtons: (v: Record<string, boolean>) => void;
-  showTrackNames: boolean;
-  setShowTrackNames: (v: boolean) => void;
   skipOpeningSeconds: number;
   setSkipOpeningSeconds: (v: number) => void;
   animationsEnabled: boolean;
@@ -242,7 +240,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
     controlBarStyle, saveControlBarStyle, setControlBarStyle,
     ambientSettings, updateAmbient,
     visibleButtons, setVisibleButtons,
-    showTrackNames, setShowTrackNames,
     skipOpeningSeconds, setSkipOpeningSeconds,
     animationsEnabled, setAnimationsEnabled,
     openSections, onToggleSection: toggleSection,
@@ -928,31 +925,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     Эластичные переходы кнопок Play/Pause, Mute, слайдера громкости, боковой панели плейлиста, меню дорожек и окон. При отключении интерфейс реагирует мгновенно.
                   </p>
                 </div>
-              </AccordionSection>
-
-              {/* 5. Названия дорожек на панели */}
-              <AccordionSection
-                isOpen={!!openSections["app_track_names"]}
-                onToggle={() => toggleSection("app_track_names")}
-                icon={<AudioLines size={16} />}
-                title="Названия дорожек на панели"
-              >
-                <label style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, cursor: "pointer", userSelect: "none" }}>
-                  <input
-                    type="checkbox"
-                    className="ui-checkbox"
-                    checked={showTrackNames}
-                    onChange={(e) => {
-                      const val = e.target.checked;
-                      setShowTrackNames(val);
-                      localStorage.setItem('l-mpv-show-track-names', val ? 'true' : 'false');
-                      window.dispatchEvent(new Event('l-mpv-settings-changed'));
-                    }}
-                  />
-                  <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                    Отображать короткое название выбранной аудиодорожки и субтитров рядом с иконками
-                  </span>
-                </label>
               </AccordionSection>
 
               {/* 5. Аудио-визуалайзер на панели управления */}

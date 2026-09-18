@@ -633,6 +633,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               screenshotDir={screenshotDir}
               handlePickFolder={handlePickFolder}
               handleResetDefault={handleResetDefault}
+              showTrackNames={showTrackNames}
+              setShowTrackNames={setShowTrackNames}
             />
           )}
 
@@ -648,7 +650,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               controlBarStyle={controlBarStyle} saveControlBarStyle={saveControlBarStyle} setControlBarStyle={setControlBarStyle}
               ambientSettings={ambientSettings} updateAmbient={updateAmbient}
               visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons}
-              showTrackNames={showTrackNames} setShowTrackNames={setShowTrackNames}
               skipOpeningSeconds={skipOpeningSeconds} setSkipOpeningSeconds={setSkipOpeningSeconds}
               animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
               openSections={openSections} onToggleSection={toggleSection}
