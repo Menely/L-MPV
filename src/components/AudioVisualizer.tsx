@@ -150,6 +150,31 @@ export function getVisualizerThemeColors(theme: VisualizerTheme): {
 }
 
 /**
+ * Кэшированная версия палитры: getComputedStyle() вызывается не чаще 1 раза
+ * в 500мс и только для темы "accent". Портативно: только чтение CSS-переменных,
+ * никаких записей вне папки проекта.
+ */
+let __accentCacheKey = "";
+let __accentCacheTs = 0;
+let __accentCacheVal = { primary: "#7fc7ff", secondary: "#93c5fd", tertiary: "#38bdf8", glow: "rgba(127, 199, 255, 0.5)" };
+
+export function getCachedVisualizerThemeColors(theme: VisualizerTheme): {
+  primary: string;
+  secondary: string;
+  tertiary: string;
+  glow: string;
+} {
+  if (theme !== "accent") return getVisualizerThemeColors(theme);
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  if (now - __accentCacheTs < 500 && __accentCacheKey) return __accentCacheVal;
+  const fresh = getVisualizerThemeColors(theme);
+  __accentCacheKey = `${fresh.primary}|${fresh.secondary}|${fresh.tertiary}|${fresh.glow}`;
+  __accentCacheVal = fresh;
+  __accentCacheTs = now;
+  return fresh;
+}
+
+/**
  * Единый движок рендеринга 9 режимов аудио-визуализатора.
  * Используется как на панели плеера, так и в интерактивном окне предпросмотра в настройках.
  */
@@ -183,8 +208,9 @@ export function renderVisualizerFrame(
     state.phase += dt * (2.8 * Math.max(0.25, Math.min(3.0, speed)) + bassEnergy * 5.2);
   }
 
-  const { primary, secondary, tertiary, glow } = getVisualizerThemeColors(config.theme);
+  const { primary, secondary, tertiary, glow } = getCachedVisualizerThemeColors(config.theme);
 
+  // Один градиент на кадр (дешевле чем на каждый бар). Тени уменьшены для тулбара.
   const gradient = ctx.createLinearGradient(0, 0, w, 0);
   gradient.addColorStop(0, primary);
   gradient.addColorStop(0.5, secondary);
@@ -644,6 +670,10 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
 
   const animStateRef = useRef<VisualizerAnimState>(createInitialAnimState());
 
+  // Refs для стабильного rAF-цикла: эффект не пересоздаётся при паузе/громкости.
+  const liveRef = useRef({ isPaused, rawVolume, speed, shouldBeActive, isIdle, isDocVisible, config });
+  liveRef.current = { isPaused, rawVolume, speed, shouldBeActive, isIdle, isDocVisible, config };
+
   const handleToggleStyle = useCallback((e: React.MouseEvent) => {
     if (placement !== "toolbar" && !onCycleMode) return;
     e.stopPropagation();
@@ -677,13 +707,14 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
     const updateCanvasSize = () => {
       if (!canvas || !container) return;
       const rect = container.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      // Cap DPR для экономии GPU (портативные iGPU): максимум 1.5
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const w = Math.max(20, Math.floor(rect.width));
       const h = Math.max(12, Math.floor(rect.height));
 
-      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-        canvas.width = w * dpr;
-        canvas.height = h * dpr;
+      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
       }
     };
 
@@ -692,6 +723,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
     resizeObserver.observe(container);
 
     const render = (time: number) => {
+      const live = liveRef.current;
       const dt = Math.min(64, time - lastTime) / 1000;
       lastTime = time;
 
@@ -701,18 +733,23 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
         return;
       }
 
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
 
-      // Энергосбережение при невидимом интерфейсе (остановка rAF-лупа)
-      if (isIdle || !isDocVisible) {
+      // Пауза кадра без смерти цикла: обязательно планируем следующий rAF
+      if (live.isIdle || !live.isDocVisible) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Плавное затухание энергии чтобы не было щелчка при возврате
+        const spec = realSpectrumRef.current;
+        for (let i = 0; i < 32; i++) spec[i] *= 0.9;
+        animStateRef.current.currentAmp *= 0.9;
+        animId = requestAnimationFrame(render);
         return;
       }
 
       // Асинхронное получение спектра без задержки рендера
-      if (shouldBeActive && !isFetchingRef.current) {
+      if (live.shouldBeActive && !isFetchingRef.current) {
         isFetchingRef.current = true;
         invoke<number[]>("get_audio_spectrum")
           .then((data) => {
@@ -722,7 +759,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
           .finally(() => {
             isFetchingRef.current = false;
           });
-      } else if (!shouldBeActive) {
+      } else if (!live.shouldBeActive) {
         const spec = realSpectrumRef.current;
         for (let i = 0; i < 32; i++) spec[i] *= 0.88;
       }
@@ -732,23 +769,23 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       ctx.clearRect(0, 0, w, h);
 
       const rawSpectrum = realSpectrumRef.current;
-      const isAudible = shouldBeActive && rawVolume > 0;
+      const isAudible = live.shouldBeActive && live.rawVolume > 0;
       const baseBoost = 1.6;
-      const volumeGain = rawVolume > 0 && rawVolume < 85 ? Math.min(5.5, (85.0 / Math.max(10.0, rawVolume)) * 1.6) : baseBoost;
+      const volumeGain = live.rawVolume > 0 && live.rawVolume < 85 ? Math.min(5.5, (85.0 / Math.max(10.0, live.rawVolume)) * 1.6) : baseBoost;
       const spectrum = rawSpectrum.map((v) => Math.min(1.0, Math.pow(v, 0.85) * volumeGain));
 
       renderVisualizerFrame(
         ctx,
         w,
         h,
-        config,
+        live.config,
         animStateRef.current,
         spectrum,
         dt,
         {
           isAudible,
-          isPaused,
-          speed,
+          isPaused: live.isPaused,
+          speed: live.speed,
         }
       );
 
@@ -761,7 +798,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       cancelAnimationFrame(animId);
       resizeObserver.disconnect();
     };
-  }, [config.mode, config.theme, isPaused, rawVolume, speed, placement, shouldBeActive, isIdle, isDocVisible]);
+  }, [config.mode, config.theme, placement]);
 
   const height = placement === "toolbar"
     ? (config.mode === "circular" || config.mode === "blob" ? 34 : 22)

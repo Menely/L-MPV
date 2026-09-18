@@ -28,7 +28,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 120);
+    }, 155);
   }, [isClosing, onClose]);
 
   useEffect(() => {

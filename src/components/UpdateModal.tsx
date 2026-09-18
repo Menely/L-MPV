@@ -98,7 +98,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 140);
+    }, 175);
   }, [isClosing, isDownloading, onClose]);
 
   useEffect(() => {
@@ -461,7 +461,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 120);
+    }, 155);
   }, [isClosing, onClose]);
 
   useEffect(() => {

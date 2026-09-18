@@ -10,8 +10,9 @@
   container-type: inline-size;
   container-name: controls;
   transform: translateY(0);
-  transition: opacity var(--t-fast) var(--ease-smooth),
-              transform var(--t-fast) var(--ease-out);
+  transition: opacity var(--t-base) var(--ease-smooth),
+              transform var(--t-base) var(--ease-out);
+  will-change: transform, opacity;
 }
 
 /* ─── Таблетка управления ─────────────────────────────── */
@@ -149,7 +150,6 @@
   height: 100%;
   background: rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-xs, 4px);
-  transition: border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 .timeline__segment-ghost {
@@ -159,7 +159,6 @@
   height: 100%;
   background: rgba(255, 255, 255, 0.4);
   border-radius: var(--radius-xs, 4px);
-  transition: border-radius var(--t-spring) var(--ease-spring-smooth);
   will-change: width;
 }
 
@@ -171,8 +170,7 @@
   background: var(--accent-gradient, var(--accent));
   border-radius: var(--radius-xs, 4px);
   box-shadow: var(--timeline-glow, none);
-  transition: box-shadow var(--t-fast) var(--ease-smooth),
-              border-radius var(--t-spring) var(--ease-spring-smooth);
+  transition: box-shadow var(--t-fast) var(--ease-smooth);
   will-change: width;
 }
 
@@ -309,7 +307,7 @@
 .control-btn:hover {
   background: transparent;
   color: var(--accent-hover, var(--accent));
-  transform: scale(1.12);
+  transform: scale(1.08);
   box-shadow: none;
 }
 
@@ -318,7 +316,7 @@
 }
 
 .control-btn:active {
-  transform: scale(0.88);
+  transform: scale(0.92);
   transition-duration: 100ms;
 }
 
@@ -343,18 +341,22 @@
   height: 22px;
   stroke-width: 2.4;
   filter: var(--play-icon-glow, none);
-  animation: playPausePop var(--t-spring) var(--ease-spring-bounce);
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+  animation: playPausePop var(--t-spring) var(--ease-spring-smooth);
   transition: filter var(--t-fast) var(--ease-smooth),
-              transform var(--t-spring) var(--ease-spring-bounce);
+              transform var(--t-spring) var(--ease-spring-smooth);
 }
 
 @keyframes playPausePop {
   0% {
-    opacity: 0.5;
-    transform: scale3d(0.82, 0.82, 1);
+    opacity: 0.4;
+    transform: scale3d(0.9, 0.9, 1);
   }
-  65% {
-    transform: scale3d(1.08, 1.08, 1);
+  60% {
+    opacity: 1;
+    transform: scale3d(1.05, 1.05, 1);
   }
   100% {
     opacity: 1;
@@ -365,7 +367,7 @@
 .control-btn--play:hover {
   color: var(--accent-hover, var(--accent));
   background: transparent;
-  transform: scale(1.14);
+  transform: scale(1.08);
   box-shadow: none;
 }
 
@@ -374,22 +376,26 @@
 }
 
 .control-btn--play:active {
-  transform: scale(0.86);
+  transform: scale(0.9);
   transition-duration: 90ms;
 }
 
-/* Анимация переключения громкости (Mute/Unmute) */
+/* Анимация переключения громкости (Mute/Unmute) — срабатывает только при смене иконки (key), не при каждом шаге громкости */
 .volume-slider #btn-volume svg {
-  animation: volumeIconPop var(--t-spring) var(--ease-spring-bounce);
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+  animation: volumeIconPop var(--t-spring) var(--ease-spring-smooth);
 }
 
 @keyframes volumeIconPop {
   0% {
-    opacity: 0.5;
-    transform: scale3d(0.82, 0.82, 1);
+    opacity: 0.4;
+    transform: scale3d(0.9, 0.9, 1);
   }
   60% {
-    transform: scale3d(1.08, 1.08, 1);
+    opacity: 1;
+    transform: scale3d(1.05, 1.05, 1);
   }
   100% {
     opacity: 1;
@@ -484,27 +490,30 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 0;
+  max-width: 0;
   height: 28px;
   padding: 0;
   opacity: 0;
   overflow: hidden;
   box-sizing: border-box;
-  transition: width var(--t-spring) var(--ease-spring-smooth),
+  transform: translateX(-6px);
+  /* max-width вместо width + без margin-анимации: меньше layout-thrash, соседи не прыгают */
+  transition: max-width var(--t-spring) var(--ease-spring-smooth),
               opacity var(--t-base) var(--ease-smooth),
-              margin var(--t-spring) var(--ease-spring-smooth);
+              transform var(--t-spring) var(--ease-spring-smooth),
+              padding var(--t-spring) var(--ease-spring-smooth);
   pointer-events: none;
+  contain: layout paint;
 }
 
 .volume-slider:hover .volume-slider__expandable,
 .volume-slider__expandable:focus-within {
-  width: 64px;
+  max-width: 72px;
   padding: 0 4px;
   opacity: 1;
   overflow: visible;
   pointer-events: auto;
-  margin-left: 2px;
-  margin-right: 2px;
+  transform: translateX(0);
 }
 
 .volume-slider__value {
@@ -530,8 +539,7 @@
   cursor: pointer;
   overflow: visible;
   accent-color: var(--accent);
-  transition: filter var(--t-fast) var(--ease-smooth),
-              border-radius var(--t-spring) var(--ease-spring-smooth);
+  transition: filter var(--t-fast) var(--ease-smooth);
 }
 
 .volume-slider__input:hover {
@@ -652,8 +660,11 @@ html[data-glow="off"] .timeline__thumb {
   }
   .volume-slider:hover .volume-slider__expandable,
   .volume-slider__expandable:focus-within {
-    width: 44px;
+    max-width: 52px;
     overflow: visible;
+  }
+  .volume-slider__expandable .volume-slider__input {
+    width: 44px;
   }
   .control-btn--priority-medium {
     display: none !important;

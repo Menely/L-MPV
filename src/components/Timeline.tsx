@@ -38,16 +38,35 @@ export const Timeline = React.memo(() => {
 
   // Hover-превью
   const [hoverInfo, setHoverInfo] = useState<{ ratio: number; time: number } | null>(null);
+  const hoverRafRef = useRef<number | null>(null);
+  const hoverPendingRef = useRef<{ ratio: number; time: number } | null>(null);
+
+  // rAF-троттлинг hover: без ре-рендера на каждый пиксель, превью не мигает
+  const flushHover = useCallback(() => {
+    hoverRafRef.current = null;
+    if (hoverPendingRef.current) {
+      setHoverInfo(hoverPendingRef.current);
+      hoverPendingRef.current = null;
+    }
+  }, []);
 
   const handleTimelineMouseMove = useCallback((e: React.MouseEvent) => {
     if (!timelineRef.current || duration <= 0) return;
     const rect = timelineRef.current.getBoundingClientRect();
     const hoverX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
     const ratio = hoverX / rect.width;
-    setHoverInfo({ ratio, time: ratio * duration });
-  }, [duration]);
+    hoverPendingRef.current = { ratio, time: ratio * duration };
+    if (hoverRafRef.current === null) {
+      hoverRafRef.current = requestAnimationFrame(flushHover);
+    }
+  }, [duration, flushHover]);
 
   const handleTimelineMouseLeave = useCallback(() => {
+    if (hoverRafRef.current !== null) {
+      cancelAnimationFrame(hoverRafRef.current);
+      hoverRafRef.current = null;
+    }
+    hoverPendingRef.current = null;
     setHoverInfo(null);
   }, []);
 
@@ -61,6 +80,8 @@ export const Timeline = React.memo(() => {
   }, [duration]);
 
   const dragCleanupRef = useRef<(() => void) | null>(null);
+  const dragRafRef = useRef<number | null>(null);
+  const dragPendingXRef = useRef<number | null>(null);
 
   // Очистка глобальных обработчиков перетаскивания при размонтировании компонента
   React.useEffect(() => {
@@ -68,6 +89,14 @@ export const Timeline = React.memo(() => {
       if (dragCleanupRef.current) {
         dragCleanupRef.current();
         dragCleanupRef.current = null;
+      }
+      if (hoverRafRef.current !== null) {
+        cancelAnimationFrame(hoverRafRef.current);
+        hoverRafRef.current = null;
+      }
+      if (dragRafRef.current !== null) {
+        cancelAnimationFrame(dragRafRef.current);
+        dragRafRef.current = null;
       }
     };
   }, []);
@@ -80,14 +109,30 @@ export const Timeline = React.memo(() => {
     setMousePosition(newPos);
 
     const cleanup = () => {
+      if (dragRafRef.current !== null) {
+        cancelAnimationFrame(dragRafRef.current);
+        dragRafRef.current = null;
+      }
+      dragPendingXRef.current = null;
       window.removeEventListener("mousemove", handleGlobalMouseMove);
       window.removeEventListener("mouseup", handleGlobalMouseUp);
       dragCleanupRef.current = null;
     };
 
+    const flushDrag = () => {
+      dragRafRef.current = null;
+      if (isDragging.current && dragPendingXRef.current !== null) {
+        setMousePosition(calcPositionFromMouse(dragPendingXRef.current));
+        dragPendingXRef.current = null;
+      }
+    };
+
     const handleGlobalMouseMove = (moveEvent: MouseEvent) => {
       if (isDragging.current) {
-        setMousePosition(calcPositionFromMouse(moveEvent.clientX));
+        dragPendingXRef.current = moveEvent.clientX;
+        if (dragRafRef.current === null) {
+          dragRafRef.current = requestAnimationFrame(flushDrag);
+        }
       }
     };
 

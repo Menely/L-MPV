@@ -312,7 +312,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     boxShadow: isSel
                       ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
                       : "0 1px 3px rgba(0, 0, 0, 0.2)",
-                    transition: "all var(--t-fast) var(--ease-smooth)",
+                    transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                   });
 
                   return (

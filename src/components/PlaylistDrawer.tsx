@@ -29,7 +29,7 @@ export function PlaylistDrawer() {
     closeTimerRef.current = setTimeout(() => {
       setIsPlaylistOpen(false);
       setIsClosing(false);
-    }, 120);
+    }, 155);
   }, [isClosing, setIsPlaylistOpen]);
 
   const loadPlaylist = useCallback(async () => {

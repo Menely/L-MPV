@@ -38,7 +38,6 @@
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.16);
   border-radius: 9999px;
-  transition: background var(--t-fast) var(--ease-smooth);
 }
 
 *::-webkit-scrollbar-thumb:hover,
@@ -229,21 +228,14 @@ html, body, #root {
   pointer-events: none;
   z-index: 1000;
   white-space: nowrap;
-  animation: previewFadeIn 100ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* БЕЗ entrance-анимации: элемент пересоздаётся на каждый rAF-кадр ховера,
+     любая анимация рестартовала бы 60 раз/сек и давала мерцание.
+     Позиция обновляется через rAF-троттлинг в Timeline.tsx. */
+  opacity: 1;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  will-change: left;
-}
-
-@keyframes previewFadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+  will-change: transform;
+  contain: layout paint;
 }
 
 .timeline-preview-card__time {
@@ -333,5 +325,18 @@ html.no-animations .context-menu__item:hover {
 
 html.no-animations .control-btn--play::before {
   display: none !important;
+}
+
+/* Уважение к системной настройке снижения движения (Windows: Параметры → Специальные возможности).
+   Портативно: только CSS, никаких внешних записей. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 

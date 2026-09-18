@@ -160,7 +160,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 140);
+    }, 175);
   }, [isClosing, onClose]);
 
   useEffect(() => {

@@ -104,10 +104,9 @@
   border-radius: var(--radius-sm);
   width: 100%;
   text-align: left;
-  transition: transform var(--t-spring) var(--ease-spring-smooth),
-              background var(--t-fast) var(--ease-smooth),
-              border-radius var(--t-spring) var(--ease-spring-smooth),
-              color var(--t-fast) var(--ease-smooth);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-out);
   transform: translateX(0);
 }
 

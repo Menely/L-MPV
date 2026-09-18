@@ -351,7 +351,7 @@ export function ContextMenu({
     setIsClosing(true);
     closingTimerRef.current = setTimeout(() => {
       onClose();
-    }, 120);
+    }, 155);
   }, [isClosing, onClose]);
 
   useEffect(() => {
@@ -786,6 +786,18 @@ export function ContextMenu({
     return adjustedPos.x + 220 + 220 > (window.innerWidth / zoom);
   }, [adjustedPos.x]);
 
+  // Красивая точка роста меню: origin следует за реальным флипом по X/Y
+  const menuOrigin = useMemo(() => {
+    const zoom = getUiScale();
+    const cssX = x / zoom;
+    const cssY = y / zoom;
+    const flippedX = adjustedPos.x < cssX - 1;
+    const flippedY = adjustedPos.y < cssY - 1;
+    const vertical = flippedY ? "bottom" : "top";
+    const horizontal = flippedX ? "right" : "left";
+    return `${vertical} ${horizontal}`;
+  }, [adjustedPos.x, adjustedPos.y, x, y]);
+
   // ─── Рендеринг пункта меню ────────────────────────
   const renderItem = useCallback(
     (item: MenuItem, index: number) => {
@@ -927,6 +939,7 @@ export function ContextMenu({
       style={{
         left: adjustedPos.x,
         top: adjustedPos.y,
+        transformOrigin: menuOrigin,
       }}
     >
       {menuItems.map((item, index) => renderItem(item, index))}

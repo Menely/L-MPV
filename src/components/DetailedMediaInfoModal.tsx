@@ -180,7 +180,7 @@ export function DetailedMediaInfoModal({
     closeTimerRef.current = setTimeout(() => {
       onClose();
       setIsClosing(false);
-    }, 120);
+    }, 155);
   }, [isClosing, onClose]);
 
   useEffect(() => {

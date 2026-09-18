@@ -122,7 +122,7 @@ export function PlayerControls({
       closePopoverTimerRef.current = setTimeout(() => {
         setClosingPopover(null);
         closePopoverTimerRef.current = null;
-      }, 120);
+      }, 155);
       return null;
     });
   }, []);

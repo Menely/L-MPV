@@ -47,7 +47,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     closeTimerRef.current = setTimeout(() => {
       onClose();
       setIsClosing(false);
-    }, 140);
+    }, 175);
   }, [isClosing, onClose]);
 
   useEffect(() => {
