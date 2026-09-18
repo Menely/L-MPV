@@ -122,7 +122,7 @@
 /* Подменю */
 .context-menu__submenu {
   position: absolute;
-  left: calc(100% + 4px);
+  left: calc(100% - 2px);
   top: -6px;
   max-height: min(420px, calc(100vh - 40px));
   overflow-y: auto;
@@ -132,28 +132,10 @@
   z-index: 10001;
 }
 
-/* Невидимый мост, предотвращающий mouseleave при переходе через зазор 4px */
-.context-menu__submenu::before {
-  content: "";
-  position: absolute;
-  top: -10px;
-  bottom: -10px;
-  left: -12px;
-  width: 12px;
-  background: transparent;
-  pointer-events: auto;
-}
-
 .context-menu__submenu--left {
   left: auto;
-  right: calc(100% + 4px);
+  right: calc(100% - 2px);
   transform-origin: top right;
-}
-
-.context-menu__submenu--left::before {
-  left: auto;
-  right: -12px;
-  width: 12px;
 }
 
 .context-menu__submenu--bottom {

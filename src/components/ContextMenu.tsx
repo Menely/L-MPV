@@ -800,7 +800,7 @@ export function ContextMenu({
 
   // ─── Рендеринг пункта меню ────────────────────────
   const renderItem = useCallback(
-    (item: MenuItem, index: number) => {
+    (item: MenuItem, index: number, isSubmenuChild: boolean = false) => {
       if (item.type === "divider") {
         return (
           <div
@@ -809,10 +809,13 @@ export function ContextMenu({
             onMouseEnter={() => {
               if (closeTimerRef.current !== null) {
                 window.clearTimeout(closeTimerRef.current);
+                closeTimerRef.current = null;
               }
-              closeTimerRef.current = window.setTimeout(() => {
-                setActiveSubmenu(null);
-              }, 150);
+              if (!isSubmenuChild) {
+                closeTimerRef.current = window.setTimeout(() => {
+                  setActiveSubmenu(null);
+                }, 250);
+              }
             }}
           />
         );
@@ -826,10 +829,13 @@ export function ContextMenu({
             onMouseEnter={() => {
               if (closeTimerRef.current !== null) {
                 window.clearTimeout(closeTimerRef.current);
+                closeTimerRef.current = null;
               }
-              closeTimerRef.current = window.setTimeout(() => {
-                setActiveSubmenu(null);
-              }, 150);
+              if (!isSubmenuChild) {
+                closeTimerRef.current = window.setTimeout(() => {
+                  setActiveSubmenu(null);
+                }, 250);
+              }
             }}
           >
             <button
@@ -889,7 +895,7 @@ export function ContextMenu({
               }
               closeTimerRef.current = window.setTimeout(() => {
                 setActiveSubmenu(null);
-              }, 250);
+              }, 300);
             }}
           >
             <button
@@ -913,8 +919,14 @@ export function ContextMenu({
                 } ${isRightScreenEdge ? "context-menu__submenu--left" : ""} ${
                   isBottomHalf ? "context-menu__submenu--bottom" : ""
                 }`}
+                onMouseEnter={() => {
+                  if (closeTimerRef.current !== null) {
+                    window.clearTimeout(closeTimerRef.current);
+                    closeTimerRef.current = null;
+                  }
+                }}
               >
-                {item.children.map((child, ci) => renderItem(child, ci))}
+                {item.children.map((child, ci) => renderItem(child, ci, true))}
               </div>
             )}
           </div>
@@ -933,10 +945,13 @@ export function ContextMenu({
           onMouseEnter={() => {
             if (closeTimerRef.current !== null) {
               window.clearTimeout(closeTimerRef.current);
+              closeTimerRef.current = null;
             }
-            closeTimerRef.current = window.setTimeout(() => {
-              setActiveSubmenu(null);
-            }, 150);
+            if (!isSubmenuChild) {
+              closeTimerRef.current = window.setTimeout(() => {
+                setActiveSubmenu(null);
+              }, 250);
+            }
           }}
         >
           {item.icon && (
@@ -969,7 +984,7 @@ export function ContextMenu({
         transformOrigin: menuOrigin,
       }}
     >
-      {menuItems.map((item, index) => renderItem(item, index))}
+      {menuItems.map((item, index) => renderItem(item, index, false))}
     </div>
   );
 }
