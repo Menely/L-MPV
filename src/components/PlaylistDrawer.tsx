@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState } from "../contexts/PlayerStateContext";
 import { X, Search, Play, Clapperboard } from "lucide-react";
+import { EmptyState } from "./settings/SettingBlocks";
 
 interface PlaylistItem {
   index: number;
@@ -125,9 +126,15 @@ export function PlaylistDrawer() {
 
       <div className="playlist-drawer__content">
         {filteredPlaylist.length === 0 ? (
-          <div className="playlist-drawer__empty">
-            Нет файлов для отображения
-          </div>
+          <EmptyState
+            icon={<Clapperboard size={24} />}
+            title={searchQuery ? "Ничего не найдено" : "Плейлист пуст"}
+            desc={
+              searchQuery
+                ? "Попробуйте изменить поисковый запрос"
+                : "Откройте видеофайл — соседние видео подхватятся автоматически"
+            }
+          />
         ) : (
           filteredPlaylist.map((item) => (
             <button

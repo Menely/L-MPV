@@ -220,6 +220,17 @@ export function resetSingleHotkey(actionId: string, currentHotkeys: Record<strin
   return updated;
 }
 
+/**
+ * Shift+1 зарезервировано за выключением апскейлинга (upscaleOff).
+ * AI-моделям (upscaleNet*) и остальным действиям его назначать нельзя.
+ */
+export const RESERVED_UPSCALE_OFF_CODE = "Shift+Digit1";
+export const UPSCALE_OFF_ACTION_ID = "upscaleOff";
+
+export function isCodeReservedForUpscaleOff(code: string, actionId: string): boolean {
+  return code === RESERVED_UPSCALE_OFF_CODE && actionId !== UPSCALE_OFF_ACTION_ID;
+}
+
 function formatSingleKey(part: string): string {
   if (!part) return "";
   if (part === "MouseLeft") return "ЛКМ";

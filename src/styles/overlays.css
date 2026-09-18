@@ -300,15 +300,6 @@
   gap: 4px;
 }
 
-.playlist-drawer__empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 0;
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
-}
-
 .playlist-item {
   display: flex;
   align-items: center;

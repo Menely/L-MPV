@@ -678,15 +678,14 @@ export function PlayerControls({
               <div className="volume-slider__expandable">
                 <input
                   type="range"
-                  className="volume-slider__input"
+                  className="ui-premium-slider volume-slider__input"
                   min="0"
                   max="150"
                   value={volume}
                   style={{
-                    backgroundImage: "var(--accent-gradient, var(--accent))",
-                    backgroundSize: `${Math.min(100, (volume / 150) * 100)}% 100%`,
-                    backgroundRepeat: "no-repeat",
-                  }}
+                    "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${Math.min(100, (volume / 150) * 100)}%, rgba(255, 255, 255, 0.12) ${Math.min(100, (volume / 150) * 100)}%, rgba(255, 255, 255, 0.12) 100%)`,
+                  } as React.CSSProperties}
+                  aria-label="Громкость"
                   onChange={(e) =>
                     handleVolumeChange(Number(e.target.value), false)
                   }

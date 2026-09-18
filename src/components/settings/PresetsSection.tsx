@@ -36,6 +36,7 @@ import {
 } from "../../utils/presetsUtils";
 import { PLAYER_THEMES, PlayerThemeId } from "../../utils/colorUtils";
 import { getPreloadedUserPresets, storeUserPresets } from "./settingsTabPreload";
+import { EmptyState } from "./SettingBlocks";
 
 const PRESETS_USER_OPEN_KEY = "l-mpv-presets-user-open";
 const PRESETS_BUILTIN_OPEN_KEY = "l-mpv-presets-builtin-open";
@@ -769,13 +770,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           <div className="collapse-fold__inner">
             <div className="collapse-fold__body" style={{ marginTop: 8 }}>
               {userPresets.length === 0 ? (
-                <div className="presets-empty">
-                  <Palette size={24} style={{ color: "var(--text-muted)", opacity: 0.7 }} />
-                  <span className="presets-empty__title">Нет сохранённых пресетов</span>
-                  <span className="presets-empty__desc">
-                    Настройте желаемый визуальный стиль плеера и сохраните его с помощью формы выше.
-                  </span>
-                </div>
+                <EmptyState
+                  icon={<Palette size={24} />}
+                  title="Нет сохранённых пресетов"
+                  desc="Настройте желаемый визуальный стиль плеера и сохраните его с помощью формы выше."
+                />
               ) : (
                 <div className="presets-list">
                   {userPresets.map((preset) => renderPresetCard(preset))}

@@ -11,6 +11,8 @@ import {
   resetCustomHotkeys,
   resetSingleHotkey,
   getKeyDisplay,
+  isCodeReservedForUpscaleOff,
+  UPSCALE_OFF_ACTION_ID,
 } from "../../utils/hotkeyUtils";
 import { AccordionSection } from "../SettingsModal";
 
@@ -19,6 +21,45 @@ export interface HotkeysSettingsTabProps {
   openSections: Record<string, boolean>;
   onToggleSection: (id: string) => void;
   onRecordingChange?: (isRecording: boolean) => void;
+}
+
+/** Код комбинации из клавиатурного события. null — чистый модификатор. */
+function buildKeyCode(e: React.KeyboardEvent): string | null {
+  if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return null;
+  const parts: string[] = [];
+  if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
+  if (e.shiftKey) parts.push("Shift");
+  if (e.altKey) parts.push("Alt");
+  parts.push(e.code || e.key);
+  return parts.join("+");
+}
+
+/** Код комбинации из события мыши. */
+function buildMouseCode(e: React.MouseEvent): string {
+  const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
+  return btnMap[e.button] || `MouseButton${e.button}`;
+}
+
+/** Владелец комбинации среди ДРУГИХ действий (для диалога конфликта). */
+function findConflictOwner(
+  code: string,
+  hotkeys: Record<string, string[]>,
+  excludeActionId: string
+): { id: string; label: string } | null {
+  const owner = HOTKEY_ACTIONS.find(
+    (a) => a.id !== excludeActionId && (hotkeys[a.id] || []).includes(code)
+  );
+  return owner ? { id: owner.id, label: owner.label } : null;
+}
+
+interface HotkeyConflict {
+  code: string;
+  targetId: string;
+  targetIndex: number;
+  ownerId: string;
+  ownerLabel: string;
+  /** Зарезервированная комбинация: перезапись запрещена, только отмена */
+  reserved?: boolean;
 }
 
 /**
@@ -37,7 +78,65 @@ export function HotkeysSettingsTab({
     id: string;
     index: number;
   } | null>(null);
+  // Конфликт: комбинация уже занята другим действием, ждём решения юзера
+  const [conflict, setConflict] = useState<HotkeyConflict | null>(null);
   const ignoreClickUntilRef = useRef<number>(0);
+
+  const cancelRecording = () => {
+    setRecordingAction(null);
+    setConflict(null);
+  };
+
+  // Финальная запись бинда. stealFrom — забрать комбинацию у другого действия.
+  const applyBinding = (targetId: string, index: number, code: string, stealFrom: string | null) => {
+    setCustomHotkeys((prev) => {
+      const next: Record<string, string[]> = { ...prev };
+      if (stealFrom) {
+        next[stealFrom] = (next[stealFrom] || []).filter((c) => c !== code);
+      }
+      const arr = [...(next[targetId] || [])];
+      if (index < arr.length) arr[index] = code;
+      else arr.push(code);
+      next[targetId] = arr;
+      saveCustomHotkeys(next);
+      return next;
+    });
+    setRecordingAction(null);
+    setConflict(null);
+  };
+
+  // Запись с проверкой конфликта: чужой владелец -> диалог, свой -> тихо
+  const tryCommitBinding = (
+    targetId: string,
+    index: number,
+    code: string,
+    hotkeys: Record<string, string[]>
+  ) => {
+    const current = hotkeys[targetId] || [];
+    if (current[index] === code) {
+      cancelRecording();
+      return;
+    }
+    // Shift+1 зарезервировано за выключением апскейлинга — диалог без перезаписи
+    if (isCodeReservedForUpscaleOff(code, targetId)) {
+      const offAction = HOTKEY_ACTIONS.find((a) => a.id === UPSCALE_OFF_ACTION_ID);
+      setConflict({
+        code,
+        targetId,
+        targetIndex: index,
+        ownerId: UPSCALE_OFF_ACTION_ID,
+        ownerLabel: offAction?.label || "Выключение апскейлинга",
+        reserved: true,
+      });
+      return;
+    }
+    const owner = findConflictOwner(code, hotkeys, targetId);
+    if (!owner) {
+      applyBinding(targetId, index, code, null);
+    } else {
+      setConflict({ code, targetId, targetIndex: index, ownerId: owner.id, ownerLabel: owner.label });
+    }
+  };
 
   useEffect(() => {
     if (onRecordingChange) {
@@ -124,9 +223,11 @@ export function HotkeysSettingsTab({
               <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 12 }}>
                 {items.map((item) => {
                   const currentCodes = customHotkeys[item.id] || [];
+                  const itemConflict = conflict?.targetId === item.id ? conflict : null;
 
                   return (
-                    <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <React.Fragment key={item.id}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <div
                         className="modal__row"
                         style={{
@@ -148,6 +249,8 @@ export function HotkeysSettingsTab({
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                           {currentCodes.map((code, idx) => {
                             const isRecording = recordingAction?.id === item.id && recordingAction.index === idx;
+                            const isConflicted =
+                              conflict?.targetId === item.id && conflict.targetIndex === idx;
                             return (
                               <div key={idx} style={{ display: "flex", alignItems: "center" }}>
                                 <button
@@ -167,19 +270,16 @@ export function HotkeysSettingsTab({
                                     if (isRecording) {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
-                                      const parts: string[] = [];
-                                      if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
-                                      if (e.shiftKey) parts.push("Shift");
-                                      if (e.altKey) parts.push("Alt");
-                                      parts.push(e.code || e.key);
-                                      const newCode = parts.join("+");
-                                      const newCodes = [...currentCodes];
-                                      newCodes[idx] = newCode;
-                                      const updated = { ...customHotkeys, [item.id]: newCodes };
-                                      setCustomHotkeys(updated);
-                                      saveCustomHotkeys(updated);
-                                      setRecordingAction(null);
+                                      // Esc — отмена записи (глобальный хендлер модалки
+                                      // при записи отключён через onRecordingChange)
+                                      if (e.key === "Escape") {
+                                        cancelRecording();
+                                        return;
+                                      }
+                                      if (conflict) return;
+                                      const newCode = buildKeyCode(e);
+                                      if (!newCode) return;
+                                      tryCommitBinding(item.id, idx, newCode, customHotkeys);
                                     }
                                   }}
                                   onMouseDown={(e) => {
@@ -187,14 +287,8 @@ export function HotkeysSettingsTab({
                                       e.preventDefault();
                                       e.stopPropagation();
                                       ignoreClickUntilRef.current = Date.now() + 400;
-                                      const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
-                                      const newCode = btnMap[e.button] || `MouseButton${e.button}`;
-                                      const newCodes = [...currentCodes];
-                                      newCodes[idx] = newCode;
-                                      const updated = { ...customHotkeys, [item.id]: newCodes };
-                                      setCustomHotkeys(updated);
-                                      saveCustomHotkeys(updated);
-                                      setRecordingAction(null);
+                                      if (conflict) return;
+                                      tryCommitBinding(item.id, idx, buildMouseCode(e), customHotkeys);
                                     }
                                   }}
                                   onContextMenu={(e) => {
@@ -203,24 +297,35 @@ export function HotkeysSettingsTab({
                                   }}
                                   style={{
                                     padding: "4px 10px",
-                                    background: isRecording
+                                    background: isConflicted
+                                      ? "rgba(244, 67, 54, 0.14)"
+                                      : isRecording
                                       ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
                                       : "rgba(127, 199, 255, 0.08)",
-                                    border: isRecording
+                                    border: isConflicted
+                                      ? "1.5px solid #f44336"
+                                      : isRecording
                                       ? "1.5px solid var(--accent)"
                                       : "1px solid rgba(127, 199, 255, 0.2)",
-                                    boxShadow: isRecording
+                                    boxShadow: isConflicted
+                                      ? "0 0 8px rgba(244, 67, 54, 0.35), inset 0 0 0 1.5px #f44336"
+                                      : isRecording
                                       ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
                                       : "none",
                                     borderRadius: "var(--radius-sm)",
                                     fontFamily: "monospace",
                                     fontSize: "0.84rem",
                                     fontWeight: 600,
-                                    color: isRecording ? "var(--text-primary)" : "var(--accent)",
+                                    color: isConflicted
+                                      ? "#fca5a5"
+                                      : isRecording
+                                      ? "var(--text-primary)"
+                                      : "var(--accent)",
                                     cursor: "pointer",
                                     outline: "none",
                                     borderTopRightRadius: 0,
                                     borderBottomRightRadius: 0,
+                                    transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth)",
                                   }}
                                 >
                                   {isRecording ? "Нажмите..." : getKeyDisplay(code)}
@@ -261,30 +366,21 @@ export function HotkeysSettingsTab({
                                   onKeyDown={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
-                                    const parts: string[] = [];
-                                    if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
-                                    if (e.shiftKey) parts.push("Shift");
-                                    if (e.altKey) parts.push("Alt");
-                                    parts.push(e.code || e.key);
-                                    const newCode = parts.join("+");
-                                    const updatedCodes = [...currentCodes, newCode];
-                                    const updated = { ...customHotkeys, [item.id]: updatedCodes };
-                                    setCustomHotkeys(updated);
-                                    saveCustomHotkeys(updated);
-                                    setRecordingAction(null);
+                                    if (e.key === "Escape") {
+                                      cancelRecording();
+                                      return;
+                                    }
+                                    if (conflict) return;
+                                    const newCode = buildKeyCode(e);
+                                    if (!newCode) return;
+                                    tryCommitBinding(item.id, currentCodes.length, newCode, customHotkeys);
                                   }}
                                   onMouseDown={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     ignoreClickUntilRef.current = Date.now() + 400;
-                                    const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
-                                    const newCode = btnMap[e.button] || `MouseButton${e.button}`;
-                                    const updatedCodes = [...currentCodes, newCode];
-                                    const updated = { ...customHotkeys, [item.id]: updatedCodes };
-                                    setCustomHotkeys(updated);
-                                    saveCustomHotkeys(updated);
-                                    setRecordingAction(null);
+                                    if (conflict) return;
+                                    tryCommitBinding(item.id, currentCodes.length, buildMouseCode(e), customHotkeys);
                                   }}
                                   onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                   style={{
@@ -313,6 +409,8 @@ export function HotkeysSettingsTab({
                                     e.stopPropagation();
                                     return;
                                   }
+                                  // Новая запись отменяет висящий конфликт
+                                  setConflict(null);
                                   setRecordingAction({ id: item.id, index: currentCodes.length });
                                 }}
                                 title="Добавить клавишу"
@@ -350,7 +448,7 @@ export function HotkeysSettingsTab({
                           alignItems: "center",
                           justifyContent: "center",
                           flexShrink: 0,
-                          transition: "all 0.15s ease",
+                          transition: "background-color 0.15s ease, color 0.15s ease",
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.color = "var(--text-primary)";
@@ -364,6 +462,65 @@ export function HotkeysSettingsTab({
                         <RotateCcw size={16} />
                       </button>
                     </div>
+
+                    {/* Баннер конфликта: комбинация уже занята другим действием */}
+                    {itemConflict && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: 8,
+                          marginTop: 6,
+                          marginBottom: 2,
+                          padding: "8px 12px",
+                          background: "rgba(244, 67, 54, 0.08)",
+                          border: "1px solid rgba(244, 67, 54, 0.35)",
+                          borderRadius: "var(--radius-md)",
+                          boxShadow: "0 0 12px rgba(244, 67, 54, 0.15)",
+                        }}
+                      >
+                        <span style={{ fontSize: "0.80rem", color: "var(--text-primary)", lineHeight: 1.4 }}>
+                          {itemConflict.reserved ? (
+                            <>
+                              <span style={{ color: "#f87171", fontWeight: 700 }}>Зарезервировано: </span>
+                              {getKeyDisplay(itemConflict.code)} — только «{itemConflict.ownerLabel}». Выберите другую комбинацию.
+                            </>
+                          ) : (
+                            <>
+                              <span style={{ color: "#f87171", fontWeight: 700 }}>Занято: </span>
+                              {getKeyDisplay(itemConflict.code)} — «{itemConflict.ownerLabel}»
+                            </>
+                          )}
+                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {!itemConflict.reserved && (
+                            <button
+                              type="button"
+                              onClick={() => applyBinding(
+                                itemConflict.targetId,
+                                itemConflict.targetIndex,
+                                itemConflict.code,
+                                itemConflict.ownerId
+                              )}
+                              className="btn btn--danger btn--sm"
+                              title="Забрать комбинацию у другого действия"
+                            >
+                              Перезаписать
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={cancelRecording}
+                            className="btn btn--secondary btn--sm"
+                          >
+                            Отмена
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    </React.Fragment>
                   );
                 })}
               </div>

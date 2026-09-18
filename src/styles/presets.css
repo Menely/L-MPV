@@ -382,33 +382,6 @@
   border-color: rgba(239, 68, 68, 0.4);
 }
 
-/* Пустой список */
-.presets-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 16px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.015);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-md);
-  gap: 10px;
-}
-
-.presets-empty__title {
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.presets-empty__desc {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  max-width: 380px;
-  line-height: 1.4;
-}
-
 /* Всплывающее уведомление о применении пресета */
 .preset-toast {
   position: fixed;

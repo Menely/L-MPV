@@ -11,6 +11,7 @@ import {
 import {
   getCustomHotkeys,
   saveCustomHotkeys,
+  isCodeReservedForUpscaleOff,
 } from "../../utils/hotkeyUtils";
 import {
   ModelFileItem,
@@ -38,6 +39,7 @@ import {
 import { BackendSelector } from "../upscale/BackendSelector";
 import { ModelListItem } from "../upscale/ModelListItem";
 import { getPreloadedUpscaleStatus, storeUpscaleStatus } from "./settingsTabPreload";
+import { SectionHeader, EmptyState } from "./SettingBlocks";
 
 export type {
   ModelFileItem,
@@ -491,6 +493,13 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     parts.push(e.code || e.key);
     const newCode = parts.join("+");
 
+    // Shift+1 зарезервировано за выключением апскейлинга — моделям нельзя.
+    // Запись не закрываем: пусть пользователь нажмёт другую комбинацию.
+    if (isCodeReservedForUpscaleOff(newCode, actionId)) {
+      setErrorMessage("Shift+1 зарезервировано за выключением апскейлинга. Выберите другую комбинацию.");
+      return;
+    }
+
     const updated = { ...customHotkeys, [actionId]: [newCode] };
     setCustomHotkeys(updated);
     saveCustomHotkeys(updated);
@@ -613,35 +622,32 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
 
       {/* 3. Универсальная библиотека ONNX-моделей (`models/onnx/`) с биндом клавиш */}
       <div className="glass-section" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <h3 style={{ fontSize: "1.02rem", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
-              <Layers size={17} color="var(--accent)" /> Папка нейросетей (models/onnx/)
-            </h3>
-            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 2 }}>
-              Обнаружено файлов ONNX-моделей: {status?.models_count || 0}
-            </p>
-          </div>
+        <SectionHeader
+          icon={<Layers size={17} />}
+          title="Папка нейросетей (models/onnx/)"
+          desc={`Обнаружено файлов ONNX-моделей: ${status?.models_count || 0}`}
+          right={
+            <>
+              <button
+                type="button"
+                className="btn btn--secondary btn--icon"
+                onClick={toggleHideModelNames}
+                title={hideModelNames ? "Показать названия моделей" : "Скрыть названия моделей"}
+              >
+                {hideModelNames ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button
-              type="button"
-              className="btn btn--secondary btn--icon"
-              onClick={toggleHideModelNames}
-            >
-              {hideModelNames ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-
-            <button
-              type="button"
-              className="btn btn--secondary btn--icon"
-              onClick={handleOpenModelsFolder}
-              title="Открыть папку моделей в Проводнике"
-            >
-              <FolderOpen size={16} />
-            </button>
-          </div>
-        </div>
+              <button
+                type="button"
+                className="btn btn--secondary btn--icon"
+                onClick={handleOpenModelsFolder}
+                title="Открыть папку моделей в Проводнике"
+              >
+                <FolderOpen size={16} />
+              </button>
+            </>
+          }
+        />
 
         {/* Список обнаруженных файлов ONNX-моделей */}
         <div
@@ -658,9 +664,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
           }}
         >
           {loading && !status ? (
-            <div style={{ padding: 18, textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              Загрузка списка моделей...
-            </div>
+            <EmptyState loading title="Загрузка списка моделей..." />
           ) : status?.models && status.models.length > 0 ? (
             <DndContext
               sensors={sensors}
@@ -696,13 +700,20 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
               </SortableContext>
             </DndContext>
           ) : (
-            <div style={{ padding: 18, textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              В папке models/onnx/ не найдено совместимых моделей .onnx.
-              <br />
-              <span style={{ fontSize: "0.78rem" }}>
-                Нажмите значок папки справа вверху и скопируйте файлы моделей.
-              </span>
-            </div>
+            <EmptyState
+              icon={<Layers size={24} />}
+              title="Модели не найдены"
+              desc="В папке models/onnx/ нет совместимых моделей .onnx. Скопируйте файлы моделей."
+              action={
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={handleOpenModelsFolder}
+                >
+                  <FolderOpen size={14} /> Открыть папку
+                </button>
+              }
+            />
           )}
         </div>
       </div>

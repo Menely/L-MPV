@@ -5,6 +5,7 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { AccordionSection } from "./AccordionSection";
 import { ContextMenuSettingsTab } from "./ContextMenuSettingsTab";
+import { SectionHeader } from "./SettingBlocks";
 
 interface GeneralSettingsTabProps {
   multiInstance: boolean;
@@ -69,17 +70,15 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
           <div style={cardStyle}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Camera size={14} style={{ color: "var(--accent)" }} />
-                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                  Папка сохранения скриншотов
+            <SectionHeader
+              icon={<Camera size={14} />}
+              title="Папка сохранения скриншотов"
+              right={
+                <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                  Горячая клавиша: <strong style={{ color: "var(--accent)" }}>S</strong> (без субтитров: <strong style={{ color: "var(--accent)" }}>Shift+S</strong>)
                 </span>
-              </div>
-              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                Горячая клавиша: <strong style={{ color: "var(--accent)" }}>S</strong> (без субтитров: <strong style={{ color: "var(--accent)" }}>Shift+S</strong>)
-              </span>
-            </div>
+              }
+            />
             
             <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
               Кадры сохраняются в оригинальном исходном разрешении видеопотока без сжатия интерфейсом.
@@ -157,15 +156,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
           
           {/* 1.1 Поведение по окончании видео (Сегментный селектор) */}
           <div style={cardStyle}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-              <Film size={14} style={{ color: "var(--accent)" }} />
-              <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                Поведение по окончании видео
-              </span>
-            </div>
-            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35, marginBottom: 4 }}>
-              Выберите, какое действие выполняет плеер после завершения воспроизведения текущего файла.
-            </span>
+            <SectionHeader
+              icon={<Film size={14} />}
+              title="Поведение по окончании видео"
+              desc="Выберите, какое действие выполняет плеер после завершения воспроизведения текущего файла."
+            />
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
               <button
