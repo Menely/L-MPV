@@ -212,6 +212,54 @@ pub fn detect_system_gpu() -> GpuHardwareInfo {
 }
 
 fn detect_system_gpu_uncached() -> GpuHardwareInfo {
+    #[cfg(target_os = "linux")]
+    {
+        let summary = std::process::Command::new("vulkaninfo")
+            .arg("--summary")
+            .output()
+            .ok()
+            .filter(|output| output.status.success())
+            .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
+            .unwrap_or_default();
+        let name = summary.lines()
+            .filter_map(|line| line.split_once("deviceName").map(|(_, value)| value.trim_start_matches([' ', '=']).trim().to_string()))
+            .max_by_key(|value| {
+                let lower = value.to_lowercase();
+                if lower.contains("nvidia") || lower.contains("radeon") || lower.contains("arc") { 2 }
+                else if lower.contains("intel") || lower.contains("amd") { 1 }
+                else { 0 }
+            })
+            .filter(|value| !value.is_empty())
+            .or_else(|| {
+                std::process::Command::new("lspci").output().ok().and_then(|output| {
+                    String::from_utf8_lossy(&output.stdout).lines()
+                        .find(|line| line.contains("VGA compatible controller") || line.contains("3D controller"))
+                        .and_then(|line| line.split_once(": ").map(|(_, name)| name.to_string()))
+                })
+            })
+            .unwrap_or_else(|| "Vulkan GPU".to_string());
+        let lower = name.to_lowercase();
+        let (vendor, vendor_id) = if lower.contains("nvidia") {
+            ("NVIDIA", 0x10DE)
+        } else if lower.contains("amd") || lower.contains("radeon") {
+            ("AMD", 0x1002)
+        } else if lower.contains("intel") {
+            ("Intel", 0x8086)
+        } else {
+            ("Unknown", 0)
+        };
+        return GpuHardwareInfo {
+            name,
+            vendor: vendor.to_string(),
+            vendor_id,
+            device_id: 0,
+            recommended_backend: "NCNN Vulkan".to_string(),
+            supports_tensorrt: false,
+            sm_architecture: "vulkan".to_string(),
+            vram_bytes: 0,
+        };
+    }
+
     #[cfg(windows)]
     {
         use windows::Win32::Graphics::Dxgi::{
@@ -305,7 +353,8 @@ fn detect_system_gpu_uncached() -> GpuHardwareInfo {
         }
     }
 
-        GpuHardwareInfo {
+    #[cfg(not(target_os = "linux"))]
+    GpuHardwareInfo {
         name: "Универсальный GPU".to_string(),
         vendor: "Unknown".to_string(),
         vendor_id: 0,

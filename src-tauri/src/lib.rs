@@ -5,6 +5,10 @@
 
 mod ambient;
 pub mod upscale;
+#[cfg(target_os = "windows")]
+mod audio_capture;
+#[cfg(not(target_os = "windows"))]
+#[path = "audio_capture_stub.rs"]
 mod audio_capture;
 mod commands;
 mod mediainfo;
@@ -35,7 +39,7 @@ pub fn parse_cli_args<I: IntoIterator<Item = String>>(args: I) -> ParsedCliArgs 
         let lower = arg.to_lowercase();
         if lower == "--mediainfo" || lower == "-mediainfo" || lower == "/mediainfo" {
             open_mediainfo = true;
-        } else if !arg.starts_with('-') && !arg.starts_with('/') && file_path.is_none() {
+        } else if !arg.starts_with('-') && file_path.is_none() {
             file_path = Some(arg);
         }
     }
@@ -43,6 +47,28 @@ pub fn parse_cli_args<I: IntoIterator<Item = String>>(args: I) -> ParsedCliArgs 
     ParsedCliArgs {
         file_path,
         open_mediainfo,
+    }
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::parse_cli_args;
+
+    #[test]
+    fn accepts_linux_absolute_media_path() {
+        let parsed = parse_cli_args(["l-mpv".to_string(), "/tmp/video.mp4".to_string()]);
+        assert_eq!(parsed.file_path.as_deref(), Some("/tmp/video.mp4"));
+    }
+
+    #[test]
+    fn keeps_windows_mediainfo_switch() {
+        let parsed = parse_cli_args([
+            "l-mpv".to_string(),
+            "/mediainfo".to_string(),
+            "C:\\video.mp4".to_string(),
+        ]);
+        assert!(parsed.open_mediainfo);
+        assert_eq!(parsed.file_path.as_deref(), Some("C:\\video.mp4"));
     }
 }
 
@@ -74,11 +100,7 @@ pub fn run() {
 
     println!("[L-MPV] Запуск функции run()...");
     // Определяем портативную директорию приложения
-    let exe_dir = std::env::current_exe()
-        .expect("Не удалось определить путь к исполняемому файлу")
-        .parent()
-        .expect("Не удалось определить директорию исполняемого файла")
-        .to_path_buf();
+    let exe_dir = commands::app_data_root();
 
 
     println!("[L-MPV] Директория exe: {:?}", exe_dir);
@@ -111,10 +133,14 @@ pub fn run() {
             .map(|d| d.as_secs())
             .unwrap_or(0);
             
-        let payload = panic_info.payload().downcast_ref::<&str>()
-            .unwrap_or(&"Box<dyn Any>");
+        let payload = panic_info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|value| (*value).to_string())
+            .or_else(|| panic_info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "Box<dyn Any>".to_string());
         let location = panic_info.location().map(|l| format!("{}:{}", l.file(), l.line())).unwrap_or_default();
-        
+        eprintln!("[L-MPV] CRASH at {location}: {payload}");
         let _ = writeln!(file, "[{}] CRASH (Panic) at {}: {}", timestamp, location, payload);
     }));
 
@@ -264,6 +290,7 @@ pub fn run() {
             commands::set_play_next_on_end,
             commands::load_external_tracks_for_file,
             commands::get_app_version,
+            commands::get_runtime_platform,
             // Автообновление
             updater::check_launch_and_update,
             updater::check_for_updates,
@@ -293,6 +320,7 @@ pub fn run() {
             upscale::switch_upscale_network_hotkey,
             upscale::precompile_model_engine_1080p,
             upscale::save_models_order,
+            upscale::download_curated_ncnn_model,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -323,6 +351,7 @@ pub fn run() {
         })
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
+            let cli = parse_cli_args(std::env::args());
 
             #[cfg(target_os = "windows")]
             {
@@ -361,7 +390,159 @@ pub fn run() {
                 }
             }
 
-            let cli = parse_cli_args(std::env::args());
+            #[cfg(target_os = "linux")]
+            {
+                use gtk::glib::{self, Cast, ControlFlow, ObjectExt, Propagation};
+                use gtk::prelude::{ContainerExt, GLAreaExt, OverlayExt, WidgetExt};
+
+                let state = app.state::<PlayerState>();
+                let mpv = state.mpv.clone();
+                let root = window.default_vbox()
+                    .map_err(|e| format!("Не удалось получить GTK-контейнер: {e}"))?;
+                let Some(overlay) = root.children().into_iter().last()
+                    .and_then(|widget| widget.downcast::<gtk::Overlay>().ok()) else {
+                    println!("[L-MPV] Нативная видеоповерхность отключена");
+                    window.show().ok();
+                    return Ok(());
+                };
+                let children = overlay.children();
+                let video = children.iter()
+                    .find_map(|widget| widget.clone().downcast::<gtk::GLArea>().ok())
+                    .ok_or_else(|| "GtkGLArea отсутствует в GtkOverlay".to_string())?;
+                let webview_host = children.into_iter()
+                    .find(|widget| !widget.is::<gtk::GLArea>())
+                    .ok_or_else(|| "WebView отсутствует в GtkOverlay".to_string())?;
+                let webview = webview_host.clone().downcast::<gtk::Container>().ok()
+                    .and_then(|container| container.children().into_iter().next())
+                    .unwrap_or_else(|| webview_host.clone());
+
+                video.set_auto_render(false);
+                video.set_has_alpha(false);
+                video.set_required_version(3, 2);
+                video.set_hexpand(true);
+                video.set_vexpand(true);
+                let display_name = gtk::gdk::Display::default()
+                    .map(|display| display.type_().name().to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                if display_name == "GdkX11Display" {
+                    // X11 native child windows cannot alpha-compose WebKitGTK
+                    // above GLArea. Keep the GL surface between the titlebar
+                    // and controls so both remain visible and interactive.
+                    video.set_vexpand(false);
+                    video.set_valign(gtk::Align::Start);
+                    video.set_margin_top(44);
+                    video.set_margin_bottom(0);
+                    let weak_x11_video = video.downgrade();
+                    overlay.connect_size_allocate(move |_overlay, allocation| {
+                        if let Some(video) = weak_x11_video.upgrade() {
+                            video.set_size_request(-1, (allocation.height() - 140).max(1));
+                        }
+                    });
+                    overlay.set_overlay_pass_through(&video, true);
+                } else {
+                    overlay.set_overlay_pass_through(&webview_host, false);
+                }
+                // The Linux config creates this window decorated so Tauri does
+                // not install its hierarchy-dependent resize handler. Once the
+                // WebView has been placed over GtkGLArea we restore the custom
+                // title bar used by the application.
+                window.set_decorations(false)
+                    .map_err(|e| format!("Не удалось отключить системную рамку: {e}"))?;
+
+                let mpv_realize = mpv.clone();
+                let startup_path = if cli.open_mediainfo { None } else { cli.file_path.clone() };
+                let startup_app = app.handle().clone();
+                video.connect_realize(move |area| {
+                    area.make_current();
+                    if let Some(error) = area.error() {
+                        eprintln!("[L-MPV] Не удалось создать OpenGL-контекст: {error}");
+                        return;
+                    }
+                    if let Err(error) = mpv_realize.initialize_opengl_renderer() {
+                        eprintln!("[L-MPV] Ошибка libmpv render API: {error}");
+                        return;
+                    }
+                    if let Some(path) = startup_path.as_deref() {
+                        let state = startup_app.state::<PlayerState>();
+                        if let Err(error) = commands::open_file_internal(&state, path) {
+                            eprintln!("[L-MPV] Ошибка открытия файла при запуске: {error}");
+                        } else {
+                            println!("[L-MPV] Открыт файл из CLI: {path}");
+                        }
+                        if let Some(window) = startup_app.get_webview_window("main") {
+                            window.show().ok();
+                        }
+                    }
+                });
+
+                let mpv_render = mpv.clone();
+                video.connect_render(move |area, _context| {
+                    const GL_DRAW_FRAMEBUFFER_BINDING: u32 = 0x8CA6;
+                    #[link(name = "GL")]
+                    unsafe extern "C" {
+                        fn glGetIntegerv(name: u32, value: *mut i32);
+                    }
+
+                    let mut fbo = 0i32;
+                    unsafe { glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &mut fbo) };
+                    let scale = area.scale_factor().max(1);
+                    let allocation = area.allocation();
+                    let width = allocation.width().max(1) * scale;
+                    let height = allocation.height().max(1) * scale;
+                    if let Err(error) = mpv_render.render_opengl_frame(fbo, width, height) {
+                        eprintln!("[L-MPV] Ошибка отрисовки кадра: {error}");
+                    }
+                    Propagation::Stop
+                });
+
+                let mpv_unrealize = mpv.clone();
+                video.connect_unrealize(move |area| {
+                    area.make_current();
+                    mpv_unrealize.free_opengl_renderer();
+                });
+
+                let weak_video = video.downgrade();
+                let mpv_updates = mpv.clone();
+                glib::timeout_add_local(std::time::Duration::from_millis(8), move || {
+                    if let Some(video) = weak_video.upgrade() {
+                        if mpv_updates.take_render_request() {
+                            video.queue_render();
+                        }
+                        ControlFlow::Continue
+                    } else {
+                        ControlFlow::Break
+                    }
+                });
+
+                overlay.show_all();
+                // GtkGLArea and WebKitGTK both own native GDK child windows.
+                // Keep the WebView's window above the OpenGL surface; GTK's
+                // widget order alone is not sufficient on every compositor.
+                if display_name == "GdkX11Display" {
+                    if let Some(video_window) = video.window() {
+                        video_window.raise();
+                    }
+                } else {
+                    if let Some(video_window) = video.window() {
+                        video_window.lower();
+                    }
+                    if let Some(webview_window) = webview.window() {
+                        webview_window.raise();
+                    }
+                    webview.connect_realize(|widget| {
+                        if let Some(window) = widget.window() {
+                            window.raise();
+                        }
+                    });
+                }
+                println!("[L-MPV] libmpv render API подключён к GTK GLArea ({display_name})");
+
+                let saved_cfg = commands::AppSettings::load(&commands::app_data_root());
+                if let Err(e) = state.ambient_controller.apply(&saved_cfg.ambient) {
+                    println!("[L-MPV] Ошибка инициализации Ambient Light: {e}");
+                }
+            }
+
             if cli.open_mediainfo {
                 let target_path = cli.file_path.as_deref().unwrap_or("");
                 let app_handle = app.handle().clone();
@@ -370,10 +551,20 @@ pub fn run() {
                 }
                 // Окно плеера main остается скрытым
             } else if let Some(ref path) = cli.file_path {
+                #[cfg(target_os = "linux")]
+                {
+                    let _ = path;
+                    window.show().ok();
+                }
+                #[cfg(not(target_os = "linux"))]
+                {
                 let state = app.state::<PlayerState>();
                 if let Err(e) = commands::open_file_internal(&state, path) {
                     println!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
                     window.show().ok();
+                } else {
+                    println!("[L-MPV] Открыт файл из CLI: {path}");
+                }
                 }
             } else {
                 // Нет аргумента файла — показываем окно сразу со стартовой страницей

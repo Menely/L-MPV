@@ -6,6 +6,8 @@ pub mod controller;
 pub mod downloader;
 pub mod engine_builder;
 pub mod hardware;
+#[cfg(target_os = "linux")]
+pub mod linux;
 pub mod types;
 
 // Реэкспорт моделей данных для использования внешними модулями
@@ -32,6 +34,8 @@ pub fn get_upscale_status() -> UpscaleStatus {
             aji_present: false,
             directml_present: false,
             tensorrt_present: false,
+            ncnn_present: false,
+            platform: std::env::consts::OS.to_string(),
             models_count: 0,
             models_dir: String::new(),
             models: Vec::new(),
@@ -112,6 +116,14 @@ pub async fn precompile_model_engine_1080p(
 #[tauri::command]
 pub fn save_models_order(order: Vec<String>) -> Result<(), String> {
     config::save_models_order_internal(&order)
+}
+
+#[tauri::command]
+pub async fn download_curated_ncnn_model() -> Result<String, String> {
+    #[cfg(target_os = "linux")]
+    return linux::download_curated_model().await;
+    #[cfg(not(target_os = "linux"))]
+    Err("Каталог NCNN-моделей доступен только в Linux.".to_string())
 }
 
 #[cfg(test)]

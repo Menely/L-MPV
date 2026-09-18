@@ -4,9 +4,12 @@
 //! извлечение исчерпывающего текстового и JSON-отчёта обо всех потоках и метаданных
 //! медиаконтейнера (видео, аудиодорожки, субтитры, кодеки, параметры кодирования).
 
+#[cfg(target_os = "windows")]
 use std::os::raw::c_void;
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "windows")]
 use std::sync::OnceLock;
+#[cfg(target_os = "windows")]
 use libloading::{Library, Symbol};
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -21,9 +24,11 @@ pub struct DetailedMediaInfo {
     pub json: String,
 }
 
+#[cfg(target_os = "windows")]
 static MEDIAINFO_API: OnceLock<Result<MediaInfoApi, String>> = OnceLock::new();
 
 /// Набор динамически загружаемых символов C-API MediaInfo.
+#[cfg(target_os = "windows")]
 struct MediaInfoApi {
     _lib: &'static Library,
     new_fn: Symbol<'static, unsafe extern "C" fn() -> *mut c_void>,
@@ -35,9 +40,12 @@ struct MediaInfoApi {
     option_fn: Symbol<'static, unsafe extern "C" fn(*mut c_void, *const u16, *const u16) -> *const u16>,
 }
 
+#[cfg(target_os = "windows")]
 unsafe impl Send for MediaInfoApi {}
+#[cfg(target_os = "windows")]
 unsafe impl Sync for MediaInfoApi {}
 
+#[cfg(target_os = "windows")]
 impl MediaInfoApi {
     /// Получение синглтона API библиотеки (ленивая инициализация один раз).
     pub fn get() -> Result<&'static Self, String> {
@@ -96,6 +104,7 @@ impl MediaInfoApi {
 }
 
 /// Поиск пути к файлу библиотеки mediainfo.dll по списку стандартных кандидатов.
+#[cfg(target_os = "windows")]
 fn find_mediainfo_dll() -> Result<PathBuf, String> {
     let mut candidates = Vec::new();
 
@@ -125,11 +134,13 @@ fn find_mediainfo_dll() -> Result<PathBuf, String> {
 }
 
 /// Конвертация строкового среза в нуль-терминированный UTF-16 буфер.
+#[cfg(target_os = "windows")]
 fn to_wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
 /// Чтение нуль-терминированной UTF-16 строки из нативного указателя.
+#[cfg(target_os = "windows")]
 unsafe fn from_wide_ptr(ptr: *const u16) -> String {
     if ptr.is_null() {
         return String::new();
@@ -161,6 +172,13 @@ pub fn analyze_media_file<P: AsRef<Path>>(path: P) -> Result<DetailedMediaInfo, 
         ));
     }
 
+    #[cfg(target_os = "linux")]
+    {
+        return analyze_media_file_linux(path_ref);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
     let api = MediaInfoApi::get()?;
     let wide_path = to_wide(&path_str);
 
@@ -193,6 +211,39 @@ pub fn analyze_media_file<P: AsRef<Path>>(path: P) -> Result<DetailedMediaInfo, 
             json: String::new(),
         })
     }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn analyze_media_file_linux(path: &Path) -> Result<DetailedMediaInfo, String> {
+    let binary = std::env::var_os("APPDIR")
+        .map(PathBuf::from)
+        .map(|dir| dir.join("usr/bin/mediainfo"))
+        .filter(|candidate| candidate.exists())
+        .unwrap_or_else(|| PathBuf::from("mediainfo"));
+
+    let text_output = std::process::Command::new(&binary)
+        .arg(path)
+        .output()
+        .map_err(|e| format!("Не удалось запустить MediaInfo: {e}"))?;
+    if !text_output.status.success() {
+        return Err(String::from_utf8_lossy(&text_output.stderr).trim().to_string());
+    }
+
+    let json_output = std::process::Command::new(&binary)
+        .arg("--Output=JSON")
+        .arg(path)
+        .output()
+        .map_err(|e| format!("Не удалось получить JSON MediaInfo: {e}"))?;
+
+    Ok(DetailedMediaInfo {
+        text: String::from_utf8_lossy(&text_output.stdout).into_owned(),
+        json: if json_output.status.success() {
+            String::from_utf8_lossy(&json_output.stdout).into_owned()
+        } else {
+            String::new()
+        },
+    })
 }
 
 /// Получение полного детального отчёта MediaInfo через библиотеку MediaInfo.dll.

@@ -1,13 +1,17 @@
 //! Контроллер взаимодействия с медиа-движком libmpv и OSD при апскейлинге.
 
-use super::config::{ensure_inference_environment, get_inference_dir, get_models_dir, write_upscale_conf};
+use super::config::{get_inference_dir, get_models_dir};
+#[cfg(not(target_os = "linux"))]
+use super::config::{ensure_inference_environment, write_upscale_conf};
 use super::types::UpscaleSettings;
 use crate::commands::PlayerState;
 use crate::mpv_manager::MpvManager;
 use std::process::Command;
+#[cfg(not(target_os = "linux"))]
 use std::sync::Mutex;
 use tauri::State;
 
+#[cfg(not(target_os = "linux"))]
 static LAST_APPLIED_BACKEND: Mutex<Option<String>> = Mutex::new(None);
 
 /// Принудительно заставляет mpv перерисовать и отобразить апскейленный кадр,
@@ -28,6 +32,11 @@ pub fn apply_upscale_settings_impl(
     state: &State<'_, PlayerState>,
     settings: UpscaleSettings,
 ) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    return super::linux::apply(state, &settings);
+
+    #[cfg(not(target_os = "linux"))]
+    {
     let mut active_slot = settings.active_slot;
     
     // Миграция старых CRC-слотов (2000-9999) на новые 1-9
@@ -80,6 +89,7 @@ pub fn apply_upscale_settings_impl(
     }
 
     Ok(())
+    }
 }
 
 /// Переключение видов нейросетей по горячим клавишам Shift+1..4 на лету
@@ -88,6 +98,11 @@ pub fn switch_upscale_network_hotkey_impl(
     slot: u32,
     backend: Option<String>,
 ) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    return super::linux::switch_model(state, slot, backend);
+
+    #[cfg(not(target_os = "linux"))]
+    {
     let chosen_backend = backend.unwrap_or_else(|| {
         let last = LAST_APPLIED_BACKEND.lock().unwrap();
         last.clone().unwrap_or_else(|| "DirectML".to_string())
@@ -130,12 +145,17 @@ pub fn switch_upscale_network_hotkey_impl(
 
     force_frame_refresh(&state.mpv);
     Ok(())
+    }
 }
 
 /// Открытие папки моделей в системном Проводнике Windows
 pub fn open_models_folder_impl() -> Result<(), String> {
     let dir = get_models_dir();
-    Command::new("explorer.exe")
+    #[cfg(target_os = "linux")]
+    let mut command = Command::new("xdg-open");
+    #[cfg(not(target_os = "linux"))]
+    let mut command = Command::new("explorer.exe");
+    command
         .arg(&dir)
         .spawn()
         .map_err(|e| format!("Не удалось открыть Проводник: {}", e))?;
@@ -145,7 +165,11 @@ pub fn open_models_folder_impl() -> Result<(), String> {
 /// Открытие каталога библиотек инференса в Проводнике Windows
 pub fn open_inference_folder_impl() -> Result<(), String> {
     let dir = get_inference_dir();
-    Command::new("explorer.exe")
+    #[cfg(target_os = "linux")]
+    let mut command = Command::new("xdg-open");
+    #[cfg(not(target_os = "linux"))]
+    let mut command = Command::new("explorer.exe");
+    command
         .arg(&dir)
         .spawn()
         .map_err(|e| format!("Не удалось открыть Проводник: {}", e))?;
