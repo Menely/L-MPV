@@ -1046,22 +1046,48 @@
   color: var(--accent);
 }
 
+/* Панель вкладок: высота анимируется из JS (старая -> новая),
+   скролл-якорь отключён чтобы браузер не дёргал скролл mid-transition */
+.settings-tab-panel {
+  overflow-anchor: none;
+  min-height: 0;
+}
+
+.modal--settings .modal__body {
+  overflow-anchor: none;
+}
+
 .settings-tab-content {
-  animation: settingsTabFadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: settingsTabSlideIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   /* БЕЗ will-change: размер контейнера меняется при раскрытии аккордеона,
      зафиксированный слой рерастеризовывался бы каждый кадр (дрожание текста). */
 }
 
-@keyframes settingsTabFadeIn {
-  0% {
+.settings-tab-content[data-slide-dir="-1"] {
+  animation-name: settingsTabSlideInBack;
+}
+
+@keyframes settingsTabSlideIn {
+  from {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateX(16px);
   }
-  100% {
+  to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(0);
+  }
+}
+
+@keyframes settingsTabSlideInBack {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 

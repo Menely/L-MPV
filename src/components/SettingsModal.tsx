@@ -72,6 +72,7 @@ import { HotkeysSettingsTab } from "./settings/HotkeysSettingsTab";
 import { IntegrationSettingsTab } from "./settings/IntegrationSettingsTab";
 import { AppearanceSettingsTab } from "./settings/AppearanceSettingsTab";
 import { GeneralSettingsTab } from "./settings/GeneralSettingsTab";
+import { useSettingsTabTransition } from "./settings/useSettingsTabTransition";
 import { SettingsPreset } from "../utils/presetsUtils";
 import {
   UiRadiusLevel,
@@ -146,6 +147,12 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
   const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
+  const { bodyRef, panelRef, slideDir, beginSwitch } = useSettingsTabTransition(activeTab, SETTINGS_TABS);
+
+  // Единая точка смены вкладки: плавный переход высоты + слайд, логика табов не меняется
+  const handleTabChange = useCallback((next: SettingsTabId) => {
+    if (beginSwitch(next)) setActiveTab(next);
+  }, [beginSwitch]);
 
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -203,13 +210,13 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         e.stopPropagation();
         e.stopImmediatePropagation();
         const nextIndex = (currentIndex + 1) % SETTINGS_TABS.length;
-        setActiveTab(SETTINGS_TABS[nextIndex]);
+        handleTabChange(SETTINGS_TABS[nextIndex]);
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
         const prevIndex = (currentIndex - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length;
-        setActiveTab(SETTINGS_TABS[prevIndex]);
+        handleTabChange(SETTINGS_TABS[prevIndex]);
       }
     };
 
@@ -217,7 +224,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [activeTab, isRecordingHotkey, handleClose]);
+  }, [activeTab, isRecordingHotkey, handleClose, handleTabChange]);
 
   // Синхронизация локальных состояний SettingsModal при применении любого пресета
   const handlePresetApplied = useCallback((preset: SettingsPreset) => {
@@ -599,7 +606,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                onClick={() => handleTabChange(tab.id as typeof activeTab)}
                 className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
               >
                 <Icon size={16} className="settings-tab-icon" />
@@ -610,8 +617,9 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         </div>
 
         {/* Тело модального окна */}
-        <div className="modal__body" style={{ padding: "20px" }}>
-          <div key={activeTab} className="settings-tab-content">
+        <div className="modal__body" ref={bodyRef} style={{ padding: "20px" }}>
+          <div ref={panelRef} className="settings-tab-panel">
+          <div key={activeTab} data-slide-dir={slideDir} className="settings-tab-content">
             {activeTab === "general" && (
             <GeneralSettingsTab
               multiInstance={multiInstance} setMultiInstance={setMultiInstance}
@@ -671,6 +679,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           {activeTab === "integration" && (
             <IntegrationSettingsTab />
           )}
+          </div>
           </div>
         </div>
         {/* Футер с версией приложения и проверкой обновлений */}
