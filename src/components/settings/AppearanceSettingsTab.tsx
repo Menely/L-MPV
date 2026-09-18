@@ -1,5 +1,6 @@
+import { useState, useRef } from "react";
 import {
-  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, AudioLines, Clock, RotateCcw, Play, RotateCw, PanelBottom, Timer, Zap
+  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, AudioLines, Clock, RotateCcw, PanelBottom, Timer, Zap
 } from "lucide-react";
 import { AccordionSection } from "./AccordionSection";
 import { ColorSchemeSection } from "./ColorSchemeSection";
@@ -10,6 +11,137 @@ import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../utils/timePosi
 import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../utils/timeFormatUtils";
 import { ControlBarStyle } from "../../utils/controlBarStyleUtils";
 import { AmbientSettings } from "../SettingsModal";
+
+interface VerticalSliderProps {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (val: number) => void;
+  ariaLabel?: string;
+}
+
+function VerticalSlider({ value, min, max, step = 1, onChange, ariaLabel }: VerticalSliderProps) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const percent = Math.min(1, Math.max(0, (value - min) / (max - min)));
+
+  const updateFromPointer = (clientY: number) => {
+    if (!trackRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const offsetY = rect.bottom - clientY;
+    const rawFrac = Math.min(1, Math.max(0, offsetY / rect.height));
+    const rawVal = min + rawFrac * (max - min);
+    const steppedVal = Math.round(rawVal / step) * step;
+    const finalVal = Math.min(max, Math.max(min, Number(steppedVal.toFixed(2))));
+    onChange(finalVal);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setIsDragging(true);
+    updateFromPointer(e.clientY);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    updateFromPointer(e.clientY);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      setIsDragging(false);
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={trackRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      role="slider"
+      aria-label={ariaLabel}
+      aria-valuenow={value}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+          e.preventDefault();
+          onChange(Math.min(max, Number((value + step).toFixed(2))));
+        } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+          e.preventDefault();
+          onChange(Math.max(min, Number((value - step).toFixed(2))));
+        }
+      }}
+      style={{
+        position: "relative",
+        width: 16,
+        height: "100%",
+        minHeight: 110,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        touchAction: "none",
+        userSelect: "none",
+        flexShrink: 0,
+        outline: "none",
+        padding: "0 2px",
+      }}
+    >
+      {/* Background Track */}
+      <div
+        style={{
+          position: "absolute",
+          width: 4,
+          top: 6,
+          bottom: 6,
+          borderRadius: 999,
+          background: "rgba(255, 255, 255, 0.12)",
+        }}
+      />
+      {/* Active Filled Track */}
+      <div
+        style={{
+          position: "absolute",
+          width: 4,
+          bottom: 6,
+          height: `calc(${percent * 100}% - ${percent * 12}px)`,
+          borderRadius: 999,
+          background: "var(--accent)",
+          boxShadow: isDragging ? "0 0 8px var(--accent)" : "none",
+          transition: isDragging ? "none" : "height 0.08s ease",
+        }}
+      />
+      {/* Thumb */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: `calc(6px + ${percent} * (100% - 12px) - 6px)`,
+          width: 12,
+          height: 12,
+          borderRadius: "50%",
+          background: "var(--accent)",
+          boxShadow: isDragging
+            ? "0 0 10px var(--accent), 0 0 2px #fff"
+            : "0 0 6px rgba(var(--accent-rgb, 127, 199, 255), 0.4)",
+          transform: isDragging ? "scale(1.25)" : "scale(1)",
+          transition: isDragging ? "transform 0.1s ease" : "all 0.08s ease",
+        }}
+      />
+    </div>
+  );
+}
 
 interface AppearanceSettingsTabProps {
   activeColor: string;
@@ -89,156 +221,8 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 icon={<SlidersHorizontal size={16} />}
                 title="Настройки интерфейса"
               >
-                <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 10, lineHeight: 1.35 }}>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 12, lineHeight: 1.35 }}>
                   Настройка внешнего вида элементов плеера: степень скругления углов, масштаб и прозрачность панелей управления и окон.
-                </div>
-
-                {/* Компактный интерактивный предпросмотр */}
-                <div className="settings-preview-card">
-                  <div className="settings-preview-card__info">
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                        Предпросмотр:
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "0.80rem",
-                          fontWeight: 700,
-                          color: "var(--accent)",
-                        }}
-                      >
-                        {uiRadius.level === "custom"
-                          ? `Кастомное (${uiRadius.value} px)`
-                          : `${UI_RADIUS_PRESETS[uiRadius.level as Exclude<UiRadiusLevel, "custom">]?.label || "Стандартный"} (${uiRadius.value} px)`}
-                      </span>
-                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
-                      <span
-                        style={{
-                          fontSize: "0.80rem",
-                          fontWeight: 700,
-                          color: "var(--accent)",
-                        }}
-                      >
-                        Масштаб: {uiScale.mode === "auto" ? "Авто (100%)" : `${Math.round(uiScale.value * 100)}%`}
-                      </span>
-                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
-                      <span
-                        style={{
-                          fontSize: "0.80rem",
-                          fontWeight: 700,
-                          color: "var(--accent)",
-                        }}
-                      >
-                        Прозрачность: {Math.round(uiOpacity * 100)}%
-                      </span>
-                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
-                      <span
-                        style={{
-                          fontSize: "0.80rem",
-                          fontWeight: 700,
-                          color: "var(--accent)",
-                        }}
-                      >
-                        Шрифт: {UI_FONT_PRESETS.find((f) => f.id === uiFont)?.label || "Inter"}
-                      </span>
-                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
-                      <span
-                        style={{
-                          fontSize: "0.80rem",
-                          fontWeight: 700,
-                          color: "var(--accent)",
-                        }}
-                      >
-                        Время: {TIME_POSITION_OPTIONS.find((p) => p.id === timePosition)?.label || "Справа от таймлайна"}
-                      </span>
-                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
-                      <span
-                        style={{
-                          fontSize: "0.80rem",
-                          fontWeight: 700,
-                          color: "var(--accent)",
-                        }}
-                      >
-                        Панель: {controlBarStyle === "docked" ? "Пристыкованная (Docked)" : "Парящая (Floating)"}
-                      </span>
-                      <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
-                      <span
-                        style={{
-                          fontSize: "0.80rem",
-                          fontWeight: 700,
-                          color: "var(--accent)",
-                        }}
-                      >
-                        Формат: {TIME_FORMAT_OPTIONS.find((f) => f.id === timeFormat)?.label || "Прошедшее / Общее"}
-                      </span>
-                    </div>
-                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", lineHeight: 1.25 }}>
-                      Живой отклик нижней панели управления, кнопок плеера, диалогов и контекстных меню
-                    </span>
-                  </div>
-
-                  {/* Миниатюрная аутентичная панель управления с живым скруглением и прозрачностью */}
-                  <div
-                    className="settings-preview-card__mini-player"
-                    style={{
-                      background: `rgba(var(--bg-pill-rgb, 10, 12, 18), ${uiOpacity})`,
-                      backdropFilter: "blur(12px)",
-                      WebkitBackdropFilter: "blur(12px)",
-                      borderTop: "1px solid var(--border-pill)",
-                      borderLeft: controlBarStyle === "docked" ? "none" : "1px solid var(--border-pill)",
-                      borderRight: controlBarStyle === "docked" ? "none" : "1px solid var(--border-pill)",
-                      borderBottom: controlBarStyle === "docked" ? "none" : "1px solid var(--border-pill)",
-                      borderRadius: controlBarStyle === "docked" ? 0 : `${uiRadius.value}px`,
-                      padding: "6px 14px 8px",
-                      boxShadow: controlBarStyle === "docked"
-                        ? "0 -4px 16px rgba(0, 0, 0, 0.45)"
-                        : "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
-                      transition: "border-radius var(--t-spring) var(--ease-spring-smooth), background 0.15s ease",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                      <RotateCcw size={14} style={{ color: "var(--text-secondary)", opacity: 0.85, cursor: "default" }} />
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "var(--accent)",
-                          cursor: "default",
-                          filter: "var(--play-icon-glow)",
-                          transition: "filter var(--t-fast) var(--ease-smooth)",
-                        }}
-                      >
-                        <Play size={20} fill="currentColor" />
-                      </div>
-                      <RotateCw size={14} style={{ color: "var(--text-secondary)", opacity: 0.85, cursor: "default" }} />
-                    </div>
-                    {/* Полоска таймлайна */}
-                    <div
-                      style={{
-                        position: "relative",
-                        width: "100%",
-                        height: 3,
-                        background: "rgba(255, 255, 255, 0.15)",
-                        borderRadius: `${Math.max(1, Math.round(uiRadius.value * 0.25))}px`,
-                        overflow: "hidden",
-                      }}
-                    >
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: "55%",
-                          background: "var(--accent)",
-                          borderRadius: `${Math.max(1, Math.round(uiRadius.value * 0.25))}px`,
-                          boxShadow: "var(--timeline-glow)",
-                          transition: "box-shadow var(--t-fast) var(--ease-smooth)",
-                        }}
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 {/* ── Вспомогательные стили для подблоков настроек интерфейса ── */}
@@ -251,7 +235,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     background: "rgba(255, 255, 255, 0.02)",
                     borderRadius: "var(--radius-md)",
                     border: "1px solid var(--border)",
-                    marginBottom: 10,
                   };
                   const resetBtnStyle: React.CSSProperties = {
                     height: 22,
@@ -283,304 +266,340 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
                   return (
                     <>
-                      {/* ── Блок 1: Скругление углов ── */}
-                      <div style={cardStyle}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <Square size={14} style={{ color: "var(--accent)" }} />
-                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                              Скругление углов интерфейса
-                            </span>
-                            {controlBarStyle === "docked" && (
-                              <span
-                                style={{
-                                  fontSize: "0.68rem",
-                                  color: "var(--accent)",
-                                  background: "rgba(var(--accent-rgb, 127, 199, 255), 0.12)",
-                                  padding: "2px 6px",
-                                  borderRadius: 4,
-                                }}
-                                title="В режиме 'Пристыкованная планка' нижняя панель зафиксирована плоской, а скругление применяется к окнам, меню и карточкам"
-                              >
-                                Панель зафиксирована плоской
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
-                              {uiRadius.value} px
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUiRadius({ level: "default", value: 16 });
-                                saveUiRadius("default", 16);
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 10 }}>
+                        
+                        {/* ── Прозрачность интерфейса (Горизонтально сверху) ── */}
+                        {(() => {
+                          const opacityPct = Math.round(((uiOpacity - 0.10) / (1.00 - 0.10)) * 100);
+                          return (
+                            <div
+                              style={{
+                                ...cardStyle,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                padding: "10px 14px",
+                                gap: 14,
                               }}
-                              className="btn btn--secondary btn--sm"
-                              style={resetBtnStyle}
                             >
-                              <RotateCcw size={11} />
-                              <span>16 px (Стандарт)</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* 5 кнопок пресетов скругления в адаптивной сетке */}
-                        <div className="radius-presets-grid">
-                          {(Object.keys(UI_RADIUS_PRESETS) as (Exclude<UiRadiusLevel, "custom">)[]).map((level) => {
-                            const preset = UI_RADIUS_PRESETS[level];
-                            const isSel = uiRadius.value === preset.controlsRadius;
-                            const visualRadius = level === "none" ? "0px" : level === "minimal" ? "3px" : level === "default" ? "6px" : level === "smooth" ? "9px" : "14px";
-                            return (
-                              <button
-                                key={level}
-                                type="button"
-                                onClick={() => {
-                                  setUiRadius({ level, value: preset.controlsRadius });
-                                  saveUiRadius(level, preset.controlsRadius);
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 7,
+                                  flexShrink: 0,
+                                  lineHeight: 1,
                                 }}
-                                style={btnStyle(isSel)}
                               >
-                                <div
+                                <SlidersHorizontal size={15} style={{ color: "var(--accent)" }} />
+                                <span
                                   style={{
-                                    width: 22,
-                                    height: 13,
-                                    border: `1.5px solid ${isSel ? "var(--accent)" : "rgba(255, 255, 255, 0.35)"}`,
-                                    borderRadius: visualRadius,
-                                    background: isSel ? "var(--accent-glass)" : "transparent",
-                                    transition: "all var(--t-fast) var(--ease-smooth)",
+                                    fontSize: "0.82rem",
+                                    fontWeight: 600,
+                                    color: "var(--text-primary)",
+                                    lineHeight: 1,
+                                    whiteSpace: "nowrap",
                                   }}
-                                />
-                                <span style={{ fontSize: "0.76rem", fontWeight: 600 }}>{preset.label}</span>
-                                <span style={{ fontSize: "0.68rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
-                                  {preset.badge}
+                                >
+                                  Прозрачность
                                 </span>
-                              </button>
-                            );
-                          })}
-                        </div>
+                              </div>
 
-                        {/* Ползунок точной настройки кастомного скругления */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
-                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", width: 65, flexShrink: 0 }}>
-                            Кастомное:
-                          </span>
-                          <input
-                            type="range"
-                            min="0"
-                            max="34"
-                            step="1"
-                            value={uiRadius.value}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value, 10);
-                              const matched = (Object.keys(UI_RADIUS_PRESETS) as (Exclude<UiRadiusLevel, "custom">)[]).find(
-                                (k) => UI_RADIUS_PRESETS[k].controlsRadius === val
-                              );
-                              const nextLevel: UiRadiusLevel = matched || "custom";
-                              setUiRadius({ level: nextLevel, value: val });
-                              saveUiRadius(nextLevel, val);
-                            }}
-                            style={{ flex: 1, cursor: "pointer", accentColor: "var(--accent)" }}
-                          />
-                          <span style={{ fontSize: "0.76rem", fontWeight: 600, color: "var(--text-secondary)", width: 42, textAlign: "right" }}>
-                            {uiRadius.value} px
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* ── Блок 2: Масштаб и размеры ── */}
-                      <div style={cardStyle}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <Maximize2 size={14} style={{ color: "var(--accent)" }} />
-                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                              Масштаб и размеры интерфейса (UI Scale)
-                            </span>
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
-                              {uiScale.mode === "auto" ? "Авто (100%)" : `${Math.round(uiScale.value * 100)}%`}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUiScale({ mode: "auto", value: 1.0 });
-                                saveUiScale("auto", 1.0);
-                              }}
-                              className="btn btn--secondary btn--sm"
-                              style={resetBtnStyle}
-                            >
-                              <RotateCcw size={11} />
-                              <span>Авто (Стандарт)</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* 6 кнопок пресетов масштаба в адаптивной сетке */}
-                        <div className="scale-presets-grid">
-                          {UI_SCALE_PRESETS.map((preset) => {
-                            const isSel =
-                              uiScale.mode === preset.id ||
-                              (uiScale.mode !== "auto" &&
-                                preset.value !== null &&
-                                Math.abs(uiScale.value - preset.value) < 0.01);
-                            return (
-                              <button
-                                key={preset.id}
-                                type="button"
-                                onClick={() => {
-                                  const nextVal = preset.value !== null ? preset.value : 1.0;
-                                  setUiScale({ mode: preset.id, value: nextVal });
-                                  saveUiScale(preset.id, nextVal);
-                                }}
-                                style={btnStyle(isSel, "6px 3px")}
-                              >
-                                <span style={{ fontSize: "0.75rem", fontWeight: 600 }}>{preset.label}</span>
-                                <span style={{ fontSize: "0.68rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
-                                  {preset.badge}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Ползунок точной настройки масштаба */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
-                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", width: 65, flexShrink: 0 }}>
-                            Точная:
-                          </span>
-                          <input
-                            type="range"
-                            min="0.75"
-                            max="1.60"
-                            step="0.05"
-                            value={uiScale.value}
-                            onChange={(e) => {
-                              const val = parseFloat(e.target.value);
-                              setUiScale({ mode: "custom", value: val });
-                              saveUiScale("custom", val);
-                            }}
-                            style={{ flex: 1, cursor: "pointer", accentColor: "var(--accent)" }}
-                          />
-                          <span style={{ fontSize: "0.76rem", fontWeight: 600, color: "var(--text-secondary)", width: 42, textAlign: "right" }}>
-                            {Math.round(uiScale.value * 100)}%
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* ── Блок 3: Прозрачность интерфейса ── */}
-                      <div style={{ ...cardStyle, marginBottom: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <SlidersHorizontal size={14} style={{ color: "var(--accent)" }} />
-                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                              Прозрачность интерфейса
-                            </span>
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
-                              {Math.round(uiOpacity * 100)}%
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUiOpacity(0.88);
-                                saveUiOpacity(0.88);
-                              }}
-                              className="btn btn--secondary btn--sm"
-                              style={resetBtnStyle}
-                            >
-                              <RotateCcw size={11} />
-                              <span>88% (Стандарт)</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Ползунок прозрачности */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
-                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", width: 65, flexShrink: 0 }}>
-                            Уровень:
-                          </span>
-                          <input
-                            type="range"
-                            min="0.10"
-                            max="1.00"
-                            step="0.01"
-                            value={uiOpacity}
-                            onChange={(e) => {
-                              const val = parseFloat(e.target.value);
-                              setUiOpacity(val);
-                              saveUiOpacity(val);
-                            }}
-                            style={{ flex: 1, cursor: "pointer", accentColor: "var(--accent)" }}
-                          />
-                          <span style={{ fontSize: "0.76rem", fontWeight: 600, color: "var(--text-secondary)", width: 42, textAlign: "right" }}>
-                            {Math.round(uiOpacity * 100)}%
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* ── Блок 4: Шрифт интерфейса (UI Font) ── */}
-                      <div style={{ ...cardStyle, marginBottom: 0, marginTop: 10 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <Type size={14} style={{ color: "var(--accent)" }} />
-                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                              Шрифт интерфейса
-                            </span>
-                          </div>
-                          {uiFont !== "inter" && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUiFont("inter");
-                                saveUiFont("inter");
-                              }}
-                              className="btn btn--secondary btn--sm"
-                              style={resetBtnStyle}
-                              title="Сбросить на Inter (Стандарт)"
-                            >
-                              <RotateCcw size={11} />
-                              <span>Inter</span>
-                            </button>
-                          )}
-                        </div>
-
-                        {/* 6 кнопок пресетов шрифтов в компактном исполнении */}
-                        <div className="font-presets-grid">
-                          {UI_FONT_PRESETS.map((fontPreset) => {
-                            const isSel = uiFont === fontPreset.id;
-                            return (
-                              <button
-                                key={fontPreset.id}
-                                type="button"
-                                onClick={() => {
-                                  setUiFont(fontPreset.id);
-                                  saveUiFont(fontPreset.id);
-                                }}
+                              <div
                                 style={{
-                                  ...btnStyle(isSel, "5px 3px"),
-                                  fontFamily: `var(--font-${fontPreset.id})`,
+                                  flex: 1,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  minWidth: 0,
+                                  height: 20,
                                 }}
-                                title={`${fontPreset.label} — ${fontPreset.desc}`}
+                              >
+                                <input
+                                  type="range"
+                                  min="0.10"
+                                  max="1.00"
+                                  step="0.01"
+                                  value={uiOpacity}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    setUiOpacity(val);
+                                    saveUiOpacity(val);
+                                  }}
+                                  className="ui-premium-slider"
+                                  style={{
+                                    "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${opacityPct}%, rgba(255, 255, 255, 0.12) ${opacityPct}%, rgba(255, 255, 255, 0.12) 100%)`,
+                                  } as React.CSSProperties}
+                                  aria-label="Прозрачность интерфейса"
+                                />
+                              </div>
+
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  flexShrink: 0,
+                                  lineHeight: 1,
+                                }}
                               >
                                 <span
                                   style={{
-                                    fontSize: "0.92rem",
+                                    fontSize: "0.80rem",
                                     fontWeight: 700,
+                                    color: "var(--accent)",
+                                    minWidth: 36,
+                                    textAlign: "left",
+                                    fontVariantNumeric: "tabular-nums",
                                     lineHeight: 1,
-                                    marginBottom: 2,
-                                    color: isSel ? "var(--accent)" : "var(--text-primary)",
                                   }}
                                 >
-                                  Aa
+                                  {Math.round(uiOpacity * 100)}%
                                 </span>
-                                <span style={{ fontSize: "0.72rem", fontWeight: 600, whiteSpace: "nowrap" }}>
-                                  {fontPreset.label}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setUiOpacity(0.88);
+                                    saveUiOpacity(0.88);
+                                  }}
+                                  className="btn btn--secondary btn--sm"
+                                  style={resetBtnStyle}
+                                  title="Сбросить на 88%"
+                                >
+                                  <RotateCcw size={11} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* ── Сетка из 3-х колонок ── */}
+                        <div className="ui-ergonomics-grid">
+
+                          {/* Колонка 1: Скругление */}
+                          <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <Square size={14} style={{ color: "var(--accent)" }} />
+                                <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                                  Скругление
                                 </span>
-                              </button>
-                            );
-                          })}
+                              </div>
+                              <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--accent)", fontVariantNumeric: "tabular-nums" }}>
+                                {uiRadius.value} px
+                              </span>
+                            </div>
+
+                            <div style={{ display: "flex", gap: 10, flex: 1, minHeight: 0, alignItems: "stretch" }}>
+                              {/* Сетка 2x2 для пресетов */}
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr 1fr",
+                                  gridTemplateRows: "1fr 1fr",
+                                  gap: 6,
+                                  flex: 1,
+                                  minHeight: 0,
+                                }}
+                              >
+                                {(Object.keys(UI_RADIUS_PRESETS) as (Exclude<UiRadiusLevel, "custom">)[])
+                                  .filter(level => level !== "none")
+                                  .map((level) => {
+                                    const preset = UI_RADIUS_PRESETS[level];
+                                    const isSel = uiRadius.value === preset.controlsRadius;
+                                    const visualRadius = level === "minimal" ? "3px" : level === "default" ? "6px" : level === "smooth" ? "9px" : "14px";
+                                    return (
+                                      <button
+                                        key={level}
+                                        type="button"
+                                        onClick={() => {
+                                          setUiRadius({ level, value: preset.controlsRadius });
+                                          saveUiRadius(level, preset.controlsRadius);
+                                        }}
+                                        style={{
+                                          ...btnStyle(isSel, "8px 6px"),
+                                          gap: 6,
+                                          minHeight: 56,
+                                        }}
+                                      >
+                                        <div
+                                          style={{
+                                            width: 22,
+                                            height: 13,
+                                            border: `1.5px solid ${isSel ? "var(--accent)" : "rgba(255, 255, 255, 0.4)"}`,
+                                            borderRadius: visualRadius,
+                                            background: isSel ? "var(--accent-glass)" : "transparent",
+                                            transition: "all var(--t-fast) var(--ease-smooth)",
+                                          }}
+                                        />
+                                        <span style={{ fontSize: "0.68rem", fontWeight: 600, lineHeight: 1.15, textAlign: "center" }}>
+                                          {preset.label}
+                                        </span>
+                                      </button>
+                                    );
+                                })}
+                              </div>
+
+                              {/* Вертикальный ползунок */}
+                              <VerticalSlider
+                                value={uiRadius.value}
+                                min={0}
+                                max={34}
+                                step={1}
+                                onChange={(val) => {
+                                  const matched = (Object.keys(UI_RADIUS_PRESETS) as (Exclude<UiRadiusLevel, "custom">)[]).find(
+                                    (k) => UI_RADIUS_PRESETS[k].controlsRadius === val
+                                  );
+                                  const nextLevel: UiRadiusLevel = matched || "custom";
+                                  setUiRadius({ level: nextLevel, value: val });
+                                  saveUiRadius(nextLevel, val);
+                                }}
+                                ariaLabel="Степень скругления углов интерфейса"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Колонка 2: Масштаб */}
+                          <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <Maximize2 size={14} style={{ color: "var(--accent)" }} />
+                                <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                                  Масштаб
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--accent)", fontVariantNumeric: "tabular-nums" }}>
+                                  {Math.round(uiScale.value * 100)}%
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setUiScale({ mode: "auto", value: 1.0 });
+                                    saveUiScale("auto", 1.0);
+                                  }}
+                                  style={{
+                                    background: uiScale.mode === "auto" ? "var(--accent)" : "rgba(255,255,255,0.08)",
+                                    color: uiScale.mode === "auto" ? "#0b0d12" : "var(--text-secondary)",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    width: 18,
+                                    height: 18,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "0.70rem",
+                                    fontWeight: "bold",
+                                    cursor: "pointer",
+                                    transition: "all var(--t-fast) var(--ease-smooth)",
+                                  }}
+                                  title="Автоматический масштаб"
+                                >
+                                  A
+                                </button>
+                              </div>
+                            </div>
+
+                            <div style={{ display: "flex", gap: 10, flex: 1, minHeight: 0, alignItems: "stretch" }}>
+                              {/* Сетка 2x2 для пресетов */}
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr 1fr",
+                                  gridTemplateRows: "1fr 1fr",
+                                  gap: 6,
+                                  flex: 1,
+                                  minHeight: 0,
+                                }}
+                              >
+                                {UI_SCALE_PRESETS.filter(p => ["compact", "standard", "medium", "large"].includes(p.id)).map((preset) => {
+                                  const isSel = uiScale.mode === preset.id || (uiScale.mode !== "auto" && preset.value !== null && Math.abs(uiScale.value - preset.value) < 0.01);
+                                  return (
+                                    <button
+                                      key={preset.id}
+                                      type="button"
+                                      onClick={() => {
+                                        const nextVal = preset.value !== null ? preset.value : 1.0;
+                                        setUiScale({ mode: preset.id, value: nextVal });
+                                        saveUiScale(preset.id, nextVal);
+                                      }}
+                                      style={{
+                                        ...btnStyle(isSel, "8px 6px"),
+                                        gap: 4,
+                                        minHeight: 56,
+                                      }}
+                                    >
+                                      <span style={{ fontSize: "0.72rem", fontWeight: 600, lineHeight: 1.15, textAlign: "center" }}>
+                                        {preset.label}
+                                      </span>
+                                      <span style={{ fontSize: "0.65rem", color: isSel ? "var(--text-primary)" : "var(--text-muted)", opacity: 0.85, fontWeight: 500 }}>
+                                        {preset.badge}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Вертикальный ползунок */}
+                              <VerticalSlider
+                                value={uiScale.value}
+                                min={0.70}
+                                max={2.00}
+                                step={0.05}
+                                onChange={(val) => {
+                                  const matched = UI_SCALE_PRESETS.find((p) => p.value !== null && Math.abs(p.value - val) < 0.01);
+                                  const nextMode = matched ? matched.id : "custom";
+                                  setUiScale({ mode: nextMode, value: val });
+                                  saveUiScale(nextMode, val);
+                                }}
+                                ariaLabel="Масштаб интерфейса"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Колонка 3: Шрифты */}
+                          <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <Type size={14} style={{ color: "var(--accent)" }} />
+                                <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                                  Шрифты
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, overflowY: "auto", paddingRight: 4 }}>
+                              {UI_FONT_PRESETS.map((fontPreset) => {
+                                const isSel = uiFont === fontPreset.id;
+                                return (
+                                  <button
+                                    key={fontPreset.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setUiFont(fontPreset.id);
+                                      saveUiFont(fontPreset.id);
+                                    }}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      padding: "6px 8px",
+                                      borderRadius: "var(--radius-sm)",
+                                      border: "1px solid",
+                                      borderColor: isSel ? "var(--accent)" : "rgba(255,255,255,0.05)",
+                                      background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.12)" : "rgba(255, 255, 255, 0.02)",
+                                      color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+                                      cursor: "pointer",
+                                      fontFamily: `var(--font-${fontPreset.id})`,
+                                      transition: "all var(--t-fast) var(--ease-smooth)",
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>{fontPreset.label}</span>
+                                    <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent)" : "var(--text-muted)", fontWeight: 700 }}>Aa</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       </div>
 
