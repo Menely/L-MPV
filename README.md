@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/banner.jpg" alt="L-MPV Banner" width="100%" style="border-radius: 12px;">
+  <img src="./assets/banner.png" alt="L-MPV Banner" width="100%" style="border-radius: 12px;">
 </p>
 
 <h1 align="center"> <img src="https://github.com/Menely/L-MPV/blob/main/src-tauri/icons/icon.png" width="50" height="50" align="absmiddle"> L-MPV — Modern & Portable Media Player</h1>
