@@ -205,6 +205,18 @@
   border-style: dashed;
 }
 
+.preset-card--active {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  border: 1.5px solid var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+}
+
+.preset-card--active:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.20) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px rgba(var(--accent-rgb, 127, 199, 255), 0.45), inset 0 0 0 1.5px var(--accent) !important;
+}
+
 .preset-card__top {
   display: flex;
   align-items: flex-start;
@@ -349,6 +361,14 @@
 .preset-action-btn--apply:active {
   background: var(--accent);
   filter: brightness(0.92);
+}
+
+.preset-action-btn--applied {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  color: var(--text-primary) !important;
+  border: 1.5px solid var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  font-weight: 600;
 }
 
 .preset-action-btn--danger:hover {

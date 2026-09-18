@@ -102,6 +102,17 @@ interface SettingsModalProps {
 export { AccordionSection } from "./settings/AccordionSection";
 export type { AccordionSectionProps } from "./settings/AccordionSection";
 
+const SETTINGS_TABS = [
+  "general",
+  "appearance",
+  "presets",
+  "upscaling",
+  "hotkeys",
+  "integration",
+] as const;
+
+type SettingsTabId = (typeof SETTINGS_TABS)[number];
+
 export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [screenshotDir, setScreenshotDir] = useState<string>("");
   const [uiOpacity, setUiOpacity] = useState<number>(() => getSavedUiOpacity());
@@ -134,7 +145,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
-  const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "upscaling" | "hotkeys" | "integration">("general");
+  const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
 
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -184,28 +195,21 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         return;
       }
 
-      const tabs: ("general" | "appearance" | "presets" | "upscaling" | "hotkeys" | "integration")[] = [
-        "general",
-        "appearance",
-        "presets",
-        "upscaling",
-        "hotkeys",
-        "integration",
-      ];
-      const currentIndex = tabs.indexOf(activeTab);
+      const currentIndex = SETTINGS_TABS.indexOf(activeTab);
+      if (currentIndex === -1) return;
 
       if (e.key === "ArrowRight") {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        const nextIndex = (currentIndex + 1) % tabs.length;
-        setActiveTab(tabs[nextIndex]);
+        const nextIndex = (currentIndex + 1) % SETTINGS_TABS.length;
+        setActiveTab(SETTINGS_TABS[nextIndex]);
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        const prevIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-        setActiveTab(tabs[prevIndex]);
+        const prevIndex = (currentIndex - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length;
+        setActiveTab(SETTINGS_TABS[prevIndex]);
       }
     };
 

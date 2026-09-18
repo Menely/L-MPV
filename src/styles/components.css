@@ -57,18 +57,16 @@
 
 /* Активная выбранная плитка (Selected) */
 .glass-tile--active {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.08);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent),
-              0 0 10px var(--accent-glow),
-              inset 0 0 10px rgba(var(--accent-rgb, 127, 199, 255), 0.04);
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  border: 1.5px solid var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  color: var(--text-primary);
 }
 
 .glass-tile--active:hover {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.12);
-  border-color: var(--accent-hover, var(--accent));
-  box-shadow: 0 0 0 1px var(--accent-hover, var(--accent)),
-              0 0 12px var(--accent-glow);
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.20) !important;
+  border-color: var(--accent-hover, var(--accent)) !important;
+  box-shadow: 0 0 12px rgba(var(--accent-rgb, 127, 199, 255), 0.45), inset 0 0 0 1.5px var(--accent) !important;
 }
 
 /* ─── 2. Стандартизированная система кнопок (Buttons) ───────────────── */
@@ -261,10 +259,10 @@
 }
 
 .kbd-chip--recording {
-  background: var(--accent-glass, rgba(127, 199, 255, 0.25));
-  border-color: var(--accent);
-  color: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow);
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  border: 1.5px solid var(--accent) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
 }
 
 /* ─── 5. Унифицированные Чекбоксы (UI Checkboxes) ─────────────────── */

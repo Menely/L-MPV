@@ -120,8 +120,11 @@
 }
 
 .side-panel__item--active {
-  background: var(--bg-active);
-  color: var(--accent);
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  color: var(--text-primary) !important;
+  border: 1.5px solid var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  font-weight: 600;
 }
 
 .side-panel__item--active svg {

@@ -341,11 +341,11 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                     ? "1.5px solid var(--accent)"
                     : "1.5px solid rgba(255, 255, 255, 0.10)",
                   background: isSel
-                    ? "rgba(var(--accent-rgb, 127, 199, 255), 0.14)"
+                    ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
                     : "rgba(255, 255, 255, 0.04)",
                   color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                   boxShadow: isSel
-                    ? "0 0 10px var(--accent-glow), inset 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.08)"
+                    ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
                     : "none",
                 }}
               >
@@ -546,7 +546,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                   gap: 3,
                   padding: "6px 4px",
                   borderRadius: "var(--radius-sm)",
-                  border: "none",
+                  border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                   cursor: "pointer",
                   background: isSel ? mode.selectedBg : "rgba(255, 255, 255, 0.03)",
                   color: isSel ? "var(--text-primary)" : "var(--text-secondary)",

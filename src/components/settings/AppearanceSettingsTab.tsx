@@ -681,10 +681,12 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                       justifyContent: "space-between",
                                       padding: "6px 8px",
                                       borderRadius: "var(--radius-sm)",
-                                      border: "1px solid",
-                                      borderColor: isSel ? "var(--accent)" : "rgba(255, 255, 255, 0.05)",
-                                      background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.12)" : "rgba(255, 255, 255, 0.02)",
+                                      border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
+                                      background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                                       color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+                                      boxShadow: isSel
+                                        ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                                        : "0 1px 3px rgba(0, 0, 0, 0.2)",
                                       cursor: "pointer",
                                       fontFamily: `var(--font-${fontPreset.id})`,
                                       transition: "all var(--t-fast) var(--ease-smooth)",
@@ -1134,12 +1136,12 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             gap: 3,
                             padding: "8px 6px",
                             borderRadius: "var(--radius-sm)",
-                            border: "none",
+                            border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                             cursor: "pointer",
-                            background: isSel ? "var(--accent-glow)" : "transparent",
+                            background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "transparent",
                             color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                             boxShadow: isSel
-                              ? "0 0 12px var(--accent-glow), inset 0 0 0 1px var(--accent)"
+                              ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
                               : "none",
                             transition: "all var(--t-fast) var(--ease-smooth)",
                           }}
@@ -1216,22 +1218,39 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                         Цвет подсветки черных полос
                       </span>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        <button
-                          onClick={() => updateAmbient({ color: getEffectiveAccentColor() }, true)}
-                          title="Использовать текущий акцент плеера"
-                          style={{
-                            padding: "6px 12px",
-                            borderRadius: "var(--radius-sm)",
-                            border: "1px solid var(--border)",
-                            background: "var(--accent-glass)",
-                            color: "var(--accent)",
-                            fontSize: "0.78rem",
-                            fontWeight: 500,
-                            cursor: "pointer",
-                          }}
-                        >
-                          Как в теме ({activeColor === "windows" ? "Windows" : activeColor})
-                        </button>
+                        {(() => {
+                          const isThemeMatch =
+                            ambientSettings.color.toLowerCase() ===
+                            getEffectiveAccentColor().toLowerCase();
+                          return (
+                            <button
+                              onClick={() => updateAmbient({ color: getEffectiveAccentColor() }, true)}
+                              title="Использовать текущий акцент плеера"
+                              style={{
+                                padding: "6px 12px",
+                                borderRadius: "var(--radius-sm)",
+                                border: isThemeMatch
+                                  ? "1.5px solid var(--accent)"
+                                  : "1px solid var(--border)",
+                                background: isThemeMatch
+                                  ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
+                                  : "var(--accent-glass)",
+                                color: isThemeMatch
+                                  ? "var(--text-primary)"
+                                  : "var(--accent)",
+                                boxShadow: isThemeMatch
+                                  ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                                  : "none",
+                                fontSize: "0.78rem",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                transition: "all var(--t-fast) var(--ease-smooth)",
+                              }}
+                            >
+                              Как в теме ({activeColor === "windows" ? "Windows" : activeColor})
+                            </button>
+                          );
+                        })()}
 
                         {["#141923", "#1f2937", "#241e38", "#2d1c24", "#132a24", "#0a192f"].map((hex) => (
                           <button

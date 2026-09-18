@@ -203,13 +203,20 @@ export function HotkeysSettingsTab({
                                   }}
                                   style={{
                                     padding: "4px 10px",
-                                    background: isRecording ? "var(--accent)" : "rgba(127, 199, 255, 0.12)",
-                                    border: isRecording ? "1px solid white" : "1px solid rgba(127, 199, 255, 0.2)",
+                                    background: isRecording
+                                      ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
+                                      : "rgba(127, 199, 255, 0.08)",
+                                    border: isRecording
+                                      ? "1.5px solid var(--accent)"
+                                      : "1px solid rgba(127, 199, 255, 0.2)",
+                                    boxShadow: isRecording
+                                      ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                                      : "none",
                                     borderRadius: "var(--radius-sm)",
                                     fontFamily: "monospace",
                                     fontSize: "0.84rem",
                                     fontWeight: 600,
-                                    color: isRecording ? "#000" : "var(--accent)",
+                                    color: isRecording ? "var(--text-primary)" : "var(--accent)",
                                     cursor: "pointer",
                                     outline: "none",
                                     borderTopRightRadius: 0,
@@ -282,13 +289,14 @@ export function HotkeysSettingsTab({
                                   onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                   style={{
                                     padding: "4px 10px",
-                                    background: "var(--accent)",
-                                    border: "1px solid white",
+                                    background: "rgba(var(--accent-rgb, 127, 199, 255), 0.16)",
+                                    border: "1.5px solid var(--accent)",
+                                    boxShadow: "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)",
                                     borderRadius: "var(--radius-sm)",
                                     fontFamily: "monospace",
                                     fontSize: "0.84rem",
                                     fontWeight: 600,
-                                    color: "#000",
+                                    color: "var(--text-primary)",
                                     cursor: "pointer",
                                     outline: "none",
                                   }}

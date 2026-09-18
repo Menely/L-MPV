@@ -488,11 +488,13 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         gap: 3,
                         padding: "8px 6px",
                         borderRadius: "var(--radius-sm)",
-                        border: "none",
+                        border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                         cursor: "pointer",
-                        background: isSel ? "var(--accent-glow)" : "rgba(255, 255, 255, 0.04)",
+                        background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                         color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
-                        boxShadow: isSel ? "0 0 10px var(--accent-glow), inset 0 0 0 1px var(--accent)" : "none",
+                        boxShadow: isSel
+                          ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                          : "0 1px 3px rgba(0, 0, 0, 0.2)",
                         transition: "all var(--t-fast) var(--ease-smooth)",
                       }}
                     >
@@ -537,11 +539,13 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         gap: 3,
                         padding: "8px 6px",
                         borderRadius: "var(--radius-sm)",
-                        border: "none",
+                        border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                         cursor: "pointer",
-                        background: isSel ? "var(--accent-glow)" : "rgba(255, 255, 255, 0.04)",
+                        background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                         color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
-                        boxShadow: isSel ? "0 0 10px var(--accent-glow), inset 0 0 0 1px var(--accent)" : "none",
+                        boxShadow: isSel
+                          ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                          : "0 1px 3px rgba(0, 0, 0, 0.2)",
                         transition: "all var(--t-fast) var(--ease-smooth)",
                       }}
                     >
@@ -582,11 +586,13 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         gap: 3,
                         padding: "8px 6px",
                         borderRadius: "var(--radius-sm)",
-                        border: "none",
+                        border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                         cursor: "pointer",
-                        background: isSel ? "var(--accent-glow)" : "rgba(255, 255, 255, 0.04)",
+                        background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                         color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
-                        boxShadow: isSel ? "0 0 10px var(--accent-glow), inset 0 0 0 1px var(--accent)" : "none",
+                        boxShadow: isSel
+                          ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                          : "0 1px 3px rgba(0, 0, 0, 0.2)",
                         transition: "all var(--t-fast) var(--ease-smooth)",
                       }}
                     >

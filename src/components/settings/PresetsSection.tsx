@@ -498,7 +498,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     const isApplied = activePresetId === preset.id;
 
     return (
-      <div key={preset.id} className={`preset-card ${isBuiltIn ? "preset-card--builtin" : ""}`}>
+      <div key={preset.id} className={`preset-card ${isBuiltIn ? "preset-card--builtin" : ""} ${isApplied ? "preset-card--active" : ""}`}>
         <div className="preset-card__top">
           <div className="preset-card__info">
             <div className="preset-card__name-row">
@@ -541,7 +541,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           <div className="preset-card__actions-col">
             <button
               type="button"
-              className={`preset-action-btn ${isApplied ? "" : "preset-action-btn--apply"}`}
+              className={`preset-action-btn ${isApplied ? "preset-action-btn--applied" : "preset-action-btn--apply"}`}
               onClick={() => handleApply(preset)}
               title={isBuiltIn ? "Применить данный встроенный пресет" : "Применить данный пресет к плееру"}
             >
