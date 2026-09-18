@@ -103,6 +103,9 @@ export { AccordionSection } from "./settings/AccordionSection";
 export type { AccordionSectionProps } from "./settings/AccordionSection";
 
 export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
+  const [runtimePlatform, setRuntimePlatform] = useState<string>(
+    () => document.documentElement.dataset.platform || "windows",
+  );
   const [screenshotDir, setScreenshotDir] = useState<string>("");
   const [uiOpacity, setUiOpacity] = useState<number>(() => getSavedUiOpacity());
   const [activeColor, setActiveColor] = useState<string>(() => {
@@ -135,6 +138,10 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "presets" | "upscaling" | "hotkeys" | "integration">("general");
+
+  useEffect(() => {
+    invoke<string>("get_runtime_platform").then(setRuntimePlatform).catch(() => {});
+  }, []);
 
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -190,8 +197,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         "presets",
         "upscaling",
         "hotkeys",
-        "integration",
       ];
+      if (runtimePlatform === "windows") tabs.push("integration");
       const currentIndex = tabs.indexOf(activeTab);
 
       if (e.key === "ArrowRight") {
@@ -213,7 +220,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [activeTab, isRecordingHotkey, handleClose]);
+  }, [activeTab, isRecordingHotkey, handleClose, runtimePlatform]);
 
   // Синхронизация локальных состояний SettingsModal при применении любого пресета
   const handlePresetApplied = useCallback((preset: SettingsPreset) => {
@@ -589,7 +596,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             { id: "upscaling", label: "Апскейлинг", icon: Sparkles },
             { id: "hotkeys", label: "Хоткей", icon: Keyboard },
             { id: "integration", label: "Интеграция", icon: Link },
-          ].map((tab) => {
+          ].filter((tab) => runtimePlatform === "windows" || tab.id !== "integration").map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -732,7 +739,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               v{appVersion}
             </span>
 
-            <button
+            {runtimePlatform === "windows" && <button
               onClick={handleCheckForUpdates}
               disabled={isCheckingUpdate}
               style={{
@@ -762,7 +769,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   <span>Проверить обновления</span>
                 </>
               )}
-            </button>
+            </button>}
 
             {updateStatus && (
               <span
@@ -776,7 +783,9 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               </span>
             )}
           </div>
-          <span style={{ fontSize: "0.76rem" }}>Портативная редакция</span>
+          <span style={{ fontSize: "0.76rem" }}>
+            {runtimePlatform === "windows" ? "Портативная редакция" : "Linux · Wayland/X11"}
+          </span>
         </div>
       </div>
     </div>

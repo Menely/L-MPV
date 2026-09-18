@@ -148,17 +148,20 @@ function App() {
     // При каждом запуске плеера апскейлинг всегда гарантированно отключен по умолчанию
     localStorage.setItem("l-mpv-upscale-mode", "off");
 
-    // Фоновая проверка обновлений (показываем ненавязчивое уведомление в правом углу)
-    invoke<UpdateInfo | null>("check_launch_and_update")
-      .then((info) => {
-        if (info && info.has_update) {
-          setPendingUpdate(info);
-          setShowUpdateToast(true);
-        }
+    invoke<string>("get_runtime_platform")
+      .then((platform) => {
+        document.documentElement.dataset.platform = platform;
+        if (platform !== "windows") return;
+
+        // Portable-обновление заменяет exe/dll и поэтому доступно только в Windows.
+        return invoke<UpdateInfo | null>("check_launch_and_update").then((info) => {
+          if (info && info.has_update) {
+            setPendingUpdate(info);
+            setShowUpdateToast(true);
+          }
+        });
       })
-      .catch((err) => {
-        console.warn("Фоновая проверка обновлений пропущена:", err);
-      });
+      .catch((err) => console.warn("Определение платформы/проверка обновлений пропущены:", err));
   }, []);
 
   // Синхронизация настройки автоскрытия панели в верхней половине окна
@@ -360,7 +363,7 @@ function App() {
       const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
       if (mode === "ai") {
         const slot = parseInt(localStorage.getItem("l-mpv-upscale-slot") || "1001", 10);
-        const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+        const backend = localStorage.getItem("l-mpv-upscale-backend") || (document.documentElement.dataset.platform === "linux" ? "NCNN Vulkan" : "DirectML");
         const selectedModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
         invoke("apply_upscale_settings", { 
           settings: { mode, active_slot: slot, backend, selected_model: selectedModel }
@@ -701,7 +704,7 @@ function App() {
       case "upscaleStats": {
         try {
           const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
-          const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+          const backend = localStorage.getItem("l-mpv-upscale-backend") || (document.documentElement.dataset.platform === "linux" ? "NCNN Vulkan" : "DirectML");
           const slot = parseInt(localStorage.getItem("l-mpv-upscale-slot") || "1001", 10);
           const selectedModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
 
@@ -761,7 +764,7 @@ function App() {
       }
       case "upscaleOff":
         try {
-          const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+          const backend = localStorage.getItem("l-mpv-upscale-backend") || (document.documentElement.dataset.platform === "linux" ? "NCNN Vulkan" : "DirectML");
           await invoke("switch_upscale_network_hotkey", { slot: 0, backend });
           localStorage.setItem("l-mpv-upscale-mode", "off");
           setOsdText("4K AI Апскейлинг: Выключен");
@@ -789,7 +792,7 @@ function App() {
 
           if (targetModel) {
             const slot = targetModel.slot;
-            const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+            const backend = localStorage.getItem("l-mpv-upscale-backend") || (document.documentElement.dataset.platform === "linux" ? "NCNN Vulkan" : "DirectML");
 
             // При выборе любой модели по хоткею гарантированно активируем режим "ai"
             localStorage.setItem("l-mpv-upscale-mode", "ai");

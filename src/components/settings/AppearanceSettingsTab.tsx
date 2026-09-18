@@ -820,10 +820,10 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
               </AccordionSection>
 
               {/* 5. Аудио-визуалайзер на панели управления */}
-              <VisualizerSettingsSection
+              {document.documentElement.dataset.platform !== "linux" && <VisualizerSettingsSection
                 isOpen={!!openSections["app_visualizer"]}
                 onToggle={() => toggleSection("app_visualizer")}
-              />
+              />}
 
               {/* 6. Видимость кнопок панели управления */}
               <AccordionSection
@@ -850,7 +850,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     { id: 'playlist', label: 'Плейлист', defaultChecked: true },
                     { id: 'fullscreen', label: 'Полный экран', defaultChecked: true },
                     { id: 'skipOpening', label: 'Перемотка опенинга', defaultChecked: false }
-                  ].map(btn => {
+                  ].filter(btn => document.documentElement.dataset.platform !== "linux" || btn.id !== "visualizer").map(btn => {
                     const isChecked = visibleButtons[btn.id] !== undefined 
                       ? visibleButtons[btn.id] 
                       : btn.defaultChecked;

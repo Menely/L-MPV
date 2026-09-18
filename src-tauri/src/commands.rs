@@ -11,6 +11,30 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::{HashMap, HashSet};
 use tauri::State;
 
+/// Корневая директория пользовательских данных.
+/// Windows сохраняет portable-поведение, Linux следует XDG Base Directory.
+pub fn app_data_root() -> std::path::PathBuf {
+    #[cfg(target_os = "linux")]
+    {
+        let base = std::env::var_os("XDG_CONFIG_HOME")
+            .map(std::path::PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| std::path::PathBuf::from(home).join(".config")))
+            .unwrap_or_else(|| std::path::PathBuf::from("."));
+        return base.join("l-mpv");
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(std::path::Path::to_path_buf))
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+}
+
+#[tauri::command]
+pub fn get_runtime_platform() -> &'static str {
+    std::env::consts::OS
+}
+
 fn default_true() -> bool {
     true
 }
@@ -510,16 +534,9 @@ pub fn load_external_tracks_internal(
     state: &PlayerState,
     video_path: &std::path::Path,
 ) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let (auto_load, auto_select_audio) = if let Some(ref p_dir) = exe_dir {
-        let settings = AppSettings::load(p_dir);
-        (settings.auto_load_tracks, settings.auto_select_external_audio)
-    } else {
-        (false, false)
-    };
+    let settings = AppSettings::load(&app_data_root());
+    let (auto_load, auto_select_audio) =
+        (settings.auto_load_tracks, settings.auto_select_external_audio);
 
     if !auto_load {
         return Ok(());
@@ -1155,19 +1172,13 @@ pub fn set_screenshot_dir(
     state: State<'_, PlayerState>,
     path: String,
 ) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    let exe_dir = app_data_root();
 
     let safe_path = path.replace("\\", "/");
     let is_reset = safe_path == "screenshots" || safe_path.is_empty();
 
     let target_path = if is_reset {
-        if let Some(ref p_dir) = exe_dir {
-            p_dir.join("screenshots").to_string_lossy().replace("\\", "/")
-        } else {
-            "screenshots".to_string()
-        }
+        exe_dir.join("screenshots").to_string_lossy().replace("\\", "/")
     } else {
         safe_path.clone()
     };
@@ -1176,15 +1187,13 @@ pub fn set_screenshot_dir(
         .mpv
         .set_property_string("screenshot-directory", &target_path)?;
 
-    if let Some(p_dir) = exe_dir {
-        let mut settings = AppSettings::load(&p_dir);
-        if is_reset {
-            settings.screenshot_directory = None;
-        } else {
-            settings.screenshot_directory = Some(target_path);
-        }
-        settings.save(&p_dir).ok();
+    let mut settings = AppSettings::load(&exe_dir);
+    if is_reset {
+        settings.screenshot_directory = None;
+    } else {
+        settings.screenshot_directory = Some(target_path);
     }
+    settings.save(&exe_dir).ok();
 
     Ok(())
 }
@@ -1192,105 +1201,52 @@ pub fn set_screenshot_dir(
 /// Получить настройку multi-instance.
 #[tauri::command]
 pub fn get_multi_instance() -> Result<bool, String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-        
-    if let Some(p_dir) = exe_dir {
-        let settings = AppSettings::load(&p_dir);
-        return Ok(settings.allow_multi_instance);
-    }
-    Ok(false)
+    Ok(AppSettings::load(&app_data_root()).allow_multi_instance)
 }
 
 /// Установить настройку multi-instance.
 #[tauri::command]
 pub fn set_multi_instance(allow: bool) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    if let Some(p_dir) = exe_dir {
-        let mut settings = AppSettings::load(&p_dir);
-        settings.allow_multi_instance = allow;
-        settings.save(&p_dir).ok();
-    }
-
-    Ok(())
+    let root = app_data_root();
+    let mut settings = AppSettings::load(&root);
+    settings.allow_multi_instance = allow;
+    settings.save(&root)
 }
 
 /// Получить текущий статус настройки автоматического подхвата внешних дорожек.
 #[tauri::command]
 pub fn get_auto_load_tracks() -> Result<bool, String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-        
-    if let Some(p_dir) = exe_dir {
-        let settings = AppSettings::load(&p_dir);
-        return Ok(settings.auto_load_tracks);
-    }
-    Ok(false)
+    Ok(AppSettings::load(&app_data_root()).auto_load_tracks)
 }
 
 /// Установить статус настройки автоматического подхвата внешних дорожек с сохранением в settings.json.
 #[tauri::command]
 pub fn set_auto_load_tracks(enabled: bool) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    if let Some(p_dir) = exe_dir {
-        let mut settings = AppSettings::load(&p_dir);
-        settings.auto_load_tracks = enabled;
-        settings.save(&p_dir).ok();
-        return Ok(());
-    }
-    Err("Не удалось определить директорию приложения для сохранения настроек".to_string())
+    let root = app_data_root();
+    let mut settings = AppSettings::load(&root);
+    settings.auto_load_tracks = enabled;
+    settings.save(&root)
 }
 
 /// Получить текущий статус настройки автоматического переключения звука на внешнюю аудиодорожку.
 #[tauri::command]
 pub fn get_auto_select_external_audio() -> Result<bool, String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-        
-    if let Some(p_dir) = exe_dir {
-        let settings = AppSettings::load(&p_dir);
-        return Ok(settings.auto_select_external_audio);
-    }
-    Ok(false)
+    Ok(AppSettings::load(&app_data_root()).auto_select_external_audio)
 }
 
 /// Установить статус настройки автоматического переключения звука на внешнюю аудиодорожку.
 #[tauri::command]
 pub fn set_auto_select_external_audio(enabled: bool) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    if let Some(p_dir) = exe_dir {
-        let mut settings = AppSettings::load(&p_dir);
-        settings.auto_select_external_audio = enabled;
-        settings.save(&p_dir).ok();
-        return Ok(());
-    }
-    Err("Не удалось определить директорию приложения для сохранения настроек".to_string())
+    let root = app_data_root();
+    let mut settings = AppSettings::load(&root);
+    settings.auto_select_external_audio = enabled;
+    settings.save(&root)
 }
 
 /// Получить текущий статус настройки автоматического переключения на следующее видео по окончании.
 #[tauri::command]
 pub fn get_play_next_on_end() -> Result<bool, String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-        
-    if let Some(p_dir) = exe_dir {
-        let settings = AppSettings::load(&p_dir);
-        return Ok(settings.play_next_on_end);
-    }
-    Ok(true)
+    Ok(AppSettings::load(&app_data_root()).play_next_on_end)
 }
 
 /// Установить статус настройки автоматического переключения на следующее видео по окончании.
@@ -1299,20 +1255,12 @@ pub fn set_play_next_on_end(
     state: State<'_, PlayerState>,
     enabled: bool,
 ) -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    if let Some(p_dir) = exe_dir {
-        let mut settings = AppSettings::load(&p_dir);
-        settings.play_next_on_end = enabled;
-        settings.save(&p_dir).ok();
-
-        let keep_open_val = if enabled { "yes" } else { "always" };
-        let _ = state.mpv.set_property_string("keep-open", keep_open_val);
-        return Ok(());
-    }
-    Err("Не удалось определить директорию приложения для сохранения настроек".to_string())
+    let root = app_data_root();
+    let mut settings = AppSettings::load(&root);
+    settings.play_next_on_end = enabled;
+    settings.save(&root)?;
+    let keep_open_val = if enabled { "yes" } else { "always" };
+    state.mpv.set_property_string("keep-open", keep_open_val)
 }
 
 /// Сканирование и загрузка внешних дорожек и субтитров для указанного медиафайла.
@@ -1358,10 +1306,7 @@ pub fn set_ambient_settings(
 ) -> Result<(), String> {
     state.ambient_controller.apply(&settings)?;
 
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .ok_or_else(|| "Не удалось определить путь к директории приложения".to_string())?;
+    let exe_dir = app_data_root();
 
     let mut current_settings = AppSettings::load(&exe_dir);
     current_settings.ambient = settings;
@@ -1381,10 +1326,7 @@ pub fn toggle_ambient_mode(
     current.mode = AmbientController::cycle_mode(&current.mode);
     state.ambient_controller.apply(&current)?;
 
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .ok_or_else(|| "Не удалось определить путь к директории приложения".to_string())?;
+    let exe_dir = app_data_root();
 
     let mut current_settings = AppSettings::load(&exe_dir);
     current_settings.ambient = current.clone();
@@ -1724,7 +1666,7 @@ pub fn toggle_shuffle(state: State<'_, PlayerState>) -> Result<(), String> {
 #[tauri::command]
 pub async fn copy_frame_to_clipboard(state: tauri::State<'_, PlayerState>) -> Result<(), String> {
     use std::time::Duration;
-    let exe_dir = std::env::current_exe().map_err(|e| e.to_string())?.parent().unwrap().to_path_buf();
+    let exe_dir = app_data_root();
     let data_dir = exe_dir.join("data");
     let _ = std::fs::create_dir_all(&data_dir);
     
@@ -1800,15 +1742,11 @@ pub fn normalize_history_path(path: &str) -> String {
 fn get_history_map() -> &'static Mutex<HashMap<String, WatchHistoryItem>> {
     WATCH_HISTORY.get_or_init(|| {
         let mut map = HashMap::new();
-        if let Ok(exe_dir) = std::env::current_exe() {
-            if let Some(parent) = exe_dir.parent() {
-                let history_path = parent.join("config").join("history.json");
-                if let Ok(content) = std::fs::read_to_string(&history_path) {
-                    if let Ok(parsed) = serde_json::from_str::<HashMap<String, WatchHistoryItem>>(&content) {
-                        for (k, v) in parsed {
-                            map.insert(normalize_history_path(&k), v);
-                        }
-                    }
+        let history_path = app_data_root().join("config").join("history.json");
+        if let Ok(content) = std::fs::read_to_string(&history_path) {
+            if let Ok(parsed) = serde_json::from_str::<HashMap<String, WatchHistoryItem>>(&content) {
+                for (k, v) in parsed {
+                    map.insert(normalize_history_path(&k), v);
                 }
             }
         }
@@ -1818,15 +1756,11 @@ fn get_history_map() -> &'static Mutex<HashMap<String, WatchHistoryItem>> {
 
 pub fn save_history_to_disk() {
     if let Ok(map) = get_history_map().lock() {
-        if let Ok(exe_dir) = std::env::current_exe() {
-            if let Some(parent) = exe_dir.parent() {
-                let config_dir = parent.join("config");
-                let _ = std::fs::create_dir_all(&config_dir);
-                let history_path = config_dir.join("history.json");
-                if let Ok(json) = serde_json::to_string_pretty(&*map) {
-                    let _ = std::fs::write(&history_path, json);
-                }
-            }
+        let config_dir = app_data_root().join("config");
+        let _ = std::fs::create_dir_all(&config_dir);
+        let history_path = config_dir.join("history.json");
+        if let Ok(json) = serde_json::to_string_pretty(&*map) {
+            let _ = std::fs::write(&history_path, json);
         }
     }
 }
@@ -2189,13 +2123,22 @@ pub async fn extract_track(
     };
 
     // Определение пути к встроенному исполняемому файлу ffmpeg
+    #[cfg(target_os = "windows")]
     let exe_dir = std::env::current_exe()
         .map_err(|e| e.to_string())?
         .parent()
         .ok_or_else(|| "Не удалось определить каталог приложения L-MPV".to_string())?
         .to_path_buf();
 
+    #[cfg(target_os = "windows")]
     let mut ffmpeg_path = exe_dir.join("ffmpeg.exe");
+    #[cfg(target_os = "linux")]
+    let ffmpeg_path = std::env::var_os("APPDIR")
+        .map(std::path::PathBuf::from)
+        .map(|dir| dir.join("usr/bin/ffmpeg"))
+        .unwrap_or_else(|| std::path::PathBuf::from("ffmpeg"));
+
+    #[cfg(target_os = "windows")]
     if !ffmpeg_path.exists() {
         if std::path::Path::new("ffmpeg.exe").exists() {
             ffmpeg_path = std::path::PathBuf::from("ffmpeg.exe");
@@ -2361,11 +2304,7 @@ fn sanitize_filename(name: &str) -> String {
 
 /// Получение абсолютного пути к портативной директории config/presets/.
 fn get_presets_dir() -> Result<std::path::PathBuf, String> {
-    let exe_dir = std::env::current_exe()
-        .map_err(|e| format!("Не удалось определить путь к исполняемому файлу: {e}"))?
-        .parent()
-        .ok_or_else(|| "Не удалось определить директорию исполняемого файла".to_string())?
-        .to_path_buf();
+    let exe_dir = app_data_root();
     let dir = exe_dir.join("config").join("presets");
     if !dir.exists() {
         let _ = std::fs::create_dir_all(&dir);
@@ -2540,5 +2479,3 @@ pub fn write_text_file(path: String, content: String) -> Result<(), String> {
 pub fn read_text_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("Ошибка чтения файла по пути {path}: {e}"))
 }
-
-

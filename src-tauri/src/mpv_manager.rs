@@ -8,6 +8,8 @@ use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_double, c_int, c_void};
 use std::path::Path;
 use std::sync::Mutex;
+#[cfg(target_os = "linux")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use libloading::{Library, Symbol};
 
 // ─── Определения FFI для libmpv C API ───────────────────
@@ -32,6 +34,37 @@ struct MpvHandle {
     _private: [u8; 0],
 }
 
+#[repr(C)]
+struct MpvRenderContext {
+    _private: [u8; 0],
+}
+
+#[repr(C)]
+struct MpvRenderParam {
+    param_type: c_int,
+    data: *mut c_void,
+}
+
+#[repr(C)]
+struct MpvOpenGlInitParams {
+    get_proc_address: Option<unsafe extern "C" fn(*mut c_void, *const c_char) -> *mut c_void>,
+    get_proc_address_ctx: *mut c_void,
+}
+
+#[repr(C)]
+struct MpvOpenGlFbo {
+    fbo: c_int,
+    width: c_int,
+    height: c_int,
+    internal_format: c_int,
+}
+
+const MPV_RENDER_PARAM_INVALID: c_int = 0;
+const MPV_RENDER_PARAM_API_TYPE: c_int = 1;
+const MPV_RENDER_PARAM_OPENGL_INIT_PARAMS: c_int = 2;
+const MPV_RENDER_PARAM_OPENGL_FBO: c_int = 3;
+const MPV_RENDER_PARAM_FLIP_Y: c_int = 4;
+
 // ─── Динамически загружаемые функции ─────────────────────
 struct MpvApi {
     _lib: Library,
@@ -45,6 +78,10 @@ struct MpvApi {
     free: Symbol<'static, unsafe extern "C" fn(data: *mut c_void)>,
     set_property: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, format: MpvFormat, data: *mut c_void) -> c_int>,
     set_property_string: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, data: *const c_char) -> c_int>,
+    render_context_create: Symbol<'static, unsafe extern "C" fn(ctx: *mut *mut MpvRenderContext, handle: *mut MpvHandle, params: *mut MpvRenderParam) -> c_int>,
+    render_context_render: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvRenderContext, params: *mut MpvRenderParam) -> c_int>,
+    render_context_set_update_callback: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvRenderContext, callback: Option<unsafe extern "C" fn(*mut c_void)>, callback_ctx: *mut c_void)>,
+    render_context_free: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvRenderContext)>,
 }
 
 unsafe impl Send for MpvApi {}
@@ -65,6 +102,10 @@ impl MpvApi {
         let free = std::mem::transmute(lib.get::<unsafe extern "C" fn(data: *mut c_void)>(b"mpv_free\0").map_err(|e| e.to_string())?);
         let set_property = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, format: MpvFormat, data: *mut c_void) -> c_int>(b"mpv_set_property\0").map_err(|e| e.to_string())?);
         let set_property_string = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, data: *const c_char) -> c_int>(b"mpv_set_property_string\0").map_err(|e| e.to_string())?);
+        let render_context_create = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut *mut MpvRenderContext, handle: *mut MpvHandle, params: *mut MpvRenderParam) -> c_int>(b"mpv_render_context_create\0").map_err(|e| e.to_string())?);
+        let render_context_render = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvRenderContext, params: *mut MpvRenderParam) -> c_int>(b"mpv_render_context_render\0").map_err(|e| e.to_string())?);
+        let render_context_set_update_callback = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvRenderContext, callback: Option<unsafe extern "C" fn(*mut c_void)>, callback_ctx: *mut c_void)>(b"mpv_render_context_set_update_callback\0").map_err(|e| e.to_string())?);
+        let render_context_free = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvRenderContext)>(b"mpv_render_context_free\0").map_err(|e| e.to_string())?);
 
         Ok(Self {
             _lib: lib,
@@ -78,6 +119,10 @@ impl MpvApi {
             free,
             set_property,
             set_property_string,
+            render_context_create,
+            render_context_render,
+            render_context_set_update_callback,
+            render_context_free,
         })
     }
 }
@@ -85,6 +130,9 @@ impl MpvApi {
 /// Безопасная обёртка над контекстом mpv.
 pub struct MpvManager {
     handle: Mutex<*mut MpvHandle>,
+    render_context: Mutex<*mut MpvRenderContext>,
+    #[cfg(target_os = "linux")]
+    render_pending: AtomicBool,
     api: MpvApi,
 }
 
@@ -94,23 +142,35 @@ unsafe impl Sync for MpvManager {}
 impl MpvManager {
     /// Загрузка API из первой доступной библиотеки mpv.
     unsafe fn load_mpv_api() -> Result<MpvApi, String> {
-        let dll_names = [
+        #[cfg(target_os = "windows")]
+        let library_names = [
             "libmpv-2.dll",
             "mpv-2.dll",
             "libmpv-1.dll",
             "mpv-1.dll",
         ];
-        for dll_name in &dll_names {
-            if let Ok(loaded) = MpvApi::load(dll_name) {
+        #[cfg(target_os = "linux")]
+        let library_names = {
+            let mut names = Vec::new();
+            if let Ok(path) = std::env::var("L_MPV_LIBMPV") {
+                names.push(path);
+            }
+            if let Ok(exe) = std::env::current_exe() {
+                if let Some(dir) = exe.parent() {
+                    names.push(dir.join("../lib/l-mpv/lib/libmpv.so.2").to_string_lossy().into_owned());
+                    names.push(dir.join("libmpv.so.2").to_string_lossy().into_owned());
+                }
+            }
+            names.extend(["/usr/lib/l-mpv/lib/libmpv.so.2", "libmpv.so.2", "libmpv.so.1", "libmpv.so"].map(String::from));
+            names
+        };
+
+        for library_name in &library_names {
+            if let Ok(loaded) = MpvApi::load(library_name) {
                 return Ok(loaded);
             }
         }
-        Err(
-            "Не найдена библиотека libmpv-2.dll / \
-             mpv-2.dll. Пожалуйста, скачайте её и \
-             поместите рядом с исполняемым файлом."
-                .to_string(),
-        )
+        Err(format!("Не найдена библиотека libmpv (проверены: {}).", library_names.join(", ")))
     }
 
     /// Создание нового экземпляра менеджера mpv.
@@ -155,9 +215,17 @@ impl MpvManager {
             Self::set_option(&api, handle, "screenshot-directory", &screenshots_dir);
             Self::set_option(&api, handle, "screenshot-format", "png");
 
-            // ─── Оптимизированный рендеринг: Direct3D 11 (нативный для Windows / DWM) ───
+            // ─── Оптимизированный платформенный рендеринг ───
+            #[cfg(target_os = "windows")]
             Self::set_option(&api, handle, "vo", "gpu-next");
+            #[cfg(target_os = "linux")]
+            Self::set_option(&api, handle, "vo", "libmpv");
+            #[cfg(target_os = "windows")]
             Self::set_option(&api, handle, "gpu-api", "d3d11,auto");
+            #[cfg(target_os = "linux")]
+            // GtkGLArea supplies an EGL/OpenGL context on both native Wayland
+            // and X11. Vulkan remains available independently to NCNN.
+            Self::set_option(&api, handle, "gpu-api", "opengl");
             Self::set_option(&api, handle, "hwdec", "auto-safe");
 
             // Отключаем лог-файл и снижаем уровень логирования для исключения дискового I/O
@@ -179,7 +247,10 @@ impl MpvManager {
             Self::set_option(&api, handle, "cache-pause", "no"); // Не ставить на паузу при буферизации локальных файлов
             
             // ─── Качественный отзывчивый звук (WASAPI) ───
+            #[cfg(target_os = "windows")]
             Self::set_option(&api, handle, "ao", "wasapi"); // Высококачественный драйвер Windows WASAPI
+            #[cfg(target_os = "linux")]
+            Self::set_option(&api, handle, "ao", "pipewire,pulse,alsa");
             Self::set_option(&api, handle, "audio-buffer", "0.2"); // Отзывчивый размер буфера для плавной перемотки
             Self::set_option(&api, handle, "audio-channels", "auto-safe"); // Автоопределение каналов оборудования
             Self::set_option(&api, handle, "audio-pitch-correction", "yes"); // Сохранение тональности при изменении скорости
@@ -220,6 +291,9 @@ impl MpvManager {
 
             Ok(Self {
                 handle: Mutex::new(handle),
+                render_context: Mutex::new(std::ptr::null_mut()),
+                #[cfg(target_os = "linux")]
+                render_pending: AtomicBool::new(true),
                 api,
             })
         }
@@ -295,6 +369,22 @@ impl MpvManager {
         })
     }
 
+    pub fn get_property_i64(&self, name: &str) -> Result<i64, String> {
+        self.with_handle(|handle| {
+            let c_name = CString::new(name).map_err(|e| e.to_string())?;
+            let mut value = 0i64;
+            let result = unsafe {
+                (self.api.get_property)(
+                    handle,
+                    c_name.as_ptr(),
+                    MpvFormat::Int64,
+                    &mut value as *mut i64 as *mut c_void,
+                )
+            };
+            if result < 0 { Err(format!("Ошибка чтения свойства {name}: {result}")) } else { Ok(value) }
+        })
+    }
+
     pub fn set_property_string(&self, name: &str, value: &str) -> Result<(), String> {
         self.with_handle(|handle| {
             let c_name = CString::new(name).map_err(|e| format!("Ошибка CString: {}", e))?;
@@ -328,6 +418,146 @@ impl MpvManager {
                 }
             }
         })
+    }
+
+    /// Creates the Linux OpenGL render context while GtkGLArea's context is current.
+    #[cfg(target_os = "linux")]
+    pub fn initialize_opengl_renderer(&self) -> Result<(), String> {
+        let mut render_context = self
+            .render_context
+            .lock()
+            .map_err(|_| "Ошибка блокировки render context".to_string())?;
+        if !render_context.is_null() {
+            return Ok(());
+        }
+
+        unsafe extern "C" fn get_proc_address(
+            _ctx: *mut c_void,
+            name: *const c_char,
+        ) -> *mut c_void {
+            #[link(name = "dl")]
+            unsafe extern "C" {
+                fn dlsym(handle: *mut c_void, name: *const c_char) -> *mut c_void;
+            }
+            #[link(name = "EGL")]
+            unsafe extern "C" {
+                fn eglGetProcAddress(name: *const c_char) -> *mut c_void;
+            }
+
+            unsafe {
+                let symbol = dlsym(std::ptr::null_mut(), name);
+                if symbol.is_null() {
+                    eglGetProcAddress(name)
+                } else {
+                    symbol
+                }
+            }
+        }
+
+        let mut init_params = MpvOpenGlInitParams {
+            get_proc_address: Some(get_proc_address),
+            get_proc_address_ctx: std::ptr::null_mut(),
+        };
+        let api_type = b"opengl\0".as_ptr() as *mut c_void;
+        let mut params = [
+            MpvRenderParam {
+                param_type: MPV_RENDER_PARAM_API_TYPE,
+                data: api_type,
+            },
+            MpvRenderParam {
+                param_type: MPV_RENDER_PARAM_OPENGL_INIT_PARAMS,
+                data: &mut init_params as *mut MpvOpenGlInitParams as *mut c_void,
+            },
+            MpvRenderParam {
+                param_type: MPV_RENDER_PARAM_INVALID,
+                data: std::ptr::null_mut(),
+            },
+        ];
+
+        self.with_handle(|handle| {
+            let result = unsafe {
+                (self.api.render_context_create)(&mut *render_context, handle, params.as_mut_ptr())
+            };
+            if result < 0 {
+                Err(format!("mpv_render_context_create завершился с кодом {result}"))
+            } else {
+                unsafe extern "C" fn request_render(ctx: *mut c_void) {
+                    let pending = unsafe { &*(ctx as *const AtomicBool) };
+                    pending.store(true, Ordering::Release);
+                }
+                unsafe {
+                    (self.api.render_context_set_update_callback)(
+                        *render_context,
+                        Some(request_render),
+                        &self.render_pending as *const AtomicBool as *mut c_void,
+                    );
+                }
+                self.render_pending.store(true, Ordering::Release);
+                Ok(())
+            }
+        })
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn take_render_request(&self) -> bool {
+        self.render_pending.swap(false, Ordering::AcqRel)
+    }
+
+    /// Renders the current video frame into GtkGLArea's active framebuffer.
+    #[cfg(target_os = "linux")]
+    pub fn render_opengl_frame(&self, fbo_id: i32, width: i32, height: i32) -> Result<(), String> {
+        let render_context = self
+            .render_context
+            .lock()
+            .map_err(|_| "Ошибка блокировки render context".to_string())?;
+        if render_context.is_null() {
+            return Ok(());
+        }
+
+        let mut fbo = MpvOpenGlFbo {
+            fbo: fbo_id,
+            width,
+            height,
+            internal_format: 0,
+        };
+        let mut flip_y: c_int = 1;
+        let mut params = [
+            MpvRenderParam {
+                param_type: MPV_RENDER_PARAM_OPENGL_FBO,
+                data: &mut fbo as *mut MpvOpenGlFbo as *mut c_void,
+            },
+            MpvRenderParam {
+                param_type: MPV_RENDER_PARAM_FLIP_Y,
+                data: &mut flip_y as *mut c_int as *mut c_void,
+            },
+            MpvRenderParam {
+                param_type: MPV_RENDER_PARAM_INVALID,
+                data: std::ptr::null_mut(),
+            },
+        ];
+        let result = unsafe { (self.api.render_context_render)(*render_context, params.as_mut_ptr()) };
+        if result < 0 {
+            Err(format!("mpv_render_context_render завершился с кодом {result}"))
+        } else {
+            Ok(())
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn free_opengl_renderer(&self) {
+        if let Ok(mut render_context) = self.render_context.lock() {
+            if !render_context.is_null() {
+                unsafe {
+                    (self.api.render_context_set_update_callback)(
+                        *render_context,
+                        None,
+                        std::ptr::null_mut(),
+                    )
+                };
+                unsafe { (self.api.render_context_free)(*render_context) };
+                *render_context = std::ptr::null_mut();
+            }
+        }
     }
 
     pub fn get_property_bool(&self, name: &str) -> Result<bool, String> {

@@ -1,0 +1,37 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "L-MPV",
+        "width": 1280,
+        "height": 720,
+        "minWidth": 560,
+        "minHeight": 180,
+        "decorations": true,
+        "transparent": true,
+        "resizable": true,
+        "center": true,
+        "visible": false
+      },
+      {
+        "label": "mediainfo",
+        "title": "L-MPV MediaInfo",
+        "width": 565,
+        "height": 685,
+        "minWidth": 460,
+        "minHeight": 360,
+        "decorations": false,
+        "transparent": false,
+        "resizable": true,
+        "alwaysOnTop": true,
+        "center": true,
+        "visible": false
+      }
+    ]
+  },
+  "bundle": {
+    "targets": ["appimage"],
+    "resources": []
+  }
+}

@@ -56,6 +56,9 @@ Portable-L-MPV*
 *.tar.gz
 *.rar
 scratch/
+/dist-linux/
+/packaging/arch/*.pkg.tar.zst
+/.runtime/
 
 
 
@@ -98,4 +101,3 @@ scratch/
 .agents/rules/
 agents/rules/
 .codebase-memory/*
-

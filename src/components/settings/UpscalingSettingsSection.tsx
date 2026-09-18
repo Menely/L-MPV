@@ -7,6 +7,7 @@ import {
   Layers,
   Eye,
   EyeOff,
+  Download,
 } from "lucide-react";
 import {
   getCustomHotkeys,
@@ -50,6 +51,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [downloadProgressText, setDownloadProgressText] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgressPayload | null>(null);
+  const [downloadingNcnnModel, setDownloadingNcnnModel] = useState(false);
 
   // Хоткеи
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
@@ -127,7 +129,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   const [settings, setSettings] = useState<UpscaleSettings>(() => {
     try {
       const savedMode = (localStorage.getItem("l-mpv-upscale-mode") as "off" | "ai") || "off";
-      const savedBackend = (localStorage.getItem("l-mpv-upscale-backend") as "DirectML" | "TensorRT") || "DirectML";
+      const savedBackend = (localStorage.getItem("l-mpv-upscale-backend") as UpscaleSettings["backend"]) || "DirectML";
       const savedSlot = Number(localStorage.getItem("l-mpv-upscale-slot") || 1001);
       const savedModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
       return {
@@ -166,6 +168,10 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
         const currentStatus = await invoke<UpscaleStatus>("get_upscale_status");
         if (isMountedRef.current) {
           setStatus(currentStatus);
+          if (currentStatus.platform === "linux") {
+            setSettings((previous) => ({ ...previous, backend: "NCNN Vulkan" }));
+            localStorage.setItem("l-mpv-upscale-backend", "NCNN Vulkan");
+          }
           // Очищаем ошибку загрузки статуса при успешном получении
           setErrorMessage((prev) =>
             prev === "Не удалось получить статус компонентов апскейлинга" ? null : prev
@@ -268,7 +274,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       if (isMountedRef.current) {
         setCustomHotkeys(getCustomHotkeys());
         const savedMode = (localStorage.getItem("l-mpv-upscale-mode") as "off" | "ai") || "off";
-        const savedBackend = (localStorage.getItem("l-mpv-upscale-backend") as "DirectML" | "TensorRT") || "DirectML";
+        const savedBackend = (localStorage.getItem("l-mpv-upscale-backend") as UpscaleSettings["backend"]) || "DirectML";
         const savedSlot = Number(localStorage.getItem("l-mpv-upscale-slot") || 1001);
         const savedModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
         setSettings({
@@ -306,7 +312,9 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     // Проверяем, установлен ли движок при попытке включить режим "ai"
     const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
     const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
-    const isInstalled = updated.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
+    const isInstalled = updated.backend === "NCNN Vulkan"
+      ? !!status?.ncnn_present
+      : updated.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
 
     if (updated.mode === "ai" && !isInstalled) {
       setErrorMessage(`Для включения апскейлинга необходимо сначала скачать библиотеки движка ${updated.backend}.`);
@@ -325,7 +333,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   };
 
   // Переключение выбранного бэкенда без лишних перерисовок кадра, если апскейл выключен
-  const handleSelectBackend = async (backend: "DirectML" | "TensorRT") => {
+  const handleSelectBackend = async (backend: UpscaleSettings["backend"]) => {
     const updated: UpscaleSettings = { ...settings, backend };
     setSettings(updated);
     setErrorMessage(null);
@@ -335,7 +343,9 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     if (updated.mode === "ai") {
       const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
       const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
-      const isInstalled = backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
+      const isInstalled = backend === "NCNN Vulkan"
+        ? !!status?.ncnn_present
+        : backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
 
       if (isInstalled) {
         try {
@@ -365,6 +375,20 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       await invoke("open_inference_folder");
     } catch (err) {
       console.error("Ошибка открытия папки движков:", err);
+    }
+  };
+
+  const handleDownloadNcnnModel = async () => {
+    setDownloadingNcnnModel(true);
+    setErrorMessage(null);
+    try {
+      const message = await invoke<string>("download_curated_ncnn_model");
+      setEngineSuccessMessage(message);
+      await refreshStatus();
+    } catch (error) {
+      setErrorMessage(String(error));
+    } finally {
+      setDownloadingNcnnModel(false);
     }
   };
 
@@ -553,14 +577,25 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <h3 style={{ fontSize: "1.02rem", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
-              <Layers size={17} color="var(--accent)" /> Папка нейросетей (models/onnx/)
+              <Layers size={17} color="var(--accent)" /> Папка нейросетей ({status?.platform === "linux" ? "models/ncnn/" : "models/onnx/"})
             </h3>
             <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 2 }}>
-              Обнаружено файлов ONNX-моделей: {status?.models_count || 0}
+               Обнаружено моделей {status?.platform === "linux" ? "NCNN" : "ONNX"}: {status?.models_count || 0}
             </p>
           </div>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {status?.platform === "linux" && (
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={handleDownloadNcnnModel}
+                disabled={downloadingNcnnModel}
+                title="Скачать проверенную AnimeJaNai V2 в формате NCNN"
+              >
+                <Download size={15} /> {downloadingNcnnModel ? "Загрузка…" : "AnimeJaNai V2"}
+              </button>
+            )}
             <button
               type="button"
               className="btn btn--secondary btn--icon"
@@ -631,7 +666,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
             })
           ) : (
             <div style={{ padding: 18, textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              В папке models/onnx/ не найдено совместимых моделей .onnx.
+               В папке {status?.platform === "linux" ? "models/ncnn/ не найдено пар .param + .bin" : "models/onnx/ не найдено совместимых моделей .onnx"}.
               <br />
               <span style={{ fontSize: "0.78rem" }}>
                 Нажмите значок папки справа вверху и скопируйте файлы моделей.

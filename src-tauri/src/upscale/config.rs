@@ -7,17 +7,27 @@ use std::path::PathBuf;
 
 /// Возвращает корневой каталог приложения
 pub fn get_app_root_dir() -> PathBuf {
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            return exe_dir.to_path_buf();
-        }
+    #[cfg(target_os = "linux")]
+    {
+        return crate::commands::app_data_root();
     }
-    PathBuf::from(".")
+    #[cfg(not(target_os = "linux"))]
+    {
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                return exe_dir.to_path_buf();
+            }
+        }
+        PathBuf::from(".")
+    }
 }
 
 /// Возвращает путь к универсальной папке моделей `models/onnx/`
 pub fn get_models_dir() -> PathBuf {
     let root = get_app_root_dir();
+    #[cfg(target_os = "linux")]
+    let models_dir = root.join("models").join("ncnn");
+    #[cfg(not(target_os = "linux"))]
     let models_dir = root.join("models").join("onnx");
     if !models_dir.exists() {
         let _ = fs::create_dir_all(&models_dir);
@@ -158,6 +168,7 @@ pub fn has_compiled_engine_for_model(
 }
 
 /// Сканирует папку `models/onnx/` и формирует список моделей
+#[cfg(not(target_os = "linux"))]
 pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
     let models_dir = get_models_dir();
     let mut items = Vec::new();
@@ -273,7 +284,56 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
     items
 }
 
+/// Linux models are distributed as preconverted NCNN `.param` + `.bin` pairs.
+#[cfg(target_os = "linux")]
+pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
+    let models_dir = get_models_dir();
+    let saved_order: Vec<String> = fs::read_to_string(get_models_order_path())
+        .ok()
+        .and_then(|value| serde_json::from_str(&value).ok())
+        .unwrap_or_default();
+    let mut paths = fs::read_dir(&models_dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension().and_then(|ext| ext.to_str()) == Some("param")
+                && path.with_extension("bin").is_file()
+        })
+        .collect::<Vec<_>>();
+    paths.sort_by(|a, b| {
+        let a = a.file_name().unwrap_or_default().to_string_lossy();
+        let b = b.file_name().unwrap_or_default().to_string_lossy();
+        match (
+            saved_order.iter().position(|item| item.eq_ignore_ascii_case(&a)),
+            saved_order.iter().position(|item| item.eq_ignore_ascii_case(&b)),
+        ) {
+            (Some(a), Some(b)) => a.cmp(&b),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => a.cmp(&b),
+        }
+    });
+
+    paths.into_iter().enumerate().map(|(index, path)| {
+        let filename = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        let stem = path.file_stem().unwrap_or_default().to_string_lossy();
+        let size_bytes = fs::metadata(&path).map(|m| m.len()).unwrap_or(0)
+            + fs::metadata(path.with_extension("bin")).map(|m| m.len()).unwrap_or(0);
+        ModelFileItem {
+            filename,
+            display_name: stem.replace(['_', '-'], " "),
+            size_bytes,
+            slot: (index + 1) as u32,
+            full_path: path.to_string_lossy().into_owned(),
+            has_engine_1080p: true,
+        }
+    }).collect()
+}
+
 /// Проверяет физическое наличие всех требуемых библиотек инференса и статус подсистемы
+#[cfg(not(target_os = "linux"))]
 pub fn check_upscale_status_internal() -> UpscaleStatus {
     let inf_dir = get_inference_dir();
     let root = get_app_root_dir();
@@ -316,10 +376,31 @@ pub fn check_upscale_status_internal() -> UpscaleStatus {
         aji_present,
         directml_present,
         tensorrt_present,
+        ncnn_present: false,
+        platform: std::env::consts::OS.to_string(),
         models_count: models.len(),
         models_dir: models_dir.to_string_lossy().to_string(),
         models,
         gpu_info,
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn check_upscale_status_internal() -> UpscaleStatus {
+    let models_dir = get_models_dir();
+    let models = scan_onnx_models_internal();
+    let ncnn_present = super::linux::find_ncnn_plugin().is_some();
+    UpscaleStatus {
+        filter_supported: ncnn_present,
+        aji_present: false,
+        directml_present: false,
+        tensorrt_present: false,
+        ncnn_present,
+        platform: "linux".to_string(),
+        models_count: models.len(),
+        models_dir: models_dir.to_string_lossy().into_owned(),
+        models,
+        gpu_info: detect_system_gpu(),
     }
 }
 

@@ -5,8 +5,8 @@
 <h1 align="center">🎬 L-MPV — Modern & Portable Media Player</h1>
 
 <p align="center">
-  <b>Высокопроизводительный, эстетичный и портативный медиаплеер нового поколения.</b><br>
-  Построен на базе <b>Tauri v2</b>, <b>React 19</b>, <b>Direct3D 11</b> и нативного движка <b>libmpv</b> (C-FFI) с поддержкой <b>Real-Time 4K AI Upscaling</b>.
+  <b>Высокопроизводительный медиаплеер для Windows и Linux с нативным выводом видео.</b><br>
+  Построен на базе <b>Tauri v2</b>, <b>React 19</b> и <b>libmpv</b> с кроссплатформенным <b>Real-Time 4K AI Upscaling</b>.
 </p>
 
 <p align="center">
@@ -16,8 +16,8 @@
   <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Rust-2021-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
   <img src="https://img.shields.io/badge/MPV-libmpv--2-red?style=for-the-badge&logo=mpv&logoColor=white" alt="libmpv">
-  <img src="https://img.shields.io/badge/AI%20Upscale-4K%20DirectML%20%7C%20TensorRT-success?style=for-the-badge" alt="AI Upscale">
-  <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
+  <img src="https://img.shields.io/badge/AI%20Upscale-DirectML%20%7C%20TensorRT%20%7C%20NCNN-success?style=for-the-badge" alt="AI Upscale">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078D6?style=for-the-badge&logo=linux&logoColor=white" alt="Windows and Linux">
   <a href="https://t.me/+45xNDoaEpHBjY2Qy"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License"></a>
 </p>
@@ -26,9 +26,39 @@
 
 ## 🌟 О проекте
 
-**L-MPV** — это современный настольный медиаплеер для Windows, объединяющий эталонное качество воспроизведения нативного видеодвижка **MPV** (`vo=gpu-next`, Direct3D 11, HDR, WASAPI, студийный 32-tap sinc-ресемплинг), аппаратный **Real-Time 4K AI Апскейлинг** ( ONNX инференс через DirectML и TensorRT) с утонченным, отзывчивым интерфейсом в стиле **Glassmorphism**, созданным на **React 19** и **TypeScript**.
+**L-MPV** — современный настольный медиаплеер для Windows 10/11 и Linux x86_64. Windows использует прямое встраивание libmpv в HWND, Direct3D 11 и ONNX-инференс через DirectML/TensorRT. Linux выводит видео через libmpv render API в GTK `GLArea` на нативных Wayland и X11, а AI-апскейлинг выполняет через NCNN/Vulkan на NVIDIA, AMD и Intel.
 
-Плеер спроектирован по строгой концепции **True Portable Architecture (Zero-Install)**: он полностью автономен, не привязан к системному реестру Windows и не создает мусор в системных каталогах пользователя. Все конфигурации, кэш, скриншоты, универсальная папка ONNX-моделей (`models/onnx/`) и нативные бинарные библиотеки (`libmpv-2.dll`, `ffmpeg.exe`, `mediainfo.dll`) расположены непосредственно в каталоге приложения.
+Windows-редакция сохраняет концепцию **True Portable Architecture (Zero-Install)**: настройки, скриншоты, ONNX-модели и нативные библиотеки расположены рядом с приложением. Linux следует XDG Base Directory, хранит пользовательские данные в `$XDG_CONFIG_HOME/l-mpv` (по умолчанию `~/.config/l-mpv`) и поставляется как AppImage либо пакет Arch Linux.
+
+## 🖥️ Совместимость платформ
+
+| Возможность | Windows 10/11 x64 | Linux x86_64 |
+| :--- | :---: | :---: |
+| Основное воспроизведение через libmpv | ✅ `libmpv-2.dll` | ✅ `libmpv.so` |
+| Графическая сессия | ✅ Win32 / DWM | ✅ нативные Wayland и X11 |
+| Нативный Wayland | — | ✅ GTK `GLArea` + libmpv render API |
+| Аппаратное декодирование | ✅ D3D11VA / DXVA2 | ✅ VA-API / NVDEC — через mpv |
+| GPU-рендеринг | ✅ D3D11 | ✅ OpenGL/EGL; Vulkan compute для NCNN |
+| HDR и tone mapping | ✅ | ✅ Зависит от mpv, драйвера и окружения рабочего стола |
+| AI-апскейлинг ONNX | ✅ | ❌ |
+| DirectML | ✅ AMD / Intel / NVIDIA | ❌ Windows-only |
+| TensorRT | ✅ NVIDIA | ❌ Текущая реализация Windows-only |
+| NCNN / Vulkan AI | ❌ | ✅ NVIDIA / AMD / Intel, модели `.param` + `.bin` |
+| Авто-fallback AI | ❌ | ✅ FSRCNNX / Anime4K при пропусках кадров |
+| Шейдерный Ambient Light | ✅ | ✅ |
+| WASAPI-аудиовизуализатор | ✅ | ❌ Windows-only |
+| Скриншоты и копирование кадра | ✅ | ✅ |
+| Извлечение дорожек через FFmpeg | ✅ Встроенный `ffmpeg.exe` | ✅ Встроенный в AppImage или системный `ffmpeg` |
+| Подробный отчёт MediaInfo | ✅ `mediainfo.dll` | ✅ MediaInfo CLI |
+| Плейлисты, главы и внешние дорожки | ✅ | ✅ |
+| Несколько экземпляров приложения | ✅ | ✅ |
+| Ассоциации файлов из настроек приложения | ✅ Реестр Windows | ❌ |
+| Desktop-файл и MIME-типы | ❌ | ✅ При установке Arch-пакета |
+| Встроенное portable-автообновление | ✅ | ❌ Обновление через релиз или пакетный менеджер |
+| Расположение настроек | Каталог приложения | `$XDG_CONFIG_HOME/l-mpv` или `~/.config/l-mpv` |
+| Форматы сборок | NSIS, portable ZIP, `.exe` | AppImage, Arch `pkg.tar.zst`, нативный бинарник |
+
+> **Примечание:** Linux использует libmpv render API, а не X11 Window ID, поэтому работает без XWayland. AI-фильтр принимает заранее конвертированные пары NCNN `.param`/`.bin`; ONNX, DirectML и TensorRT остаются Windows-функциями.
 
 <p align="center">
   <img src="./assets/interface-player.png?v=2" alt="L-MPV Player Interface" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
@@ -97,25 +127,28 @@
 <details>
 <summary><b>🚀 Real-Time 4K AI Upscaling (Нейросетевой Апскейлинг Аниме и Видео)</b></summary>
 
-- **Нативный инференс в видеопотоке:** интеграция фильтра `vf_animejanai` на базе `the-database/mpv-AnimeJaNai` и моста `aji.dll` с аппаратным выводом кадров в 4K Ultra HD в реальном времени.
+- **Нативный инференс в видеопотоке:** Windows использует `vf_animejanai`/`aji.dll`; Linux — приватный mpv/VapourSynth runtime и NCNN через Vulkan.
 - **Два режима работы:** переключатель **«Выкл»** и **«AI Upscaling»** в Настройках (`F2`) — пользователь сам решает, когда задействовать искусственный интеллект.
-- **Два движка инференса (Backend):**
+- **Windows-движки инференса (Backend):**
   - **DirectML:** универсальный инференс через DirectX 12 для любых видеокарт (AMD Radeon, Intel Arc/Iris, NVIDIA GeForce) с максимальной стабильностью.
   - **TensorRT:** максимальная скорость и частота кадров для видеокарт NVIDIA GeForce RTX (поддержка архитектур от `sm75` до новейшей Blackwell `sm120`).
-- **Умный автозагрузчик компонентов («Скачать движок»):**
+- **Linux backend — NCNN Vulkan:** заранее конвертированные пары `.param` + `.bin`, работающие на NVIDIA, AMD и Intel; при недостаточной скорости автоматически включаются FSRCNNX/Anime4K.
+- **Умный автозагрузчик компонентов Windows («Скачать движок»):**
   - Автоматическое определение установленного GPU и скачивание точного набора библиотек.
   - Потоковая индикация процентов, объема (МБ), аккуратный статус распаковки и фиксация 100% готовности в течение 3 секунд.
   - Неблокирующая фоновая распаковка через `spawn_blocking` без зависаний UI и без всплывающих консольных окон.
-- **Предварительная компиляция TensorRT 1080p (.engine):**
+- **Предварительная компиляция TensorRT 1080p (.engine, Windows):**
   - Фоновая оптимизация ONNX моделей под разрешение 1080p -> 4K с многоступенчатым отслеживанием фаз (разбор ONNX, тактики CUDA, оптимизация графа, сериализация).
   - Компиляция через нативный `aji_harness.exe` с точным соответствием динамических осей `dyn-HW` и оптимизационных параметров.
   - Устранение задержек при первом включении видео и поддержка перекомпиляции в один клик.
-- **Автоматическая FP16-нормализация и поддержка моделей всех поколений (V1, V2, V3):**
+- **Автоматическая FP16-нормализация ONNX (Windows):**
   - Встроенный алгоритм аппаратной валидации и автоконвертации типов ONNX: модели в формате FP32 автоматически приводятся к стандарту IEEE Float16 перед компиляцией.
   - Полное устранение артефактов «радужного шума» и расхождения памяти шейдера: идеальная четкость и чистота картинки как на компактных сетях V2, так и на тяжелых моделях V1 и HD V3 / V3Sharp1.
-- **Универсальная библиотека ONNX (`models/onnx/`):**
-  - Возможность использования любых сторонних моделей формата `.onnx`.
-  - Кнопка **«Папка моделей»** для быстрого перехода в Проводник Windows.
+- **Библиотека моделей:**
+  - Windows: ONNX в `models/onnx/`.
+  - Linux: NCNN `.param` + `.bin` в `models/ncnn/`, включая загрузку проверенной AnimeJaNai V2 из интерфейса.
+  - Windows принимает сторонние модели `.onnx`; Linux требует заранее конвертированную совместимую пару `.param` + `.bin` с масштабом 2×.
+  - Кнопка **«Папка моделей»** открывает каталог в Проводнике Windows или через `xdg-open` в Linux.
   - Переключатель скрытия/отображения названий моделей (маскировка точками).
 - **Переключение нейросетей на лету по горячим клавишам:**
   - `Ctrl+J` — Информационный OSD-оверлей статуса и статистики апскейлинга (активный движок, выбранная модель, слот, разрешение видео -> 4K);
@@ -129,13 +162,13 @@
 </details>
 
 <details>
-<summary><b>⚡ Рендеринг Нового Поколения (<code>vo=gpu-next</code>)</b></summary>
+<summary><b>⚡ Нативный GPU-рендеринг через libmpv</b></summary>
 
-- **GPU-HQ пайплайн:** профиль `profile=gpu-hq`, нативный Direct3D 11 (`gpu-api=d3d11`) и аппаратное декодирование `hwdec=auto-safe`.
+- **GPU-HQ пайплайн:** Direct3D 11 в Windows; OpenGL/EGL через libmpv render API в Linux; аппаратное декодирование `hwdec=auto-safe` вне AI-фильтра.
 - **Прецизионное масштабирование:** алгоритмы интерполяции `scale=spline36` и `cscale=spline36` для идеальной четкости деталей и цветовых переходов.
 - **Интеллектуальный HDR:** автоматическая передача метаданных в дисплей (`target-colorspace-hint=yes`), динамический расчет пиков яркости (`hdr-compute-peak=yes`) и адаптивный tone mapping.
 - **Zero-Flicker жизненный цикл:** окно создается в скрытом режиме, рассчитывает истинный Display Aspect Ratio видео, центрируется и отображается (`window.show()`) строго тогда, когда интерфейс и первый видеокадр готовы к показу, исключая любые рывки геометрии и мерцания.
-- **Прямой вывод в окно:** видеопоток отрисовывается в нативный Win32 HWND через C-FFI с нулевой задержкой под полностью прозрачным DOM-слоем WebView2 (`transparent: true`).
+- **Прямой вывод в окно:** Win32 HWND/WebView2 в Windows; GTK `GLArea` внутри `GtkOverlay` в нативных Wayland и X11 в Linux.
 
 </details>
 
@@ -168,7 +201,7 @@
 <details>
 <summary><b>🎧 Студийный Аудиофильский Звук и Усиление до 150% (Audiophile Profile)</b></summary>
 
-- **Низколатентный вывод:** нативный драйвер Windows WASAPI (`ao=wasapi`) с оптимизированным буфером 0.2 с.
+- **Низколатентный вывод:** Windows использует WASAPI (`ao=wasapi`), Linux выбирает PipeWire, PulseAudio или ALSA; аудиобуфер настроен на 0.2 с.
 - **Софтверный буст громкости (до 150%):** возможность усиления тихих аудиодорожек до 150% без искажений и клиппинга (`volume-max=150.0`).
 - **Студийный 32-точечный sinc-ресемплинг:** фильтр `audio-resample-filter-size=32`, 16 384 фазы сдвига (`audio-resample-phase-shift=14`) и линейная интерполяция между отсчетами (`audio-resample-linear=yes`).
 - **Нормализованный даунмикс:** автоматическое безопасное сведение многоканального аудио 5.1/7.1 в стерео (`audio-normalize-downmix=yes`) с аппаратной защитой от перегрузок и клиппинга.
@@ -307,37 +340,37 @@
   <tr>
     <td><b>Backend & Shell</b></td>
     <td>Rust (2021 edition), Tauri v2, Tokio</td>
-    <td>Низкоуровневая интеграция с Win32 API, многопоточный IPC-мост, управление окнами и DWM</td>
+    <td>IPC-мост, управление окнами, Win32/DWM в Windows и GTK/WebKitGTK в Linux</td>
   </tr>
   <tr>
     <td><b>Media Engine</b></td>
-    <td><code>libmpv-2.dll</code> (сборка <code>the-database/mpv-winbuild</code>) via dynamic FFI (<code>libloading</code>)</td>
-    <td>Аппаратный рендеринг <code>vo=gpu-next</code>, Direct3D 11, HDR tone-mapping, demuxing</td>
+    <td><code>libmpv-2.dll</code> в Windows; приватный <code>libmpv.so.2</code> и render API в Linux</td>
+    <td>Direct3D 11/HWND либо OpenGL/EGL/GTK <code>GLArea</code>, HDR tone mapping и demuxing</td>
   </tr>
   <tr>
     <td><b>AI Upscaling</b></td>
-    <td><code>vf_animejanai</code> + <code>aji.dll</code> (DirectML / TensorRT) + ONNX</td>
-    <td>Аппаратный апскейлинг видео в реальном времени до 4K на любых GPU</td>
+    <td>DirectML/TensorRT + ONNX в Windows; VapourSynth + NCNN/Vulkan в Linux</td>
+    <td>Аппаратный апскейлинг 2× и автоматический fallback на FSRCNNX/Anime4K в Linux</td>
   </tr>
   <tr>
     <td><b>MediaInfo Engine</b></td>
-    <td><code>mediainfo.dll</code> via dynamic C-FFI</td>
+    <td><code>mediainfo.dll</code> через C-FFI либо MediaInfo CLI</td>
     <td>Извлечение исчерпывающего технического отчёта о видеоконтейнере и потоках данных</td>
   </tr>
   <tr>
     <td><b>Audio Engine</b></td>
-    <td>Windows WASAPI, 32-tap Sinc Resampler, Scaletempo2</td>
+    <td>WASAPI либо PipeWire/PulseAudio/ALSA, 32-tap Sinc Resampler, Scaletempo2</td>
     <td>Студийный 32-точечный ресемплинг, безопасный даунмикс 5.1/7.1 в стерео, pitch correction</td>
   </tr>
   <tr>
     <td><b>Track Extraction</b></td>
-    <td>Встроенный FFmpeg (<code>ffmpeg.exe</code>)</td>
+    <td>Встроенный FFmpeg (<code>ffmpeg.exe</code> или AppImage <code>ffmpeg</code>)</td>
     <td>Прямой экспорт потоков аудио/субтитров (<code>-c copy</code>) и интеллектуальный fallback-транскодинг</td>
   </tr>
   <tr>
     <td><b>Платформа</b></td>
-    <td>Windows 10 / 11 x64</td>
-    <td>Аппаратное ускорение DXVA2/D3D11VA, Windows Explorer Context Menu API, Taskbar API</td>
+    <td>Windows 10/11 x64, Linux x86_64 (Wayland/X11)</td>
+    <td>D3D11VA/DXVA2 либо VA-API/NVDEC; платформенные интеграции включаются условно</td>
   </tr>
 </table>
 
@@ -355,11 +388,11 @@ L-MPV/
 │   │   ├── PlayerControls.tsx            # Плавающая панель управления (кнопки, громкость, треки, скорость)
 │   │   ├── ContextMenu.tsx               # Кастомное ПКМ-меню (масштаб, пропорции, поворот, дорожки, подсветка)
 │   │   ├── SettingsModal.tsx             # Настройки (скриншоты, цвета, подсветка полос, апскейлинг, хоткеи)
-│   │   ├── UpscalingSettingsSection.tsx  # Управление 4K AI апскейлингом и библиотекой ONNX-моделей
+│   │   ├── UpscalingSettingsSection.tsx  # Управление AI-апскейлингом и библиотекой ONNX/NCNN-моделей
 │   │   ├── upscale/                      # Модульные подкомпоненты апскейлинга:
 │   │   │   ├── types.ts                  # Модели данных и событий прогресса
 │   │   │   ├── GpuHardwareCard.tsx       # Информационная карточка обнаруженного GPU (VRAM, архитектура, рекомендации)
-│   │   │   └── BackendSelector.tsx       # Селектор DirectML / TensorRT, скачивание движков, удаление, индикация прогресса
+│   │   │   └── BackendSelector.tsx       # DirectML / TensorRT / NCNN Vulkan и состояние runtime
 │   │   ├── MediaInfoModal.tsx            # Компактное окно технической информации о медиафайле
 │   │   ├── StandaloneMediaInfoWindow.tsx # Автономное окно просмотра MediaInfo из проводника
 │   │   ├── ChaptersModal.tsx             # Модальное окно навигации по главам видео
@@ -397,24 +430,31 @@ L-MPV/
 ├── src-tauri/                            # Бэкенд (Rust + Tauri v2)
 │   ├── capabilities/default.json         # Манифест разрешений Tauri v2
 │   ├── src/
-│   │   ├── main.rs                       # Точка входа приложения
-│   │   ├── lib.rs                        # Инициализация Tauri, HWND-привязка, фокус и реестр 103 IPC-команд
+│   │   ├── main.rs                       # Точка входа и настройка приватного Linux runtime
+│   │   ├── lib.rs                        # Инициализация Tauri, HWND либо GTK GLArea и IPC-команды
 │   │   ├── upscale/                      # Модульная подсистема 4K AI апскейлинга:
 │   │   │   ├── mod.rs                    # Фасад подсистемы, IPC-команды, unit-тесты
 │   │   │   ├── types.rs                  # Модели данных: ModelFileItem, UpscaleSettings, GpuHardwareInfo, Progress
-│   │   │   ├── hardware.rs               # Диагностика GPU через Win32 DXGI, определение SM-архитектуры NVIDIA
-│   │   │   ├── config.rs                 # Разрешение путей, окружение DLL PATH, сканирование models/onnx/, upscale.conf
+│   │   │   ├── hardware.rs               # Диагностика GPU через DXGI либо vulkaninfo/lspci
+│   │   │   ├── config.rs                 # Пути и сканирование models/onnx либо models/ncnn
 │   │   │   ├── downloader.rs             # Асинхронная потоковая загрузка DirectML/TensorRT, распаковка архивов
-│   │   │   └── controller.rs             # Управление libmpv фильтром, фоновая компиляция TensorRT .engine, хоткеи
+│   │   │   ├── controller.rs             # Платформенная маршрутизация AI-фильтров и хоткеи
+│   │   │   └── linux.rs                  # VapourSynth/NCNN, загрузка модели и watchdog fallback
 │   │   ├── ambient.rs                    # Контроллер подсветки черных полос (GPU Blur / Color / Off)
 │   │   ├── audio_capture.rs              # Нативный захват звука WASAPI Loopback, быстрый БПФ (FFT Radix-2), 32 полосы
-│   │   ├── mediainfo.rs                  # FFI-интеграция с mediainfo.dll и управление автономным окном
-│   │   ├── mpv_manager.rs                # FFI-обертка libmpv (vo=gpu-next, WASAPI, D3D11, vf_animejanai, sinc-фильтр)
+│   │   ├── audio_capture_stub.rs         # Linux-заглушка Windows-only WASAPI-визуализатора
+│   │   ├── mediainfo.rs                  # mediainfo.dll в Windows и MediaInfo CLI в Linux
+│   │   ├── mpv_manager.rs                # Динамический libmpv API, HWND и OpenGL render context
 │   │   ├── system_integration.rs         # Интеграция с Проводником Windows (контекстное меню, ассоциации файлов)
 │   │   ├── updater.rs                    # Модуль фонового и ручного обновления
 │   │   └── commands.rs                   # IPC #[tauri::command] обработчики, экспорт дорожек через FFmpeg
 │   ├── Cargo.toml                        # Зависимости бэкенда Rust
-│   └── tauri.conf.json                   # Конфигурация Tauri v2
+│   ├── tauri.conf.json                   # Основная конфигурация Tauri v2
+│   └── tauri.linux.conf.json             # Linux-конфигурация окна и AppImage
+├── native/linux-ncnn/                    # VapourSynth API 4 плагин NCNN/Vulkan
+├── scripts/                              # Сборка приватного runtime и AppImage
+├── packaging/arch/                       # PKGBUILD, .SRCINFO и desktop-файл
+├── vendor/tauri-runtime-wry/             # GTK-патч иерархии GtkOverlay/GLArea
 ├── models/                               # Каталог нейросетей
 │   └── onnx/                             # Универсальная папка для размещения ONNX-моделей
 ├── inference/                            # Папка библиотек инференса (aji.dll, DirectML, TensorRT)
@@ -478,9 +518,10 @@ L-MPV/
 
 ## ⚡ IPC-Архитектура (Rust ↔ React)
 
-Связь интерфейса React с движком MPV, подсистемой апскейлинга и системными модулями осуществляется через **91 нативную IPC-команду**, гарантирующую мгновенный отклик и отсутствие задержек:
+Связь интерфейса React с движком MPV, подсистемой апскейлинга и системными модулями осуществляется через нативные IPC-команды Tauri:
 
-- **Апскейлинг и AI Модели (6 команд):** `get_upscale_status`, `scan_onnx_models`, `open_models_folder`, `apply_upscale_settings`, `download_recommended_models`, `switch_upscale_network_hotkey`.
+- **Апскейлинг и AI-модели:** `get_upscale_status`, `scan_onnx_models`, `open_models_folder`, `apply_upscale_settings`, `download_recommended_models`, `download_curated_ncnn_model`, `switch_upscale_network_hotkey`.
+- **Определение платформы:** `get_runtime_platform` адаптирует интерфейс без изменения поведения Windows-сборки.
 - **Воспроизведение и Плейлист (16 команд):** `open_file`, `toggle_pause`, `set_pause`, `seek`, `seek_absolute`, `frame_step`, `frame_back_step`, `playlist_prev`, `playlist_next`, `get_playlist`, `play_playlist_item`, `set_loop_file`, `set_loop_playlist`, `toggle_shuffle`, `get_play_next_on_end`, `set_play_next_on_end`.
 - **Громкость и Скорость (2 команды):** `set_volume`, `set_speed`.
 - **Дорожки и FFmpeg Извлечение (11 команд):** `get_tracks`, `set_audio_track`, `set_subtitle_track`, `disable_subtitles`, `load_subtitle_file`, `load_audio_file`, `set_video_track`, `extract_track`, `get_auto_load_tracks`, `set_auto_load_tracks`, `load_external_tracks_for_file`.
@@ -500,9 +541,74 @@ L-MPV/
 
 ### Требования к окружению
 - **Node.js** v20+ и менеджер пакетов **npm**
-- **Rust** (toolchain `stable-x86_64-pc-windows-msvc`)
-- Нативная библиотека `libmpv-2.dll` из релиза `the-database/mpv-winbuild` (с фильтром `vf_animejanai`)
-- Утилита `ffmpeg.exe` для прямого экспорта дорожек и `mediainfo.dll` для детального анализа
+- **Rust stable** (`x86_64-pc-windows-msvc` или `x86_64-unknown-linux-gnu`)
+- Windows: `libmpv-2.dll`, `ffmpeg.exe` и `mediainfo.dll`
+- Linux: GTK 3, WebKitGTK 4.1, FFmpeg, MediaInfo и Vulkan-драйвер GPU
+
+### Linux
+
+В релизах публикуются два варианта для `x86_64`:
+
+- самодостаточный `AppImage` с приватными libmpv 0.41, VapourSynth R79, NCNN/Vulkan, Python runtime, FFmpeg, MediaInfo и fallback-шейдерами;
+- пакет Arch Linux `pkg.tar.zst` с тем же приватным runtime в `/usr/lib/l-mpv` и desktop/MIME-интеграцией.
+
+AppImage включает пользовательские библиотеки, но не поставляет драйвер GPU: в системе должен быть установлен рабочий Vulkan ICD для NVIDIA, AMD или Intel. Воспроизведение работает нативно в Wayland и X11 через GTK `GLArea` и libmpv render API, без обязательного XWayland.
+
+#### Установка и запуск
+
+```bash
+# AppImage
+chmod +x L-MPV-*-linux-x86_64.AppImage
+./L-MPV-*-linux-x86_64.AppImage
+
+# Arch Linux
+sudo pacman -U l-mpv-*-x86_64.pkg.tar.zst
+```
+
+Пользовательские настройки, история, скриншоты и модели находятся в
+`$XDG_CONFIG_HOME/l-mpv` или `~/.config/l-mpv`. Linux-версия не изменяет системный
+реестр и не использует portable-настройки из каталога исполняемого файла.
+
+#### NCNN/Vulkan AI
+
+1. Откройте **Настройки → Апскейлинг**.
+2. Нажмите **AnimeJaNai V2**, чтобы скачать проверенную модель с валидацией SHA-256, либо поместите собственную совместимую пару `имя.param` + `имя.bin` в `~/.config/l-mpv/models/ncnn/`.
+3. Выберите модель и включите **AI Upscaling**. Модель должна принимать RGB float и выдавать изображение с масштабом 2×.
+
+Во время работы VapourSynth передаёт кадры через системную память, поэтому аппаратное
+декодирование временно отключается. Watchdog отслеживает счётчики пропущенных кадров;
+если NCNN не справляется с воспроизведением, фильтр автоматически снимается и включаются
+пакетные FSRCNNX/Anime4K-шейдеры с уведомлением в OSD. DirectML, TensorRT и
+WASAPI-визуализатор остаются Windows-only.
+
+#### Сборка из исходников
+
+Версии ключевых компонентов закреплены в `scripts/build-linux-runtime.sh`: mpv 0.41,
+VapourSynth R79, NCNN и GLSL-шейдеры собираются из фиксированных ревизий.
+
+Сборка приватного runtime:
+
+```bash
+bash scripts/build-linux-runtime.sh
+```
+
+Сборка готового AppImage в `dist-linux/`:
+
+```bash
+bash scripts/build-linux-appimage.sh
+```
+
+Сборка пакета Arch Linux:
+
+```bash
+cd packaging/arch
+makepkg -s
+```
+
+Для разработки необходимы GTK 3, WebKitGTK 4.1, OpenGL/EGL и Vulkan headers/loader.
+Полная сборка runtime дополнительно использует CMake, Ninja, Meson, Python/Cython,
+FFmpeg development libraries, libplacebo, libass и zimg. Актуальный список пакетов
+для Ubuntu 22.04 и Arch Linux приведён в `.github/workflows/release.yml`.
 
 ### Режим разработки (Development)
 ```bash
@@ -557,4 +663,3 @@ Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MP
 ## 📄 Лицензия
 
 Проект распространяется под свободной лицензией **MIT**. Подробная информация доступна в файле [LICENSE](./LICENSE).
-

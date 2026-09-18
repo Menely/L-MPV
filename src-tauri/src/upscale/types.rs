@@ -75,6 +75,10 @@ pub struct UpscaleStatus {
     pub directml_present: bool,
     /// Наличие полного набора библиотек NVIDIA TensorRT (aji_trt.dll, nvinfer_11.dll)
     pub tensorrt_present: bool,
+    /// Linux NCNN/Vulkan runtime and VapourSynth bridge are available.
+    pub ncnn_present: bool,
+    /// Runtime platform used to adapt the settings UI.
+    pub platform: String,
     /// Количество обнаруженных ONNX моделей в папке models/onnx/
     pub models_count: usize,
     /// Путь к каталогу моделей
@@ -120,4 +124,3 @@ pub struct UpscaleCompileProgress {
     /// Описание ошибки сборки (если возникла)
     pub error: Option<String>,
 }
-
