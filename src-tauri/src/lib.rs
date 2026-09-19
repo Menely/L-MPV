@@ -255,6 +255,7 @@ pub fn run() {
             system_integration::open_default_apps_settings,
             commands::get_playlist,
             commands::play_playlist_item,
+            commands::reload_folder_playlist,
             // Новые команды
             commands::set_loop_file,
             commands::set_loop_playlist,
@@ -281,6 +282,8 @@ pub fn run() {
             commands::get_subtitles_avoid_ui,
             commands::set_subtitles_avoid_ui_setting,
             commands::update_subtitles_avoid_ui,
+            commands::get_ui_settings,
+            commands::save_ui_settings,
             commands::load_external_tracks_for_file,
             commands::get_app_version,
             // Автообновление
@@ -393,7 +396,8 @@ pub fn run() {
                 // Окно плеера main остается скрытым
             } else if let Some(ref path) = cli.file_path {
                 let state = app.state::<PlayerState>();
-                if let Err(e) = commands::open_file_internal(&state, path) {
+                let app_h = app.handle().clone();
+                if let Err(e) = commands::open_file_internal(&state, path, Some(&app_h)) {
                     println!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
                     window.show().ok();
                 }

@@ -16,6 +16,47 @@ fn default_true() -> bool {
     true
 }
 
+/// Настройки пользовательского интерфейса, сохраняемые в config/settings.json.
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct UiSettings {
+    #[serde(default)]
+    pub player_theme: Option<String>,
+    #[serde(default)]
+    pub ui_font: Option<String>,
+    #[serde(default)]
+    pub accent_color: Option<String>,
+    #[serde(default)]
+    pub glow_intensity: Option<String>,
+    #[serde(default)]
+    pub ui_opacity: Option<f64>,
+    #[serde(default)]
+    pub ui_radius_level: Option<String>,
+    #[serde(default)]
+    pub ui_radius_value: Option<f64>,
+    #[serde(default)]
+    pub ui_scale_mode: Option<String>,
+    #[serde(default)]
+    pub ui_scale_value: Option<f64>,
+    #[serde(default)]
+    pub control_bar_style: Option<String>,
+    #[serde(default)]
+    pub time_position: Option<String>,
+    #[serde(default)]
+    pub time_format: Option<String>,
+    #[serde(default)]
+    pub animations_enabled: Option<bool>,
+    #[serde(default)]
+    pub show_track_names: Option<bool>,
+    #[serde(default)]
+    pub playlist_width: Option<u32>,
+    #[serde(default)]
+    pub custom_colors: Option<Vec<String>>,
+    #[serde(default)]
+    pub visible_buttons: Option<HashMap<String, bool>>,
+    #[serde(default)]
+    pub custom_hotkeys: Option<HashMap<String, Vec<String>>>,
+}
+
 /// Конфигурация приложения, сохраняемая в config/settings.json.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppSettings {
@@ -45,6 +86,9 @@ pub struct AppSettings {
     /// Последняя зафиксированная версия приложения для сброса счётчиков при обновлении.
     #[serde(default)]
     pub last_version: String,
+    /// Визуальные настройки интерфейса (шрифт, тема, масштабирование, цвета и т.д.).
+    #[serde(default)]
+    pub ui: UiSettings,
 }
 
 impl Default for AppSettings {
@@ -60,6 +104,7 @@ impl Default for AppSettings {
             launch_count: 0,
             postponed_until_launch: 0,
             last_version: String::new(),
+            ui: UiSettings::default(),
         }
     }
 }
@@ -705,15 +750,18 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 /// Открытие медиафайла для воспроизведения.
 #[tauri::command]
 pub fn open_file(
+    app: tauri::AppHandle,
     state: State<'_, PlayerState>,
     path: String,
 ) -> Result<(), String> {
-    open_file_internal(&state, &path)
+    open_file_internal(&state, &path, Some(&app))
 }
 
+/// Внутренняя функция открытия файла с опциональной отправкой события обновления плейлиста
 pub fn open_file_internal(
     state: &PlayerState,
     path: &str,
+    app: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
     // Сохраняем текущую позицию предыдущего проигрываемого медиафайла перед открытием нового
     save_current_playback_position(state);
@@ -745,51 +793,82 @@ pub fn open_file_internal(
     let _ = load_external_tracks_internal(state, &target_path);
 
     // 2. Фоново формируем плейлист из остальных файлов в той же папке
-    if let Some(parent) = target_path.parent() {
-        if let Ok(entries) = std::fs::read_dir(parent) {
-            let mut video_files: Vec<std::path::PathBuf> = entries
-                .filter_map(|e| e.ok())
-                .map(|e| e.path())
-                .filter(|p| {
-                    p.is_file()
-                        && p.extension()
-                            .and_then(|ext| ext.to_str())
-                            .is_some_and(is_video_extension)
-                })
-                .collect();
+    populate_folder_playlist(state, &target_path, app)?;
 
-            // Сортировка файлов по естественному алфавитному порядку (Natural Sort)
-            video_files.sort_by(|a, b| {
-                let name_a = a.file_name().unwrap_or_default().to_string_lossy();
-                let name_b = b.file_name().unwrap_or_default().to_string_lossy();
-                natural_cmp(&name_a, &name_b)
-            });
+    Ok(())
+}
 
-            if video_files.len() > 1 {
-                let target_canonical = target_path
-                    .canonicalize()
-                    .unwrap_or_else(|_| target_path.clone());
+/// Автоматическое наполнение плейлиста видеофайлами из каталога с регистронезависимым сопоставлением
+pub fn populate_folder_playlist(
+    state: &PlayerState,
+    target_path: &std::path::Path,
+    app: Option<&tauri::AppHandle>,
+) -> Result<(), String> {
+    let parent = match target_path.parent() {
+        Some(p) if !p.as_os_str().is_empty() => p,
+        _ => std::path::Path::new("."),
+    };
 
-                if let Some(target_idx) = video_files.iter().position(|p| {
-                    p.canonicalize().unwrap_or_else(|_| p.clone()) == target_canonical
-                }) {
-                    // Файлы, идущие ДО текущего по алфавиту, добавляем и перемещаем в начало плейлиста,
-                    // сдвигая текущий файл на его корректный алфавитный индекс
-                    for (k, f) in video_files[..target_idx].iter().enumerate() {
-                        let safe_f = escape_mpv_path(&f.to_string_lossy());
-                        let _ = state.mpv.command(&format!("loadfile \"{}\" append", safe_f));
-                        let last_idx = k + 1;
-                        let _ = state.mpv.command(&format!("playlist-move {} {}", last_idx, k));
-                    }
+    let entries = match std::fs::read_dir(parent) {
+        Ok(e) => e,
+        Err(_) => return Ok(()),
+    };
 
-                    // Файлы, идущие ПОСЛЕ текущего по алфавиту, добавляем в конец плейлиста
-                    for f in &video_files[(target_idx + 1)..] {
-                        let safe_f = escape_mpv_path(&f.to_string_lossy());
-                        let _ = state.mpv.command(&format!("loadfile \"{}\" append", safe_f));
-                    }
-                }
+    let mut video_files: Vec<std::path::PathBuf> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| {
+            p.is_file()
+                && p.extension()
+                    .and_then(|ext| ext.to_str())
+                    .is_some_and(is_video_extension)
+        })
+        .collect();
+
+    // Сортировка файлов по естественному алфавитному порядку (Natural Sort)
+    video_files.sort_by(|a, b| {
+        let name_a = a.file_name().unwrap_or_default().to_string_lossy();
+        let name_b = b.file_name().unwrap_or_default().to_string_lossy();
+        natural_cmp(&name_a, &name_b)
+    });
+
+    if video_files.len() > 1 {
+        // Регистронезависимое сравнение имени целевого файла для надежной работы в Windows
+        let target_filename = target_path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+
+        let target_idx = video_files.iter().position(|p| {
+            let p_name = p
+                .file_name()
+                .map(|n| n.to_string_lossy().to_lowercase())
+                .unwrap_or_default();
+            !target_filename.is_empty() && p_name == target_filename
+        });
+
+        if let Some(idx) = target_idx {
+            // Файлы, идущие ДО текущего по алфавиту, добавляем и перемещаем в начало плейлиста,
+            // сдвигая текущий файл на его корректный алфавитный индекс
+            for (k, f) in video_files[..idx].iter().enumerate() {
+                let safe_f = escape_mpv_path(&f.to_string_lossy());
+                let _ = state.mpv.command(&format!("loadfile \"{}\" append", safe_f));
+                let last_idx = k + 1;
+                let _ = state.mpv.command(&format!("playlist-move {} {}", last_idx, k));
+            }
+
+            // Файлы, идущие ПОСЛЕ текущего по алфавиту, добавляем в конец плейлиста
+            for f in &video_files[(idx + 1)..] {
+                let safe_f = escape_mpv_path(&f.to_string_lossy());
+                let _ = state.mpv.command(&format!("loadfile \"{}\" append", safe_f));
             }
         }
+    }
+
+    // Оповещаем интерфейс фронтенда об успешном формировании плейлиста
+    if let Some(app) = app {
+        use tauri::Emitter;
+        let _ = app.emit("playlist-updated", ());
     }
 
     Ok(())
@@ -1322,6 +1401,20 @@ pub fn update_subtitles_avoid_ui(
     Ok(())
 }
 
+/// Получить сохранённые настройки пользовательского интерфейса из config/settings.json.
+#[tauri::command]
+pub fn get_ui_settings() -> Result<UiSettings, String> {
+    Ok(AppSettings::load_portable().ui)
+}
+
+/// Сохранить настройки пользовательского интерфейса в config/settings.json.
+#[tauri::command]
+pub fn save_ui_settings(ui: UiSettings) -> Result<(), String> {
+    let mut settings = AppSettings::load_portable();
+    settings.ui = ui;
+    settings.save_portable()
+}
+
 /// Сканирование и загрузка внешних дорожек и субтитров для указанного медиафайла.
 #[tauri::command]
 pub fn load_external_tracks_for_file(
@@ -1626,7 +1719,8 @@ pub fn get_playlist(
 ) -> Result<Vec<PlaylistItem>, String> {
     let mpv = &state.mpv;
     let count = mpv.get_property_double("playlist/count").unwrap_or(0.0) as i64;
-    let mut playlist = Vec::new();
+    let current_pos = mpv.get_property_double("playlist-pos").unwrap_or(-1.0) as i64;
+    let mut playlist = Vec::with_capacity(count.max(0) as usize);
 
     for i in 0..count {
         let filename = mpv
@@ -1648,9 +1742,7 @@ pub fn get_playlist(
                 .unwrap_or_else(|_| filename.clone())
         };
 
-        let current = mpv
-            .get_property_string(&format!("playlist/{}/current", i))
-            .unwrap_or_default() == "yes";
+        let current = i == current_pos;
 
         playlist.push(PlaylistItem {
             index: i,
@@ -1669,8 +1761,32 @@ pub fn play_playlist_item(
     state: State<'_, PlayerState>,
     index: i64,
 ) -> Result<(), String> {
+    if index < 0 {
+        return Err("Недопустимый отрицательный индекс элемента плейлиста".to_string());
+    }
+    let current_pos = state.mpv.get_property_double("playlist-pos").unwrap_or(-1.0) as i64;
+    if index == current_pos {
+        // Если выбран уже играющий файл, предотвращаем повторный сброс позиции в 0
+        return Ok(());
+    }
     save_current_playback_position(&state);
     state.mpv.set_property_string("playlist-pos", &index.to_string())
+}
+
+/// Принудительное пересканирование каталога и обновление плейлиста
+#[tauri::command]
+pub fn reload_folder_playlist(
+    app: tauri::AppHandle,
+    state: State<'_, PlayerState>,
+) -> Result<(), String> {
+    let current_path = state.mpv.get_property_string("path").unwrap_or_default();
+    if current_path.is_empty() {
+        return Ok(());
+    }
+    // Очищаем остальные файлы плейлиста в mpv кроме текущего файла
+    let _ = state.mpv.command("playlist-clear");
+    let target_path = std::path::PathBuf::from(&current_path);
+    populate_folder_playlist(&state, &target_path, Some(&app))
 }
 
 /// Установка зума и панорамирования видео.

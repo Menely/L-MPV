@@ -890,6 +890,7 @@ function App() {
       closeContextMenu();
       if (latestRef.current.isPlaylistOpen) {
         latestRef.current.setIsPlaylistOpen(false);
+        return;
       }
 
       const curHotkeys = latestRef.current.hotkeys;
@@ -954,6 +955,7 @@ function App() {
       e.preventDefault();
       if (latestRef.current.isPlaylistOpen) {
         latestRef.current.setIsPlaylistOpen(false);
+        return;
       }
 
       const curHotkeys = latestRef.current.hotkeys;
@@ -981,6 +983,10 @@ function App() {
     (e: React.MouseEvent) => {
       if (e.button === 1) {
         e.preventDefault();
+        if (latestRef.current.isPlaylistOpen) {
+          latestRef.current.setIsPlaylistOpen(false);
+          return;
+        }
         const curHotkeys = latestRef.current.hotkeys;
         let action: string | null = null;
         for (const [actionId, codes] of Object.entries(curHotkeys)) {

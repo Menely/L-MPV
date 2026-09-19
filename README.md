@@ -42,12 +42,13 @@
 
 Создание и развитие медиаплеера **L-MPV** стало возможным благодаря невероятным опенсорс-проектам и талантливым людям:
 
-- **[mpv](https://mpv.io/)** ([GitHub](https://github.com/mpv-player/mpv)) — за эталонный, мощный и гибкий нативный видеодвижок, обеспечивающий бескомпромиссное качество воспроизведения.
-- **[mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai)** & **[the-database](https://github.com/the-database)** — за революционный видеофильтр `vf_animejanai` и возможность воспроизведения нейросетевого 4K-апскейлинга в реальном времени.
-- **[Tauri](https://tauri.app/)** ([GitHub](https://github.com/tauri-apps/tauri)) — за легковесный, безопасный и сверхбыстрый кроссплатформенный фреймворк нового поколения на базе Rust и веб-технологий.
 - **[LANKETT](https://github.com/LANKETT)** — огромная благодарность за разработку фирменной иконки и визуального логотипа!
   - GitHub: **[@LANKETT](https://github.com/LANKETT)**
   - Telegram-канал: **[LANKETT WORK](https://t.me/lankett_work)**
+- **[mpv](https://mpv.io/)** ([GitHub](https://github.com/mpv-player/mpv)) — за эталонный, мощный и гибкий нативный видеодвижок, обеспечивающий бескомпромиссное качество воспроизведения.
+- **[mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai)** & **[the-database](https://github.com/the-database)** — за революционный видеофильтр `vf_animejanai` и возможность воспроизведения нейросетевого 4K-апскейлинга в реальном времени.
+- **[Tauri](https://tauri.app/)** ([GitHub](https://github.com/tauri-apps/tauri)) — за легковесный, безопасный и сверхбыстрый кроссплатформенный фреймворк нового поколения на базе Rust и веб-технологий.
+- **[dnd-kit](https://dndkit.com/)** ([GitHub](https://github.com/clauderic/dnd-kit)) — за современный, гибкий и высокопроизводительный набор Drag & Drop примитивов для React, обеспечивающий интуитивное интерактивное перетаскивание пунктов меню и порядка моделей.
 
 ---
 
@@ -611,8 +612,9 @@ Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MP
 
 ## 💬 Сообщество и Связь
 
-Присоединяйтесь к нашему Telegram-каналу для получения последних новостей, обновлений и обратной связи:
-👉 **[Telegram-канал L-MPV](https://t.me/+iiwyl0cV6uszYTZi)**
+Присоединяйтесь к нашему комьюнити и телеграм каналу: <br>
+👉 <img src="https://github.com/Menely/L-MPV/blob/main/src-tauri/icons/icon.png" width="23" height="23" align="absmiddle"> **[L-MPV Community](https://t.me/+iiwyl0cV6uszYTZi)** <br>
+👉<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+45xNDoaEpHBjY2Qy)**
 
 ---
 

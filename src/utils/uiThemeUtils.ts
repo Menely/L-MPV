@@ -290,6 +290,19 @@ export function saveUiScale(mode: UiScaleMode, value?: number): void {
   window.dispatchEvent(new Event("l-mpv-settings-changed"));
 }
 
+/**
+ * Получить актуальный коэффициент масштабирования интерфейса из CSS-переменной --ui-scale.
+ * Возвращает 1.0, если переменная не задана или среда не браузерная.
+ */
+export function getActiveUiScale(): number {
+  if (typeof window === "undefined" || typeof document === "undefined") return 1.0;
+  const zoomStr = getComputedStyle(document.documentElement)
+    .getPropertyValue("--ui-scale")
+    .trim();
+  const zoom = zoomStr ? parseFloat(zoomStr) : 1.0;
+  return Number.isFinite(zoom) && zoom > 0 ? zoom : 1.0;
+}
+
 // ─── Прозрачность интерфейса (UI Opacity) ────────────────────────────────────
 
 export const UI_OPACITY_STORAGE_KEY = "l-mpv-ui-opacity";

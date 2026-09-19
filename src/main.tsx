@@ -1,27 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { invoke } from "@tauri-apps/api/core";
 import App from "./App";
 import { StandaloneMediaInfoWindow } from "./components/StandaloneMediaInfoWindow";
 import "./index.css";
 import { PlayerStateProvider } from "./contexts/PlayerStateContext";
+import { applyPlayerTheme } from "./utils/colorUtils";
 import {
-  applyAccentColor,
-  applyPlayerTheme,
-  getSavedPlayerTheme,
-  getEffectiveAccentColor,
-} from "./utils/colorUtils";
-import {
-  applyUiRadius,
-  getSavedUiRadius,
-  applyUiScale,
-  getSavedUiScale,
-  applyUiOpacity,
-  getSavedUiOpacity,
-  applyUiFont,
-  getSavedUiFont,
-} from "./utils/uiThemeUtils";
+  hydrateUiSettingsFromDisk,
+  initUiSettingsAutoSync,
+  applyAllVisualSettings,
+} from "./utils/uiSettingsSync";
 
 // Безопасное определение текущего окна Tauri (главное окно плеера или отдельное окно MediaInfo)
 const checkIsMediaInfoWindow = (): boolean => {
@@ -53,63 +42,17 @@ if (typeof document !== "undefined") {
     localStorage.setItem("l-mpv-upscale-mode", "off");
   }
 
-  // Применение настройки анимаций (по умолчанию включено)
-  const syncAnimationsSetting = () => {
-    const isOff = localStorage.getItem("l-mpv-animations-enabled") === "false";
-    document.documentElement.classList.toggle("no-animations", isOff);
-  };
-
-  const syncAllVisualSettings = () => {
-    syncAnimationsSetting();
-    applyPlayerTheme(getSavedPlayerTheme());
-    const curRadius = getSavedUiRadius();
-    applyUiRadius(curRadius.level, curRadius.value);
-    const curScale = getSavedUiScale();
-    applyUiScale(curScale.mode, curScale.value);
-    applyUiOpacity(getSavedUiOpacity());
-    applyUiFont(getSavedUiFont());
-  };
-
-  // Применение акцентного цвета и интенсивности свечения при старте
-  const savedAccent = localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
-  if (savedAccent === "windows") {
-    invoke<string>("get_windows_accent_color")
-      .then((winHex) => {
-        localStorage.setItem("l-mpv-accent-color-windows", winHex);
-        applyAccentColor(winHex);
-      })
-      .catch(() => {});
-  } else {
-    applyAccentColor(savedAccent);
-  }
-
   // Единовременная инициализация всех визуальных параметров оформления при старте
-  syncAllVisualSettings();
+  applyAllVisualSettings();
 
-  window.addEventListener("storage", (e) => {
-    if (e.key === "l-mpv-animations-enabled") {
-      syncAnimationsSetting();
-    }
-    if (e.key === "l-mpv-player-theme") {
-      applyPlayerTheme(getSavedPlayerTheme());
-    }
-    if (e.key === "l-mpv-glow-intensity" || e.key === "l-mpv-accent-color") {
-      applyAccentColor(getEffectiveAccentColor());
-    }
-    if (e.key === "l-mpv-ui-radius" || e.key === "l-mpv-ui-radius-value") {
-      const curRadius = getSavedUiRadius();
-      applyUiRadius(curRadius.level, curRadius.value);
-    }
-    if (e.key === "l-mpv-ui-scale-mode" || e.key === "l-mpv-ui-scale-value") {
-      const curScale = getSavedUiScale();
-      applyUiScale(curScale.mode, curScale.value);
-    }
-    if (e.key === "l-mpv-ui-opacity") {
-      applyUiOpacity(getSavedUiOpacity());
-    }
-    if (e.key === "l-mpv-ui-font") {
-      applyUiFont(getSavedUiFont());
-    }
+  // Асинхронная гидратация сохранённых настроек интерфейса из config/settings.json
+  hydrateUiSettingsFromDisk();
+
+  // Автоматическая двусторонняя синхронизация UI с config/settings.json
+  initUiSettingsAutoSync();
+
+  window.addEventListener("storage", () => {
+    applyAllVisualSettings();
   });
 
   window.addEventListener("l-mpv-player-theme-changed", (e: Event) => {
@@ -118,7 +61,8 @@ if (typeof document !== "undefined") {
       applyPlayerTheme(detail);
     }
   });
-  window.addEventListener("l-mpv-settings-changed", syncAllVisualSettings);
+
+  window.addEventListener("l-mpv-settings-changed", applyAllVisualSettings);
 
   // Предотвращение вызова стандартного контекстного меню движка WebView2
   window.addEventListener("contextmenu", (e) => {
