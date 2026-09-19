@@ -243,8 +243,7 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
                 .unwrap_or(&filename);
 
             let display_name = model_stem
-                .replace('_', " ")
-                .replace('-', " ");
+                .replace(['_', '-'], " ");
 
             let size_bytes = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
 

@@ -134,6 +134,7 @@ pub fn move_nested_animejanai_files(inf_dir: &Path) {
 }
 
 /// Потоковая загрузка файла по сети с уведомлением фронтенда о текущем проценте и объеме
+#[allow(clippy::too_many_arguments)]
 async fn download_file_with_progress(
     client: &reqwest::Client,
     app: &tauri::AppHandle,
@@ -659,10 +660,10 @@ pub fn delete_inference_engine_impl(backend: String) -> Result<String, String> {
         if let Ok(entries) = fs::read_dir(&inf_dir) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
-                if name.starts_with("nvinfer_builder_resource_") {
-                    if fs::remove_file(entry.path()).is_ok() {
-                        removed += 1;
-                    }
+                if name.starts_with("nvinfer_builder_resource_")
+                    && fs::remove_file(entry.path()).is_ok()
+                {
+                    removed += 1;
                 }
             }
         }

@@ -131,14 +131,12 @@ pub fn update_history_position(
         );
 
         if map.len() > 100 {
-            let mut items: Vec<_> = map
+            if let Some(oldest_key) = map
                 .iter()
-                .map(|(k, v)| (k.clone(), v.timestamp))
-                .collect();
-            items.sort_by_key(|i| i.1);
-            if let Some(oldest) = items.first() {
-                let k = oldest.0.clone();
-                map.remove(&k);
+                .min_by_key(|(_, v)| v.timestamp)
+                .map(|(k, _)| k.clone())
+            {
+                map.remove(&oldest_key);
             }
         }
     }
