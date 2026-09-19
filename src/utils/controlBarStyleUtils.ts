@@ -1,7 +1,7 @@
 /**
  * Утилиты для управления стилем панели управления (Control Bar) в L-MPV:
- * - "floating": Парящий остров (Floating Island) с отступами снизу и скруглением углов (Стандарт).
- * - "docked": Пристыкованная плашка (Docked Bar) во всю ширину окна внизу без зазоров.
+ * - "floating": Капсула с отступами снизу и скруглением углов (Стандарт).
+ * - "docked": Классический стиль во всю ширину окна внизу без зазоров.
  */
 
 export type ControlBarStyle = "floating" | "docked";
@@ -19,13 +19,13 @@ export interface ControlBarStyleOption {
 export const CONTROL_BAR_STYLE_OPTIONS: ControlBarStyleOption[] = [
   {
     id: "floating",
-    label: "Парящий остров (Floating)",
+    label: "Капсула",
     desc: "Воздушная капсула с отступами от краев",
     badge: "Современный",
   },
   {
     id: "docked",
-    label: "Пристыкованная планка (Docked)",
+    label: "Классический",
     desc: "Сплошная панель во всю ширину окна без зазоров",
     badge: "Классический",
   },

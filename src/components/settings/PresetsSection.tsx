@@ -457,7 +457,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                 ? "Мягкое свечение"
                 : data.glowIntensity === "medium"
                 ? "Баланс"
-                : "Cyber Intense"}
+                : "High"}
             </span>
           </div>
         )}

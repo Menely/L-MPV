@@ -11,14 +11,15 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Version-2.5.0-blueviolet?style=for-the-badge" alt="Version 2.5.0">
+  <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
+  <a href="https://t.me/+45xNDoaEpHBjY2Qy"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
+  <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
   <img src="https://img.shields.io/badge/Tauri-v2.1-blue?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri v2">
   <img src="https://img.shields.io/badge/React-19.1-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19">
   <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Rust-2021-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
   <img src="https://img.shields.io/badge/MPV-libmpv--2-red?style=for-the-badge&logo=mpv&logoColor=white" alt="libmpv">
   <img src="https://img.shields.io/badge/AI%20Upscale-4K%20DirectML%20%7C%20TensorRT-success?style=for-the-badge" alt="AI Upscale">
-  <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
-  <a href="https://t.me/+45xNDoaEpHBjY2Qy"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License"></a>
 </p>
 
@@ -29,7 +30,7 @@
 <img src="https://github.com/Menely/L-MPV/blob/main/src-tauri/icons/icon.png" width="23" height="23" align="absmiddle"> **L-MPV** — это современный настольный медиаплеер для Windows, объединяющий эталонное качество воспроизведения нативного видеодвижка **MPV** (`vo=gpu-next`, Direct3D 11, HDR, WASAPI, студийный 32-tap sinc-ресемплинг), аппаратный **Real-Time 4K AI Апскейлинг** ( ONNX инференс через DirectML и TensorRT) с утонченным, отзывчивым интерфейсом в стиле **Glassmorphism**, созданным на **React 19** и **TypeScript**. <br>
 ТГК - <img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> [L-MPV](https://t.me/+45xNDoaEpHBjY2Qy)
 
-Плеер спроектирован по строгой концепции **True Portable Architecture (Zero-Install)**: он полностью автономен, не привязан к системному реестру Windows и не создает мусор в системных каталогах пользователя. Все конфигурации, кэш, скриншоты, универсальная папка ONNX-моделей (`models/onnx/`) и нативные бинарные библиотеки (`libmpv-2.dll`, `ffmpeg.exe`, `mediainfo.dll`) расположены непосредственно в каталоге приложения.
+Плеер спроектирован по строгой концепции **True Portable Architecture (Zero-Install)**: он полностью автономен и не создает мусор в системных каталогах пользователя. Все конфигурации, кэш, скриншоты, универсальная папка ONNX-моделей (`models/onnx/`) и нативные бинарные библиотеки (`libmpv-2.dll`, `ffmpeg.exe`, `mediainfo.dll`) расположены непосредственно в каталоге приложения.
 
 <p align="center">
   <img src="./assets/interface-player.png?v=2" alt="L-MPV Player Interface" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
@@ -37,14 +38,14 @@
 
 ---
 
-## 💖 Благодарности и Признательность
+## 💖 Благодарности
 
 Создание и развитие медиаплеера **L-MPV** стало возможным благодаря невероятным опенсорс-проектам и талантливым людям:
 
 - **[mpv](https://mpv.io/)** ([GitHub](https://github.com/mpv-player/mpv)) — за эталонный, мощный и гибкий нативный видеодвижок, обеспечивающий бескомпромиссное качество воспроизведения.
 - **[mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai)** & **[the-database](https://github.com/the-database)** — за революционный видеофильтр `vf_animejanai` и возможность воспроизведения нейросетевого 4K-апскейлинга в реальном времени.
 - **[Tauri](https://tauri.app/)** ([GitHub](https://github.com/tauri-apps/tauri)) — за легковесный, безопасный и сверхбыстрый кроссплатформенный фреймворк нового поколения на базе Rust и веб-технологий.
-- **[LANKETT](https://github.com/LANKETT)** — огромная благодарность за разработку фирменной иконки и визуального логотипа медиаплеера L-MPV!
+- **[LANKETT](https://github.com/LANKETT)** — огромная благодарность за разработку фирменной иконки и визуального логотипа!
   - GitHub: **[@LANKETT](https://github.com/LANKETT)**
   - Telegram-канал: **[LANKETT WORK](https://t.me/lankett_work)**
 
@@ -85,7 +86,7 @@
     </td>
     <td width="50%" align="center">
       <b>🎨 Кастомизация</b><br>
-      <sub>Выбор акцентных цветов интерфейса и индивидуальная настройка хоткеев</sub><br><br>
+      <sub>Акцентные цвета, 10 палитр аудио-визуализатора</sub><br><br>
       <a href="./assets/settings-customization-player.png"><img src="./assets/settings-customization-player.png" alt="Customization & Hotkeys" style="border-radius: 8px;"></a>
     </td>
   </tr>

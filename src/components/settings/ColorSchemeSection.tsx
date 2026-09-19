@@ -64,7 +64,7 @@ const GLOW_OPTIONS = [
   },
   {
     id: "intense" as const,
-    label: "Cyber Intense",
+    label: "High",
     desc: "Яркий неон",
     selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.32)",
     selectedShadow: "0 0 28px rgba(var(--accent-rgb, 127, 199, 255), 0.95), 0 0 8px var(--accent), inset 0 0 0 2px var(--accent)",

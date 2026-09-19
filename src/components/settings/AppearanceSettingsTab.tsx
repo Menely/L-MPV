@@ -699,14 +699,14 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
                           {/* Наглядные реалистичные превью плеера друг под другом */}
                           <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, justifyContent: "center" }}>
-                            {/* 1: Парящий остров */}
+                            {/* 1: Капсула */}
                             <div
                               className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "floating" ? "visual-bar-card--active" : ""}`}
                               onClick={() => {
                                 setControlBarStyle("floating");
                                 saveControlBarStyle("floating");
                               }}
-                              title="Парящий остров: скругленная капсула с воздушными отступами от краев окна"
+                              title="Капсула: скругленная капсула с воздушными отступами от краев окна"
                             >
                               {/* Мини-превью плеера */}
                               <div className="visual-bar-preview">
@@ -723,19 +723,19 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </div>
 
                               <div className="visual-bar-card__info">
-                                <span className="visual-bar-card__label">Парящий остров</span>
+                                <span className="visual-bar-card__label">Капсула</span>
                                 <span className="visual-bar-card__desc">Скругленная капсула с отступами от краев окна</span>
                               </div>
                             </div>
 
-                            {/* 2: Пристыкованная плашка */}
+                            {/* 2: Классический */}
                             <div
                               className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "docked" ? "visual-bar-card--active" : ""}`}
                               onClick={() => {
                                 setControlBarStyle("docked");
                                 saveControlBarStyle("docked");
                               }}
-                              title="Пристыкованная плашка: сплошная полоса во всю ширину окна у нижнего края без зазоров"
+                              title="Классический: сплошная полоса во всю ширину окна у нижнего края без зазоров"
                             >
                               {/* Мини-превью плеера */}
                               <div className="visual-bar-preview">
@@ -755,7 +755,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </div>
 
                               <div className="visual-bar-card__info">
-                                <span className="visual-bar-card__label">Пристыкованная плашка</span>
+                                <span className="visual-bar-card__label">Классический</span>
                                 <span className="visual-bar-card__desc">Сплошная панель во всю ширину у нижнего края</span>
                               </div>
                             </div>
@@ -1092,50 +1092,61 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                   </div>
 
                   {/* Настройка радиуса размытия (только для режима blur) */}
-                  {ambientSettings.mode === "blur" && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                        padding: "12px 14px",
-                        borderRadius: "var(--radius-md)",
-                        background: "rgba(255, 255, 255, 0.03)",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)", fontWeight: 500 }}>
-                          Радиус аппаратного размытия (Blur Radius)
-                        </span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: "0.85rem", color: "var(--accent)", fontWeight: 600 }}>
-                            {ambientSettings.blur_radius} px
+                  {ambientSettings.mode === "blur" && (() => {
+                    const bMin = 10;
+                    const bMax = 150;
+                    const bDef = 100;
+                    const bVal = ambientSettings.blur_radius;
+                    const bPct = Math.round(((bVal - bMin) / (bMax - bMin)) * 100);
+                    const isDefault = bVal === bDef;
+                    return (
+                      <div style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 14 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0, lineHeight: 1 }}>
+                          <Sparkles size={15} style={{ color: "var(--accent)" }} />
+                          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
+                            Размытие
+                          </span>
+                        </div>
+                        <div style={{ flex: 1, display: "flex", alignItems: "center", minWidth: 0, height: 20 }}>
+                          <input
+                            type="range"
+                            min={bMin}
+                            max={bMax}
+                            step={5}
+                            value={bVal}
+                            onChange={(e) => updateAmbient({ blur_radius: parseInt(e.target.value, 10) }, false)}
+                            className="ui-premium-slider"
+                            style={{
+                              "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${bPct}%, rgba(255, 255, 255, 0.12) ${bPct}%, rgba(255, 255, 255, 0.12) 100%)`,
+                            } as React.CSSProperties}
+                            aria-label="Радиус аппаратного размытия"
+                          />
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, lineHeight: 1 }}>
+                          <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                            {bVal} px
                           </span>
                           <button
-                            onClick={() => updateAmbient({ blur_radius: 100 }, true)}
-                            className="btn btn--secondary btn--icon btn--sm"
+                            type="button"
+                            onClick={() => updateAmbient({ blur_radius: bDef }, true)}
+                            className="btn btn--secondary btn--sm"
                             style={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: "var(--radius-sm)",
+                              ...optionResetBtnStyle,
+                              opacity: isDefault ? 0 : 1,
+                              visibility: isDefault ? "hidden" : "visible",
+                              pointerEvents: isDefault ? "none" : "auto",
+                              transform: isDefault ? "scale(0.85)" : "scale(1)",
+                              transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                             }}
+                            title="Сбросить на 100px"
+                            tabIndex={isDefault ? -1 : 0}
                           >
-                            <RotateCcw size={12} />
+                            <RotateCcw size={11} />
                           </button>
                         </div>
                       </div>
-                      <input
-                        type="range"
-                        min="10"
-                        max="150"
-                        step="5"
-                        value={ambientSettings.blur_radius}
-                        onChange={(e) => updateAmbient({ blur_radius: parseInt(e.target.value, 10) }, false)}
-                        style={{ width: "100%", cursor: "pointer", accentColor: "var(--accent)" }}
-                      />
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Настройка цвета (только для режима color) */}
                   {ambientSettings.mode === "color" && (

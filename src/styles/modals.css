@@ -624,7 +624,7 @@
   opacity: 0.7;
 }
 
-/* 1: Парящий остров (капсула) */
+/* 1: Капсула (парящий остров) */
 .visual-bar-preview__floating-island {
   position: absolute;
   bottom: 6px;
@@ -648,7 +648,7 @@
   box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.45);
 }
 
-/* 2: Пристыкованная плашка */
+/* 2: Классический (пристыкованная плашка) */
 .visual-bar-preview__docked-bar {
   position: absolute;
   bottom: 0;

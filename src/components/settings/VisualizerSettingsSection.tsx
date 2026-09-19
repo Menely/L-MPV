@@ -288,11 +288,9 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         type="button"
                         onClick={() => updateVisualizer({ mode: item.id })}
                         style={optionBtnStyle(isSel, "8px 6px")}
+                        title={item.desc}
                       >
                         <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{item.label}</span>
-                        <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
-                          {item.desc}
-                        </span>
                       </button>
                     );
                   })}
