@@ -7,7 +7,7 @@ use super::history::save_current_playback_position;
 use super::playlist::populate_folder_playlist;
 use super::tracks::load_external_tracks_internal;
 use super::types::{
-    escape_mpv_path, AppSettings, ChapterInfo,
+    escape_mpv_path, ChapterInfo,
     MediaInfo, PlaybackState, PlayerState,
 };
 use super::history::{
