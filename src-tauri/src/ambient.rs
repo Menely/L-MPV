@@ -42,6 +42,20 @@ impl Default for AmbientSettings {
     }
 }
 
+/// Строгая проверка HEX-цвета формата #rrggbb (иначе mpv молча
+/// игнорирует значение и пользователь видит «нерабочую» кнопку).
+fn parse_hex_color(color: &str) -> Option<&str> {
+    let bytes = color.as_bytes();
+    if bytes.len() != 7 || bytes[0] != b'#' {
+        return None;
+    }
+    if bytes[1..].iter().all(|b| b.is_ascii_hexdigit()) {
+        Some(color)
+    } else {
+        None
+    }
+}
+
 /// Контроллер для применения и оптимизированного переключения настроек Ambient в mpv.
 /// Инкапсулирует состояние видеорендерера, хранит актуальные параметры в памяти
 /// и предотвращает дублирующие вызовы свойств mpv на GPU.
@@ -74,6 +88,12 @@ impl AmbientController {
 
     /// Применение настроек Ambient к контексту mpv с дедупликацией команд.
     pub fn apply(&self, settings: &AmbientSettings) -> Result<(), String> {
+        // Нормализация ВХОДА до любых сравнений и записей: кэш, диск и GPU
+        // всегда видят одно и то же валидное состояние.
+        let mut normalized = settings.clone();
+        normalized.blur_radius = normalized.blur_radius.clamp(5, 150);
+        let settings = &normalized;
+
         let mut last_guard = self.last_applied.lock().map_err(|e| {
             format!("Ошибка блокировки кэша настроек Ambient: {}", e)
         })?;
@@ -106,8 +126,7 @@ impl AmbientController {
                 };
 
                 if radius_changed {
-                    let radius = settings.blur_radius.clamp(5, 150);
-                    self.mpv.set_property_string("background-blur-radius", &radius.to_string())?;
+                    self.mpv.set_property_string("background-blur-radius", &settings.blur_radius.to_string())?;
                 }
             }
             AmbientMode::Color => {
@@ -122,11 +141,9 @@ impl AmbientController {
                 };
 
                 if color_changed {
-                    let valid_color = if settings.color.starts_with('#') && settings.color.len() == 7 {
-                        settings.color.as_str()
-                    } else {
-                        "#000000"
-                    };
+                    let valid_color = parse_hex_color(&settings.color).ok_or_else(|| {
+                        format!("Некорректный HEX-цвет подсветки: '{}', ожидается #rrggbb", settings.color)
+                    })?;
                     self.mpv.set_property_string("background-color", valid_color)?;
                 }
             }

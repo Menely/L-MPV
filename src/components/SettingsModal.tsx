@@ -352,6 +352,28 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   ambientSettingsRef.current = ambientSettings;
   const isAmbientDirtyRef = useRef<boolean>(false);
   const ambientSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Коалесцинг превью: драг слайдера шлёт десятки onChange/сек,
+  // в mpv уходит максимум один IPC за кадр.
+  const ambientPreviewRafRef = useRef<number | null>(null);
+  const pendingPreviewRef = useRef<AmbientSettings | null>(null);
+
+  const flushAmbientPreview = () => {
+    ambientPreviewRafRef.current = null;
+    const settings = pendingPreviewRef.current;
+    pendingPreviewRef.current = null;
+    if (settings) {
+      invoke("apply_ambient_preview", { settings }).catch((err) => {
+        console.error("Ошибка предпросмотра Ambient Light:", err);
+      });
+    }
+  };
+
+  const scheduleAmbientPreview = (settings: AmbientSettings) => {
+    pendingPreviewRef.current = settings;
+    if (ambientPreviewRafRef.current === null) {
+      ambientPreviewRafRef.current = requestAnimationFrame(flushAmbientPreview);
+    }
+  };
 
   // Сброс таймера статуса при размонтировании
   useEffect(() => {
@@ -365,6 +387,16 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   // Сброс несохраненных изменений на диск при закрытии/размонтировании модального окна
   useEffect(() => {
     return () => {
+      if (ambientPreviewRafRef.current !== null) {
+        cancelAnimationFrame(ambientPreviewRafRef.current);
+        ambientPreviewRafRef.current = null;
+      }
+      // Неприменённое превью не теряем: дожимаем последнее значение в mpv
+      if (pendingPreviewRef.current) {
+        const settings = pendingPreviewRef.current;
+        pendingPreviewRef.current = null;
+        invoke("apply_ambient_preview", { settings }).catch(console.error);
+      }
       if (ambientSaveTimeoutRef.current) {
         clearTimeout(ambientSaveTimeoutRef.current);
         ambientSaveTimeoutRef.current = null;
@@ -489,18 +521,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     };
   }, []);
 
-  // Оптимизированное применение: мгновенный шейдерный preview на GPU + отложенное сохранение на диск (Debounce 400ms)
+  // Оптимизированное применение: шейдерный preview на GPU через rAF-коалесцинг
+  // (максимум один IPC за кадр при драге слайдера) + отложенное сохранение (Debounce 400ms)
   const updateAmbient = async (newSettings: Partial<AmbientSettings>, immediateSave: boolean = false) => {
     const updated = { ...ambientSettingsRef.current, ...newSettings };
     ambientSettingsRef.current = updated;
     setAmbientSettings(updated);
 
     // 1. Мгновенное применение шейдеров в mpv без блокирующего дискового ввода-вывода
-    try {
-      await invoke("apply_ambient_preview", { settings: updated });
-    } catch (err) {
-      console.error("Ошибка предпросмотра Ambient Light:", err);
-    }
+    scheduleAmbientPreview(updated);
 
     // 2. Дебаунсинг сохранения настроек в файл config/settings.json
     if (ambientSaveTimeoutRef.current) {

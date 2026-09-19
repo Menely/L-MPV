@@ -1079,7 +1079,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             boxShadow: isSel
                               ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
                               : "none",
-                            transition: "all var(--t-fast) var(--ease-smooth)",
+                            transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                           }}
                         >
                           <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>{item.label}</span>
@@ -1191,7 +1191,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 fontSize: "0.78rem",
                                 fontWeight: 600,
                                 cursor: "pointer",
-                                transition: "all var(--t-fast) var(--ease-smooth)",
+                                transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                               }}
                             >
                               Как в теме ({activeColor === "windows" ? "Windows" : activeColor})
@@ -1211,7 +1211,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               border: ambientSettings.color === hex ? "2px solid white" : "1px solid var(--border)",
                               cursor: "pointer",
                               boxShadow: ambientSettings.color === hex ? `0 0 10px ${hex}` : "none",
-                              transition: "all var(--t-fast) var(--ease-smooth)",
+                              transition: "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                             }}
                           />
                         ))}
