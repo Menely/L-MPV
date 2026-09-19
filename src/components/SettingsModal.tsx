@@ -94,6 +94,10 @@ export interface AmbientSettings {
   mode: "off" | "blur" | "color";
   blur_radius: number;
   color: string;
+  /** Яркость подсветки %, 20..150 (опционально для старых пресетов) */
+  brightness?: number;
+  /** Насыщенность подсветки %, 0..150 (опционально для старых пресетов) */
+  saturation?: number;
 }
 
 interface SettingsModalProps {
@@ -274,6 +278,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     mode: "off",
     blur_radius: 100,
     color: "#7fc7ff",
+    brightness: 100,
+    saturation: 100,
   });
 
   useEffect(() => {

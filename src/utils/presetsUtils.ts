@@ -87,6 +87,8 @@ export interface SettingsPresetData {
     mode: "off" | "blur" | "color";
     blur_radius: number;
     color: string;
+    brightness?: number;
+    saturation?: number;
   };
   /** Конфигурация аудио-визуализатора */
   visualizer: VisualizerConfig;
@@ -334,13 +336,21 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
     mode: "off" | "blur" | "color";
     blur_radius: number;
     color: string;
+    brightness?: number;
+    saturation?: number;
   } = {
     mode: "off",
     blur_radius: 35,
     color: "#000000",
   };
   try {
-    const savedAmbient = await invoke<{ mode: "off" | "blur" | "color"; blur_radius: number; color: string }>(
+    const savedAmbient = await invoke<{
+      mode: "off" | "blur" | "color";
+      blur_radius: number;
+      color: string;
+      brightness?: number;
+      saturation?: number;
+    }>(
       "get_ambient_settings"
     );
     if (savedAmbient) {
@@ -865,6 +875,9 @@ export function isSettingsMatchingPreset(
     if (current.ambient.mode !== "off") {
       if (current.ambient.blur_radius !== preset.ambient.blur_radius) return false;
       if (current.ambient.mode === "color" && current.ambient.color.toLowerCase() !== preset.ambient.color.toLowerCase()) return false;
+      // Яркость/насыщенность сравниваем только если пресет их задаёт
+      if (preset.ambient.brightness !== undefined && (current.ambient.brightness ?? 100) !== preset.ambient.brightness) return false;
+      if (preset.ambient.saturation !== undefined && (current.ambient.saturation ?? 100) !== preset.ambient.saturation) return false;
     }
   }
 

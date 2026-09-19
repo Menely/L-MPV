@@ -76,6 +76,14 @@ pub fn open_file_internal(
     // 2. Фоново формируем плейлист из остальных файлов в той же папке
     populate_folder_playlist(state, &target_path, app)?;
 
+    // 3. Переоценка Ambient Light под новое видео (авто-отключение без
+    // полос). Дедупликация внутри apply отсекает лишнее — дёшево даже
+    // при частых открытиях.
+    {
+        let current = state.ambient_controller.get_settings();
+        let _ = state.ambient_controller.apply(&current);
+    }
+
     Ok(())
 }
 
