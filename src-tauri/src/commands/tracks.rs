@@ -1,0 +1,1096 @@
+//! Управление аудио-, видео- и субтитровыми дорожками.
+//!
+//! Включает алгоритмы глубокого сканирования внешних дорожек
+//! и субтитров, эвристическое сопоставление по имени файла,
+//! и извлечение дорожек через FFmpeg.
+
+use super::types::{
+    escape_mpv_path, get_app_dir, is_audio_extension,
+    is_subtitle_extension, natural_cmp, AppSettings,
+    PlayerState, TrackInfo,
+};
+use std::collections::HashSet;
+use tauri::State;
+
+// ─── Переключение дорожек ───────────────────────────────
+
+/// Переключение аудиодорожки по ID.
+#[tauri::command]
+pub fn set_audio_track(
+    state: State<'_, PlayerState>,
+    track_id: i64,
+) -> Result<(), String> {
+    state
+        .mpv
+        .set_property_string("aid", &track_id.to_string())
+}
+
+/// Переключение субтитров по ID.
+#[tauri::command]
+pub fn set_subtitle_track(
+    state: State<'_, PlayerState>,
+    track_id: i64,
+) -> Result<(), String> {
+    state
+        .mpv
+        .set_property_string("sid", &track_id.to_string())
+}
+
+/// Отключение субтитров.
+#[tauri::command]
+pub fn disable_subtitles(
+    state: State<'_, PlayerState>,
+) -> Result<(), String> {
+    state.mpv.set_property_string("sid", "no")
+}
+
+/// Загрузка внешнего файла субтитров (Хотлоад).
+///
+/// Двухшаговый подход: sub-add cached + ручное переключение sid.
+#[tauri::command]
+pub fn load_subtitle_file(
+    state: State<'_, PlayerState>,
+    path: String,
+) -> Result<(), String> {
+    let safe_path = escape_mpv_path(&path);
+
+    // Шаг 1: добавляем субтитры без немедленного переключения
+    state.mpv.command(&format!(
+        "sub-add \"{}\" cached",
+        safe_path
+    ))?;
+
+    // Шаг 2: находим ID только что добавленных субтитров и активируем их
+    let updated_count = state
+        .mpv
+        .get_property_double("track-list/count")
+        .unwrap_or(0.0) as i64;
+
+    for i in (0..updated_count).rev() {
+        let t_type = state
+            .mpv
+            .get_property_string(&format!(
+                "track-list/{}/type",
+                i
+            ))
+            .unwrap_or_default();
+        if t_type == "sub" {
+            if let Ok(id) =
+                state.mpv.get_property_double(&format!(
+                    "track-list/{}/id",
+                    i
+                ))
+            {
+                let _ = state.mpv.set_property_string(
+                    "sid",
+                    &(id as i64).to_string(),
+                );
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Горячее подключение внешнего аудиофайла (hotload audio) с автоматическим выбором.
+///
+/// Используем двухшаговый подход (аналогично load_external_tracks_internal):
+/// 1. Добавляем аудиодорожку с флагом `cached` — это НЕ сбрасывает видеоконвейер.
+/// 2. Находим ID добавленной дорожки в track-list и переключаем `aid` вручную.
+///
+/// Флаг `select` вызывает полную пересборку демультиплексора в режиме wid,
+/// что приводит к потере видеоизображения.
+#[tauri::command]
+pub fn load_audio_file(
+    state: State<'_, PlayerState>,
+    path: String,
+) -> Result<(), String> {
+    println!(
+        "[L-MPV] Вызван load_audio_file с путем: {}",
+        path
+    );
+    let safe_path = escape_mpv_path(&path);
+
+    // Шаг 1: добавляем дорожку без немедленного переключения
+    state.mpv.command(&format!(
+        "audio-add \"{}\" cached",
+        safe_path
+    ))?;
+
+    // Шаг 2: находим ID только что добавленной дорожки и активируем её
+    let updated_count = state
+        .mpv
+        .get_property_double("track-list/count")
+        .unwrap_or(0.0) as i64;
+
+    for i in (0..updated_count).rev() {
+        let t_type = state
+            .mpv
+            .get_property_string(&format!(
+                "track-list/{}/type",
+                i
+            ))
+            .unwrap_or_default();
+        if t_type == "audio" {
+            if let Ok(id) =
+                state.mpv.get_property_double(&format!(
+                    "track-list/{}/id",
+                    i
+                ))
+            {
+                let _ = state.mpv.set_property_string(
+                    "aid",
+                    &(id as i64).to_string(),
+                );
+                println!(
+                    "[L-MPV] Хотлоад: переключено на \
+                     аудиодорожку id={}",
+                    id as i64
+                );
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Переключение видеодорожки по ID.
+#[tauri::command]
+pub fn set_video_track(
+    state: State<'_, PlayerState>,
+    track_id: i64,
+) -> Result<(), String> {
+    state
+        .mpv
+        .set_property_string("vid", &track_id.to_string())
+}
+
+/// Получение списка всех доступных дорожек (аудио, субтитры, видео).
+#[tauri::command]
+pub fn get_tracks(
+    state: State<'_, PlayerState>,
+) -> Result<Vec<TrackInfo>, String> {
+    let mpv = &state.mpv;
+    let count = mpv
+        .get_property_double("track-list/count")
+        .unwrap_or(0.0) as i64;
+    let mut tracks = Vec::new();
+
+    let current_aid =
+        mpv.get_property_string("aid").unwrap_or_default();
+    let current_sid =
+        mpv.get_property_string("sid").unwrap_or_default();
+    let current_vid =
+        mpv.get_property_string("vid").unwrap_or_default();
+
+    for i in 0..count {
+        let track_type = mpv
+            .get_property_string(&format!(
+                "track-list/{}/type",
+                i
+            ))
+            .unwrap_or_default();
+        let id = mpv
+            .get_property_double(&format!(
+                "track-list/{}/id",
+                i
+            ))
+            .unwrap_or(0.0) as i64;
+        let title = mpv
+            .get_property_string(&format!(
+                "track-list/{}/title",
+                i
+            ))
+            .unwrap_or_default();
+        let lang = mpv
+            .get_property_string(&format!(
+                "track-list/{}/lang",
+                i
+            ))
+            .unwrap_or_default();
+
+        let is_selected_by_list = mpv
+            .get_property_string(&format!(
+                "track-list/{}/selected",
+                i
+            ))
+            .unwrap_or_default()
+            == "yes";
+
+        // Синхронизация статуса активности с актуальными свойствами aid/sid/vid плеера,
+        // чтобы исключить задержку обновления track-list при смене дорожки демуксером.
+        let selected = match track_type.as_str() {
+            "audio" => {
+                if current_aid == "no" {
+                    false
+                } else if let Ok(aid_id) =
+                    current_aid.parse::<i64>()
+                {
+                    id == aid_id
+                } else {
+                    is_selected_by_list
+                }
+            }
+            "sub" => {
+                if current_sid == "no" {
+                    false
+                } else if let Ok(sid_id) =
+                    current_sid.parse::<i64>()
+                {
+                    id == sid_id
+                } else {
+                    is_selected_by_list
+                }
+            }
+            "video" => {
+                if current_vid == "no" {
+                    false
+                } else if let Ok(vid_id) =
+                    current_vid.parse::<i64>()
+                {
+                    id == vid_id
+                } else {
+                    is_selected_by_list
+                }
+            }
+            _ => is_selected_by_list,
+        };
+
+        let codec = mpv
+            .get_property_string(&format!(
+                "track-list/{}/codec",
+                i
+            ))
+            .unwrap_or_default();
+
+        let external = mpv
+            .get_property_string(&format!(
+                "track-list/{}/external",
+                i
+            ))
+            .unwrap_or_default()
+            == "yes";
+
+        let external_filename = if external {
+            mpv.get_property_string(&format!(
+                "track-list/{}/external-filename",
+                i
+            ))
+            .unwrap_or_default()
+        } else {
+            String::new()
+        };
+
+        let ff_index = mpv
+            .get_property_double(&format!(
+                "track-list/{}/ff-index",
+                i
+            ))
+            .map(|f| f as i64)
+            .unwrap_or(-1);
+
+        tracks.push(TrackInfo {
+            id,
+            track_type,
+            title,
+            lang,
+            selected,
+            codec,
+            external,
+            external_filename,
+            ff_index,
+        });
+    }
+
+    Ok(tracks)
+}
+
+/// Сканирование и загрузка внешних дорожек и субтитров для указанного медиафайла.
+#[tauri::command]
+pub fn load_external_tracks_for_file(
+    state: State<'_, PlayerState>,
+    path: String,
+) -> Result<(), String> {
+    load_external_tracks_internal(
+        &state,
+        std::path::Path::new(&path),
+    )
+}
+
+// ─── Извлечение дорожек через FFmpeg ────────────────────
+
+/// Извлечение аудиодорожки или субтитров в отдельный файл с помощью встроенного FFmpeg.
+#[tauri::command]
+pub async fn extract_track(
+    video_path: String,
+    track_type: String,
+    track_index: i64,
+    ff_index: Option<i64>,
+    external_filename: Option<String>,
+    target_path: String,
+) -> Result<String, String> {
+    // Если извлекается аудиодорожка с расширением .aac, автоматически упаковываем в контейнер .m4a
+    let effective_target_path = if track_type == "audio"
+        && target_path.to_lowercase().ends_with(".aac")
+    {
+        format!(
+            "{}.m4a",
+            &target_path[..target_path.len() - 4]
+        )
+    } else {
+        target_path
+    };
+
+    // Определение пути к встроенному исполняемому файлу ffmpeg
+    let exe_dir = get_app_dir()?;
+
+    let mut ffmpeg_path = exe_dir.join("ffmpeg.exe");
+    if !ffmpeg_path.exists() {
+        if std::path::Path::new("ffmpeg.exe").exists() {
+            ffmpeg_path =
+                std::path::PathBuf::from("ffmpeg.exe");
+        } else if std::path::Path::new(
+            "Portable-L-MPV/ffmpeg.exe",
+        )
+        .exists()
+        {
+            ffmpeg_path = std::path::PathBuf::from(
+                "Portable-L-MPV/ffmpeg.exe",
+            );
+        } else {
+            ffmpeg_path =
+                std::path::PathBuf::from("ffmpeg");
+        }
+    }
+
+    // Создание родительской директории, если она отсутствует
+    if let Some(parent) =
+        std::path::Path::new(&effective_target_path)
+            .parent()
+    {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    // 1. Проверка внешнего файла: если дорожка уже из внешнего файла
+    if let Some(ref ext_path) = external_filename {
+        if !ext_path.is_empty() {
+            let src = std::path::Path::new(ext_path);
+            if src.exists() {
+                // Если исходный файл aac, а целевой контейнер m4a — упаковываем через FFmpeg
+                if ext_path
+                    .to_lowercase()
+                    .ends_with(".aac")
+                    && effective_target_path
+                        .to_lowercase()
+                        .ends_with(".m4a")
+                {
+                    let mut cmd =
+                        std::process::Command::new(
+                            &ffmpeg_path,
+                        );
+                    cmd.args([
+                        "-y",
+                        "-i",
+                        ext_path,
+                        "-c",
+                        "copy",
+                        &effective_target_path,
+                    ]);
+                    #[cfg(target_os = "windows")]
+                    {
+                        use std::os::windows::process::CommandExt;
+                        const CREATE_NO_WINDOW: u32 =
+                            0x08000000;
+                        cmd.creation_flags(
+                            CREATE_NO_WINDOW,
+                        );
+                    }
+                    let out =
+                        tokio::task::spawn_blocking(
+                            move || cmd.output(),
+                        )
+                        .await
+                        .map_err(|e| {
+                            format!(
+                                "Сбой задачи упаковки \
+                                 AAC в M4A: {}",
+                                e
+                            )
+                        })?
+                        .map_err(|e| {
+                            format!(
+                                "Не удалось запустить \
+                                 FFmpeg: {}",
+                                e
+                            )
+                        })?;
+                    if out.status.success() {
+                        return Ok(
+                            effective_target_path,
+                        );
+                    }
+                }
+
+                std::fs::copy(src, &effective_target_path)
+                    .map_err(|e| {
+                        format!(
+                            "Ошибка копирования \
+                             внешнего файла: {}",
+                            e
+                        )
+                    })?;
+                return Ok(effective_target_path);
+            }
+        }
+    }
+
+    // 2. Проверка локального видеофайла (если это не сетевой стрим http/https)
+    let is_remote = video_path.starts_with("http://")
+        || video_path.starts_with("https://");
+    if !is_remote {
+        let vpath = std::path::Path::new(&video_path);
+        if !vpath.exists() {
+            return Err(format!(
+                "Исходный видеофайл не найден: {}",
+                video_path
+            ));
+        }
+    }
+
+    // Спецификатор потока для FFmpeg: используем точный ff_index (если доступен), иначе тип:индекс
+    let stream_specifier = if let Some(ffi) = ff_index {
+        if ffi >= 0 {
+            format!("0:{}", ffi)
+        } else if track_type == "audio" {
+            format!("0:a:{}", track_index.max(0))
+        } else {
+            format!("0:s:{}", track_index.max(0))
+        }
+    } else if track_type == "audio" {
+        format!("0:a:{}", track_index.max(0))
+    } else {
+        format!("0:s:{}", track_index.max(0))
+    };
+
+    // Попытка 1: Прямое копирование потока (-c copy)
+    let mut cmd =
+        std::process::Command::new(&ffmpeg_path);
+    cmd.args([
+        "-y",
+        "-i",
+        &video_path,
+        "-map",
+        &stream_specifier,
+        "-c",
+        "copy",
+        &effective_target_path,
+    ]);
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut output =
+        tokio::task::spawn_blocking(move || cmd.output())
+            .await
+            .map_err(|e| {
+                format!(
+                    "Сбой задачи извлечения дорожки: {}",
+                    e
+                )
+            })?
+            .map_err(|e| {
+                format!(
+                    "Не удалось запустить FFmpeg: {}",
+                    e
+                )
+            })?;
+
+    // Попытка 2 (Fallback): Если прямое копирование потока завершилось ошибкой,
+    // пробуем извлечь с автоматической конвертацией FFmpeg
+    if !output.status.success() {
+        let mut retry_cmd =
+            std::process::Command::new(&ffmpeg_path);
+        retry_cmd.args([
+            "-y",
+            "-i",
+            &video_path,
+            "-map",
+            &stream_specifier,
+            "-threads",
+            "0",
+            &effective_target_path,
+        ]);
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            retry_cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+
+        if let Ok(Ok(retry_output)) =
+            tokio::task::spawn_blocking(move || {
+                retry_cmd.output()
+            })
+            .await
+        {
+            if retry_output.status.success() {
+                output = retry_output;
+            }
+        }
+    }
+
+    if !output.status.success() {
+        let err_log =
+            String::from_utf8_lossy(&output.stderr);
+        let last_err = err_log
+            .lines()
+            .rev()
+            .find(|l| {
+                l.contains("Error")
+                    || l.contains("error")
+                    || l.contains("Invalid")
+                    || l.contains("Could not")
+            })
+            .unwrap_or(
+                "Неизвестная ошибка извлечения потока \
+                 через FFmpeg",
+            );
+        return Err(format!("Ошибка FFmpeg: {}", last_err));
+    }
+
+    Ok(effective_target_path)
+}
+
+// ─── Внутренние алгоритмы обнаружения дорожек ───────────
+
+/// Идентификатор сезона и серии для сопоставления видео с внешними дорожками.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct EpisodeKey {
+    season: Option<u32>,
+    episode: u32,
+}
+
+/// Извлечение идентификатора сезона и серии из названия файла.
+/// Поддерживает паттерны: sXXeYY, sXX.eYY, XXxYY, epXX, eXX, а также изолированные номера серий.
+fn extract_episode_key(
+    name: &str,
+) -> Option<EpisodeKey> {
+    let s = name.to_lowercase();
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+
+    // 1. Паттерн sXXeYY / sXX.eYY / sXX_eYY
+    let mut i = 0;
+    while i < len {
+        if bytes[i] == b's' {
+            let mut j = i + 1;
+            while j < len && bytes[j].is_ascii_digit() {
+                j += 1;
+            }
+            let season_digits = &s[(i + 1)..j];
+            if !season_digits.is_empty()
+                && season_digits.len() <= 3
+            {
+                let mut k = j;
+                if k < len
+                    && matches!(
+                        bytes[k],
+                        b'.' | b'_' | b'-' | b' '
+                    )
+                {
+                    k += 1;
+                }
+                if k < len && bytes[k] == b'e' {
+                    let mut m = k + 1;
+                    while m < len
+                        && bytes[m].is_ascii_digit()
+                    {
+                        m += 1;
+                    }
+                    let ep_digits = &s[(k + 1)..m];
+                    if !ep_digits.is_empty()
+                        && ep_digits.len() <= 4
+                    {
+                        let boundary_ok = m == len
+                            || !bytes[m]
+                                .is_ascii_alphabetic();
+                        if boundary_ok {
+                            if let (
+                                Ok(season),
+                                Ok(episode),
+                            ) = (
+                                season_digits
+                                    .parse::<u32>(),
+                                ep_digits.parse::<u32>(),
+                            ) {
+                                return Some(EpisodeKey {
+                                    season: Some(season),
+                                    episode,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+
+    // 2. Паттерн XXxYY (например, 01x05)
+    i = 0;
+    while i < len {
+        if bytes[i] == b'x' && i > 0 {
+            let mut j = i;
+            while j > 0 && bytes[j - 1].is_ascii_digit()
+            {
+                j -= 1;
+            }
+            let season_digits = &s[j..i];
+            if !season_digits.is_empty()
+                && season_digits.len() <= 2
+            {
+                let mut k = i + 1;
+                while k < len
+                    && bytes[k].is_ascii_digit()
+                {
+                    k += 1;
+                }
+                let ep_digits = &s[(i + 1)..k];
+                if !ep_digits.is_empty()
+                    && ep_digits.len() <= 4
+                {
+                    let boundary_left = j == 0
+                        || !bytes[j - 1]
+                            .is_ascii_alphabetic();
+                    let boundary_right = k == len
+                        || !bytes[k].is_ascii_alphabetic();
+                    if boundary_left && boundary_right {
+                        if let (Ok(season), Ok(episode)) = (
+                            season_digits.parse::<u32>(),
+                            ep_digits.parse::<u32>(),
+                        ) {
+                            return Some(EpisodeKey {
+                                season: Some(season),
+                                episode,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+
+    // 3. Паттерн epXX или eXX (например, ep05 или e05)
+    i = 0;
+    while i < len {
+        let is_e = bytes[i] == b'e';
+        let is_ep = bytes[i] == b'e'
+            && i + 1 < len
+            && bytes[i + 1] == b'p';
+        if is_e || is_ep {
+            let boundary_left = i == 0
+                || !bytes[i - 1].is_ascii_alphanumeric();
+            if boundary_left {
+                let offset = if is_ep { 2 } else { 1 };
+                let mut j = i + offset;
+                while j < len
+                    && bytes[j].is_ascii_digit()
+                {
+                    j += 1;
+                }
+                let ep_digits = &s[(i + offset)..j];
+                if !ep_digits.is_empty()
+                    && ep_digits.len() <= 4
+                {
+                    let boundary_right = j == len
+                        || !bytes[j].is_ascii_alphabetic();
+                    if boundary_right {
+                        if let Ok(episode) =
+                            ep_digits.parse::<u32>()
+                        {
+                            return Some(EpisodeKey {
+                                season: None,
+                                episode,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+
+    // 4. Паттерн изолированного номера серии в квадратных скобках [05] или пробелах " - 05 "
+    i = 0;
+    while i < len {
+        if (bytes[i] == b'['
+            || (i > 0
+                && bytes[i - 1] == b'-'
+                && bytes[i] == b' '))
+            && i + 1 < len
+        {
+            let start = i + 1;
+            let mut j = start;
+            while j < len && bytes[j].is_ascii_digit() {
+                j += 1;
+            }
+            let digits = &s[start..j];
+            if !digits.is_empty() && digits.len() <= 4 {
+                let is_bracket = bytes[i] == b'['
+                    && j < len
+                    && bytes[j] == b']';
+                let is_dash = bytes[i] == b' '
+                    && j < len
+                    && (bytes[j] == b' '
+                        || bytes[j] == b'['
+                        || bytes[j] == b'.');
+                if is_bracket || is_dash {
+                    if let Ok(episode) =
+                        digits.parse::<u32>()
+                    {
+                        return Some(EpisodeKey {
+                            season: None,
+                            episode,
+                        });
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+
+    None
+}
+
+/// Сопоставление названия дорожки с текущим видеофайлом.
+/// Обеспечивает строгую привязку к серии: дорожки от других серий отсекаются.
+fn is_track_matching_video(
+    video_stem: &str,
+    track_stem: &str,
+) -> bool {
+    let v_lower = video_stem.to_lowercase();
+    let t_lower = track_stem.to_lowercase();
+
+    // Быстрая проверка: полное совпадение или дорожка начинается с названия видео
+    if t_lower == v_lower
+        || t_lower.starts_with(&v_lower)
+    {
+        return true;
+    }
+
+    // Обратная проверка: имя видео начинается с имени дорожки (если в видео добавлены теги качества/рипа)
+    if v_lower.starts_with(&t_lower)
+        && t_lower.len() >= 4
+    {
+        return true;
+    }
+
+    let v_ep = extract_episode_key(&v_lower);
+    let t_ep = extract_episode_key(&t_lower);
+
+    match (v_ep, t_ep) {
+        (Some(ve), Some(te)) => {
+            if let (Some(vs), Some(ts)) =
+                (ve.season, te.season)
+            {
+                vs == ts && ve.episode == te.episode
+            } else {
+                ve.episode == te.episode
+            }
+        }
+        (Some(_), None) => {
+            t_lower.contains(&v_lower)
+                || (v_lower.contains(&t_lower)
+                    && t_lower.len() >= 4)
+        }
+        (None, Some(_)) => false,
+        (None, None) => {
+            t_lower.contains(&v_lower)
+                || (v_lower.contains(&t_lower)
+                    && t_lower.len() >= 4)
+        }
+    }
+}
+
+/// Сканирование родительской директории видео (уровень 0) и прямых дочерних папок (уровень 1).
+/// Не спускается глубже 1 уровня вложенности («дальше в подпапку лезть не надо»).
+fn scan_external_tracks(
+    video_path: &std::path::Path,
+) -> (Vec<std::path::PathBuf>, Vec<std::path::PathBuf>) {
+    let mut audio_files = Vec::new();
+    let mut subtitle_files = Vec::new();
+
+    let parent = match video_path.parent() {
+        Some(p) => p,
+        None => return (audio_files, subtitle_files),
+    };
+
+    let video_canonical = video_path
+        .canonicalize()
+        .unwrap_or_else(|_| video_path.to_path_buf());
+    let video_stem = match video_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+    {
+        Some(s) => s,
+        None => return (audio_files, subtitle_files),
+    };
+
+    let mut direct_subdirs = Vec::new();
+
+    // 1. Уровень 0: каталог рядом с видеофайлом
+    if let Ok(entries) = std::fs::read_dir(parent) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_file() {
+                if path
+                    .canonicalize()
+                    .unwrap_or_else(|_| path.clone())
+                    == video_canonical
+                {
+                    continue;
+                }
+
+                if let Some(ext) = path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                {
+                    let track_stem = path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("");
+                    if is_track_matching_video(
+                        video_stem, track_stem,
+                    ) {
+                        if is_audio_extension(ext) {
+                            audio_files.push(path);
+                        } else if is_subtitle_extension(
+                            ext,
+                        ) {
+                            subtitle_files.push(path);
+                        }
+                    }
+                }
+            } else if path.is_dir() {
+                direct_subdirs.push(path);
+            }
+        }
+    }
+
+    // 2. Уровень 1: прямые подкаталоги (например, Subs, Audio, Subtitles и др.), без рекурсии дальше
+    for subdir in direct_subdirs {
+        if let Ok(entries) = std::fs::read_dir(&subdir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(ext) = path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                    {
+                        let track_stem = path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("");
+                        if is_track_matching_video(
+                            video_stem, track_stem,
+                        ) {
+                            if is_audio_extension(ext) {
+                                audio_files.push(path);
+                            } else if is_subtitle_extension(ext) {
+                                subtitle_files
+                                    .push(path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Сортировка естественным порядком (Natural Sort)
+    audio_files.sort_by(|a, b| {
+        let na = a
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
+        let nb = b
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
+        natural_cmp(&na, &nb)
+    });
+    subtitle_files.sort_by(|a, b| {
+        let na = a
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
+        let nb = b
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
+        natural_cmp(&na, &nb)
+    });
+
+    (audio_files, subtitle_files)
+}
+
+/// Внутренняя функция автоподхвата внешних дорожек и субтитров для медиафайла.
+pub fn load_external_tracks_internal(
+    state: &PlayerState,
+    video_path: &std::path::Path,
+) -> Result<(), String> {
+    let settings = AppSettings::load_portable();
+    let (auto_load, auto_select_audio) = (
+        settings.auto_load_tracks,
+        settings.auto_select_external_audio,
+    );
+
+    if !auto_load {
+        return Ok(());
+    }
+
+    let (audio_files, subtitle_files) =
+        scan_external_tracks(video_path);
+
+    if audio_files.is_empty()
+        && subtitle_files.is_empty()
+    {
+        return Ok(());
+    }
+
+    // Запоминаем текущую активную аудиодорожку перед добавлением внешних файлов
+    let original_aid = state
+        .mpv
+        .get_property_string("aid")
+        .unwrap_or_default();
+
+    // Собираем уже загруженные внешние файлы для предотвращения повторной загрузки
+    let track_count = state
+        .mpv
+        .get_property_double("track-list/count")
+        .unwrap_or(0.0) as i64;
+    let mut existing_external_files = HashSet::new();
+    for i in 0..track_count {
+        if let Ok(ext_fn) =
+            state.mpv.get_property_string(&format!(
+                "track-list/{}/external-filename",
+                i
+            ))
+        {
+            if !ext_fn.is_empty() {
+                let norm = ext_fn
+                    .replace('\\', "/")
+                    .to_lowercase();
+                existing_external_files.insert(norm);
+            }
+        }
+    }
+
+    let mut newly_added_audio = false;
+
+    // Подключение найденных внешних аудиодорожек
+    for audio_path in audio_files {
+        let path_str = audio_path.to_string_lossy();
+        let safe_path = escape_mpv_path(&path_str);
+        let norm_path = safe_path.to_lowercase();
+
+        if !existing_external_files.contains(&norm_path) {
+            let cmd = format!(
+                "audio-add \"{}\" cached",
+                safe_path
+            );
+            if let Err(e) = state.mpv.command(&cmd) {
+                eprintln!(
+                    "Не удалось подключить внешнюю \
+                     аудиодорожку {}: {}",
+                    path_str, e
+                );
+            } else {
+                existing_external_files
+                    .insert(norm_path);
+                newly_added_audio = true;
+            }
+        }
+    }
+
+    // Если подключена внешняя аудиодорожка:
+    // Если автовыбор ВЫКЛЮЧЕН (по умолчанию), принудительно восстанавливаем исходную дорожку видео.
+    // Если автовыбор ВКЛЮЧЕН, переключаем на последнюю внешнюю дорожку.
+    if newly_added_audio {
+        if !auto_select_audio {
+            if !original_aid.is_empty() {
+                let _ = state
+                    .mpv
+                    .set_property_string(
+                        "aid",
+                        &original_aid,
+                    );
+            }
+        } else {
+            // Переключаемся на подхваченную аудиодорожку (последний добавившийся ID в track-list)
+            let updated_count = state
+                .mpv
+                .get_property_double("track-list/count")
+                .unwrap_or(0.0) as i64;
+            for i in (0..updated_count).rev() {
+                let t_type = state
+                    .mpv
+                    .get_property_string(&format!(
+                        "track-list/{}/type",
+                        i
+                    ))
+                    .unwrap_or_default();
+                if t_type == "audio" {
+                    if let Ok(id) = state
+                        .mpv
+                        .get_property_double(&format!(
+                            "track-list/{}/id",
+                            i
+                        ))
+                    {
+                        let _ = state
+                            .mpv
+                            .set_property_string(
+                                "aid",
+                                &(id as i64).to_string(),
+                            );
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Подключение найденных внешних субтитров с флагом "cached" (без принудительной активации)
+    for sub_path in subtitle_files {
+        let path_str = sub_path.to_string_lossy();
+        let safe_path = escape_mpv_path(&path_str);
+        let norm_path = safe_path.to_lowercase();
+
+        if !existing_external_files.contains(&norm_path) {
+            let cmd = format!(
+                "sub-add \"{}\" cached",
+                safe_path
+            );
+            if let Err(e) = state.mpv.command(&cmd) {
+                eprintln!(
+                    "Не удалось подключить внешние \
+                     субтитры {}: {}",
+                    path_str, e
+                );
+            } else {
+                existing_external_files
+                    .insert(norm_path);
+            }
+        }
+    }
+
+    Ok(())
+}
