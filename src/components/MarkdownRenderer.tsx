@@ -21,11 +21,17 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
     );
   }
 
-  // Разбиваем Markdown на логические блоки
   const blocks = parseMarkdownBlocks(content);
 
   return (
-    <div className={`markdown-content ${className}`} style={{ color: "var(--text, #e5e7eb)", fontSize: "0.85rem", lineHeight: 1.6 }}>
+    <div
+      className={`markdown-content ${className}`}
+      style={{
+        color: "var(--text, #e5e7eb)",
+        fontSize: "0.85rem",
+        lineHeight: 1.6,
+      }}
+    >
       {blocks.map((block, idx) => (
         <RenderBlock key={idx} block={block} />
       ))}
@@ -42,7 +48,7 @@ type MarkdownBlock =
   | { type: "hr" }
   | { type: "list"; items: { indent: number; checked: boolean | null; text: string }[]; ordered?: boolean }
   | { type: "table"; headers: string[]; rows: string[][] }
-  | { type: "image"; alt: string; src: string }
+  | { type: "image"; alt: string; src: string; linkUrl?: string }
   | { type: "paragraph"; text: string };
 
 /**
@@ -72,7 +78,7 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
         codeLines.push(lines[i]);
         i++;
       }
-      if (i < lines.length) i++; // пропускаем закрывающий ```
+      if (i < lines.length) i++;
       blocks.push({
         type: "code",
         code: codeLines.join("\n"),
@@ -81,7 +87,7 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
       continue;
     }
 
-    // Заголовки (#, ##, ###, ####, #####, ######)
+    // Заголовки (#..######)
     const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
     if (headingMatch) {
       blocks.push({
@@ -100,6 +106,29 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
       continue;
     }
 
+    // Таблицы (| head | head | \n | --- | --- |)
+    if (
+      trimmed.startsWith("|") &&
+      trimmed.endsWith("|") &&
+      i + 1 < lines.length &&
+      /^\s*\|?\s*[-:]+[-| :]*\s*\|?\s*$/.test(lines[i + 1])
+    ) {
+      const headers = line.split("|").map((s) => s.trim()).filter(Boolean);
+      i += 2;
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|")) {
+        const cols = lines[i].split("|").map((s) => s.trim()).filter(Boolean);
+        rows.push(cols);
+        i++;
+      }
+      blocks.push({
+        type: "table",
+        headers,
+        rows,
+      });
+      continue;
+    }
+
     // Цитата (> ...)
     if (trimmed.startsWith(">")) {
       const quoteLines: string[] = [];
@@ -114,13 +143,25 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
       continue;
     }
 
-    // Одиночное изображение на строке (![alt](src))
-    const singleImageMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
-    if (singleImageMatch) {
+    // Одиночное изображение на строке (![alt](src)) или ссылка с изображением ([![alt](src)](href))
+    const linkedImgMatch = trimmed.match(/^\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)$/);
+    if (linkedImgMatch) {
       blocks.push({
         type: "image",
-        alt: singleImageMatch[1],
-        src: singleImageMatch[2],
+        alt: linkedImgMatch[1],
+        src: linkedImgMatch[2],
+        linkUrl: linkedImgMatch[3],
+      });
+      i++;
+      continue;
+    }
+
+    const singleImgMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (singleImgMatch) {
+      blocks.push({
+        type: "image",
+        alt: singleImgMatch[1],
+        src: singleImgMatch[2],
       });
       i++;
       continue;
@@ -136,7 +177,6 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
         const itemLine = lines[i];
         const itemMatch = itemLine.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/);
         if (!itemMatch) {
-          // Если следующая строка не пустая и имеет отступ, добавляем к предыдущему элементу
           if (itemLine.trim() && (itemLine.startsWith("  ") || itemLine.startsWith("\t")) && items.length > 0) {
             items[items.length - 1].text += "\n" + itemLine.trim();
             i++;
@@ -149,7 +189,6 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
         let itemText = itemMatch[3];
         let checked: boolean | null = null;
 
-        // Проверка на task list / чекбокс: [ ] или [x]
         const checkMatch = itemText.match(/^\[([ xX])\]\s+(.*)$/);
         if (checkMatch) {
           checked = checkMatch[1].toLowerCase() === "x";
@@ -168,7 +207,7 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
       continue;
     }
 
-    // Обычный абзац текста (до пустой строки или начала другого блока)
+    // Обычный абзац текста
     const paragraphLines: string[] = [];
     while (
       i < lines.length &&
@@ -178,7 +217,8 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
       !lines[i].trim().startsWith(">") &&
       !/^(-{3,}|\*{3,}|_{3,})$/.test(lines[i].trim()) &&
       !lines[i].match(/^(\s*)([-*+]|\d+\.)\s+/) &&
-      !lines[i].trim().match(/^!\[([^\]]*)\]\(([^)]+)\)$/)
+      !lines[i].trim().match(/^!?\[([^\]]*)\]\(([^)]+)\)/) &&
+      !(lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|"))
     ) {
       paragraphLines.push(lines[i]);
       i++;
@@ -187,7 +227,7 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
     if (paragraphLines.length > 0) {
       blocks.push({
         type: "paragraph",
-        text: paragraphLines.join(" "),
+        text: paragraphLines.join("\n"),
       });
     }
   }
@@ -208,9 +248,6 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
           margin: "16px 0 8px",
           paddingBottom: "4px",
           borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
         },
         2: {
           fontSize: "1.02rem",
@@ -243,7 +280,7 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
         <div
           style={{
             margin: "10px 0",
-            background: "rgba(0, 0, 0, 0.5)",
+            background: "rgba(0, 0, 0, 0.55)",
             border: "1px solid rgba(255, 255, 255, 0.08)",
             borderRadius: "var(--radius-sm)",
             padding: "10px 12px",
@@ -263,6 +300,7 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
                 marginBottom: 6,
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
+                fontWeight: 600,
               }}
             >
               {block.language}
@@ -300,8 +338,59 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
         />
       );
 
+    case "table":
+      return (
+        <div style={{ margin: "10px 0", overflowX: "auto" }} className="custom-scrollbar">
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: "0.82rem",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "var(--radius-sm)",
+            }}
+          >
+            <thead>
+              <tr style={{ background: "rgba(255, 255, 255, 0.06)" }}>
+                {block.headers.map((h, hIdx) => (
+                  <th
+                    key={hIdx}
+                    style={{
+                      padding: "6px 10px",
+                      textAlign: "left",
+                      fontWeight: 600,
+                      color: "var(--accent, #60a5fa)",
+                      borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
+                    }}
+                  >
+                    <InlineContent text={h} />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, rIdx) => (
+                <tr
+                  key={rIdx}
+                  style={{
+                    background: rIdx % 2 === 1 ? "rgba(255, 255, 255, 0.02)" : "transparent",
+                    borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                  }}
+                >
+                  {row.map((cell, cIdx) => (
+                    <td key={cIdx} style={{ padding: "6px 10px", color: "var(--text-secondary, #d1d5db)" }}>
+                      <InlineContent text={cell} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+
     case "image":
-      return <MarkdownImage src={block.src} alt={block.alt} />;
+      return <MarkdownImage src={block.src} alt={block.alt} linkUrl={block.linkUrl} />;
 
     case "list": {
       return (
@@ -373,7 +462,14 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
 
     case "paragraph":
       return (
-        <p style={{ margin: "6px 0 10px", lineHeight: 1.55, wordBreak: "break-word" }}>
+        <p
+          style={{
+            margin: "6px 0 10px",
+            lineHeight: 1.55,
+            wordBreak: "break-word",
+            whiteSpace: "pre-line",
+          }}
+        >
           <InlineContent text={block.text} />
         </p>
       );
@@ -383,15 +479,16 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
   }
 };
 
-/* ─── Компонент картинки с безопасной загрузкой ─────── */
+/* ─── Компонент картинки с поддержкой ссылок и безопасной загрузки ─── */
 
-const MarkdownImage: React.FC<{ src: string; alt: string }> = ({ src, alt }) => {
+const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = ({ src, alt, linkUrl }) => {
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    openUrl(src).catch((err) => console.error("Ошибка открытия картинки:", err));
+    const targetUrl = linkUrl || src;
+    openUrl(targetUrl).catch((err) => console.error("Ошибка открытия медиа в браузере:", err));
   };
 
   if (hasError) {
@@ -429,7 +526,7 @@ const MarkdownImage: React.FC<{ src: string; alt: string }> = ({ src, alt }) => 
         onLoad={() => setIsLoading(false)}
         onError={() => setHasError(true)}
         onClick={handleClick}
-        title="Нажмите, чтобы открыть изображение в полном размере"
+        title={linkUrl ? `Открыть ссылку: ${linkUrl}` : "Нажмите, чтобы открыть изображение в полном размере"}
         style={{
           maxWidth: "100%",
           maxHeight: "360px",
@@ -469,20 +566,21 @@ const MarkdownImage: React.FC<{ src: string; alt: string }> = ({ src, alt }) => 
 /* ─── Инлайн парсер и рендерер ───────────────────────── */
 
 /**
- * Рендерит инлайн форматирование (жирный, курсив, ссылки, изображения, код, зачеркивание).
+ * Рендерит инлайн форматирование (картинки, ссылки, автоссылки, жирный, курсив, kbd, код, зачеркивание).
  */
 const InlineContent: React.FC<{ text: string }> = ({ text }) => {
   if (!text) return null;
 
-  // Разбиваем строку регулярным выражением с группами
-  // 1: Изображение ![alt](url)
-  // 2: Ссылка [label](url)
-  // 3: Авто-ссылка (https?://...)
-  // 4: Инлайн код `code`
-  // 5: Жирный **bold** или __bold__
-  // 6: Зачеркнутый ~~strike~~
-  // 7: Курсив *italic* или _italic_
-  const regex = /(!\[([^\]]*)\]\(([^)]+)\))|(\[([^\]]+)\]\(([^)]+)\))|((?:https?:\/\/)[^\s<]+[^<.,:;"')\]\s])|(`([^`]+)`)|(\*\*([^*]+)\*\*|__([^_]+)__)|(~~([^~]+)~~)|(\*([^*]+)\*|_([^_]+)_)/g;
+  // 1: Ссылка с картинкой [![alt](img)](url)
+  // 2: Одиночное изображение ![alt](url)
+  // 3: Ссылка [label](url)
+  // 4: Авто-ссылка (https?://...)
+  // 5: Инлайн код `code`
+  // 6: Клавиатурная кнопка <kbd>key</kbd>
+  // 7: Жирный **bold** или __bold__ (с границей слова)
+  // 8: Зачеркнутый ~~strike~~
+  // 9: Курсив *italic* или _italic_ (с границей слова, чтобы не ломать snake_case)
+  const regex = /(\[\!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\))|(!\[([^\]]*)\]\(([^)]+)\))|(\[([^\]]+)\]\(([^)]+)\))|((?:https?:\/\/)[^\s<]+[^<.,:;"')\]\s])|(`([^`]+)`)|(<kbd>([^<]+)<\/kbd>)|(\*\*([^*]+)\*\*|(?<=\s|^|[^\w])__([^_]+)__(?=\s|$|[^\w]))|(~~([^~]+)~~)|((?<=\s|^|[^\w])\*([^*]+)\*(?=\s|$|[^\w])|(?<=\s|^|[^\w])_([^_]+)_(?=\s|$|[^\w]))/g;
 
   const elements: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -498,10 +596,12 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
 
     const [
       ,
+      isLinkedImg, linkedImgAlt, linkedImgSrc, linkedImgUrl,
       isImg, imgAlt, imgSrc,
       isLink, linkText, linkUrl,
       rawUrl,
       isCode, codeText,
+      isKbd, kbdText,
       isBold, boldText1, boldText2,
       isStrike, strikeText,
       isItalic, italicText1, italicText2,
@@ -509,7 +609,16 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
 
     const key = `${matchIndex}-${match[0].slice(0, 10)}`;
 
-    if (isImg) {
+    if (isLinkedImg) {
+      elements.push(
+        <MarkdownImage
+          key={key}
+          src={linkedImgSrc}
+          alt={linkedImgAlt}
+          linkUrl={linkedImgUrl}
+        />
+      );
+    } else if (isImg) {
       elements.push(<MarkdownImage key={key} src={imgSrc} alt={imgAlt} />);
     } else if (isLink) {
       elements.push(
@@ -576,6 +685,24 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
         >
           {codeText}
         </code>
+      );
+    } else if (isKbd) {
+      elements.push(
+        <kbd
+          key={key}
+          style={{
+            background: "rgba(0, 0, 0, 0.4)",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            borderRadius: "var(--radius-xs)",
+            boxShadow: "0 2px 0 rgba(255, 255, 255, 0.15)",
+            padding: "1px 5px",
+            fontSize: "0.8em",
+            fontFamily: "inherit",
+            color: "var(--text, #ffffff)",
+          }}
+        >
+          {kbdText}
+        </kbd>
       );
     } else if (isBold) {
       elements.push(

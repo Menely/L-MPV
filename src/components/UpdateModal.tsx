@@ -113,7 +113,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !isDownloading) {
+      if (e.key === "Escape" && (!isDownloading || !!errorMessage)) {
         e.preventDefault();
         e.stopPropagation();
         handleClose();
@@ -126,7 +126,15 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
         clearTimeout(closeTimerRef.current);
       }
     };
-  }, [handleClose, isDownloading]);
+  }, [handleClose, isDownloading, errorMessage]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
 
   const handlePostpone = async () => {
     try {
@@ -156,6 +164,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
         style={{
           width: isExpanded ? "820px" : "480px",
           maxWidth: "94vw",
+          maxHeight: "92vh",
+          display: "flex",
+          flexDirection: "column",
           borderRadius: "var(--radius-lg)",
           background: "linear-gradient(180deg, rgba(26, 28, 35, 0.96) 0%, rgba(18, 19, 24, 0.98) 100%)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -180,6 +191,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
             cursor: "default",
             userSelect: "none",
+            flexShrink: 0,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -233,7 +245,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
         </div>
 
         {/* Тело модального окна */}
-        <div style={{ padding: isExpanded ? "20px 26px" : "20px 24px", transition: "padding 0.3s ease" }}>
+        <div
+          style={{
+            padding: isExpanded ? "20px 26px" : "20px 24px",
+            flex: 1,
+            overflowY: "auto",
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            transition: "padding 0.3s ease",
+          }}
+          className="custom-scrollbar"
+        >
           {/* Плашка версий */}
           <div
             style={{
@@ -246,6 +269,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               borderRadius: "var(--radius-md)",
               border: "1px solid rgba(255, 255, 255, 0.06)",
               marginBottom: 16,
+              flexShrink: 0,
               transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
             }}
           >
@@ -269,7 +293,15 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
           </div>
 
           {/* Список изменений / Описание релиза */}
-          <div style={{ marginBottom: 18 }}>
+          <div
+            style={{
+              marginBottom: 18,
+              display: "flex",
+              flexDirection: "column",
+              flex: isExpanded ? 1 : "none",
+              minHeight: 0,
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -277,6 +309,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 justifyContent: "space-between",
                 gap: 8,
                 marginBottom: 8,
+                flexShrink: 0,
               }}
             >
               <div
@@ -316,8 +349,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             <div
               className="custom-scrollbar"
               style={{
-                maxHeight: isExpanded ? "58vh" : "160px",
-                minHeight: isExpanded ? "320px" : "90px",
+                flex: isExpanded ? 1 : "none",
+                maxHeight: isExpanded ? "calc(88vh - 270px)" : "160px",
+                minHeight: isExpanded ? "260px" : "90px",
                 overflowY: "auto",
                 background: "rgba(0, 0, 0, 0.35)",
                 border: "1px solid rgba(255, 255, 255, 0.08)",
@@ -421,6 +455,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             justifyContent: "flex-end",
             gap: 12,
             background: "rgba(0, 0, 0, 0.2)",
+            flexShrink: 0,
           }}
         >
           {!isDownloading && (
