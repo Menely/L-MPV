@@ -289,6 +289,7 @@ pub fn run() {
             // Автообновление
             updater::check_launch_and_update,
             updater::check_for_updates,
+            updater::get_available_releases,
             updater::download_and_install_update,
             updater::postpone_update,
             // Аудио-визуализатор

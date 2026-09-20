@@ -146,7 +146,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.5.1");
+  const [appVersion, setAppVersion] = useState<string>("2.5.2");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
@@ -170,7 +170,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleClose = useCallback(() => {
-    if (isClosing) return;
+    if (closeTimerRef.current) return;
     const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
     if (isNoAnim) {
       onClose();
@@ -180,7 +180,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     closeTimerRef.current = setTimeout(() => {
       onClose();
     }, 175);
-  }, [isClosing, onClose]);
+  }, [onClose]);
 
   useEffect(() => {
     return () => {
@@ -352,6 +352,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [foundUpdate, setFoundUpdate] = useState<UpdateInfo | null>(null);
+  const [isLoadingVersionInfo, setIsLoadingVersionInfo] = useState<boolean>(false);
   const updateStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const ambientSettingsRef = useRef<AmbientSettings>(ambientSettings);
@@ -416,114 +418,41 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   // Загружаем текущий путь к скриншотам из mpv
   useEffect(() => {
-    const loadDir = async () => {
-      try {
-        const dir = await invoke<string>("get_screenshot_dir");
-        setScreenshotDir(dir);
-      } catch (e) {
-        console.error("Ошибка загрузки папки скриншотов:", e);
-      }
+    const loadAmbient = () => {
+      invoke<AmbientSettings>("get_ambient_settings")
+        .then(setAmbientSettings)
+        .catch((e) => console.error("Ошибка загрузки настроек Ambient Light:", e));
     };
-    loadDir();
 
-    const savedAccent = localStorage.getItem('l-mpv-accent-color');
-    if (savedAccent) {
-      setActiveColor(savedAccent);
-    }
-
-    const savedShowTracks = localStorage.getItem('l-mpv-show-track-names');
-    if (savedShowTracks !== null) {
-      setShowTrackNames(savedShowTracks === 'true');
-    }
-
-    const savedBtns = localStorage.getItem('l-mpv-visible-buttons');
-    if (savedBtns) {
-      setVisibleButtons(JSON.parse(savedBtns));
-    }
-
-    const savedTrackDirSetting = localStorage.getItem('l-mpv-save-tracks-to-video-dir');
-    if (savedTrackDirSetting !== null) {
-      setSaveTracksToVideoDir(savedTrackDirSetting === 'true');
-    }
-
-    const loadMultiInstance = async () => {
-      try {
-        const val = await invoke<boolean>("get_multi_instance");
-        setMultiInstance(val);
-      } catch (e) {
-        console.error("Ошибка загрузки multi_instance:", e);
-      }
-    };
-    loadMultiInstance();
-
-    const loadAutoLoadTracks = async () => {
-      try {
-        const val = await invoke<boolean>("get_auto_load_tracks");
-        setAutoLoadTracks(val);
-      } catch (e) {
-        console.error("Ошибка загрузки настройки auto_load_tracks:", e);
-      }
-    };
-    loadAutoLoadTracks();
-
-    const loadAutoSelectAudio = async () => {
-      try {
-        const val = await invoke<boolean>("get_auto_select_external_audio");
-        setAutoSelectExternalAudio(val);
-      } catch (e) {
-        console.error("Ошибка загрузки настройки auto_select_external_audio:", e);
-      }
-    };
-    loadAutoSelectAudio();
-
-    const loadPlayNextOnEnd = async () => {
-      try {
-        const val = await invoke<boolean>("get_play_next_on_end");
-        setPlayNextOnEnd(val);
-      } catch (e) {
-        console.error("Ошибка загрузки настройки play_next_on_end:", e);
-      }
-    };
-    loadPlayNextOnEnd();
-
-    const loadSubtitlesAvoidUi = async () => {
-      try {
-        const val = await invoke<boolean>("get_subtitles_avoid_ui");
-        setSubtitlesAvoidUi(val);
-        localStorage.setItem("l-mpv-subtitles-avoid-ui", val ? "true" : "false");
-      } catch (e) {
-        console.error("Ошибка загрузки настройки subtitles_avoid_ui:", e);
-      }
-    };
-    loadSubtitlesAvoidUi();
-
-    const loadVersion = async () => {
-      try {
-        const ver = await invoke<string>("get_app_version");
-        setAppVersion(ver);
-      } catch (e) {
-        console.error("Ошибка загрузки версии приложения:", e);
-      }
-    };
-    loadVersion();
-
-    const loadAmbient = async () => {
-      try {
-        const val = await invoke<AmbientSettings>("get_ambient_settings");
-        setAmbientSettings(val);
-      } catch (e) {
-        console.error("Ошибка загрузки настроек Ambient Light:", e);
-      }
-    };
+    invoke<string>("get_screenshot_dir").then(setScreenshotDir).catch(console.error);
+    invoke<boolean>("get_multi_instance").then(setMultiInstance).catch(console.error);
+    invoke<boolean>("get_auto_load_tracks").then(setAutoLoadTracks).catch(console.error);
+    invoke<boolean>("get_auto_select_external_audio").then(setAutoSelectExternalAudio).catch(console.error);
+    invoke<boolean>("get_play_next_on_end").then(setPlayNextOnEnd).catch(console.error);
+    invoke<boolean>("get_subtitles_avoid_ui").then((val) => {
+      setSubtitlesAvoidUi(val);
+      localStorage.setItem("l-mpv-subtitles-avoid-ui", val ? "true" : "false");
+    }).catch(console.error);
+    invoke<string>("get_app_version").then(setAppVersion).catch(console.error);
     loadAmbient();
 
-    const handleAmbientChanged = () => {
-      loadAmbient();
-    };
-    window.addEventListener("l-mpv-ambient-changed", handleAmbientChanged);
+    const savedAccent = localStorage.getItem("l-mpv-accent-color");
+    if (savedAccent) setActiveColor(savedAccent);
 
+    const savedShowTracks = localStorage.getItem("l-mpv-show-track-names");
+    if (savedShowTracks !== null) setShowTrackNames(savedShowTracks === "true");
+
+    const savedBtns = localStorage.getItem("l-mpv-visible-buttons");
+    if (savedBtns) {
+      try { setVisibleButtons(JSON.parse(savedBtns)); } catch {}
+    }
+
+    const savedTrackDirSetting = localStorage.getItem("l-mpv-save-tracks-to-video-dir");
+    if (savedTrackDirSetting !== null) setSaveTracksToVideoDir(savedTrackDirSetting === "true");
+
+    window.addEventListener("l-mpv-ambient-changed", loadAmbient);
     return () => {
-      window.removeEventListener("l-mpv-ambient-changed", handleAmbientChanged);
+      window.removeEventListener("l-mpv-ambient-changed", loadAmbient);
     };
   }, []);
 
@@ -597,6 +526,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const handleCheckForUpdates = async () => {
     setIsCheckingUpdate(true);
     setUpdateStatus(null);
+    setFoundUpdate(null);
     if (updateStatusTimerRef.current) {
       clearTimeout(updateStatusTimerRef.current);
       updateStatusTimerRef.current = null;
@@ -604,6 +534,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
     try {
       const info = await invoke<UpdateInfo>("check_for_updates");
+      setFoundUpdate(info);
       if (info.has_update) {
         setUpdateStatus(`Найдено обновление v${info.latest_version.replace(/^[vV]/, "")}`);
         if (onShowUpdate) {
@@ -619,6 +550,39 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
     } finally {
       setIsCheckingUpdate(false);
+    }
+  };
+
+  // Показ информации о текущей установленной версии и её чейнджлога (при клике на v{appVersion})
+  const handleShowVersionInfo = async () => {
+    if (!onShowUpdate || isLoadingVersionInfo) return;
+
+    if (foundUpdate) {
+      onShowUpdate(foundUpdate);
+      return;
+    }
+
+    setIsLoadingVersionInfo(true);
+    try {
+      const info = await invoke<UpdateInfo>("check_for_updates");
+      setFoundUpdate(info);
+      onShowUpdate(info);
+    } catch (err) {
+      console.warn("Не удалось получить описание версии из сети, открытие резервного окна:", err);
+      const fallbackInfo: UpdateInfo = {
+        current_version: appVersion,
+        latest_version: `v${appVersion}`,
+        has_update: false,
+        release_notes: `## L-MPV v${appVersion}\n\n*Современный портативный медиаплеер на базе libmpv.*\n\n- Высококачественный видеорендеринг и аппаратное декодирование.\n- 4K AI-апскейлинг в реальном времени (AnimeJaNai / TensorRT).\n- Динамическая адаптивная подсветка полос (Ambient Light).\n- Студийный аудио-визуалайзер с автоподстройкой акцентных цветов.\n- Модульная экосистема пресетов, настроек и горячих клавиш.\n\n> *(Подключите интернет для загрузки актуального чейнджлога с GitHub)*`,
+        download_url: "",
+        asset_name: "",
+        published_at: "",
+        release_url: `https://github.com/Menely/L-MPV/releases/tag/v${appVersion}`,
+      };
+      setFoundUpdate(fallbackInfo);
+      onShowUpdate(fallbackInfo);
+    } finally {
+      setIsLoadingVersionInfo(false);
     }
   };
 
@@ -750,23 +714,11 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         <div className="settings-footer">
           <div className="settings-footer__left">
             {/* Иконки социальных сетей слева от названия L-MPV */}
-            <div style={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <div className="settings-footer__icons">
               <button
                 type="button"
                 onClick={() => openUrl("https://github.com/Menely/L-MPV")}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: "1px 2px",
-                  cursor: "pointer",
-                  color: "var(--text-muted)",
-                  borderRadius: "var(--radius-sm)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.15s ease",
-                }}
-                className="hover-bright"
+                className="settings-footer__icon-btn hover-bright"
                 title="Репозиторий L-MPV на GitHub"
               >
                 <GithubIcon size={19} />
@@ -775,57 +727,30 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               <button
                 type="button"
                 onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: "1px 2px",
-                  cursor: "pointer",
-                  color: "var(--text-muted)",
-                  borderRadius: "var(--radius-sm)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.15s ease",
-                }}
-                className="hover-bright"
+                className="settings-footer__icon-btn hover-bright"
                 title="Telegram-канал L-MPV"
               >
                 <TelegramIcon size={19} />
               </button>
             </div>
 
-            <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>L-MPV</span>
-            <span
-              style={{
-                color: "var(--accent)",
-                fontWeight: 700,
-                background: "var(--accent-glass)",
-                padding: "2px 8px",
-                borderRadius: "var(--radius-pill)",
-                fontSize: "0.78rem",
-                border: "1px solid var(--border-pill)",
-              }}
-            >
-              v{appVersion}
-            </span>
+            <span className="settings-footer__title">L-MPV</span>
 
             <button
+              type="button"
+              onClick={handleShowVersionInfo}
+              disabled={isLoadingVersionInfo}
+              className="settings-footer__btn settings-footer__btn--version"
+            >
+              {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
+              <span>v{appVersion}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleCheckForUpdates}
               disabled={isCheckingUpdate}
-              style={{
-                background: "rgba(255, 255, 255, 0.06)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "var(--radius-pill, 9999px)",
-                padding: "3px 10px",
-                fontSize: "0.78rem",
-                color: "var(--text-secondary, #d1d5db)",
-                cursor: isCheckingUpdate ? "default" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                transition: "all 0.15s ease",
-              }}
-              className="hover-bright"
+              className="settings-footer__btn settings-footer__btn--check"
             >
               {isCheckingUpdate ? (
                 <>
@@ -841,15 +766,26 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             </button>
 
             {updateStatus && (
-              <span
-                style={{
-                  fontSize: "0.78rem",
-                  color: updateStatus.includes("Найдено") ? "var(--accent)" : "var(--text-muted)",
-                  marginLeft: 4,
-                }}
-              >
-                {updateStatus}
-              </span>
+              foundUpdate && onShowUpdate ? (
+                <button
+                  type="button"
+                  onClick={() => onShowUpdate(foundUpdate)}
+                  className="settings-footer__btn settings-footer__btn--update"
+                >
+                  <Sparkles size={12} />
+                  <span>{updateStatus}</span>
+                </button>
+              ) : (
+                <span
+                  style={{
+                    fontSize: "0.78rem",
+                    color: updateStatus.includes("Найдено") ? "var(--accent)" : "var(--text-muted)",
+                    marginLeft: 4,
+                  }}
+                >
+                  {updateStatus}
+                </span>
+              )
             )}
           </div>
           <span style={{ fontSize: "0.76rem" }}>Портативная редакция</span>

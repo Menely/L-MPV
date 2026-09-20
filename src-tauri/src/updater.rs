@@ -94,16 +94,67 @@ fn is_portable_update_asset(name: &str) -> bool {
         || (lower.ends_with(".dll") && !lower.contains("setup"))
 }
 
-async fn fetch_latest_release_internal() -> Result<UpdateInfo, String> {
-    const REPO_API_URL: &str = "https://api.github.com/repos/Menely/L-MPV/releases/latest";
-    let current_version = env!("CARGO_PKG_VERSION").to_string();
+use tokio::io::AsyncWriteExt;
 
-    let client = reqwest::Client::builder()
+const REPO_API_URL: &str = "https://api.github.com/repos/Menely/L-MPV/releases/latest";
+const REPO_ALL_RELEASES_URL: &str = "https://api.github.com/repos/Menely/L-MPV/releases?per_page=30";
+
+/// Определение рабочей папки приложения (директории исполняемого файла)
+fn get_app_dir() -> Result<std::path::PathBuf, String> {
+    std::env::current_exe()
+        .map_err(|e| format!("Не удалось определить путь к exe: {}", e))?
+        .parent()
+        .map(|p| p.to_path_buf())
+        .ok_or_else(|| "Не удалось определить директорию приложения".to_string())
+}
+
+/// Создание настроенного HTTP-клиента с User-Agent и таймаутом
+fn create_http_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
         .user_agent("L-MPV-Updater")
         .timeout(std::time::Duration::from_secs(12))
         .build()
-        .map_err(|e| format!("Не удалось инициализировать HTTP-клиент: {}", e))?;
+        .map_err(|e| format!("Не удалось инициализировать HTTP-клиент: {}", e))
+}
 
+/// Преобразование ответа GitHubRelease в модель UpdateInfo приложения L-MPV
+fn release_to_update_info(release: GitHubRelease, current_version: &str) -> UpdateInfo {
+    let latest_version = release.tag_name.clone();
+    let portable_assets: Vec<GitHubAsset> = release
+        .assets
+        .into_iter()
+        .filter(|a| is_portable_update_asset(&a.name))
+        .collect();
+
+    let has_update = is_newer_semver(current_version, &latest_version) && !portable_assets.is_empty();
+    let download_url = if !portable_assets.is_empty() {
+        "smart-portable-update".to_string()
+    } else {
+        String::new()
+    };
+    let asset_name = if !portable_assets.is_empty() {
+        format!("Файлов для обновления: {}", portable_assets.len())
+    } else {
+        String::new()
+    };
+    let release_url = release.html_url.unwrap_or_else(|| {
+        format!("https://github.com/Menely/L-MPV/releases/tag/{}", release.tag_name)
+    });
+
+    UpdateInfo {
+        current_version: current_version.to_string(),
+        latest_version,
+        has_update,
+        release_notes: release.body.unwrap_or_default(),
+        download_url,
+        asset_name,
+        published_at: release.published_at.unwrap_or_default(),
+        release_url,
+    }
+}
+
+/// Загрузка метаданных последнего релиза из репозитория GitHub
+async fn fetch_latest_github_release(client: &reqwest::Client) -> Result<GitHubRelease, String> {
     let response = client
         .get(REPO_API_URL)
         .send()
@@ -114,60 +165,75 @@ async fn fetch_latest_release_internal() -> Result<UpdateInfo, String> {
         return Err(format!("GitHub API вернул статус: {}", response.status()));
     }
 
-    let release: GitHubRelease = response
+    response
         .json()
         .await
-        .map_err(|e| format!("Ошибка разбора ответа GitHub API: {}", e))?;
+        .map_err(|e| format!("Ошибка разбора ответа GitHub API: {}", e))
+}
 
-    let latest_version = release.tag_name.clone();
-
-    // Ищем строго портативные файлы: автономный l-mpv.exe и системные .dll
-    let portable_assets: Vec<GitHubAsset> = release
-        .assets
-        .iter()
-        .filter(|a| is_portable_update_asset(&a.name))
-        .cloned()
-        .collect();
-
-    let has_update = is_newer_semver(&current_version, &latest_version) && !portable_assets.is_empty();
-
-    let download_url = if has_update {
-        "smart-portable-update".to_string()
+/// Загрузка метаданных конкретного релиза по его тегу (например, "v2.5.0")
+async fn fetch_github_release_by_tag(client: &reqwest::Client, tag: &str) -> Result<GitHubRelease, String> {
+    let clean_tag = if tag.starts_with('v') || tag.starts_with('V') {
+        tag.to_string()
     } else {
-        String::new()
+        format!("v{}", tag)
     };
-    let asset_name = if has_update {
-        format!("Найдено файлов для обновления: {}", portable_assets.len())
-    } else {
-        String::new()
-    };
+    let url = format!("https://api.github.com/repos/Menely/L-MPV/releases/tags/{}", clean_tag);
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Ошибка подключения к GitHub API: {}", e))?;
 
-    let release_url = release.html_url.unwrap_or_else(|| {
-        format!("https://github.com/Menely/L-MPV/releases/tag/{}", release.tag_name)
-    });
+    if !response.status().is_success() {
+        return Err(format!("Не удалось получить релиз {}: статус {}", clean_tag, response.status()));
+    }
 
-    Ok(UpdateInfo {
-        current_version,
-        latest_version,
-        has_update,
-        release_notes: release.body.unwrap_or_default(),
-        download_url,
-        asset_name,
-        published_at: release.published_at.unwrap_or_default(),
-        release_url,
-    })
+    response
+        .json()
+        .await
+        .map_err(|e| format!("Ошибка разбора ответа GitHub API: {}", e))
+}
+
+async fn fetch_latest_release_internal() -> Result<UpdateInfo, String> {
+    let current_version = env!("CARGO_PKG_VERSION");
+    let client = create_http_client()?;
+    let release = fetch_latest_github_release(&client).await?;
+    Ok(release_to_update_info(release, current_version))
+}
+
+/// Загрузка списка всех доступных релизов медиаплеера L-MPV с GitHub
+#[tauri::command]
+pub async fn get_available_releases() -> Result<Vec<UpdateInfo>, String> {
+    let current_version = env!("CARGO_PKG_VERSION");
+    let client = create_http_client()?;
+    let response = client
+        .get(REPO_ALL_RELEASES_URL)
+        .send()
+        .await
+        .map_err(|e| format!("Ошибка подключения к GitHub API: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("GitHub API вернул статус: {}", response.status()));
+    }
+
+    let releases: Vec<GitHubRelease> = response
+        .json()
+        .await
+        .map_err(|e| format!("Ошибка разбора списка релизов: {}", e))?;
+
+    Ok(releases
+        .into_iter()
+        .map(|r| release_to_update_info(r, current_version))
+        .collect())
 }
 
 #[tauri::command]
 pub async fn check_launch_and_update() -> Result<Option<UpdateInfo>, String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
     let mut should_check = false;
 
-    if let Some(ref p_dir) = exe_dir {
-        let mut settings = crate::commands::AppSettings::load(p_dir);
+    if let Ok(p_dir) = get_app_dir() {
+        let mut settings = crate::commands::AppSettings::load(&p_dir);
         let current_version = env!("CARGO_PKG_VERSION");
 
         // Если приложение обновилось на новую версию — сбрасываем счетчик запусков и откладываний
@@ -191,7 +257,7 @@ pub async fn check_launch_and_update() -> Result<Option<UpdateInfo>, String> {
             should_check = true;
         }
 
-        let _ = settings.save(p_dir);
+        let _ = settings.save(&p_dir);
     }
 
     if !should_check {
@@ -199,14 +265,11 @@ pub async fn check_launch_and_update() -> Result<Option<UpdateInfo>, String> {
     }
 
     match fetch_latest_release_internal().await {
-        Ok(info) => {
-            if info.has_update {
-                println!("Обнаружено обновление: {}", info.latest_version);
-                Ok(Some(info))
-            } else {
-                Ok(None)
-            }
+        Ok(info) if info.has_update => {
+            println!("Обнаружено обновление: {}", info.latest_version);
+            Ok(Some(info))
         }
+        Ok(_) => Ok(None),
         Err(e) => {
             eprintln!("Фоновая проверка обновлений не удалась (оффлайн): {}", e);
             Ok(None)
@@ -216,18 +279,31 @@ pub async fn check_launch_and_update() -> Result<Option<UpdateInfo>, String> {
 
 #[tauri::command]
 pub async fn check_for_updates() -> Result<UpdateInfo, String> {
-    fetch_latest_release_internal().await
+    let info = fetch_latest_release_internal().await?;
+
+    // Если обновление обнаружено при явной ручной проверке пользователем,
+    // сбрасываем счетчик откладывания, так как ручной запрос отменяет таймер паузы.
+    if info.has_update {
+        if let Ok(exe_dir) = get_app_dir() {
+            let mut settings = crate::commands::AppSettings::load(&exe_dir);
+            if settings.postponed_until_launch > 0 {
+                settings.postponed_until_launch = 0;
+                if let Err(err) = settings.save(&exe_dir) {
+                    eprintln!("Не удалось сохранить настройки при сбросе откладывания: {}", err);
+                } else {
+                    println!("L-MPV: сброшен счётчик откладывания обновлений после ручной проверки");
+                }
+            }
+        }
+    }
+
+    Ok(info)
 }
 
 /// Отложить проверку обновлений на 15 последующих запусков приложения.
 #[tauri::command]
 pub fn postpone_update() -> Result<(), String> {
-    let exe_dir = std::env::current_exe()
-        .map_err(|e| e.to_string())?
-        .parent()
-        .ok_or_else(|| "Не удалось определить директорию исполняемого файла".to_string())?
-        .to_path_buf();
-
+    let exe_dir = get_app_dir()?;
     let mut settings = crate::commands::AppSettings::load(&exe_dir);
     settings.postponed_until_launch = settings.launch_count.saturating_add(15);
     settings.save(&exe_dir)?;
@@ -243,28 +319,13 @@ pub async fn download_and_install_update(
     app: tauri::AppHandle,
     _download_url: String,
     _asset_name: String,
+    tag: Option<String>,
 ) -> Result<(), String> {
-    const REPO_API_URL: &str = "https://api.github.com/repos/Menely/L-MPV/releases/latest";
-
-    let client = reqwest::Client::builder()
-        .user_agent("L-MPV-Updater")
-        .build()
-        .map_err(|e| format!("Не удалось инициализировать HTTP-клиент: {}", e))?;
-
-    let response = client
-        .get(REPO_API_URL)
-        .send()
-        .await
-        .map_err(|e| format!("Ошибка подключения к GitHub API: {}", e))?;
-
-    if !response.status().is_success() {
-        return Err(format!("GitHub API вернул статус: {}", response.status()));
-    }
-
-    let release: GitHubRelease = response
-        .json()
-        .await
-        .map_err(|e| format!("Ошибка разбора ответа GitHub API: {}", e))?;
+    let client = create_http_client()?;
+    let release = match tag.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+        Some(target_tag) => fetch_github_release_by_tag(&client, target_tag).await?,
+        None => fetch_latest_github_release(&client).await?,
+    };
 
     let portable_assets: Vec<GitHubAsset> = release
         .assets
@@ -276,8 +337,7 @@ pub async fn download_and_install_update(
         return Err("В релизе не найдено файлов для портативного обновления (.exe, .dll)".to_string());
     }
 
-    let exe_path = std::env::current_exe().map_err(|e| format!("Не удалось получить путь к exe: {}", e))?;
-    let exe_dir = exe_path.parent().ok_or("Не удалось получить папку программы")?;
+    let exe_dir = get_app_dir()?;
     let updates_dir = exe_dir.join(".updates");
 
     if !updates_dir.exists() {
@@ -311,7 +371,6 @@ pub async fn download_and_install_update(
             .await
             .map_err(|e| format!("Ошибка чтения потока {}: {}", asset.name, e))?
         {
-            use tokio::io::AsyncWriteExt;
             file.write_all(&chunk)
                 .await
                 .map_err(|e| format!("Ошибка записи файла {}: {}", asset.name, e))?;
@@ -336,26 +395,29 @@ pub async fn download_and_install_update(
                 );
             }
         }
-        use tokio::io::AsyncWriteExt;
         file.flush()
             .await
             .map_err(|e| format!("Ошибка финализации файла {}: {}", asset.name, e))?;
     }
 
     // Сбрасываем счётчики запусков и откладываний перед обновлением
-    let mut settings = crate::commands::AppSettings::load(exe_dir);
+    let mut settings = crate::commands::AppSettings::load(&exe_dir);
     settings.launch_count = 0;
     settings.postponed_until_launch = 0;
-    let _ = settings.save(exe_dir);
+    let _ = settings.save(&exe_dir);
 
     let bat_path = updates_dir.join("update.bat");
-    let current_exe_name = exe_path.file_name().unwrap_or_default().to_string_lossy();
+    let current_exe_name = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+        .unwrap_or_else(|| "l-mpv.exe".to_string());
     
     let bat_content = format!(
         "@echo off\r\n\
         chcp 65001 > NUL\r\n\
         timeout /t 3 /nobreak > NUL\r\n\
         xcopy /s /y /q \"*\" \"..\\\"\r\n\
+        del \"..\\update.bat\" 2>NUL\r\n\
         start \"\" \"..\\{}\"\r\n\
         cd ..\r\n\
         start /b cmd /c \"timeout /t 1 > NUL & rmdir /s /q .updates\"\r\n\

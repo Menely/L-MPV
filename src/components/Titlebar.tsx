@@ -101,7 +101,6 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
           <span
             className="titlebar__filename"
             data-tauri-drag-region={dragAttr}
-            title={mediaTitle}
           >
             {mediaTitle}
           </span>

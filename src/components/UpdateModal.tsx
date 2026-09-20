@@ -2,7 +2,19 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Sparkles, Download, Loader2, X, AlertCircle, ArrowRight, Maximize2, Minimize2, ExternalLink } from "lucide-react";
+import {
+  Sparkles,
+  Download,
+  Loader2,
+  X,
+  AlertCircle,
+  ArrowRight,
+  Maximize2,
+  Minimize2,
+  ExternalLink,
+  ChevronDown,
+  Check,
+} from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 
 /**
@@ -34,6 +46,24 @@ interface UpdateModalProps {
 }
 
 /**
+ * Сравнение двух semver-строк: возвращает 1 если v1 > v2, -1 если v1 < v2, 0 если равны.
+ */
+function compareVersions(v1: string, v2: string): number {
+  const parse = (s: string) =>
+    s.replace(/^[vV]/, "").split(".").map((p) => parseInt(p, 10) || 0);
+  const p1 = parse(v1);
+  const p2 = parse(v2);
+  const max = Math.max(p1.length, p2.length);
+  for (let i = 0; i < max; i++) {
+    const a = p1[i] || 0;
+    const b = p2[i] || 0;
+    if (a > b) return 1;
+    if (a < b) return -1;
+  }
+  return 0;
+}
+
+/**
  * Форматирование байтов в читаемый вид (КБ / МБ).
  */
 function formatBytes(bytes: number): string {
@@ -47,6 +77,12 @@ function formatBytes(bytes: number): string {
  * Модальное окно уведомления о доступном обновлении и его установки.
  */
 export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose }) => {
+  const [selectedRelease, setSelectedRelease] = useState<UpdateInfo>(updateInfo);
+  const [releases, setReleases] = useState<UpdateInfo[]>([]);
+  const [isLoadingReleases, setIsLoadingReleases] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
   const [isDownloading, setIsDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [downloadedBytes, setDownloadedBytes] = useState(0);
@@ -55,11 +91,55 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
   const [isDone, setIsDone] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const cleanVersion = updateInfo.latest_version.replace(/^[vV]/, "");
+  // Синхронизируем выбранный релиз при смене пропса updateInfo
+  useEffect(() => {
+    setSelectedRelease(updateInfo);
+  }, [updateInfo]);
+
+  // Загружаем список всех доступных релизов из GitHub через Rust IPC
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingReleases(true);
+    invoke<UpdateInfo[]>("get_available_releases")
+      .then((list) => {
+        if (isMounted && Array.isArray(list) && list.length > 0) {
+          setReleases(list);
+        }
+      })
+      .catch((err) => {
+        console.warn("Не удалось загрузить историю релизов:", err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingReleases(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Закрытие выпадающего списка при клике вне него
+  useEffect(() => {
+    if (!isPickerOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setIsPickerOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => window.removeEventListener("mousedown", handleClickOutside);
+  }, [isPickerOpen]);
+
+  const currentVersion = updateInfo.current_version.replace(/^[vV]/, "");
+  const targetVersion = selectedRelease.latest_version.replace(/^[vV]/, "");
+  const versionDiff = compareVersions(targetVersion, currentVersion);
+  const isUpgrade = versionDiff > 0;
+  const isDowngrade = versionDiff < 0;
+
   const releasePageUrl =
-    updateInfo.release_url && updateInfo.release_url.trim()
-      ? updateInfo.release_url
-      : `https://github.com/Menely/L-MPV/releases/tag/v${cleanVersion}`;
+    selectedRelease.release_url && selectedRelease.release_url.trim()
+      ? selectedRelease.release_url
+      : `https://github.com/Menely/L-MPV/releases/tag/v${targetVersion}`;
 
   useEffect(() => {
     const unlistenPromise = listen<UpdateProgress>("update-download-progress", (event) => {
@@ -74,24 +154,20 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
   }, []);
 
   const handleInstall = async () => {
-    if (!updateInfo.download_url) {
-      setErrorMessage("Прямая ссылка на установочный файл не найдена в релизе.");
-      return;
-    }
-
     setIsDownloading(true);
     setErrorMessage(null);
 
     try {
       await invoke("download_and_install_update", {
-        downloadUrl: updateInfo.download_url,
-        assetName: updateInfo.asset_name,
+        downloadUrl: selectedRelease.download_url,
+        assetName: selectedRelease.asset_name,
+        tag: selectedRelease.latest_version,
       });
       setIsDone(true);
     } catch (err: any) {
-      console.error("Ошибка обновления L-MPV:", err);
+      console.error("Ошибка установки L-MPV:", err);
       setIsDownloading(false);
-      setErrorMessage(typeof err === "string" ? err : err?.message || "Не удалось загрузить обновление");
+      setErrorMessage(typeof err === "string" ? err : err?.message || "Не удалось загрузить выбранную версию");
     }
   };
 
@@ -99,7 +175,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleClose = useCallback(() => {
-    if (isClosing || isDownloading) return;
+    if (closeTimerRef.current || isDownloading) return;
     const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
     if (isNoAnim) {
       onClose();
@@ -109,7 +185,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     closeTimerRef.current = setTimeout(() => {
       onClose();
     }, 175);
-  }, [isClosing, isDownloading, onClose]);
+  }, [isDownloading, onClose]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -122,9 +198,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
     };
   }, [handleClose, isDownloading, errorMessage]);
 
@@ -136,13 +209,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     };
   }, []);
 
-  const handlePostpone = async () => {
-    try {
-      await invoke("postpone_update");
-    } catch (e) {
-      console.error("Ошибка откладывания обновления:", e);
-    }
-    handleClose();
+  const handlePostpone = () => {
+    invoke("postpone_update").catch(console.error).finally(handleClose);
   };
 
   return (
@@ -164,6 +232,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
         style={{
           width: isExpanded ? "820px" : "480px",
           maxWidth: "94vw",
+          height: isExpanded ? "78vh" : "420px",
           maxHeight: "92vh",
           display: "flex",
           flexDirection: "column",
@@ -176,7 +245,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
           overflow: "hidden",
           color: "var(--text, #fff)",
           animation: "updateModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-          transition: "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
+          transition: "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
         }}
       >
         {/* Шапка модального окна */}
@@ -213,10 +282,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, letterSpacing: "-0.01em" }}>
-                Доступно обновление
+                {isUpgrade
+                  ? "Доступно обновление"
+                  : isDowngrade
+                  ? "Откат к предыдущей версии"
+                  : "Информация о версии"}
               </h3>
               <p style={{ margin: "3px 0 0", fontSize: "0.84rem", color: "var(--text-muted, #9ca3af)" }}>
-                Новая версия медиаплеера L-MPV
+                {isUpgrade
+                  ? `Новая версия медиаплеера L-MPV v${targetVersion}`
+                  : isDowngrade
+                  ? `Откат с v${currentVersion} на версию v${targetVersion}`
+                  : `Текущая установленная версия L-MPV v${currentVersion}`}
               </p>
             </div>
           </div>
@@ -247,58 +324,22 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
         {/* Тело модального окна */}
         <div
           style={{
-            padding: isExpanded ? "20px 26px" : "20px 24px",
+            padding: isExpanded ? "18px 26px 14px" : "16px 24px 14px",
             flex: 1,
-            overflowY: "auto",
+            overflow: "hidden",
             minHeight: 0,
             display: "flex",
             flexDirection: "column",
             transition: "padding 0.3s ease",
           }}
-          className="custom-scrollbar"
         >
-          {/* Плашка версий */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-              padding: "10px 16px",
-              background: "rgba(255, 255, 255, 0.04)",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid rgba(255, 255, 255, 0.06)",
-              marginBottom: 16,
-              flexShrink: 0,
-              transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
-            }}
-          >
-            <span style={{ fontSize: "0.85rem", color: "var(--text-muted, #9ca3af)" }}>
-              Текущая: <strong style={{ color: "var(--text-secondary, #d1d5db)" }}>v{updateInfo.current_version}</strong>
-            </span>
-            <ArrowRight size={15} style={{ color: "var(--text-muted, #9ca3af)" }} />
-            <span
-              style={{
-                fontSize: "0.85rem",
-                color: "var(--accent, #60a5fa)",
-                fontWeight: 700,
-                background: "var(--accent-glass, rgba(59, 130, 246, 0.18))",
-                padding: "3px 10px",
-                borderRadius: 9999,
-                border: "1px solid var(--border-pill, rgba(59, 130, 246, 0.3))",
-              }}
-            >
-              v{cleanVersion}
-            </span>
-          </div>
-
           {/* Список изменений / Описание релиза */}
           <div
             style={{
-              marginBottom: 18,
+              marginBottom: errorMessage || isDownloading ? 14 : 0,
               display: "flex",
               flexDirection: "column",
-              flex: isExpanded ? 1 : "none",
+              flex: 1,
               minHeight: 0,
             }}
           >
@@ -321,7 +362,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                   letterSpacing: "0.05em",
                 }}
               >
-                Что нового в этом релизе:
+                {isUpgrade
+                  ? "Что нового в этом обновлении:"
+                  : isDowngrade
+                  ? `Описание версии v${targetVersion}:`
+                  : "Описание и список изменений:"}
               </div>
               <button
                 type="button"
@@ -349,18 +394,17 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             <div
               className="custom-scrollbar"
               style={{
-                flex: isExpanded ? 1 : "none",
-                maxHeight: isExpanded ? "calc(88vh - 270px)" : "160px",
-                minHeight: isExpanded ? "260px" : "90px",
+                flex: 1,
+                minHeight: 0,
                 overflowY: "auto",
                 background: "rgba(0, 0, 0, 0.35)",
                 border: "1px solid rgba(255, 255, 255, 0.08)",
                 borderRadius: "var(--radius-sm)",
-                padding: isExpanded ? "14px 18px" : "10px 14px",
-                transition: "max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), min-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
+                padding: isExpanded ? "14px 18px" : "12px 14px",
+                transition: "padding 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
             >
-              <MarkdownRenderer content={updateInfo.release_notes} />
+              <MarkdownRenderer content={selectedRelease.release_notes} />
             </div>
           </div>
 
@@ -446,75 +490,262 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
           )}
         </div>
 
-        {/* Футер с кнопками */}
+        {/* Футер с версией приложения и кнопками */}
         <div
           style={{
             padding: "14px 24px 18px",
             borderTop: "1px solid rgba(255, 255, 255, 0.08)",
             display: "flex",
-            justifyContent: "flex-end",
+            alignItems: "center",
+            justifyContent: "space-between",
             gap: 12,
             background: "rgba(0, 0, 0, 0.2)",
             flexShrink: 0,
+            position: "relative",
           }}
         >
-          {!isDownloading && (
+          {/* Селектор версии слева снизу */}
+          <div className="version-picker-wrap" ref={pickerRef}>
             <button
-              onClick={handlePostpone}
-              style={{
-                padding: "8px 18px",
-                borderRadius: "var(--radius-sm)",
-                background: "rgba(255, 255, 255, 0.06)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                color: "var(--text-secondary, #d1d5db)",
-                fontSize: "0.85rem",
-                fontWeight: 500,
-                cursor: "pointer",
-                transition: "all 0.15s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
-              }}
-              className="hover-bright"
+              type="button"
+              onClick={() => setIsPickerOpen((prev) => !prev)}
+              className={`version-picker-trigger ${isDowngrade ? "version-picker-trigger--downgrade" : ""}`}
+              title="Нажмите, чтобы выбрать другую версию L-MPV"
             >
-              Напомнить позже
+              {isDowngrade || isUpgrade ? (
+                <>
+                  <span>{currentVersion}</span>
+                  <ArrowRight size={12} style={{ opacity: 0.8 }} />
+                  <span>{targetVersion}</span>
+                </>
+              ) : (
+                <span>v{currentVersion}</span>
+              )}
+              <ChevronDown
+                size={13}
+                style={{
+                  transform: isPickerOpen ? "rotate(180deg)" : "none",
+                  transition: "transform 0.15s ease",
+                  opacity: 0.85,
+                }}
+              />
             </button>
-          )}
 
-          <button
-            onClick={handleInstall}
-            disabled={isDownloading}
-            style={{
-              padding: "8px 22px",
-              borderRadius: "var(--radius-sm)",
-              background: isDownloading
-                ? "rgba(59, 130, 246, 0.4)"
-                : "linear-gradient(135deg, var(--accent, #3b82f6) 0%, var(--accent-dim, #2563eb) 100%)",
-              border: "none",
-              outline: "none",
-              color: "#ffffff",
-              fontSize: "0.85rem",
-              fontWeight: 600,
-              cursor: isDownloading ? "default" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              boxShadow: isDownloading
-                ? "none"
-                : "0 4px 14px var(--accent-glow, rgba(59, 130, 246, 0.35))",
-              transition: "all 0.15s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
-            }}
-            className={!isDownloading ? "hover-scale" : ""}
-          >
-            {isDownloading ? (
+            <span
+              style={{
+                fontSize: "0.78rem",
+                color: isDowngrade
+                  ? "#fbbf24"
+                  : isUpgrade
+                  ? "var(--accent, #60a5fa)"
+                  : "var(--text-muted, #9ca3af)",
+                fontWeight: isDowngrade || isUpgrade ? 600 : 400,
+                marginLeft: 6,
+              }}
+            >
+              {isDowngrade
+                ? "откат версии"
+                : isUpgrade
+                ? "доступно обновление"
+                : "актуальная версия"}
+            </span>
+
+            {/* Выпадающее меню со списком версий */}
+            {isPickerOpen && (
+              <div className="version-picker-popover custom-scrollbar">
+                <div className="version-picker-header">
+                  {isLoadingReleases
+                    ? "Загрузка версий..."
+                    : `Доступные релизы (${releases.length})`}
+                </div>
+                {releases.length === 0 && !isLoadingReleases ? (
+                  <div style={{ padding: "8px 10px", fontSize: "0.78rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                    Список версий недоступен
+                  </div>
+                ) : (
+                  releases.map((rel) => {
+                    const cleanRelVer = rel.latest_version.replace(/^[vV]/, "");
+                    const isRelCurrent = cleanRelVer === currentVersion;
+                    const isRelSelected = cleanRelVer === targetVersion;
+                    return (
+                      <div
+                        key={rel.latest_version}
+                        onClick={() => {
+                          setSelectedRelease(rel);
+                          setIsPickerOpen(false);
+                        }}
+                        className={`version-picker-item ${isRelSelected ? "version-picker-item--active" : ""}`}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span className="version-picker-item__tag">v{cleanRelVer}</span>
+                          {isRelCurrent && (
+                            <span className="version-picker-badge version-picker-badge--current">
+                              текущая
+                            </span>
+                          )}
+                        </div>
+                        <div className="version-picker-item__meta">
+                          {rel.published_at && (
+                            <span>{new Date(rel.published_at).toLocaleDateString("ru-RU")}</span>
+                          )}
+                          {isRelSelected && <Check size={13} color="var(--accent, #60a5fa)" />}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Кнопки действий справа снизу */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {isUpgrade ? (
               <>
-                <Loader2 size={16} className="animate-spin" />
-                <span>{isDone ? "Запуск установки..." : "Скачивание..."}</span>
+                {!isDownloading && (
+                  <button
+                    onClick={handlePostpone}
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: "var(--radius-sm)",
+                      background: "rgba(255, 255, 255, 0.06)",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      color: "var(--text-secondary, #d1d5db)",
+                      fontSize: "0.85rem",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                    className="hover-bright"
+                  >
+                    Напомнить позже
+                  </button>
+                )}
+
+                <button
+                  onClick={handleInstall}
+                  disabled={isDownloading}
+                  style={{
+                    padding: "8px 22px",
+                    borderRadius: "var(--radius-sm)",
+                    background: isDownloading
+                      ? "rgba(59, 130, 246, 0.4)"
+                      : "linear-gradient(135deg, var(--accent, #3b82f6) 0%, var(--accent-dim, #2563eb) 100%)",
+                    border: "none",
+                    outline: "none",
+                    color: "#ffffff",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    cursor: isDownloading ? "default" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    boxShadow: isDownloading
+                      ? "none"
+                      : "0 4px 14px var(--accent-glow, rgba(59, 130, 246, 0.35))",
+                    transition: "all 0.15s ease",
+                  }}
+                  className={!isDownloading ? "hover-scale" : ""}
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>{isDone ? "Запуск установки..." : "Скачивание..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={16} />
+                      <span>Обновить до v{targetVersion}</span>
+                    </>
+                  )}
+                </button>
+              </>
+            ) : isDowngrade ? (
+              <>
+                {!isDownloading && (
+                  <button
+                    onClick={handleClose}
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: "var(--radius-sm)",
+                      background: "rgba(255, 255, 255, 0.06)",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      color: "var(--text-secondary, #d1d5db)",
+                      fontSize: "0.85rem",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                    className="hover-bright"
+                  >
+                    Отмена
+                  </button>
+                )}
+
+                <button
+                  onClick={handleInstall}
+                  disabled={isDownloading}
+                  style={{
+                    padding: "8px 22px",
+                    borderRadius: "var(--radius-sm)",
+                    background: isDownloading
+                      ? "rgba(245, 158, 11, 0.4)"
+                      : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                    border: "none",
+                    outline: "none",
+                    color: "#ffffff",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    cursor: isDownloading ? "default" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    boxShadow: isDownloading
+                      ? "none"
+                      : "0 4px 14px rgba(245, 158, 11, 0.35)",
+                    transition: "all 0.15s ease",
+                  }}
+                  className={!isDownloading ? "hover-scale" : ""}
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>{isDone ? "Запуск отката..." : "Скачивание..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={16} />
+                      <span>Откатить до v{targetVersion}</span>
+                    </>
+                  )}
+                </button>
               </>
             ) : (
-              <>
-                <Download size={16} />
-                <span>Установить</span>
-              </>
+              <button
+                type="button"
+                onClick={handleClose}
+                style={{
+                  padding: "8px 26px",
+                  borderRadius: "var(--radius-sm)",
+                  background: "linear-gradient(135deg, var(--accent, #3b82f6) 0%, var(--accent-dim, #2563eb) 100%)",
+                  border: "none",
+                  outline: "none",
+                  color: "#ffffff",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  boxShadow: "0 4px 14px var(--accent-glow, rgba(59, 130, 246, 0.35))",
+                  transition: "all 0.15s ease",
+                }}
+                className="hover-scale"
+              >
+                <span>Понятно</span>
+              </button>
             )}
-          </button>
+          </div>
         </div>
       </div>
     </div>
@@ -539,7 +770,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleClose = useCallback(() => {
-    if (isClosing) return;
+    if (closeTimerRef.current) return;
     const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
     if (isNoAnim) {
       onClose();
@@ -549,7 +780,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
     closeTimerRef.current = setTimeout(() => {
       onClose();
     }, 155);
-  }, [isClosing, onClose]);
+  }, [onClose]);
 
   useEffect(() => {
     return () => {
@@ -559,13 +790,8 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
     };
   }, []);
 
-  const handlePostpone = async () => {
-    try {
-      await invoke("postpone_update");
-    } catch (e) {
-      console.error("Ошибка откладывания обновления:", e);
-    }
-    handleClose();
+  const handlePostpone = () => {
+    invoke("postpone_update").catch(console.error).finally(handleClose);
   };
 
   return (

@@ -52,6 +52,45 @@ type MarkdownBlock =
   | { type: "paragraph"; text: string };
 
 /**
+ * Нормализация адреса изображения.
+ * Преобразует ссылки GitHub вида https://github.com/owner/repo/blob/branch/path
+ * в прямой адрес raw.githubusercontent.com/owner/repo/branch/path для загрузки бинарного изображения.
+ */
+export function normalizeImageUrl(src: string): string {
+  if (!src) return "";
+  const trimmed = src.trim();
+  const ghBlobMatch = trimmed.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)$/i);
+  if (ghBlobMatch) {
+    const queryIdx = ghBlobMatch[3].indexOf("?");
+    const cleanPath = queryIdx !== -1 ? ghBlobMatch[3].substring(0, queryIdx) : ghBlobMatch[3];
+    return `https://raw.githubusercontent.com/${ghBlobMatch[1]}/${ghBlobMatch[2]}/${cleanPath}`;
+  }
+  return trimmed;
+}
+
+interface HtmlImgAttrs {
+  src?: string;
+  alt?: string;
+  width?: string;
+  height?: string;
+  align?: string;
+}
+
+function parseHtmlImgAttrs(rawAttrs: string): HtmlImgAttrs {
+  const getAttr = (name: string): string | undefined => {
+    const match = rawAttrs.match(new RegExp(`${name}\\s*=\\s*["']([^"']+)["']`, "i"));
+    return match ? match[1] : undefined;
+  };
+  return {
+    src: getAttr("src"),
+    alt: getAttr("alt"),
+    width: getAttr("width"),
+    height: getAttr("height"),
+    align: getAttr("align"),
+  };
+}
+
+/**
  * Разбиение сырого текста на массив блоков Markdown.
  */
 function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
@@ -67,6 +106,21 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
     if (!trimmed) {
       i++;
       continue;
+    }
+
+    // HTML-тег одиночного изображения на отдельной строке: <img ...>
+    const htmlImgMatch = trimmed.match(/^<img\s+([^>]+)>/i);
+    if (htmlImgMatch && trimmed.endsWith(">")) {
+      const attrs = parseHtmlImgAttrs(htmlImgMatch[1]);
+      if (attrs.src) {
+        blocks.push({
+          type: "image",
+          alt: attrs.alt || "",
+          src: normalizeImageUrl(attrs.src),
+        });
+        i++;
+        continue;
+      }
     }
 
     // Блок кода (```)
@@ -240,39 +294,27 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
 const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
   switch (block.type) {
     case "heading": {
-      const styles: Record<number, React.CSSProperties> = {
-        1: {
-          fontSize: "1.15rem",
-          fontWeight: 700,
-          color: "var(--text, #ffffff)",
-          margin: "16px 0 8px",
-          paddingBottom: "4px",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
-        },
-        2: {
-          fontSize: "1.02rem",
-          fontWeight: 600,
-          color: "var(--accent, #60a5fa)",
-          margin: "14px 0 6px",
-          paddingBottom: "3px",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-        },
-        3: {
-          fontSize: "0.92rem",
-          fontWeight: 600,
-          color: "var(--text, #f3f4f6)",
-          margin: "12px 0 4px",
-        },
-        4: {
-          fontSize: "0.86rem",
-          fontWeight: 600,
-          color: "var(--text-secondary, #d1d5db)",
-          margin: "10px 0 4px",
-        },
-      };
-
-      const style = styles[block.level] || styles[4];
-      return <div style={style}><InlineContent text={block.text} /></div>;
+      const fontSizes = ["1.15rem", "1.02rem", "0.92rem", "0.86rem"];
+      const margins = ["16px 0 8px", "14px 0 6px", "12px 0 4px", "10px 0 4px"];
+      const lvl = Math.min(Math.max(block.level, 1), 4) - 1;
+      return (
+        <div
+          style={{
+            fontSize: fontSizes[lvl],
+            fontWeight: lvl === 0 ? 700 : 600,
+            color: lvl === 3 ? "var(--text-secondary, #d1d5db)" : "var(--text, #ffffff)",
+            margin: margins[lvl],
+            paddingBottom: lvl < 2 ? (lvl === 0 ? "4px" : "3px") : undefined,
+            borderBottom: lvl < 2 ? `1px solid rgba(255, 255, 255, ${lvl === 0 ? 0.12 : 0.08})` : undefined,
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 6,
+          }}
+        >
+          <InlineContent text={block.text} />
+        </div>
+      );
     }
 
     case "code":
@@ -359,7 +401,7 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
                       padding: "6px 10px",
                       textAlign: "left",
                       fontWeight: 600,
-                      color: "var(--accent, #60a5fa)",
+                      color: "var(--text, #ffffff)",
                       borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
                     }}
                   >
@@ -484,14 +526,15 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
 const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = ({ src, alt, linkUrl }) => {
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const normalizedSrc = normalizeImageUrl(src);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    const targetUrl = linkUrl || src;
+    const targetUrl = linkUrl || normalizedSrc;
     openUrl(targetUrl).catch((err) => console.error("Ошибка открытия медиа в браузере:", err));
   };
 
-  if (hasError) {
+  if (hasError || !normalizedSrc) {
     return (
       <div
         onClick={handleClick}
@@ -520,7 +563,7 @@ const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = 
   return (
     <div style={{ margin: "10px 0", position: "relative" }}>
       <img
-        src={src}
+        src={normalizedSrc}
         alt={alt || "Изображение релиза"}
         loading="lazy"
         onLoad={() => setIsLoading(false)}
@@ -563,7 +606,77 @@ const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = 
   );
 };
 
+/**
+ * Компонент рендеринга инлайн HTML-изображений (например, иконок в заголовках и списках).
+ */
+const InlineHtmlImage: React.FC<{
+  src: string;
+  alt?: string;
+  width?: string;
+  height?: string;
+  align?: string;
+}> = ({ src, alt, width, height }) => {
+  const [hasError, setHasError] = useState(false);
+  const normalizedSrc = normalizeImageUrl(src);
+
+  if (hasError || !normalizedSrc) return null;
+
+  const numWidth = width ? parseInt(width, 10) : undefined;
+  const numHeight = height ? parseInt(height, 10) : undefined;
+  const isSmallIcon = (numWidth && numWidth <= 48) || (numHeight && numHeight <= 48);
+
+  const styleWidth = width ? (width.endsWith("px") || width.endsWith("%") ? width : `${width}px`) : undefined;
+  const styleHeight = height ? (height.endsWith("px") || height.endsWith("%") ? height : `${height}px`) : undefined;
+
+  return (
+    <img
+      src={normalizedSrc}
+      alt={alt || ""}
+      width={width}
+      height={height}
+      onError={() => setHasError(true)}
+      style={{
+        width: styleWidth,
+        height: styleHeight,
+        maxWidth: isSmallIcon ? undefined : "100%",
+        maxHeight: isSmallIcon ? undefined : "360px",
+        verticalAlign: "middle",
+        display: "inline-block",
+        margin: isSmallIcon ? "0 6px 0 0" : "6px 0",
+        objectFit: "contain",
+      }}
+    />
+  );
+};
+
 /* ─── Инлайн парсер и рендерер ───────────────────────── */
+
+const renderLink = (url: string, label: string | React.ReactNode, key: string, hasIcon: boolean = true) => (
+  <a
+    key={key}
+    href={url}
+    onClick={(e) => {
+      e.preventDefault();
+      openUrl(url).catch((err) => console.error("Ошибка открытия ссылки:", err));
+    }}
+    style={{
+      color: "var(--accent, #60a5fa)",
+      textDecoration: "underline",
+      textUnderlineOffset: "3px",
+      cursor: "pointer",
+      fontWeight: 500,
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 3,
+      wordBreak: "break-all",
+    }}
+    className="hover-bright"
+    title={`Перейти: ${url}`}
+  >
+    <span>{label}</span>
+    {hasIcon && <ExternalLink size={11} style={{ opacity: 0.8 }} />}
+  </a>
+);
 
 /**
  * Рендерит инлайн форматирование (картинки, ссылки, автоссылки, жирный, курсив, kbd, код, зачеркивание).
@@ -572,15 +685,18 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
   if (!text) return null;
 
   // 1: Ссылка с картинкой [![alt](img)](url)
-  // 2: Одиночное изображение ![alt](url)
-  // 3: Ссылка [label](url)
-  // 4: Авто-ссылка (https?://...)
-  // 5: Инлайн код `code`
-  // 6: Клавиатурная кнопка <kbd>key</kbd>
-  // 7: Жирный **bold** или __bold__ (с границей слова)
-  // 8: Зачеркнутый ~~strike~~
-  // 9: Курсив *italic* или _italic_ (с границей слова, чтобы не ломать snake_case)
-  const regex = /(\[\!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\))|(!\[([^\]]*)\]\(([^)]+)\))|(\[([^\]]+)\]\(([^)]+)\))|((?:https?:\/\/)[^\s<]+[^<.,:;"')\]\s])|(`([^`]+)`)|(<kbd>([^<]+)<\/kbd>)|(\*\*([^*]+)\*\*|(?<=\s|^|[^\w])__([^_]+)__(?=\s|$|[^\w]))|(~~([^~]+)~~)|((?<=\s|^|[^\w])\*([^*]+)\*(?=\s|$|[^\w])|(?<=\s|^|[^\w])_([^_]+)_(?=\s|$|[^\w]))/g;
+  // 2: Одиночное markdown-изображение ![alt](url)
+  // 3: HTML тег изображения <img ...>
+  // 4: HTML тег ссылки <a href="...">text</a>
+  // 5: Ссылка [label](url)
+  // 6: Авто-ссылка (https?://...)
+  // 7: Инлайн код `code`
+  // 8: Клавиатурная кнопка <kbd>key</kbd>
+  // 9: HTML перенос строки <br> или <br/>
+  // 10: Жирный **bold** или __bold__
+  // 11: Зачеркнутый ~~strike~~
+  // 12: Курсив *italic* или _italic_
+  const regex = /(\[\!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\))|(!\[([^\]]*)\]\(([^)]+)\))|(<img\s+([^>]+)>)|(<a\s+[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>)|(\[([^\]]+)\]\(([^)]+)\))|((?:https?:\/\/)[^\s<]+[^<.,:;"')\]\s])|(`([^`]+)`)|(<kbd>([^<]+)<\/kbd>)|(<br\s*\/?>)|(\*\*([^*]+)\*\*|(?<=\s|^|[^\w])__([^_]+)__(?=\s|$|[^\w]))|(~~([^~]+)~~)|((?<=\s|^|[^\w])\*([^*]+)\*(?=\s|$|[^\w])|(?<=\s|^|[^\w])_([^_]+)_(?=\s|$|[^\w]))/gi;
 
   const elements: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -598,10 +714,13 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
       ,
       isLinkedImg, linkedImgAlt, linkedImgSrc, linkedImgUrl,
       isImg, imgAlt, imgSrc,
+      isHtmlImg, htmlImgAttrsRaw,
+      isHtmlLink, htmlLinkUrl, htmlLinkText,
       isLink, linkText, linkUrl,
       rawUrl,
       isCode, codeText,
       isKbd, kbdText,
+      isBr,
       isBold, boldText1, boldText2,
       isStrike, strikeText,
       isItalic, italicText1, italicText2,
@@ -620,55 +739,28 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
       );
     } else if (isImg) {
       elements.push(<MarkdownImage key={key} src={imgSrc} alt={imgAlt} />);
+    } else if (isHtmlImg) {
+      const attrs = parseHtmlImgAttrs(htmlImgAttrsRaw);
+      if (attrs.src) {
+        elements.push(
+          <InlineHtmlImage
+            key={key}
+            src={attrs.src}
+            alt={attrs.alt}
+            width={attrs.width}
+            height={attrs.height}
+            align={attrs.align}
+          />
+        );
+      }
+    } else if (isHtmlLink) {
+      elements.push(renderLink(htmlLinkUrl, htmlLinkText || htmlLinkUrl, key));
+    } else if (isBr) {
+      elements.push(<br key={key} />);
     } else if (isLink) {
-      elements.push(
-        <a
-          key={key}
-          href={linkUrl}
-          onClick={(e) => {
-            e.preventDefault();
-            openUrl(linkUrl).catch((err) => console.error("Ошибка открытия ссылки:", err));
-          }}
-          style={{
-            color: "var(--accent, #60a5fa)",
-            textDecoration: "underline",
-            textUnderlineOffset: "3px",
-            cursor: "pointer",
-            fontWeight: 500,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 3,
-            wordBreak: "break-all",
-          }}
-          className="hover-bright"
-          title={`Перейти: ${linkUrl}`}
-        >
-          <span>{linkText}</span>
-          <ExternalLink size={11} style={{ opacity: 0.8 }} />
-        </a>
-      );
+      elements.push(renderLink(linkUrl, linkText, key));
     } else if (rawUrl) {
-      elements.push(
-        <a
-          key={key}
-          href={rawUrl}
-          onClick={(e) => {
-            e.preventDefault();
-            openUrl(rawUrl).catch((err) => console.error("Ошибка открытия ссылки:", err));
-          }}
-          style={{
-            color: "var(--accent, #60a5fa)",
-            textDecoration: "underline",
-            textUnderlineOffset: "3px",
-            cursor: "pointer",
-            wordBreak: "break-all",
-          }}
-          className="hover-bright"
-          title={`Перейти: ${rawUrl}`}
-        >
-          {rawUrl}
-        </a>
-      );
+      elements.push(renderLink(rawUrl, rawUrl, key, false));
     } else if (isCode) {
       elements.push(
         <code
@@ -679,7 +771,7 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
             borderRadius: "var(--radius-xs)",
             fontSize: "0.85em",
             fontFamily: "Consolas, 'Courier New', monospace",
-            color: "var(--accent-glow, #93c5fd)",
+            color: "#e2e8f0",
             border: "1px solid rgba(255, 255, 255, 0.06)",
           }}
         >

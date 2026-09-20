@@ -1338,6 +1338,8 @@ function App() {
           <SettingsModal
             onClose={() => setShowSettings(false)}
             onShowUpdate={(info) => {
+              setShowSettings(false);
+              setShowUpdateToast(false);
               setPendingUpdate(info);
               setShowUpdateModal(true);
             }}
