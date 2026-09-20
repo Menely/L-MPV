@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/Rust-2021-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
   <img src="https://img.shields.io/badge/MPV-libmpv--2-red?style=for-the-badge&logo=mpv&logoColor=white" alt="libmpv">
   <img src="https://img.shields.io/badge/AI%20Upscale-4K%20DirectML%20%7C%20TensorRT-success?style=for-the-badge" alt="AI Upscale">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge" alt="GPLv3 License"></a>
 </p>
 
 ---
@@ -620,5 +620,6 @@ Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MP
 
 ## 📄 Лицензия
 
-Проект распространяется под свободной лицензией **MIT**. Подробная информация доступна в файле [LICENSE](./LICENSE).
+- Медиаплеер **L-MPV** и его исходный код распространяются под свободной лицензией **GNU General Public License v3.0 (GPLv3)**. Подробная информация доступна в файле [LICENSE](./LICENSE).
+- Нейросетевые модели апскейлинга семейства **AnimeJaNai** разработаны [the-database](https://github.com/the-database) и распространяются автором под лицензией **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**. Их загрузка и использование регулируются некоммерческими условиями правообладателя.
 

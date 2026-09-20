@@ -3,6 +3,7 @@ name = "l-mpv"
 version = "2.5.0"
 description = "L-MPV — портативный медиаплеер на базе libmpv"
 authors = ["Leo DiSanche"]
+license = "GPL-3.0-or-later"
 edition = "2021"
 
 [lib]
