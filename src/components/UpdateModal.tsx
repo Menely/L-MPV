@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Sparkles, Download, Loader2, X, AlertCircle, ArrowRight } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { Sparkles, Download, Loader2, X, AlertCircle, ArrowRight, Maximize2, Minimize2, ExternalLink } from "lucide-react";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 
 /**
  * Данные об обновлении, возвращаемые из Tauri IPC.
@@ -14,6 +16,7 @@ export interface UpdateInfo {
   download_url: string;
   asset_name: string;
   published_at: string;
+  release_url?: string;
 }
 
 /**
@@ -50,6 +53,13 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
   const [totalBytes, setTotalBytes] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDone, setIsDone] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const cleanVersion = updateInfo.latest_version.replace(/^[vV]/, "");
+  const releasePageUrl =
+    updateInfo.release_url && updateInfo.release_url.trim()
+      ? updateInfo.release_url
+      : `https://github.com/Menely/L-MPV/releases/tag/v${cleanVersion}`;
 
   useEffect(() => {
     const unlistenPromise = listen<UpdateProgress>("update-download-progress", (event) => {
@@ -144,26 +154,32 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
         className={`modal-container update-modal-card ${isClosing ? "update-modal-card--closing" : ""}`}
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: "460px",
-          maxWidth: "92vw",
+          width: isExpanded ? "820px" : "480px",
+          maxWidth: "94vw",
           borderRadius: "var(--radius-lg)",
           background: "linear-gradient(180deg, rgba(26, 28, 35, 0.96) 0%, rgba(18, 19, 24, 0.98) 100%)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
-          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px var(--accent-glass, rgba(64, 150, 255, 0.15))",
+          boxShadow: isExpanded
+            ? "0 25px 60px rgba(0, 0, 0, 0.75), 0 0 45px var(--accent-glass, rgba(64, 150, 255, 0.22))"
+            : "0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px var(--accent-glass, rgba(64, 150, 255, 0.15))",
           overflow: "hidden",
           color: "var(--text, #fff)",
           animation: "updateModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-          transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
+          transition: "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
         }}
       >
         {/* Шапка модального окна */}
         <div
+          onDoubleClick={() => setIsExpanded((prev) => !prev)}
+          title="Дважды щелкните, чтобы развернуть или свернуть окно"
           style={{
             padding: "20px 24px 16px",
             display: "flex",
             alignItems: "flex-start",
             justifyContent: "space-between",
             borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            cursor: "default",
+            userSelect: "none",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -193,20 +209,31 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             </div>
           </div>
 
-          {!isDownloading && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <button
-              onClick={handleClose}
+              onClick={() => setIsExpanded((prev) => !prev)}
               className="modal__close"
-              title="Закрыть (Esc)"
-              aria-label="Закрыть"
+              title={isExpanded ? "Восстановить размер" : "Развернуть окно"}
+              aria-label={isExpanded ? "Восстановить размер" : "Развернуть окно"}
             >
-              <X size={18} />
+              {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
-          )}
+
+            {!isDownloading && (
+              <button
+                onClick={handleClose}
+                className="modal__close"
+                title="Закрыть (Esc)"
+                aria-label="Закрыть"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Тело модального окна */}
-        <div style={{ padding: "20px 24px" }}>
+        <div style={{ padding: isExpanded ? "20px 26px" : "20px 24px", transition: "padding 0.3s ease" }}>
           {/* Плашка версий */}
           <div
             style={{
@@ -237,7 +264,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 border: "1px solid var(--border-pill, rgba(59, 130, 246, 0.3))",
               }}
             >
-              v{updateInfo.latest_version.replace(/^[vV]/, "")}
+              v{cleanVersion}
             </span>
           </div>
 
@@ -245,36 +272,61 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
           <div style={{ marginBottom: 18 }}>
             <div
               style={{
-                fontSize: "0.8rem",
-                fontWeight: 600,
-                color: "var(--text-secondary, #d1d5db)",
-                marginBottom: 6,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                marginBottom: 8,
               }}
             >
-              Что нового в этом релизе:
+              <div
+                style={{
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  color: "var(--text-secondary, #d1d5db)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Что нового в этом релизе:
+              </div>
+              <button
+                type="button"
+                onClick={() => openUrl(releasePageUrl).catch(console.error)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "var(--radius-xs)",
+                  padding: "4px 9px",
+                  fontSize: "0.75rem",
+                  color: "var(--accent, #60a5fa)",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+                className="hover-bright"
+                title="Открыть страницу релиза на GitHub в браузере"
+              >
+                <ExternalLink size={12} />
+                <span>Открыть на GitHub</span>
+              </button>
             </div>
             <div
               className="custom-scrollbar"
               style={{
-                maxHeight: "140px",
+                maxHeight: isExpanded ? "58vh" : "160px",
+                minHeight: isExpanded ? "320px" : "90px",
                 overflowY: "auto",
-                background: "rgba(0, 0, 0, 0.3)",
-                border: "1px solid rgba(255, 255, 255, 0.06)",
+                background: "rgba(0, 0, 0, 0.35)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
                 borderRadius: "var(--radius-sm)",
-                padding: "10px 14px",
-                fontSize: "0.84rem",
-                lineHeight: "1.5",
-                color: "var(--text-secondary, #e5e7eb)",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
+                padding: isExpanded ? "14px 18px" : "10px 14px",
+                transition: "max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), min-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
             >
-              {updateInfo.release_notes && updateInfo.release_notes.trim()
-                ? updateInfo.release_notes
-                : "В этом выпуске представлены улучшения стабильности и обновлённые компоненты плеера."}
+              <MarkdownRenderer content={updateInfo.release_notes} />
             </div>
           </div>
 

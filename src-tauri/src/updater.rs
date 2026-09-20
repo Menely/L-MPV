@@ -11,6 +11,7 @@ pub struct UpdateInfo {
     pub download_url: String,
     pub asset_name: String,
     pub published_at: String,
+    pub release_url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -30,6 +31,7 @@ struct GitHubAsset {
 #[derive(Deserialize, Debug, Clone)]
 struct GitHubRelease {
     tag_name: String,
+    html_url: Option<String>,
     body: Option<String>,
     published_at: Option<String>,
     assets: Vec<GitHubAsset>,
@@ -140,6 +142,10 @@ async fn fetch_latest_release_internal() -> Result<UpdateInfo, String> {
         String::new()
     };
 
+    let release_url = release.html_url.unwrap_or_else(|| {
+        format!("https://github.com/Menely/L-MPV/releases/tag/{}", release.tag_name)
+    });
+
     Ok(UpdateInfo {
         current_version,
         latest_version,
@@ -148,6 +154,7 @@ async fn fetch_latest_release_internal() -> Result<UpdateInfo, String> {
         download_url,
         asset_name,
         published_at: release.published_at.unwrap_or_default(),
+        release_url,
     })
 }
 
