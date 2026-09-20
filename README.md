@@ -620,6 +620,5 @@ Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MP
 
 ## 📄 Лицензия
 
-- Медиаплеер **L-MPV** и его исходный код распространяются под свободной лицензией **GNU General Public License v3.0 (GPLv3)**. Подробная информация доступна в файле [LICENSE](./LICENSE).
-- Нейросетевые модели апскейлинга семейства **AnimeJaNai** разработаны [the-database](https://github.com/the-database) и распространяются автором под лицензией **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**. Их загрузка и использование регулируются некоммерческими условиями правообладателя.
+Проект распространяется под свободной лицензией **GNU General Public License v3.0 (GPLv3)**. Подробная информация доступна в файле [LICENSE](./LICENSE).
 
