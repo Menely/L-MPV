@@ -157,7 +157,6 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         type="button"
                         onClick={() => updateVisualizer({ theme: item.id })}
                         className="player-theme-btn"
-                        title={`${item.label} — ${item.desc}`}
                         aria-label={item.label}
                         style={{
                           height: 30,

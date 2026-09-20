@@ -150,19 +150,30 @@ pub fn set_subtitles_avoid_ui_setting(
     settings.save_portable()
 }
 
-/// Динамическое обновление позиции субтитров при изменении видимости элементов управления.
+/// Динамическое адаптивное обновление позиции субтитров при изменении видимости элементов управления.
 #[tauri::command]
 pub fn update_subtitles_avoid_ui(
     state: State<'_, PlayerState>,
     controls_visible: bool,
+    window_height: Option<f64>,
 ) -> Result<(), String> {
     if controls_visible {
-        // Приподнимаем субтитры выше всплывающей панели управления
-        let _ =
-            state.mpv.set_property_string("sub-pos", "86");
+        // Динамический адаптивный расчет: высота панели управления составляет ~78px от низа окна.
+        // Чтобы субтитры гарантированно не перекрывались панелью и не улетали слишком высоко на 4K/2K,
+        // мы вычисляем процент sub-pos исходя из реальной высоты окна, удерживая субтитры
+        // строго на фиксированном отступе ~104px от нижней границы.
+        let height = window_height.unwrap_or(720.0).max(300.0);
+        let target_bottom_offset = 104.0;
+        let sub_pos = (100.0 - (target_bottom_offset / height * 100.0))
+            .clamp(78.0, 96.0)
+            .round() as i64;
+
         let _ = state
             .mpv
-            .set_property_string("sub-margin-y", "70");
+            .set_property_string("sub-pos", &sub_pos.to_string());
+        let _ = state
+            .mpv
+            .set_property_string("sub-margin-y", "26");
     } else {
         // Возвращаем субтитры к стандартной нижней позиции
         let _ = state

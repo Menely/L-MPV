@@ -434,7 +434,10 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   localStorage.setItem('l-mpv-subtitles-avoid-ui', val ? 'true' : 'false');
                   try {
                     await invoke("set_subtitles_avoid_ui_setting", { enabled: val });
-                    await invoke("update_subtitles_avoid_ui", { controlsVisible: val });
+                    await invoke("update_subtitles_avoid_ui", {
+                      controlsVisible: val,
+                      windowHeight: window.innerHeight,
+                    });
                   } catch (err) {
                     console.error("Ошибка сохранения настройки subtitles_avoid_ui:", err);
                   }

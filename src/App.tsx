@@ -249,6 +249,7 @@ function App() {
   const isControlsVisible = hasMedia && !isIdle && !shouldHideControlsInUpperHalf;
   const lastAppliedAvoidControlsRef = useRef<boolean | null>(null);
   const lastAvoidMediaPathRef = useRef<string | undefined>(undefined);
+  const lastWindowHeightRef = useRef<number>(window.innerHeight);
 
   // Динамическое смещение субтитров выше интерфейса при его активности
   useEffect(() => {
@@ -265,13 +266,35 @@ function App() {
     }
 
     const targetVisible = subtitlesAvoidUi ? isControlsVisible : false;
-    if (lastAppliedAvoidControlsRef.current === targetVisible) {
-      return;
-    }
-    lastAppliedAvoidControlsRef.current = targetVisible;
 
-    invoke("update_subtitles_avoid_ui", { controlsVisible: targetVisible }).catch(console.error);
-  }, [hasMedia, mediaInfo?.path, subtitlesAvoidUi, isControlsVisible]);
+    const applySubtitlePosition = () => {
+      lastWindowHeightRef.current = window.innerHeight;
+      invoke("update_subtitles_avoid_ui", {
+        controlsVisible: targetVisible,
+        windowHeight: window.innerHeight,
+      }).catch(console.error);
+    };
+
+    const heightChanged = Math.abs(window.innerHeight - lastWindowHeightRef.current) > 2;
+    if (lastAppliedAvoidControlsRef.current !== targetVisible || isNewMedia || (targetVisible && heightChanged)) {
+      lastAppliedAvoidControlsRef.current = targetVisible;
+      applySubtitlePosition();
+    }
+
+    // При изменении размера окна или переключении fullscreen пересчитываем позицию
+    const handleResize = () => {
+      if (subtitlesAvoidUi && isControlsVisible) {
+        if (Math.abs(window.innerHeight - lastWindowHeightRef.current) > 2) {
+          applySubtitlePosition();
+        }
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [hasMedia, mediaInfo?.path, subtitlesAvoidUi, isControlsVisible, isFullscreen]);
 
   const isStandaloneModeRef = useRef(false);
 

@@ -787,7 +787,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 setControlBarStyle("floating");
                                 saveControlBarStyle("floating");
                               }}
-                              title="Капсула: скругленная капсула с воздушными отступами от краев окна"
                             >
                               {/* Мини-превью плеера */}
                               <div className="visual-bar-preview">
@@ -816,7 +815,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 setControlBarStyle("docked");
                                 saveControlBarStyle("docked");
                               }}
-                              title="Классический: сплошная полоса во всю ширину окна у нижнего края без зазоров"
                             >
                               {/* Мини-превью плеера */}
                               <div className="visual-bar-preview">

@@ -333,7 +333,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 type="button"
                 onClick={() => handleSelectTheme(themeKey)}
                 className="player-theme-btn"
-                title={theme.name}
                 aria-label={theme.name}
                 style={{
                   padding: isSel ? "0 12px 0 5px" : "0 5px",

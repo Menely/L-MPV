@@ -61,7 +61,6 @@ export function IntegrationSettingsTab(): React.ReactElement {
             }
           }}
           className="settings-action-btn settings-action-btn--primary"
-          title="Зарегистрировать ассоциации всех поддерживаемых видео- и аудиоформатов с L-MPV"
           style={{ width: "100%" }}
         >
           {isRegistering ? (
@@ -94,7 +93,6 @@ export function IntegrationSettingsTab(): React.ReactElement {
               }
             }}
             className="settings-action-btn settings-action-btn--secondary"
-            title="Открыть системные параметры Windows 'Приложения по умолчанию'"
             style={{ flex: 1 }}
           >
             <ExternalLink size={15} /> Настройки Windows
@@ -184,7 +182,6 @@ export function IntegrationSettingsTab(): React.ReactElement {
               }
             }}
             className="settings-action-btn settings-action-btn--primary"
-            title="Добавить пункт 'L-MPV MediaInfo' в контекстное меню Windows"
             style={{ flex: 1 }}
           >
             {isContextMenuLoading ? (
