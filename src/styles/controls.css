@@ -503,13 +503,12 @@
               transform var(--t-spring) var(--ease-spring-smooth),
               padding var(--t-spring) var(--ease-spring-smooth);
   pointer-events: none;
-  contain: layout paint;
 }
 
 .volume-slider:hover .volume-slider__expandable,
 .volume-slider__expandable:focus-within {
-  max-width: 72px;
-  padding: 0 4px;
+  max-width: 80px;
+  padding: 0 6px;
   opacity: 1;
   overflow: visible;
   pointer-events: auto;

@@ -413,8 +413,8 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
         <div className="color-columns-grid" style={{ marginTop: 4 }}>
           {/* Колонки 1 и 2: Пастельные и Стандартные цвета */}
           {[
-            { title: "Пастельные", presets: PASTEL_PRESETS.slice(0, 12) },
-            { title: "Стандартные", presets: STANDARD_PRESETS.slice(0, 12) },
+            { title: "Пастельные", presets: PASTEL_PRESETS },
+            { title: "Стандартные", presets: STANDARD_PRESETS },
           ].map(({ title, presets }) => (
             <div key={title} className="color-column-card">
               <div className="color-column-card__header">
@@ -457,7 +457,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
             </div>
           ))}
 
-          {/* Колонка 3: Пользовательские (тема Windows + свои цвета до 12) */}
+          {/* Колонка 3: Пользовательские (тема Windows + свои цвета до 16) */}
           <div className="color-column-card">
             <div className="color-column-card__header">
               <span className="color-column-card__title">Свои цвета</span>
@@ -507,7 +507,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 </button>
               )}
 
-              {/* 4. Пустые слоты-заполнители для ровной матрицы 3х4 */}
+              {/* 4. Пустые слоты-заполнители для ровной матрицы 4х4 */}
               {Array.from({
                 length: Math.max(0, MAX_CUSTOM_COLORS - customColors.length - (customColors.length < MAX_CUSTOM_COLORS ? 1 : 0)),
               }).map((_, i) => (

@@ -61,7 +61,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       border: "rgba(255, 255, 255, 0.07)",
       borderHover: "rgba(255, 255, 255, 0.14)",
     },
-    recommendedAccents: ["#7fc7ff", "#00FF9D", "#e8a236", "#6ee7b7"],
+    recommendedAccents: ["#7fc7ff", "#00FF9D", "#e8a236", "#6ee7b7", "#93c5fd", "#EAB308"],
   },
   oled: {
     id: "oled",
@@ -80,7 +80,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       border: "rgba(255, 255, 255, 0.09)",
       borderHover: "rgba(255, 255, 255, 0.18)",
     },
-    recommendedAccents: ["#00E5FF", "#00FF9D", "#FF2A5F", "#fde047"],
+    recommendedAccents: ["#00E5FF", "#00FF9D", "#FF2A5F", "#06B6D4", "#F43F5E", "#EAB308"],
   },
   sapphire: {
     id: "sapphire",
@@ -99,7 +99,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       border: "rgba(127, 199, 255, 0.09)",
       borderHover: "rgba(127, 199, 255, 0.18)",
     },
-    recommendedAccents: ["#7fc7ff", "#00E5FF", "#3B82F6", "#fdba74"],
+    recommendedAccents: ["#7fc7ff", "#00E5FF", "#3B82F6", "#93c5fd", "#06B6D4", "#fed7aa"],
   },
   emerald: {
     id: "emerald",
@@ -118,7 +118,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       border: "rgba(110, 231, 183, 0.09)",
       borderHover: "rgba(110, 231, 183, 0.18)",
     },
-    recommendedAccents: ["#00FF9D", "#6ee7b7", "#14B8A6", "#e8a236"],
+    recommendedAccents: ["#00FF9D", "#6ee7b7", "#10B981", "#a7f3d0", "#14B8A6", "#EAB308"],
   },
   amethyst: {
     id: "amethyst",
@@ -137,7 +137,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       border: "rgba(196, 181, 253, 0.12)",
       borderHover: "rgba(196, 181, 253, 0.22)",
     },
-    recommendedAccents: ["#c4b5fd", "#8B5CF6", "#D946EF", "#f0abfc"],
+    recommendedAccents: ["#c4b5fd", "#8B5CF6", "#D946EF", "#f0abfc", "#fda4af", "#F43F5E"],
   },
   nord: {
     id: "nord",
@@ -156,7 +156,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       border: "rgba(125, 211, 252, 0.09)",
       borderHover: "rgba(125, 211, 252, 0.18)",
     },
-    recommendedAccents: ["#7dd3fc", "#5eead4", "#A3E635", "#7fc7ff"],
+    recommendedAccents: ["#7dd3fc", "#5eead4", "#93c5fd", "#06B6D4", "#a7f3d0", "#A3E635"],
   },
   discord: {
     id: "discord",
@@ -175,7 +175,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       border: "rgba(255, 255, 255, 0.09)",
       borderHover: "rgba(255, 255, 255, 0.18)",
     },
-    recommendedAccents: ["#6366F1", "#00FF9D", "#7fc7ff", "#fde047"],
+    recommendedAccents: ["#6366F1", "#00FF9D", "#7fc7ff", "#93c5fd", "#EAB308", "#8B5CF6"],
   },
   pine: {
     id: "pine",
@@ -194,7 +194,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       border: "rgba(110, 231, 183, 0.13)",
       borderHover: "rgba(110, 231, 183, 0.25)",
     },
-    recommendedAccents: ["#00FF9D", "#6ee7b7", "#A3E635", "#bef264"],
+    recommendedAccents: ["#00FF9D", "#6ee7b7", "#a7f3d0", "#10B981", "#bef264", "#fed7aa"],
   },
   mint: {
     id: "mint",
@@ -213,7 +213,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       border: "rgba(94, 234, 212, 0.13)",
       borderHover: "rgba(94, 234, 212, 0.25)",
     },
-    recommendedAccents: ["#5eead4", "#14B8A6", "#00E5FF", "#6ee7b7"],
+    recommendedAccents: ["#5eead4", "#14B8A6", "#00E5FF", "#06B6D4", "#a7f3d0", "#10B981"],
   },
   ruby: {
     id: "ruby",
@@ -232,7 +232,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       border: "rgba(251, 113, 133, 0.13)",
       borderHover: "rgba(251, 113, 133, 0.25)",
     },
-    recommendedAccents: ["#FF2A5F", "#fca5a5", "#fdba74", "#EC4899"],
+    recommendedAccents: ["#FF2A5F", "#F43F5E", "#fda4af", "#fca5a5", "#fed7aa", "#fdba74"],
   },
   indigo: {
     id: "indigo",
@@ -251,7 +251,7 @@ export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
       border: "rgba(129, 140, 248, 0.13)",
       borderHover: "rgba(129, 140, 248, 0.25)",
     },
-    recommendedAccents: ["#6366F1", "#c4b5fd", "#8B5CF6", "#00E5FF"],
+    recommendedAccents: ["#6366F1", "#c4b5fd", "#8B5CF6", "#93c5fd", "#06B6D4", "#f0abfc"],
   },
 };
 
@@ -353,6 +353,10 @@ export const PASTEL_PRESETS = [
   "#5eead4", // 10. Soft Turquoise Teal
   "#f0abfc", // 11. Soft Lilac Magenta
   "#bef264", // 12. Soft Pastel Lime
+  "#a7f3d0", // 13. Soft Jade Mint
+  "#fed7aa", // 14. Soft Warm Apricot
+  "#93c5fd", // 15. Soft Cornflower Ice
+  "#fda4af", // 16. Soft Sakura Rose
 ];
 
 export const STANDARD_PRESETS = [
@@ -368,11 +372,15 @@ export const STANDARD_PRESETS = [
   "#14B8A6", // Rich Teal
   "#EC4899", // Deep Pink / Rose
   "#6366F1", // Indigo
+  "#F43F5E", // Radiant Coral Rose
+  "#06B6D4", // Ocean Blue Cyan
+  "#EAB308", // Pure Amber Gold
+  "#10B981", // Pure Mint Emerald
 ];
 
 export const VIBRANT_PRESETS = STANDARD_PRESETS;
 
-export const MAX_CUSTOM_COLORS = 11;
+export const MAX_CUSTOM_COLORS = 15;
 const CUSTOM_COLORS_STORAGE_KEY = "l-mpv-custom-accent-colors";
 
 /**
