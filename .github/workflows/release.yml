@@ -66,12 +66,10 @@ jobs:
 
       - name: Импорт и настройка сертификата подписи кода (Windows PFX)
         shell: pwsh
-        if: env.WIN_CERTIFICATE_BASE64 != ''
-        env:
-          WIN_CERTIFICATE_BASE64: ${{ secrets.WIN_CERTIFICATE_BASE64 }}
+        if: secrets.WIN_CERTIFICATE_BASE64 != ''
         run: |
           Write-Host "Обнаружен PFX-сертификат подписи в Secrets, подготовка временного файла..."
-          $certBytes = [System.Convert]::FromBase64String($env:WIN_CERTIFICATE_BASE64)
+          $certBytes = [System.Convert]::FromBase64String("${{ secrets.WIN_CERTIFICATE_BASE64 }}")
           $certPath = "$env:TEMP\signing_certificate.pfx"
           [System.IO.File]::WriteAllBytes($certPath, $certBytes)
           Write-Host "Сертификат записан во временный файл: $certPath"
