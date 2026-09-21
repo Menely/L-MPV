@@ -143,7 +143,7 @@ pub fn run() {
         }
     };
 
-    let settings = commands::AppSettings::load(&exe_dir);
+    let settings = commands::AppSettings::load_portable();
 
     let mpv_arc = Arc::new(mpv);
 
@@ -379,15 +379,11 @@ pub fn run() {
                 }
 
                 // Применяем сохранённые настройки подсветки полос (Ambient Light)
-                if let Ok(exe_p) = std::env::current_exe() {
-                    if let Some(p_dir) = exe_p.parent() {
-                        let saved_cfg = commands::AppSettings::load(p_dir);
-                        if let Err(e) = state.ambient_controller.apply(&saved_cfg.ambient) {
-                            println!("[L-MPV] Ошибка инициализации Ambient Light: {}", e);
-                        } else {
-                            println!("[L-MPV] Режим Ambient Light инициализирован: {:?}", saved_cfg.ambient.mode);
-                        }
-                    }
+                let saved_cfg = commands::AppSettings::load_portable();
+                if let Err(e) = state.ambient_controller.apply(&saved_cfg.ambient) {
+                    println!("[L-MPV] Ошибка инициализации Ambient Light: {}", e);
+                } else {
+                    println!("[L-MPV] Режим Ambient Light инициализирован: {:?}", saved_cfg.ambient.mode);
                 }
             }
 

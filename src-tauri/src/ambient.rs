@@ -27,6 +27,7 @@ fn default_100() -> u32 {
 
 /// Пользовательские настройки подсветки полос.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(default)]
 pub struct AmbientSettings {
     /// Текущий режим работы.
     pub mode: AmbientMode,

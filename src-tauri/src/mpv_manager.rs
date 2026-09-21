@@ -171,7 +171,7 @@ impl MpvManager {
             Self::set_option(&api, handle, "msg-level", "all=error");
 
             // Путь к скриншотам (с восстановлением из config/settings.json)
-            let saved_settings = crate::commands::AppSettings::load(portable_dir);
+            let saved_settings = crate::commands::AppSettings::load_portable();
             let screenshots_dir = saved_settings
                 .screenshot_directory
                 .unwrap_or_else(|| {

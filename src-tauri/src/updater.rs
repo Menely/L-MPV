@@ -232,8 +232,8 @@ pub async fn get_available_releases() -> Result<Vec<UpdateInfo>, String> {
 pub async fn check_launch_and_update() -> Result<Option<UpdateInfo>, String> {
     let mut should_check = false;
 
-    if let Ok(p_dir) = get_app_dir() {
-        let mut settings = crate::commands::AppSettings::load(&p_dir);
+    if let Ok(_p_dir) = get_app_dir() {
+        let mut settings = crate::commands::AppSettings::load_portable();
         let current_version = env!("CARGO_PKG_VERSION");
 
         // Если приложение обновилось на новую версию — сбрасываем счетчик запусков и откладываний
@@ -257,7 +257,7 @@ pub async fn check_launch_and_update() -> Result<Option<UpdateInfo>, String> {
             should_check = true;
         }
 
-        let _ = settings.save(&p_dir);
+        let _ = settings.save_portable();
     }
 
     if !should_check {
@@ -284,15 +284,13 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
     // Если обновление обнаружено при явной ручной проверке пользователем,
     // сбрасываем счетчик откладывания, так как ручной запрос отменяет таймер паузы.
     if info.has_update {
-        if let Ok(exe_dir) = get_app_dir() {
-            let mut settings = crate::commands::AppSettings::load(&exe_dir);
-            if settings.postponed_until_launch > 0 {
-                settings.postponed_until_launch = 0;
-                if let Err(err) = settings.save(&exe_dir) {
-                    eprintln!("Не удалось сохранить настройки при сбросе откладывания: {}", err);
-                } else {
-                    println!("L-MPV: сброшен счётчик откладывания обновлений после ручной проверки");
-                }
+        let mut settings = crate::commands::AppSettings::load_portable();
+        if settings.postponed_until_launch > 0 {
+            settings.postponed_until_launch = 0;
+            if let Err(err) = settings.save_portable() {
+                eprintln!("Не удалось сохранить настройки при сбросе откладывания: {}", err);
+            } else {
+                println!("L-MPV: сброшен счётчик откладывания обновлений после ручной проверки");
             }
         }
     }
@@ -303,10 +301,9 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
 /// Отложить проверку обновлений на 15 последующих запусков приложения.
 #[tauri::command]
 pub fn postpone_update() -> Result<(), String> {
-    let exe_dir = get_app_dir()?;
-    let mut settings = crate::commands::AppSettings::load(&exe_dir);
+    let mut settings = crate::commands::AppSettings::load_portable();
     settings.postponed_until_launch = settings.launch_count.saturating_add(15);
-    settings.save(&exe_dir)?;
+    settings.save_portable()?;
     println!(
         "L-MPV: проверка обновлений отложена на 15 запусков (до запуска №{})",
         settings.postponed_until_launch
@@ -401,10 +398,10 @@ pub async fn download_and_install_update(
     }
 
     // Сбрасываем счётчики запусков и откладываний перед обновлением
-    let mut settings = crate::commands::AppSettings::load(&exe_dir);
+    let mut settings = crate::commands::AppSettings::load_portable();
     settings.launch_count = 0;
     settings.postponed_until_launch = 0;
-    let _ = settings.save(&exe_dir);
+    let _ = settings.save_portable();
 
     let bat_path = updates_dir.join("update.bat");
     let current_exe_name = std::env::current_exe()
