@@ -41,6 +41,9 @@ const UpdateModal = lazy(() =>
 const UpdateToast = lazy(() =>
   import("./components/UpdateModal").then((m) => ({ default: m.UpdateToast }))
 );
+const SubtitlesSearchModal = lazy(() =>
+  import("./components/SubtitlesSearchModal").then((m) => ({ default: m.SubtitlesSearchModal }))
+);
 
 function App() {
   const {
@@ -66,6 +69,7 @@ function App() {
   const [showMediaInfo, setShowMediaInfo] = useState(false);
   const [isMediaInfoOpen, setIsMediaInfoOpen] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
+  const [showSubtitlesSearch, setShowSubtitlesSearch] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -143,6 +147,7 @@ function App() {
       setShowChapters(false);
       setShowMediaInfo(false);
       setShowSettings(false);
+      setShowSubtitlesSearch(false);
     }
   }, [isPlaylistOpen]);
 
@@ -660,13 +665,37 @@ function App() {
         }
         break;
       case "fileInfo":
-        setShowMediaInfo((v) => !v);
+        setShowMediaInfo((v) => {
+          const next = !v;
+          if (next) {
+            setShowChapters(false);
+            setShowSubtitlesSearch(false);
+          }
+          return next;
+        });
         break;
       case "detailedMediaInfo":
         invoke("toggle_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
         break;
       case "chapters":
-        setShowChapters((v) => !v);
+        setShowChapters((v) => {
+          const next = !v;
+          if (next) {
+            setShowMediaInfo(false);
+            setShowSubtitlesSearch(false);
+          }
+          return next;
+        });
+        break;
+      case "searchSubtitles":
+        setShowSubtitlesSearch((v) => {
+          const next = !v;
+          if (next) {
+            setShowMediaInfo(false);
+            setShowChapters(false);
+          }
+          return next;
+        });
         break;
       case "settings":
         setShowSettings((v) => !v);
@@ -1280,6 +1309,12 @@ function App() {
             invoke("toggle_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
           }}
           onCloseChapters={() => setShowChapters(false)}
+          onOpenSubtitlesSearch={() => {
+            setIsPlaylistOpen(false);
+            setShowChapters(false);
+            setShowMediaInfo(false);
+            setShowSubtitlesSearch(true);
+          }}
         />
       )}
 
@@ -1308,6 +1343,13 @@ function App() {
             setShowChapters(true);
             closeContextMenu();
           }}
+          onShowSubtitlesSearch={() => {
+            setIsPlaylistOpen(false);
+            setShowMediaInfo(false);
+            setShowChapters(false);
+            setShowSubtitlesSearch(true);
+            closeContextMenu();
+          }}
           onShowSettings={() => {
             setIsPlaylistOpen(false);
             setShowMediaInfo(false);
@@ -1329,6 +1371,14 @@ function App() {
         <Suspense fallback={null}>
           <ChaptersModal
             onClose={() => setShowChapters(false)}
+          />
+        </Suspense>
+      )}
+
+      {showSubtitlesSearch && (
+        <Suspense fallback={null}>
+          <SubtitlesSearchModal
+            onClose={() => setShowSubtitlesSearch(false)}
           />
         </Suspense>
       )}

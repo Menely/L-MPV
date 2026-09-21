@@ -4,10 +4,16 @@
 //! и субтитров, эвристическое сопоставление по имени файла,
 //! и извлечение дорожек через FFmpeg.
 
+use super::subtitles::{
+    MAX_SUBTITLE_STDOUT_BYTES, decode_subtitle_bytes,
+    generate_subtitles_cache_key, is_bitmap_subtitle,
+    parse_ass, parse_srt_or_vtt, read_subtitles_cache,
+    resolve_external_subtitle_path, write_subtitles_cache,
+};
 use super::types::{
-    escape_mpv_path, get_app_dir, is_audio_extension,
-    is_subtitle_extension, natural_cmp, AppSettings,
-    PlayerState, TrackInfo,
+    escape_mpv_path, get_app_dir, get_data_dir,
+    is_audio_extension, is_subtitle_extension, natural_cmp,
+    AppSettings, PlayerState, SubtitleLineInfo, TrackInfo,
 };
 use std::collections::HashSet;
 use tauri::State;
@@ -42,6 +48,24 @@ pub fn disable_subtitles(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
     state.mpv.set_property_string("sid", "no")
+}
+
+/// Сдвиг таймингов субтитров (секунды, + — позже, − — раньше).
+/// Положительное значение задерживает показ реплик.
+#[tauri::command]
+pub fn set_sub_delay(
+    state: State<'_, PlayerState>,
+    delay: f64,
+) -> Result<(), String> {
+    state.mpv.set_property_double("sub-delay", delay)
+}
+
+/// Текущий сдвиг таймингов субтитров в секундах.
+#[tauri::command]
+pub fn get_sub_delay(
+    state: State<'_, PlayerState>,
+) -> Result<f64, String> {
+    state.mpv.get_property_double("sub-delay")
 }
 
 /// Загрузка внешнего файла субтитров (Хотлоад).
@@ -1093,4 +1117,247 @@ pub fn load_external_tracks_internal(
     }
 
     Ok(())
+}
+
+// ─── Интерактивный поиск по субтитрам (Searchable Subtitles) ───
+// Парсинг, декодирование и очистка вынесены в `super::subtitles`,
+// чтобы одна и та же логика обслуживала и FFmpeg-извлечение,
+// и чтение `sub-lines` из памяти mpv без расхождений копий.
+
+/// Полный анализ и извлечение всех реплик субтитров для указанной дорожки через встроенный FFmpeg.
+///
+/// Команда находит целевую дорожку по track_id (или использует активную),
+/// и, если дорожка встроена в видеофайл (MKV, MP4 и др.), вызывает оптимизированный
+/// процесс FFmpeg с конвертацией в SRT напрямую в поток stdout без записи на диск.
+/// Для внешних дорожек выполняется мгновенный разбор файла с диска.
+#[tauri::command]
+pub async fn analyze_subtitle_track(
+    state: State<'_, PlayerState>,
+    track_id: Option<i64>,
+) -> Result<Vec<SubtitleLineInfo>, String> {
+    // 1. Получаем путь к медиафайлу
+    let video_path_str = state.mpv.get_property_string("path").unwrap_or_default();
+
+    // 2. Получаем список всех дорожек
+    let all_tracks = get_tracks(state.clone())?;
+    let sub_tracks: Vec<TrackInfo> = all_tracks.into_iter().filter(|t| t.track_type == "sub").collect();
+    if sub_tracks.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // 3. Определяем целевую дорожку
+    let target_track = if let Some(tid) = track_id {
+        sub_tracks.iter().find(|t| t.id == tid).cloned()
+    } else {
+        sub_tracks.iter().find(|t| t.selected).cloned().or_else(|| sub_tracks.first().cloned())
+    };
+
+    let target = match target_track {
+        Some(t) => t,
+        None => return Ok(Vec::new()),
+    };
+
+    // Дисковый кэш разобранных субтитров (LRU до 20 файлов)
+    let cache_dir_opt = get_data_dir().ok().map(|d| d.join("cache").join("subtitles"));
+    let target_file_path = if target.external && !target.external_filename.is_empty() {
+        resolve_external_subtitle_path(&target.external_filename, &video_path_str)
+            .unwrap_or_else(|| std::path::PathBuf::from(&target.external_filename))
+    } else {
+        std::path::PathBuf::from(&video_path_str)
+    };
+
+    let cache_key_opt = if target_file_path.is_file() {
+        if let Ok(meta) = std::fs::metadata(&target_file_path) {
+            let size = meta.len();
+            let mtime = meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            Some(generate_subtitles_cache_key(
+                &target_file_path.to_string_lossy(),
+                size,
+                mtime,
+                target.id,
+            ))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
+        if let Some(cached_lines) = read_subtitles_cache(cache_dir, key) {
+            return Ok(cached_lines);
+        }
+    }
+
+    // 4. Если дорожка внешняя — читаем файл напрямую с диска.
+    // Путь от mpv может быть относительным: ищем рядом с видеофайлом.
+    // Декодируем с учётом кодировки (UTF-8/UTF-16/windows-1251).
+    if target.external && !target.external_filename.is_empty() {
+        let ext_path_opt = resolve_external_subtitle_path(
+            &target.external_filename,
+            &video_path_str,
+        );
+        // Файл внешней дорожки исчез с диска: дальше идти нельзя —
+        // FFmpeg по индексу вытащил бы реплики чужой встроенной дорожки.
+        if ext_path_opt.is_none() {
+            return Err(format!(
+                "Файл внешних субтитров не найден: {}",
+                target.external_filename
+            ));
+        }
+        if let Some(ext_path) = ext_path_opt {
+            if let Ok(bytes) = std::fs::read(&ext_path) {
+                let content = decode_subtitle_bytes(&bytes);
+                let ext = ext_path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+                let parsed = if ext == "ass" || ext == "ssa" {
+                    parse_ass(&content)
+                } else {
+                    parse_srt_or_vtt(&content)
+                };
+                if !parsed.is_empty() {
+                    if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
+                        write_subtitles_cache(cache_dir, key, &parsed);
+                    }
+                    return Ok(parsed);
+                }
+                if is_bitmap_subtitle(&target.codec, &ext) {
+                    return Err(
+                        "Графические субтитры (PGS/VobSub/SUP): \
+                         в них нет текстового слоя, распознавание \
+                         (OCR) не поддерживается"
+                            .to_string(),
+                    );
+                }
+            }
+        }
+    }
+
+    // Графические встроенные дорожки FFmpeg в текст не конвертирует —
+    // пропускаем тяжёлые вызовы и сразу идём к резервному источнику.
+    let embedded_bitmap =
+        !target.external && is_bitmap_subtitle(&target.codec, "");
+
+    // 5. Если дорожка встроенная в локальный видеофайл — извлекаем все реплики через FFmpeg
+    let vpath = std::path::Path::new(&video_path_str);
+    if !embedded_bitmap && vpath.exists() && vpath.is_file() {
+        let exe_dir = get_app_dir()?;
+        let mut ffmpeg_path = exe_dir.join("ffmpeg.exe");
+        if !ffmpeg_path.exists() {
+            if std::path::Path::new("ffmpeg.exe").exists() {
+                ffmpeg_path = std::path::PathBuf::from("ffmpeg.exe");
+            } else if std::path::Path::new("Portable-L-MPV/ffmpeg.exe").exists() {
+                ffmpeg_path = std::path::PathBuf::from("Portable-L-MPV/ffmpeg.exe");
+            } else {
+                ffmpeg_path = std::path::PathBuf::from("ffmpeg");
+            }
+        }
+
+        let sub_index = sub_tracks.iter().position(|t| t.id == target.id).unwrap_or(0);
+        let stream_specifier = if target.ff_index >= 0 {
+            format!("0:{}", target.ff_index)
+        } else {
+            format!("0:s:{}", sub_index)
+        };
+
+        let prefers_ass = target.codec.to_lowercase().contains("ass")
+            || target.codec.to_lowercase().contains("ssa")
+            || video_path_str.to_lowercase().ends_with(".mkv")
+            || target.codec.is_empty();
+
+        let formats = if prefers_ass { ["ass", "srt"] } else { ["srt", "ass"] };
+        for fmt in formats {
+            let target_video_path = video_path_str.clone();
+            let target_ffmpeg = ffmpeg_path.clone();
+            let target_spec = stream_specifier.clone();
+
+            let extract_result = tokio::task::spawn_blocking(move || {
+                let mut cmd = std::process::Command::new(&target_ffmpeg);
+                cmd.args([
+                    "-y",
+                    "-loglevel", "error",
+                    "-i", &target_video_path,
+                    "-map", &target_spec,
+                    "-f", fmt,
+                    "-"
+                ]);
+                #[cfg(target_os = "windows")]
+                {
+                    use std::os::windows::process::CommandExt;
+                    const CREATE_NO_WINDOW: u32 = 0x08000000;
+                    cmd.creation_flags(CREATE_NO_WINDOW);
+                }
+                cmd.output()
+            }).await;
+
+            if let Ok(Ok(output)) = extract_result {
+                if output.status.success() && !output.stdout.is_empty() {
+                    if output.stdout.len() > MAX_SUBTITLE_STDOUT_BYTES {
+                        eprintln!(
+                            "[L-MPV] Поток субтитров превышает лимит {} байт для формата {}",
+                            MAX_SUBTITLE_STDOUT_BYTES, fmt
+                        );
+                    } else {
+                        let text = decode_subtitle_bytes(&output.stdout);
+                        let lines = if fmt == "ass" {
+                            parse_ass(&text)
+                        } else {
+                            parse_srt_or_vtt(&text)
+                        };
+                        if !lines.is_empty() {
+                            if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
+                                write_subtitles_cache(cache_dir, key, &lines);
+                            }
+                            return Ok(lines);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 6. Резервный источник: чтение sub-lines из памяти mpv (для стриминга или сетевых URL)
+    if let Ok(lines) = state.mpv.get_sub_lines("sub-lines") {
+        if !lines.is_empty() {
+            if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
+                write_subtitles_cache(cache_dir, key, &lines);
+            }
+            return Ok(lines);
+        }
+    }
+    if let Ok(lines) = state.mpv.get_sub_lines("secondary-sub-lines") {
+        if !lines.is_empty() {
+            if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
+                write_subtitles_cache(cache_dir, key, &lines);
+            }
+            return Ok(lines);
+        }
+    }
+
+    if is_bitmap_subtitle(&target.codec, "") {
+        return Err(
+            "Графические субтитры (PGS/VobSub/SUP): \
+             в них нет текстового слоя, распознавание \
+             (OCR) не поддерживается"
+                .to_string(),
+        );
+    }
+
+    Ok(Vec::new())
+}
+
+/// Получение распарсенных строк субтитров для текущей активной дорожки.
+#[tauri::command]
+pub async fn get_active_subtitle_lines(
+    state: State<'_, PlayerState>,
+) -> Result<Vec<SubtitleLineInfo>, String> {
+    analyze_subtitle_track(state, None).await
 }

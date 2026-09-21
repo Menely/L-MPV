@@ -29,6 +29,7 @@ import {
   FastForward,
   FileText,
   AudioWaveform,
+  Search,
 } from "lucide-react";
 import { Timeline } from "./Timeline";
 import {
@@ -64,6 +65,7 @@ export function PlayerControls({
   showDetailedMediaInfo,
   showChapters,
   onCloseChapters,
+  onOpenSubtitlesSearch,
 }: {
   onShowMediaInfo?: () => void;
   onToggleMediaInfo?: () => void;
@@ -72,6 +74,7 @@ export function PlayerControls({
   showDetailedMediaInfo?: boolean;
   showChapters?: boolean;
   onCloseChapters?: () => void;
+  onOpenSubtitlesSearch?: () => void;
   isMiniPlayer?: boolean;
   onToggleMiniPlayer?: () => Promise<void>;
 }) {
@@ -514,6 +517,21 @@ export function PlayerControls({
 
             {displayedPopover === "sub" && (
               <>
+                <div className="track-popover__row" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: 6, marginBottom: 6 }}>
+                  <button
+                    type="button"
+                    className="track-popover__item"
+                    style={{ width: "100%", gap: 8, color: "var(--accent)" }}
+                    onClick={() => {
+                      closePopover();
+                      onOpenSubtitlesSearch?.();
+                    }}
+                  >
+                    <Search size={14} />
+                    <span className="track-popover__item-title" style={{ fontWeight: 600 }}>Поиск по субтитрам</span>
+                    <span style={{ fontSize: "0.72rem", opacity: 0.7, marginLeft: "auto" }}>Ctrl+F</span>
+                  </button>
+                </div>
                 <div className="track-popover__row">
                   <button
                     type="button"

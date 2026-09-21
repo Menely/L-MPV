@@ -62,10 +62,11 @@
 
 @media (max-width: 520px) {
 
-  /* Всплывающие карточки (Playlist, MediaInfo, Chapters) */
+  /* Всплывающие карточки (Playlist, MediaInfo, Chapters, Subtitles) */
   .media-info-overlay,
   .playlist-drawer,
-  .chapters-modal-overlay {
+  .chapters-modal-overlay,
+  .subtitles-modal-overlay {
     bottom: 80px !important;
     left: 8px !important;
     right: 8px !important;

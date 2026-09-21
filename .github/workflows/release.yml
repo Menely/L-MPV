@@ -64,10 +64,27 @@ jobs:
             (Get-Content src-tauri/Cargo.toml) -replace '^version = ".*?"', "version = `"$ver`"" | Set-Content src-tauri/Cargo.toml
           }
 
+      - name: Импорт и настройка сертификата подписи кода (Windows PFX)
+        shell: pwsh
+        if: secrets.WIN_CERTIFICATE_BASE64 != ''
+        run: |
+          Write-Host "Обнаружен PFX-сертификат подписи в Secrets, подготовка временного файла..."
+          $certBytes = [System.Convert]::FromBase64String("${{ secrets.WIN_CERTIFICATE_BASE64 }}")
+          $certPath = "$env:TEMP\signing_certificate.pfx"
+          [System.IO.File]::WriteAllBytes($certPath, $certBytes)
+          Write-Host "Сертификат записан во временный файл: $certPath"
+          Write-Output "WIN_CERTIFICATE_PATH=$certPath" >> $env:GITHUB_ENV
+
       - name: Сборка и публикация релиза Tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Параметры подписи под Windows (Tauri подхватывает их автоматически)
+          # Опция 1: Через отпечаток установленного сертификата (Thumbprint)
+          WIN_CERTIFICATE_THUMBPRINT: ${{ secrets.WIN_CERTIFICATE_THUMBPRINT }}
+          # Опция 2: Через файл .pfx и пароль
+          WIN_CERTIFICATE_PATH: ${{ env.WIN_CERTIFICATE_PATH }}
+          WIN_CERTIFICATE_PASSWORD: ${{ secrets.WIN_CERTIFICATE_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: 'L-MPV v__VERSION__'

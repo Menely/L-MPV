@@ -99,6 +99,137 @@
   pointer-events: none;
 }
 
+.subtitles-search-card {
+  animation: mediaInfoFadeIn 160ms var(--ease-out);
+  transform-origin: bottom right;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  position: relative;
+}
+
+.subtitles-search-card--resizing {
+  user-select: none !important;
+  transition: none !important;
+}
+
+.subtitles-search-card--closing {
+  animation: mediaInfoFadeOut 120ms var(--ease-out) forwards !important;
+  pointer-events: none;
+}
+
+.subtitles-search-card__resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: ew-resize;
+  z-index: 25;
+  touch-action: none;
+  user-select: none;
+}
+
+.subtitles-search-card__resize-handle::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 38px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              height var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.subtitles-search-card__resize-handle:hover::after,
+.subtitles-search-card--resizing .subtitles-search-card__resize-handle::after {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glass, rgba(127, 199, 255, 0.4));
+  height: 56px;
+}
+
+.subtitles-search-card__header--draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.subtitles-search-card__header--draggable:active {
+  cursor: grabbing;
+}
+
+.sub-search-mark {
+  background: rgba(251, 191, 36, 0.35);
+  color: #fbbf24;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+/* Технический инспектор субтитров (Technical Inspector Mode) */
+.sub-tech-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs, 4px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sub-tech-tag strong {
+  color: var(--text-primary, #f8fafc);
+  font-weight: 600;
+}
+
+.sub-tech-tag--actor {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.28);
+  color: var(--accent, #60a5fa);
+}
+
+.sub-tech-tag--actor strong {
+  color: var(--accent, #60a5fa);
+}
+
+.sub-line-row--tech {
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.sub-line-row--tech:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.sub-line-row {
+  position: relative;
+}
+
+.sub-line-row:hover .sub-line-copy-btn {
+  opacity: 1 !important;
+}
+
+.pulse-subtle {
+  animation: pulseSubtle 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseSubtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+}
+
 .media-info__section {
   display: flex;
   flex-direction: column;

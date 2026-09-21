@@ -49,7 +49,9 @@
     "windows": {
       "nsis": {
         "installerHooks": "nsis/installer_hooks.nsh"
-      }
+      },
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com"
     },
     "resources": [
       "libmpv-2.dll",

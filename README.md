@@ -613,7 +613,7 @@ Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MP
 ## 💬 Сообщество и Связь
 
 Присоединяйтесь к нашему комьюнити и телеграм каналу: <br>
-👉 <img src="https://github.com/Menely/L-MPV/blob/main/src-tauri/icons/icon.png" width="23" height="23" align="absmiddle"> **[L-MPV Community](https://t.me/+iiwyl0cV6uszYTZi)** <br>
+👉 <img src="https://github.com/Menely/L-MPV/blob/main/src-tauri/icons/icon.png" width="23" height="23" align="absmiddle"> **[L-MPV Community (Russia)](https://t.me/+iiwyl0cV6uszYTZi)** <br>
 👉<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+45xNDoaEpHBjY2Qy)**
 
 ---

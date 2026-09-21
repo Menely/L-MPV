@@ -213,12 +213,12 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       // Проверяем, находится ли курсор над UI элементами
       const target = (e instanceof MouseEvent ? e.target : null) as HTMLElement | null;
       const isOverUI = target && !!target.closest(
-        ".player-controls-wrapper, .titlebar, .modal, .context-menu, .track-popover, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay"
+        ".player-controls-wrapper, .titlebar, .modal, .context-menu, .track-popover, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
 
       // Проверяем, открыты ли какие-либо модальные окна или всплывающие меню
       const isAnyUIOpen = !!document.querySelector(
-        ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay"
+        ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
 
       // Если мышь над UI или открыты меню/модалки, не тушим интерфейс
@@ -228,7 +228,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
       idleTimer.current = window.setTimeout(() => {
         const currentUIOpen = !!document.querySelector(
-          ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay"
+          ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
         );
         if (!currentUIOpen) {
           setIsIdle(true);

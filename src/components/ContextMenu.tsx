@@ -32,6 +32,7 @@ import {
   SlidersHorizontal,
   Cpu,
   Eye,
+  Search,
 } from "lucide-react";
 import {
   type TimeDisplayPosition,
@@ -80,6 +81,8 @@ interface ContextMenuProps {
   onShowDetailedMediaInfo?: () => void;
   /** Открытие панели глав. */
   onShowChapters: () => void;
+  /** Открытие окна поиска по субтитрам. */
+  onShowSubtitlesSearch?: () => void;
   /** Открытие модального окна настроек. */
   onShowSettings: () => void;
 }
@@ -129,6 +132,7 @@ const STATIC_ICONS = {
   openFileSub: <FolderOpen size={14} />,
   film: <Film size={14} />,
   trash: <Trash2 size={14} />,
+  search: <Search size={15} />,
   audioTrack: <AudioLines size={15} />,
   subtitleTrack: <Subtitles size={15} />,
   chapters: <BookOpen size={15} />,
@@ -159,6 +163,7 @@ export function ContextMenu({
   onShowMediaInfo,
   onShowDetailedMediaInfo,
   onShowChapters,
+  onShowSubtitlesSearch,
   onShowSettings,
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -611,6 +616,16 @@ export function ContextMenu({
           { type: "track" as const, label: "Выключить субтитры", active: !subTracks.some((t) => t.selected), action: handleDisableSubs },
           ...subTracks.map((t) => ({ type: "track" as const, track: t, label: `${t.title || `Субтитры ${t.id}`} ${t.lang ? `(${t.lang})` : ""}`, active: t.selected, action: () => handleSelectSub(t.id), onDownload: () => handleDownloadTrack(t), isDownloading: downloadingTrackKey === `sub-${t.id}`, downloadTitle: "Скачать субтитры" })),
           { type: "divider" },
+          {
+            type: "item" as const,
+            icon: STATIC_ICONS.search,
+            label: "Поиск по субтитрам...",
+            shortcut: "Ctrl+F",
+            action: () => {
+              onShowSubtitlesSearch?.();
+              handleClose();
+            },
+          },
           { type: "item" as const, icon: STATIC_ICONS.openFileSub, label: "Загрузить субтитры...", action: handleLoadSubFile },
         ],
       }),
@@ -769,7 +784,7 @@ export function ContextMenu({
     currentTimePos, timeFormat, controlBarStyle,
     userPresets, activePresetId, upscaleModels, upscaleMode,
     selectedModel, selectedSlot, visibleButtons,
-    onOpenFile, onShowChapters, onShowMediaInfo,
+    onOpenFile, onShowChapters, onShowSubtitlesSearch, onShowMediaInfo,
     onShowDetailedMediaInfo, onShowSettings, handleClose,
     handleSelectAudio, handleSelectSub, handleDisableSubs,
     handleLoadSubFile, handleSetSpeed, handleSetAspect,

@@ -14,7 +14,8 @@ use libloading::{Library, Symbol};
 
 #[repr(C)]
 #[allow(dead_code)]
-enum MpvFormat {
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum MpvFormat {
     None = 0,
     String = 1,
     OsdString = 2,
@@ -25,6 +26,30 @@ enum MpvFormat {
     NodeArray = 7,
     NodeMap = 8,
     ByteArray = 9,
+}
+
+#[repr(C)]
+pub struct MpvNodeList {
+    pub num: c_int,
+    pub values: *mut MpvNode,
+    pub keys: *mut *mut c_char,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union MpvNodeUnion {
+    pub string: *mut c_char,
+    pub flag: c_int,
+    pub int64: i64,
+    pub double_: c_double,
+    pub list: *mut MpvNodeList,
+    pub ba: *mut c_void,
+}
+
+#[repr(C)]
+pub struct MpvNode {
+    pub u: MpvNodeUnion,
+    pub format: MpvFormat,
 }
 
 #[repr(C)]
@@ -43,6 +68,7 @@ struct MpvApi {
     get_property_string: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char) -> *mut c_char>,
     get_property: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, format: MpvFormat, data: *mut c_void) -> c_int>,
     free: Symbol<'static, unsafe extern "C" fn(data: *mut c_void)>,
+    free_node_contents: Symbol<'static, unsafe extern "C" fn(node: *mut MpvNode)>,
     set_property: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, format: MpvFormat, data: *mut c_void) -> c_int>,
     set_property_string: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, data: *const c_char) -> c_int>,
 }
@@ -63,6 +89,7 @@ impl MpvApi {
         let get_property_string = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char) -> *mut c_char>(b"mpv_get_property_string\0").map_err(|e| e.to_string())?);
         let get_property = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, format: MpvFormat, data: *mut c_void) -> c_int>(b"mpv_get_property\0").map_err(|e| e.to_string())?);
         let free = std::mem::transmute(lib.get::<unsafe extern "C" fn(data: *mut c_void)>(b"mpv_free\0").map_err(|e| e.to_string())?);
+        let free_node_contents = std::mem::transmute(lib.get::<unsafe extern "C" fn(node: *mut MpvNode)>(b"mpv_free_node_contents\0").map_err(|e| e.to_string())?);
         let set_property = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, format: MpvFormat, data: *mut c_void) -> c_int>(b"mpv_set_property\0").map_err(|e| e.to_string())?);
         let set_property_string = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, data: *const c_char) -> c_int>(b"mpv_set_property_string\0").map_err(|e| e.to_string())?);
 
@@ -76,6 +103,7 @@ impl MpvApi {
             get_property_string,
             get_property,
             free,
+            free_node_contents,
             set_property,
             set_property_string,
         })
@@ -551,6 +579,107 @@ impl MpvManager {
         let cmd = format!("vf-command aji slot {}", slot);
         self.command(&cmd)
     }
+
+    /// Извлечение распарсенных строк субтитров напрямую из памяти mpv (свойство sub-lines или secondary-sub-lines).
+    ///
+    /// Метод запрашивает у libmpv структуру MPV_FORMAT_NODE, парсит массив объектов
+    /// с временами start, end и текстом text, очищает разметку и корректно освобождает
+    /// выделенную C-память через mpv_free_node_contents.
+    pub fn get_sub_lines(&self, property_name: &str) -> Result<Vec<crate::commands::SubtitleLineInfo>, String> {
+        self.with_handle(|handle| {
+            let c_prop = CString::new(property_name).map_err(|e| format!("Ошибка CString: {}", e))?;
+            unsafe {
+                let mut root_node = std::mem::zeroed::<MpvNode>();
+                let err = (self.api.get_property)(
+                    handle,
+                    c_prop.as_ptr(),
+                    MpvFormat::Node,
+                    &mut root_node as *mut _ as *mut c_void,
+                );
+                if err < 0 {
+                    return Ok(Vec::new());
+                }
+
+                let mut lines = Vec::new();
+                if root_node.format == MpvFormat::NodeArray {
+                    let list_ptr = root_node.u.list;
+                    if !list_ptr.is_null() {
+                        let list = &*list_ptr;
+                        for i in 0..list.num {
+                            let item_node = &*list.values.add(i as usize);
+                            if item_node.format == MpvFormat::NodeMap {
+                                let map_ptr = item_node.u.list;
+                                if !map_ptr.is_null() {
+                                    let map = &*map_ptr;
+                                    if map.keys.is_null() || map.values.is_null() {
+                                        continue;
+                                    }
+                                    let mut start = 0.0;
+                                    let mut end = 0.0;
+                                    let mut text = String::new();
+
+                                    for j in 0..map.num {
+                                        let key_ptr = *map.keys.add(j as usize);
+                                        if key_ptr.is_null() {
+                                            continue;
+                                        }
+                                        let key = CStr::from_ptr(key_ptr).to_string_lossy();
+                                        let val_node = &*map.values.add(j as usize);
+
+                                        match key.as_ref() {
+                                            "start" => {
+                                                start = match val_node.format {
+                                                    MpvFormat::Double => val_node.u.double_,
+                                                    MpvFormat::Int64 => val_node.u.int64 as f64,
+                                                    _ => 0.0,
+                                                };
+                                            }
+                                            "end" => {
+                                                end = match val_node.format {
+                                                    MpvFormat::Double => val_node.u.double_,
+                                                    MpvFormat::Int64 => val_node.u.int64 as f64,
+                                                    _ => 0.0,
+                                                };
+                                            }
+                                            "text"
+                                                if val_node.format == MpvFormat::String && !val_node.u.string.is_null() => {
+                                                    text = CStr::from_ptr(val_node.u.string).to_string_lossy().into_owned();
+                                                }
+                                            _ => {}
+                                        }
+                                    }
+
+                                    let clean_text = clean_subtitle_text(&text);
+                                    if !clean_text.is_empty() {
+                                        lines.push(crate::commands::SubtitleLineInfo {
+                                            index: lines.len() + 1,
+                                            start,
+                                            end,
+                                            text: clean_text,
+                                            raw: Some(text),
+                                            ..Default::default()
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                (self.api.free_node_contents)(&mut root_node);
+                Ok(lines)
+            }
+        })
+    }
+}
+
+/// Очистка текста субтитров.
+///
+/// Единая реализация живёт в `crate::commands::subtitles`,
+/// здесь — только тонкий реэкспорт-алиас для читаемости вызовов
+/// внутри `get_sub_lines` (две копии функции раньше расходились).
+fn clean_subtitle_text(text: &str) -> String {
+    crate::commands::clean_subtitle_text(text)
 }
 
 impl Drop for MpvManager {

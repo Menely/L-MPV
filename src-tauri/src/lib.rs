@@ -214,6 +214,8 @@ pub fn run() {
             commands::set_audio_track,
             commands::set_subtitle_track,
             commands::disable_subtitles,
+            commands::set_sub_delay,
+            commands::get_sub_delay,
             commands::load_subtitle_file,
             commands::load_audio_file,
             commands::set_video_track,
@@ -267,6 +269,8 @@ pub fn run() {
             commands::update_taskbar_progress,
             commands::toggle_fullscreen,
             commands::extract_track,
+            commands::get_active_subtitle_lines,
+            commands::analyze_subtitle_track,
             // Подсветка полос (Ambient Light)
             commands::get_ambient_settings,
             commands::apply_ambient_preview,

@@ -296,6 +296,46 @@ pub struct ChapterInfo {
     pub time: f64,
 }
 
+/// Строка субтитров с временными метками для интерактивного поиска и технического анализа.
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SubtitleLineInfo {
+    /// Порядковый номер строки (1-based).
+    pub index: usize,
+    /// Время начала реплики в секундах.
+    pub start: f64,
+    /// Время окончания реплики в секундах.
+    pub end: f64,
+    /// Очищенный текст реплики.
+    pub text: String,
+    /// Исходный сырой текст с тегами разметки (ASS/SRT).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub raw: Option<String>,
+    /// Название стиля субтитров (например, "Default", "Signs", "Dialogue").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<String>,
+    /// Имя персонажа или актёра озвучки/реплики.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actor: Option<String>,
+    /// Номер слоя наложения (Z-слой в ASS/SSA).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layer: Option<i32>,
+    /// Гарнитура шрифта (например, "Arial", "Trebuchet MS").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_name: Option<String>,
+    /// Размер шрифта в пикселях/пунктах.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub font_size: Option<f64>,
+    /// Основной цвет текста в формате "#RRGGBB".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    /// Позиционирование или выравнивание реплики (например, "\pos(120,450)" или "an2").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<String>,
+    /// Специальный эффект реплики (например, "Karaoke", "Banner").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effect: Option<String>,
+}
+
 /// Элемент плейлиста.
 #[derive(Serialize, Clone)]
 pub struct PlaylistItem {

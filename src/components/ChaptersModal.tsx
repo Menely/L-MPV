@@ -16,20 +16,35 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
   const { chapters } = usePlayerState();
   const { position } = usePlayerProgress();
   const [isClosing, setIsClosing] = useState(false);
+  const isClosingRef = useRef(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleClose = useCallback(() => {
-    if (isClosing) return;
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    setIsClosing(true);
+
+    const isNoAnim =
+      typeof document !== "undefined" &&
+      document.documentElement.classList.contains("no-animations");
     if (isNoAnim) {
       onClose();
       return;
     }
-    setIsClosing(true);
+
     closeTimerRef.current = setTimeout(() => {
       onClose();
     }, 155);
-  }, [isClosing, onClose]);
+  }, [onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+      isClosingRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -39,12 +54,9 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
         handleClose();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
+      window.removeEventListener("keydown", handleKeyDown, true);
     };
   }, [handleClose]);
 

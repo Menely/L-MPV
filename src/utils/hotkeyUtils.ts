@@ -27,6 +27,7 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   toggleAudioMenu: ["MouseRight"],
   cycleSubTrack: ["KeyV", "MouseLeft"],
   toggleSubMenu: ["MouseRight"],
+  searchSubtitles: ["Ctrl+KeyF"],
   playlistPrev: ["PageUp"],
   playlistNext: ["PageDown"],
   seekBack10: [],
@@ -79,6 +80,7 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   // Субтитры
   { id: "cycleSubTrack", label: "Смена субтитров", defaultKeys: DEFAULT_HOTKEYS["cycleSubTrack"], category: "Субтитры" },
   { id: "toggleSubMenu", label: "Меню субтитров", defaultKeys: DEFAULT_HOTKEYS["toggleSubMenu"], category: "Субтитры" },
+  { id: "searchSubtitles", label: "Поиск по субтитрам", defaultKeys: DEFAULT_HOTKEYS["searchSubtitles"], category: "Субтитры" },
 
   // Скорость
   { id: "speedUp", label: "Увеличить скорость", defaultKeys: DEFAULT_HOTKEYS["speedUp"], category: "Скорость" },
