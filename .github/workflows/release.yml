@@ -64,27 +64,10 @@ jobs:
             (Get-Content src-tauri/Cargo.toml) -replace '^version = ".*?"', "version = `"$ver`"" | Set-Content src-tauri/Cargo.toml
           }
 
-      - name: Импорт и настройка сертификата подписи кода (Windows PFX)
-        shell: pwsh
-        if: secrets.WIN_CERTIFICATE_BASE64 != ''
-        run: |
-          Write-Host "Обнаружен PFX-сертификат подписи в Secrets, подготовка временного файла..."
-          $certBytes = [System.Convert]::FromBase64String("${{ secrets.WIN_CERTIFICATE_BASE64 }}")
-          $certPath = "$env:TEMP\signing_certificate.pfx"
-          [System.IO.File]::WriteAllBytes($certPath, $certBytes)
-          Write-Host "Сертификат записан во временный файл: $certPath"
-          Write-Output "WIN_CERTIFICATE_PATH=$certPath" >> $env:GITHUB_ENV
-
       - name: Сборка и публикация релиза Tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Параметры подписи под Windows (Tauri подхватывает их автоматически)
-          # Опция 1: Через отпечаток установленного сертификата (Thumbprint)
-          WIN_CERTIFICATE_THUMBPRINT: ${{ secrets.WIN_CERTIFICATE_THUMBPRINT }}
-          # Опция 2: Через файл .pfx и пароль
-          WIN_CERTIFICATE_PATH: ${{ env.WIN_CERTIFICATE_PATH }}
-          WIN_CERTIFICATE_PASSWORD: ${{ secrets.WIN_CERTIFICATE_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: 'L-MPV v__VERSION__'
@@ -106,7 +89,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "Portable-L-MPV/config/presets" | Out-Null
           New-Item -ItemType Directory -Force -Path "Portable-L-MPV/screenshots" | Out-Null
           
-          Copy-Item "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MPV/L-MPV.exe" -Force
+          Copy-Item "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MPV/l-mpv.exe" -Force
           Copy-Item "libmpv-2.dll" -Destination "Portable-L-MPV/libmpv-2.dll" -Force
           Copy-Item "ffmpeg.exe" -Destination "Portable-L-MPV/ffmpeg.exe" -Force
           Copy-Item "mediainfo.dll" -Destination "Portable-L-MPV/mediainfo.dll" -Force
@@ -117,7 +100,6 @@ jobs:
           
           Write-Host "Загрузка артефактов в релиз $tag..."
           gh release upload $tag $portableZip --clobber
-          gh release upload $tag "src-tauri/target/release/l-mpv.exe#L-MPV.exe" --clobber
+          gh release upload $tag "src-tauri/target/release/l-mpv.exe#l-mpv.exe" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
