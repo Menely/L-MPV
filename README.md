@@ -446,10 +446,12 @@ L-MPV/
 │   │   ├── timeFormatUtils.ts            # 4 формата отображения времени (прошедшее/общее, оставшееся, расчет окончания, миллисекунды)
 │   │   ├── controlBarStyleUtils.ts       # Стили нижней панели управления («Парящий остров» и «Пристыкованная плашка»)
 │   │   ├── uiThemeUtils.ts               # Управление скруглением углов, масштабом (UI Scale), прозрачностью и шрифтами (UI Font)
+│   │   ├── uiSettingsSync.ts             # Синхронизация системных CSS-переменных, палитр и стилей оформления с DOM
 │   │   ├── colorUtils.ts                 # Цветовые темы, генерация градиентов и HSL/RGB преобразования
 │   │   ├── hotkeyUtils.ts                # Реестр действий, обработка биндов и локальное сохранение
 │   │   ├── mediaInfoParser.ts            # Модуль парсинга и русского перевода свойств MediaInfo
 │   │   ├── presetsUtils.ts               # Управление, импорт и экспорт пользовательских пресетов
+│   │   ├── recentFilesUtils.ts           # Управление списком недавних файлов и синхронизация с локальной историей
 │   │   └── timeUtils.ts                  # Высокоточное форматирование временных меток
 │   ├── App.tsx                           # Главный контейнер (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, OSD)
 │   ├── index.css                         # Единый импорт модулей стилей
@@ -459,20 +461,31 @@ L-MPV/
 │   ├── src/
 │   │   ├── main.rs                       # Точка входа приложения
 │   │   ├── lib.rs                        # Инициализация Tauri, HWND-привязка, изоляция WebView2, реестр IPC-команд
+│   │   ├── commands/                     # Модульные IPC #[tauri::command] обработчики:
+│   │   │   ├── mod.rs                    # Реэкспорт всех подмодулей IPC-команд
+│   │   │   ├── types.rs                  # Общие DTO и структуры данных для обмена с фронтендом
+│   │   │   ├── playback.rs               # Управление воспроизведением, навигацией, громкостью, скоростью, скриншотами
+│   │   │   ├── tracks.rs                 # Управление аудио/видео дорожками, субтитрами и экспорт через FFmpeg
+│   │   │   ├── subtitles.rs              # Поиск, парсинг ASS/SRT/VTT субтитров, временные метки и стили
+│   │   │   ├── system.rs                 # Системная интеграция, оконный менеджмент, диалоги выбора файлов, ассоциации
+│   │   │   ├── config.rs                 # Загрузка и атомарное сохранение настроек AppSettings (config/settings.json)
+│   │   │   ├── presets.rs                # Сохранение, загрузка, экспорт и импорт пресетов конфигурации
+│   │   │   ├── playlist.rs               # Управление плейлистом, навигация по файлам в папке, Natural Sort
+│   │   │   └── history.rs                # Персистентная история воспроизведения и позиций файлов (config/history.json)
 │   │   ├── upscale/                      # Модульная подсистема 4K AI апскейлинга:
 │   │   │   ├── mod.rs                    # Фасад подсистемы, IPC-команды, unit-тесты
 │   │   │   ├── types.rs                  # Модели данных: ModelFileItem, UpscaleSettings, GpuHardwareInfo, Progress
 │   │   │   ├── hardware.rs               # Диагностика GPU через Win32 DXGI, определение SM-архитектуры NVIDIA
 │   │   │   ├── config.rs                 # Разрешение путей, окружение DLL PATH, сканирование models/onnx/, upscale.conf
 │   │   │   ├── downloader.rs             # Асинхронная потоковая загрузка DirectML/TensorRT, распаковка архивов
+│   │   │   ├── engine_builder.rs         # Сборка движков TensorRT (.engine), автоконвертация FP32 в FP16, aji_harness и trtexec
 │   │   │   └── controller.rs             # Управление libmpv фильтром, фоновая компиляция TensorRT .engine, хоткеи
 │   │   ├── ambient.rs                    # Контроллер подсветки черных полос (GPU Blur / Color / Off)
 │   │   ├── audio_capture.rs              # Нативный захват звука WASAPI Loopback, быстрый БПФ (FFT Radix-2), 32 полосы
 │   │   ├── mediainfo.rs                  # FFI-интеграция с mediainfo.dll и управление автономным окном
 │   │   ├── mpv_manager.rs                # FFI-обертка libmpv (vo=gpu-next, WASAPI, D3D11, vf_animejanai, sinc-фильтр)
 │   │   ├── system_integration.rs         # Интеграция с Проводником Windows (контекстное меню, ассоциации файлов)
-│   │   ├── updater.rs                    # Модуль фонового и ручного обновления
-│   │   └── commands.rs                   # IPC #[tauri::command] обработчики, экспорт дорожек через FFmpeg
+│   │   └── updater.rs                    # Модуль фонового и ручного обновления
 │   ├── Cargo.toml                        # Зависимости бэкенда Rust
 │   └── tauri.conf.json                   # Конфигурация Tauri v2
 ├── models/                               # Каталог нейросетей

@@ -85,9 +85,12 @@ L-MPV/
 │   │   │   ├── SubtitleSearchBar.tsx     # Поисковая строка, счетчик совпадений и регулятор задержки субтитров (Sub Delay)
 │   │   │   ├── SubtitleEmptyState.tsx    # Экран заглушки (загрузка, дорожка без субтитров, отсутствие совпадений)
 │   │   │   └── SubtitlesSearchModal.tsx  # Корневой модальный контейнер с виртуализацией DOM
+│   │   ├── DetailedMediaInfoModal.tsx    # Расширенное модальное окно MediaInfo с детальными древовидными метаданными
+│   │   ├── ChaptersModal.tsx             # Модальное окно навигации по главам видео (Chapters)
+│   │   ├── UpdateModal.tsx               # Модальное окно информирования и управления обновлениями плеера
+│   │   ├── MarkdownRenderer.tsx          # Компонент безопасного рендеринга Markdown (списки изменений, документация)
 │   │   ├── Timeline.tsx                  # Высокоточный таймлайн с изолированным контекстом времени (без лишних ререндеров)
 │   │   ├── AudioVisualizer.tsx           # Высокопроизводительный Canvas-визуалайзер аудио-волн (Waveform / Spectrum / Bars, пастель/неон)
-│   │   ├── PresetsSection.tsx            # Секция управления пресетами («Мои пресеты» и «Готовые стили») в SettingsModal
 │   │   └── PlaylistDrawer.tsx            # Выдвижная боковая панель плейлиста (Natural Sort, поиск, переключение)
 │   ├── contexts/                         # Реактивные контексты React
 │   │   └── PlayerStateContext.tsx        # Трёхуровневый контекст: PlayerStateContext (метаданные) + LiveStateContext (показатели) + PlayerProgressContext (10–60 FPS)
@@ -114,10 +117,12 @@ L-MPV/
 │   │   ├── timeFormatUtils.ts            # 4 формата отображения времени (прошедшее/общее, оставшееся, расчет окончания, миллисекунды)
 │   │   ├── controlBarStyleUtils.ts       # Стили нижней панели управления («Парящий остров» и «Пристыкованная плашка»)
 │   │   ├── uiThemeUtils.ts               # Управление скруглением углов, масштабом (UI Scale), прозрачностью и шрифтовой экосистемой (UI Font)
+│   │   ├── uiSettingsSync.ts             # Синхронизация системных CSS-переменных, палитр и стилей оформления с DOM
 │   │   ├── colorUtils.ts                 # Цветовые палитры и вычисление HSL/RGB акцентов, градиентов и параметров свечения drop-shadow
 │   │   ├── hotkeyUtils.ts                # Реестр действий, бинды, сохранение и сброс горячих клавиш (включая Ctrl+J для статистики, Shift+1..7)
 │   │   ├── mediaInfoParser.ts            # Модуль разбора и перевода на русский язык отчёта MediaInfo
 │   │   ├── presetsUtils.ts               # Модуль управления, хранения, экспорта и импорта пользовательских и готовых пресетов
+│   │   ├── recentFilesUtils.ts           # Управление списком недавних файлов и синхронизация с локальной историей
 │   │   └── timeUtils.ts                  # Форматирование времени воспроизведения
 │   ├── App.tsx                           # Главный контейнер (клики, IDLE, Drag&Drop, Hotkeys, Zoom/Pan, Wheel Vol, OSD)
 │   ├── index.css                         # Единая точка импорта CSS-модулей
@@ -126,6 +131,18 @@ L-MPV/
 │   ├── capabilities/default.json         # Разрешения Tauri (окна, opener, dialog)
 │   ├── src/
 │   │   ├── main.rs                       # Входная точка приложения
+│   │   ├── lib.rs                        # Точка входа Tauri v2 (биндинг HWND к MPV, изоляция WebView2, регистрация команд)
+│   │   ├── commands/                     # Модульные IPC #[tauri::command] обработчики:
+│   │   │   ├── mod.rs                    # Реэкспорт всех подмодулей IPC-команд
+│   │   │   ├── types.rs                  # Общие DTO и структуры данных для обмена с фронтендом
+│   │   │   ├── playback.rs               # Управление воспроизведением, навигацией, громкостью, скоростью, скриншотами
+│   │   │   ├── tracks.rs                 # Управление аудио/видео дорожками, субтитрами и экспорт через FFmpeg
+│   │   │   ├── subtitles.rs              # Поиск, парсинг ASS/SRT/VTT субтитров, временные метки и стили
+│   │   │   ├── system.rs                 # Системная интеграция, оконный менеджмент, диалоги выбора файлов, ассоциации
+│   │   │   ├── config.rs                 # Загрузка и атомарное сохранение настроек AppSettings (config/settings.json)
+│   │   │   ├── presets.rs                # Сохранение, загрузка, экспорт и импорт пресетов конфигурации
+│   │   │   ├── playlist.rs               # Управление плейлистом, навигация по файлам в папке, Natural Sort
+│   │   │   └── history.rs                # Персистентная история воспроизведения и позиций файлов (config/history.json)
 │   │   ├── upscale/                      # Модульная подсистема 4K AI апскейлинга:
 │   │   │   ├── mod.rs                    # Единая точка входа, IPC-команды, unit-тесты
 │   │   │   ├── types.rs                  # Модели данных: ModelFileItem, UpscaleSettings, UpscaleStatus, GpuHardwareInfo
@@ -139,8 +156,7 @@ L-MPV/
 │   │   ├── mediainfo.rs                  # FFI-интеграция с mediainfo.dll и управление независимым окном MediaInfo
 │   │   ├── mpv_manager.rs                # FFI-обертчик libmpv (vo=gpu-next, WASAPI, D3D11, vf_animejanai, sinc resampler)
 │   │   ├── system_integration.rs         # Интеграция с Проводником Windows (контекстное меню, ассоциации файлов)
-│   │   ├── updater.rs                    # Модуль автообновления приложения
-│   │   └── commands.rs                   # IPC #[tauri::command] функции, извлечение дорожек FFmpeg, персистентность AppSettings
+│   │   └── updater.rs                    # Модуль автообновления приложения
 │   ├── Cargo.toml                        # Зависимости Rust (tauri, libloading, serde, tokio, reqwest, zip, windows-sys)
 │   └── tauri.conf.json                   # Конфигурация приложения Tauri (NSIS bundle, resources, окна)
 ├── models/                               # Корневой каталог нейросетей
