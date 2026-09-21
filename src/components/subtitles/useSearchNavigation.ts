@@ -31,6 +31,8 @@ interface UseSearchNavigationResult {
   navPos: number;
   jumpToMatch: (dir: 1 | -1) => void;
   handleStepSubtitle: (dir: 1 | -1) => void;
+  /** Сброс якоря навигации (например, при прямом клике на строку). */
+  resetNavAnchor: () => void;
   /** Обновляемый ref для globalKeyDown-слушателя (всегда актуален). */
   handleStepSubtitleRef: RefObject<(dir: 1 | -1) => void>;
 }
@@ -238,11 +240,14 @@ export function useSearchNavigation({
     handleStepSubtitleRef.current = handleStepSubtitle;
   }, [handleStepSubtitle]);
 
+  const resetNavAnchor = useCallback(() => setNavAnchor(null), []);
+
   return {
     navAnchor,
     navPos,
     jumpToMatch,
     handleStepSubtitle,
+    resetNavAnchor,
     handleStepSubtitleRef,
   };
 }

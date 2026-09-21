@@ -10,6 +10,13 @@ import { Subtitles, Loader2, FolderOpen } from "lucide-react";
 
 interface SubtitleEmptyStateProps {
   isAnalyzing: boolean;
+  /**
+   * true когда `lines.length === 0` — данных нет вообще (ошибка / не
+   * проанализировано). false когда строки есть, но фильтр не дал
+   * совпадений. Это разграничение важно для правильного приоритета:
+   * при отсутствии строк показываем ошибку, а не «ничего не найдено».
+   */
+  isLinesEmpty: boolean;
   analyzeError: string | null;
   searchQuery: string;
   onLoadExternal: () => void;
@@ -17,6 +24,7 @@ interface SubtitleEmptyStateProps {
 
 export function SubtitleEmptyState({
   isAnalyzing,
+  isLinesEmpty,
   analyzeError,
   searchQuery,
   onLoadExternal,
@@ -48,7 +56,10 @@ export function SubtitleEmptyState({
     );
   }
 
-  if (searchQuery.trim()) {
+  // «Ничего не найдено по запросу» — только если строки ЕСТЬ, но фильтр пуст.
+  // Если строки отсутствуют вообще (ошибка / нет данных), показываем ошибку
+  // независимо от содержимого строки поиска.
+  if (!isLinesEmpty && searchQuery.trim()) {
     return (
       <div
         style={{

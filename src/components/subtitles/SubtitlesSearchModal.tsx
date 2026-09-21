@@ -207,6 +207,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     navAnchor,
     navPos,
     jumpToMatch,
+    resetNavAnchor,
     handleStepSubtitleRef,
   } = useSearchNavigation({
     filteredLines,
@@ -380,9 +381,11 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     []
   );
 
-  // ── Переход к реплике по клику ────────────────────────────────────────────
+  // ── Переход к реплике по клику ────────────────────────────────────
   const handleSeek = useCallback(
     (line: Parameters<typeof SubtitleLineRow>[0]["line"]) => {
+      // Сбрасываем якорь поиска, чтобы снять синюю подсветку «совпадение»
+      resetNavAnchor();
       setClickedLineIndex(line.index);
       if (clickedTimerRef.current) clearTimeout(clickedTimerRef.current);
       clickedTimerRef.current = setTimeout(
@@ -391,7 +394,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
       );
       seekTo(line.start);
     },
-    [seekTo]
+    [seekTo, resetNavAnchor]
   );
 
   // ── Рендер ────────────────────────────────────────────────────────────────
@@ -603,6 +606,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
           filteredLines.length === 0 ? (
             <SubtitleEmptyState
               isAnalyzing={isAnalyzing && lines.length === 0}
+              isLinesEmpty={lines.length === 0}
               analyzeError={analyzeError}
               searchQuery={searchQuery}
               onLoadExternal={handleLoadExternalSubtitles}
