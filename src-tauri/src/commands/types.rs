@@ -163,29 +163,18 @@ impl AppSettings {
         std::fs::write(&settings_path, json).map_err(|e| e.to_string())
     }
 
-    /// Загрузка настроек: сначала из портативной папки config/, затем из %APPDATA%\L-MPV\config\.
+    /// Загрузка настроек из локальной портативной папки config/settings.json.
     pub fn load_portable() -> Self {
         if let Ok(dir) = get_app_dir() {
-            let portable_file = dir.join("config").join("settings.json");
-            if portable_file.exists() {
-                return Self::load(&dir);
-            }
+            Self::load(&dir)
+        } else {
+            Self::default()
         }
-        if let Ok(appdata_cfg) = get_appdata_config_dir() {
-            let appdata_file = appdata_cfg.join("settings.json");
-            if appdata_file.exists() {
-                return Self::load(&appdata_cfg);
-            }
-        }
-        if let Ok(dir) = get_app_dir() {
-            return Self::load(&dir);
-        }
-        Self::default()
     }
 
-    /// Сохранение настроек в доступную для записи папку (портативную или %APPDATA%\L-MPV\config\).
+    /// Сохранение настроек в локальную портативную папку config/settings.json.
     pub fn save_portable(&self) -> Result<(), String> {
-        let dir = get_config_dir()?;
+        let dir = get_app_dir()?;
         self.save(&dir)
     }
 }
@@ -383,16 +372,6 @@ pub struct PlaylistItem {
 
 // ─── Утилиты портативных путей ────────────────────────────
 
-/// Получение системной пользовательской папки конфигурации (%APPDATA%\L-MPV\config).
-pub fn get_appdata_config_dir() -> Result<std::path::PathBuf, String> {
-    let appdata = std::env::var("APPDATA")
-        .or_else(|_| std::env::var("USERPROFILE").map(|p| format!("{p}\\AppData\\Roaming")))
-        .map_err(|_| "Не удалось определить системную папку APPDATA".to_string())?;
-    let dir = std::path::PathBuf::from(appdata).join("L-MPV").join("config");
-    let _ = std::fs::create_dir_all(&dir);
-    Ok(dir)
-}
-
 /// Получение абсолютного пути к базовой портативной директории приложения (каталог рядом с исполняемым файлом).
 pub fn get_app_dir() -> Result<std::path::PathBuf, String> {
     std::env::current_exe()
@@ -411,40 +390,21 @@ pub fn get_app_dir() -> Result<std::path::PathBuf, String> {
         })
 }
 
-/// Получение гарантированно доступной для записи папки config/ (портативной либо системной в %APPDATA%).
+/// Получение абсолютного пути к портативной папке config/ рядом с исполняемым файлом.
 pub fn get_config_dir() -> Result<std::path::PathBuf, String> {
-    if let Ok(app_dir) = get_app_dir() {
-        let portable_config = app_dir.join("config");
-        // Проверяем, можем ли мы создавать файлы в портативной папке (не Program Files)
-        if std::fs::create_dir_all(&portable_config).is_ok() {
-            let test_file = portable_config.join(".write_test");
-            if std::fs::write(&test_file, b"ok").is_ok() {
-                let _ = std::fs::remove_file(&test_file);
-                return Ok(portable_config);
-            }
-        }
+    let dir = get_app_dir()?.join("config");
+    if !dir.exists() {
+        let _ = std::fs::create_dir_all(&dir);
     }
-    // Fallback: безопасная пользовательская папка APPDATA (гарантированные права записи)
-    get_appdata_config_dir()
+    Ok(dir)
 }
 
-/// Получение абсолютного пути к папке data/ (портативной либо в %APPDATA%\L-MPV\data).
+/// Получение абсолютного пути к портативной папке data/ рядом с исполняемым файлом.
 pub fn get_data_dir() -> Result<std::path::PathBuf, String> {
-    if let Ok(app_dir) = get_app_dir() {
-        let portable_data = app_dir.join("data");
-        if std::fs::create_dir_all(&portable_data).is_ok() {
-            let test_file = portable_data.join(".write_test");
-            if std::fs::write(&test_file, b"ok").is_ok() {
-                let _ = std::fs::remove_file(&test_file);
-                return Ok(portable_data);
-            }
-        }
+    let dir = get_app_dir()?.join("data");
+    if !dir.exists() {
+        let _ = std::fs::create_dir_all(&dir);
     }
-    let appdata = std::env::var("APPDATA")
-        .or_else(|_| std::env::var("USERPROFILE").map(|p| format!("{p}\\AppData\\Roaming")))
-        .map_err(|_| "Не удалось определить системную папку APPDATA".to_string())?;
-    let dir = std::path::PathBuf::from(appdata).join("L-MPV").join("data");
-    let _ = std::fs::create_dir_all(&dir);
     Ok(dir)
 }
 
