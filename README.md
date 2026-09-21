@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.5.2-blueviolet?style=for-the-badge" alt="Version 2.5.2">
+  <img src="https://img.shields.io/badge/Version-2.5.3-blueviolet?style=for-the-badge" alt="Version 2.5.3">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+45xNDoaEpHBjY2Qy"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -211,7 +211,7 @@
   - Мгновенное переключение во вкладке «Кастом» с сохранением в `localStorage` и синхронизацией между окнами.
 - **Интерактивная секция «Цветовое оформление»:** живой аутентичный предпросмотр сочетания расцветки плеера, контрастности текста и подсветки элементов в реальном времени.
 - **Адаптивный неоновый глоу (Glow Intensity):** 4 уровня свечения (*Off*, *Soft*, *Medium*, *Cyber Intense*) с вектором рассеивания `drop-shadow` и подсветкой таймлайна.
-- **Кастомный Color Picker:** модальное окно выбора цвета с кругом спектра HSV/RGB/HEX, слайдером яркости и персистентной сохранённой палитрой (до 11 своих цветов).
+- **Кастомный Color Picker и палитра 4×4:** модальное окно выбора цвета с кругом спектра HSV/RGB/HEX, слайдером яркости, 16 пастельными и 16 стандартными пресетами, а также персистентной сохранённой палитрой (до 15 своих цветов).
 - **Многопозиционная система времени (6 вариантов расположения):**
   - Возможность выбора идеального положения времени в Настройках (`F2`) или в ПКМ-меню:
     - *Слева от таймлайна* — классическое положение перед полосой.

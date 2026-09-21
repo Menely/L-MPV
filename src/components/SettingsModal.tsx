@@ -146,7 +146,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.5.2");
+  const [appVersion, setAppVersion] = useState<string>("2.5.3");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
