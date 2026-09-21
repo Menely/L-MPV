@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
-  Sparkles,
   Download,
   Loader2,
   X,
@@ -16,6 +15,30 @@ import {
   Check,
 } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+
+/**
+ * Иконка-логотип плеера L-MPV (векторный SVG).
+ */
+export const AppLogoIcon: React.FC<{ size?: number; color?: string; className?: string }> = ({
+  size = 22,
+  color = "#ffffff",
+  className,
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 603.87 546.58"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    style={{ display: "block", flexShrink: 0 }}
+  >
+    <path
+      fill={color}
+      d="M312.05,483.83l-79.01,48.13c-15.89,9.68-35.66,7.45-49.17-4.87-7.8-7.11-12.32-16.08-13.67-26.52s1.69-20.76,8.11-29.6c9.45-13.01,18.42-25.73,26.35-39.87,26.01-46.35,39.83-98.85,41.09-151.99.33-13.82,1.34-26.38,4.02-39.89,5.74-28.98,18.55-55.91,38.04-78.06,16.61-18.88,37.76-31.53,62.13-37.35,16.9-4.03,33.51-4.12,50.21.47,10.08,2.77,19.55,6.44,28.66,11.98l35.03,21.31,39.94,24.79,4.5,2.71,52.66,32.53c18.42,11.38,28.7,36.28,27.89,57.94-.63,16.77-5.82,33-16.69,45.75-5.55,6.51-12.06,11.43-19.48,15.96l-125.56,76.6-115.04,69.98ZM271.03,454.76l113.08-69.04,110.96-67.3,37.06-22.88c4.56-2.81,7.85-6.9,9.74-11.52,4.55-11.13-.07-23.93-10.32-30.21l-89.02-54.47-34.96-21.52c-9.59-5.91-19.93-10.02-31.47-10.46-13.96-.53-28.34,2.97-39.66,11.3-17.77,13.09-29.65,31.32-36.93,52.01-4.16,11.82-6.92,23.69-7.25,36.43-.77,29.08-3.18,57.43-9.2,85.76l-8.01,30.11c-8.82,28.21-20.62,54.66-35.49,80.17l-10.36,16.62,41.83-25.01ZM164.38,399.98c11.1-20.17,18.43-41.73,23.81-64.08,10.94-45.48,7.99-93.73-5.7-138.33-7.28-23.71-17.88-45.55-31.55-66.21-7.45-11.26-14.87-21.8-24.29-31.44-4.86-4.98-12.04-7.99-18.98-7.19-9.39,1.09-17.64,7.8-20.73,16.8-2.76,8.03-.63,17.35,5.12,23.59,32.25,35.04,53.32,82.77,56.57,130.39,2.79,40.79-6.12,80.43-26.01,115.88-8.63,15.37-18.54,29.24-30.5,42.02-5.9,6.3-6.91,14.68-4.13,22.34s8.8,13.52,16.4,15.35,16.04-.04,22.17-6.41c15.32-15.93,27.25-33.48,37.83-52.7ZM226.99,69.6l15.41,8.37,42.8,25.46,7.95,4.84c16.54-11.2,34.41-17.93,53.87-22.07l-6.85-3.93-70.46-42.87-34.1-20.94c-18.79-11.54-38.33-8.86-53.87,6.9-15.52,15.75-16.82,39.8-3.08,57.18,7.24,9.16,12.72,18.96,18.94,29.01,14.07,22.72,24.62,46.3,33.18,72.36,8.64-18.39,18.52-33.94,31.45-48.45l-35.25-65.83ZM59.59,381.21c13.35-14.95,24.07-31.81,30.19-51.01,6.96-21.81,10.15-43.68,8.03-66.42-1.89-20.25-7.27-39.28-16.09-57.73-7.66-16.02-18.06-30.06-30.56-42.57-4.84-4.84-11.47-7.61-18.36-6.89-11.05,1.16-20.06,10.23-21.32,21.18-.95,8.22,2.79,15.41,8.38,21.18,14.05,14.5,23.67,31.36,28.75,51.03,5.77,22.31,5.13,45.41-3.22,67.02-5.59,14.47-14.67,26.38-25.18,37.47-2.95,3.11-5.6,6.5-7.22,10.48-3.56,8.75-.47,19.1,6.33,25.16,6.96,6.2,17.24,7.97,25.98,3.29,5.9-3.16,10.06-7.46,14.29-12.2Z"
+    />
+  </svg>
+);
 
 /**
  * Данные об обновлении, возвращаемые из Tauri IPC.
@@ -251,7 +274,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
         {/* Шапка модального окна */}
         <div
           onDoubleClick={() => setIsExpanded((prev) => !prev)}
-          title="Дважды щелкните, чтобы развернуть или свернуть окно"
           style={{
             padding: "20px 24px 16px",
             display: "flex",
@@ -278,7 +300,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
             >
-              <Sparkles size={22} color="#ffffff" />
+              <AppLogoIcon size={24} color="#ffffff" />
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, letterSpacing: "-0.01em" }}>
@@ -302,7 +324,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             <button
               onClick={() => setIsExpanded((prev) => !prev)}
               className="modal__close"
-              title={isExpanded ? "Восстановить размер" : "Развернуть окно"}
               aria-label={isExpanded ? "Восстановить размер" : "Развернуть окно"}
             >
               {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
@@ -312,7 +333,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               <button
                 onClick={handleClose}
                 className="modal__close"
-                title="Закрыть (Esc)"
                 aria-label="Закрыть"
               >
                 <X size={18} />
@@ -385,7 +405,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                   transition: "all 0.15s ease",
                 }}
                 className="hover-bright"
-                title="Открыть страницу релиза на GitHub в браузере"
               >
                 <ExternalLink size={12} />
                 <span>Открыть на GitHub</span>
@@ -510,7 +529,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               type="button"
               onClick={() => setIsPickerOpen((prev) => !prev)}
               className={`version-picker-trigger ${isDowngrade ? "version-picker-trigger--downgrade" : ""}`}
-              title="Нажмите, чтобы выбрать другую версию L-MPV"
             >
               {isDowngrade || isUpgrade ? (
                 <>
@@ -799,7 +817,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
       <div className="update-toast__header">
         <div className="update-toast__title-group">
           <div className="update-toast__icon">
-            <Sparkles size={16} color="#ffffff" />
+            <AppLogoIcon size={18} color="#ffffff" />
           </div>
           <div>
             <div className="update-toast__title">Доступно обновление</div>
