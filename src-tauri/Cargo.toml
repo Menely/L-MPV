@@ -1,6 +1,6 @@
 [package]
 name = "l-mpv"
-version = "2.5.3"
+version = "2.5.4"
 description = "L-MPV — портативный медиаплеер на базе libmpv"
 authors = ["Leo DiSanche"]
 license = "GPL-3.0-or-later"

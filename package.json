@@ -1,7 +1,7 @@
 {
   "name": "l-mpv",
   "private": true,
-  "version": "2.5.3",
+  "version": "2.5.4",
   "description": "L-MPV — Modern & Portable Media Player",
   "license": "GPL-3.0-or-later",
   "type": "module",
