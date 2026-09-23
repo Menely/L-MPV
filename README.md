@@ -90,6 +90,18 @@
       <a href="./assets/settings-customization-player.png"><img src="./assets/settings-customization-player.png" alt="Customization & Hotkeys" style="border-radius: 8px;"></a>
     </td>
   </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>💬 Интерактивный Поиск и Окно Субтитров</b><br>
+      <sub>Полнотекстовый поиск, следование за речью и ASS-инспектор</sub><br><br>
+      <a href="./assets/subtitled-window-player.png"><img src="./assets/subtitled-window-player.png" alt="Searchable Subtitles Browser" style="border-radius: 8px;"></a>
+    </td>
+    <td width="50%" align="center">
+      <b>⚡Real-Time 4K AI Upscaling (До и После)</b><br>
+      <sub>Аппаратная реконструкция линий и текстур в реальном времени</sub><br><br>
+      <a href="./assets/ai-upscale.png"><img src="./assets/ai-upscale.png" alt="AI Upscaling Before and After" style="border-radius: 8px;"></a>
+    </td>
+  </tr>
 </table>
 
 ---
@@ -98,6 +110,10 @@
 
 <details>
 <summary><b>🚀 Real-Time 4K AI Upscaling (Нейросетевой Апскейлинг Аниме и Видео)</b></summary>
+
+<p align="center">
+  <img src="./assets/ai-upscale.png" alt="Real-Time 4K AI Upscaling Before / After" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
+</p>
 
 - **Нативный инференс в видеопотоке:** интеграция фильтра `vf_animejanai` на базе `the-database/mpv-AnimeJaNai` и моста `aji.dll` с аппаратным выводом кадров в 4K Ultra HD в реальном времени.
 - **Два режима работы:** переключатель **«Выкл»** и **«AI Upscaling»** в Настройках (`F2`) — пользователь сам решает, когда задействовать искусственный интеллект.
@@ -195,6 +211,10 @@
 
 <details>
 <summary><b>💬 Интерактивный Поиск и Окно Субтитров (Searchable Subtitles Browser)</b></summary>
+
+<p align="center">
+  <img src="./assets/subtitled-window-player.png" alt="Searchable Subtitles Browser Interface" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
+</p>
 
 - **Мгновенный полнотекстовый поиск:** живой поиск по всей дорожке субтитров с моментальной подсветкой совпадений, счетчиком найденных реплик и быстрой навигацией клавишами `Вверх` / `Вниз` / `Enter`.
 - **Интерактивная навигация и переход:** клик по любой строке диалога мгновенно перематывает воспроизведение на точный таймкод фразы.

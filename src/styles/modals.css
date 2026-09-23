@@ -6,21 +6,17 @@
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  animation: fadeIn 200ms var(--ease-smooth);
-}
-
-.modal-overlay::before {
-  content: "";
-  position: absolute;
-  inset: 0;
   background: rgba(0, 0, 0, 0.60);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  pointer-events: none;
-  z-index: 0;
+  animation: modalOverlayFadeIn var(--t-spring) var(--ease-spring-smooth);
 }
 
-@keyframes fadeIn {
+.modal-overlay::before {
+  display: none;
+}
+
+@keyframes modalOverlayFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
