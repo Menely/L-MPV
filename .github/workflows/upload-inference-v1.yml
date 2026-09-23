@@ -17,7 +17,7 @@ jobs:
       - name: Установка Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.14'
 
       - name: Установка зависимостей Python
         run: pip install onnx onnxconverter-common pyinstaller
