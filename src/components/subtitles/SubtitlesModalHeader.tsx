@@ -122,18 +122,26 @@ export function SubtitlesModalHeader({
             onClick={() => onToggleViewMode("normal")}
             style={{
               background:
-                viewMode === "normal" ? "var(--accent)" : "rgba(255, 255, 255, 0.05)",
-              color: viewMode === "normal" ? "#ffffff" : "rgba(255, 255, 255, 0.88)",
-              border: "none",
+                viewMode === "normal"
+                  ? "rgba(var(--accent-rgb, 127, 199, 255), 0.25)"
+                  : "transparent",
+              color: viewMode === "normal" ? "#ffffff" : "var(--text-secondary)",
+              border:
+                viewMode === "normal"
+                  ? "1px solid var(--accent)"
+                  : "1px solid transparent",
               borderRadius: "calc(var(--radius-xs) - 2px)",
-              padding: "4px 8px",
-              fontSize: "0.72rem",
-              fontWeight: viewMode === "normal" ? 700 : 600,
+              padding: "4px 9px",
+              fontSize: "0.75rem",
+              fontWeight: viewMode === "normal" ? 600 : 500,
               cursor: "pointer",
-              transition: "background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease",
+              transition:
+                "background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
               lineHeight: 1.2,
-              textShadow: viewMode === "normal" ? "0 1px 2px rgba(0, 0, 0, 0.5)" : "none",
-              boxShadow: viewMode === "normal" ? "0 1px 3px rgba(0, 0, 0, 0.3)" : "none",
+              boxShadow:
+                viewMode === "normal"
+                  ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35)"
+                  : "none",
             }}
             className="hover-bright"
             title={dict.subtitlesSearch.modeNormalTooltip}
@@ -146,28 +154,39 @@ export function SubtitlesModalHeader({
             style={{
               background:
                 viewMode === "technical"
-                  ? "var(--accent)"
-                  : "rgba(255, 255, 255, 0.05)",
+                  ? "rgba(var(--accent-rgb, 127, 199, 255), 0.25)"
+                  : "transparent",
               color:
-                viewMode === "technical" ? "#ffffff" : "rgba(255, 255, 255, 0.88)",
-              border: "none",
+                viewMode === "technical" ? "#ffffff" : "var(--text-secondary)",
+              border:
+                viewMode === "technical"
+                  ? "1px solid var(--accent)"
+                  : "1px solid transparent",
               borderRadius: "calc(var(--radius-xs) - 2px)",
-              padding: "4px 8px",
-              fontSize: "0.72rem",
-              fontWeight: viewMode === "technical" ? 700 : 600,
+              padding: "4px 9px",
+              fontSize: "0.75rem",
+              fontWeight: viewMode === "technical" ? 600 : 500,
               cursor: "pointer",
-              transition: "background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease",
+              transition:
+                "background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
               display: "inline-flex",
               alignItems: "center",
-              gap: 4,
+              gap: 5,
               lineHeight: 1.2,
-              textShadow: viewMode === "technical" ? "0 1px 2px rgba(0, 0, 0, 0.5)" : "none",
-              boxShadow: viewMode === "technical" ? "0 1px 3px rgba(0, 0, 0, 0.3)" : "none",
+              boxShadow:
+                viewMode === "technical"
+                  ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35)"
+                  : "none",
             }}
             className="hover-bright"
             title={dict.subtitlesSearch.modeTechTooltip}
           >
-            <SlidersHorizontal size={11} />
+            <SlidersHorizontal
+              size={12}
+              style={{
+                color: viewMode === "technical" ? "var(--accent)" : "currentColor",
+              }}
+            />
             <span>{dict.subtitlesSearch.modeTech}</span>
           </button>
         </div>

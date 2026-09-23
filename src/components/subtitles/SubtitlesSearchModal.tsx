@@ -506,7 +506,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                 gap: 6,
                 padding: "7px 12px",
                 background: followPlayback
-                  ? "rgba(59, 130, 246, 0.18)"
+                  ? "rgba(var(--accent-rgb, 127, 199, 255), 0.20)"
                   : "rgba(255, 255, 255, 0.05)",
                 border: "1px solid",
                 borderColor: followPlayback
