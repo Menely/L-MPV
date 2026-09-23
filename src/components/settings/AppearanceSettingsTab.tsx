@@ -309,7 +309,10 @@ interface AppearanceSettingsTabProps {
   getEffectiveAccentColor: (color?: string) => string;
 }
 
+import { useTranslation } from "../../i18n/LanguageContext";
+
 export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
+  const { dict } = useTranslation();
   const {
     activeColor, setActiveColor,
     uiRadius, saveUiRadius, setUiRadius,
@@ -335,7 +338,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 isOpen={!!openSections["app_color_scheme"]}
                 onToggle={() => toggleSection("app_color_scheme")}
                 icon={<Palette size={16} />}
-                title="Цветовое оформление"
+                title={dict.settings.appearance.appearanceSection}
               >
                 <ColorSchemeSection onAccentChange={(color) => setActiveColor(color)} />
               </AccordionSection>
@@ -345,10 +348,10 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 isOpen={!!openSections["app_interface"]}
                 onToggle={() => toggleSection("app_interface")}
                 icon={<SlidersHorizontal size={16} />}
-                title="Настройки интерфейса"
+                title={dict.settings.appearance.interfaceSection}
               >
                 <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 12, lineHeight: 1.35 }}>
-                  Настройка внешнего вида элементов плеера: степень скругления углов, масштаб и прозрачность панелей управления и окон.
+                  {dict.settings.appearance.interfaceDesc}
                 </div>
 
                 {/* ── Вспомогательные стили для подблоков настроек интерфейса ── */}
@@ -393,7 +396,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     whiteSpace: "nowrap",
                                   }}
                                 >
-                                  Прозрачность
+                                  {dict.settings.appearance.opacityLabel}
                                 </span>
                               </div>
 
@@ -421,7 +424,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                   style={{
                                     "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${opacityPct}%, rgba(255, 255, 255, 0.12) ${opacityPct}%, rgba(255, 255, 255, 0.12) 100%)`,
                                   } as React.CSSProperties}
-                                  aria-label="Прозрачность интерфейса"
+                                  aria-label={dict.settings.appearance.opacityAria}
                                 />
                               </div>
 
@@ -462,7 +465,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     transform: Math.abs(uiOpacity - 0.88) > 0.005 ? "scale(1)" : "scale(0.85)",
                                     transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                                   }}
-                                  title="Сбросить на 88%"
+                                  title={dict.settings.appearance.reset88}
                                   tabIndex={Math.abs(uiOpacity - 0.88) > 0.005 ? 0 : -1}
                                 >
                                   <RotateCcw size={11} />
@@ -481,7 +484,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Square size={14} style={{ color: "var(--accent)" }} />
                                 <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                                  Скругление
+                                  {dict.settings.appearance.roundingLabel}
                                 </span>
                               </div>
                               <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--accent)", fontVariantNumeric: "tabular-nums" }}>
@@ -555,7 +558,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                           />
                                         </div>
                                         <span style={{ fontSize: "0.70rem", fontWeight: 600, lineHeight: 1.15, textAlign: "center", whiteSpace: "nowrap" }}>
-                                          {preset.label}
+                                          {dict.settings.appearance.roundingPresets[level === "default" ? "standard" : level] || preset.label}
                                         </span>
                                       </button>
                                     );
@@ -577,7 +580,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     setUiRadius({ level: nextLevel, value: val });
                                     saveUiRadius(nextLevel, val);
                                   }}
-                                  ariaLabel="Степень скругления углов интерфейса"
+                                  ariaLabel={dict.settings.appearance.radiusAria}
                                 />
                               </div>
                             </div>
@@ -589,7 +592,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Maximize2 size={14} style={{ color: "var(--accent)" }} />
                                 <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                                  Масштаб
+                                  {dict.settings.appearance.scaleLabel}
                                 </span>
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -617,7 +620,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     cursor: "pointer",
                                     transition: "all var(--t-fast) var(--ease-smooth)",
                                   }}
-                                  title="Автоматический масштаб"
+                                  title={dict.settings.appearance.scaleAuto}
                                 >
                                   A
                                 </button>
@@ -666,7 +669,13 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                           maxWidth: "100%",
                                         }}
                                       >
-                                        {preset.label}
+                                        {preset.id === "compact"
+                                          ? dict.settings.appearance.scalePresets.compact
+                                          : preset.id === "standard"
+                                          ? dict.settings.appearance.scalePresets.standard
+                                          : preset.id === "medium"
+                                          ? dict.settings.appearance.scalePresets.medium
+                                          : dict.settings.appearance.scalePresets.large}
                                       </span>
                                       <span style={{ fontSize: "0.65rem", color: isSel ? "var(--text-primary)" : "var(--text-muted)", opacity: 0.85, fontWeight: 500 }}>
                                         {preset.badge}
@@ -689,7 +698,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     setUiScale({ mode: nextMode, value: val });
                                     saveUiScale(nextMode, val);
                                   }}
-                                  ariaLabel="Масштаб интерфейса"
+                                  ariaLabel={dict.settings.appearance.scaleAria}
                                 />
                               </div>
                             </div>
@@ -701,7 +710,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Type size={14} style={{ color: "var(--accent)" }} />
                                 <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                                  Шрифты
+                                  {dict.settings.appearance.fontsLabel}
                                 </span>
                               </div>
                             </div>
@@ -735,7 +744,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                       flexShrink: 0,
                                     }}
                                   >
-                                    <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>{fontPreset.label}</span>
+                                    <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>{fontPreset.id === "system" ? dict.settings.appearance.fontSystemLabel : fontPreset.label}</span>
                                     <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent)" : "var(--text-muted)", fontWeight: 700 }}>Aa</span>
                                   </button>
                                 );
@@ -753,7 +762,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                               <PanelBottom size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
                               <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
-                                Стиль панели управления
+                                {dict.settings.appearance.controlBarStyleTitle}
                               </span>
                             </div>
                             <button
@@ -771,7 +780,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 transform: controlBarStyle !== "floating" ? "scale(1)" : "scale(0.85)",
                                 transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                               }}
-                              title="Сбросить на Парящую"
+                              title={dict.settings.appearance.resetFloating}
                               tabIndex={controlBarStyle !== "floating" ? 0 : -1}
                             >
                               <RotateCcw size={11} />
@@ -803,8 +812,8 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </div>
 
                               <div className="visual-bar-card__info">
-                                <span className="visual-bar-card__label">Капсула</span>
-                                <span className="visual-bar-card__desc">Скругленная капсула с отступами от краев окна</span>
+                                <span className="visual-bar-card__label">{dict.settings.appearance.styleCapsule}</span>
+                                <span className="visual-bar-card__desc">{dict.settings.appearance.styleCapsuleDesc}</span>
                               </div>
                             </div>
 
@@ -834,8 +843,8 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </div>
 
                               <div className="visual-bar-card__info">
-                                <span className="visual-bar-card__label">Классический</span>
-                                <span className="visual-bar-card__desc">Сплошная панель во всю ширину у нижнего края</span>
+                                <span className="visual-bar-card__label">{dict.settings.appearance.styleClassic}</span>
+                                <span className="visual-bar-card__desc">{dict.settings.appearance.styleClassicDesc}</span>
                               </div>
                             </div>
                           </div>
@@ -849,7 +858,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                                 <Clock size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
                                 <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
-                                  Позиция времени
+                                  {dict.settings.appearance.timePositionTitle}
                                 </span>
                               </div>
                               <button
@@ -867,7 +876,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                   transform: timePosition !== "timeline_right" ? "scale(1)" : "scale(0.85)",
                                   transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                                 }}
-                                title="Сбросить на Справа"
+                                title={dict.settings.appearance.resetRight}
                                 tabIndex={timePosition !== "timeline_right" ? 0 : -1}
                               >
                                 <RotateCcw size={11} />
@@ -880,15 +889,15 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 const isSel = timePosition === posOption.id;
                                 const shortLabel =
                                   posOption.id === "timeline_left"
-                                    ? "Слева"
+                                    ? dict.settings.appearance.timePosLeft
                                     : posOption.id === "timeline_right"
-                                    ? "Справа"
+                                    ? dict.settings.appearance.timePosRight
                                     : posOption.id === "volume_right"
-                                    ? "У звука"
+                                    ? dict.settings.appearance.timePosSound
                                     : posOption.id === "toolbar_right"
-                                    ? "В тулбаре"
+                                    ? dict.settings.appearance.timePosToolbar
                                     : posOption.id === "timeline_floating_center"
-                                    ? "По центру"
+                                    ? dict.settings.appearance.timePosCenter
                                     : "Titlebar";
                                 return (
                                   <button
@@ -915,7 +924,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                                 <Timer size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
                                 <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
-                                  Формат времени
+                                  {dict.settings.appearance.timeFormatTitle}
                                 </span>
                               </div>
                               <button
@@ -933,7 +942,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                   transform: timeFormat !== "elapsed_total" ? "scale(1)" : "scale(0.85)",
                                   transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                                 }}
-                                title="Сбросить на Прошедшее / Общее"
+                                title={dict.settings.appearance.resetElapsedTotal}
                                 tabIndex={timeFormat !== "elapsed_total" ? 0 : -1}
                               >
                                 <RotateCcw size={11} />
@@ -958,7 +967,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     title={`${formatOption.label} — ${formatOption.desc}`}
                                     style={{ height: 28 }}
                                   >
-                                    {formatOption.example}
+                                    {formatOption.id === "finish_time" ? dict.settings.appearance.timeFormatEndsAt("22:15") : formatOption.example}
                                   </button>
                                 );
                               })}
@@ -976,7 +985,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 isOpen={!!openSections["app_animations"]}
                 onToggle={() => toggleSection("app_animations")}
                 icon={<Zap size={16} />}
-                title="Анимации интерфейса (Spring Physics)"
+                title={dict.settings.appearance.animationsSection}
               >
                 <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", userSelect: "none" }}>
@@ -997,11 +1006,11 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                       }}
                     />
                     <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
-                      Включить плавные spring-микроанимации переключения, раскрытия меню и физического отклика
+                      {dict.settings.appearance.animationsDesc1}
                     </span>
                   </label>
                   <p style={{ margin: "2px 0 0 30px", fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
-                    Эластичные переходы кнопок Play/Pause, Mute, слайдера громкости, боковой панели плейлиста, меню дорожек и окон. При отключении интерфейс реагирует мгновенно.
+                    {dict.settings.appearance.animationsDesc2}
                   </p>
                 </div>
               </AccordionSection>
@@ -1017,7 +1026,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 isOpen={!!openSections["app_control_buttons"]}
                 onToggle={() => toggleSection("app_control_buttons")}
                 icon={<SlidersHorizontal size={16} />}
-                title="Видимость кнопок панели управления"
+                title={dict.settings.appearance.visibilitySection}
               >
                 <div style={{ marginTop: 12 }}>
                   <ControlButtonsPreviewCard
@@ -1027,16 +1036,16 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", columnGap: 20, rowGap: 8, marginTop: 12 }}>
                   {[
-                    { id: 'repeat', label: 'Повтор', defaultChecked: true },
-                    { id: 'shuffle', label: 'Случайный порядок', defaultChecked: true },
-                    { id: 'alwaysOnTop', label: 'Поверх всех окон', defaultChecked: true },
-                    { id: 'info', label: 'Информация о файле', defaultChecked: true },
-                    { id: 'mediaInfo', label: 'Свойства MediaInfo (Shift+F10)', defaultChecked: true },
-                    { id: 'visualizer', label: 'Аудио-визуалайзер', defaultChecked: true },
-                    { id: 'screenshot', label: 'Сделать скриншот', defaultChecked: true },
-                    { id: 'playlist', label: 'Плейлист', defaultChecked: true },
-                    { id: 'fullscreen', label: 'Полный экран', defaultChecked: true },
-                    { id: 'skipOpening', label: 'Перемотка опенинга', defaultChecked: false }
+                    { id: 'repeat', label: dict.settings.appearance.visRepeat, defaultChecked: true },
+                    { id: 'shuffle', label: dict.settings.appearance.visShuffle, defaultChecked: true },
+                    { id: 'alwaysOnTop', label: dict.settings.appearance.visAlwaysOnTop, defaultChecked: true },
+                    { id: 'info', label: dict.settings.appearance.visFileInfo, defaultChecked: true },
+                    { id: 'mediaInfo', label: dict.settings.appearance.visMediaInfo, defaultChecked: true },
+                    { id: 'visualizer', label: dict.settings.appearance.visVisualizer, defaultChecked: true },
+                    { id: 'screenshot', label: dict.settings.appearance.visScreenshot, defaultChecked: true },
+                    { id: 'playlist', label: dict.settings.appearance.visPlaylist, defaultChecked: true },
+                    { id: 'fullscreen', label: dict.settings.appearance.visFullscreen, defaultChecked: true },
+                    { id: 'skipOpening', label: dict.settings.appearance.visSkipOpening, defaultChecked: false }
                   ].map(btn => {
                     const isChecked = visibleButtons[btn.id] !== undefined 
                       ? visibleButtons[btn.id] 
@@ -1100,7 +1109,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 outline: "none"
                               }}
                             />
-                            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1 }}>сек</span>
+                            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1 }}>{dict.settings.appearance.secSuffix}</span>
                           </div>
                         )}
                       </label>
@@ -1114,11 +1123,11 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 isOpen={!!openSections["app_ambient"]}
                 onToggle={() => toggleSection("app_ambient")}
                 icon={<Sparkles size={16} />}
-                title="Подсветка черных полос (Ambient Light)"
+                title={dict.settings.appearance.ambientSection}
               >
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
                   <span style={{ fontSize: "0.80rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>
-                    Заполняет пустые области экрана (letterbox/pillarbox) при просмотре широкоформатных видео или в полноэкранном режиме.
+                    {dict.settings.appearance.ambientDesc}
                   </span>
 
                   {/* Переключатель режимов */}
@@ -1134,9 +1143,9 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     }}
                   >
                     {[
-                      { id: "off", label: "Выключено", desc: "Черные полосы" },
-                      { id: "blur", label: "Размытие (GPU)", desc: "Шейдерный Blur" },
-                      { id: "color", label: "Цветной фон", desc: "Свечение цветом" },
+                      { id: "off", label: dict.settings.appearance.ambientOff, desc: dict.settings.appearance.ambientOffDesc },
+                      { id: "blur", label: dict.settings.appearance.ambientBlur, desc: dict.settings.appearance.ambientBlurDesc },
+                      { id: "color", label: dict.settings.appearance.ambientColor, desc: dict.settings.appearance.ambientColorDesc },
                     ].map((item) => {
                       const isSel = ambientSettings.mode === item.id;
                       return (
@@ -1183,7 +1192,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                         <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0, lineHeight: 1 }}>
                           <Sparkles size={15} style={{ color: "var(--accent)" }} />
                           <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
-                            Размытие
+                            {dict.settings.appearance.ambientLight.blurRadius}
                           </span>
                         </div>
                         <div style={{ flex: 1, display: "flex", alignItems: "center", minWidth: 0, height: 20 }}>
@@ -1198,7 +1207,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             style={{
                               "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${bPct}%, rgba(255, 255, 255, 0.12) ${bPct}%, rgba(255, 255, 255, 0.12) 100%)`,
                             } as React.CSSProperties}
-                            aria-label="Радиус аппаратного размытия"
+                            aria-label={dict.settings.appearance.ambientRadiusAria}
                           />
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, lineHeight: 1 }}>
@@ -1217,7 +1226,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               transform: isDefault ? "scale(0.85)" : "scale(1)",
                               transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                             }}
-                            title="Сбросить на 100px"
+                            title={dict.settings.appearance.reset100px}
                             tabIndex={isDefault ? -1 : 0}
                           >
                             <RotateCcw size={11} />
@@ -1232,29 +1241,29 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       <AmbientTuneRow
                         icon={<Sparkles size={15} />}
-                        label="Яркость"
+                        label={dict.settings.appearance.ambientBrightness}
                         value={ambientSettings.brightness ?? 100}
                         min={20}
                         max={150}
                         step={5}
                         def={100}
                         unit="%"
-                        resetTitle="Сбросить на 100%"
-                        ariaLabel="Яркость подсветки полос"
+                        resetTitle={dict.settings.appearance.reset100pct}
+                        ariaLabel={dict.settings.appearance.ambientBrightnessAria}
                         onChange={(v) => updateAmbient({ brightness: v }, false)}
                         onReset={() => updateAmbient({ brightness: 100 }, true)}
                       />
                       <AmbientTuneRow
                         icon={<Palette size={15} />}
-                        label="Насыщенность"
+                        label={dict.settings.appearance.ambientSaturation}
                         value={ambientSettings.saturation ?? 100}
                         min={0}
                         max={150}
                         step={5}
                         def={100}
                         unit="%"
-                        resetTitle="Сбросить на 100%"
-                        ariaLabel="Насыщенность подсветки полос"
+                        resetTitle={dict.settings.appearance.reset100Percent}
+                        ariaLabel={dict.settings.appearance.ambientSaturationAria}
                         onChange={(v) => updateAmbient({ saturation: v }, false)}
                         onReset={() => updateAmbient({ saturation: 100 }, true)}
                       />
@@ -1275,7 +1284,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                       }}
                     >
                       <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)", fontWeight: 500 }}>
-                        Цвет подсветки черных полос
+                        {dict.settings.appearance.ambientLight.color}
                       </span>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         {(() => {
@@ -1285,7 +1294,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           return (
                             <button
                               onClick={() => updateAmbient({ color: getEffectiveAccentColor() }, true)}
-                              title="Использовать текущий акцент плеера"
+                              title={dict.settings.appearance.ambientColorUseAccent}
                               style={{
                                 padding: "6px 12px",
                                 borderRadius: "var(--radius-sm)",
@@ -1307,7 +1316,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                               }}
                             >
-                              Как в теме ({activeColor === "windows" ? "Windows" : activeColor})
+                              {dict.settings.appearance.ambientColorAsTheme(activeColor === "windows" ? "Windows" : activeColor)}
                             </button>
                           );
                         })()}
@@ -1333,7 +1342,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           type="color"
                           value={ambientSettings.color.startsWith("#") ? ambientSettings.color : "#7fc7ff"}
                           onChange={(e) => updateAmbient({ color: e.target.value }, false)}
-                          title="Выбрать произвольный цвет"
+                          title={dict.settings.appearance.ambientColorCustom}
                           style={{
                             width: 28,
                             height: 28,

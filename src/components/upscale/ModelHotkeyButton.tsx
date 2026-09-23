@@ -1,6 +1,7 @@
 import React from "react";
 import { Keyboard } from "lucide-react";
 import { getKeyDisplay } from "../../utils/hotkeyUtils";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 export interface ModelHotkeyButtonProps {
   /** Коды назначенных клавиш (например, ["Shift+Digit2"]) */
@@ -27,7 +28,8 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
   onKeyRecord,
   onMouseRecord,
 }) => {
-  const displayBind = bindCodes.length > 0 ? getKeyDisplay(bindCodes[0]) : "Назначить";
+  const { dict, locale } = useTranslation();
+  const displayBind = bindCodes.length > 0 ? getKeyDisplay(bindCodes[0], locale) : dict.settings.upscaling.hotkeyAssign;
 
   return (
     <button
@@ -56,8 +58,8 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
       }}
       title={
         isRecording
-          ? "Нажмите комбинацию клавиш или кнопку мыши (Esc для отмены)"
-          : "Нажмите для переназначения клавиши активации"
+          ? dict.settings.upscaling.hotkeyRecordingTip
+          : dict.settings.upscaling.hotkeyChangeTip
       }
       style={{
         height: 24,
@@ -88,7 +90,7 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
       }}
     >
       <Keyboard size={13} />
-      <span>{isRecording ? "Нажмите..." : displayBind}</span>
+      <span>{isRecording ? dict.settings.upscaling.hotkeyRecording : displayBind}</span>
     </button>
   );
 });

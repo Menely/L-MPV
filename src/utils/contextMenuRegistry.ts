@@ -6,6 +6,8 @@
  * чтобы его можно было безопасно использовать в конфигураторе.
  */
 
+import type { TranslationDict } from "../i18n/types";
+
 /** Уникальный идентификатор пункта меню. */
 export type MenuItemId =
   | "open_file"
@@ -85,3 +87,58 @@ export function getMenuItemDescriptor(
 ): MenuItemDescriptor | undefined {
   return MENU_ITEM_MAP.get(id);
 }
+
+/** Возвращает локализованное название и описание пункта меню. */
+export function getLocalizedMenuItem(
+  dict: TranslationDict,
+  descriptor: MenuItemDescriptor,
+): { label: string; description: string } {
+  const reg = dict.settings.cmenuReg;
+  switch (descriptor.id) {
+    case "open_file":
+      return { label: reg.openFile, description: reg.openFileDesc };
+    case "audio_track":
+      return { label: reg.audioTrack, description: reg.audioTrackDesc };
+    case "subtitle_track":
+      return { label: reg.subTrack, description: reg.subTrackDesc };
+    case "chapters":
+      return { label: reg.chapters, description: reg.chaptersDesc };
+    case "aspect_ratio":
+      return { label: reg.aspect, description: reg.aspectDesc };
+    case "rotation":
+      return { label: reg.rotation, description: reg.rotationDesc };
+    case "ambient":
+      return { label: reg.ambient, description: reg.ambientDesc };
+    case "speed":
+      return { label: reg.speed, description: reg.speedDesc };
+    case "upscale":
+      return { label: reg.upscale, description: reg.upscaleDesc };
+    case "repeat_mode":
+      return { label: reg.repeat, description: reg.repeatDesc };
+    case "shuffle":
+      return { label: reg.shuffle, description: reg.shuffleDesc };
+    case "always_on_top":
+      return { label: reg.top, description: reg.topDesc };
+    case "screenshot":
+      return { label: reg.screenshot, description: reg.screenshotDesc };
+    case "media_info":
+      return { label: reg.fileInfo, description: reg.fileInfoDesc };
+    case "detailed_media_info":
+      return { label: reg.mediaInfo, description: reg.mediaInfoDesc };
+    case "presets":
+      return { label: reg.presets, description: reg.presetsDesc };
+    case "time_position":
+      return { label: reg.timePos, description: reg.timePosDesc };
+    case "time_format":
+      return { label: reg.timeFmt, description: reg.timeFmtDesc };
+    case "control_bar_style":
+      return { label: reg.barStyle, description: reg.barStyleDesc };
+    case "control_buttons_visibility":
+      return { label: reg.controlBtns, description: reg.controlBtnsDesc };
+    case "settings":
+      return { label: reg.settings, description: reg.settingsDesc };
+    default:
+      return { label: descriptor.label, description: descriptor.description };
+  }
+}
+

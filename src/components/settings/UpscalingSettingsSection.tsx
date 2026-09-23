@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -62,6 +63,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   onClose: _onClose,
   onRecordingChange,
 }) => {
+  const { dict } = useTranslation();
   // Синхронное чтение предзагруженного кэша: первый paint уже полный
   // (список моделей + GPU), окно настроек не прыгает после прилёта данных.
   const [status, setStatus] = useState<UpscaleStatus | null>(() => getPreloadedUpscaleStatus());
@@ -95,7 +97,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
         localStorage.setItem("l-mpv-hide-model-names", next ? "true" : "false");
         window.dispatchEvent(new Event("l-mpv-settings-changed"));
       } catch (e) {
-        console.error("Ошибка сохранения настройки скрытия названий моделей:", e);
+        console.error(dict.settings.upscaling.errSaveHideModels, e);
       }
       return next;
     });
@@ -111,7 +113,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       await invoke("save_models_order", { order });
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (err) {
-      console.error("Ошибка сохранения порядка моделей:", err);
+      console.error(dict.settings.upscaling.errSaveOrder, err);
     }
   };
 
@@ -184,13 +186,13 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
           setStatus(currentStatus);
           // Очищаем ошибку загрузки статуса при успешном получении
           setErrorMessage((prev) =>
-            prev === "Не удалось получить статус компонентов апскейлинга" ? null : prev
+            prev === dict.settings.upscaling.errStatus ? null : prev
           );
         }
       } catch (err) {
-        console.error("Ошибка загрузки статуса апскейлинга:", err);
+        console.error(dict.settings.upscaling.errStatusLoad, err);
         if (isMountedRef.current) {
-          setErrorMessage("Не удалось получить статус компонентов апскейлинга");
+          setErrorMessage(dict.settings.upscaling.errStatus);
         }
       } finally {
         isInitialLoadedRef.current = true;
@@ -218,7 +220,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       if (payload.is_finished) {
         if (payload.error) {
           setIsDownloadingEngine(false);
-          setErrorMessage(`Ошибка загрузки: ${payload.error}`);
+          setErrorMessage(dict.settings.upscaling.errLoadStage(payload.error));
           if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
           downloadTimerRef.current = setTimeout(() => {
             if (isMountedRef.current) {
@@ -227,7 +229,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
             }
           }, 4000);
         } else {
-          setEngineSuccessMessage(payload.stage || "Движок успешно установлен!");
+          setEngineSuccessMessage(dict.settings.upscaling.successEngine(payload.stage));
           setErrorMessage(null);
           refreshStatus();
           if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
@@ -241,7 +243,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
         }
       } else if (payload.error) {
         setIsDownloadingEngine(false);
-        setErrorMessage(`Ошибка загрузки: ${payload.error}`);
+        setErrorMessage(dict.settings.upscaling.errLoadStage(payload.error));
         if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
         downloadTimerRef.current = setTimeout(() => {
           if (isMountedRef.current) {
@@ -259,9 +261,9 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       if (p.is_finished) {
         setCompilingModel((curr) => (curr === p.filename ? null : curr));
         if (p.error) {
-          setErrorMessage(`Ошибка сборки ${p.filename}: ${p.error}`);
+          setErrorMessage(dict.settings.upscaling.errCompile(p.filename, p.error));
         } else {
-          setEngineSuccessMessage(`Модель ${p.filename} успешно оптимизирована для 1080p!`);
+          setEngineSuccessMessage(dict.settings.upscaling.successCompile(p.filename));
         }
         refreshStatus();
         if (compileTimersRef.current[p.filename]) {
@@ -325,7 +327,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     const isInstalled = updated.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
 
     if (updated.mode === "ai" && !isInstalled) {
-      setErrorMessage(`Для включения апскейлинга необходимо сначала скачать библиотеки движка ${updated.backend}.`);
+      setErrorMessage(dict.settings.upscaling.errNeedBackend(updated.backend));
       const fallbackSettings: UpscaleSettings = { ...updated, mode: "off" };
       setSettings(fallbackSettings);
       localStorage.setItem("l-mpv-upscale-mode", "off");
@@ -335,7 +337,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     try {
       await invoke("apply_upscale_settings", { settings: updated });
     } catch (err) {
-      console.error("Ошибка применения настроек апскейлинга:", err);
+      console.error(dict.settings.upscaling.errApply, err);
       setErrorMessage(String(err));
     }
   };
@@ -357,11 +359,11 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
         try {
           await invoke("apply_upscale_settings", { settings: updated });
         } catch (err) {
-          console.error("Ошибка применения движка:", err);
+          console.error(dict.settings.upscaling.errApplyEngine, err);
           setErrorMessage(String(err));
         }
       } else {
-        setErrorMessage(`Движок ${backend} еще не установлен. Нажмите «Скачать движок» для загрузки.`);
+        setErrorMessage(dict.settings.upscaling.errEngineNotInstalled(backend));
       }
     }
   };
@@ -371,7 +373,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     try {
       await invoke("open_models_folder");
     } catch (err) {
-      console.error("Ошибка открытия папки моделей:", err);
+      console.error(dict.settings.upscaling.errOpenModels, err);
     }
   };
 
@@ -380,7 +382,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     try {
       await invoke("open_inference_folder");
     } catch (err) {
-      console.error("Ошибка открытия папки движков:", err);
+      console.error(dict.settings.upscaling.errOpenEngines, err);
     }
   };
 
@@ -399,17 +401,17 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     const sm = status?.gpu_info?.sm_architecture || "sm";
     setDownloadProgressText(
       isTrt
-        ? `Подготовка к загрузке NVIDIA TensorRT 11 (${sm})...`
-        : "Подготовка к загрузке Microsoft DirectML и ONNX Runtime..."
+        ? dict.settings.upscaling.prepTensorRt(sm)
+        : dict.settings.upscaling.prepDirectMl
     );
     try {
       const res = await invoke<string>("download_inference_engine", { engine: engineName });
-      setEngineSuccessMessage(res || "Библиотеки инференса успешно установлены");
+      setEngineSuccessMessage(dict.settings.upscaling.successInstallLibs(res));
       setErrorMessage(null);
       await refreshStatus();
     } catch (err) {
-      console.error("Ошибка скачивания библиотек инференса:", err);
-      setErrorMessage(`Ошибка загрузки движка: ${err}`);
+      console.error(dict.settings.upscaling.errDownloadLibs, err);
+      setErrorMessage(dict.settings.upscaling.errEngineDownload(String(err)));
       setIsDownloadingEngine(false);
       if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
       downloadTimerRef.current = setTimeout(() => {
@@ -428,7 +430,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     setErrorMessage(null);
     try {
       const res = await invoke<string>("delete_inference_engine", { backend: settings.backend });
-      setEngineSuccessMessage(res || "Библиотеки движка удалены");
+      setEngineSuccessMessage(dict.settings.upscaling.successRemoveLibs(res));
 
       // Если режим AI был включен с этим движком, отключаем его
       if (settings.mode === "ai") {
@@ -440,8 +442,8 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
 
       await refreshStatus();
     } catch (err) {
-      console.error("Ошибка удаления библиотек инференса:", err);
-      setErrorMessage(`Ошибка удаления движка: ${err}`);
+      console.error(dict.settings.upscaling.errRemoveLibs, err);
+      setErrorMessage(dict.settings.upscaling.errRemoveEngine(String(err)));
     } finally {
       setIsDeletingEngine(false);
     }
@@ -462,11 +464,11 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
         slot: model.slot,
         filename: model.filename,
       });
-      setEngineSuccessMessage(res || "Модель успешно оптимизирована для 1080p!");
+      setEngineSuccessMessage(dict.settings.upscaling.successOptimized(res));
       await refreshStatus();
     } catch (err) {
-      console.error("Ошибка компиляции модели:", err);
-      setErrorMessage(`Ошибка компиляции модели: ${err}`);
+      console.error(dict.settings.upscaling.errModelCompile, err);
+      setErrorMessage(dict.settings.upscaling.errModelCompileDetail(String(err)));
       setCompilingModel(null);
     }
   };
@@ -496,7 +498,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     // Shift+1 зарезервировано за выключением апскейлинга — моделям нельзя.
     // Запись не закрываем: пусть пользователь нажмёт другую комбинацию.
     if (isCodeReservedForUpscaleOff(newCode, actionId)) {
-      setErrorMessage("Shift+1 зарезервировано за выключением апскейлинга. Выберите другую комбинацию.");
+      setErrorMessage(dict.settings.upscaling.errShift1);
       return;
     }
 
@@ -573,10 +575,10 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <h3 style={{ fontSize: "1.05rem", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
-              <Zap size={18} color="var(--accent)" /> Режим апскейлинга
+              <Zap size={18} color="var(--accent)" /> {dict.settings.upscaling.modeTitle}
             </h3>
             <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: 2 }}>
-              Нейросетевой AI-апскейл видео высокого разрешения в реальном времени
+              {dict.settings.upscaling.modeDesc}
             </p>
           </div>
 
@@ -585,7 +587,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
             type="button"
             className={`btn ${isAiActive ? "btn--primary" : "btn--secondary"}`}
             onClick={() => updateSettings({ mode: isAiActive ? "off" : "ai" })}
-            title={isAiActive ? "Нажмите, чтобы выключить апскейлинг" : "Нажмите, чтобы включить апскейлинг"}
+            title={isAiActive ? dict.settings.upscaling.toggleOff : dict.settings.upscaling.toggleOn}
             style={{ borderRadius: "var(--radius-pill)", padding: "6px 14px", fontWeight: 600, fontSize: "0.84rem" }}
           >
             <span
@@ -598,7 +600,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                 display: "inline-block",
               }}
             />
-            {isAiActive ? "Включен" : "Выключен"}
+            {isAiActive ? dict.settings.upscaling.statusOn : dict.settings.upscaling.statusOff}
           </button>
         </div>
       </div>
@@ -624,15 +626,15 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       <div className="glass-section" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <SectionHeader
           icon={<Layers size={17} />}
-          title="Папка нейросетей (models/onnx/)"
-          desc={`Обнаружено файлов ONNX-моделей: ${status?.models_count || 0}`}
+          title={dict.settings.upscaling.folderTitle}
+          desc={dict.settings.upscaling.folderDesc(status?.models_count || 0)}
           right={
             <>
               <button
                 type="button"
                 className="btn btn--secondary btn--icon"
                 onClick={toggleHideModelNames}
-                title={hideModelNames ? "Показать названия моделей" : "Скрыть названия моделей"}
+                title={hideModelNames ? dict.settings.upscaling.btnShowNames : dict.settings.upscaling.btnHideNames}
               >
                 {hideModelNames ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -641,7 +643,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                 type="button"
                 className="btn btn--secondary btn--icon"
                 onClick={handleOpenModelsFolder}
-                title="Открыть папку моделей в Проводнике"
+                title={dict.settings.upscaling.btnOpenFolderTitle}
               >
                 <FolderOpen size={16} />
               </button>
@@ -664,7 +666,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
           }}
         >
           {loading && !status ? (
-            <EmptyState loading title="Загрузка списка моделей..." />
+            <EmptyState loading title={dict.settings.upscaling.loadingModels} />
           ) : status?.models && status.models.length > 0 ? (
             <DndContext
               sensors={sensors}
@@ -702,15 +704,15 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
           ) : (
             <EmptyState
               icon={<Layers size={24} />}
-              title="Модели не найдены"
-              desc="В папке models/onnx/ нет совместимых моделей .onnx. Скопируйте файлы моделей."
+              title={dict.settings.upscaling.noModelsTitle}
+              desc={dict.settings.upscaling.noModelsDesc}
               action={
                 <button
                   type="button"
                   className="btn btn--secondary btn--sm"
                   onClick={handleOpenModelsFolder}
                 >
-                  <FolderOpen size={14} /> Открыть папку
+                  <FolderOpen size={14} /> {dict.settings.upscaling.btnOpenFolder}
                 </button>
               }
             />

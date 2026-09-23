@@ -15,6 +15,7 @@ import {
   UPSCALE_OFF_ACTION_ID,
 } from "../../utils/hotkeyUtils";
 import { AccordionSection } from "../SettingsModal";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 export interface HotkeysSettingsTabProps {
   /** Внешние состояния accordion-секций */
@@ -81,6 +82,7 @@ export function HotkeysSettingsTab({
   onToggleSection,
   onRecordingChange,
 }: HotkeysSettingsTabProps): React.ReactElement {
+  const { dict, locale } = useTranslation();
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(
     getCustomHotkeys()
   );
@@ -134,7 +136,7 @@ export function HotkeysSettingsTab({
         targetId,
         targetIndex: index,
         ownerId: UPSCALE_OFF_ACTION_ID,
-        ownerLabel: offAction?.label || "Выключение апскейлинга",
+        ownerLabel: offAction?.label || dict.settings.hotkeys.fallbackOwner,
         reserved: true,
       });
       return;
@@ -171,7 +173,7 @@ export function HotkeysSettingsTab({
           justifyContent: "space-between",
         }}
       >
-        <span>💡 Нажмите на любую клавишу в списке ниже, чтобы назначить свою комбинацию!</span>
+        <span>{dict.settings.hotkeys.helpText}</span>
         <button
           onClick={() => {
             resetCustomHotkeys();
@@ -191,7 +193,7 @@ export function HotkeysSettingsTab({
             flexShrink: 0,
           }}
         >
-          <RotateCcw size={12} /> Сбросить
+          <RotateCcw size={12} /> {dict.settings.hotkeys.btnReset}
         </button>
       </div>
 
@@ -199,13 +201,14 @@ export function HotkeysSettingsTab({
         className="modal__section-title"
         style={{ fontSize: "0.92rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginBottom: 10 }}
       >
-        Назначения горячих клавиш
+        {dict.settings.hotkeys.sectionTitle}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {Object.entries(CATEGORIZED_HOTKEYS).map(([category, items]) => {
           const secKey = `hk_${category}`;
           const isOpen = !!openSections[secKey];
+          const categoryTitle = dict.settings.hotkeys.categories[category] || category;
 
           return (
             <AccordionSection
@@ -213,7 +216,7 @@ export function HotkeysSettingsTab({
               isOpen={isOpen}
               onToggle={() => onToggleSection(secKey)}
               icon={<Keyboard size={16} />}
-              title={category}
+              title={categoryTitle}
               badge={
                 <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 500, marginLeft: 4 }}>
                   ({items.length})
@@ -224,6 +227,7 @@ export function HotkeysSettingsTab({
                 {items.map((item) => {
                   const currentCodes = customHotkeys[item.id] || [];
                   const itemConflict = conflict?.targetId === item.id ? conflict : null;
+                  const itemLabel = dict.settings.hotkeys.actions[item.id] || item.label;
 
                   return (
                     <React.Fragment key={item.id}>
@@ -244,7 +248,7 @@ export function HotkeysSettingsTab({
                         }}
                       >
                         <span style={{ color: "var(--text-primary)", fontSize: "0.9rem", fontWeight: 500, flex: 1, minWidth: 200 }}>
-                          {item.label}
+                          {itemLabel}
                         </span>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                           {currentCodes.map((code, idx) => {
@@ -328,7 +332,7 @@ export function HotkeysSettingsTab({
                                     transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth)",
                                   }}
                                 >
-                                  {isRecording ? "Нажмите..." : getKeyDisplay(code)}
+                                  {isRecording ? dict.settings.hotkeys.pressKey : getKeyDisplay(code, locale)}
                                 </button>
                                 <button
                                   onClick={() => {
@@ -337,7 +341,7 @@ export function HotkeysSettingsTab({
                                     setCustomHotkeys(updated);
                                     saveCustomHotkeys(updated);
                                   }}
-                                  title="Удалить"
+                                  title={dict.settings.hotkeys.btnRemove}
                                   style={{
                                     padding: "4px 6px",
                                     background: "rgba(255, 50, 50, 0.15)",
@@ -397,7 +401,7 @@ export function HotkeysSettingsTab({
                                     outline: "none",
                                   }}
                                 >
-                                  Нажмите...
+                                  {dict.settings.hotkeys.pressKey}
                                 </button>
                               );
                             }
@@ -413,7 +417,7 @@ export function HotkeysSettingsTab({
                                   setConflict(null);
                                   setRecordingAction({ id: item.id, index: currentCodes.length });
                                 }}
-                                title="Добавить клавишу"
+                                title={dict.settings.hotkeys.btnAddTitle}
                                 style={{
                                   padding: "4px 8px",
                                   background: "rgba(255, 255, 255, 0.05)",
@@ -482,17 +486,21 @@ export function HotkeysSettingsTab({
                         }}
                       >
                         <span style={{ fontSize: "0.80rem", color: "var(--text-primary)", lineHeight: 1.4 }}>
-                          {itemConflict.reserved ? (
-                            <>
-                              <span style={{ color: "#f87171", fontWeight: 700 }}>Зарезервировано: </span>
-                              {getKeyDisplay(itemConflict.code)} — только «{itemConflict.ownerLabel}». Выберите другую комбинацию.
-                            </>
-                          ) : (
-                            <>
-                              <span style={{ color: "#f87171", fontWeight: 700 }}>Занято: </span>
-                              {getKeyDisplay(itemConflict.code)} — «{itemConflict.ownerLabel}»
-                            </>
-                          )}
+                          {(() => {
+                            const ownerTitle = dict.settings.hotkeys.actions[itemConflict.ownerId] || itemConflict.ownerLabel;
+                            const keyName = getKeyDisplay(itemConflict.code, locale);
+                            return itemConflict.reserved ? (
+                              <>
+                                <span style={{ color: "#f87171", fontWeight: 700 }}>{dict.settings.hotkeys.conflictReserved} </span>
+                                {dict.settings.hotkeys.conflictOnly(keyName || "", ownerTitle)}
+                              </>
+                            ) : (
+                              <>
+                                <span style={{ color: "#f87171", fontWeight: 700 }}>{dict.settings.hotkeys.conflictTaken} </span>
+                                {keyName} — «{ownerTitle}»
+                              </>
+                            );
+                          })()}
                         </span>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           {!itemConflict.reserved && (
@@ -505,9 +513,9 @@ export function HotkeysSettingsTab({
                                 itemConflict.ownerId
                               )}
                               className="btn btn--danger btn--sm"
-                              title="Забрать комбинацию у другого действия"
+                              title={dict.settings.hotkeys.btnStealTitle}
                             >
-                              Перезаписать
+                              {dict.settings.hotkeys.btnOverwrite}
                             </button>
                           )}
                           <button
@@ -515,7 +523,7 @@ export function HotkeysSettingsTab({
                             onClick={cancelRecording}
                             className="btn btn--secondary btn--sm"
                           >
-                            Отмена
+                            {dict.settings.hotkeys.btnCancel}
                           </button>
                         </div>
                       </div>

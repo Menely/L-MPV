@@ -21,6 +21,7 @@ import { useActiveLineIndex } from "./useActiveLineIndex";
 import { useFollowPlayback } from "./useFollowPlayback";
 import { useSearchNavigation } from "./useSearchNavigation";
 import { usePersistentState } from "./usePersistentState";
+import { useTranslation } from "../../i18n/LanguageContext";
 import {
   MIN_MODAL_WIDTH,
   TECH_MODAL_MIN_WIDTH,
@@ -50,6 +51,7 @@ import {
  * заглушки — `SubtitleEmptyState`, строка списка — `SubtitleLineRow`.
  */
 export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
+  const { dict } = useTranslation();
   const { seekTo } = usePlayerState();
   const { position } = usePlayerProgress();
 
@@ -455,7 +457,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
           className="subtitles-search-card__resize-handle"
           onMouseDown={handleResizeStart}
           onDoubleClick={handleResetWidth}
-          title="Потяните для изменения ширины окна (двойной клик — сброс)"
+          title={dict.subtitlesSearch.resizeTooltip}
         />
 
         {/* Шапка */}
@@ -521,14 +523,16 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                 transition: "all 0.15s ease",
               }}
               className="hover-bright"
-              title="Автоматически центрировать список на звучащей фразе"
+              title={dict.subtitlesSearch.followTooltip}
             >
               <Radio
                 size={13}
                 className={followPlayback ? "pulse-subtle" : ""}
               />
               <span>
-                {followPlayback ? "Следовать за речью" : "Следование выкл."}
+                {followPlayback
+                  ? dict.subtitlesSearch.followSpeech
+                  : dict.subtitlesSearch.followOff}
               </span>
             </button>
           </div>
@@ -544,7 +548,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
               textAlign: "center",
             }}
           >
-            Дорожки субтитров не обнаружены
+            {dict.subtitlesSearch.noTracks}
           </div>
         )}
 

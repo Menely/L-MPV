@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Sparkles,
@@ -71,6 +72,7 @@ interface PresetsSectionProps {
  * а также экспортировать и импортировать пресеты.
  */
 export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied }) => {
+  const { dict, locale } = useTranslation();
   // Синхронное чтение предзагруженного кэша: первый paint уже полный,
   // окно настроек не прыгает после прилёта данных.
   const [userPresets, setUserPresets] = useState<SettingsPreset[]>(() => getPreloadedUserPresets() ?? []);
@@ -200,10 +202,10 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       storeUserPresets(presets);
       setUserPresets(presets);
       detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
-      showToast("Список пресетов обновлён");
+      showToast(dict.settings.presets.toastUpdatedList);
     } catch (err) {
       console.error("Ошибка перезагрузки пресетов:", err);
-      showToast("Не удалось обновить список пресетов");
+      showToast(dict.settings.presets.toastReloadFail);
     }
   };
 
@@ -212,7 +214,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     if (e) e.preventDefault();
     const name = newPresetName.trim();
     if (!name) {
-      showToast("Введите название для пресета");
+      showToast(dict.settings.presets.toastEnterName);
       return;
     }
 
@@ -233,10 +235,10 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           createdAt: userPresets[existingIdx].createdAt,
           updatedAt: Date.now(),
         };
-        showToast(`Пресет «${name}» обновлён текущими настройками!`);
+        showToast(dict.settings.presets.toastUpdatedPreset(name));
       } else {
         updated = [newPreset, ...userPresets];
-        showToast(`Пресет «${newPreset.name}» успешно сохранён!`);
+        showToast(dict.settings.presets.toastSavedPreset(newPreset.name));
       }
       setUserPresets(updated);
       await saveUserPresets(updated);
@@ -246,7 +248,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       setActivePresetId(targetId);
     } catch (err) {
       console.error("Ошибка сохранения пресета:", err);
-      showToast("Не удалось сохранить пресет");
+      showToast(dict.settings.presets.toastSaveFail);
     }
   };
 
@@ -256,13 +258,13 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       await applySettingsPreset(preset);
       saveActivePresetId(preset.id);
       setActivePresetId(preset.id);
-      showToast(`Пресет «${preset.name}» применён`);
+      showToast(dict.settings.presets.toastApplied(preset.name));
       if (onPresetApplied) {
         onPresetApplied(preset);
       }
     } catch (err) {
       console.error("Ошибка применения пресета:", err);
-      showToast("Ошибка применения пресета");
+      showToast(dict.settings.presets.toastApplyFail);
     }
   };
 
@@ -278,16 +280,16 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       storeUserPresets(updated);
       saveActivePresetId(preset.id);
       setActivePresetId(preset.id);
-      showToast(`Пресет «${preset.name}» обновлён текущими настройками!`);
+      showToast(dict.settings.presets.toastPresetUpdated(preset.name));
     } catch (err) {
       console.error("Ошибка обновления пресета:", err);
-      showToast("Не удалось обновить пресет");
+      showToast(dict.settings.presets.toastUpdateFail);
     }
   };
 
   // Удаление пользовательского пресета
   const handleDelete = async (preset: SettingsPreset) => {
-    if (!window.confirm(`Вы уверены, что хотите удалить пресет «${preset.name}»?`)) {
+    if (!window.confirm(dict.settings.presets.confirmDelete(preset.name))) {
       return;
     }
     const updated = userPresets.filter((p) => p.id !== preset.id);
@@ -297,7 +299,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       saveActivePresetId(null);
       setActivePresetId(null);
     }
-    showToast(`Пресет «${preset.name}» удалён`);
+    showToast(dict.settings.presets.toastDeleted(preset.name));
   };
 
   // Сохранение нового имени пресета
@@ -312,7 +314,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     );
     setUserPresets(updated);
     await saveUserPresets(updated);
-    showToast(`Пресет переименован в «${trimmed}»`);
+    showToast(dict.settings.presets.toastRenamed(trimmed));
   };
 
   // Нативный импорт пресета через проводник Windows
@@ -324,10 +326,10 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       setUserPresets(updated);
       await saveUserPresets(updated);
       storeUserPresets(updated);
-      showToast(`Импортировано пресетов: ${imported.length}`);
+      showToast(dict.settings.presets.toastImported(imported.length));
     } catch (err) {
       console.error("Ошибка импорта:", err);
-      showToast("Не удалось импортировать пресет");
+      showToast(dict.settings.presets.toastImportFail);
     }
   };
 
@@ -337,11 +339,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       const savedPath = await exportPresetToFile(preset);
       if (savedPath) {
         const fileName = savedPath.split(/[/\\]/).pop() || preset.name;
-        showToast(`Пресет сохранён: ${fileName}`);
+        showToast(dict.settings.presets.toastExported(fileName));
       }
     } catch (err) {
       console.error("Ошибка экспорта пресета:", err);
-      showToast("Не удалось экспортировать пресет");
+      showToast(dict.settings.presets.toastExportFail);
     }
   };
 
@@ -350,12 +352,12 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     try {
       const savedPath = await exportAllPresetsToFile(userPresets);
       if (savedPath) {
-        const fileName = savedPath.split(/[/\\]/).pop() || "все пресеты";
-        showToast(`Все пресеты сохранены: ${fileName}`);
+        const fileName = savedPath.split(/[/\\]/).pop() || "all presets";
+        showToast(dict.settings.presets.toastExportAll(fileName));
       }
     } catch (err) {
       console.error("Ошибка экспорта всех пресетов:", err);
-      showToast("Не удалось экспортировать пресеты");
+      showToast(dict.settings.presets.toastExportAllFail);
     }
   };
 
@@ -365,14 +367,15 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       await openPresetsFolder();
     } catch (err) {
       console.error("Ошибка открытия папки:", err);
-      showToast("Не удалось открыть папку пресетов");
+      showToast(dict.settings.presets.toastOpenFolderFail);
     }
   };
 
   // Форматирование даты
   const formatDate = (timestamp: number): string => {
     try {
-      return new Date(timestamp).toLocaleDateString("ru-RU", {
+      const dateLocale = locale === "en" ? "en-US" : "ru-RU";
+      return new Date(timestamp).toLocaleDateString(dateLocale, {
         day: "numeric",
         month: "short",
         year: "numeric",
@@ -394,26 +397,16 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     if (data.uiRadius) {
       if (typeof data.uiRadius === "string") {
         const rStr = data.uiRadius as string;
-        radiusText =
-          rStr === "none"
-            ? "Скругление: 0px"
-            : rStr === "minimal"
-            ? "Скругление: 4px"
-            : rStr === "default"
-            ? "Скругление: 10px"
-            : rStr === "smooth"
-            ? "Скругление: 16px"
-            : rStr === "pill"
-            ? "Скругление: 24px"
-            : `Скругление: ${rStr}`;
+        const valMap: Record<string, string> = { none: "0px", minimal: "4px", default: "10px", smooth: "16px", pill: "24px" };
+        radiusText = dict.settings.presets.radiusLabel(valMap[rStr] || rStr);
       } else {
-        radiusText = `Скругление: ${data.uiRadius.value ?? 10}px`;
+        radiusText = dict.settings.presets.radiusLabel(`${data.uiRadius.value ?? 10}px`);
       }
     }
 
     // Определение масштаба
     const scaleValue = data.uiScale?.value ?? 1.0;
-    const scaleText = Math.round(scaleValue * 100) !== 100 ? `Масштаб: ${Math.round(scaleValue * 100)}%` : null;
+    const scaleText = Math.round(scaleValue * 100) !== 100 ? `${dict.settings.appearance.scale}: ${Math.round(scaleValue * 100)}%` : null;
 
     // Количество хоткеев
     const hotkeyCount = data.customHotkeys ? Object.keys(data.customHotkeys).length : 0;
@@ -421,22 +414,25 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     return (
       <div className="preset-card__tags">
         {/* 1. Тема плеера (расцветка фона) */}
-        {themeConfig && (
-          <div className="preset-tag" title={`Тема плеера: ${themeConfig.name}`}>
-            <span
-              className="preset-tag__color-dot"
-              style={{
-                backgroundColor: themeConfig.dotColor,
-                border: "1.5px solid rgba(255, 255, 255, 0.35)",
-              }}
-            />
-            <span>Тема: {themeConfig.name}</span>
-          </div>
-        )}
+        {themeConfig && (() => {
+          const themeName = data.playerTheme ? (dict.settings.appearance.colorScheme.playerThemes[data.playerTheme] || themeConfig.name) : themeConfig.name;
+          return (
+            <div className="preset-tag" title={dict.settings.presets.themeTitle(themeName)}>
+              <span
+                className="preset-tag__color-dot"
+                style={{
+                  backgroundColor: themeConfig.dotColor,
+                  border: "1.5px solid rgba(255, 255, 255, 0.35)",
+                }}
+              />
+              <span>{dict.settings.presets.themeLabel(themeName)}</span>
+            </div>
+          );
+        })()}
 
         {/* 2. Акцентный цвет */}
         {data.accentColor && (
-          <div className="preset-tag" title={`Акцентный цвет: ${data.accentColor}`}>
+          <div className="preset-tag" title={dict.settings.presets.accentTitle(data.accentColor)}>
             <span
               className="preset-tag__color-dot"
               style={{
@@ -450,13 +446,13 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
         {/* 3. Интенсивность неонового свечения */}
         {data.glowIntensity && data.glowIntensity !== "off" && (
-          <div className="preset-tag" title="Интенсивность неонового свечения">
+          <div className="preset-tag" title={dict.settings.presets.neonTitle}>
             <Sparkles size={11} color="var(--accent)" />
             <span>
               {data.glowIntensity === "soft"
-                ? "Мягкое свечение"
+                ? dict.settings.presets.neonSoft
                 : data.glowIntensity === "medium"
-                ? "Баланс"
+                ? dict.settings.presets.neonBalance
                 : "High"}
             </span>
           </div>
@@ -464,33 +460,33 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
         {/* 4. Ambient Light */}
         {data.ambient && (
-          <div className="preset-tag" title="Подсветка полос (Ambient Light)">
+          <div className="preset-tag" title={dict.settings.presets.ambientTitle}>
             <Sun size={11} />
             <span>
               {data.ambient.mode === "off"
-                ? "Ambient: Выкл"
+                ? dict.settings.presets.ambientOff
                 : data.ambient.mode === "blur"
-                ? "Ambient: Размытие"
-                : "Ambient: Цвет"}
+                ? dict.settings.presets.ambientBlur
+                : dict.settings.presets.ambientColor}
             </span>
           </div>
         )}
 
         {/* 5. Аудио-визуалайзер */}
         {data.visualizer && (
-          <div className="preset-tag" title="Аудио-визуалайзер">
+          <div className="preset-tag" title={dict.settings.presets.visualizerTitle}>
             <AudioWaveform size={11} />
             <span>
               {data.visualizer.enabled && data.visualizer.placement !== "off"
-                ? `Спектр: ${data.visualizer.mode}`
-                : "Спектр: Выкл"}
+                ? dict.settings.presets.visualizerMode(data.visualizer.mode)
+                : dict.settings.presets.visualizerOff}
             </span>
           </div>
         )}
 
         {/* 6. Прозрачность UI */}
         {typeof data.uiOpacity === "number" && data.uiOpacity < 1 && (
-          <div className="preset-tag" title="Прозрачность интерфейса">
+          <div className="preset-tag" title={dict.settings.presets.opacityTitle}>
             <Eye size={11} />
             <span>{Math.round(data.uiOpacity * 100)}%</span>
           </div>
@@ -498,7 +494,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
         {/* 7. Скругление углов */}
         {radiusText && (
-          <div className="preset-tag" title="Скругление углов элементов">
+          <div className="preset-tag" title={dict.settings.presets.radiusTitleTooltip}>
             <SlidersHorizontal size={11} />
             <span>{radiusText}</span>
           </div>
@@ -506,7 +502,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
         {/* 8. Масштаб интерфейса (если не 100%) */}
         {scaleText && (
-          <div className="preset-tag" title="Масштаб интерфейса">
+          <div className="preset-tag" title={dict.settings.presets.scaleTitle}>
             <Layers size={11} />
             <span>{scaleText}</span>
           </div>
@@ -514,9 +510,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
         {/* 9. Кастомные бинды (если есть) */}
         {hotkeyCount > 0 && (
-          <div className="preset-tag" title="Пользовательские горячие клавиши">
+          <div className="preset-tag" title={dict.settings.presets.hotkeysTitle}>
             <Keyboard size={11} />
-            <span>Хоткеи ({hotkeyCount})</span>
+            <span>{dict.settings.presets.hotkeysLabel(hotkeyCount)}</span>
           </div>
         )}
       </div>
@@ -548,12 +544,12 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   onBlur={() => handleSaveRename(preset.id)}
                 />
               ) : (
-                <span className="preset-card__name" title={preset.name}>
-                  {preset.name}
+                <span className="preset-card__name" title={isBuiltIn && dict.settings.presets.builtinPresets[preset.id]?.name ? dict.settings.presets.builtinPresets[preset.id].name : preset.name}>
+                  {isBuiltIn && dict.settings.presets.builtinPresets[preset.id]?.name ? dict.settings.presets.builtinPresets[preset.id].name : preset.name}
                 </span>
               )}
               {isBuiltIn ? (
-                <span className="preset-card__badge-builtin">Встроенный</span>
+                <span className="preset-card__badge-builtin">{dict.settings.presets.badgeBuiltin}</span>
               ) : (
                 <span className="preset-card__meta">
                   {formatDate(preset.updatedAt || preset.createdAt)}
@@ -561,9 +557,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               )}
             </div>
 
-            {isBuiltIn && preset.description && (
+            {isBuiltIn && (preset.description || dict.settings.presets.builtinPresets[preset.id]?.description) && (
               <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                {preset.description}
+                {dict.settings.presets.builtinPresets[preset.id]?.description || preset.description}
               </span>
             )}
 
@@ -575,14 +571,14 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               type="button"
               className={`preset-action-btn ${isApplied ? "preset-action-btn--applied" : "preset-action-btn--apply"}`}
               onClick={() => handleApply(preset)}
-              title={isBuiltIn ? "Применить данный встроенный пресет" : "Применить данный пресет к плееру"}
+              title={isBuiltIn ? dict.settings.presets.btnApplyBuiltinTitle : dict.settings.presets.btnApplyUserTitle}
             >
               {isApplied ? (
                 <Check size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
               ) : (
                 <Play size={13} style={{ flexShrink: 0 }} />
               )}
-              <span>{isApplied ? "Активен" : "Применить"}</span>
+              <span>{isApplied ? dict.settings.presets.btnActive : dict.settings.presets.btnApply}</span>
             </button>
 
             {!isBuiltIn ? (
@@ -591,7 +587,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   type="button"
                   className="preset-action-btn preset-action-btn--icon"
                   onClick={() => handleOverwrite(preset)}
-                  title="Перезаписать этот пресет текущими настройками плеера"
+                  title={dict.settings.presets.btnUpdateTitle}
                 >
                   <RotateCw size={13} />
                 </button>
@@ -603,7 +599,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                     setEditingId(preset.id);
                     setEditingName(preset.name);
                   }}
-                  title="Переименовать пресет"
+                  title={dict.settings.presets.btnRenameTitle}
                 >
                   <Edit2 size={13} />
                 </button>
@@ -612,7 +608,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   type="button"
                   className="preset-action-btn preset-action-btn--icon"
                   onClick={() => handleExportSingle(preset)}
-                  title="Экспортировать этот пресет через Проводник Windows"
+                  title={dict.settings.presets.btnExportTitle}
                 >
                   <Download size={13} />
                 </button>
@@ -630,7 +626,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                 type="button"
                 className="preset-action-btn preset-action-btn--icon"
                 onClick={() => handleExportSingle(preset)}
-                title="Экспортировать этот пресет через Проводник Windows"
+                title={dict.settings.presets.btnExportTitle}
               >
                 <Download size={15} />
               </button>
@@ -648,32 +644,32 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         <div className="presets-creator__header">
           <div className="presets-creator__title">
             <Sparkles size={16} color="var(--accent)" />
-            <span>Сохранить текущие настройки</span>
+            <span>{dict.settings.presets.saveCurrentTitle}</span>
           </div>
           <button
             type="button"
             className="presets-btn-text"
             onClick={handleNativeImport}
-            title="Импортировать файлы пресетов .json"
+            title={dict.settings.presets.importTitle}
           >
             <Upload size={13} />
-            <span>Импорт</span>
+            <span>{dict.settings.presets.btnImport}</span>
           </button>
         </div>
         <div className="presets-creator__subtitle">
-          Мгновенный снимок темы плеера, акцентного цвета, прозрачности, неонового свечения, визуалайзера и горячих клавиш.
+          {dict.settings.presets.saveDesc}
         </div>
         <form onSubmit={handleSaveCurrent} className="presets-creator__form">
           <input
             type="text"
             className="presets-creator__input"
-            placeholder="Название пресета (например: Ночной кинозал)"
+            placeholder={dict.settings.presets.savePlaceholder}
             value={newPresetName}
             onChange={(e) => setNewPresetName(e.target.value)}
           />
           <button type="submit" className="presets-creator__btn-save">
             <Plus size={15} />
-            <span>Сохранить пресет</span>
+            <span>{dict.settings.presets.btnSave}</span>
           </button>
         </form>
       </div>
@@ -715,7 +711,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               }`}
             />
             <Layers size={15} />
-            <span>Мои пресеты ({userPresets.length})</span>
+            <span>{dict.settings.presets.myPresetsLabel(userPresets.length)}</span>
           </button>
 
           <div className="presets-section-heading__actions">
@@ -723,19 +719,19 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               type="button"
               className="presets-btn-text"
               onClick={handleReload}
-              title="Обновить список пресетов"
+              title={dict.settings.presets.refreshTitle}
             >
               <RotateCw size={13} />
-              <span>Обновить</span>
+              <span>{dict.settings.presets.btnRefresh}</span>
             </button>
             <button
               type="button"
               className="presets-btn-text"
               onClick={handleNativeImport}
-              title="Импортировать пресет из файла .json"
+              title={dict.settings.presets.importTitle}
             >
               <Upload size={13} />
-              <span>Импорт</span>
+              <span>{dict.settings.presets.btnImport}</span>
             </button>
             {userPresets.length > 0 && (
               <>
@@ -743,19 +739,19 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   type="button"
                   className="presets-btn-text"
                   onClick={handleExportAll}
-                  title="Экспортировать все пользовательские пресеты в один файл"
+                  title={dict.settings.presets.exportAllTitle}
                 >
                   <Download size={13} />
-                  <span>Экспорт всех</span>
+                  <span>{dict.settings.presets.btnExportAll}</span>
                 </button>
                 <button
                   type="button"
                   className="presets-btn-text"
                   onClick={handleOpenFolder}
-                  title="Открыть портативную папку config/presets в Проводнике"
+                  title={dict.settings.presets.folderTitle}
                 >
                   <FolderOpen size={13} />
-                  <span>Папка</span>
+                  <span>{dict.settings.presets.btnFolder}</span>
                 </button>
               </>
             )}
@@ -772,8 +768,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               {userPresets.length === 0 ? (
                 <EmptyState
                   icon={<Palette size={24} />}
-                  title="Нет сохранённых пресетов"
-                  desc="Настройте желаемый визуальный стиль плеера и сохраните его с помощью формы выше."
+                  title={dict.settings.presets.noPresetsTitle}
+                  desc={dict.settings.presets.noPresetsDesc}
                 />
               ) : (
                 <div className="presets-list">
@@ -804,7 +800,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               }`}
             />
             <Sparkles size={15} />
-            <span>Готовые стили ({BUILT_IN_PRESETS.length})</span>
+            <span>{dict.settings.presets.builtinLabel(BUILT_IN_PRESETS.length)}</span>
           </button>
         </div>
 

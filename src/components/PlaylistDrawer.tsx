@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { usePlayerState } from "../contexts/PlayerStateContext";
+import { useTranslation } from "../i18n/LanguageContext";
 import { getActiveUiScale } from "../utils/uiThemeUtils";
 import { X, Search, Play, Clapperboard, RotateCw } from "lucide-react";
 import { EmptyState } from "./settings/SettingBlocks";
@@ -74,6 +75,7 @@ const getInitialPlaylistWidth = (): number => {
 
 export function PlaylistDrawer() {
   const { isPlaylistOpen, setIsPlaylistOpen, mediaInfo } = usePlayerState();
+  const { dict } = useTranslation();
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isClosing, setIsClosing] = useState(false);
@@ -406,15 +408,18 @@ export function PlaylistDrawer() {
         className="playlist-drawer__resize-handle"
         onMouseDown={handleResizeStart}
         onDoubleClick={handleResetWidth}
-        title="Потяните для изменения ширины (двойной клик — сброс)"
+        title={dict.playlist.resizeHandle}
       />
       <div className="playlist-drawer__header">
         <div className="playlist-drawer__header-left">
-          <h2 className="playlist-drawer__title">Плейлист</h2>
+          <h2 className="playlist-drawer__title">{dict.playlist.title}</h2>
           {countBadge && (
             <span
               className="playlist-drawer__badge"
-              title="Текущий номер / всего файлов"
+              title={dict.playlist.trackBadge(
+                playlist.findIndex((i) => i.current) + 1,
+                playlist.length
+              )}
             >
               {countBadge}
             </span>
@@ -424,14 +429,14 @@ export function PlaylistDrawer() {
           <button
             className={`playlist-drawer__action-btn ${isRefreshing ? "playlist-drawer__action-btn--spinning" : ""}`}
             onClick={handleRefresh}
-            title="Обновить список папки"
+            title={dict.playlist.refresh}
           >
             <RotateCw size={15} />
           </button>
           <button
             className="playlist-drawer__close"
             onClick={handleClose}
-            title="Закрыть (Esc)"
+            title={dict.playlist.close}
           >
             <X size={18} />
           </button>
@@ -442,7 +447,7 @@ export function PlaylistDrawer() {
         <Search size={15} className="playlist-drawer__search-icon" />
         <input
           type="text"
-          placeholder="Поиск видео..."
+          placeholder={dict.playlist.search}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -458,7 +463,7 @@ export function PlaylistDrawer() {
           <button
             className="playlist-drawer__search-clear"
             onClick={() => setSearchQuery("")}
-            title="Очистить поиск (Esc)"
+            title={dict.playlist.clearSearch}
           >
             <X size={14} />
           </button>
@@ -469,11 +474,11 @@ export function PlaylistDrawer() {
         {filteredPlaylist.length === 0 ? (
           <EmptyState
             icon={<Clapperboard size={24} />}
-            title={searchQuery ? "Ничего не найдено" : "Плейлист пуст"}
+          title={searchQuery ? dict.playlist.nothingFound : dict.playlist.empty}
             desc={
               searchQuery
-                ? "Попробуйте изменить поисковый запрос"
-                : "Откройте видеофайл — соседние видео подхватятся автоматически"
+                ? dict.playlist.nothingFoundDesc
+                : dict.playlist.emptyDesc
             }
           />
         ) : (

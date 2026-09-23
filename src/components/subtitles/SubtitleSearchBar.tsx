@@ -8,6 +8,7 @@
 
 import { Search, X, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
 import type { KeyboardEvent } from "react";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 interface SubtitleSearchBarProps {
   searchQuery: string;
@@ -44,6 +45,7 @@ export function SubtitleSearchBar({
   onClearSearch,
   onStepDelay,
 }: SubtitleSearchBarProps) {
+  const { dict } = useTranslation();
   const hasResults = filteredCount > 0 && searchQuery.trim();
 
   return (
@@ -75,8 +77,8 @@ export function SubtitleSearchBar({
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           onKeyDown={onSearchKeyDown}
-          placeholder="Поиск по диалогам и тексту..."
-          title="Enter — следующее совпадение, Shift+Enter — предыдущее"
+          placeholder={dict.subtitlesSearch.searchPlaceholder}
+          title={dict.subtitlesSearch.searchEnterHint}
           style={{
             width: "100%",
             padding: hasResults
@@ -118,8 +120,8 @@ export function SubtitleSearchBar({
                 borderRadius: "var(--radius-xs)",
               }}
               className="hover-bright"
-              title="Предыдущее совпадение (Shift+Enter)"
-              aria-label="Предыдущее совпадение"
+              title={dict.subtitlesSearch.prevMatch}
+              aria-label={dict.subtitlesSearch.prevMatch}
             >
               <ChevronUp size={13} />
             </button>
@@ -138,8 +140,8 @@ export function SubtitleSearchBar({
                 borderRadius: "var(--radius-xs)",
               }}
               className="hover-bright"
-              title="Следующее совпадение (Enter)"
-              aria-label="Следующее совпадение"
+              title={dict.subtitlesSearch.nextMatch}
+              aria-label={dict.subtitlesSearch.nextMatch}
             >
               <ChevronDown size={13} />
             </button>
@@ -164,7 +166,7 @@ export function SubtitleSearchBar({
               padding: 2,
             }}
             className="hover-bright"
-            title="Очистить поиск"
+            title={dict.subtitlesSearch.clearSearch}
           >
             <X size={14} />
           </button>
@@ -191,11 +193,7 @@ export function SubtitleSearchBar({
         >
           {searchQuery.trim() ? (
             <span>
-              Найдено:{" "}
-              <strong style={{ color: "var(--accent)" }}>
-                {filteredCount}
-              </strong>{" "}
-              из {totalLines}
+              {dict.subtitlesSearch.foundCount(filteredCount, totalLines)}
               {navAnchor !== null && filteredCount > 0 && (
                 <span style={{ opacity: 0.7 }}>
                   {" "}
@@ -205,10 +203,7 @@ export function SubtitleSearchBar({
             </span>
           ) : (
             <span>
-              Всего строк:{" "}
-              <strong style={{ color: "var(--text-primary)" }}>
-                {totalLines}
-              </strong>
+              {dict.subtitlesSearch.totalCount(totalLines)}
               {analyzedTrackTitle && (
                 <span style={{ opacity: 0.7, marginLeft: 5 }}>
                   ({analyzedTrackTitle})
@@ -229,13 +224,13 @@ export function SubtitleSearchBar({
           {/* Регуляторы сдвига таймингов */}
           <div
             style={{ display: "inline-flex", alignItems: "center", gap: 2 }}
-            title="Сдвинуть субтитры: − раньше, + позже (с Shift — шаг 0.5с)"
+            title={dict.subtitlesSearch.delayTooltip}
           >
             <button
               type="button"
               onClick={(e) => onStepDelay(-0.1, e.shiftKey)}
               className="hover-bright"
-              title="Субтитры раньше"
+              title={dict.subtitlesSearch.delayEarlier}
               style={{
                 background: "transparent",
                 border: "none",
@@ -260,13 +255,13 @@ export function SubtitleSearchBar({
               }}
             >
               {subDelay > 0 ? "+" : ""}
-              {subDelay.toFixed(1)}с
+              {subDelay.toFixed(1)}{dict.subtitlesSearch.secSuffix}
             </span>
             <button
               type="button"
               onClick={(e) => onStepDelay(0.1, e.shiftKey)}
               className="hover-bright"
-              title="Субтитры позже"
+              title={dict.subtitlesSearch.delayLater}
               style={{
                 background: "transparent",
                 border: "none",
@@ -295,7 +290,7 @@ export function SubtitleSearchBar({
               }}
             >
               <Loader2 size={11} className="spin-animation" />
-              <span>Анализ...</span>
+              <span>{dict.subtitlesSearch.analyzing}</span>
             </div>
           )}
         </div>

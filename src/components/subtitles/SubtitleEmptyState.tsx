@@ -7,6 +7,7 @@
  */
 
 import { Subtitles, Loader2, FolderOpen } from "lucide-react";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 interface SubtitleEmptyStateProps {
   isAnalyzing: boolean;
@@ -29,6 +30,8 @@ export function SubtitleEmptyState({
   searchQuery,
   onLoadExternal,
 }: SubtitleEmptyStateProps) {
+  const { dict } = useTranslation();
+
   if (isAnalyzing) {
     return (
       <div
@@ -48,9 +51,9 @@ export function SubtitleEmptyState({
           className="spin-animation"
           style={{ color: "var(--accent)" }}
         />
-        <span>Анализ дорожки субтитров через FFmpeg...</span>
+        <span>{dict.subtitlesSearch.loadingTitle}</span>
         <span style={{ fontSize: "0.75rem", opacity: 0.7 }}>
-          Извлечение реплик и временных меток
+          {dict.subtitlesSearch.loadingSubtitle}
         </span>
       </div>
     );
@@ -69,7 +72,7 @@ export function SubtitleEmptyState({
           padding: "40px 16px",
         }}
       >
-        По запросу «{searchQuery}» ничего не найдено.
+        {dict.subtitlesSearch.noResults(searchQuery)}
       </div>
     );
   }
@@ -89,12 +92,12 @@ export function SubtitleEmptyState({
     >
       <Subtitles size={32} style={{ opacity: 0.4 }} />
       <div>
-        {analyzeError || "Субтитры для выбранной дорожки не найдены."}
+        {analyzeError || dict.subtitlesSearch.notFound}
       </div>
       <div style={{ fontSize: "0.78rem", opacity: 0.8, maxWidth: "320px" }}>
         {analyzeError
-          ? "Попробуйте другую дорожку или подключите внешний файл субтитров."
-          : "Выберите другую дорожку субтитров в селекторе выше."}
+          ? dict.subtitlesSearch.tryOtherOrExternal
+          : dict.subtitlesSearch.selectOtherTrack}
       </div>
       <button
         type="button"
@@ -116,7 +119,7 @@ export function SubtitleEmptyState({
         }}
       >
         <FolderOpen size={13} />
-        <span>Загрузить файл субтитров…</span>
+        <span>{dict.subtitlesSearch.loadExternalFile}</span>
       </button>
     </div>
   );

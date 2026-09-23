@@ -136,11 +136,17 @@
 }
 
 .presets-section-heading__chevron {
-  transition: transform var(--t-fast) var(--ease-smooth);
+  display: block;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  transform-origin: center center;
   color: var(--text-muted);
 }
 
-.presets-section-heading__title:hover .presets-section-heading__chevron {
+.presets-section-heading__title:hover .presets-section-heading__chevron,
+.presets-section-heading__title:active .presets-section-heading__chevron {
+  transition: transform var(--t-fast) var(--ease-smooth);
   color: var(--text-primary);
 }
 

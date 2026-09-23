@@ -1,66 +1,66 @@
 import { VisualizerMode, VisualizerTheme } from "../AudioVisualizer";
 
 export const MODE_LABELS: Record<VisualizerMode, string> = {
-  waveform: "Плавная волна",
-  spectrum: "Частотный спектр",
-  bars: "Ритм-бары",
-  matrix: "LED-матрица",
-  ribbon: "Жидкая лента",
-  particles: "Звездная пыль",
-  circular: "Радиальный радар",
-  blob: "Плазменная сфера",
-  strings: "Резонанс струн",
+  waveform: "Waveform",
+  spectrum: "Frequency Spectrum",
+  bars: "Rhythm Bars",
+  matrix: "LED Matrix",
+  ribbon: "Liquid Ribbon",
+  particles: "Star Dust",
+  circular: "Radial Radar",
+  blob: "Plasma Sphere",
+  strings: "String Resonance",
 };
 
 export const THEME_LABELS: Record<VisualizerTheme, string> = {
-  accent: "Тема плеера",
-  pastel: "Пастельная аура",
-  neon: "Кибернеон",
-  sunset: "Огненный закат",
-  aurora: "Северное сияние",
-  ocean: "Глубокий океан",
-  crimson: "Малиновый",
-  mint: "Мятная волна",
-  violet: "Ультрафиолет",
-  gold: "Золотой песок",
+  accent: "Player Theme",
+  pastel: "Pastel Aura",
+  neon: "Cyber Neon",
+  sunset: "Fiery Sunset",
+  aurora: "Northern Lights",
+  ocean: "Deep Ocean",
+  crimson: "Crimson",
+  mint: "Mint Wave",
+  violet: "Ultraviolet",
+  gold: "Golden Sand",
 };
 
 export const PLACEMENT_LABELS: Record<string, string> = {
-  above_timeline: "Над таймлайном",
-  inside_timeline: "В таймлайне",
-  toolbar: "В панели кнопок",
-  off: "Отключен",
+  above_timeline: "Above timeline",
+  inside_timeline: "Inside timeline",
+  toolbar: "In toolbar",
+  off: "Disabled",
 };
 
 export const PLACEMENT_ITEMS = [
-  { id: "above_timeline" as const, label: "Над таймлайном", desc: "Панорамная волна" },
-  { id: "inside_timeline" as const, label: "В таймлайне", desc: "SoundCloud стиль" },
-  { id: "toolbar" as const, label: "В панели кнопок", desc: "Компактный виджет" },
+  { id: "above_timeline" as const, label: "Above timeline", desc: "Panoramic wave" },
+  { id: "inside_timeline" as const, label: "Inside timeline", desc: "SoundCloud style" },
+  { id: "toolbar" as const, label: "In toolbar", desc: "Compact widget" },
 ];
 
 export const MODE_ITEMS = [
-  { id: "waveform" as const, label: "Плавная волна", desc: "Waveform Безье" },
-  { id: "spectrum" as const, label: "Частотный спектр", desc: "Спектр с пиками" },
-  { id: "bars" as const, label: "Ритм-бары", desc: "Капсулы эквалайзера" },
-  { id: "matrix" as const, label: "LED-матрица", desc: "Диодные столбики" },
-  { id: "ribbon" as const, label: "Жидкая лента", desc: "Шелковая волна" },
-  { id: "particles" as const, label: "Звездная пыль", desc: "Салют аудио-частиц" },
-  { id: "circular" as const, label: "Радиальный радар", desc: "Кольцевой пульсар" },
-  { id: "blob" as const, label: "Плазменная сфера", desc: "Органическая капля" },
-  { id: "strings" as const, label: "Резонанс струн", desc: "3 осциллографа" },
+  { id: "waveform" as const, label: "Waveform", desc: "Bezier waveform" },
+  { id: "spectrum" as const, label: "Frequency Spectrum", desc: "Spectrum with peaks" },
+  { id: "bars" as const, label: "Rhythm Bars", desc: "Equalizer capsules" },
+  { id: "matrix" as const, label: "LED Matrix", desc: "Diode columns" },
+  { id: "ribbon" as const, label: "Liquid Ribbon", desc: "Silk wave" },
+  { id: "particles" as const, label: "Star Dust", desc: "Audio particle salute" },
+  { id: "circular" as const, label: "Radial Radar", desc: "Ring pulsar" },
+  { id: "blob" as const, label: "Plasma Sphere", desc: "Organic blob" },
+  { id: "strings" as const, label: "String Resonance", desc: "3 oscilloscopes" },
 ];
 
 export const THEME_ITEMS = [
-  { id: "accent" as const, label: "Тема плеера", desc: "Акцент и Glow" },
-  { id: "pastel" as const, label: "Пастельная аура", desc: "Лаванда и мята" },
-  { id: "neon" as const, label: "Кибернеон", desc: "Бирюза и фуксия" },
-  { id: "sunset" as const, label: "Огненный закат", desc: "Янтарь и рубин" },
-  { id: "aurora" as const, label: "Северное сияние", desc: "Изумруд и бирюза" },
-  { id: "ocean" as const, label: "Глубокий океан", desc: "Синева и глубина" },
-  { id: "crimson" as const, label: "Малиновый", desc: "Рубин и роза" },
-  { id: "mint" as const, label: "Мятная волна", desc: "Мята и теал" },
-  { id: "violet" as const, label: "Ультрафиолет", desc: "Фиолет и маджента" },
-  { id: "gold" as const, label: "Золотой песок", desc: "Золото и янтарь" },
+  { id: "accent" as const, label: "Player Theme", desc: "Accent & Glow" },
+  { id: "pastel" as const, label: "Pastel Aura", desc: "Lavender & Mint" },
+  { id: "neon" as const, label: "Cyber Neon", desc: "Cyan & Fuchsia" },
+  { id: "sunset" as const, label: "Fiery Sunset", desc: "Amber & Ruby" },
+  { id: "aurora" as const, label: "Northern Lights", desc: "Emerald & Turquoise" },
+  { id: "ocean" as const, label: "Deep Ocean", desc: "Blue & Depth" },
+  { id: "crimson" as const, label: "Crimson", desc: "Ruby & Rose" },
+  { id: "mint" as const, label: "Mint Wave", desc: "Mint & Teal" },
+  { id: "violet" as const, label: "Ultraviolet", desc: "Violet & Magenta" },
+  { id: "gold" as const, label: "Golden Sand", desc: "Gold & Amber" },
 ];
 
 /** Градиент-индикатор палитры для кнопок выбора темы. */

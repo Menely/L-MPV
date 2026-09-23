@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X } from "lucide-react";
 import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
+import { useTranslation } from "../i18n/LanguageContext";
 import { formatTime } from "../utils/timeUtils";
 
 interface ChaptersModalProps {
@@ -15,6 +16,7 @@ interface ChaptersModalProps {
 export function ChaptersModal({ onClose }: ChaptersModalProps) {
   const { chapters } = usePlayerState();
   const { position } = usePlayerProgress();
+  const { dict } = useTranslation();
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -113,13 +115,13 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
             fontWeight: 600,
             color: 'var(--text-primary)'
           }}>
-            Главы ({chapters.length})
+            {dict.chapters.title(chapters.length)}
           </div>
           <button 
             className="modal__close"
             onClick={handleClose}
-            title="Закрыть (Esc)"
-            aria-label="Закрыть"
+            title={dict.chapters.close}
+            aria-label={dict.chapters.close}
           >
             <X size={18} />
           </button>
@@ -183,7 +185,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
             ))
           ) : (
             <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '20px 0' }}>
-              В этом файле нет размеченных глав.
+              {dict.chapters.noChapters}
             </div>
           )}
         </div>

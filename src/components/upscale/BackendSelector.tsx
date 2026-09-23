@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { UpscaleSettings, UpscaleStatus, DownloadProgressPayload } from "./types";
 import { GpuHardwareCard } from "./GpuHardwareCard";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 interface BackendSelectorProps {
   status: UpscaleStatus | null;
@@ -42,6 +43,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
   onDeleteEngine,
   onError,
 }) => {
+  const { dict } = useTranslation();
   const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
   const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
   const isCurrentBackendInstalled =
@@ -79,7 +81,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               whiteSpace: "nowrap",
             }}
           >
-            <Cpu size={17} color="var(--accent)" /> Движок инференса (Backend)
+            <Cpu size={17} color="var(--accent)" /> {dict.settings.upscaling.backendTitle}
           </h3>
           <p
             style={{
@@ -91,7 +93,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               textOverflow: "ellipsis",
             }}
           >
-            Библиотеки выполнения нейросетей (aji.dll, DirectML, OnnxRuntime, TensorRT)
+            {dict.settings.upscaling.backendDesc}
           </p>
         </div>
 
@@ -100,7 +102,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             type="button"
             className="btn btn--secondary btn--icon"
             onClick={onOpenInferenceFolder}
-            title="Открыть папку движков инференса в Проводнике"
+            title={dict.settings.upscaling.backendOpenFolderTitle}
           >
             <FolderOpen size={16} />
           </button>
@@ -120,10 +122,10 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 justifyContent: "center",
                 boxSizing: "border-box",
               }}
-              title="Движок инференса установлен и готов к работе"
+              title={dict.settings.upscaling.badgeInstalledTitle}
             >
               <CheckCircle2 size={15} color="#2ecc71" />
-              <span>Установлен</span>
+              <span>{dict.settings.upscaling.statusInstalled}</span>
             </div>
           ) : (
             <button
@@ -131,7 +133,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               className="btn btn--primary"
               onClick={onDownloadEngine}
               disabled={isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)}
-              title="Скачать файлы библиотек движка инференса"
+              title={dict.settings.upscaling.btnDownloadLibsTitle}
               style={{ minWidth: 145, height: 32 }}
             >
               {isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished) ? (
@@ -140,8 +142,8 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 <Download size={15} />
               )}
               {isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)
-                ? `Загрузка ${activePercent}%`
-                : "Скачать движок"}
+                ? dict.settings.upscaling.downloadingProgress(activePercent)
+                : dict.settings.upscaling.btnDownloadEngine}
             </button>
           )}
 
@@ -228,7 +230,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                   fontWeight: isFinished ? 600 : 500,
                 }}
               >
-                {downloadProgress?.stage || downloadProgressText || "Загрузка библиотек инференса..."}
+                {downloadProgress?.stage || downloadProgressText || dict.settings.upscaling.downloadingLibs}
               </span>
             </div>
 
@@ -252,9 +254,9 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                     fontSize: "0.77rem",
                   }}
                 >
-                  {(downloadProgress.downloaded_bytes / (1024 * 1024)).toFixed(1)} МБ / {(downloadProgress.total_bytes / (1024 * 1024)).toFixed(1)} МБ
+                  {(downloadProgress.downloaded_bytes / (1024 * 1024)).toFixed(1)} MB / {(downloadProgress.total_bytes / (1024 * 1024)).toFixed(1)} MB
                 </span>
-              ) : downloadProgress?.stage?.includes("Распаковка") ? (
+              ) : (downloadProgress?.stage?.includes("Распаковка") || downloadProgress?.stage?.toLowerCase().includes("extract")) ? (
                 <span
                   style={{
                     color: "var(--text-muted)",
@@ -262,11 +264,11 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                     fontSize: "0.77rem",
                   }}
                 >
-                  Распаковка архива...
+                  {dict.settings.upscaling.extractingArchive}
                 </span>
               ) : null}
               <span className={`badge ${isError ? "badge--danger" : isFinished ? "badge--success" : "badge--accent"}`}>
-                {isError ? "Ошибка" : `${activePercent}%`}
+                {isError ? dict.settings.upscaling.errorLabel : `${activePercent}%`}
               </span>
             </div>
           </div>
@@ -367,11 +369,11 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 DirectML
               </span>
               <span className={`badge ${isDmlInstalled ? "badge--success" : "badge--warning"}`}>
-                {isDmlInstalled ? "Установлен" : "Не установлен"}
+                {isDmlInstalled ? dict.settings.upscaling.statusInstalled : dict.settings.upscaling.statusNotInstalled}
               </span>
               {status?.gpu_info && !status.gpu_info.supports_tensorrt && (
                 <span className="badge badge--accent">
-                  Рекомендуется
+                  {dict.settings.upscaling.recommended}
                 </span>
               )}
             </div>
@@ -386,7 +388,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               lineHeight: 1.3,
             }}
           >
-            Универсальный DirectX 12 для любого GPU (AMD, Intel, NVIDIA). Высокая совместимость.
+            {dict.settings.upscaling.dmlDesc}
           </p>
         </div>
 
@@ -399,9 +401,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
           } ${settings.backend === "TensorRT" ? "glass-tile--active" : ""}`}
           onClick={() => {
             if (status?.gpu_info && !status.gpu_info.supports_tensorrt) {
-              onError(
-                "Движок TensorRT доступен исключительно для видеокарт NVIDIA RTX/GTX. Для вашей видеокарты используется DirectML."
-              );
+              onError(dict.settings.upscaling.trtNotSupported);
               return;
             }
             if (settings.backend !== "TensorRT") {
@@ -444,11 +444,11 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 TensorRT (NVIDIA)
               </span>
               <span className={`badge ${isTrtInstalled ? "badge--success" : "badge--warning"}`}>
-                {isTrtInstalled ? "Установлен" : "Не установлен"}
+                {isTrtInstalled ? dict.settings.upscaling.statusInstalled : dict.settings.upscaling.statusNotInstalled}
               </span>
               {status?.gpu_info?.supports_tensorrt && (
                 <span className="badge badge--success">
-                  Рекомендуется
+                  {dict.settings.upscaling.recommended}
                 </span>
               )}
             </div>
@@ -463,7 +463,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               lineHeight: 1.3,
             }}
           >
-            Максимальная скорость для карт NVIDIA RTX через скомпилированные TensorRT .engine.
+            {dict.settings.upscaling.trtDesc}
           </p>
         </div>
       </div>

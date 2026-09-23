@@ -5,6 +5,7 @@ import { CheckCircle2, GripVertical } from "lucide-react";
 import { ModelFileItem, UpscaleCompileProgress } from "./types";
 import { ModelTensorRtAction } from "./ModelTensorRtAction";
 import { ModelHotkeyButton } from "./ModelHotkeyButton";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 export interface ModelListItemProps {
   /** Данные файла модели */
@@ -70,6 +71,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
   onKeyRecord,
   onMouseRecord,
 }) => {
+  const { dict } = useTranslation();
   const {
     attributes,
     listeners,
@@ -124,7 +126,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
             borderRadius: "var(--radius-xs, 4px)",
             transition: "opacity 0.15s ease, color 0.15s ease",
           }}
-          title="Зажмите и перетащите мышкой для изменения порядка моделей"
+          title={dict.settings.upscaling.dragReorderTip}
         >
           <GripVertical size={16} />
         </div>
@@ -145,7 +147,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
             flexShrink: 0,
             lineHeight: 1.4,
           }}
-          title={`Модель #${idx + 1}`}
+          title={dict.settings.upscaling.modelNumberTip(idx + 1)}
         >
           #{idx + 1}
         </span>

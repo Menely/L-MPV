@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import type { TrackInfo } from "../../contexts/PlayerStateContext";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 interface TrackPickerProps {
   subTracks: TrackInfo[];
@@ -29,6 +30,8 @@ export function TrackPicker({
   onDisable,
   pickerRef,
 }: TrackPickerProps) {
+  const { dict } = useTranslation();
+
   return (
     <div
       ref={pickerRef}
@@ -57,7 +60,7 @@ export function TrackPicker({
           gap: 6,
         }}
         className="hover-bright"
-        title="Нажмите для выбора дорожки субтитров"
+        title={dict.subtitlesSearch.selectTrack}
       >
         <div
           style={{
@@ -79,12 +82,7 @@ export function TrackPicker({
               flexShrink: 0,
             }}
           >
-            {subTracks.length}{" "}
-            {subTracks.length === 1
-              ? "дорожка"
-              : subTracks.length < 5
-              ? "дорожки"
-              : "дорожек"}
+            {dict.subtitlesSearch.tracksCount(subTracks.length)}
           </span>
           <span
             style={{
@@ -95,10 +93,10 @@ export function TrackPicker({
             }}
           >
             {currentDisplayedTrack
-              ? `${currentDisplayedTrack.title || `Субтитры #${currentDisplayedTrack.id}`} ${
+              ? `${currentDisplayedTrack.title || dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)} ${
                   currentDisplayedTrack.lang ? `(${currentDisplayedTrack.lang})` : ""
                 }`
-              : "Выберите дорожку"}
+              : dict.subtitlesSearch.selectTrack}
           </span>
         </div>
         <ChevronDown
@@ -153,7 +151,7 @@ export function TrackPicker({
             }}
             className="hover-bright"
           >
-            <span>Выключить субтитры</span>
+            <span>{dict.subtitlesSearch.disableSubtitles}</span>
             {!activeTrack && <Check size={14} />}
           </button>
 
@@ -209,7 +207,7 @@ export function TrackPicker({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {t.title || `Субтитры ${t.id}`}
+                    {t.title || dict.subtitlesSearch.defaultTrackName(t.id)}
                   </span>
                   {t.lang && (
                     <span

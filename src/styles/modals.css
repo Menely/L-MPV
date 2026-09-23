@@ -959,9 +959,9 @@
 }
 
 .version-picker-trigger {
-  height: 24px;
+  height: 29px;
   box-sizing: border-box;
-  font-size: 0.78rem;
+  font-size: 0.79rem;
   font-family: inherit;
   line-height: 1;
   display: inline-flex;
@@ -974,8 +974,8 @@
   background: var(--accent-glass, rgba(59, 130, 246, 0.18));
   color: var(--accent, #60a5fa);
   font-weight: 700;
-  padding: 0 8px;
-  gap: 4px;
+  padding: 0 10px;
+  gap: 5px;
   user-select: none;
   transform: none !important;
   backface-visibility: hidden;
@@ -1165,19 +1165,40 @@
 }
 
 .settings-accordion__icon {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  line-height: 1;
   color: var(--accent);
+  flex-shrink: 0;
+  transform: translateZ(0);
+}
+
+.settings-accordion__icon svg {
+  display: block;
   flex-shrink: 0;
 }
 
 .settings-accordion__chevron {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  display: block;
+  flex-shrink: 0;
+  transform-origin: center center;
   color: var(--text-secondary);
   transform: rotate(0deg);
+  transition: color var(--t-fast) var(--ease-smooth);
+}
+
+.settings-accordion--animated .settings-accordion__chevron {
   transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
               color var(--t-fast) var(--ease-smooth);
-  flex-shrink: 0;
 }
 
 .settings-accordion--open .settings-accordion__chevron {
@@ -1186,15 +1207,17 @@
 }
 
 /* Плавный аккордеон через CSS Grid 0fr -> 1fr.
-   transform у body оставлен специально: выносит контент в композитный слой,
-   иначе каждый кадр grid-анимации перерисовывает все тени карточек поверх
-   backdrop-filter модалки (дрожание/мерцание). */
+   Анимация перехода активируется только после интерактивного взаимодействия (.settings-accordion--animated),
+   чтобы при монтировании открытых секций не происходило ложных микросмещений и дерганий. */
 .settings-accordion__collapse {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 240ms cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
   contain: content;
+}
+
+.settings-accordion--animated .settings-accordion__collapse {
+  transition: grid-template-rows 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-accordion--open .settings-accordion__collapse {
@@ -1211,6 +1234,9 @@
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   opacity: 0;
   transform: translateY(-4px);
+}
+
+.settings-accordion--animated .settings-accordion__body {
   transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1),
               transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform, opacity;
@@ -1321,6 +1347,7 @@
 .settings-tab-panel {
   overflow-anchor: none;
   min-height: 0;
+  width: 100%;
 }
 
 /* У последней секции вкладки нет висячего отступа — без мёртвого места над футером */

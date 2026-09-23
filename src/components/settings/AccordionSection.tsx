@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 export interface AccordionSectionProps {
@@ -18,12 +18,23 @@ export function AccordionSection({
   badge,
   children,
 }: AccordionSectionProps) {
+  const [hasInteracted, setHasInteracted] = useState(false);
+
+  const handleToggle = () => {
+    setHasInteracted(true);
+    onToggle();
+  };
+
   return (
-    <div className={`settings-accordion ${isOpen ? "settings-accordion--open" : ""}`}>
+    <div
+      className={`settings-accordion ${isOpen ? "settings-accordion--open" : ""} ${
+        hasInteracted ? "settings-accordion--animated" : ""
+      }`}
+    >
       <button
         type="button"
         className="settings-accordion__header"
-        onClick={onToggle}
+        onClick={handleToggle}
       >
         <div className="settings-accordion__title">
           <span className="settings-accordion__icon">{icon}</span>

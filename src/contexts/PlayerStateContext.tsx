@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useRef, useC
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
+import { getDict, getEffectiveLocale } from "../i18n";
 
 export interface MediaInfo {
   path: string;
@@ -765,9 +766,12 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleDownloadTrack = useCallback(async (track: TrackInfo) => {
+    const curLocale = getEffectiveLocale();
+    const d = getDict(curLocale);
+
     if (!mediaInfo?.path) {
       window.dispatchEvent(
-        new CustomEvent("show-osd", { detail: "Нет активного видео для извлечения" })
+        new CustomEvent("show-osd", { detail: d.osd.noVideoExtract })
       );
       return;
     }
@@ -784,9 +788,12 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         .replace(/[\x00-\x1f\\/:*?"<>|]/g, "_")
         .trim();
       if (!cleanTrackName) {
+        const typeLabel = curLocale === "en"
+          ? (track.type === "audio" ? "Audio" : "Subtitles")
+          : (track.type === "audio" ? "Аудио" : "Субтитры");
         cleanTrackName = track.lang
-          ? `${track.type === "audio" ? "Аудио" : "Субтитры"}_${track.lang.toUpperCase()}`
-          : `${track.type === "audio" ? "Аудио" : "Субтитры"}_${track.id}`;
+          ? `${typeLabel}_${track.lang.toUpperCase()}`
+          : `${typeLabel}_${track.id}`;
       }
 
       // Итоговое имя файла совпадает с названием дорожки
@@ -812,12 +819,19 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       if (saveToVideoDir && videoDir) {
         finalTargetPath = `${videoDir}/${defaultFileName}`;
       } else {
+        const dialogTitle = curLocale === "en"
+          ? `Save ${track.type === "audio" ? "audio track" : "subtitles"}`
+          : `Сохранить ${track.type === "audio" ? "аудиодорожку" : "субтитры"}`;
+        const filterName = curLocale === "en"
+          ? (track.type === "audio" ? "Audio file" : "Subtitles")
+          : (track.type === "audio" ? "Аудиофайл" : "Субтитры");
+
         finalTargetPath = await save({
-          title: `Сохранить ${track.type === "audio" ? "аудиодорожку" : "субтитры"}`,
+          title: dialogTitle,
           defaultPath: videoDir ? `${videoDir}/${defaultFileName}` : defaultFileName,
           filters: [
             {
-              name: track.type === "audio" ? "Аудиофайл" : "Субтитры",
+              name: filterName,
               extensions: [ext],
             },
           ],
@@ -843,8 +857,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         targetPath: finalTargetPath,
       });
 
-      const successLabel =
-        track.type === "audio" ? "Аудиодорожка сохранена" : "Субтитры сохранены";
+      const successLabel = curLocale === "en"
+        ? (track.type === "audio" ? "Audio track saved" : "Subtitles saved")
+        : (track.type === "audio" ? "Аудиодорожка сохранена" : "Субтитры сохранены");
       window.dispatchEvent(
         new CustomEvent("show-osd", {
           detail: `${successLabel}: ${cleanTrackName}.${ext}`,
@@ -853,7 +868,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("Ошибка при извлечении дорожки:", err);
       window.dispatchEvent(
-        new CustomEvent("show-osd", { detail: "Ошибка извлечения дорожки" })
+        new CustomEvent("show-osd", { detail: d.osd.subsExtractErr })
       );
     } finally {
       setDownloadingTrackKey(null);

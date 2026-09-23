@@ -25,12 +25,14 @@ interface DetailedMediaInfoResponse {
 }
 
 import { parseMediaInfoLines } from "../utils/mediaInfoParser";
+import { useTranslation } from "../i18n/LanguageContext";
 
 export function DetailedMediaInfoModal({
   isOpen,
   onClose,
   filePath,
 }: DetailedMediaInfoModalProps) {
+  const { dict } = useTranslation();
   const { mediaInfo } = usePlayerState();
   const currentPath = filePath || mediaInfo?.path;
 
@@ -156,7 +158,7 @@ export function DetailedMediaInfoModal({
       .catch((err) => {
         if (isMounted) {
           console.error("Ошибка получения MediaInfo:", err);
-          setError(typeof err === "string" ? err : "Не удалось проанализировать файл с помощью MediaInfo.dll");
+          setError(typeof err === "string" ? err : dict.detailedMediaInfoModal.analysisFailed);
           setLoading(false);
         }
       });
@@ -261,14 +263,14 @@ export function DetailedMediaInfoModal({
       setCopied(true);
       window.dispatchEvent(
         new CustomEvent("show-osd", {
-          detail: "Полный отчёт MediaInfo скопирован в буфер",
+          detail: dict.detailedMediaInfoModal.reportCopied,
         })
       );
       setTimeout(() => setCopied(false), 2000);
     } catch (e) {
       console.error("Ошибка копирования в буфер:", e);
     }
-  }, [baseReport.cleanText, baseReport.rawText]);
+  }, [baseReport.cleanText, baseReport.rawText, dict]);
 
   // Копирование конкретной категории без лишних пробелов
   const handleCopySection = useCallback(async (sectionTitle: string, sectionCleanText: string) => {
@@ -278,14 +280,14 @@ export function DetailedMediaInfoModal({
       setCopiedSectionId(sectionTitle);
       window.dispatchEvent(
         new CustomEvent("show-osd", {
-          detail: `Категория «${sectionTitle}» скопирована в буфер`,
+          detail: dict.detailedMediaInfoModal.sectionCopied(sectionTitle),
         })
       );
       setTimeout(() => setCopiedSectionId(null), 2000);
     } catch (e) {
       console.error("Ошибка копирования категории:", e);
     }
-  }, []);
+  }, [dict]);
 
   // Экспорт полного отчёта в файл .txt без лишних пробелов
   const handleExportTxt = useCallback(() => {
@@ -297,20 +299,21 @@ export function DetailedMediaInfoModal({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${filename}.mediainfo.txt`;
+      const exportName = `${filename}.mediainfo.txt`;
+      a.download = exportName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       window.dispatchEvent(
         new CustomEvent("show-osd", {
-          detail: `Отчёт сохранён: ${filename}.mediainfo.txt`,
+          detail: dict.detailedMediaInfoModal.fileExported(exportName),
         })
       );
     } catch (e) {
       console.error("Ошибка экспорта MediaInfo в файл:", e);
     }
-  }, [baseReport.cleanText, baseReport.rawText, currentPath]);
+  }, [baseReport.cleanText, baseReport.rawText, currentPath, dict]);
 
   // Количество совпадений поиска
   const matchCount = useMemo(() => {
@@ -332,20 +335,20 @@ export function DetailedMediaInfoModal({
       className={`mediainfo-floating-window ${isClosing ? "mediainfo-floating-window--closing" : ""}`}
       style={{ left: pos.x, top: pos.y }}
       role="region"
-      aria-label="Свойства MediaInfo"
+      aria-label={dict.detailedMediaInfoModal.title}
     >
       {/* Шапка окна с возможностью перетаскивания */}
       <div
         className="mediainfo-floating-window__header"
         onMouseDown={handleMouseDown}
-        title="Зажмите и перетаскивайте окно по плееру"
+        title={dict.detailedMediaInfoModal.dragHeader}
       >
         <div className="mediainfo-floating-window__header-left">
           <div className="mediainfo-floating-window__icon">
             <FileText size={15} />
           </div>
           <span className="mediainfo-floating-window__title">
-            MediaInfo
+            {dict.detailedMediaInfoModal.title}
           </span>
         </div>
 
@@ -354,7 +357,7 @@ export function DetailedMediaInfoModal({
           <button
             className={`mediainfo-floating-window__btn ${useRussian ? "mediainfo-floating-window__btn--active" : ""}`}
             onClick={() => setUseRussian(!useRussian)}
-            title={useRussian ? "Язык: Русский (нажмите для переключения на EN)" : "Язык: English (нажмите для RU)"}
+            title={useRussian ? dict.detailedMediaInfoModal.langTooltipRu : dict.detailedMediaInfoModal.langTooltipEn}
           >
             <Languages size={13} />
           </button>
@@ -363,7 +366,7 @@ export function DetailedMediaInfoModal({
           <button
             className="mediainfo-floating-window__btn"
             onClick={handleCopy}
-            title="Скопировать отчёт в буфер обмена"
+            title={dict.detailedMediaInfoModal.copyReport}
             disabled={!data?.text}
           >
             {copied ? <Check size={13} color="var(--accent)" /> : <Copy size={13} />}
@@ -373,7 +376,7 @@ export function DetailedMediaInfoModal({
           <button
             className="mediainfo-floating-window__btn"
             onClick={handleExportTxt}
-            title="Сохранить в файл .txt"
+            title={dict.detailedMediaInfoModal.exportTxt}
             disabled={!data?.text}
           >
             <Download size={13} />
@@ -383,8 +386,8 @@ export function DetailedMediaInfoModal({
           <button
             className="mediainfo-floating-window__btn mediainfo-floating-window__btn--close"
             onClick={handleClose}
-            title="Закрыть (Esc)"
-            aria-label="Закрыть"
+            title={dict.detailedMediaInfoModal.close}
+            aria-label={dict.detailedMediaInfoModal.close}
           >
             <X size={14} />
           </button>
@@ -397,7 +400,7 @@ export function DetailedMediaInfoModal({
         <input
           type="text"
           className="mediainfo-floating-window__search-input"
-          placeholder="Быстрый поиск параметров..."
+          placeholder={dict.detailedMediaInfoModal.searchPlaceholder}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -417,8 +420,8 @@ export function DetailedMediaInfoModal({
           <button
             onClick={() => setSearchQuery("")}
             className="mediainfo-floating-window__search-clear"
-            title="Очистить поиск"
-            aria-label="Очистить поиск"
+            title={dict.detailedMediaInfoModal.clearSearch}
+            aria-label={dict.detailedMediaInfoModal.clearSearch}
           >
             <X size={12} />
           </button>
@@ -430,7 +433,7 @@ export function DetailedMediaInfoModal({
         {loading && (
           <div className="mediainfo-floating-window__loading">
             <Loader2 size={24} className="spin-animation" style={{ color: "var(--accent)" }} />
-            <span>Анализ MediaInfo...</span>
+            <span>{dict.detailedMediaInfoModal.loading}</span>
           </div>
         )}
 
@@ -452,18 +455,18 @@ export function DetailedMediaInfoModal({
                     className={`mediainfo-section__copy-btn ${
                       copiedSectionId === section.title ? "mediainfo-section__copy-btn--copied" : ""
                     }`}
-                    title={`Скопировать категорию «${section.title}»`}
+                    title={dict.detailedMediaInfoModal.copyCategoryTooltip(section.title)}
                     onClick={() => handleCopySection(section.title, section.cleanText)}
                   >
                     {copiedSectionId === section.title ? (
                       <>
                         <Check size={12} color="#4ade80" />
-                        <span>Скопировано</span>
+                        <span>{dict.detailedMediaInfoModal.copied}</span>
                       </>
                     ) : (
                       <>
                         <Copy size={12} />
-                        <span>Копировать</span>
+                        <span>{dict.detailedMediaInfoModal.copy}</span>
                       </>
                     )}
                   </button>

@@ -1,6 +1,7 @@
 import React from "react";
 import { CheckCircle2, RefreshCw, Zap } from "lucide-react";
 import { ModelFileItem, UpscaleCompileProgress } from "./types";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 export interface ModelTensorRtActionProps {
   /** Файл модели нейросети */
@@ -27,6 +28,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
   compileProgressItem,
   onPrecompile,
 }) => {
+  const { dict } = useTranslation();
   if (!supportsTensorrt) {
     return null;
   }
@@ -78,11 +80,11 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
               maxWidth: 105,
             }}
           >
-            {compileProgressItem?.stage || "Сборка..."}
+            {compileProgressItem?.stage || dict.settings.upscaling.compilingProgress}
           </span>
           <span style={{ fontVariantNumeric: "tabular-nums" }}>
             {isCompileError
-              ? "Ошибка"
+              ? dict.settings.upscaling.errorLabel
               : isCompileFinished
               ? "100%"
               : `${compileProgressItem?.percent || 0}%`}
@@ -141,10 +143,10 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
             boxSizing: "border-box",
             lineHeight: 1,
           }}
-          title="Движок TensorRT (.engine) уже скомпилирован под разрешение 1080p — включение будет мгновенным"
+          title={dict.settings.upscaling.trtReadyTitle}
         >
           <CheckCircle2 size={13} />
-          <span>1080p готов</span>
+          <span>{dict.settings.upscaling.trtReadyBadge}</span>
         </span>
 
         <button
@@ -152,7 +154,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
           className="btn btn--secondary"
           onClick={onPrecompile}
           disabled={!!compilingModel}
-          title="Перекомпилировать движок TensorRT под 1080p"
+          title={dict.settings.upscaling.trtRecompileTitle}
           style={{
             width: 24,
             height: 24,
@@ -179,7 +181,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
       className="btn btn--secondary"
       onClick={onPrecompile}
       disabled={!!compilingModel}
-      title="Скомпилировать TensorRT движок под 1080p заранее, чтобы исключить задержку при воспроизведении"
+      title={dict.settings.upscaling.trtCompileTitle}
       style={{
         height: 24,
         padding: "0 9px",
@@ -195,7 +197,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
       }}
     >
       <Zap size={12} color="var(--accent)" />
-      <span>1080p сборка</span>
+      <span>{dict.settings.upscaling.trtCompileBadge}</span>
     </button>
   );
 });

@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -44,28 +45,28 @@ const GLOW_OPTIONS = [
   {
     id: "off" as const,
     label: "Off",
-    desc: "Без свечения",
+    desc: "Off",
     selectedBg: "rgba(255, 255, 255, 0.08)",
     selectedShadow: "inset 0 0 0 1.5px var(--accent)",
   },
   {
     id: "soft" as const,
     label: "Soft",
-    desc: "Мягкое",
+    desc: "Subtle",
     selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.12)",
     selectedShadow: "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.40), inset 0 0 0 1.5px var(--accent)",
   },
   {
     id: "medium" as const,
     label: "Medium",
-    desc: "Сбалансированное",
+    desc: "Balanced",
     selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.22)",
     selectedShadow: "0 0 16px rgba(var(--accent-rgb, 127, 199, 255), 0.65), 0 0 4px var(--accent), inset 0 0 0 1.5px var(--accent)",
   },
   {
     id: "intense" as const,
     label: "High",
-    desc: "Яркий неон",
+    desc: "Vibrant",
     selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.32)",
     selectedShadow: "0 0 28px rgba(var(--accent-rgb, 127, 199, 255), 0.95), 0 0 8px var(--accent), inset 0 0 0 2px var(--accent)",
   },
@@ -81,6 +82,7 @@ const GLOW_OPTIONS = [
 export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
   onAccentChange,
 }) => {
+  const { dict } = useTranslation();
   const [playerTheme, setPlayerTheme] = useState<PlayerThemeId>(() => getSavedPlayerTheme());
   const [activeColor, setActiveColor] = useState<string>(() => {
     try {
@@ -202,7 +204,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
   return (
     <>
       <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 12, lineHeight: 1.35 }}>
-        Выбор расцветки плеера, адаптивного акцентного цвета и интенсивности неонового свечения.
+        {dict.settings.appearance.colorScheme.sectionDesc}
       </div>
 
       {/* Живой аутентичный предпросмотр цветовой темы и акцента */}
@@ -210,22 +212,22 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
         <div className="settings-preview-card__info">
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-              Предпросмотр:
+              {dict.settings.appearance.colorScheme.preview}
             </span>
             <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
-              {PLAYER_THEMES[playerTheme]?.name || "Тёмный графит"}
-            </span>
-            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
-            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
-              Акцент: {activeColor === "windows" ? "Windows" : activeColor}
+              {dict.settings.appearance.colorScheme.playerThemes[playerTheme] || PLAYER_THEMES[playerTheme]?.name || "Dark Graphite"}
             </span>
             <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
             <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
-              Свечение: {GLOW_LABEL_MAP[glowIntensity] || "Medium"}
+              {dict.settings.appearance.colorScheme.accent} {activeColor === "windows" ? "Windows" : activeColor}
+            </span>
+            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
+            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+              {dict.settings.appearance.colorScheme.glow} {GLOW_LABEL_MAP[glowIntensity] || "Medium"}
             </span>
           </div>
           <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", lineHeight: 1.25 }}>
-            Гармоничное сочетание фона поверхностей, контраста текста и подсветки элементов
+            {dict.settings.appearance.colorScheme.harmonyDesc}
           </span>
         </div>
 
@@ -294,12 +296,12 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Palette size={14} style={{ color: "var(--accent)" }} />
             <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-              Цвет плеера (Тема оформления)
+              {dict.settings.appearance.colorScheme.playerThemeTitle}
             </span>
           </div>
           <div className="player-themes-header__right">
             <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
-              {PLAYER_THEMES[playerTheme]?.name || "Тёмный графит"}
+              {dict.settings.appearance.colorScheme.playerThemes[playerTheme] || PLAYER_THEMES[playerTheme]?.name || "Dark Graphite"}
             </span>
             <button
               type="button"
@@ -317,7 +319,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               }}
             >
               <RotateCcw size={11} />
-              <span>Графит (Стандарт)</span>
+              <span>{dict.settings.appearance.colorScheme.resetTheme}</span>
             </button>
           </div>
         </div>
@@ -333,7 +335,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 type="button"
                 onClick={() => handleSelectTheme(themeKey)}
                 className="player-theme-btn"
-                aria-label={theme.name}
+                aria-label={dict.settings.appearance.colorScheme.playerThemes[themeKey] || theme.name}
                 style={{
                   padding: isSel ? "0 12px 0 5px" : "0 5px",
                   border: isSel
@@ -390,7 +392,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {theme.name}
+                    {dict.settings.appearance.colorScheme.playerThemes[themeKey] || theme.name}
                   </span>
                 </div>
               </button>
@@ -403,18 +405,18 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       <div style={{ ...cardStyle, marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-            Акцентный цвет (Кнопки и подсветка)
+            {dict.settings.appearance.colorScheme.accentTitle}
           </span>
           <span style={{ fontSize: "0.70rem", color: "var(--text-muted)" }}>
-            Точки помечают цвета, гармонирующие с текущей темой
+            {dict.settings.appearance.colorScheme.accentHint}
           </span>
         </div>
 
         <div className="color-columns-grid" style={{ marginTop: 4 }}>
           {/* Колонки 1 и 2: Пастельные и Стандартные цвета */}
           {[
-            { title: "Пастельные", presets: PASTEL_PRESETS },
-            { title: "Стандартные", presets: STANDARD_PRESETS },
+            { title: dict.settings.appearance.colorScheme.pastel, presets: PASTEL_PRESETS },
+            { title: dict.settings.appearance.colorScheme.standard, presets: STANDARD_PRESETS },
           ].map(({ title, presets }) => (
             <div key={title} className="color-column-card">
               <div className="color-column-card__header">
@@ -460,7 +462,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
           {/* Колонка 3: Пользовательские (тема Windows + свои цвета до 16) */}
           <div className="color-column-card">
             <div className="color-column-card__header">
-              <span className="color-column-card__title">Свои цвета</span>
+              <span className="color-column-card__title">{dict.settings.appearance.colorScheme.myColors}</span>
               <span className="color-column-card__badge">{customColors.length}/{MAX_CUSTOM_COLORS}</span>
             </div>
             <div className="color-column-card__grid">
@@ -501,7 +503,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 <button
                   onClick={() => setShowColorPicker(true)}
                   className="color-circle color-circle--add"
-                  title="Добавить свой цвет"
+                  title={dict.settings.appearance.colorScheme.addColor}
                 >
                   <Plus size={16} />
                 </button>
@@ -524,7 +526,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Sparkles size={14} style={{ color: "var(--accent)" }} />
             <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
-              Интенсивность неонового свечения (Glow Intensity)
+              {dict.settings.appearance.colorScheme.glowTitle}
             </span>
           </div>
         </div>
@@ -555,7 +557,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               >
                 <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>{mode.label}</span>
                 <span style={{ fontSize: "0.68rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
-                  {mode.desc}
+                  {dict.settings.appearance.colorScheme.glowLevels[mode.id === "intense" ? "high" : mode.id] || mode.desc}
                 </span>
               </button>
             );

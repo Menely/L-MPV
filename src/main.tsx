@@ -5,6 +5,7 @@ import App from "./App";
 import { StandaloneMediaInfoWindow } from "./components/StandaloneMediaInfoWindow";
 import "./index.css";
 import { PlayerStateProvider } from "./contexts/PlayerStateContext";
+import { LanguageProvider } from "./i18n/LanguageContext";
 import { applyPlayerTheme } from "./utils/colorUtils";
 import {
   hydrateUiSettingsFromDisk,
@@ -145,9 +146,11 @@ ReactDOM.createRoot(
       {isMediaInfoWindow ? (
         <StandaloneMediaInfoWindow />
       ) : (
-        <PlayerStateProvider>
-          <App />
-        </PlayerStateProvider>
+        <LanguageProvider>
+          <PlayerStateProvider>
+            <App />
+          </PlayerStateProvider>
+        </LanguageProvider>
       )}
     </GlobalErrorBoundary>
   </React.StrictMode>

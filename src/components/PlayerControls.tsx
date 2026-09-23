@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState } from "../contexts/PlayerStateContext";
+import { useTranslation } from "../i18n/LanguageContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   Undo,
@@ -79,6 +80,7 @@ export function PlayerControls({
   onToggleMiniPlayer?: () => Promise<void>;
 }) {
   const { mediaInfo, isPlaylistOpen, setIsPlaylistOpen } = usePlayerState();
+  const { dict } = useTranslation();
 
   const paused = mediaInfo?.paused ?? true;
   const contextVolume = mediaInfo?.volume ?? 100;
@@ -203,10 +205,10 @@ export function PlayerControls({
     const option = TIME_FORMAT_OPTIONS.find((opt) => opt.id === nextFormat);
     window.dispatchEvent(
       new CustomEvent("show-osd", {
-        detail: `Формат времени: ${option?.label || nextFormat}`,
+        detail: dict.osd.timeFormat(option?.label || nextFormat),
       })
     );
-  }, [timeFormat]);
+  }, [timeFormat, dict]);
 
   // Синхронизация локальных настроек плеера (не зависит от активных поповеров)
   useEffect(() => {
@@ -274,7 +276,7 @@ export function PlayerControls({
   const subLabel = useMemo(() => {
     const subTracksList = tracks.filter(t => t.type === "sub");
     if (subTracksList.length === 0) return null;
-    if (!activeSubTrack) return "ВЫКЛ";
+    if (!activeSubTrack) return dict.controls.subOff;
     if (activeSubTrack.title && activeSubTrack.title.trim().length > 0) {
       return activeSubTrack.title;
     }
@@ -401,12 +403,12 @@ export function PlayerControls({
   const handleTakeScreenshot = useCallback(async () => {
     try {
       await invoke("take_screenshot");
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Кадр сохранён" }));
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.osd.frameSaved }));
     } catch (e) {
       console.error("Ошибка при создании скриншота:", e);
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Ошибка сохранения кадра" }));
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.osd.frameError }));
     }
-  }, []);
+  }, [dict]);
 
   const handleToggleRepeat = useCallback(async () => {
     const nextMode = (repeatMode + 1) % 3 as 0 | 1 | 2;
@@ -470,7 +472,7 @@ export function PlayerControls({
             ref={popoverRef}
           >
             <div className="track-popover__title">
-              {displayedPopover === "audio" ? "Аудиодорожки" : "Субтитры"}
+            {displayedPopover === "audio" ? dict.controls.audioTracks : dict.controls.subtitles}
             </div>
             {displayedPopover === "audio" &&
               (audioTracks.length > 0 ? (
@@ -485,7 +487,7 @@ export function PlayerControls({
                       }}
                     >
                       <span className="track-popover__item-title">
-                        {t.title || `Дорожка ${t.id}`} {t.lang ? `(${t.lang})` : ""}
+                        {t.title || dict.controls.trackLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
                       </span>
                       <span className="track-popover__item-check">
                         {t.selected && <Check size={15} />}
@@ -494,7 +496,7 @@ export function PlayerControls({
                     <button
                       type="button"
                       className="track-download-btn"
-                      title="Скачать аудиодорожку"
+                      title={dict.controls.downloadAudio}
                       disabled={downloadingTrackKey === `audio-${t.id}`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -511,7 +513,7 @@ export function PlayerControls({
                 ))
               ) : (
                 <div className="track-popover__item" style={{ opacity: 0.6 }}>
-                  Нет аудиодорожек
+                  {dict.controls.noAudioTracks}
                 </div>
               ))}
 
@@ -528,7 +530,7 @@ export function PlayerControls({
                     }}
                   >
                     <Search size={14} />
-                    <span className="track-popover__item-title" style={{ fontWeight: 600 }}>Поиск по субтитрам</span>
+                    <span className="track-popover__item-title" style={{ fontWeight: 600 }}>{dict.controls.searchSubtitles}</span>
                     <span style={{ fontSize: "0.72rem", opacity: 0.7, marginLeft: "auto" }}>Ctrl+F</span>
                   </button>
                 </div>
@@ -546,7 +548,7 @@ export function PlayerControls({
                       closePopover();
                     }}
                   >
-                    <span className="track-popover__item-title">Выключить субтитры</span>
+                    <span className="track-popover__item-title">{dict.controls.disableSubtitles}</span>
                     <span className="track-popover__item-check">
                       {!subTracks.some((t) => t.selected) && <Check size={15} />}
                     </span>
@@ -563,7 +565,7 @@ export function PlayerControls({
                       }}
                     >
                       <span className="track-popover__item-title">
-                        {t.title || `Субтитры ${t.id}`} {t.lang ? `(${t.lang})` : ""}
+                        {t.title || dict.controls.subtitleLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
                       </span>
                       <span className="track-popover__item-check">
                         {t.selected && <Check size={15} />}
@@ -572,7 +574,7 @@ export function PlayerControls({
                     <button
                       type="button"
                       className="track-download-btn"
-                      title="Скачать субтитры"
+                      title={dict.controls.downloadSubtitle}
                       disabled={downloadingTrackKey === `sub-${t.id}`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -640,7 +642,7 @@ export function PlayerControls({
                 handleAudioButtonClick("MouseRight");
               }}
               id="btn-audio-tracks"
-              title={isAudioDownloading ? "Идёт скачивание аудиодорожки..." : undefined}
+              title={isAudioDownloading ? dict.controls.downloadingAudio : undefined}
             >
               <AudioLines size={18} />
               {showTrackNames && audioLabel && (
@@ -661,7 +663,7 @@ export function PlayerControls({
                 handleSubButtonClick("MouseRight");
               }}
               id="btn-sub-tracks"
-              title={isSubDownloading ? "Идёт скачивание субтитров..." : undefined}
+              title={isSubDownloading ? dict.controls.downloadingSubtitle : undefined}
             >
               <Subtitles size={18} />
               {showTrackNames && subLabel && (
@@ -703,7 +705,7 @@ export function PlayerControls({
                   style={{
                     "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${Math.min(100, (volume / 150) * 100)}%, rgba(255, 255, 255, 0.12) ${Math.min(100, (volume / 150) * 100)}%, rgba(255, 255, 255, 0.12) 100%)`,
                   } as React.CSSProperties}
-                  aria-label="Громкость"
+                  aria-label={dict.controls.volume}
                   onChange={(e) =>
                     handleVolumeChange(Number(e.target.value), false)
                   }
@@ -816,12 +818,12 @@ export function PlayerControls({
                 className="control-btn control-btn--with-label control-btn--priority-low"
                 onClick={() => handleSeek(skipOpeningSeconds)}
                 id="btn-skip-opening"
-                title={`Перемотать опенинг (+${skipOpeningSeconds}с)`}
+                title={dict.controls.skipOpening(skipOpeningSeconds)}
                 style={{ padding: "0 8px", gap: 3 }}
               >
                 <FastForward size={16} />
                 <span className="control-btn__label" style={{ fontSize: "0.75rem", fontWeight: 600 }}>
-                  +{skipOpeningSeconds}с
+                  {dict.controls.skipOpeningShortLabel(skipOpeningSeconds)}
                 </span>
               </button>
             )}
@@ -865,7 +867,7 @@ export function PlayerControls({
               <button
                 className={`control-btn control-btn--priority-low ${showDetailedMediaInfo ? "control-btn--active" : ""}`}
                 id="btn-mediainfo"
-                title="Свойства MediaInfo (Shift+F10)"
+                title={dict.controls.detailedMediaInfo}
                 onClick={() => {
                   closePopover(true);
                   if (onCloseChapters) onCloseChapters();

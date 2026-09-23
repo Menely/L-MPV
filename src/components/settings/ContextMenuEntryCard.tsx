@@ -29,7 +29,11 @@ import {
   Eye,
 } from "lucide-react";
 import type { LayoutEntry } from "../../utils/contextMenuLayout";
-import type { MenuItemDescriptor } from "../../utils/contextMenuRegistry";
+import {
+  type MenuItemDescriptor,
+  getLocalizedMenuItem,
+} from "../../utils/contextMenuRegistry";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 /** Статичный маппинг имени иконки в React-элемент превью. */
 export const MENU_ICON_MAP: Record<string, React.ReactNode> = {
@@ -75,6 +79,7 @@ export const SortableCard = memo(function SortableCard({
   onRemove,
   onAddDividerBefore,
 }: SortableCardProps) {
+  const { dict } = useTranslation();
   const {
     attributes,
     listeners,
@@ -110,11 +115,11 @@ export const SortableCard = memo(function SortableCard({
         {...attributes}
         {...listeners}
       >
-        <span className="cmenu-entry__grip" title="Перетащить">
+        <span className="cmenu-entry__grip" title={dict.settings.contextMenuConfig.dragTooltip}>
           <GripVertical size={14} style={{ pointerEvents: "none" }} />
         </span>
         <div className="cmenu-entry__divider-line">
-          <span className="cmenu-entry__divider-label">── Разделитель ──</span>
+          <span className="cmenu-entry__divider-label">{dict.settings.contextMenuConfig.dividerLabel}</span>
         </div>
         <button
           type="button"
@@ -123,7 +128,7 @@ export const SortableCard = memo(function SortableCard({
           onPointerDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
           onClick={handleRemove}
-          title="Удалить разделитель"
+          title={dict.settings.contextMenuConfig.btnRemoveDivider}
         >
           <X size={12} />
         </button>
@@ -146,13 +151,13 @@ export const SortableCard = memo(function SortableCard({
         onPointerDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
         onClick={handleAddDivider}
-        title="Добавить разделитель перед этим пунктом"
+        title={dict.settings.contextMenuConfig.btnAddDividerBefore}
       >
         <Minus size={11} />
       </button>
       <span
         className="cmenu-entry__grip"
-        title="Перетащить для изменения порядка"
+        title={dict.settings.contextMenuConfig.dragOrderTooltip}
       >
         <GripVertical size={14} style={{ pointerEvents: "none" }} />
       </span>
@@ -160,7 +165,9 @@ export const SortableCard = memo(function SortableCard({
         {descriptor ? MENU_ICON_MAP[descriptor.iconName] : null}
       </span>
       <div className="cmenu-entry__info" style={{ pointerEvents: "none" }}>
-        <span className="cmenu-entry__label">{descriptor?.label ?? entry.id}</span>
+        <span className="cmenu-entry__label">
+          {descriptor ? getLocalizedMenuItem(dict, descriptor).label : entry.id}
+        </span>
         {descriptor?.hasSubmenu && (
           <ChevronRight size={11} className="cmenu-entry__submenu-hint" />
         )}
@@ -172,7 +179,7 @@ export const SortableCard = memo(function SortableCard({
         onPointerDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
         onClick={handleRemove}
-        title="Убрать из меню"
+        title={dict.settings.contextMenuConfig.btnRemoveItem}
       >
         <X size={12} />
       </button>
@@ -191,12 +198,13 @@ export function OverlayCard({
   entry: LayoutEntry;
   descriptor?: MenuItemDescriptor;
 }) {
+  const { dict } = useTranslation();
   if (entry.type === "divider") {
     return (
       <div className="cmenu-entry cmenu-entry--divider cmenu-entry--overlay">
         <span className="cmenu-entry__grip"><GripVertical size={14} /></span>
         <div className="cmenu-entry__divider-line">
-          <span className="cmenu-entry__divider-label">── Разделитель ──</span>
+          <span className="cmenu-entry__divider-label">{dict.settings.contextMenuConfig.dividerLabel}</span>
         </div>
       </div>
     );
@@ -208,7 +216,9 @@ export function OverlayCard({
         {descriptor ? MENU_ICON_MAP[descriptor.iconName] : null}
       </span>
       <div className="cmenu-entry__info">
-        <span className="cmenu-entry__label">{descriptor?.label ?? entry.id}</span>
+        <span className="cmenu-entry__label">
+          {descriptor ? getLocalizedMenuItem(dict, descriptor).label : entry.id}
+        </span>
         {descriptor?.hasSubmenu && (
           <ChevronRight size={11} className="cmenu-entry__submenu-hint" />
         )}

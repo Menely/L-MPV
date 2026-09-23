@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n/LanguageContext";
 import React, { useEffect, useRef } from "react";
 import {
   VisualizerConfig,
@@ -6,11 +7,6 @@ import {
   getVisualizerThemeColors,
   renderVisualizerFrame,
 } from "../AudioVisualizer";
-import {
-  MODE_LABELS,
-  THEME_LABELS,
-  PLACEMENT_LABELS,
-} from "./visualizerConstants";
 
 interface VisualizerPreviewCardProps {
   config: VisualizerConfig;
@@ -24,6 +20,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
   config,
   isVisible,
 }) => {
+  const { dict } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animStateRef = useRef<VisualizerAnimState>(createInitialAnimState());
 
@@ -121,7 +118,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
       <div className="settings-preview-card__info">
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-            Предпросмотр:
+            {dict.settings.appearance.visualizer.previewLeft}
           </span>
           <span
             style={{
@@ -134,19 +131,19 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
             }}
           >
             {!config.enabled
-              ? "Off (Выключен)"
-              : `${MODE_LABELS[config.mode] || config.mode} • ${THEME_LABELS[config.theme] || config.theme}`}
+              ? dict.settings.appearance.visualizer.off
+              : `${dict.settings.appearance.visualizer.modes[config.mode]?.label || config.mode} • ${dict.settings.appearance.visualizer.themes[config.theme]?.label || config.theme}`}
           </span>
         </div>
         <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", lineHeight: 1.25 }}>
           {!config.enabled
-            ? "Визуализатор отключен. Включите его ниже для отображения живого спектра на панели плеера"
-            : `${PLACEMENT_LABELS[config.placement] || "На панели плеера"} • ${
+            ? dict.settings.appearance.visualizer.previewOffStatus
+            : `${dict.settings.appearance.visualizer.placements[config.placement]?.label || "On player bar"} • ${
                 config.placement === "above_timeline"
-                  ? `Панорамная волна над полосой прогресса (${config.height || 22}px)`
+                  ? dict.settings.appearance.visualizer.detailAbove(config.height || 22)
                   : config.placement === "inside_timeline"
-                  ? "Интеграция внутрь таймлайна (SoundCloud Style)"
-                  : "Компактный аудиоплеер-виджет в строке кнопок"
+                  ? dict.settings.appearance.visualizer.detailInside
+                  : dict.settings.appearance.visualizer.detailToolbar
               }`}
         </span>
       </div>

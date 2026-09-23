@@ -8,12 +8,14 @@ import {
   Trash2,
   FileText,
 } from "lucide-react";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 /**
  * Вкладка интеграции с Windows: ассоциации файлов и контекстное меню Проводника.
  * Управляет своими состояниями самостоятельно.
  */
 export function IntegrationSettingsTab(): React.ReactElement {
+  const { dict } = useTranslation();
   const [integrationLogs, setIntegrationLogs] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
   const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
@@ -39,10 +41,10 @@ export function IntegrationSettingsTab(): React.ReactElement {
         className="modal__section-title"
         style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal" }}
       >
-        <Link size={16} /> Ассоциации файлов (Windows)
+        <Link size={16} /> {dict.settings.integrationFields.fileAssocTitle}
       </div>
       <div style={{ fontSize: "0.86rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
-        Настройте ассоциации видео- и аудиофайлов с L-MPV. Это позволит открывать файлы напрямую по двойному клику в Проводнике Windows.
+        {dict.settings.integrationFields.fileAssocDesc}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
@@ -55,7 +57,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
               setIntegrationLogs(logs);
               await checkContextMenuStatus();
             } catch (e) {
-              setIntegrationLogs([`[ERROR] Не удалось зарегистрировать: ${e}`]);
+              setIntegrationLogs([`[ERROR] ${dict.settings.integrationFields.errReg(String(e))}`]);
             } finally {
               setIsRegistering(false);
             }
@@ -66,12 +68,12 @@ export function IntegrationSettingsTab(): React.ReactElement {
           {isRegistering ? (
             <>
               <Loader2 size={16} className="spin-animation" />
-              Связывание файлов...
+              {dict.settings.integrationFields.statusLinking}
             </>
           ) : (
             <>
               <Link2 size={16} />
-              Связать медиафайлы с L-MPV
+              {dict.settings.integrationFields.btnLink}
             </>
           )}
         </button>
@@ -83,19 +85,19 @@ export function IntegrationSettingsTab(): React.ReactElement {
                 await invoke("open_default_apps_settings");
                 setIntegrationLogs((prev) => [
                   ...prev,
-                  "[INFO] Открыто системное окно Windows 'Приложения по умолчанию'",
+                  "[INFO] Windows 'Default Apps' settings opened",
                 ]);
               } catch (e) {
                 setIntegrationLogs((prev) => [
                   ...prev,
-                  `[ERROR] Не удалось открыть настройки: ${e}`,
+                  `[ERROR] ${dict.settings.integrationFields.errOpenSettings(String(e))}`,
                 ]);
               }
             }}
             className="settings-action-btn settings-action-btn--secondary"
             style={{ flex: 1 }}
           >
-            <ExternalLink size={15} /> Настройки Windows
+            <ExternalLink size={15} /> {dict.settings.integrationFields.btnWindowsSettings}
           </button>
 
           <button
@@ -107,7 +109,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
                 setIntegrationLogs(logs);
                 await checkContextMenuStatus();
               } catch (e) {
-                setIntegrationLogs([`[ERROR] Не удалось удалить: ${e}`]);
+                setIntegrationLogs([`[ERROR] ${dict.settings.integrationFields.errUnreg(String(e))}`]);
               } finally {
                 setIsUnregistering(false);
               }
@@ -118,11 +120,11 @@ export function IntegrationSettingsTab(): React.ReactElement {
             {isUnregistering ? (
               <>
                 <Loader2 size={15} className="spin-animation" />
-                Удаление...
+                {dict.settings.integrationFields.statusUnlinking}
               </>
             ) : (
               <>
-                <Trash2 size={15} /> Удалить ассоциации
+                <Trash2 size={15} /> {dict.settings.integrationFields.btnUnlink}
               </>
             )}
           </button>
@@ -145,7 +147,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <FileText size={16} /> Контекстное меню Проводника
+            <FileText size={16} /> {dict.settings.integrationFields.cmenuTitle}
           </div>
           {isContextMenuRegistered !== null && (
             <span
@@ -158,12 +160,12 @@ export function IntegrationSettingsTab(): React.ReactElement {
                 fontWeight: 500,
               }}
             >
-              {isContextMenuRegistered ? "Активно" : "Не добавлено"}
+              {isContextMenuRegistered ? dict.settings.integrationFields.cmenuActive : dict.settings.integrationFields.cmenuInactive}
             </span>
           )}
         </div>
         <div style={{ fontSize: "0.86rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
-          Добавляет пункт <strong>«L-MPV MediaInfo»</strong> в контекстное меню правой кнопки мыши Windows. Позволяет мгновенно посмотреть технический отчёт о любом медиафайле.
+          {dict.settings.integrationFields.cmenuDesc}
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
@@ -176,7 +178,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
                 setIntegrationLogs(logs);
                 await checkContextMenuStatus();
               } catch (e) {
-                setIntegrationLogs([`[ERROR] Не удалось зарегистрировать меню: ${e}`]);
+                setIntegrationLogs([`[ERROR] ${dict.settings.integrationFields.errCmenuReg(String(e))}`]);
               } finally {
                 setIsContextMenuLoading(false);
               }
@@ -187,12 +189,12 @@ export function IntegrationSettingsTab(): React.ReactElement {
             {isContextMenuLoading ? (
               <>
                 <Loader2 size={15} className="spin-animation" />
-                Применение...
+                {dict.settings.integrationFields.statusApplying}
               </>
             ) : (
               <>
                 <FileText size={15} />
-                Добавить в контекстное меню
+                {dict.settings.integrationFields.btnAddCmenu}
               </>
             )}
           </button>
@@ -206,7 +208,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
                 setIntegrationLogs(logs);
                 await checkContextMenuStatus();
               } catch (e) {
-                setIntegrationLogs([`[ERROR] Не удалось удалить меню: ${e}`]);
+                setIntegrationLogs([`[ERROR] ${dict.settings.integrationFields.errCmenuUnreg(String(e))}`]);
               } finally {
                 setIsContextMenuLoading(false);
               }
@@ -215,7 +217,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
             style={{ flex: 1 }}
           >
             <Trash2 size={15} />
-            Удалить из меню
+            {dict.settings.integrationFields.btnRemoveCmenu}
           </button>
         </div>
       </div>
@@ -237,7 +239,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
         }}
       >
         {integrationLogs.length === 0 ? (
-          <span style={{ color: "#808080" }}>Здесь появится вывод процесса...</span>
+          <span style={{ color: "#808080" }}>{dict.settings.integrationFields.logPlaceholder}</span>
         ) : (
           integrationLogs.map((log, i) => {
             let color = "#d4d4d4";

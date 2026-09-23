@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n/LanguageContext";
 import React, { useState, useEffect } from "react";
 import {
   AudioWaveform,
@@ -31,7 +32,6 @@ interface VisualizerSettingsSectionProps {
 }
 
 import {
-  MODE_LABELS,
   PLACEMENT_ITEMS,
   MODE_ITEMS,
   THEME_ITEMS,
@@ -46,6 +46,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
   isOpen,
   onToggle,
 }) => {
+  const { dict } = useTranslation();
   const [visualizerConfig, setVisualizerConfig] = useState<VisualizerConfig>(() =>
     getVisualizerConfig()
   );
@@ -83,7 +84,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
       isOpen={isOpen}
       onToggle={onToggle}
       icon={<AudioWaveform size={16} />}
-      title="Аудио-визуалайзер на панели"
+      title={dict.settings.appearance.controlButtons.visualizer}
       badge={
         visualizerConfig.enabled ? (
           <span
@@ -98,10 +99,10 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
             }}
           >
             {visualizerConfig.placement === "above_timeline"
-              ? "Над таймлайном"
+              ? dict.settings.appearance.visualizer.aboveTimeline
               : visualizerConfig.placement === "inside_timeline"
-              ? "В таймлайне"
-              : "В тулбаре"}
+              ? dict.settings.appearance.visualizer.inTimeline
+              : dict.settings.appearance.visualizer.inToolbar}
           </span>
         ) : (
           <span
@@ -115,14 +116,14 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
               marginLeft: 8,
             }}
           >
-            Выкл
+            {dict.settings.appearance.visualizer.off}
           </span>
         )
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <span style={optionSectionDescStyle}>
-          Интерактивные пастельные, неоновые или закатные аудио-волны и спектральные эффекты над таймлайном, в тулбаре или прямо внутри полосы прогресса (SoundCloud Style).
+          {dict.settings.appearance.visualizer.desc}
         </span>
 
         {/* Интерактивный предпросмотр аудио-визуализатора */}
@@ -142,22 +143,23 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                 <div style={{ ...optionBlockHeaderStyle, marginBottom: 4 }}>
                   <div style={optionBlockTitleStyle}>
                     <Palette size={14} style={{ color: "var(--accent)" }} />
-                    <span style={optionBlockTitleTextStyle}>Цветовая палитра</span>
+                    <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.palette}</span>
                   </div>
                   <span style={optionValueBadgeStyle}>
-                    {THEME_ITEMS.find((t) => t.id === visualizerConfig.theme)?.desc || ""}
+                    {dict.settings.appearance.visualizer.themes[visualizerConfig.theme]?.desc || ""}
                   </span>
                 </div>
                 <div className="player-themes-selector" style={{ padding: "2px" }}>
                   {THEME_ITEMS.map((item) => {
                     const isSel = visualizerConfig.theme === item.id;
+                    const itemLabel = dict.settings.appearance.visualizer.themes[item.id]?.label || item.label;
                     return (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => updateVisualizer({ theme: item.id })}
                         className="player-theme-btn"
-                        aria-label={item.label}
+                        aria-label={itemLabel}
                         style={{
                           height: 30,
                           padding: isSel ? "0 12px 0 5px" : "0 5px",
@@ -206,7 +208,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                           }}
                         >
                           <span style={{ fontSize: "0.76rem", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
-                            {item.label}
+                            {itemLabel}
                           </span>
                         </span>
                       </button>
@@ -221,8 +223,8 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                   type="button"
                   onClick={() => updateVisualizer({ enabled: !visualizerConfig.enabled })}
                   className="viz-power-btn"
-                  title={visualizerConfig.enabled ? "Выключить визуализатор" : "Включить визуализатор"}
-                  aria-label="Переключить аудио-визуалайзер"
+                  title={visualizerConfig.enabled ? dict.settings.appearance.visualizer.toggleDisableTitle : dict.settings.appearance.visualizer.toggleEnableTitle}
+                  aria-label={visualizerConfig.enabled ? dict.settings.appearance.visualizer.toggleOff : dict.settings.appearance.visualizer.toggleOn}
                   aria-pressed={visualizerConfig.enabled}
                   style={{
                     color: visualizerConfig.enabled ? "var(--accent)" : "var(--text-muted)",
@@ -245,21 +247,23 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                 <div style={optionBlockHeaderStyle}>
                   <div style={optionBlockTitleStyle}>
                     <Monitor size={14} style={{ color: "var(--accent)" }} />
-                    <span style={optionBlockTitleTextStyle}>Расположение</span>
+                    <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.placement}</span>
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {PLACEMENT_ITEMS.map((item) => {
                     const isSel = visualizerConfig.placement === item.id;
+                    const itemLabel = dict.settings.appearance.visualizer.placements[item.id]?.label || item.label;
+                    const itemDesc = dict.settings.appearance.visualizer.placements[item.id]?.desc || item.desc;
                     return (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => updateVisualizer({ placement: item.id })}
                         style={optionBtnStyle(isSel, "8px 6px")}
-                        title={item.desc}
+                        title={itemDesc}
                       >
-                        <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{item.label}</span>
+                        <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{itemLabel}</span>
                       </button>
                     );
                   })}
@@ -270,24 +274,26 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                 <div style={optionBlockHeaderStyle}>
                   <div style={optionBlockTitleStyle}>
                     <Layers size={14} style={{ color: "var(--accent)" }} />
-                    <span style={optionBlockTitleTextStyle}>Стиль визуализации</span>
+                    <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.style}</span>
                   </div>
                   <span style={optionValueBadgeStyle}>
-                    {MODE_LABELS[visualizerConfig.mode] || visualizerConfig.mode}
+                    {dict.settings.appearance.visualizer.modes[visualizerConfig.mode]?.label || visualizerConfig.mode}
                   </span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
                   {MODE_ITEMS.map((item) => {
                     const isSel = visualizerConfig.mode === item.id;
+                    const itemLabel = dict.settings.appearance.visualizer.modes[item.id]?.label || item.label;
+                    const itemDesc = dict.settings.appearance.visualizer.modes[item.id]?.desc || item.desc;
                     return (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => updateVisualizer({ mode: item.id })}
                         style={optionBtnStyle(isSel, "8px 6px")}
-                        title={item.desc}
+                        title={itemDesc}
                       >
-                        <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{item.label}</span>
+                        <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{itemLabel}</span>
                       </button>
                     );
                   })}
@@ -295,7 +301,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
               </div>
             </div>
 
-            {/* Высота волн: всегда смонтирована (не прыгает окно),
+            {/* {dict.settings.appearance.visualizer.height}: всегда смонтирована (не прыгает окно),
                 активна только для расположения над таймлайном */}
             {(() => {
               const hMin = 14;
@@ -324,7 +330,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0, lineHeight: 1 }}>
                     <Ruler size={15} style={{ color: "var(--accent)" }} />
                     <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
-                      Высота волн
+                      {dict.settings.appearance.visualizer.height}
                     </span>
                   </div>
                   <div style={{ flex: 1, display: "flex", alignItems: "center", minWidth: 0, height: 20 }}>
@@ -339,7 +345,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                       style={{
                         "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${hPct}%, rgba(255, 255, 255, 0.12) ${hPct}%, rgba(255, 255, 255, 0.12) 100%)`,
                       } as React.CSSProperties}
-                      aria-label="Высота волн над таймлайном"
+                      aria-label={dict.settings.appearance.visualizer.heightAboveTimelineAria}
                     />
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, lineHeight: 1 }}>
@@ -358,7 +364,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         transform: isDefault ? "scale(0.85)" : "scale(1)",
                         transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                       }}
-                      title="Сбросить на 22px"
+                      title={dict.settings.appearance.visualizer.reset22}
                       tabIndex={isDefault ? -1 : 0}
                     >
                       <RotateCcw size={11} />

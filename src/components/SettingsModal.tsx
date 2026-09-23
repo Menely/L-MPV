@@ -49,6 +49,7 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
+import { useTranslation } from "../i18n/LanguageContext";
 import {
   TimeDisplayPosition,
   getSavedTimePosition,
@@ -160,6 +161,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
   const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
   const { bodyRef, panelRef, slideDir, beginSwitch } = useSettingsTabTransition(activeTab, SETTINGS_TABS);
+  const { dict } = useTranslation();
 
   // Единая точка смены вкладки: плавный переход высоты + слайд, логика табов не меняется
   const handleTabChange = useCallback((next: SettingsTabId) => {
@@ -352,6 +354,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [isUpdateFound, setIsUpdateFound] = useState<boolean>(false);
   const [foundUpdate, setFoundUpdate] = useState<UpdateInfo | null>(null);
   const [isLoadingVersionInfo, setIsLoadingVersionInfo] = useState<boolean>(false);
   const updateStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -500,7 +503,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Выберите папку для сохранения скриншотов",
+        title: dict.settings.integration.pickFolderTitle,
       });
       if (selected && typeof selected === "string") {
         await invoke("set_screenshot_dir", { path: selected });
@@ -536,17 +539,20 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       const info = await invoke<UpdateInfo>("check_for_updates");
       setFoundUpdate(info);
       if (info.has_update) {
-        setUpdateStatus(`Найдено обновление v${info.latest_version.replace(/^[vV]/, "")}`);
+        setUpdateStatus(dict.settings.integration.updateFound(info.latest_version.replace(/^[vV]/, "")));
+        setIsUpdateFound(true);
         if (onShowUpdate) {
           onShowUpdate(info);
         }
       } else {
-        setUpdateStatus("У вас последняя версия");
+        setUpdateStatus(dict.settings.integration.upToDate);
+        setIsUpdateFound(false);
         updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
       }
     } catch (err) {
       console.error("Ошибка проверки обновлений:", err);
-      setUpdateStatus("Не удалось проверить");
+      setUpdateStatus(dict.settings.integration.checkFailed);
+      setIsUpdateFound(false);
       updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
     } finally {
       setIsCheckingUpdate(false);
@@ -573,7 +579,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         current_version: appVersion,
         latest_version: `v${appVersion}`,
         has_update: false,
-        release_notes: `## L-MPV v${appVersion}\n\n*Современный портативный медиаплеер на базе libmpv.*\n\n- Высококачественный видеорендеринг и аппаратное декодирование.\n- 4K AI-апскейлинг в реальном времени (AnimeJaNai / TensorRT).\n- Динамическая адаптивная подсветка полос (Ambient Light).\n- Студийный аудио-визуалайзер с автоподстройкой акцентных цветов.\n- Модульная экосистема пресетов, настроек и горячих клавиш.\n\n> *(Подключите интернет для загрузки актуального чейнджлога с GitHub)*`,
+        release_notes: dict.settings.integration.fallbackReleaseNotes(appVersion),
         download_url: "",
         asset_name: "",
         published_at: "",
@@ -602,15 +608,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         {/* Шапка модального окна */}
         <div className="modal__header" style={{ padding: "14px 18px", flexShrink: 0 }}>
           <h2 className="modal__title" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "1.15rem" }}>
-            <SlidersHorizontal size={20} color="var(--accent)" /> Настройки
+            <SlidersHorizontal size={20} color="var(--accent)" /> {dict.settings.title}
           </h2>
 
           <button
             className="modal__close"
             onClick={handleClose}
             id="btn-settings-close"
-            title="Закрыть (Esc)"
-            aria-label="Закрыть"
+            title={dict.settings.close}
+            aria-label={dict.settings.close}
           >
             <X size={18} />
           </button>
@@ -619,12 +625,12 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         {/* Навигация по вкладкам */}
         <div className="settings-tabs">
           {[
-            { id: "general", label: "Общие", icon: SlidersHorizontal },
-            { id: "appearance", label: "Кастом", icon: Palette },
-            { id: "presets", label: "Пресеты", icon: Layers },
-            { id: "upscaling", label: "Апскейлинг", icon: Sparkles },
-            { id: "hotkeys", label: "Хоткей", icon: Keyboard },
-            { id: "integration", label: "Интеграция", icon: Link },
+            { id: "general", label: dict.settings.tabs.general, icon: SlidersHorizontal },
+            { id: "appearance", label: dict.settings.tabs.appearance, icon: Palette },
+            { id: "presets", label: dict.settings.tabs.presets, icon: Layers },
+            { id: "upscaling", label: dict.settings.tabs.upscaling, icon: Sparkles },
+            { id: "hotkeys", label: dict.settings.tabs.hotkeys, icon: Keyboard },
+            { id: "integration", label: dict.settings.tabs.integration, icon: Link },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -719,7 +725,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 type="button"
                 onClick={() => openUrl("https://github.com/Menely/L-MPV")}
                 className="settings-footer__icon-btn hover-bright"
-                title="Репозиторий L-MPV на GitHub"
+                title={dict.settings.integration.githubTooltip}
               >
                 <GithubIcon size={19} />
               </button>
@@ -728,7 +734,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 type="button"
                 onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
                 className="settings-footer__icon-btn hover-bright"
-                title="Telegram-канал L-MPV"
+                title={dict.settings.integration.telegramTooltip}
               >
                 <TelegramIcon size={19} />
               </button>
@@ -755,12 +761,12 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               {isCheckingUpdate ? (
                 <>
                   <Loader2 size={12} className="animate-spin" />
-                  <span>Проверка...</span>
+                  <span>{dict.settings.integration.checking}</span>
                 </>
               ) : (
                 <>
                   <RefreshCw size={12} />
-                  <span>Проверить обновления</span>
+                  <span>{dict.settings.integration.checkUpdates}</span>
                 </>
               )}
             </button>
@@ -779,7 +785,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 <span
                   style={{
                     fontSize: "0.78rem",
-                    color: updateStatus.includes("Найдено") ? "var(--accent)" : "var(--text-muted)",
+                    color: isUpdateFound ? "var(--accent)" : "var(--text-muted)",
                     marginLeft: 4,
                   }}
                 >
@@ -788,7 +794,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               )
             )}
           </div>
-          <span style={{ fontSize: "0.76rem" }}>Портативная редакция</span>
+          <span style={{ fontSize: "0.76rem" }}>{dict.settings.integration.portableEdition}</span>
         </div>
       </div>
     </div>

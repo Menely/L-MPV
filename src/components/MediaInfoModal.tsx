@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { usePlayerState, usePlayerProgress, useLiveState } from "../contexts/PlayerStateContext";
 import { formatTime } from "../utils/timeUtils";
+import { useTranslation } from "../i18n/LanguageContext";
 
 interface MediaInfoModalProps {
   /** Обработчик закрытия модального окна. */
@@ -24,6 +25,7 @@ function formatBytes(bytes: number): string {
 export function MediaInfoModal({
   onClose,
 }: MediaInfoModalProps) {
+  const { dict } = useTranslation();
   const { mediaInfo } = usePlayerState();
   const liveState = useLiveState();
   const { position, frame } = usePlayerProgress();
@@ -139,7 +141,7 @@ export function MediaInfoModal({
       {/* Общие данные */}
       <div className="media-info__section">
         <div className="media-info__row media-info__row--filename">
-          <span className="media-info__label">Файл:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.file}</span>
           <span
             className="media-info__value media-info__value--filename"
             title={filename}
@@ -148,15 +150,15 @@ export function MediaInfoModal({
           </span>
         </div>
         <div className="media-info__row">
-          <span className="media-info__label">Размер:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.size}</span>
           <span className="media-info__value">{mediaInfo ? formatBytes(mediaInfo.file_size) : "—"}</span>
         </div>
         <div className="media-info__row">
-          <span className="media-info__label">Длительность:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.duration}</span>
           <span className="media-info__value">{mediaInfo ? formatTime(mediaInfo.duration) : "—"}</span>
         </div>
         <div className="media-info__row">
-          <span className="media-info__label">Текущая позиция:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.currentPosition}</span>
           <span className="media-info__value">{formatTime(currentPos)}</span>
         </div>
       </div>
@@ -164,33 +166,33 @@ export function MediaInfoModal({
       {/* Видео */}
       <div className="media-info__section">
         <div className="media-info__row">
-          <span className="media-info__label">Видео:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.video}</span>
           <span className="media-info__value">{mediaInfo?.video_codec || "—"} ({mediaInfo ? `${mediaInfo.width}x${mediaInfo.height}` : "—"})</span>
         </div>
         <div className="media-info__row">
-          <span className="media-info__label">Кадры:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.frames}</span>
           <span className="media-info__value">{mediaInfo ? `${currentFrame} / ${mediaInfo.frame_count}` : "—"}</span>
         </div>
         <div className="media-info__row">
-          <span className="media-info__label">FPS / HDR:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.fpsHdr}</span>
           <span className="media-info__value">
             {mediaInfo?.fps ? mediaInfo.fps.toFixed(3) : "—"} / {mediaInfo?.hdr_info || "—"}
           </span>
         </div>
         <div className="media-info__row">
-          <span className="media-info__label">Текущий битрейт:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.currentBitrate}</span>
           <span className="media-info__value">
-            {instantBitrate > 0 ? `${Math.round(instantBitrate / 1000)} kbps` : "—"}
+            {instantBitrate > 0 ? `${Math.round(instantBitrate / 1000)} ${dict.mediaInfoModal.kbps}` : "—"}
           </span>
         </div>
         <div className="media-info__row">
-          <span className="media-info__label">Общий битрейт:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.totalBitrate}</span>
           <span className="media-info__value">
-            {mediaInfo?.total_bitrate ? `${Math.round(mediaInfo.total_bitrate / 1000)} kbps` : "—"}
+            {mediaInfo?.total_bitrate ? `${Math.round(mediaInfo.total_bitrate / 1000)} ${dict.mediaInfoModal.kbps}` : "—"}
           </span>
         </div>
         <div className="media-info__row">
-          <span className="media-info__label">Дропы кадров:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.droppedFrames}</span>
           <span className="media-info__value">{droppedFrames}</span>
         </div>
       </div>
@@ -198,19 +200,19 @@ export function MediaInfoModal({
       {/* Аудио */}
       <div className="media-info__section">
         <div className="media-info__row">
-          <span className="media-info__label">Аудио:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.audio}</span>
           <span className="media-info__value">
-            {mediaInfo?.audio_codec || "—"} ({mediaInfo?.audio_channels || "—"} ch)
+            {mediaInfo?.audio_codec || "—"} ({mediaInfo?.audio_channels || "—"} {dict.mediaInfoModal.ch})
           </span>
         </div>
         <div className="media-info__row">
-          <span className="media-info__label">Битрейт:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.bitrate}</span>
           <span className="media-info__value">
-            {audioBitrate > 0 ? `${Math.round(audioBitrate / 1000)} kbps` : "—"}
+            {audioBitrate > 0 ? `${Math.round(audioBitrate / 1000)} ${dict.mediaInfoModal.kbps}` : "—"}
           </span>
         </div>
         <div className="media-info__row">
-          <span className="media-info__label">Громкость:</span>
+          <span className="media-info__label">{dict.mediaInfoModal.volume}</span>
           <span className="media-info__value">{currentVolume}%</span>
         </div>
       </div>

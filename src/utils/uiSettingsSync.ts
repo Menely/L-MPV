@@ -50,6 +50,7 @@ import {
   TimeFormatMode,
 } from "./timeFormatUtils";
 import { getCustomHotkeys, saveCustomHotkeys } from "./hotkeyUtils";
+import { getSavedLocale, saveLocale, type Locale } from "../i18n/index";
 
 export interface UiSettings {
   player_theme?: string;
@@ -70,6 +71,8 @@ export interface UiSettings {
   custom_colors?: string[];
   visible_buttons?: Record<string, boolean>;
   custom_hotkeys?: Record<string, string[]>;
+  /** Язык интерфейса плеера: 'ru' | 'en'. */
+  language?: string;
 }
 
 let isHydrating = false;
@@ -124,6 +127,7 @@ export function collectCurrentUiSettings(): UiSettings {
     custom_colors: getCustomColors(),
     visible_buttons: visibleButtons,
     custom_hotkeys: getCustomHotkeys(),
+    language: getSavedLocale(),
   };
 }
 
@@ -276,6 +280,10 @@ export async function hydrateUiSettingsFromDisk(): Promise<void> {
       }
       if (ui.custom_hotkeys && typeof ui.custom_hotkeys === "object") {
         saveCustomHotkeys(ui.custom_hotkeys);
+        hasRestoredValues = true;
+      }
+      if (ui.language === "ru" || ui.language === "en") {
+        saveLocale(ui.language as Locale);
         hasRestoredValues = true;
       }
     }

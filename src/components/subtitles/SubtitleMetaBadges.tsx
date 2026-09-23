@@ -5,12 +5,14 @@
  */
 
 import type { SubtitleLine } from "./subtitleTypes";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 interface SubtitleMetaBadgesProps {
   line: SubtitleLine;
 }
 
 export function SubtitleMetaBadges({ line }: SubtitleMetaBadgesProps) {
+  const { dict } = useTranslation();
   const hasMeta = Boolean(
     line.style ||
       line.actor ||
@@ -35,8 +37,8 @@ export function SubtitleMetaBadges({ line }: SubtitleMetaBadgesProps) {
       }}
     >
       {line.style && (
-        <span className="sub-tech-tag" title="Стиль субтитров ASS">
-          <span style={{ opacity: 0.65 }}>стиль:</span>{" "}
+        <span className="sub-tech-tag" title={dict.subtitlesSearch.metaStyleTooltip}>
+          <span style={{ opacity: 0.65 }}>{dict.subtitlesSearch.metaStyle}</span>{" "}
           <strong>{line.style}</strong>
         </span>
       )}
@@ -44,22 +46,22 @@ export function SubtitleMetaBadges({ line }: SubtitleMetaBadgesProps) {
       {line.actor && (
         <span
           className="sub-tech-tag sub-tech-tag--actor"
-          title="Персонаж / Актёр озвучки"
+          title={dict.subtitlesSearch.metaActorTooltip}
         >
-          <span style={{ opacity: 0.65 }}>актёр:</span>{" "}
+          <span style={{ opacity: 0.65 }}>{dict.subtitlesSearch.metaActor}</span>{" "}
           <strong>{line.actor}</strong>
         </span>
       )}
 
       {line.layer !== undefined && (
-        <span className="sub-tech-tag" title="Слой рендеринга (Layer)">
+        <span className="sub-tech-tag" title={dict.subtitlesSearch.metaLayerTooltip}>
           L{line.layer}
         </span>
       )}
 
       {(line.font_name || line.font_size) && (
-        <span className="sub-tech-tag" title="Гарнитура и кегль шрифта">
-          {line.font_name || "шрифт"}{" "}
+        <span className="sub-tech-tag" title={dict.subtitlesSearch.metaFontTooltip}>
+          {line.font_name || dict.subtitlesSearch.metaFont}{" "}
           {line.font_size ? `${Math.round(line.font_size)}px` : ""}
         </span>
       )}
@@ -67,7 +69,7 @@ export function SubtitleMetaBadges({ line }: SubtitleMetaBadgesProps) {
       {line.color && (
         <span
           className="sub-tech-tag"
-          title={`Цвет текста: ${line.color}`}
+          title={dict.subtitlesSearch.metaColorTooltip(line.color)}
         >
           <span
             style={{
@@ -88,7 +90,7 @@ export function SubtitleMetaBadges({ line }: SubtitleMetaBadgesProps) {
       {line.position && (
         <span
           className="sub-tech-tag"
-          title="Позиционирование / Выравнивание"
+          title={dict.subtitlesSearch.metaPositionTooltip}
         >
           {line.position}
         </span>
@@ -97,7 +99,7 @@ export function SubtitleMetaBadges({ line }: SubtitleMetaBadgesProps) {
       {line.effect && (
         <span
           className="sub-tech-tag"
-          title="Спецэффект (Караоке и др.)"
+          title={dict.subtitlesSearch.metaEffectTooltip}
         >
           {line.effect}
         </span>

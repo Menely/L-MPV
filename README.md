@@ -12,7 +12,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Version-2.5.3-blueviolet?style=for-the-badge" alt="Version 2.5.3">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
-  <a href="https://t.me/+45xNDoaEpHBjY2Qy"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
+  <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
   <img src="https://img.shields.io/badge/Tauri-v2.1-blue?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri v2">
   <img src="https://img.shields.io/badge/React-19.1-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19">
@@ -27,7 +27,7 @@
 
 ## 🌟 О проекте
 
-<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+45xNDoaEpHBjY2Qy)** — это современный настольный медиаплеер для Windows, объединяющий эталонное качество воспроизведения нативного видеодвижка **MPV** (`vo=gpu-next`, Direct3D 11, HDR, WASAPI, студийный 32-tap sinc-ресемплинг), аппаратный **Real-Time 4K AI Апскейлинг** ( ONNX инференс через DirectML и TensorRT) с утонченным, отзывчивым интерфейсом в стиле **Glassmorphism**, созданным на **React 19** и **TypeScript**.
+<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** — это современный настольный медиаплеер для Windows, объединяющий эталонное качество воспроизведения нативного видеодвижка **MPV** (`vo=gpu-next`, Direct3D 11, HDR, WASAPI, студийный 32-tap sinc-ресемплинг), аппаратный **Real-Time 4K AI Апскейлинг** ( ONNX инференс через DirectML и TensorRT) с утонченным, отзывчивым интерфейсом в стиле **Glassmorphism**, созданным на **React 19** и **TypeScript**.
 
 Плеер спроектирован по строгой концепции **True Portable Architecture (Zero-Install)**: он полностью автономен и не создает мусор в системных каталогах пользователя. Все конфигурации, кэш, скриншоты, универсальная папка ONNX-моделей (`models/onnx/`) и нативные бинарные библиотеки (`libmpv-2.dll`, `ffmpeg.exe`, `mediainfo.dll`) расположены непосредственно в каталоге приложения.
 
@@ -645,8 +645,26 @@ Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MP
 ## 💬 Сообщество и Связь
 
 Присоединяйтесь к нашему комьюнити и телеграм каналу: <br>
-👉 <img src="https://github.com/Menely/L-MPV/blob/main/src-tauri/icons/icon.png" width="23" height="23" align="absmiddle"> **[L-MPV Community (Russia)](https://t.me/+iiwyl0cV6uszYTZi)** <br>
-👉<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+45xNDoaEpHBjY2Qy)**
+<table>
+  <thead>
+    <tr>
+      <th align="left">Russian</th>
+      <th align="left">English</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <a href="https://t.me/+45xNDoaEpHBjY2Qy">L-MPV (Russia)</a><br>
+        <a href="https://t.me/+iiwyl0cV6uszYTZi">L-MPV Community (Russia)</a>
+      </td>
+      <td>
+        <a href="https://t.me/+Mss1qF6c28o1MDgy">L-MPV (English)</a><br>
+        <a href="https://t.me/+LAmGOlk5MXw4NDAy">L-MPV Community (English)</a>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 

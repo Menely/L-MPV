@@ -7,6 +7,7 @@ import {
   X,
 } from "lucide-react";
 import { usePlayerState } from "../contexts/PlayerStateContext";
+import { useTranslation } from "../i18n/LanguageContext";
 import { TimeDisplay } from "./TimeDisplay";
 import {
   TimeDisplayPosition,
@@ -37,6 +38,7 @@ interface TitlebarProps {
 export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarProps) {
   const appWindow = useMemo(() => getCurrentWindow(), []);
   const { isFullscreen, toggleFullscreen, hasMedia, mediaInfo } = usePlayerState();
+  const { dict } = useTranslation();
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
 
@@ -56,7 +58,7 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
     const option = TIME_FORMAT_OPTIONS.find((opt) => opt.id === nextFormat);
     window.dispatchEvent(
       new CustomEvent("show-osd", {
-        detail: `Формат времени: ${option?.label || nextFormat}`,
+        detail: dict.osd.timeFormat(option?.label || nextFormat),
       })
     );
   }, [timeFormat]);

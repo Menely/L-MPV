@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
+import { useTranslation } from "../../i18n/LanguageContext";
 import type { SubtitleLine } from "./subtitleTypes";
 
 /**
@@ -20,6 +21,7 @@ let lastMediaFilePath: string | null = null;
  * монтировании больше нет.
  */
 export function useSubtitlesAnalysis() {
+  const { dict } = useTranslation();
   const { tracks, selectSubTrack, mediaInfo, loadTracks } = usePlayerState();
 
   const [lines, setLines] = useState<SubtitleLine[]>([]);
@@ -74,7 +76,7 @@ export function useSubtitlesAnalysis() {
         setAnalyzeError(null);
         setLines(cached);
         const trk = subTracks.find((t) => t.id === trackId);
-        setAnalyzedTrackTitle(trk ? trk.title || `Субтитры #${trk.id}` : "");
+        setAnalyzedTrackTitle(trk ? trk.title || dict.subtitlesSearch.defaultTrackName(trk.id) : "");
         return;
       }
 
@@ -91,7 +93,7 @@ export function useSubtitlesAnalysis() {
         setLines(validLines);
         globalSubtitlesCache.set(cacheKey, validLines);
         const trk = subTracks.find((t) => t.id === trackId);
-        setAnalyzedTrackTitle(trk ? trk.title || `Субтитры #${trk.id}` : "");
+        setAnalyzedTrackTitle(trk ? trk.title || dict.subtitlesSearch.defaultTrackName(trk.id) : "");
       } catch (err) {
         if (analyzeSeqRef.current !== seq) return;
         console.error("Ошибка анализа дорожки субтитров:", err);
@@ -99,7 +101,7 @@ export function useSubtitlesAnalysis() {
         setAnalyzeError(
           typeof err === "string" && err
             ? err
-            : "Не удалось проанализировать дорожку субтитров"
+            : dict.subtitlesSearch.notFound
         );
       } finally {
         if (analyzeSeqRef.current === seq) {
@@ -107,7 +109,7 @@ export function useSubtitlesAnalysis() {
         }
       }
     },
-    [selectedTrackId, activeTrack?.id, subTracks, mediaPath]
+    [selectedTrackId, activeTrack?.id, subTracks, mediaPath, dict]
   );
 
   // Первичный авто-анализ активной дорожки при открытии модального окна
@@ -203,15 +205,16 @@ export function useSubtitlesAnalysis() {
       setSubDelayState((prev) => {
         const next = Math.max(-10, Math.min(10, Math.round((prev + step) * 100) / 100));
         invoke("set_sub_delay", { delay: next }).catch(console.error);
+        const valStr = `${next > 0 ? "+" : ""}${next.toFixed(2)}`;
         window.dispatchEvent(
           new CustomEvent("show-osd", {
-            detail: `Задержка субтитров: ${next > 0 ? "+" : ""}${next.toFixed(2)}с`,
+            detail: dict.osd.subtitleDelay(valStr),
           })
         );
         return next;
       });
     },
-    []
+    [dict]
   );
 
   /**
@@ -225,7 +228,7 @@ export function useSubtitlesAnalysis() {
         multiple: false,
         filters: [
           {
-            name: "Субтитры",
+            name: dict.subtitlesSearch.fileFilterName,
             extensions: ["srt", "ass", "ssa", "vtt", "sub", "idx", "sup"],
           },
         ],
@@ -236,7 +239,7 @@ export function useSubtitlesAnalysis() {
     } catch (e) {
       console.error("Ошибка загрузки внешних субтитров:", e);
     }
-  }, [loadTracks]);
+  }, [dict, loadTracks]);
 
   return {
     lines,

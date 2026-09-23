@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n/LanguageContext";
 import React from "react";
 import {
   Undo,
@@ -33,6 +34,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
   visibleButtons,
   skipOpeningSeconds,
 }) => {
+  const { dict } = useTranslation();
   const isBtnVisible = (id: string, def = true) => {
     return visibleButtons[id] !== undefined ? visibleButtons[id] : def;
   };
@@ -44,7 +46,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
       render: () => (
         <div
           key="skipOpening"
-          title={`Перемотка опенинга (+${skipOpeningSeconds}с)`}
+          title={dict.settings.appearance.controlButtons.openingSkip(skipOpeningSeconds)}
           style={{
             height: 20,
             padding: "0 4px",
@@ -60,17 +62,17 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
           }}
         >
           <FastForward size={10} />
-          <span>+{skipOpeningSeconds}с</span>
+          <span>+{skipOpeningSeconds}s</span>
         </div>
       ),
     },
-    { id: "alwaysOnTop", title: "Поверх всех окон", icon: <Pin size={12} /> },
-    { id: "info", title: "Информация о файле", icon: <Info size={13} /> },
-    { id: "mediaInfo", title: "Свойства MediaInfo (Shift+F10)", icon: <FileText size={13} /> },
-    { id: "visualizer", title: "Аудио-визуалайзер", icon: <AudioWaveform size={13} /> },
-    { id: "playlist", title: "Плейлист", icon: <ListVideo size={13} /> },
-    { id: "screenshot", title: "Сделать скриншот", icon: <Camera size={13} /> },
-    { id: "fullscreen", title: "Полный экран", icon: <Maximize size={13} /> },
+    { id: "alwaysOnTop", title: dict.settings.appearance.controlButtons.alwaysOnTop, icon: <Pin size={12} /> },
+    { id: "info", title: dict.settings.appearance.controlButtons.fileInfo, icon: <Info size={13} /> },
+    { id: "mediaInfo", title: dict.settings.appearance.controlButtons.mediaInfo, icon: <FileText size={13} /> },
+    { id: "visualizer", title: dict.settings.appearance.controlButtons.visualizer, icon: <AudioWaveform size={13} /> },
+    { id: "playlist", title: dict.settings.appearance.controlButtons.playlist, icon: <ListVideo size={13} /> },
+    { id: "screenshot", title: dict.settings.appearance.controlButtons.screenshot, icon: <Camera size={13} /> },
+    { id: "fullscreen", title: dict.settings.appearance.controlButtons.fullscreen, icon: <Maximize size={13} /> },
   ];
 
   const roundIconBtnStyle: React.CSSProperties = {
@@ -101,7 +103,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: "0.84rem", fontWeight: 600, color: "var(--text-primary)" }}>
-            Предпросмотр:
+            {dict.settings.appearance.controlButtons.preview}
           </span>
           <span
             style={{
@@ -111,11 +113,11 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
               textShadow: "0 0 10px var(--accent-glow)",
             }}
           >
-            Живой вид панели управления
+            {dict.settings.appearance.controlButtons.liveView}
           </span>
         </div>
         <span style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
-          Отображение кнопок при воспроизведении
+          {dict.settings.appearance.controlButtons.onPlayback}
         </span>
       </div>
 
@@ -196,13 +198,13 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
         >
           {/* Левая группа (дорожки, звук без громоздкого ползунка) */}
           <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
-            <div title="Аудиодорожка" style={roundIconBtnStyle}>
+            <div title={dict.settings.appearance.controlButtons.track} style={roundIconBtnStyle}>
               <AudioLines size={13} />
             </div>
-            <div title="Субтитры" style={roundIconBtnStyle}>
+            <div title={dict.settings.appearance.controlButtons.subs} style={roundIconBtnStyle}>
               <Subtitles size={13} />
             </div>
-            <div title="Громкость" style={roundIconBtnStyle}>
+            <div title={dict.settings.appearance.controlButtons.volume} style={roundIconBtnStyle}>
               <Volume2 size={13} />
             </div>
           </div>
@@ -211,22 +213,22 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
           <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
             {isBtnVisible("repeat", true) && (
               <div
-                title="Повтор"
+                title={dict.settings.appearance.controlButtons.repeat}
                 style={{ ...roundIconBtnStyle, color: "var(--accent)" }}
               >
                 <Repeat size={12} />
               </div>
             )}
-            <div title="Предыдущий файл" style={roundIconBtnStyle}>
+            <div title={dict.settings.appearance.controlButtons.prev} style={roundIconBtnStyle}>
               <SkipBack size={13} />
             </div>
-            <div title="-10 сек" style={roundIconBtnStyle}>
+            <div title={dict.settings.appearance.controlButtons.minus10} style={roundIconBtnStyle}>
               <Undo size={13} />
             </div>
 
             {/* Play/Pause */}
             <div
-              title="Воспроизведение / Пауза"
+              title={dict.settings.appearance.controlButtons.playPause}
               style={{
                 width: 28,
                 height: 28,
@@ -241,16 +243,16 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
               <Play size={16} fill="currentColor" />
             </div>
 
-            <div title="+10 сек" style={roundIconBtnStyle}>
+            <div title={dict.settings.appearance.controlButtons.plus10} style={roundIconBtnStyle}>
               <Redo size={13} />
             </div>
-            <div title="Следующий файл" style={roundIconBtnStyle}>
+            <div title={dict.settings.appearance.controlButtons.next} style={roundIconBtnStyle}>
               <SkipForward size={13} />
             </div>
 
             {isBtnVisible("shuffle", true) && (
               <div
-                title="Случайный порядок"
+                title={dict.settings.appearance.controlButtons.shuffle}
                 style={{ ...roundIconBtnStyle, color: "var(--text-secondary)" }}
               >
                 <Shuffle size={12} />

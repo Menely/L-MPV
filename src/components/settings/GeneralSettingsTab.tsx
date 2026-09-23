@@ -1,11 +1,14 @@
 import React from "react";
 import {
-  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles, MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles
+  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles,
+  MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles, Globe
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { AccordionSection } from "./AccordionSection";
 import { ContextMenuSettingsTab } from "./ContextMenuSettingsTab";
 import { SectionHeader } from "./SettingBlocks";
+import { useTranslation } from "../../i18n/LanguageContext";
+import type { Locale } from "../../i18n/types";
 
 interface GeneralSettingsTabProps {
   multiInstance: boolean;
@@ -48,6 +51,8 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
     subtitlesAvoidUi, setSubtitlesAvoidUi
   } = props;
 
+  const { dict, locale, setLocale } = useTranslation();
+
   // Стиль карточки подблока с парящей тенью и полупрозрачным фоном темы
   const cardStyle: React.CSSProperties = {
     display: "flex",
@@ -64,34 +69,128 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   return (
     <div className="modal__section" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 
+      {/* ── 0. Язык интерфейса ── */}
+      <AccordionSection
+        isOpen={openSections["gen_language"] === true}
+        onToggle={() => toggleSection("gen_language")}
+        icon={<Globe size={16} />}
+        title={dict.settings.general.languageSection}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+          <div style={cardStyle}>
+            <SectionHeader
+              icon={<Globe size={14} />}
+              title={dict.settings.general.languageTitle}
+              desc={dict.settings.general.languageDesc}
+            />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
+              <button
+                type="button"
+                className={`compact-segment-btn ${locale === "ru" ? "compact-segment-btn--active" : ""}`}
+                style={{
+                  height: 38,
+                  padding: "0 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                  gap: 8,
+                }}
+                onClick={() => setLocale("ru" as Locale)}
+              >
+                <span
+                  style={{
+                    fontSize: "0.68rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.5px",
+                    padding: "2px 5px",
+                    borderRadius: "4px",
+                    background: locale === "ru" ? "var(--accent)" : "rgba(255, 255, 255, 0.08)",
+                    color: locale === "ru" ? "#000" : "var(--text-muted)",
+                    lineHeight: 1,
+                  }}
+                >
+                  RU
+                </span>
+                <span
+                  style={{
+                    fontSize: "0.82rem",
+                    fontWeight: 600,
+                    color: locale === "ru" ? "var(--text-primary)" : "var(--text-secondary)",
+                  }}
+                >
+                  {dict.settings.general.languageRu}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`compact-segment-btn ${locale === "en" ? "compact-segment-btn--active" : ""}`}
+                style={{
+                  height: 38,
+                  padding: "0 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                  gap: 8,
+                }}
+                onClick={() => setLocale("en" as Locale)}
+              >
+                <span
+                  style={{
+                    fontSize: "0.68rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.5px",
+                    padding: "2px 5px",
+                    borderRadius: "4px",
+                    background: locale === "en" ? "var(--accent)" : "rgba(255, 255, 255, 0.08)",
+                    color: locale === "en" ? "#000" : "var(--text-muted)",
+                    lineHeight: 1,
+                  }}
+                >
+                  EN
+                </span>
+                <span
+                  style={{
+                    fontSize: "0.82rem",
+                    fontWeight: 600,
+                    color: locale === "en" ? "var(--text-primary)" : "var(--text-secondary)",
+                  }}
+                >
+                  {dict.settings.general.languageEn}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </AccordionSection>
+
       {/* ── 1. Скриншоты и медиатека ── */}
       <AccordionSection
         isOpen={openSections["gen_screenshots"] === true}
         onToggle={() => toggleSection("gen_screenshots")}
         icon={<Camera size={16} />}
-        title="Скриншоты и медиатека"
+        title={dict.settings.general.screenshotsSection}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
           <div style={cardStyle}>
             <SectionHeader
               icon={<Camera size={14} />}
-              title="Папка сохранения скриншотов"
+              title={dict.settings.general.screenshotFolder}
               right={
                 <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                  Горячая клавиша: <strong style={{ color: "var(--accent)" }}>S</strong> (без субтитров: <strong style={{ color: "var(--accent)" }}>Shift+S</strong>)
+                  {dict.settings.general.screenshotHotkey} <strong style={{ color: "var(--accent)" }}>S</strong> ({dict.settings.general.screenshotHotkeyNoSubs} <strong style={{ color: "var(--accent)" }}>Shift+S</strong>)
                 </span>
               }
             />
             
             <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-              Кадры сохраняются в оригинальном исходном разрешении видеопотока без сжатия интерфейсом.
+              {dict.settings.general.screenshotFolderDesc}
             </span>
 
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
               <input
                 type="text"
                 readOnly
-                value={screenshotDir || "Загрузка..."}
+                value={screenshotDir || dict.settings.general.loading}
                 style={{
                   flex: 1,
                   padding: "8px 12px",
@@ -124,7 +223,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   flexShrink: 0,
                 }}
               >
-                <FolderOpen size={14} /> Обзор...
+                <FolderOpen size={14} /> {dict.settings.general.browse}
               </button>
               <button
                 type="button"
@@ -139,7 +238,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   justifyContent: "center",
                   flexShrink: 0,
                 }}
-                title="Сбросить на папку screenshots по умолчанию"
+                title={dict.settings.general.resetDefaultTitle}
               >
                 <RotateCcw size={13} />
               </button>
@@ -153,7 +252,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         isOpen={openSections["gen_playback"] === true}
         onToggle={() => toggleSection("gen_playback")}
         icon={<Play size={16} />}
-        title="Воспроизведение и окна"
+        title={dict.settings.general.playbackSection}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
           
@@ -161,8 +260,8 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
           <div style={cardStyle}>
             <SectionHeader
               icon={<Film size={14} />}
-              title="Поведение по окончании видео"
-              desc="Выберите, какое действие выполняет плеер после завершения воспроизведения текущего файла."
+              title={dict.settings.general.endOfVideoTitle}
+              desc={dict.settings.general.endOfVideoDesc}
             />
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
@@ -180,10 +279,10 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 }}
               >
                 <span style={{ fontSize: "0.78rem", fontWeight: 600, color: playNextOnEnd ? "var(--text-primary)" : "var(--text-secondary)" }}>
-                  Следующее видео (по умолчанию)
+                  {dict.settings.general.playNextOption}
                 </span>
                 <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 400 }}>
-                  Автоматический переход к следующему файлу в плейлисте
+                  {dict.settings.general.playNextOptionDesc}
                 </span>
               </button>
 
@@ -201,10 +300,10 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 }}
               >
                 <span style={{ fontSize: "0.78rem", fontWeight: 600, color: !playNextOnEnd ? "var(--text-primary)" : "var(--text-secondary)" }}>
-                  Остановить воспроизведение
+                  {dict.settings.general.stopOption}
                 </span>
                 <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 400 }}>
-                  Пауза на финальном кадре (Play запустит сначала)
+                  {dict.settings.general.stopOptionDesc}
                 </span>
               </button>
             </div>
@@ -232,13 +331,13 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <Monitor size={14} style={{ color: "var(--accent)" }} />
                   <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                    Режим нескольких окон (Multi-instance)
+                    {dict.settings.general.multiInstanceTitle}
                   </span>
                 </div>
                 <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-                  Разрешить открытие нескольких независимых копий плеера одновременно при запуске новых файлов.
+                  {dict.settings.general.multiInstanceDesc}
                   <span style={{ color: "var(--accent)", marginLeft: 4 }}>
-                    (Вступает в силу после перезапуска приложения)
+                    {dict.settings.general.multiInstanceRestart}
                   </span>
                 </span>
               </div>
@@ -264,11 +363,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <MousePointer2 size={14} style={{ color: "var(--accent)" }} />
                   <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                    Скрытие интерфейса у верхнего края экрана
+                    {dict.settings.general.hideControlsTitle}
                   </span>
                 </div>
                 <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-                  В режиме во весь экран моментально скрывать шапку окна и панель управления, когда курсор подводится к верхней части экрана, для чистого погружения в просмотр.
+                  {dict.settings.general.hideControlsDesc}
                 </span>
               </div>
             </label>
@@ -282,7 +381,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         isOpen={openSections["gen_tracks"] === true}
         onToggle={() => toggleSection("gen_tracks")}
         icon={<AudioLines size={16} />}
-        title="Аудиодорожки и субтитры"
+        title={dict.settings.general.tracksSection}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
           
@@ -308,11 +407,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <AudioLines size={14} style={{ color: "var(--accent)" }} />
                   <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                    Автоматический подхват внешних дорожек
+                    {dict.settings.general.autoLoadTracksTitle}
                   </span>
                 </div>
                 <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-                  Автоматически подключает совместимые аудиофайлы и субтитры из папки с видео и её подпапок (Audio, Subs, Subtitles...).
+                  {dict.settings.general.autoLoadTracksDesc}
                 </span>
               </div>
             </label>
@@ -350,11 +449,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <CornerDownRight size={13} style={{ color: "var(--accent)" }} />
                       <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                        Переключать воспроизведение на найденную внешнюю аудиодорожку
+                        {dict.settings.general.autoSelectExternalAudioTitle}
                       </span>
                     </div>
                     <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: 2, lineHeight: 1.3 }}>
-                      Если отключено, внешний звук добавляется в меню дорожек, но по умолчанию играет встроенная дорожка видео.
+                      {dict.settings.general.autoSelectExternalAudioDesc}
                     </span>
                   </div>
                 </label>
@@ -381,11 +480,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <Sparkles size={14} style={{ color: "var(--accent)" }} />
                   <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                    Хотлоад дорожек на лету (Drag & Drop)
+                    {dict.settings.general.hotloadTitle}
                   </span>
                 </div>
                 <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-                  Перетаскивание файла аудио или субтитров в окно плеера во время воспроизведения мгновенно подключит его к текущему видео вместо открытия нового файла.
+                  {dict.settings.general.hotloadDesc}
                 </span>
               </div>
             </label>
@@ -410,11 +509,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <AudioLines size={14} style={{ color: "var(--accent)" }} />
                   <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                    Названия дорожек на панели управления
+                    {dict.settings.general.showTrackNamesTitle}
                   </span>
                 </div>
                 <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-                  Отображать короткое название выбранной аудиодорожки и субтитров рядом с иконками на панели плеера.
+                  {dict.settings.general.showTrackNamesDesc}
                 </span>
               </div>
             </label>
@@ -448,11 +547,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <Subtitles size={14} style={{ color: "var(--accent)" }} />
                   <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                    Привязка субтитров к интерфейсу
+                    {dict.settings.general.subAvoidUiTitle}
                   </span>
                 </div>
                 <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-                  Приподнимает субтитры выше элементов управления, когда панель активна, и опускает их к нижнему краю экрана при её скрытии.
+                  {dict.settings.general.subAvoidUiDesc}
                 </span>
               </div>
             </label>
@@ -476,11 +575,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <Download size={14} style={{ color: "var(--accent)" }} />
                   <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                    Сохранять извлеченные дорожки в папку видео
+                    {dict.settings.general.saveTracksToDirTitle}
                   </span>
                 </div>
                 <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-                  При экспорте дорожки через кнопку «Скачать» сохранять файл прямо в каталог с фильмом. Если выключено — открывается окно Проводника для выбора папки вручную.
+                  {dict.settings.general.saveTracksToDirDesc}
                 </span>
               </div>
             </label>
@@ -494,7 +593,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         isOpen={openSections["gen_context_menu"] === true}
         onToggle={() => toggleSection("gen_context_menu")}
         icon={<MousePointerClick size={16} />}
-        title="Контекстное меню (ПКМ)"
+        title={dict.settings.general.contextMenuSection}
       >
         <div style={{ marginTop: 8 }}>
           <ContextMenuSettingsTab />

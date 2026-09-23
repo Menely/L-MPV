@@ -1,12 +1,14 @@
 import React from "react";
 import { Cpu } from "lucide-react";
 import { GpuHardwareInfo } from "./types";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 interface GpuHardwareCardProps {
   gpuInfo?: GpuHardwareInfo;
 }
 
 export const GpuHardwareCard: React.FC<GpuHardwareCardProps> = ({ gpuInfo }) => {
+  const { dict } = useTranslation();
   if (!gpuInfo) return null;
 
   const vramGb = gpuInfo.vram_bytes > 0
@@ -28,16 +30,16 @@ export const GpuHardwareCard: React.FC<GpuHardwareCardProps> = ({ gpuInfo }) => 
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <Cpu size={16} color="var(--accent)" />
         <span style={{ color: "var(--text-primary)" }}>
-          <strong>Видеокарта:</strong> {gpuInfo.name}
+          <strong>{dict.settings.upscaling.gpuLabel}</strong> {gpuInfo.name}
           {vramGb && (
             <span style={{ color: "var(--text-muted)", marginLeft: 6 }}>
-              ({vramGb} ГБ VRAM)
+              {dict.settings.upscaling.vramLabel(vramGb)}
             </span>
           )}
         </span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ color: "var(--text-muted)" }}>Рекомендуется:</span>
+        <span style={{ color: "var(--text-muted)" }}>{dict.settings.upscaling.recommended}:</span>
         <span
           className={`badge ${
             gpuInfo.recommended_backend === "TensorRT"

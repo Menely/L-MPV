@@ -14,6 +14,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import type { SubtitleViewMode } from "./subtitleTypes";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 interface SubtitlesModalHeaderProps {
   viewMode: SubtitleViewMode;
@@ -38,12 +39,14 @@ export function SubtitlesModalHeader({
   onDragStart,
   onResetPosition,
 }: SubtitlesModalHeaderProps) {
+  const { dict } = useTranslation();
+
   return (
     <div
       className="subtitles-search-card__header--draggable"
       onMouseDown={onDragStart}
       onDoubleClick={onResetPosition}
-      title="Потяните за шапку для перемещения окна вбок (двойной клик — привязать к правому краю)"
+      title={dict.subtitlesSearch.dragHeader}
       style={{
         display: "flex",
         justifyContent: "space-between",
@@ -88,7 +91,7 @@ export function SubtitlesModalHeader({
             textOverflow: "ellipsis",
           }}
         >
-          Поиск по субтитрам
+          {dict.subtitlesSearch.title}
         </div>
       </div>
 
@@ -101,16 +104,17 @@ export function SubtitlesModalHeader({
           flexShrink: 0,
         }}
       >
-        {/* Переключатель режимов: Обычный / Инспектор */}
+        {/* Переключатель режимов: Обычный / Инспектор с повышенным контрастом */}
         <div
           style={{
             display: "inline-flex",
             alignItems: "center",
             padding: "2px",
-            background: "rgba(0, 0, 0, 0.35)",
+            background: "rgba(0, 0, 0, 0.55)",
             borderRadius: "var(--radius-xs)",
-            border: "1px solid var(--border-pill)",
+            border: "1px solid rgba(255, 255, 255, 0.16)",
             marginRight: 4,
+            gap: 2,
           }}
         >
           <button
@@ -118,20 +122,23 @@ export function SubtitlesModalHeader({
             onClick={() => onToggleViewMode("normal")}
             style={{
               background:
-                viewMode === "normal" ? "var(--accent)" : "transparent",
-              color: viewMode === "normal" ? "#fff" : "var(--text-muted)",
+                viewMode === "normal" ? "var(--accent)" : "rgba(255, 255, 255, 0.05)",
+              color: viewMode === "normal" ? "#ffffff" : "rgba(255, 255, 255, 0.88)",
               border: "none",
               borderRadius: "calc(var(--radius-xs) - 2px)",
-              padding: "3px 7px",
+              padding: "4px 8px",
               fontSize: "0.72rem",
-              fontWeight: 600,
+              fontWeight: viewMode === "normal" ? 700 : 600,
               cursor: "pointer",
-              transition: "background 0.15s ease, color 0.15s ease",
+              transition: "background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease",
               lineHeight: 1.2,
+              textShadow: viewMode === "normal" ? "0 1px 2px rgba(0, 0, 0, 0.5)" : "none",
+              boxShadow: viewMode === "normal" ? "0 1px 3px rgba(0, 0, 0, 0.3)" : "none",
             }}
-            title="Обычный режим: текст реплик и таймкоды"
+            className="hover-bright"
+            title={dict.subtitlesSearch.modeNormalTooltip}
           >
-            Обычный
+            {dict.subtitlesSearch.modeNormal}
           </button>
           <button
             type="button"
@@ -140,25 +147,28 @@ export function SubtitlesModalHeader({
               background:
                 viewMode === "technical"
                   ? "var(--accent)"
-                  : "transparent",
+                  : "rgba(255, 255, 255, 0.05)",
               color:
-                viewMode === "technical" ? "#fff" : "var(--text-muted)",
+                viewMode === "technical" ? "#ffffff" : "rgba(255, 255, 255, 0.88)",
               border: "none",
               borderRadius: "calc(var(--radius-xs) - 2px)",
-              padding: "3px 7px",
+              padding: "4px 8px",
               fontSize: "0.72rem",
-              fontWeight: 600,
+              fontWeight: viewMode === "technical" ? 700 : 600,
               cursor: "pointer",
-              transition: "background 0.15s ease, color 0.15s ease",
+              transition: "background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease",
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
               lineHeight: 1.2,
+              textShadow: viewMode === "technical" ? "0 1px 2px rgba(0, 0, 0, 0.5)" : "none",
+              boxShadow: viewMode === "technical" ? "0 1px 3px rgba(0, 0, 0, 0.3)" : "none",
             }}
-            title="Технический инспектор: стили, шрифты, кегли, цвета, слои, позиционирование и сырой код"
+            className="hover-bright"
+            title={dict.subtitlesSearch.modeTechTooltip}
           >
             <SlidersHorizontal size={11} />
-            <span>Инспектор</span>
+            <span>{dict.subtitlesSearch.modeTech}</span>
           </button>
         </div>
 
@@ -168,13 +178,13 @@ export function SubtitlesModalHeader({
           onClick={onToggleOpaque}
           title={
             isOpaque
-              ? "Включить прозрачность окна субтитров"
-              : "Убрать прозрачность окна субтитров (сплошной фон)"
+              ? dict.subtitlesSearch.opacityEnable
+              : dict.subtitlesSearch.opacityDisable
           }
           aria-label={
             isOpaque
-              ? "Включить прозрачность окна субтитров"
-              : "Убрать прозрачность окна субтитров"
+              ? dict.subtitlesSearch.opacityEnable
+              : dict.subtitlesSearch.opacityDisable
           }
           style={{
             width: 28,
@@ -189,8 +199,8 @@ export function SubtitlesModalHeader({
         <button
           className="modal__close"
           onClick={onReanalyze}
-          title="Пересканировать дорожку"
-          aria-label="Пересканировать дорожку"
+          title={dict.subtitlesSearch.rescanTrack}
+          aria-label={dict.subtitlesSearch.rescanTrack}
           style={{ width: 28, height: 28 }}
         >
           <RefreshCw
@@ -203,8 +213,8 @@ export function SubtitlesModalHeader({
         <button
           className="modal__close"
           onClick={onClose}
-          title="Закрыть (Esc)"
-          aria-label="Закрыть"
+          title={dict.subtitlesSearch.close}
+          aria-label={dict.subtitlesSearch.close}
           style={{ width: 28, height: 28 }}
         >
           <X size={16} />

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from "react";
 import { usePlayerState, type TrackInfo } from "../contexts/PlayerStateContext";
+import { useTranslation } from "../i18n/LanguageContext";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getSavedLayout, LAYOUT_CHANGED_EVENT, type LayoutEntry } from "../utils/contextMenuLayout";
@@ -114,16 +115,16 @@ function getUiScale(): number {
 
 /** Список переключаемых кнопок нижней панели управления. */
 const CONTROL_BUTTON_ITEMS = [
-  { id: "repeat", label: "Повтор", defaultChecked: true },
-  { id: "shuffle", label: "Случайный порядок", defaultChecked: true },
-  { id: "alwaysOnTop", label: "Поверх всех окон", defaultChecked: true },
-  { id: "info", label: "Информация о файле", defaultChecked: true },
-  { id: "mediaInfo", label: "Свойства MediaInfo", defaultChecked: true },
-  { id: "visualizer", label: "Аудио-визуалайзер", defaultChecked: true },
-  { id: "screenshot", label: "Сделать скриншот", defaultChecked: true },
-  { id: "playlist", label: "Плейлист", defaultChecked: true },
-  { id: "fullscreen", label: "Полный экран", defaultChecked: true },
-  { id: "skipOpening", label: "Перемотка опенинга", defaultChecked: false },
+  { id: "repeat", defaultChecked: true },
+  { id: "shuffle", defaultChecked: true },
+  { id: "alwaysOnTop", defaultChecked: true },
+  { id: "info", defaultChecked: true },
+  { id: "mediaInfo", defaultChecked: true },
+  { id: "visualizer", defaultChecked: true },
+  { id: "screenshot", defaultChecked: true },
+  { id: "playlist", defaultChecked: true },
+  { id: "fullscreen", defaultChecked: true },
+  { id: "skipOpening", defaultChecked: false },
 ];
 
 /** Статические узлы иконок для предотвращения лишних пересозданий VNode при рендере. */
@@ -166,6 +167,7 @@ export function ContextMenu({
   onShowSubtitlesSearch,
   onShowSettings,
 }: ContextMenuProps) {
+  const { dict } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const closeTimerRef = useRef<number | null>(null);
@@ -456,11 +458,11 @@ export function ContextMenu({
       await invoke("set_ambient_settings", { settings: updated });
       setAmbientMode(mode);
       const labels: Record<string, string> = {
-        off: "Выкл",
-        blur: "Размытие (GPU)",
-        color: "Цветной Ambient",
+        off: dict.settings.cmenuUI.ambientOff,
+        blur: dict.settings.cmenuUI.ambientBlur,
+        color: dict.settings.cmenuUI.ambientColor,
       };
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: `Подсветка полос: ${labels[mode] || mode}` }));
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdAmbient(labels[mode] || mode) }));
       window.dispatchEvent(new Event("l-mpv-ambient-changed"));
     } catch (e) {
       console.error("Ошибка смены режима подсветки полос:", e);
@@ -482,10 +484,10 @@ export function ContextMenu({
   const handleTakeScreenshot = useCallback(async () => {
     try {
       await invoke("take_screenshot");
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Кадр сохранён" }));
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdScreenshot }));
     } catch (e) {
       console.error("Ошибка при сохранении кадра:", e);
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Ошибка сохранения кадра" }));
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdScreenshotErr }));
     }
     handleClose();
   }, [handleClose]);
@@ -510,10 +512,10 @@ export function ContextMenu({
     try {
       await applySettingsPreset(preset);
       setActivePresetId(preset.id);
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: `Пресет: ${preset.name}` }));
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdPreset(preset.name) }));
     } catch (e) {
       console.error("Ошибка применения пресета:", e);
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Ошибка применения пресета" }));
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdPresetErr }));
     }
     handleClose();
   }, [handleClose]);
@@ -530,7 +532,7 @@ export function ContextMenu({
       await invoke("apply_upscale_settings", { settings: updated });
       setUpscaleMode("off");
       localStorage.setItem("l-mpv-upscale-mode", "off");
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Апскейлинг выключен" }));
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdUpscaleOff }));
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
       console.error("Ошибка выключения апскейлинга:", e);
@@ -554,12 +556,12 @@ export function ContextMenu({
       localStorage.setItem("l-mpv-upscale-selected-model", model.filename);
       localStorage.setItem("l-mpv-upscale-slot", String(model.slot));
       window.dispatchEvent(new CustomEvent("show-osd", {
-        detail: `Апскейлинг: ${model.display_name || model.filename}`,
+        detail: dict.settings.cmenuUI.osdUpscaleModel(model.display_name || model.filename),
       }));
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
       console.error("Ошибка включения модели апскейлинга:", e);
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: "Ошибка переключения модели апскейлинга" }));
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdUpscaleModelErr }));
     }
     handleClose();
   }, [upscaleBackend, handleClose]);
@@ -572,7 +574,7 @@ export function ContextMenu({
     localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(updated));
     window.dispatchEvent(new Event("l-mpv-settings-changed"));
     window.dispatchEvent(new CustomEvent("show-osd", {
-      detail: `Кнопка «${label}»: ${nextVal ? "Включена" : "Скрыта"}`,
+      detail: dict.settings.cmenuUI.osdBtn(label, nextVal),
     }));
     handleClose();
   }, [visibleButtons, handleClose]);
@@ -587,87 +589,110 @@ export function ContextMenu({
       open_file: () => ({
         type: "submenu",
         icon: STATIC_ICONS.openFile,
-        label: "Открыть файл...",
+        label: dict.settings.cmenuUI.openFile,
         action: () => { onOpenFile?.(); handleClose(); },
         submenuClassName: "context-menu__submenu--recent",
         children: [
-          { type: "item", icon: STATIC_ICONS.openFileSub, label: "Выбрать на диске...", shortcut: "Ctrl+O", action: () => { onOpenFile?.(); handleClose(); } },
+          { type: "item", icon: STATIC_ICONS.openFileSub, label: dict.settings.cmenuUI.openDisk, shortcut: "Ctrl+O", action: () => { onOpenFile?.(); handleClose(); } },
           { type: "divider" },
           ...(recentFiles.length > 0
             ? [
                 ...recentFiles.map((rf) => ({ type: "item" as const, icon: STATIC_ICONS.film, label: rf.title, action: () => { onOpenFile?.(rf.path); handleClose(); } })),
                 { type: "divider" as const },
-                { type: "item" as const, icon: STATIC_ICONS.trash, label: "Очистить историю", action: handleClearRecent },
+                { type: "item" as const, icon: STATIC_ICONS.trash, label: dict.settings.cmenuUI.clearHistory, action: handleClearRecent },
               ]
-            : [{ type: "item" as const, label: "История файлов пуста", disabled: true }]),
+            : [{ type: "item" as const, label: dict.settings.cmenuUI.historyEmpty, disabled: true }]),
         ],
       }),
       audio_track: () => ({
-        type: "submenu", icon: STATIC_ICONS.audioTrack, label: "Аудиодорожка",
+        type: "submenu", icon: STATIC_ICONS.audioTrack, label: dict.settings.cmenuUI.audioTrack,
         submenuClassName: "context-menu__submenu--tracks",
         children: audioTracks.length > 0
-          ? audioTracks.map((t) => ({ type: "track" as const, track: t, label: `${t.title || `Дорожка ${t.id}`} ${t.lang ? `(${t.lang})` : ""}`, active: t.selected, action: () => handleSelectAudio(t.id), onDownload: () => handleDownloadTrack(t), isDownloading: downloadingTrackKey === `audio-${t.id}`, downloadTitle: "Скачать аудиодорожку" }))
-          : [{ type: "item" as const, label: "Нет доступных аудиодорожек" }],
+          ? audioTracks.map((t) => ({
+              type: "track" as const,
+              track: t,
+              label: `${t.title || dict.settings.cmenuUI.trackLabel(t.id, "")} ${t.lang ? `(${t.lang})` : ""}`.trim(),
+              active: t.selected,
+              action: () => handleSelectAudio(t.id),
+              onDownload: () => handleDownloadTrack(t),
+              isDownloading: downloadingTrackKey === `audio-${t.id}`,
+              downloadTitle: dict.settings.cmenuUI.downloadAudio
+            }))
+          : [{ type: "item" as const, label: dict.settings.cmenuUI.noAudio }],
       }),
       subtitle_track: () => ({
-        type: "submenu", icon: STATIC_ICONS.subtitleTrack, label: "Субтитры",
+        type: "submenu", icon: STATIC_ICONS.subtitleTrack, label: dict.settings.cmenuUI.subtitles,
         submenuClassName: "context-menu__submenu--tracks",
         children: [
-          { type: "track" as const, label: "Выключить субтитры", active: !subTracks.some((t) => t.selected), action: handleDisableSubs },
-          ...subTracks.map((t) => ({ type: "track" as const, track: t, label: `${t.title || `Субтитры ${t.id}`} ${t.lang ? `(${t.lang})` : ""}`, active: t.selected, action: () => handleSelectSub(t.id), onDownload: () => handleDownloadTrack(t), isDownloading: downloadingTrackKey === `sub-${t.id}`, downloadTitle: "Скачать субтитры" })),
+          { type: "track" as const, label: dict.settings.cmenuUI.subOff, active: !subTracks.some((t) => t.selected), action: handleDisableSubs },
+          ...subTracks.map((t) => ({
+            type: "track" as const,
+            track: t,
+            label: `${t.title || dict.settings.cmenuUI.subLabel(t.id, "")} ${t.lang ? `(${t.lang})` : ""}`.trim(),
+            active: t.selected,
+            action: () => handleSelectSub(t.id),
+            onDownload: () => handleDownloadTrack(t),
+            isDownloading: downloadingTrackKey === `sub-${t.id}`,
+            downloadTitle: dict.settings.cmenuUI.downloadSub
+          })),
           { type: "divider" },
           {
             type: "item" as const,
             icon: STATIC_ICONS.search,
-            label: "Поиск по субтитрам...",
+            label: dict.settings.cmenuUI.searchSub,
             shortcut: "Ctrl+F",
             action: () => {
               onShowSubtitlesSearch?.();
               handleClose();
             },
           },
-          { type: "item" as const, icon: STATIC_ICONS.openFileSub, label: "Загрузить субтитры...", action: handleLoadSubFile },
+          { type: "item" as const, icon: STATIC_ICONS.openFileSub, label: dict.settings.cmenuUI.loadSub, action: handleLoadSubFile },
         ],
       }),
-      chapters: () => ({ type: "item", icon: STATIC_ICONS.chapters, label: "Главы", action: () => { onShowChapters(); handleClose(); } }),
+      chapters: () => ({ type: "item", icon: STATIC_ICONS.chapters, label: dict.settings.cmenuUI.chapters, action: () => { onShowChapters(); handleClose(); } }),
       aspect_ratio: () => ({
-        type: "submenu", icon: STATIC_ICONS.aspectRatio, label: "Соотношение сторон",
+        type: "submenu", icon: STATIC_ICONS.aspectRatio, label: dict.settings.cmenuUI.aspect,
         children: [
-          { type: "item", label: "Оригинальное", action: () => handleSetAspect("no") },
+          { type: "item", label: dict.settings.cmenuUI.aspectOrig, action: () => handleSetAspect("no") },
           { type: "item", label: "16:9", action: () => handleSetAspect("16:9") },
           { type: "item", label: "21:9 (CinemaScope)", action: () => handleSetAspect("21:9") },
           { type: "item", label: "4:3", action: () => handleSetAspect("4:3") },
         ],
       }),
       rotation: () => ({
-        type: "submenu", icon: STATIC_ICONS.rotation, label: "Поворот видео",
+        type: "submenu", icon: STATIC_ICONS.rotation, label: dict.settings.cmenuUI.rotation,
         children: [
-          { type: "item", label: "0° (исходное)", action: () => handleSetRotation(0) },
-          { type: "item", label: "90° по часовой", action: () => handleSetRotation(90) },
+          { type: "item", label: dict.settings.cmenuUI.rot0, action: () => handleSetRotation(0) },
+          { type: "item", label: dict.settings.cmenuUI.rot90, action: () => handleSetRotation(90) },
           { type: "item", label: "180°", action: () => handleSetRotation(180) },
-          { type: "item", label: "270° по часовой", action: () => handleSetRotation(270) },
+          { type: "item", label: dict.settings.cmenuUI.rot270, action: () => handleSetRotation(270) },
         ],
       }),
       ambient: () => ({
-        type: "submenu", icon: STATIC_ICONS.ambient, label: "Подсветка полос",
+        type: "submenu", icon: STATIC_ICONS.ambient, label: dict.settings.cmenuUI.ambient,
         children: [
-          { type: "item", label: "Выключено", active: ambientMode === "off", action: () => handleSetAmbientMode("off") },
-          { type: "item", label: "Размытие видео", active: ambientMode === "blur", action: () => handleSetAmbientMode("blur") },
-          { type: "item", label: "Подсветка под цвет", active: ambientMode === "color", action: () => handleSetAmbientMode("color") },
+          { type: "item", label: dict.settings.cmenuUI.ambOff, active: ambientMode === "off", action: () => handleSetAmbientMode("off") },
+          { type: "item", label: dict.settings.cmenuUI.ambBlur, active: ambientMode === "blur", action: () => handleSetAmbientMode("blur") },
+          { type: "item", label: dict.settings.cmenuUI.ambColor, active: ambientMode === "color", action: () => handleSetAmbientMode("color") },
         ],
       }),
       speed: () => ({
-        type: "submenu", icon: STATIC_ICONS.speed, label: "Скорость воспроизведения",
-        children: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => ({ type: "item" as const, label: `${s}x${s === 1.0 ? " (Нормальная)" : ""}`, active: currentSpeed === s, action: () => handleSetSpeed(s) })),
+        type: "submenu", icon: STATIC_ICONS.speed, label: dict.settings.cmenuUI.speed,
+        children: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => ({
+          type: "item" as const,
+          label: `${s}x${s === 1.0 ? dict.settings.cmenuUI.speedNormal : ""}`,
+          active: currentSpeed === s,
+          action: () => handleSetSpeed(s)
+        })),
       }),
       upscale: () => ({
         type: "submenu",
         icon: STATIC_ICONS.upscale,
-        label: "Апскейлинг",
+        label: dict.settings.cmenuUI.upscale,
         children: [
           {
             type: "item",
-            label: "Выключен",
+            label: dict.settings.cmenuUI.upscaleOff,
             active: upscaleMode === "off",
             action: handleSetUpscaleOff,
           },
@@ -679,32 +704,32 @@ export function ContextMenu({
                 active: upscaleMode === "ai" && (selectedModel === m.filename || selectedSlot === m.slot),
                 action: () => handleSelectUpscaleModel(m),
               }))
-            : [{ type: "item" as const, label: "Нет доступных моделей", disabled: true }]),
+            : [{ type: "item" as const, label: dict.settings.cmenuUI.noModels, disabled: true }]),
         ],
       }),
       repeat_mode: () => ({
-        type: "submenu", icon: STATIC_ICONS.repeatMode, label: "Режим повтора",
+        type: "submenu", icon: STATIC_ICONS.repeatMode, label: dict.settings.cmenuUI.repeatMode,
         children: [
-          { type: "item", label: "Без повтора", action: () => handleSetRepeatMode(0) },
-          { type: "item", label: "Повтор одного файла", action: () => handleSetRepeatMode(1) },
-          { type: "item", label: "Повтор всего плейлиста", action: () => handleSetRepeatMode(2) },
+          { type: "item", label: dict.settings.cmenuUI.repeatOff, action: () => handleSetRepeatMode(0) },
+          { type: "item", label: dict.settings.cmenuUI.repeatOne, action: () => handleSetRepeatMode(1) },
+          { type: "item", label: dict.settings.cmenuUI.repeatAll, action: () => handleSetRepeatMode(2) },
         ],
       }),
-      shuffle: () => ({ type: "item", icon: STATIC_ICONS.shuffle, label: "Случайный порядок", action: handleToggleShuffle }),
+      shuffle: () => ({ type: "item", icon: STATIC_ICONS.shuffle, label: dict.settings.cmenuUI.shuffle, action: handleToggleShuffle }),
       always_on_top: () => ({
-        type: "item", icon: STATIC_ICONS.alwaysOnTop, label: "Поверх всех окон",
+        type: "item", icon: STATIC_ICONS.alwaysOnTop, label: dict.settings.cmenuUI.alwaysOnTop,
         action: handleToggleAlwaysOnTop,
       }),
       screenshot: () => ({
-        type: "item", icon: STATIC_ICONS.screenshot, label: "Сохранить кадр", shortcut: "S",
+        type: "item", icon: STATIC_ICONS.screenshot, label: dict.settings.cmenuUI.saveFrame, shortcut: "S",
         action: handleTakeScreenshot,
       }),
-      media_info: () => ({ type: "item", icon: STATIC_ICONS.mediaInfo, label: "Информация о файле", shortcut: "I", action: () => { onShowMediaInfo(); handleClose(); } }),
-      detailed_media_info: () => ({ type: "item", icon: STATIC_ICONS.detailedMediaInfo, label: "L-MPV MediaInfo", shortcut: "Shift+F10", action: () => { onShowDetailedMediaInfo?.(); handleClose(); } }),
+      media_info: () => ({ type: "item", icon: STATIC_ICONS.mediaInfo, label: dict.settings.cmenuUI.fileInfo, shortcut: "I", action: () => { onShowMediaInfo(); handleClose(); } }),
+      detailed_media_info: () => ({ type: "item", icon: STATIC_ICONS.detailedMediaInfo, label: dict.settings.cmenuUI.mediaInfo, shortcut: "Shift+F10", action: () => { onShowDetailedMediaInfo?.(); handleClose(); } }),
       presets: () => ({
         type: "submenu",
         icon: STATIC_ICONS.presets,
-        label: "Пресеты",
+        label: dict.settings.cmenuUI.presets,
         children: [
           ...(userPresets.length > 0
             ? [
@@ -716,42 +741,113 @@ export function ContextMenu({
                 })),
                 { type: "divider" as const },
               ]
-            : [{ type: "item" as const, label: "Нет пользовательских пресетов", disabled: true }, { type: "divider" as const }]),
+            : [{ type: "item" as const, label: dict.settings.cmenuUI.noPresets, disabled: true }, { type: "divider" as const }]),
           ...BUILT_IN_PRESETS.map((p) => ({
             type: "item" as const,
-            label: p.name,
+            label: dict.settings.presets.builtinPresets[p.id]?.name || p.name,
             active: p.id === activePresetId,
             action: () => handleApplyPreset(p),
           })),
         ],
       }),
       time_position: () => ({
-        type: "submenu", icon: STATIC_ICONS.timePosition, label: "Расположение времени",
-        children: TIME_POSITION_OPTIONS.map((posOption) => ({ type: "item" as const, label: posOption.label, active: currentTimePos === posOption.id, action: () => { saveTimePosition(posOption.id); setCurrentTimePos(posOption.id); window.dispatchEvent(new CustomEvent("show-osd", { detail: `Время: ${posOption.label}` })); handleClose(); } })),
+        type: "submenu", icon: STATIC_ICONS.timePosition, label: dict.settings.cmenuUI.timePos,
+        children: TIME_POSITION_OPTIONS.map((posOption) => {
+          const posLabel =
+            posOption.id === "timeline_left"
+              ? dict.settings.appearance.timePosLeft
+              : posOption.id === "timeline_right"
+              ? dict.settings.appearance.timePosRight
+              : posOption.id === "volume_right"
+              ? dict.settings.appearance.timePosSound
+              : posOption.id === "toolbar_right"
+              ? dict.settings.appearance.timePosToolbar
+              : posOption.id === "timeline_floating_center"
+              ? dict.settings.appearance.timePosCenter
+              : "Titlebar";
+          return {
+            type: "item" as const,
+            label: posLabel,
+            active: currentTimePos === posOption.id,
+            action: () => {
+              saveTimePosition(posOption.id);
+              setCurrentTimePos(posOption.id);
+              window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdTime(posLabel) }));
+              handleClose();
+            },
+          };
+        }),
       }),
       time_format: () => ({
-        type: "submenu", icon: STATIC_ICONS.timeFormat, label: "Формат времени",
-        children: TIME_FORMAT_OPTIONS.map((fmtOption) => ({ type: "item" as const, label: fmtOption.label, active: timeFormat === fmtOption.id, action: () => { saveTimeFormat(fmtOption.id); setTimeFormat(fmtOption.id); window.dispatchEvent(new CustomEvent("show-osd", { detail: `Формат: ${fmtOption.label}` })); handleClose(); } })),
+        type: "submenu", icon: STATIC_ICONS.timeFormat, label: dict.settings.cmenuUI.timeFmt,
+        children: TIME_FORMAT_OPTIONS.map((fmtOption) => {
+          const fmtLabelMap: Record<string, string> = {
+            elapsed_total: dict.settings.cmenuUI.fmtElapsedTotal,
+            elapsed_remaining: dict.settings.cmenuUI.fmtElapsedRemaining,
+            remaining_only: dict.settings.cmenuUI.fmtRemainingOnly,
+            finish_time: dict.settings.cmenuUI.fmtFinishTime,
+          };
+          const fmtLabel = fmtLabelMap[fmtOption.id] || fmtOption.label;
+          return {
+            type: "item" as const,
+            label: fmtLabel,
+            active: timeFormat === fmtOption.id,
+            action: () => {
+              saveTimeFormat(fmtOption.id);
+              setTimeFormat(fmtOption.id);
+              window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdTimeFmt(fmtLabel) }));
+              handleClose();
+            },
+          };
+        }),
       }),
       control_bar_style: () => ({
-        type: "submenu", icon: STATIC_ICONS.controlBarStyle, label: "Стиль панели",
-        children: CONTROL_BAR_STYLE_OPTIONS.map((barOption) => ({ type: "item" as const, label: barOption.label, active: controlBarStyle === barOption.id, action: () => { saveControlBarStyle(barOption.id); setControlBarStyle(barOption.id); window.dispatchEvent(new CustomEvent("show-osd", { detail: `Стиль панели: ${barOption.label}` })); handleClose(); } })),
+        type: "submenu", icon: STATIC_ICONS.controlBarStyle, label: dict.settings.cmenuUI.barStyle,
+        children: CONTROL_BAR_STYLE_OPTIONS.map((barOption) => {
+          const barLabel = barOption.id === "floating"
+            ? dict.settings.appearance.styleCapsule
+            : dict.settings.appearance.styleClassic;
+          return {
+            type: "item" as const,
+            label: barLabel,
+            active: controlBarStyle === barOption.id,
+            action: () => {
+              saveControlBarStyle(barOption.id);
+              setControlBarStyle(barOption.id);
+              window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdBarStyle(barLabel) }));
+              handleClose();
+            },
+          };
+        }),
       }),
       control_buttons_visibility: () => ({
         type: "submenu",
         icon: STATIC_ICONS.controlButtonsVisibility,
-        label: "Кнопки панели управления",
+        label: dict.settings.cmenuUI.controlBtns,
         children: CONTROL_BUTTON_ITEMS.map((btn) => {
+          const btnLabelMap: Record<string, string> = {
+            repeat: dict.settings.cmenuUI.repeat,
+            shuffle: dict.settings.cmenuUI.shuffle,
+            alwaysOnTop: dict.settings.cmenuUI.alwaysOnTop,
+            info: dict.settings.cmenuUI.fileInfo,
+            mediaInfo: dict.settings.cmenuUI.mediaInfo,
+            visualizer: dict.settings.cmenuUI.visualizer,
+            screenshot: dict.settings.cmenuUI.screenshot,
+            playlist: dict.settings.cmenuUI.playlist,
+            fullscreen: dict.settings.cmenuUI.fullscreen,
+            skipOpening: dict.settings.cmenuUI.skipOpening,
+          };
+          const localizedLabel = btnLabelMap[btn.id] || btn.id;
           const isChecked = visibleButtons[btn.id] !== undefined ? visibleButtons[btn.id] : btn.defaultChecked;
           return {
             type: "item" as const,
-            label: btn.label,
+            label: localizedLabel,
             active: isChecked,
-            action: () => handleToggleControlButton(btn.id, btn.label, isChecked),
+            action: () => handleToggleControlButton(btn.id, localizedLabel, isChecked),
           };
         }),
       }),
-      settings: () => ({ type: "item", icon: STATIC_ICONS.settings, label: "Настройки", shortcut: "F2", action: () => { onShowSettings(); handleClose(); } }),
+      settings: () => ({ type: "item", icon: STATIC_ICONS.settings, label: dict.settings.cmenuUI.settings, shortcut: "F2", action: () => { onShowSettings(); handleClose(); } }),
     };
 
     for (const entry of menuLayout) {

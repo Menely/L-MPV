@@ -15,6 +15,7 @@ import {
   Check,
 } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { useTranslation } from "../i18n/LanguageContext";
 
 /**
  * Иконка-логотип плеера L-MPV (векторный SVG).
@@ -89,9 +90,9 @@ function compareVersions(v1: string, v2: string): number {
 /**
  * Форматирование байтов в читаемый вид (КБ / МБ).
  */
-function formatBytes(bytes: number): string {
-  if (bytes <= 0) return "0 Б";
-  const units = ["Б", "КБ", "МБ", "ГБ"];
+function formatBytes(bytes: number, locale: string = "ru"): string {
+  if (bytes <= 0) return locale === "en" ? "0 B" : "0 Б";
+  const units = locale === "en" ? ["B", "KB", "MB", "GB"] : ["Б", "КБ", "МБ", "ГБ"];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 }
@@ -100,6 +101,7 @@ function formatBytes(bytes: number): string {
  * Модальное окно уведомления о доступном обновлении и его установки.
  */
 export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose }) => {
+  const { dict, locale } = useTranslation();
   const [selectedRelease, setSelectedRelease] = useState<UpdateInfo>(updateInfo);
   const [releases, setReleases] = useState<UpdateInfo[]>([]);
   const [isLoadingReleases, setIsLoadingReleases] = useState(false);
@@ -190,7 +192,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     } catch (err: any) {
       console.error("Ошибка установки L-MPV:", err);
       setIsDownloading(false);
-      setErrorMessage(typeof err === "string" ? err : err?.message || "Не удалось загрузить выбранную версию");
+      setErrorMessage(typeof err === "string" ? err : err?.message || dict.updateModal.downloadErrorFallback);
     }
   };
 
@@ -305,17 +307,17 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             <div>
               <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, letterSpacing: "-0.01em" }}>
                 {isUpgrade
-                  ? "Доступно обновление"
+                  ? dict.updateModal.titleUpgrade
                   : isDowngrade
-                  ? "Откат к предыдущей версии"
-                  : "Информация о версии"}
+                  ? dict.updateModal.titleDowngrade
+                  : dict.updateModal.titleInfo}
               </h3>
               <p style={{ margin: "3px 0 0", fontSize: "0.84rem", color: "var(--text-muted, #9ca3af)" }}>
                 {isUpgrade
-                  ? `Новая версия медиаплеера L-MPV v${targetVersion}`
+                  ? dict.updateModal.subtitleUpgrade(targetVersion)
                   : isDowngrade
-                  ? `Откат с v${currentVersion} на версию v${targetVersion}`
-                  : `Текущая установленная версия L-MPV v${currentVersion}`}
+                  ? dict.updateModal.subtitleDowngrade(currentVersion, targetVersion)
+                  : dict.updateModal.subtitleInfo(currentVersion)}
               </p>
             </div>
           </div>
@@ -324,7 +326,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             <button
               onClick={() => setIsExpanded((prev) => !prev)}
               className="modal__close"
-              aria-label={isExpanded ? "Восстановить размер" : "Развернуть окно"}
+              aria-label={isExpanded ? dict.updateModal.ariaRestore : dict.updateModal.ariaMaximize}
             >
               {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
@@ -333,7 +335,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               <button
                 onClick={handleClose}
                 className="modal__close"
-                aria-label="Закрыть"
+                aria-label={dict.updateModal.ariaClose}
               >
                 <X size={18} />
               </button>
@@ -383,10 +385,10 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 }}
               >
                 {isUpgrade
-                  ? "Что нового в этом обновлении:"
+                  ? dict.updateModal.changelogUpgrade
                   : isDowngrade
-                  ? `Описание версии v${targetVersion}:`
-                  : "Описание и список изменений:"}
+                  ? dict.updateModal.changelogDowngrade(targetVersion)
+                  : dict.updateModal.changelogInfo}
               </div>
               <button
                 type="button"
@@ -407,7 +409,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 className="hover-bright"
               >
                 <ExternalLink size={12} />
-                <span>Открыть на GitHub</span>
+                <span>{dict.updateModal.openGithub}</span>
               </button>
             </div>
             <div
@@ -462,11 +464,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 }}
               >
                 <span>
-                  {isDone ? "Запуск инсталлятора..." : `Загрузка: ${progress.toFixed(0)}%`}
+                  {isDone ? dict.updateModal.installerStarting : dict.updateModal.downloadProgress(progress)}
                 </span>
                 {totalBytes > 0 && (
                   <span style={{ color: "var(--text-muted, #9ca3af)" }}>
-                    {formatBytes(downloadedBytes)} / {formatBytes(totalBytes)}
+                    {formatBytes(downloadedBytes, locale)} / {formatBytes(totalBytes, locale)}
                   </span>
                 )}
               </div>
@@ -503,7 +505,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                   textAlign: "center",
                 }}
               >
-                После загрузки плеер автоматически перезапустится в процессе установки.
+                {dict.updateModal.restartHint}
               </p>
             </div>
           )}
@@ -512,18 +514,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
         {/* Футер с версией приложения и кнопками */}
         <div
           style={{
-            padding: "14px 24px 18px",
+            padding: "10px 22px",
             borderTop: "1px solid rgba(255, 255, 255, 0.08)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 12,
+            gap: 14,
             background: "rgba(0, 0, 0, 0.2)",
             flexShrink: 0,
             position: "relative",
           }}
         >
-          {/* Селектор версии слева снизу */}
+          {/* Селектор версии слева */}
           <div className="version-picker-wrap" ref={pickerRef}>
             <button
               type="button"
@@ -549,36 +551,17 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               />
             </button>
 
-            <span
-              style={{
-                fontSize: "0.78rem",
-                color: isDowngrade
-                  ? "#fbbf24"
-                  : isUpgrade
-                  ? "var(--accent, #60a5fa)"
-                  : "var(--text-muted, #9ca3af)",
-                fontWeight: isDowngrade || isUpgrade ? 600 : 400,
-                marginLeft: 6,
-              }}
-            >
-              {isDowngrade
-                ? "откат версии"
-                : isUpgrade
-                ? "доступно обновление"
-                : "актуальная версия"}
-            </span>
-
             {/* Выпадающее меню со списком версий */}
             {isPickerOpen && (
               <div className="version-picker-popover custom-scrollbar">
                 <div className="version-picker-header">
                   {isLoadingReleases
-                    ? "Загрузка версий..."
-                    : `Доступные релизы (${releases.length})`}
+                    ? dict.updateModal.loadingReleases
+                    : dict.updateModal.availableReleases(releases.length)}
                 </div>
                 {releases.length === 0 && !isLoadingReleases ? (
                   <div style={{ padding: "8px 10px", fontSize: "0.78rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-                    Список версий недоступен
+                    {dict.updateModal.releasesUnavailable}
                   </div>
                 ) : (
                   releases.map((rel) => {
@@ -598,13 +581,13 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                           <span className="version-picker-item__tag">v{cleanRelVer}</span>
                           {isRelCurrent && (
                             <span className="version-picker-badge version-picker-badge--current">
-                              текущая
+                              {dict.updateModal.currentBadge}
                             </span>
                           )}
                         </div>
                         <div className="version-picker-item__meta">
                           {rel.published_at && (
-                            <span>{new Date(rel.published_at).toLocaleDateString("ru-RU")}</span>
+                            <span>{new Date(rel.published_at).toLocaleDateString(locale === "en" ? "en-US" : "ru-RU")}</span>
                           )}
                           {isRelSelected && <Check size={13} color="var(--accent, #60a5fa)" />}
                         </div>
@@ -616,27 +599,34 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             )}
           </div>
 
-          {/* Кнопки действий справа снизу */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* Кнопки действий справа */}
+          <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
             {isUpgrade ? (
               <>
                 {!isDownloading && (
                   <button
                     onClick={handlePostpone}
                     style={{
-                      padding: "8px 18px",
+                      padding: "0 16px",
+                      height: 29,
+                      boxSizing: "border-box",
                       borderRadius: "var(--radius-sm)",
                       background: "rgba(255, 255, 255, 0.06)",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
                       color: "var(--text-secondary, #d1d5db)",
-                      fontSize: "0.85rem",
+                      fontSize: "0.83rem",
                       fontWeight: 500,
                       cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       transition: "all 0.15s ease",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
                     }}
                     className="hover-bright"
                   >
-                    Напомнить позже
+                    {dict.updateModal.remindLater}
                   </button>
                 )}
 
@@ -644,7 +634,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                   onClick={handleInstall}
                   disabled={isDownloading}
                   style={{
-                    padding: "8px 22px",
+                    padding: "0 18px",
+                    height: 29,
+                    boxSizing: "border-box",
                     borderRadius: "var(--radius-sm)",
                     background: isDownloading
                       ? "rgba(59, 130, 246, 0.4)"
@@ -652,28 +644,35 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                     border: "none",
                     outline: "none",
                     color: "#ffffff",
-                    fontSize: "0.85rem",
+                    fontSize: "0.83rem",
                     fontWeight: 600,
                     cursor: isDownloading ? "default" : "pointer",
-                    display: "flex",
+                    display: "inline-flex",
                     alignItems: "center",
-                    gap: 8,
+                    justifyContent: "center",
+                    gap: 7,
                     boxShadow: isDownloading
                       ? "none"
-                      : "0 4px 14px var(--accent-glow, rgba(59, 130, 246, 0.35))",
+                      : "0 4px 12px var(--accent-glow, rgba(59, 130, 246, 0.35))",
                     transition: "all 0.15s ease",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
                   }}
                   className={!isDownloading ? "hover-scale" : ""}
                 >
                   {isDownloading ? (
                     <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>{isDone ? "Запуск установки..." : "Скачивание..."}</span>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span style={{ whiteSpace: "nowrap" }}>
+                        {isDone ? dict.updateModal.installStarting : dict.updateModal.downloading}
+                      </span>
                     </>
                   ) : (
                     <>
-                      <Download size={16} />
-                      <span>Обновить до v{targetVersion}</span>
+                      <Download size={14} />
+                      <span style={{ whiteSpace: "nowrap" }}>
+                        {dict.updateModal.updateTo(targetVersion)}
+                      </span>
                     </>
                   )}
                 </button>
@@ -684,19 +683,26 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                   <button
                     onClick={handleClose}
                     style={{
-                      padding: "8px 18px",
+                      padding: "0 16px",
+                      height: 29,
+                      boxSizing: "border-box",
                       borderRadius: "var(--radius-sm)",
                       background: "rgba(255, 255, 255, 0.06)",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
                       color: "var(--text-secondary, #d1d5db)",
-                      fontSize: "0.85rem",
+                      fontSize: "0.83rem",
                       fontWeight: 500,
                       cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       transition: "all 0.15s ease",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
                     }}
                     className="hover-bright"
                   >
-                    Отмена
+                    {dict.updateModal.cancel}
                   </button>
                 )}
 
@@ -704,7 +710,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                   onClick={handleInstall}
                   disabled={isDownloading}
                   style={{
-                    padding: "8px 22px",
+                    padding: "0 18px",
+                    height: 29,
+                    boxSizing: "border-box",
                     borderRadius: "var(--radius-sm)",
                     background: isDownloading
                       ? "rgba(245, 158, 11, 0.4)"
@@ -712,28 +720,35 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                     border: "none",
                     outline: "none",
                     color: "#ffffff",
-                    fontSize: "0.85rem",
+                    fontSize: "0.83rem",
                     fontWeight: 600,
                     cursor: isDownloading ? "default" : "pointer",
-                    display: "flex",
+                    display: "inline-flex",
                     alignItems: "center",
-                    gap: 8,
+                    justifyContent: "center",
+                    gap: 7,
                     boxShadow: isDownloading
                       ? "none"
-                      : "0 4px 14px rgba(245, 158, 11, 0.35)",
+                      : "0 4px 12px rgba(245, 158, 11, 0.35)",
                     transition: "all 0.15s ease",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
                   }}
                   className={!isDownloading ? "hover-scale" : ""}
                 >
                   {isDownloading ? (
                     <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>{isDone ? "Запуск отката..." : "Скачивание..."}</span>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span style={{ whiteSpace: "nowrap" }}>
+                        {isDone ? dict.updateModal.rollbackStarting : dict.updateModal.downloading}
+                      </span>
                     </>
                   ) : (
                     <>
-                      <Download size={16} />
-                      <span>Откатить до v{targetVersion}</span>
+                      <Download size={14} />
+                      <span style={{ whiteSpace: "nowrap" }}>
+                        {dict.updateModal.rollbackTo(targetVersion)}
+                      </span>
                     </>
                   )}
                 </button>
@@ -743,24 +758,29 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 type="button"
                 onClick={handleClose}
                 style={{
-                  padding: "8px 26px",
+                  padding: "0 22px",
+                  height: 29,
+                  boxSizing: "border-box",
                   borderRadius: "var(--radius-sm)",
                   background: "linear-gradient(135deg, var(--accent, #3b82f6) 0%, var(--accent-dim, #2563eb) 100%)",
                   border: "none",
                   outline: "none",
                   color: "#ffffff",
-                  fontSize: "0.85rem",
+                  fontSize: "0.83rem",
                   fontWeight: 600,
                   cursor: "pointer",
                   display: "inline-flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: 6,
-                  boxShadow: "0 4px 14px var(--accent-glow, rgba(59, 130, 246, 0.35))",
+                  boxShadow: "0 4px 12px var(--accent-glow, rgba(59, 130, 246, 0.35))",
                   transition: "all 0.15s ease",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
                 className="hover-scale"
               >
-                <span>Понятно</span>
+                <span style={{ whiteSpace: "nowrap" }}>{dict.updateModal.gotIt}</span>
               </button>
             )}
           </div>
@@ -784,6 +804,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   onOpenModal,
   onClose,
 }) => {
+  const { dict } = useTranslation();
   const [isClosing, setIsClosing] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -820,17 +841,17 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
             <AppLogoIcon size={18} color="#ffffff" />
           </div>
           <div>
-            <div className="update-toast__title">Доступно обновление</div>
+            <div className="update-toast__title">{dict.updateModal.toastTitle}</div>
             <div className="update-toast__version">
-              Версия v{updateInfo.latest_version.replace(/^[vV]/, "")}
+              {dict.updateModal.toastVersion(updateInfo.latest_version.replace(/^[vV]/, ""))}
             </div>
           </div>
         </div>
         <button
           className="update-toast__close"
           onClick={handleClose}
-          title="Закрыть"
-          aria-label="Закрыть"
+          title={dict.updateModal.toastClose}
+          aria-label={dict.updateModal.toastClose}
         >
           <X size={16} />
         </button>
@@ -841,13 +862,13 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
           className="update-toast__btn update-toast__btn--secondary"
           onClick={handlePostpone}
         >
-          Отложить
+          {dict.updateModal.toastPostpone}
         </button>
         <button
           className="update-toast__btn update-toast__btn--primary"
           onClick={onOpenModal}
         >
-          Обновить
+          {dict.updateModal.toastUpdate}
         </button>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { formatTime } from "../../utils/timeUtils";
 import { HighlightedText } from "./HighlightedText";
 import { SubtitleMetaBadges } from "./SubtitleMetaBadges";
 import { SubtitleRawBlock } from "./SubtitleRawBlock";
+import { useTranslation } from "../../i18n/LanguageContext";
 import type {
   SubtitleLine,
   SubtitleViewMode,
@@ -52,6 +53,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
   onSeek,
   onCopy,
 }: SubtitleLineRowProps) {
+  const { dict } = useTranslation();
   const duration = Math.max(0, line.end - line.start);
   const isTech = viewMode === "technical";
 
@@ -146,7 +148,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
-                ({duration.toFixed(isTech ? 2 : 1)}с)
+                ({duration.toFixed(isTech ? 2 : 1)}{dict.subtitlesSearch.secSuffix})
               </span>
             )}
 
@@ -162,7 +164,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
                   border: "1px solid var(--accent)",
                 }}
               >
-                совпадение
+                {dict.subtitlesSearch.matchBadge}
               </span>
             )}
 
@@ -203,7 +205,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
             transition: "opacity 0.15s ease, color 0.15s ease",
           }}
           className="hover-bright sub-line-copy-btn"
-          title="Скопировать чистый текст реплики"
+          title={dict.subtitlesSearch.copyLineText}
         >
           {isCopied ? <Check size={13} /> : <Copy size={13} />}
         </button>

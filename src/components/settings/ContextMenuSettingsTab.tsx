@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n/LanguageContext";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   DndContext,
@@ -42,6 +43,7 @@ import {
   MENU_ITEM_REGISTRY,
   MENU_ITEM_MAP,
   type MenuItemDescriptor,
+  getLocalizedMenuItem,
 } from "../../utils/contextMenuRegistry";
 import {
   SortableCard,
@@ -114,6 +116,7 @@ function ScrollSync({
 // ─── Основной компонент конфигуратора ───────────────────────────────────────
 
 export function ContextMenuSettingsTab() {
+  const { dict } = useTranslation();
   const [entries, setEntries] = useState<KeyedEntry[]>(() =>
     attachKeys(getSavedLayout()),
   );
@@ -389,24 +392,24 @@ export function ContextMenuSettingsTab() {
       <div className="cmenu-editor__header">
         <span className="cmenu-editor__title">
           <MousePointerClick size={14} style={{ color: "var(--accent)" }} />
-          Настройка меню правой кнопки мыши
+          {dict.settings.contextMenuConfig.cmenuConfigTitle}
         </span>
         <div className="cmenu-editor__actions">
           <button
             type="button"
             className="btn btn--secondary btn--sm"
             onClick={handleReset}
-            title="Сбросить к стандартному набору пунктов"
+            title={dict.settings.contextMenuConfig.btnResetTitle}
           >
-            <RotateCcw size={13} /> Сброс
+            <RotateCcw size={13} /> {dict.settings.contextMenuConfig.btnReset}
           </button>
           <button
             type="button"
             className={`btn btn--sm ${saved ? "btn--secondary" : "btn--accent"}`}
             onClick={handleSave}
-            title="Сохранить текущую раскладку меню"
+            title={dict.settings.contextMenuConfig.btnSaveTitle}
           >
-            <Check size={13} /> Сохранено
+            <Check size={13} /> {dict.settings.contextMenuConfig.btnSaved}
           </button>
         </div>
       </div>
@@ -417,7 +420,7 @@ export function ContextMenuSettingsTab() {
         <div className="cmenu-editor__current">
           <div className="cmenu-editor__col-header">
             <SlidersHorizontal size={14} style={{ color: "var(--accent)" }} />
-            <span>Текущее меню</span>
+            <span>{dict.settings.contextMenuConfig.colCurrent}</span>
             <span className="cmenu-editor__count">{entries.length}</span>
           </div>
 
@@ -453,7 +456,7 @@ export function ContextMenuSettingsTab() {
               <div className="cmenu-editor__list" ref={scrollContainerRef}>
                 {entries.length === 0 ? (
                   <div className="cmenu-editor__empty">
-                    <span>Меню пусто. Добавьте пункты из правой колонки.</span>
+                    <span>{dict.settings.contextMenuConfig.emptyCurrent}</span>
                   </div>
                 ) : (
                   entries.map((ke) => {
@@ -491,7 +494,7 @@ export function ContextMenuSettingsTab() {
             className="cmenu-editor__add-divider-btn"
             onClick={addDividerAtEnd}
           >
-            <Plus size={12} /> Добавить разделитель
+            <Plus size={12} /> {dict.settings.contextMenuConfig.btnAddDivider}
           </button>
         </div>
 
@@ -499,37 +502,40 @@ export function ContextMenuSettingsTab() {
         <div className="cmenu-editor__available">
           <div className="cmenu-editor__col-header">
             <FolderOpen size={14} style={{ color: "var(--accent)" }} />
-            <span>Доступные пункты</span>
+            <span>{dict.settings.contextMenuConfig.colAvailable}</span>
             <span className="cmenu-editor__count">{availableItems.length}</span>
           </div>
           <div className="cmenu-editor__available-list">
             {availableItems.length === 0 ? (
               <div className="cmenu-editor__empty">
                 <Check size={16} style={{ color: "var(--accent)" }} />
-                <span>Все пункты уже добавлены</span>
+                <span>{dict.settings.contextMenuConfig.emptyAvailable}</span>
               </div>
             ) : (
-              availableItems.map((descriptor) => (
-                <div key={descriptor.id} className="cmenu-available-item">
-                  <span className="cmenu-available-item__icon">
-                    {MENU_ICON_MAP[descriptor.iconName]}
-                  </span>
-                  <div className="cmenu-available-item__info">
-                    <span className="cmenu-available-item__label">{descriptor.label}</span>
-                    {descriptor.hasSubmenu && (
-                      <ChevronRight size={11} style={{ opacity: 0.5 }} />
-                    )}
+              availableItems.map((descriptor) => {
+                const itemInfo = getLocalizedMenuItem(dict, descriptor);
+                return (
+                  <div key={descriptor.id} className="cmenu-available-item">
+                    <span className="cmenu-available-item__icon">
+                      {MENU_ICON_MAP[descriptor.iconName]}
+                    </span>
+                    <div className="cmenu-available-item__info">
+                      <span className="cmenu-available-item__label">{itemInfo.label}</span>
+                      {descriptor.hasSubmenu && (
+                        <ChevronRight size={11} style={{ opacity: 0.5 }} />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="cmenu-available-item__add"
+                      onClick={() => addItem(descriptor)}
+                      title={dict.settings.contextMenuConfig.btnAddItem(itemInfo.label)}
+                    >
+                      <Plus size={13} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="cmenu-available-item__add"
-                    onClick={() => addItem(descriptor)}
-                    title={`Добавить «${descriptor.label}» в меню`}
-                  >
-                    <Plus size={13} />
-                  </button>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

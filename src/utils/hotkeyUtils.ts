@@ -40,6 +40,7 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   speedDown: ["BracketLeft"],
   speedReset: ["Backspace"],
   toggleAmbient: ["KeyB"],
+  toggleLanguage: ["Ctrl+KeyL"],
   chapters: ["KeyC"],
   settings: ["F2"],
   toggleVisualizer: ["KeyW"],
@@ -57,67 +58,68 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
 
 export const HOTKEY_ACTIONS: HotkeyAction[] = [
   // Воспроизведение
-  { id: "togglePause", label: "Воспроизведение / Пауза", defaultKeys: DEFAULT_HOTKEYS["togglePause"], category: "Воспроизведение" },
-  { id: "toggleRepeat", label: "Режим повтора", defaultKeys: DEFAULT_HOTKEYS["toggleRepeat"], category: "Воспроизведение" },
-  { id: "toggleShuffle", label: "Случайный порядок", defaultKeys: DEFAULT_HOTKEYS["toggleShuffle"], category: "Воспроизведение" },
+  { id: "togglePause", label: "Воспроизведение / Пауза", defaultKeys: DEFAULT_HOTKEYS["togglePause"], category: "playback" },
+  { id: "toggleRepeat", label: "Режим повтора", defaultKeys: DEFAULT_HOTKEYS["toggleRepeat"], category: "playback" },
+  { id: "toggleShuffle", label: "Случайный порядок", defaultKeys: DEFAULT_HOTKEYS["toggleShuffle"], category: "playback" },
 
   // Перемотка
-  { id: "seekBack", label: "Перемотка назад (-5 сек)", defaultKeys: DEFAULT_HOTKEYS["seekBack"], category: "Перемотка" },
-  { id: "seekForward", label: "Перемотка вперед (+5 сек)", defaultKeys: DEFAULT_HOTKEYS["seekForward"], category: "Перемотка" },
-  { id: "seekBack10", label: "Перемотка назад (-10 сек)", defaultKeys: DEFAULT_HOTKEYS["seekBack10"], category: "Перемотка" },
-  { id: "seekForward10", label: "Перемотка вперед (+10 сек)", defaultKeys: DEFAULT_HOTKEYS["seekForward10"], category: "Перемотка" },
-  { id: "skipOpening", label: "Перемотка опенинга", defaultKeys: DEFAULT_HOTKEYS["skipOpening"], category: "Перемотка" },
-  { id: "frameBack", label: "Кадр назад", defaultKeys: DEFAULT_HOTKEYS["frameBack"], category: "Перемотка" },
-  { id: "frameForward", label: "Кадр вперед", defaultKeys: DEFAULT_HOTKEYS["frameForward"], category: "Перемотка" },
+  { id: "seekBack", label: "Перемотка назад (-5 сек)", defaultKeys: DEFAULT_HOTKEYS["seekBack"], category: "seeking" },
+  { id: "seekForward", label: "Перемотка вперед (+5 сек)", defaultKeys: DEFAULT_HOTKEYS["seekForward"], category: "seeking" },
+  { id: "seekBack10", label: "Перемотка назад (-10 сек)", defaultKeys: DEFAULT_HOTKEYS["seekBack10"], category: "seeking" },
+  { id: "seekForward10", label: "Перемотка вперед (+10 сек)", defaultKeys: DEFAULT_HOTKEYS["seekForward10"], category: "seeking" },
+  { id: "skipOpening", label: "Перемотка опенинга", defaultKeys: DEFAULT_HOTKEYS["skipOpening"], category: "seeking" },
+  { id: "frameBack", label: "Кадр назад", defaultKeys: DEFAULT_HOTKEYS["frameBack"], category: "seeking" },
+  { id: "frameForward", label: "Кадр вперед", defaultKeys: DEFAULT_HOTKEYS["frameForward"], category: "seeking" },
 
   // Аудио
-  { id: "volumeUp", label: "Громкость +5%", defaultKeys: DEFAULT_HOTKEYS["volumeUp"], category: "Аудио" },
-  { id: "volumeDown", label: "Громкость -5%", defaultKeys: DEFAULT_HOTKEYS["volumeDown"], category: "Аудио" },
-  { id: "toggleMute", label: "Включить / отключить звук", defaultKeys: DEFAULT_HOTKEYS["toggleMute"], category: "Аудио" },
-  { id: "cycleAudioTrack", label: "Смена аудиодорожки", defaultKeys: DEFAULT_HOTKEYS["cycleAudioTrack"], category: "Аудио" },
-  { id: "toggleAudioMenu", label: "Меню аудиодорожек", defaultKeys: DEFAULT_HOTKEYS["toggleAudioMenu"], category: "Аудио" },
+  { id: "volumeUp", label: "Громкость +5%", defaultKeys: DEFAULT_HOTKEYS["volumeUp"], category: "audio" },
+  { id: "volumeDown", label: "Громкость -5%", defaultKeys: DEFAULT_HOTKEYS["volumeDown"], category: "audio" },
+  { id: "toggleMute", label: "Включить / отключить звук", defaultKeys: DEFAULT_HOTKEYS["toggleMute"], category: "audio" },
+  { id: "cycleAudioTrack", label: "Смена аудиодорожки", defaultKeys: DEFAULT_HOTKEYS["cycleAudioTrack"], category: "audio" },
+  { id: "toggleAudioMenu", label: "Меню аудиодорожек", defaultKeys: DEFAULT_HOTKEYS["toggleAudioMenu"], category: "audio" },
 
   // Субтитры
-  { id: "cycleSubTrack", label: "Смена субтитров", defaultKeys: DEFAULT_HOTKEYS["cycleSubTrack"], category: "Субтитры" },
-  { id: "toggleSubMenu", label: "Меню субтитров", defaultKeys: DEFAULT_HOTKEYS["toggleSubMenu"], category: "Субтитры" },
-  { id: "searchSubtitles", label: "Поиск по субтитрам", defaultKeys: DEFAULT_HOTKEYS["searchSubtitles"], category: "Субтитры" },
+  { id: "cycleSubTrack", label: "Смена субтитров", defaultKeys: DEFAULT_HOTKEYS["cycleSubTrack"], category: "subtitles" },
+  { id: "toggleSubMenu", label: "Меню субтитров", defaultKeys: DEFAULT_HOTKEYS["toggleSubMenu"], category: "subtitles" },
+  { id: "searchSubtitles", label: "Поиск по субтитрам", defaultKeys: DEFAULT_HOTKEYS["searchSubtitles"], category: "subtitles" },
 
   // Скорость
-  { id: "speedUp", label: "Увеличить скорость", defaultKeys: DEFAULT_HOTKEYS["speedUp"], category: "Скорость" },
-  { id: "speedDown", label: "Уменьшить скорость", defaultKeys: DEFAULT_HOTKEYS["speedDown"], category: "Скорость" },
-  { id: "speedReset", label: "Сбросить скорость (1.0x)", defaultKeys: DEFAULT_HOTKEYS["speedReset"], category: "Скорость" },
+  { id: "speedUp", label: "Увеличить скорость", defaultKeys: DEFAULT_HOTKEYS["speedUp"], category: "speed" },
+  { id: "speedDown", label: "Уменьшить скорость", defaultKeys: DEFAULT_HOTKEYS["speedDown"], category: "speed" },
+  { id: "speedReset", label: "Сбросить скорость (1.0x)", defaultKeys: DEFAULT_HOTKEYS["speedReset"], category: "speed" },
 
   // Интерфейс и Окно
-  { id: "fullscreen", label: "Полноэкранный режим", defaultKeys: DEFAULT_HOTKEYS["fullscreen"], category: "Интерфейс" },
-  { id: "alwaysOnTop", label: "Поверх всех окон", defaultKeys: DEFAULT_HOTKEYS["alwaysOnTop"], category: "Интерфейс" },
-  { id: "openContextMenu", label: "Открыть контекстное меню", defaultKeys: DEFAULT_HOTKEYS["openContextMenu"], category: "Интерфейс" },
-  { id: "fileInfo", label: "Информация о файле", defaultKeys: DEFAULT_HOTKEYS["fileInfo"], category: "Интерфейс" },
-  { id: "detailedMediaInfo", label: "Свойства MediaInfo (MPC)", defaultKeys: DEFAULT_HOTKEYS["detailedMediaInfo"], category: "Интерфейс" },
-  { id: "chapters", label: "Главы видео (Chapters)", defaultKeys: DEFAULT_HOTKEYS["chapters"], category: "Интерфейс" },
-  { id: "settings", label: "Открыть настройки", defaultKeys: DEFAULT_HOTKEYS["settings"], category: "Интерфейс" },
-  { id: "toggleVisualizer", label: "Вкл/Выкл аудио-визуализатор", defaultKeys: DEFAULT_HOTKEYS["toggleVisualizer"], category: "Интерфейс" },
-  { id: "cycleVisualizerMode", label: "Сменить стиль визуализатора", defaultKeys: DEFAULT_HOTKEYS["cycleVisualizerMode"], category: "Интерфейс" },
-  { id: "rotateVideo", label: "Поворот видео на 90°", defaultKeys: DEFAULT_HOTKEYS["rotateVideo"], category: "Интерфейс" },
-  { id: "resetZoom", label: "Сброс масштаба видео (100%)", defaultKeys: DEFAULT_HOTKEYS["resetZoom"], category: "Интерфейс" },
-  { id: "screenshot", label: "Сохранить кадр", defaultKeys: DEFAULT_HOTKEYS["screenshot"], category: "Интерфейс" },
-  { id: "copyFrame", label: "Копировать кадр в буфер", defaultKeys: DEFAULT_HOTKEYS["copyFrame"], category: "Интерфейс" },
-  { id: "toggleAmbient", label: "Подсветка полос (Ambient Light)", defaultKeys: DEFAULT_HOTKEYS["toggleAmbient"], category: "Интерфейс" },
+  { id: "fullscreen", label: "Полноэкранный режим", defaultKeys: DEFAULT_HOTKEYS["fullscreen"], category: "interface" },
+  { id: "alwaysOnTop", label: "Поверх всех окон", defaultKeys: DEFAULT_HOTKEYS["alwaysOnTop"], category: "interface" },
+  { id: "openContextMenu", label: "Открыть контекстное меню", defaultKeys: DEFAULT_HOTKEYS["openContextMenu"], category: "interface" },
+  { id: "fileInfo", label: "Информация о файле", defaultKeys: DEFAULT_HOTKEYS["fileInfo"], category: "interface" },
+  { id: "detailedMediaInfo", label: "Свойства MediaInfo (MPC)", defaultKeys: DEFAULT_HOTKEYS["detailedMediaInfo"], category: "interface" },
+  { id: "chapters", label: "Главы видео (Chapters)", defaultKeys: DEFAULT_HOTKEYS["chapters"], category: "interface" },
+  { id: "settings", label: "Открыть настройки", defaultKeys: DEFAULT_HOTKEYS["settings"], category: "interface" },
+  { id: "toggleVisualizer", label: "Вкл/Выкл аудио-визуализатор", defaultKeys: DEFAULT_HOTKEYS["toggleVisualizer"], category: "interface" },
+  { id: "cycleVisualizerMode", label: "Сменить стиль визуализатора", defaultKeys: DEFAULT_HOTKEYS["cycleVisualizerMode"], category: "interface" },
+  { id: "rotateVideo", label: "Поворот видео на 90°", defaultKeys: DEFAULT_HOTKEYS["rotateVideo"], category: "interface" },
+  { id: "resetZoom", label: "Сброс масштаба видео (100%)", defaultKeys: DEFAULT_HOTKEYS["resetZoom"], category: "interface" },
+  { id: "screenshot", label: "Сохранить кадр", defaultKeys: DEFAULT_HOTKEYS["screenshot"], category: "interface" },
+  { id: "copyFrame", label: "Копировать кадр в буфер", defaultKeys: DEFAULT_HOTKEYS["copyFrame"], category: "interface" },
+  { id: "toggleAmbient", label: "Подсветка полос (Ambient Light)", defaultKeys: DEFAULT_HOTKEYS["toggleAmbient"], category: "interface" },
+  { id: "toggleLanguage", label: "Переключить язык интерфейса", defaultKeys: DEFAULT_HOTKEYS["toggleLanguage"], category: "interface" },
 
   // Плейлист
-  { id: "playlist", label: "Боковая панель плейлиста", defaultKeys: DEFAULT_HOTKEYS["playlist"], category: "Плейлист" },
-  { id: "playlistPrev", label: "Предыдущий файл в плейлисте", defaultKeys: DEFAULT_HOTKEYS["playlistPrev"], category: "Плейлист" },
-  { id: "playlistNext", label: "Следующий файл в плейлисте", defaultKeys: DEFAULT_HOTKEYS["playlistNext"], category: "Плейлист" },
-  { id: "openFile", label: "Открыть файл", defaultKeys: DEFAULT_HOTKEYS["openFile"], category: "Плейлист" },
+  { id: "playlist", label: "Боковая панель плейлиста", defaultKeys: DEFAULT_HOTKEYS["playlist"], category: "playlist" },
+  { id: "playlistPrev", label: "Предыдущий файл в плейлисте", defaultKeys: DEFAULT_HOTKEYS["playlistPrev"], category: "playlist" },
+  { id: "playlistNext", label: "Следующий файл в плейлисте", defaultKeys: DEFAULT_HOTKEYS["playlistNext"], category: "playlist" },
+  { id: "openFile", label: "Открыть файл", defaultKeys: DEFAULT_HOTKEYS["openFile"], category: "playlist" },
 
   // Апскейлинг 4K
-  { id: "upscaleStats", label: "Статус и статистика 4K AI", defaultKeys: DEFAULT_HOTKEYS["upscaleStats"], category: "Апскейлинг" },
-  { id: "upscaleOff", label: "Апскейлинг: Выключить", defaultKeys: DEFAULT_HOTKEYS["upscaleOff"], category: "Апскейлинг" },
-  { id: "upscaleNet1", label: "Апскейлинг: Нейросеть #1", defaultKeys: DEFAULT_HOTKEYS["upscaleNet1"], category: "Апскейлинг" },
-  { id: "upscaleNet2", label: "Апскейлинг: Нейросеть #2", defaultKeys: DEFAULT_HOTKEYS["upscaleNet2"], category: "Апскейлинг" },
-  { id: "upscaleNet3", label: "Апскейлинг: Нейросеть #3", defaultKeys: DEFAULT_HOTKEYS["upscaleNet3"], category: "Апскейлинг" },
-  { id: "upscaleNet4", label: "Апскейлинг: Нейросеть #4", defaultKeys: DEFAULT_HOTKEYS["upscaleNet4"], category: "Апскейлинг" },
-  { id: "upscaleNet5", label: "Апскейлинг: Нейросеть #5", defaultKeys: DEFAULT_HOTKEYS["upscaleNet5"], category: "Апскейлинг" },
-  { id: "upscaleNet6", label: "Апскейлинг: Нейросеть #6", defaultKeys: DEFAULT_HOTKEYS["upscaleNet6"], category: "Апскейлинг" },
+  { id: "upscaleStats", label: "Статус и статистика 4K AI", defaultKeys: DEFAULT_HOTKEYS["upscaleStats"], category: "upscaling" },
+  { id: "upscaleOff", label: "Апскейлинг: Выключить", defaultKeys: DEFAULT_HOTKEYS["upscaleOff"], category: "upscaling" },
+  { id: "upscaleNet1", label: "Апскейлинг: Нейросеть #1", defaultKeys: DEFAULT_HOTKEYS["upscaleNet1"], category: "upscaling" },
+  { id: "upscaleNet2", label: "Апскейлинг: Нейросеть #2", defaultKeys: DEFAULT_HOTKEYS["upscaleNet2"], category: "upscaling" },
+  { id: "upscaleNet3", label: "Апскейлинг: Нейросеть #3", defaultKeys: DEFAULT_HOTKEYS["upscaleNet3"], category: "upscaling" },
+  { id: "upscaleNet4", label: "Апскейлинг: Нейросеть #4", defaultKeys: DEFAULT_HOTKEYS["upscaleNet4"], category: "upscaling" },
+  { id: "upscaleNet5", label: "Апскейлинг: Нейросеть #5", defaultKeys: DEFAULT_HOTKEYS["upscaleNet5"], category: "upscaling" },
+  { id: "upscaleNet6", label: "Апскейлинг: Нейросеть #6", defaultKeys: DEFAULT_HOTKEYS["upscaleNet6"], category: "upscaling" },
 ];
 
 export function getCustomHotkeys(): Record<string, string[]> {
@@ -233,15 +235,16 @@ export function isCodeReservedForUpscaleOff(code: string, actionId: string): boo
   return code === RESERVED_UPSCALE_OFF_CODE && actionId !== UPSCALE_OFF_ACTION_ID;
 }
 
-function formatSingleKey(part: string): string {
+function formatSingleKey(part: string, locale?: string): string {
   if (!part) return "";
-  if (part === "MouseLeft") return "ЛКМ";
-  if (part === "MouseRight") return "ПКМ";
-  if (part === "MouseMiddle") return "СКМ";
-  if (part === "MouseLeftDoubleClick") return "ЛКМ 2x";
+  const isEn = locale === "en";
+  if (part === "MouseLeft") return isEn ? "LMB" : "ЛКМ";
+  if (part === "MouseRight") return isEn ? "RMB" : "ПКМ";
+  if (part === "MouseMiddle") return isEn ? "MMB" : "СКМ";
+  if (part === "MouseLeftDoubleClick") return isEn ? "2x LMB" : "ЛКМ 2x";
   
   if (part.startsWith("MouseButton")) {
-    return "Мышь " + part.replace("MouseButton", "");
+    return (isEn ? "Mouse " : "Мышь ") + part.replace("MouseButton", "");
   }
   if (part.startsWith("Key")) {
     return part.replace("Key", "");
@@ -249,7 +252,7 @@ function formatSingleKey(part: string): string {
   if (part.startsWith("Digit")) {
     return part.replace("Digit", "");
   }
-  if (part === "Space") return "Пробел";
+  if (part === "Space") return isEn ? "Space" : "Пробел";
   if (part === "ArrowLeft") return "←";
   if (part === "ArrowRight") return "→";
   if (part === "ArrowUp") return "↑";
@@ -269,10 +272,10 @@ function formatSingleKey(part: string): string {
   return part;
 }
 
-export function getKeyDisplay(currentCode: string): string {
+export function getKeyDisplay(currentCode: string, locale?: string): string {
   if (!currentCode) return "—";
   const parts = currentCode.split("+");
-  return parts.map(formatSingleKey).join(" + ");
+  return parts.map((p) => formatSingleKey(p, locale)).join(" + ");
 }
 
 /**

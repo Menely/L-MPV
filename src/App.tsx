@@ -23,6 +23,7 @@ import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./com
 import { applyAccentColor } from "./utils/colorUtils";
 import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
+import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
 
 // Тяжёлые модалки грузятся лениво: в стартовый бандл не попадают,
 // парсятся только при первом открытии (dnd-kit едет вместе с настройками).
@@ -178,8 +179,7 @@ function App() {
     localStorage.setItem("l-mpv-upscale-mode", "off");
 
     // Фоновая проверка обновлений (показываем ненавязчивое уведомление в правом углу).
-    // Отложена на 5с после старта: TLS-хендшейк GitHub API не должен
-    // конкурировать с инициализацией окна и первым paint.
+    // Отложена на 1с после старта плеера.
     const updateCheckTimer = window.setTimeout(() => {
       invoke<UpdateInfo | null>("check_launch_and_update")
         .then((info) => {
@@ -191,7 +191,7 @@ function App() {
         .catch((err) => {
           console.warn("Фоновая проверка обновлений пропущена:", err);
         });
-    }, 5000);
+    }, 1000);
     return () => window.clearTimeout(updateCheckTimer);
   }, []);
 
@@ -582,6 +582,9 @@ function App() {
       setIsPlaylistOpen: curSetIsPlaylistOpen,
     } = latestRef.current;
 
+    const curLocale = getEffectiveLocale();
+    const dict = getDict(curLocale);
+
     switch (actionId) {
       case "togglePause":
         if (curHasMedia) {
@@ -647,7 +650,7 @@ function App() {
       case "copyFrame":
         try {
           await invoke("copy_frame_to_clipboard");
-          setOsdText("Кадр скопирован в буфер обмена");
+          setOsdText(dict.osd.frameCopied);
           if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
           osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
         } catch (err) {
@@ -657,7 +660,7 @@ function App() {
       case "screenshot":
         try {
           await invoke("take_screenshot");
-          setOsdText("Кадр сохранён");
+          setOsdText(dict.osd.frameSaved);
           if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
           osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
         } catch (err) {
@@ -704,7 +707,7 @@ function App() {
         const cfg = getVisualizerConfig();
         const nextEnabled = !cfg.enabled;
         saveVisualizerConfig({ ...cfg, enabled: nextEnabled });
-        setOsdText(`Визуализатор: ${nextEnabled ? "Включен" : "Выключен"}`);
+        setOsdText(dict.osd.visualizerStatus(nextEnabled));
         if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
         osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
         break;
@@ -715,7 +718,7 @@ function App() {
         const nextIdx = (modes.indexOf(cfg.mode) + 1) % modes.length;
         const nextMode = modes[nextIdx];
         saveVisualizerConfig({ ...cfg, enabled: true, mode: nextMode });
-        setOsdText(`Визуализатор: ${nextMode}`);
+        setOsdText(dict.osd.visualizerMode(nextMode));
         if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
         osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
         break;
@@ -725,7 +728,7 @@ function App() {
           const curRot = (mediaInfo as any)?.rotation || 0;
           const nextRot = (curRot + 90) % 360;
           await invoke("set_rotation", { degrees: nextRot });
-          setOsdText(`Поворот: ${nextRot}°`);
+          setOsdText(dict.osd.rotation(nextRot));
           if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
           osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
         } catch (e) {
@@ -733,12 +736,23 @@ function App() {
         }
         break;
       }
+      case "toggleLanguage": {
+        const nextLocale: Locale = curLocale === "ru" ? "en" : "ru";
+        saveLocale(nextLocale);
+        const langName = nextLocale === "ru" ? "Русский" : "English";
+        const nextDict = getDict(nextLocale);
+        const osdMsg = nextDict.osd.languageSwitched(langName);
+        setOsdText(osdMsg);
+        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
+        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        break;
+      }
       case "resetZoom":
         videoZoomRef.current = 0;
         videoPanXRef.current = 0;
         videoPanYRef.current = 0;
         invoke("set_video_zoom_and_pan", { zoom: 0, panX: 0, panY: 0 }).catch(console.error);
-        setOsdText("Масштаб: 100% (Исходный)");
+        setOsdText(dict.osd.zoomReset);
         if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
         osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
         break;
@@ -802,12 +816,16 @@ function App() {
       case "toggleAmbient":
         try {
           const res = await invoke<{ mode: string }>("toggle_ambient_mode");
-          const labels: Record<string, string> = {
+          const labels: Record<string, string> = curLocale === "en" ? {
+            off: "Off",
+            blur: "Blur (GPU)",
+            color: "Color Ambient",
+          } : {
             off: "Выкл",
             blur: "Размытие (GPU)",
             color: "Цветной Ambient",
           };
-          setOsdText(`Подсветка полос: ${labels[res.mode] || res.mode}`);
+          setOsdText(dict.osd.ambientMode(labels[res.mode] || res.mode));
           if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
           osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
           window.dispatchEvent(new Event("l-mpv-ambient-changed"));
@@ -840,8 +858,8 @@ function App() {
             const modelIndex = status?.models?.findIndex((m) => m.slot === slot || m.filename === selectedModel);
             const modelNumber = modelIndex !== undefined && modelIndex !== -1 ? modelIndex + 1 : 1;
             const activeModel = status?.models?.find((m) => m.slot === slot || m.filename === selectedModel);
-            const rawName = activeModel?.display_name || (selectedModel ? selectedModel.replace(/\.onnx$/i, "") : `Слот #${slot}`);
-            const modelName = isHideModelNames ? `Модель #${modelNumber}` : rawName;
+            const rawName = activeModel?.display_name || (selectedModel ? selectedModel.replace(/\.onnx$/i, "") : (curLocale === "en" ? `Slot #${slot}` : `Слот #${slot}`));
+            const modelName = isHideModelNames ? (curLocale === "en" ? `Model #${modelNumber}` : `Модель #${modelNumber}`) : rawName;
             
             let backendDesc = backend;
             if (backend === "TensorRT") {
@@ -855,17 +873,19 @@ function App() {
             let videoStats = "";
             if (mediaInfo?.width && mediaInfo?.height) {
               const fpsText = mediaInfo.fps ? ` @ ${mediaInfo.fps.toFixed(2)} fps` : "";
-              videoStats = `\nВидео: ${mediaInfo.width}×${mediaInfo.height}${fpsText} ➔ 4K UHD`;
+              videoStats = curLocale === "en"
+                ? `\nVideo: ${mediaInfo.width}×${mediaInfo.height}${fpsText} ➔ 4K UHD`
+                : `\nВидео: ${mediaInfo.width}×${mediaInfo.height}${fpsText} ➔ 4K UHD`;
             }
 
-            const message = `✨ 4K AI Upscaling: Включен (Слот ${slot})\nМодель: ${modelName}\nДвижок: ${backendDesc}${videoStats}`;
+            const message = dict.osd.upscaleStatsAi(slot, modelName, backendDesc, videoStats);
             setOsdText(message);
           } else {
             let gpuHint = "";
             if (status?.gpu_info?.name) {
               gpuHint = `\nGPU: ${status.gpu_info.name} (${status.gpu_info.recommended_backend})`;
             }
-            const message = `✨ 4K AI Upscaling: Выключен (Исходное видео)${gpuHint}\nБыстрое включение: Shift+1 (Выкл), Shift+2..7 (Модели)`;
+            const message = dict.osd.upscaleStatsOff(gpuHint);
             setOsdText(message);
           }
 
@@ -881,7 +901,7 @@ function App() {
           const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
           await invoke("switch_upscale_network_hotkey", { slot: 0, backend });
           localStorage.setItem("l-mpv-upscale-mode", "off");
-          setOsdText("4K AI Апскейлинг: Выключен");
+          setOsdText(dict.osd.upscaleOff);
           if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
           osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
           window.dispatchEvent(new Event("l-mpv-settings-changed"));
@@ -916,15 +936,15 @@ function App() {
             await invoke("switch_upscale_network_hotkey", { slot, backend });
 
             const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
-            const modelTitle = isHideModelNames ? `Модель #${index + 1}` : targetModel.display_name;
+            const modelTitle = isHideModelNames ? (curLocale === "en" ? `Model #${index + 1}` : `Модель #${index + 1}`) : targetModel.display_name;
 
-            setOsdText(`4K AI: ${modelTitle} (Включен)`);
+            setOsdText(dict.osd.upscaleModel(modelTitle));
             if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
             osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
 
             window.dispatchEvent(new Event("l-mpv-settings-changed"));
           } else {
-            setOsdText(`Модель #${index + 1} не найдена в models/onnx/`);
+            setOsdText(dict.osd.upscaleModelNotFound(index + 1));
             if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
             osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
           }
@@ -1126,8 +1146,9 @@ function App() {
                 await invoke("load_audio_file", { path: file });
                 await latestRef.current.loadTracks();
                 const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
+                const d = getDict(getEffectiveLocale());
                 window.dispatchEvent(
-                  new CustomEvent("show-osd", { detail: `Подключена аудиодорожка: ${fileName}` })
+                  new CustomEvent("show-osd", { detail: d.osd.audioLoaded(fileName) })
                 );
               } catch (err) {
                 console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
@@ -1137,8 +1158,9 @@ function App() {
                 await invoke("load_subtitle_file", { path: file });
                 await latestRef.current.loadTracks();
                 const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
+                const d = getDict(getEffectiveLocale());
                 window.dispatchEvent(
-                  new CustomEvent("show-osd", { detail: `Подключены субтитры: ${fileName}` })
+                  new CustomEvent("show-osd", { detail: d.osd.subsLoaded(fileName) })
                 );
               } catch (err) {
                 console.error("Ошибка подключения субтитров (Хотлоад):", err);
@@ -1260,7 +1282,8 @@ function App() {
                   }).catch(console.error);
 
                   const percentage = Math.round(Math.pow(2, targetZoom) * 100);
-                  triggerOsd(targetZoom === 0 ? "Масштаб: 100% (Исходный)" : `Масштаб: ${percentage}%`, 1100);
+                  const d = getDict(getEffectiveLocale());
+                  triggerOsd(targetZoom === 0 ? d.osd.zoomReset : d.osd.zoomLevel(percentage), 1100);
                 });
               }
             } else {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { X, Plus } from "lucide-react";
 import { hslToRgb, rgbToHex, hexToRgb, rgbToHsl } from "../utils/colorUtils";
+import { useTranslation } from "../i18n/LanguageContext";
 
 interface ColorPickerModalProps {
   initialColor?: string;
@@ -17,6 +18,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   onSelectColor,
   onClose,
 }) => {
+  const { dict } = useTranslation();
   // Начальное состояние цвета
   const initRgb = hexToRgb(initialColor) || { r: 127, g: 199, b: 255 };
   const initHsl = rgbToHsl(initRgb.r, initRgb.g, initRgb.b);
@@ -241,13 +243,13 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
           }}
         >
           <span style={{ fontSize: "0.96rem", fontWeight: 700, color: "var(--text-primary)" }}>
-            Выбор своего цвета
+            {dict.settings.appearance.colorScheme.colorPickerTitle}
           </span>
           <button
             onClick={handleClose}
             className="modal__close"
-            title="Закрыть (Esc)"
-            aria-label="Закрыть"
+            title={dict.settings.appearance.colorScheme.colorPickerClose}
+            aria-label={dict.settings.appearance.colorScheme.colorPickerClose}
           >
             <X size={16} />
           </button>
@@ -429,7 +431,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             className="settings-action-btn settings-action-btn--secondary"
             style={{ height: 32, padding: "0 14px", fontSize: "0.82rem" }}
           >
-            Отмена
+            {dict.settings.appearance.colorScheme.cancel}
           </button>
           <button
             onClick={() => {
@@ -439,7 +441,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             className="settings-action-btn settings-action-btn--primary"
             style={{ height: 32, padding: "0 16px", fontSize: "0.82rem", gap: 6 }}
           >
-            <Plus size={15} /> Добавить
+            <Plus size={15} /> {dict.settings.appearance.colorScheme.add}
           </button>
         </div>
       </div>

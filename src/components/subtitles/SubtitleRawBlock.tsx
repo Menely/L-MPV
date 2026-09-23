@@ -17,6 +17,7 @@ import {
   toAegisubMarkup,
   toHtmlMarkup,
 } from "./subtitleFormatters";
+import { useTranslation } from "../../i18n/LanguageContext";
 import type {
   SubtitleLine,
   SubtitleRawFormat,
@@ -39,6 +40,7 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
   rawFormat,
   onToggleRawFormat,
 }: SubtitleRawBlockProps) {
+  const { dict } = useTranslation();
   const [isOpen, setIsOpen] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
   const [localFormat, setLocalFormat] =
@@ -126,11 +128,11 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
           borderRadius: "var(--radius-xs)",
         }}
         className="hover-bright"
-        title="Показать / скрыть исходную разметку реплики"
+        title={dict.subtitlesSearch.rawToggleTooltip}
       >
         {isOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
         <Code size={11} />
-        <span>Исходная разметка (Raw)</span>
+        <span>{dict.subtitlesSearch.rawSectionTitle}</span>
       </div>
 
       {isOpen && (
@@ -208,8 +210,8 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
                   className="hover-bright"
                   title={
                     fmt === "html"
-                      ? "Нынешняя HTML/SRT разметка"
-                      : "Разметка Aegisub (теги ASS)"
+                      ? dict.subtitlesSearch.rawHtmlTooltip
+                      : dict.subtitlesSearch.rawAssTooltip
                   }
                 >
                   {fmt === "html" ? "Ht" : "Ae"}
@@ -241,8 +243,8 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
               className="hover-bright"
               title={
                 isCopied
-                  ? "Скопировано в буфер обмена!"
-                  : "Скопировать исходный код"
+                  ? dict.subtitlesSearch.rawCopied
+                  : dict.subtitlesSearch.rawCopyCode
               }
             >
               {isCopied ? <Check size={11} /> : <Copy size={11} />}
