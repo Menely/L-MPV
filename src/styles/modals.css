@@ -2,14 +2,22 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.60);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
   animation: fadeIn 200ms var(--ease-smooth);
+}
+
+.modal-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.60);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+  z-index: 0;
 }
 
 @keyframes fadeIn {
@@ -18,6 +26,8 @@
 }
 
 .modal {
+  position: relative;
+  z-index: 1;
   width: 460px;
   max-height: 80vh;
   display: flex;
@@ -118,6 +128,7 @@
 }
 
 .modal__body {
+  background: var(--bg-modal-solid, #11141c);
   padding: 14px 18px;
   overflow-y: auto;
   scrollbar-gutter: stable;
@@ -1201,13 +1212,14 @@
 }
 
 /* Плавный аккордеон через CSS Grid 0fr -> 1fr.
-   Анимация перехода активируется только после интерактивного взаимодействия (.settings-accordion--animated),
-   чтобы при монтировании открытых секций не происходило ложных микросмещений и дерганий. */
+   Никаких contain: content/paint, will-change или transform: translateY!
+   Любой transform или contain выносит поддерево в изолированный растровый буфер Skia,
+   что навсегда отключает субпиксельный LCD ClearType в Chromium и даёт мыльный текст на 1080p.
+   В открытом состоянии overflow: visible и transform: none гарантируют прямое рисование DirectWrite. */
 .settings-accordion__collapse {
   display: grid;
   grid-template-rows: 0fr;
   overflow: hidden;
-  contain: content;
 }
 
 .settings-accordion--animated .settings-accordion__collapse {
@@ -1216,6 +1228,8 @@
 
 .settings-accordion--open .settings-accordion__collapse {
   grid-template-rows: 1fr;
+  overflow: visible;
+  contain: none !important;
 }
 
 .settings-accordion__inner {
@@ -1223,22 +1237,26 @@
   overflow: hidden;
 }
 
+.settings-accordion--open .settings-accordion__inner {
+  overflow: visible;
+}
+
 .settings-accordion__body {
   padding: 4px 14px 14px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   opacity: 0;
-  transform: translateY(-4px);
+  transform: none !important;
 }
 
 .settings-accordion--animated .settings-accordion__body {
-  transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1),
-              transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform, opacity;
+  transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-accordion--open .settings-accordion__body {
   opacity: 1;
-  transform: translateY(0);
+  transform: none !important;
+  will-change: auto !important;
+  contain: none !important;
 }
 
 /* ─── Вкладки и анимация переключения категорий в настройках ─── */
@@ -1313,18 +1331,18 @@
 
 /* ─── Универсальная плавная складка (как аккордеон настроек) ───
    Использование: .collapse-fold > .collapse-fold__inner > контент.
-   Только opacity без translateY — безопасно для длинных списков
-   (трансформ огромного слоя даёт растровые попы). */
+   Без contain: content и transform для сохранения кристальной чёткости DirectWrite. */
 .collapse-fold {
   display: grid;
   grid-template-rows: 0fr;
   transition: grid-template-rows 240ms cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
-  contain: content;
 }
 
 .collapse-fold--open {
   grid-template-rows: 1fr;
+  overflow: visible;
+  contain: none !important;
 }
 
 .collapse-fold__inner {
@@ -1332,13 +1350,21 @@
   overflow: hidden;
 }
 
+.collapse-fold--open .collapse-fold__inner {
+  overflow: visible;
+}
+
 .collapse-fold__body {
   opacity: 0;
   transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: none !important;
 }
 
 .collapse-fold--open .collapse-fold__body {
   opacity: 1;
+  transform: none !important;
+  will-change: auto !important;
+  contain: none !important;
 }
 
 /* Панель вкладок: высота анимируется из JS (старая -> новая),
@@ -1357,37 +1383,27 @@
 }
 
 .modal--settings .modal__body {
+  background: var(--bg-modal-solid, #11141c);
   overflow-anchor: none;
 }
 
 .settings-tab-content {
-  animation: settingsTabSlideIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
-  /* Без постоянного выноса в композитный слой: шрифты рендерятся напрямую через DirectWrite LCD ClearType */
+  animation: settingsTabFadeIn 180ms ease;
+  transform: none !important;
+  will-change: auto !important;
+  /* Плавный фейд без translateX: шрифт рендерится напрямую через DirectWrite LCD ClearType */
 }
 
 .settings-tab-content[data-slide-dir="-1"] {
-  animation-name: settingsTabSlideInBack;
+  animation-name: settingsTabFadeIn;
 }
 
-@keyframes settingsTabSlideIn {
+@keyframes settingsTabFadeIn {
   from {
     opacity: 0;
-    transform: translateX(16px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes settingsTabSlideInBack {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
   }
 }
 

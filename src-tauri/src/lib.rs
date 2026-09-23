@@ -109,7 +109,7 @@ pub fn run() {
     if std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").is_err() {
         std::env::set_var(
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-            "--enable-font-antialiasing --font-render-hinting=medium",
+            "--enable-font-antialiasing --enable-lcd-text --font-render-hinting=medium",
         );
     }
 
