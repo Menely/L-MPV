@@ -1,0 +1,4 @@
+{
+    "baseBranches": ["Develop"],
+    "useBaseBranchConfig": "merge"
+}
