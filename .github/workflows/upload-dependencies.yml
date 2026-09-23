@@ -59,7 +59,7 @@ jobs:
           Compress-Archive -Path "dist_libs/*" -DestinationPath "mpv_libs.zip" -Force
 
       - name: Публикация/Обновление релиза deps-v1 на GitHub
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: deps-v1
           name: "L-MPV Build Dependencies v1"

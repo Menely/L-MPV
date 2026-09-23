@@ -65,7 +65,7 @@ jobs:
           }
 
       - name: Публикация релиза inference-v1 на GitHub
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: inference-v1
           name: "L-MPV Inference Engines v1"
