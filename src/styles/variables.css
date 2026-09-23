@@ -76,6 +76,7 @@
   --t-base:              200ms;
   --t-slow:              300ms;
   --t-spring:            260ms;
+  --t-idle-hide:         340ms;
   /* Единые длительности закрытия (JS-таймеры = CSS + ~35ms запас на пропуск кадра) */
   --t-close-fast:        120ms;
   --t-close-base:        140ms;

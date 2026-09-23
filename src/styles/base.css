@@ -111,23 +111,23 @@ html, body, #root {
   zoom: var(--ui-scale);
 }
 
-/* Класс idle — скрывает UI после бездействия мыши с кинематографичным микро-сдвигом */
+/* Класс idle — скрывает UI после бездействия мыши с кинематографичным мягким микро-сдвигом */
 .app-container--idle .titlebar,
 .app-container--hide-controls .titlebar {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-10px);
   pointer-events: none;
-  transition: opacity var(--t-slow) var(--ease-smooth),
-              transform var(--t-slow) var(--ease-out);
+  transition: opacity var(--t-idle-hide) var(--ease-smooth),
+              transform var(--t-idle-hide) var(--ease-smooth);
 }
 
 .app-container--idle .player-controls-wrapper,
 .app-container--hide-controls .player-controls-wrapper {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(14px);
   pointer-events: none;
-  transition: opacity var(--t-slow) var(--ease-smooth),
-              transform var(--t-slow) var(--ease-out);
+  transition: opacity var(--t-idle-hide) var(--ease-smooth),
+              transform var(--t-idle-hide) var(--ease-smooth);
 }
 
 .app-container--idle {
@@ -137,13 +137,13 @@ html, body, #root {
 /* ─── Режим Mini Player (PiP) ─── */
 .app-container--mini .titlebar {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-10px);
   pointer-events: none;
 }
 
 .app-container--mini .player-controls-wrapper {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(14px);
   pointer-events: none;
 }
 
@@ -272,7 +272,8 @@ html, body, #root {
   flex-shrink: 0;
   margin: 0;
   padding: 0;
-  transform-origin: 50% 50%;
+  transform-box: fill-box;
+  transform-origin: center center;
   transform: rotate(0deg);
   transition: transform var(--t-spring, 260ms) var(--ease-spring-smooth);
 }
@@ -318,7 +319,8 @@ html.no-animations .control-btn--play:hover svg,
 html.no-animations .track-popover__item:hover,
 html.no-animations .side-panel__item:hover,
 html.no-animations .playlist-item:hover,
-html.no-animations .context-menu__item:hover {
+html.no-animations .context-menu__item:hover,
+html.no-animations .context-menu__item:active {
   transform: none !important;
   transition: none !important;
 }

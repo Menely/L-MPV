@@ -99,6 +99,14 @@
               color var(--t-fast) var(--ease-smooth),
               filter var(--t-fast) var(--ease-smooth);
   box-sizing: border-box;
+  transform-origin: center center;
+}
+
+.btn svg {
+  display: block;
+  flex-shrink: 0;
+  transform-box: fill-box;
+  transform-origin: center center;
 }
 
 .btn:active:not(:disabled) {
@@ -291,9 +299,9 @@
   margin: 0;
   padding: 0;
   flex-shrink: 0 !important;
-  transition: border-color var(--t-fast) ease,
-              background var(--t-fast) ease,
-              box-shadow var(--t-fast) ease,
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
               border-radius var(--t-spring) var(--ease-spring-smooth);
   position: relative;
   outline: none;

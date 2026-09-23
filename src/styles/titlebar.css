@@ -117,7 +117,6 @@
   border-color: var(--accent);
   color: #ffffff;
   box-shadow: 0 0 10px rgba(var(--accent-rgb, 127, 199, 255), 0.35);
-  transform: translateY(-1px);
 }
 
 .titlebar__controls {
@@ -136,9 +135,9 @@
   color: #ffffff;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: transform var(--t-spring) var(--ease-spring-bounce),
-              background var(--t-fast) var(--ease-smooth),
-              border-radius var(--t-spring) var(--ease-spring-smooth),
+  transform-origin: center center;
+  transition: transform var(--t-fast) var(--ease-spring-smooth),
+              background-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth);
 }
 
@@ -153,6 +152,7 @@
 
 .titlebar__btn:active {
   transform: scale(0.92);
+  transition: transform var(--t-fast) var(--ease-spring-smooth);
 }
 
 .titlebar__btn--close {
@@ -169,12 +169,15 @@
 
 .titlebar__btn svg {
   display: block;
-  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.8));
-  transition: transform var(--t-spring, 260ms) var(--ease-spring-bounce), filter var(--t-fast) var(--ease-smooth);
+  flex-shrink: 0;
+  transform-box: fill-box;
+  transform-origin: center center;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+  transition: color var(--t-fast) var(--ease-smooth);
 }
 
 /* Отключение свечения в Titlebar при режиме Off */
 [data-glow="off"] .titlebar__btn svg,
 html[data-glow="off"] .titlebar__btn svg {
-  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.8)) !important;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5)) !important;
 }

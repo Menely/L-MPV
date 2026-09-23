@@ -261,7 +261,9 @@
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth);
   user-select: none;
 }
 
@@ -439,7 +441,16 @@
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
+  transform-origin: center center;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
+}
+
+.mediainfo-standalone__control-btn svg {
+  display: block;
+  flex-shrink: 0;
+  transform-box: fill-box;
+  transform-origin: center center;
 }
 
 .mediainfo-standalone__control-btn:hover {
@@ -473,7 +484,7 @@
   padding: 4px 10px;
   flex: 1;
   max-width: 360px;
-  transition: border-color 150ms ease;
+  transition: border-color var(--t-fast) var(--ease-smooth);
 }
 
 .mediainfo-standalone__search-wrapper:focus-within {
@@ -551,7 +562,9 @@
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth);
   user-select: none;
 }
 

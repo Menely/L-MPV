@@ -56,6 +56,8 @@
   opacity: 0;
   transform: translateY(100%);
   pointer-events: none;
+  transition: opacity var(--t-idle-hide) var(--ease-smooth),
+              transform var(--t-idle-hide) var(--ease-smooth);
 }
 
 /* ─── Строка таймлайна со временем (справа, слева или на всю ширину) ── */
@@ -268,9 +270,9 @@
   color: var(--text-secondary);
   cursor: pointer;
   border-radius: 50%;
-  transition: transform var(--t-spring) var(--ease-spring-bounce),
-              color var(--t-fast) var(--ease-smooth),
-              background-color var(--t-fast) var(--ease-smooth);
+  transform-origin: center center;
+  transition: transform var(--t-spring) var(--ease-spring-smooth),
+              color var(--t-fast) var(--ease-smooth);
   flex-shrink: 0;
   padding: 0;
   transform: scale(1);
@@ -301,7 +303,12 @@
   width: 18px;
   height: 18px;
   stroke-width: 2.25;
+  display: block;
+  flex-shrink: 0;
+  transform-box: fill-box;
+  transform-origin: center center;
   transition: transform var(--t-spring) var(--ease-spring-smooth),
+              color var(--t-fast) var(--ease-smooth),
               filter var(--t-fast) var(--ease-smooth);
 }
 
@@ -312,17 +319,21 @@
   box-shadow: none;
 }
 
+.control-btn--with-label:hover {
+  transform: none;
+}
+
+.control-btn--with-label:hover svg {
+  transform: scale(1.08);
+}
+
 .control-btn:hover svg {
   filter: var(--hover-icon-glow, none);
 }
 
 .control-btn:active {
   transform: scale(0.92);
-  transition-duration: 100ms;
-}
-
-.control-btn:active svg {
-  transform: scale(0.92);
+  transition: transform var(--t-fast) var(--ease-spring-smooth);
 }
 
 /* Кнопка Play / Pause с интерактивным живым шейпом */
@@ -333,7 +344,8 @@
   color: var(--accent);
   background: transparent;
   box-shadow: none;
-  transition: transform var(--t-spring) var(--ease-spring-bounce),
+  transform-origin: center center;
+  transition: transform var(--t-spring) var(--ease-spring-smooth),
               color var(--t-fast) var(--ease-smooth);
 }
 
@@ -341,9 +353,11 @@
   width: 22px;
   height: 22px;
   stroke-width: 2.4;
+  display: block;
+  flex-shrink: 0;
   filter: var(--play-icon-glow, none);
   transform-box: fill-box;
-  transform-origin: center;
+  transform-origin: center center;
   animation: playPausePop var(--t-spring) var(--ease-spring-smooth);
   transition: filter var(--t-fast) var(--ease-smooth),
               transform var(--t-spring) var(--ease-spring-smooth);
@@ -351,16 +365,16 @@
 
 @keyframes playPausePop {
   0% {
-    opacity: 0.4;
-    transform: scale3d(0.9, 0.9, 1);
+    opacity: 0.5;
+    transform: scale(0.92);
   }
   60% {
     opacity: 1;
-    transform: scale3d(1.05, 1.05, 1);
+    transform: scale(1.04);
   }
   100% {
     opacity: 1;
-    transform: scale3d(1, 1, 1);
+    transform: scale(1);
   }
 }
 
@@ -376,29 +390,31 @@
 }
 
 .control-btn--play:active {
-  transform: scale(0.9);
-  transition-duration: 90ms;
+  transform: scale(0.92);
+  transition: transform var(--t-fast) var(--ease-spring-smooth);
 }
 
 /* Анимация переключения громкости (Mute/Unmute) — срабатывает только при смене иконки (key), не при каждом шаге громкости */
 .volume-slider #btn-volume svg {
+  display: block;
+  flex-shrink: 0;
   transform-box: fill-box;
-  transform-origin: center;
+  transform-origin: center center;
   animation: volumeIconPop var(--t-spring) var(--ease-spring-smooth);
 }
 
 @keyframes volumeIconPop {
   0% {
-    opacity: 0.4;
-    transform: scale3d(0.9, 0.9, 1);
+    opacity: 0.5;
+    transform: scale(0.92);
   }
   60% {
     opacity: 1;
-    transform: scale3d(1.05, 1.05, 1);
+    transform: scale(1.04);
   }
   100% {
     opacity: 1;
-    transform: scale3d(1, 1, 1);
+    transform: scale(1);
   }
 }
 
@@ -408,13 +424,18 @@
   box-shadow: none;
 }
 
+.control-btn--active:hover {
+  background: transparent;
+  color: var(--accent-hover, var(--accent));
+}
+
 .control-btn--active svg {
   filter: var(--active-icon-glow, none);
   transition: filter var(--t-fast) var(--ease-smooth);
 }
 
 .control-btn--active:hover svg {
-  filter: var(--play-icon-glow, var(--active-icon-glow, none));
+  filter: var(--active-icon-glow, none);
 }
 
 /* ─── Текстовые метки (время, кадры) ─────────────────── */
