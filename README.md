@@ -80,8 +80,8 @@
   </tr>
   <tr>
     <td width="50%" align="center">
-      <b>⚙️ Центр Настроек и Апскейлинг</b><br>
-      <sub>Управление AI-апскейлингом, скриншотами и системными ассоциациями</sub><br><br>
+      <b>⚙️ Центр Настроек</b><br>
+      <sub>Выбор языка, горячих клавиш, управление скриншотами и системными ассоциациями</sub><br><br>
       <a href="./assets/settings-general-player.png"><img src="./assets/settings-general-player.png" alt="General Settings" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
