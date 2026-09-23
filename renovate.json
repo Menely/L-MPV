@@ -1,4 +1,97 @@
 {
-    "baseBranches": ["Develop"],
-    "useBaseBranchConfig": "merge"
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticPrefixFixDepsChoreOthers"],
+  "baseBranchPatterns": ["Develop"],
+  "dependencyDashboard": true,
+  "timezone": "Europe/Moscow",
+  "schedule": ["* 17 * * 1"],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 14,
+  "minimumReleaseAge": "4 days",
+  "internalChecksFilter": "strict",
+  "packageRules": [
+    // NPM: ------------MAJOR-----------------
+    {
+      "description": "Require dashboard approval for major updates (npm)",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "addLabels": ["npm", "major"]
+    },
+    // CARGO: ------------MAJOR-----------------
+    {
+      "description": "Require dashboard approval for major updates (cargo)",
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "addLabels": ["cargo", "major"]
+    },
+    // NPM: ------------Пакеты рантайма: PATCH & MINOR-----------------
+    { 
+      "description": "Group patch and minor updates for production npm dependencies",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "NPM runtime dependencies (patch and minor)",
+      "addLabels": ["frontend", "runtime"]
+    },
+    // NPM: ------------Тулзы: PATCH & MINOR-----------------
+    {
+      "description": "Group non-major npm build and type tooling updates",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "NPM build tooling",
+      "addLabels": ["frontend", "tooling"],
+    },
+    // CARGO: ------------PATCH & MINOR-----------------
+    {
+      "description": "Group non-major Rust crate updates",
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "Rust crates (non-major)",
+      "addLabels": ["rust"]
+    },
+    // TAURI | React | Vite | TypeScript вместе (для удобства обновления): BEGIN ------------PATCH & MINOR-----------------
+    {
+      "description": "Keep Tauri JavaScript and Rust packages together",
+      "matchManagers": ["npm", "cargo"],
+      "matchPackageNames": ["@tauri-apps/**", "tauri", "tauri-build", "tauri-plugin-*"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "Tauri ecosystem",
+      "addLabels": ["tauri", "desktop"],
+      "prPriority": 3
+    },
+    {
+      "description": "Keep React runtime packages together",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["react", "react-dom", "@types/react", "@types/react-dom"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "React runtime",
+      "addLabels": ["react", "frontend"],
+      "prPriority": 2
+    },
+    {
+      "description": "Keep Vite and TypeScript toolchain together",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["vite", "@vitejs/plugin-react", "typescript"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "Vite and TypeScript toolchain",
+      "addLabels": ["frontend", "tooling"],
+      "prPriority": 1
+    },
+    // TAURI | React | Vite | TypeScript вместе (для удобства обновления): END ------------PATCH & MINOR-----------------
+    
+    // Require manual approval for 0.x package updates
+    {
+      "description": "Require manual approval for 0.x package updates",
+      "matchCurrentVersion": "/^0\\./",
+      "dependencyDashboardApproval": true,
+      "addLabels": ["pre-1.0"]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  }
 }
