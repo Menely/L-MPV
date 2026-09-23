@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Проверка исходного кода
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Загрузка и архивация нативных библиотек
         shell: pwsh

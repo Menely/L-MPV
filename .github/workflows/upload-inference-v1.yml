@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Проверка исходного кода
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Установка Python
         uses: actions/setup-python@v5
