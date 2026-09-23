@@ -2,8 +2,9 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.60);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -21,9 +22,7 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-glass);
-  backdrop-filter: var(--ui-backdrop-heavy);
-  -webkit-backdrop-filter: var(--ui-backdrop-heavy);
+  background: var(--bg-modal-solid, #11141c);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg), 0 0 30px rgba(127, 199, 255, 0.05);
@@ -423,6 +422,8 @@
   cursor: pointer;
   outline: none;
   flex-shrink: 0;
+  font-weight: 500;
+  font-size: var(--fs-xs);
   transition: background var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth),

@@ -105,6 +105,14 @@ pub fn run() {
     // Полная изоляция WebView2: localStorage, кэш и профиль хранятся строго в папке плеера
     std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", &webview_dir);
 
+    // Оптимизация рендеринга шрифтов и хинтинга в Chromium WebView2 для экранов Full HD (96 DPI)
+    if std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").is_err() {
+        std::env::set_var(
+            "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+            "--enable-font-antialiasing --font-render-hinting=medium",
+        );
+    }
+
     // Установка глобального обработчика паник для записи аварийных вылетов в logs/error.log
     let error_log_path = logs_dir.join("error.log");
     std::panic::set_hook(Box::new(move |panic_info| {

@@ -20,19 +20,20 @@
   --ui-blur: 16px;
   --ui-backdrop: blur(16px);
   --ui-backdrop-heavy: blur(18px);
-  --bg-primary:   #0b0d12;
-  --bg-surface:   #13161d;
-  --bg-glass-rgb: 16, 19, 28;
-  --bg-pill-rgb:  10, 12, 18;
-  --bg-glass:     rgba(var(--bg-glass-rgb), var(--ui-opacity));
-  --bg-hover:     rgba(127, 199, 255, 0.08);
-  --bg-active:    rgba(127, 199, 255, 0.14);
-  --bg-pill:      rgba(var(--bg-pill-rgb), var(--ui-opacity));
+  --bg-primary:     #0b0d12;
+  --bg-surface:     #13161d;
+  --bg-modal-solid: #11141c;
+  --bg-glass-rgb:   16, 19, 28;
+  --bg-pill-rgb:    10, 12, 18;
+  --bg-glass:       rgba(var(--bg-glass-rgb), var(--ui-opacity));
+  --bg-hover:       rgba(127, 199, 255, 0.08);
+  --bg-active:      rgba(127, 199, 255, 0.14);
+  --bg-pill:        rgba(var(--bg-pill-rgb), var(--ui-opacity));
 
-  /* Текст */
-  --text-primary:   rgba(255, 255, 255, 0.94);
-  --text-secondary: rgba(255, 255, 255, 0.70);
-  --text-muted:     rgba(255, 255, 255, 0.45);
+  /* Текст (калибровка контраста под 96 DPI мониторы Full HD) */
+  --text-primary:   rgba(255, 255, 255, 0.96);
+  --text-secondary: rgba(255, 255, 255, 0.82);
+  --text-muted:     rgba(255, 255, 255, 0.55);
 
   /* Бордеры и Поверхности */
   --border:         rgba(255, 255, 255, 0.06);
@@ -40,9 +41,9 @@
   --border-default: rgba(255, 255, 255, 0.09);
   --border-hover:   rgba(255, 255, 255, 0.16);
   --border-pill:    rgba(127, 199, 255, 0.12);
-  --surface-level-2:       rgba(255, 255, 255, 0.025);
-  --surface-level-3:       rgba(255, 255, 255, 0.04);
-  --surface-level-3-hover: rgba(255, 255, 255, 0.075);
+  --surface-level-2:       rgba(255, 255, 255, 0.03);
+  --surface-level-3:       rgba(255, 255, 255, 0.045);
+  --surface-level-3-hover: rgba(255, 255, 255, 0.085);
 
   /* Тени и Неоновое свечение */
   --shadow-sm:   0 2px 8px rgba(0, 0, 0, 0.35);

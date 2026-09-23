@@ -46,6 +46,7 @@ export const optionBtnStyle = (isSel: boolean, padding = "6px 4px"): React.CSSPr
   cursor: "pointer",
   background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
   color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+  fontWeight: isSel ? 600 : 450,
   boxShadow: isSel
     ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
     : "0 1px 3px rgba(0, 0, 0, 0.2)",
@@ -57,6 +58,7 @@ export const optionBtnStyle = (isSel: boolean, padding = "6px 4px"): React.CSSPr
 export const optionSectionDescStyle: React.CSSProperties = {
   fontSize: "var(--fs-sm)",
   color: "var(--text-secondary)",
+  fontWeight: 450,
   marginTop: 8,
   marginBottom: 12,
   lineHeight: 1.35,

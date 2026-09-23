@@ -92,7 +92,10 @@ html, body, #root {
   background: transparent;
   -webkit-font-smoothing: subpixel-antialiased;
   -moz-osx-font-smoothing: auto;
-  text-rendering: geometricPrecision;
+  text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
+  font-synthesis: none;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   user-select: none;
 }
 

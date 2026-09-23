@@ -681,8 +681,11 @@ L-MPV/
 
 ### 5.17. Архитектура Четкости DirectWrite ClearType и Калибровка UI (Zero-Blur System)
 - **Устранение размытия текста на Full HD мониторах:**
-  - На 1080p мониторах со 100% DPI интерфейсы на базе Chromium часто выглядят размытыми из-за форсированного Grayscale-сглаживания.
-  - Во всех CSS-стилях удалено принудительное свойство `-webkit-font-smoothing: antialiased`, возвращен нативный субпиксельный рендеринг Windows DirectWrite ClearType (`subpixel-antialiased`).
+  - На 1080p мониторах со 100% DPI (96 PPI) интерфейсы на базе Chromium часто выглядят размытыми из-за форсированного Grayscale-сглаживания и отключения хинтинга.
+  - Ликвидировано разрушительное свойство `text-rendering: geometricPrecision`, выключавшее хинтинг шрифтов в Skia; внедрены `text-rendering: optimizeLegibility`, `font-optical-sizing: auto` и `font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum"`.
+  - Модальные окна переведены на глубокую непрозрачную подложку `background: #11141c` со снятием `backdrop-filter` с самого окна (блюр вынесен строго на оверлей позади), что восстановило полноценный LCD/ClearType субпиксельный рендеринг без ореолов.
+  - Повышена контрастность вторичного текста (`--text-secondary: rgba(255, 255, 255, 0.82)`) и задана плотность `font-weight: 450–500` для мелких подписей на тёмной теме.
+  - В бэкенд Rust внедрена передача флагов среды `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` (`--enable-font-antialiasing --font-render-hinting=medium`).
   - Устранены фиктивные GPU-хаки: ликвидированы `translate3d(0, 0, 0)`, `transform: translateZ(0)` и `will-change: transform` на статических контейнерах, переводившие текстовые блоки в текстурированные растровые слои GPU с потерей резкости.
   - Изоляция размытия `backdrop-filter: blur(28px)`: эффект блюра вынесен в изолированные псевдоэлементы `::before` с `pointer-events: none`, благодаря чему текст отрисовывается поверх без искажения геометрии глифов.
 - **Стабилизация контекстного меню и модальных окон:**
