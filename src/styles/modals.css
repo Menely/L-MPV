@@ -74,11 +74,11 @@
 @keyframes modalFadeOut {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateY(0);
   }
   100% {
     opacity: 0;
-    transform: translate3d(0, 8px, 0) scale(0.98);
+    transform: translateY(8px);
   }
 }
 
@@ -123,7 +123,6 @@
 .modal__close svg {
   display: block;
   flex-shrink: 0;
-  transform-box: fill-box;
   transform-origin: center center;
 }
 

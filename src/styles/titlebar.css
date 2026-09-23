@@ -136,6 +136,9 @@
   cursor: pointer;
   border-radius: var(--radius-sm);
   transform-origin: center center;
+  transform: translateZ(0) scale(1);
+  will-change: transform;
+  backface-visibility: hidden;
   transition: transform var(--t-fast) var(--ease-spring-smooth),
               background-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth);
@@ -151,7 +154,7 @@
 }
 
 .titlebar__btn:active {
-  transform: scale(0.92);
+  transform: translateZ(0) scale(0.92);
   transition: transform var(--t-fast) var(--ease-spring-smooth);
 }
 
@@ -170,7 +173,6 @@
 .titlebar__btn svg {
   display: block;
   flex-shrink: 0;
-  transform-box: fill-box;
   transform-origin: center center;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
   transition: color var(--t-fast) var(--ease-smooth);

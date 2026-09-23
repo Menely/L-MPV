@@ -1,8 +1,16 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
 import { getDict, getEffectiveLocale } from "../i18n";
+
+export interface PlaylistItem {
+  index: number;
+  filename: string;
+  title: string;
+  current: boolean;
+}
 
 export interface MediaInfo {
   path: string;
@@ -121,6 +129,12 @@ interface PlayerStateContextType {
   isSubDownloading: boolean;
   /** Функция скачивания (извлечения) выбранной дорожки в файл. */
   handleDownloadTrack: (track: TrackInfo) => Promise<void>;
+  /** Список элементов плейлиста. */
+  playlist: PlaylistItem[];
+  /** Обновление элементов плейлиста из бэкенда. */
+  refreshPlaylist: () => Promise<void>;
+  /** Локальное/оптимистичное обновление плейлиста. */
+  setPlaylist: React.Dispatch<React.SetStateAction<PlaylistItem[]>>;
 }
 
 const PlayerStateContext = createContext<PlayerStateContextType>({
@@ -148,6 +162,9 @@ const PlayerStateContext = createContext<PlayerStateContextType>({
   isAudioDownloading: false,
   isSubDownloading: false,
   handleDownloadTrack: async () => {},
+  playlist: [],
+  refreshPlaylist: async () => {},
+  setPlaylist: () => {},
 });
 
 export function PlayerStateProvider({ children }: { children: ReactNode }) {
@@ -163,6 +180,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const [hasMedia, setHasMedia] = useState(false);
   const [isIdle, setIsIdle] = useState(false);
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [seekTarget, setSeekTarget] = useState<number | null>(null);
@@ -186,16 +204,56 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshPlaylist = useCallback(async () => {
+    try {
+      const items = await invoke<PlaylistItem[]>("get_playlist");
+      setPlaylist(items);
+    } catch (e) {
+      console.error("Ошибка обновления плейлиста в контексте:", e);
+    }
+  }, []);
+
+  // Синхронизация плейлиста по событию бэкенда playlist-updated
+  useEffect(() => {
+    let isMounted = true;
+    let unlistenFn: (() => void) | null = null;
+
+    listen("playlist-updated", () => {
+      if (isMounted) {
+        refreshPlaylist();
+      }
+    })
+      .then((unlisten) => {
+        if (!isMounted) {
+          unlisten();
+        } else {
+          unlistenFn = unlisten;
+        }
+      })
+      .catch((e) => {
+        console.error("Ошибка подписки на playlist-updated в контексте:", e);
+      });
+
+    return () => {
+      isMounted = false;
+      if (unlistenFn) {
+        unlistenFn();
+      }
+    };
+  }, [refreshPlaylist]);
+
   // Вызывается при загрузке нового файла или изменении стейта hasMedia
   useEffect(() => {
     if (hasMedia) {
       loadTracks();
+      refreshPlaylist();
     } else {
       setTracks([]);
+      setPlaylist([]);
       currentAidRef.current = "";
       currentSidRef.current = "";
     }
-  }, [hasMedia, loadTracks]);
+  }, [hasMedia, loadTracks, refreshPlaylist]);
 
   // Обработка idle (бездействия мыши)
   const lastActivityTimeRef = useRef<number>(0);
@@ -300,6 +358,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             });
             const chaps = await invoke<Chapter[]>("get_chapters").catch(() => []);
             setChapters(chaps);
+            refreshPlaylist();
             if (fullInfo.paused) nextDelay = 1000;
 
             // Проверяем историю и переходим на сохраненную позицию
@@ -327,6 +386,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             setMediaInfo(null);
             setHasMedia(false);
             setChapters([]);
+            setPlaylist([]);
             setProgress({
               position: 0,
               duration: 0,
@@ -900,6 +960,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     isAudioDownloading,
     isSubDownloading,
     handleDownloadTrack,
+    playlist,
+    refreshPlaylist,
+    setPlaylist,
   }), [
     mediaInfo,
     hasMedia,
@@ -924,6 +987,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     isAudioDownloading,
     isSubDownloading,
     handleDownloadTrack,
+    playlist,
+    refreshPlaylist,
+    setPlaylist,
   ]);
 
   return (

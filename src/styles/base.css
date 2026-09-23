@@ -272,7 +272,6 @@ html, body, #root {
   flex-shrink: 0;
   margin: 0;
   padding: 0;
-  transform-box: fill-box;
   transform-origin: center center;
   transform: rotate(0deg);
   transition: transform var(--t-spring, 260ms) var(--ease-spring-smooth);

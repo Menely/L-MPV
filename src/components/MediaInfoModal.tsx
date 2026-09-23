@@ -112,7 +112,7 @@ export function MediaInfoModal({
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 155);
+    }, 120);
   }, [isClosing, onClose]);
 
   // Закрытие оверлея инфо по Escape
