@@ -44,7 +44,10 @@
   cursor: pointer;
   user-select: none;
   flex-shrink: 0;
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              filter var(--t-fast) var(--ease-smooth);
 }
 
 .audio-visualizer--toolbar:hover {

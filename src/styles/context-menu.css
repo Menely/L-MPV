@@ -68,17 +68,27 @@
   background: var(--bg-hover);
 }
 
-/* Невидимый мост наведения у открытого пункта: перекрывает 8px зазор
-   до подменю с обеих сторон, курсор не теряет ховер при переходе.
-   (На самом подменю мост бесполезен — там overflow его обрежет.) */
+/* Невидимый улавливающий мост наведения у открытого пункта подменю:
+   перекрывает зазор между меню и подменю с достаточным запасом по высоте,
+   чтобы мышь не теряла фокус при диагональном движении.
+   Размещается строго со стороны выпавшего подменю, не блокируя клики
+   по соседним строчкам основного меню. */
 .context-menu__item--submenu-open::after {
   content: "";
   position: absolute;
-  top: -2px;
-  bottom: -2px;
-  left: -8px;
-  right: -8px;
+  top: -16px;
+  bottom: -16px;
+  right: -16px;
+  width: 24px;
   background: transparent;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.context-menu__item--submenu-open.context-menu__item--submenu-left::after {
+  right: auto;
+  left: -16px;
+  width: 24px;
 }
 
 .context-menu__item:active {
@@ -137,11 +147,10 @@
   margin: 3px 10px;
 }
 
-/* Подменю: визуальный зазор 8px от родителя + невидимый мост,
-   чтобы курсор не терял ховер при переходе через зазор */
+/* Подменю: аккуратный зазор 4px от родителя + безопасный переход */
 .context-menu__submenu {
   position: absolute;
-  left: calc(100% + 8px);
+  left: calc(100% + 4px);
   top: -6px;
   max-height: min(420px, calc(100vh - 40px));
   overflow-y: auto;
@@ -153,7 +162,7 @@
 
 .context-menu__submenu--left {
   left: auto;
-  right: calc(100% + 8px);
+  right: calc(100% + 4px);
   transform-origin: top right;
 }
 

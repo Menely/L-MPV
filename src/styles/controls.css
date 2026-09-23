@@ -107,7 +107,11 @@
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
   cursor: pointer;
   user-select: none;
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-smooth);
 }
 
 .time-display--floating-center:hover {
@@ -158,7 +162,6 @@
   height: 100%;
   background: rgba(255, 255, 255, 0.4);
   border-radius: var(--radius-xs, 4px);
-  will-change: width;
 }
 
 .timeline__segment-progress {
@@ -170,7 +173,6 @@
   border-radius: var(--radius-xs, 4px);
   box-shadow: var(--timeline-glow, none);
   transition: box-shadow var(--t-fast) var(--ease-smooth);
-  will-change: width;
 }
 
 .timeline:hover .timeline__segment-progress,
@@ -342,7 +344,6 @@
   filter: var(--play-icon-glow, none);
   transform-box: fill-box;
   transform-origin: center;
-  will-change: transform;
   animation: playPausePop var(--t-spring) var(--ease-spring-smooth);
   transition: filter var(--t-fast) var(--ease-smooth),
               transform var(--t-spring) var(--ease-spring-smooth);
@@ -383,7 +384,6 @@
 .volume-slider #btn-volume svg {
   transform-box: fill-box;
   transform-origin: center;
-  will-change: transform;
   animation: volumeIconPop var(--t-spring) var(--ease-spring-smooth);
 }
 

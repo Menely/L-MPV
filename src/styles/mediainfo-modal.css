@@ -109,7 +109,10 @@
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
   font-size: 11px;
 }
 
@@ -258,7 +261,7 @@
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
   user-select: none;
 }
 
@@ -548,7 +551,7 @@
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
   user-select: none;
 }
 

@@ -171,6 +171,7 @@ export function ContextMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const openTimerRef = useRef<number | null>(null);
 
   const {
     mediaInfo,
@@ -350,6 +351,14 @@ export function ContextMenu({
 
   const handleClose = useCallback(() => {
     if (isClosing) return;
+    if (openTimerRef.current !== null) {
+      window.clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
     const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
     if (isNoAnim) {
       onClose();
@@ -370,6 +379,10 @@ export function ContextMenu({
       if (closeTimerRef.current !== null) {
         window.clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
+      }
+      if (openTimerRef.current !== null) {
+        window.clearTimeout(openTimerRef.current);
+        openTimerRef.current = null;
       }
     };
   }, []);
@@ -918,14 +931,21 @@ export function ContextMenu({
             key={`divider-${index}`}
             className="context-menu__divider"
             onMouseEnter={() => {
-              if (closeTimerRef.current !== null) {
-                window.clearTimeout(closeTimerRef.current);
-                closeTimerRef.current = null;
+              if (openTimerRef.current !== null) {
+                window.clearTimeout(openTimerRef.current);
+                openTimerRef.current = null;
               }
               if (!isSubmenuChild) {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                }
                 closeTimerRef.current = window.setTimeout(() => {
                   setActiveSubmenu(null);
+                  closeTimerRef.current = null;
                 }, 250);
+              } else if (closeTimerRef.current !== null) {
+                window.clearTimeout(closeTimerRef.current);
+                closeTimerRef.current = null;
               }
             }}
           />
@@ -938,14 +958,21 @@ export function ContextMenu({
             key={`track-${index}`}
             className="context-menu__track-row"
             onMouseEnter={() => {
-              if (closeTimerRef.current !== null) {
-                window.clearTimeout(closeTimerRef.current);
-                closeTimerRef.current = null;
+              if (openTimerRef.current !== null) {
+                window.clearTimeout(openTimerRef.current);
+                openTimerRef.current = null;
               }
               if (!isSubmenuChild) {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                }
                 closeTimerRef.current = window.setTimeout(() => {
                   setActiveSubmenu(null);
+                  closeTimerRef.current = null;
                 }, 250);
+              } else if (closeTimerRef.current !== null) {
+                window.clearTimeout(closeTimerRef.current);
+                closeTimerRef.current = null;
               }
             }}
           >
@@ -998,20 +1025,44 @@ export function ContextMenu({
                 window.clearTimeout(closeTimerRef.current);
                 closeTimerRef.current = null;
               }
-              setActiveSubmenu(submenuId);
+              if (activeSubmenu === submenuId) {
+                if (openTimerRef.current !== null) {
+                  window.clearTimeout(openTimerRef.current);
+                  openTimerRef.current = null;
+                }
+                return;
+              }
+              if (openTimerRef.current !== null) {
+                window.clearTimeout(openTimerRef.current);
+              }
+              // Защита безопасного перехода: если другое подменю уже открыто,
+              // переключаемся с небольшой задержкой (hover-intent 150мс),
+              // чтобы диагональный транзит мыши не ломал текущее открытое подменю
+              const delay = activeSubmenu ? 150 : 50;
+              openTimerRef.current = window.setTimeout(() => {
+                setActiveSubmenu(submenuId);
+                openTimerRef.current = null;
+              }, delay);
             }}
             onMouseLeave={() => {
+              if (openTimerRef.current !== null) {
+                window.clearTimeout(openTimerRef.current);
+                openTimerRef.current = null;
+              }
               if (closeTimerRef.current !== null) {
                 window.clearTimeout(closeTimerRef.current);
               }
               closeTimerRef.current = window.setTimeout(() => {
                 setActiveSubmenu(null);
-              }, 300);
+                closeTimerRef.current = null;
+              }, 250);
             }}
           >
             <button
               type="button"
-              className={`context-menu__item ${isSubmenuOpen ? "context-menu__item--submenu-open" : ""}`}
+              className={`context-menu__item ${isSubmenuOpen ? "context-menu__item--submenu-open" : ""} ${
+                isRightScreenEdge ? "context-menu__item--submenu-left" : ""
+              }`}
               onClick={item.action}
             >
               <span className="context-menu__item-icon">
@@ -1035,6 +1086,10 @@ export function ContextMenu({
                     window.clearTimeout(closeTimerRef.current);
                     closeTimerRef.current = null;
                   }
+                  if (openTimerRef.current !== null) {
+                    window.clearTimeout(openTimerRef.current);
+                    openTimerRef.current = null;
+                  }
                 }}
               >
                 {item.children.map((child, ci) => renderItem(child, ci, true))}
@@ -1054,14 +1109,21 @@ export function ContextMenu({
           onClick={item.action}
           disabled={item.disabled}
           onMouseEnter={() => {
-            if (closeTimerRef.current !== null) {
-              window.clearTimeout(closeTimerRef.current);
-              closeTimerRef.current = null;
+            if (openTimerRef.current !== null) {
+              window.clearTimeout(openTimerRef.current);
+              openTimerRef.current = null;
             }
             if (!isSubmenuChild) {
+              if (closeTimerRef.current !== null) {
+                window.clearTimeout(closeTimerRef.current);
+              }
               closeTimerRef.current = window.setTimeout(() => {
                 setActiveSubmenu(null);
+                closeTimerRef.current = null;
               }, 250);
+            } else if (closeTimerRef.current !== null) {
+              window.clearTimeout(closeTimerRef.current);
+              closeTimerRef.current = null;
             }
           }}
         >

@@ -503,7 +503,9 @@
   padding: 8px 32px 8px 36px;
   color: var(--text-primary);
   font-size: var(--fs-sm);
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              background-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
 
 .playlist-drawer__search-input:focus {
