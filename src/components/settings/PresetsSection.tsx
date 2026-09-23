@@ -80,7 +80,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [activePresetId, setActivePresetId] = useState<string | null>(() => getSavedActivePresetId());
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
   // Группы по умолчанию свёрнуты: высота вкладки стабильна с первого paint,
   // выбор запоминается и переживает перезапуски.
   const [isUserPresetsOpen, setIsUserPresetsOpen] = useState<boolean>(() => readGroupOpen(PRESETS_USER_OPEN_KEY, false));
@@ -107,31 +107,36 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   // Определение пресета, соответствующего текущим настройкам плеера
   const detectActivePreset = useCallback(async (availablePresets?: SettingsPreset[]) => {
     try {
-      const currentSnapshot = await captureCurrentSettings("");
-      const currentSettings = currentSnapshot.data;
-      const presetsToCheck = availablePresets || [...userPresetsRef.current, ...BUILT_IN_PRESETS];
       const savedId = getSavedActivePresetId();
-
-      // 1. Проверяем сохранённый активный пресет: если он полностью совпадает с текущими настройками
-      if (savedId) {
-        const target = presetsToCheck.find((p) => p.id === savedId);
-        if (target && isSettingsMatchingPreset(currentSettings, target.data)) {
-          if (isMountedRef.current) {
-            setActivePresetId(savedId);
-          }
-          return;
+      // Если пресет не был сохранён или применён — активного пресета нет
+      if (!savedId) {
+        if (isMountedRef.current) {
+          setActivePresetId(null);
         }
+        return;
       }
 
-      // 2. Если сохранённого нет или настройки разошлись, ищем совпадение среди всех доступных пресетов
-      const matching = presetsToCheck.find((p) => isSettingsMatchingPreset(currentSettings, p.data));
-      if (matching) {
-        saveActivePresetId(matching.id);
+      const presetsToCheck = availablePresets || [...userPresetsRef.current, ...BUILT_IN_PRESETS];
+      const target = presetsToCheck.find((p) => p.id === savedId);
+      if (!target) {
+        saveActivePresetId(null);
         if (isMountedRef.current) {
-          setActivePresetId(matching.id);
+          setActivePresetId(null);
+        }
+        return;
+      }
+
+      const currentSnapshot = await captureCurrentSettings("");
+      const currentSettings = currentSnapshot.data;
+
+      // Проверяем сохранённый активный пресет: если он полностью совпадает с текущими настройками
+      if (isSettingsMatchingPreset(currentSettings, target.data)) {
+        if (isMountedRef.current) {
+          setActivePresetId(savedId);
         }
       } else {
-        // Текущие настройки были изменены пользователем и не совпадают ни с одним пресетом
+        // Настройки разошлись с сохранённым пресетом — сбрасываем активность
+        saveActivePresetId(null);
         if (isMountedRef.current) {
           setActivePresetId(null);
         }

@@ -14,7 +14,7 @@ interface ChaptersModalProps {
  * Окно со списком глав.
  */
 export function ChaptersModal({ onClose }: ChaptersModalProps) {
-  const { chapters } = usePlayerState();
+  const { chapters, seekTo } = usePlayerState();
   const { position } = usePlayerProgress();
   const { dict } = useTranslation();
   const [isClosing, setIsClosing] = useState(false);
@@ -36,7 +36,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
 
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 155);
+    }, 120);
   }, [onClose]);
 
   useEffect(() => {
@@ -62,59 +62,43 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
     };
   }, [handleClose]);
 
-  // Определение активной главы
-  let activeIndex = -1;
+  // Локальный выбор главы пользователем для мгновенного тактильного отклика
+  const [selectedChapterIndex, setSelectedChapterIndex] = useState<number | null>(null);
+
+  // Определение активной главы с запасом 150мс на погрешность тайминга ключевых кадров
+  let calculatedActiveIndex = -1;
+  const posWithEpsilon = position + 0.15;
   for (let i = chapters.length - 1; i >= 0; i--) {
-    if (position >= chapters[i].time) {
-      activeIndex = chapters[i].index;
+    if (posWithEpsilon >= chapters[i].time) {
+      calculatedActiveIndex = chapters[i].index;
       break;
     }
   }
 
+  // Приоритет отдан явно выбранной главе до завершения позиционирования
+  const activeIndex = selectedChapterIndex !== null ? selectedChapterIndex : calculatedActiveIndex;
+
+  // Автоматический сброс временного выбора, когда воспроизведение подтвердило позицию или по таймауту безопасности
+  useEffect(() => {
+    if (selectedChapterIndex === null) return;
+    if (calculatedActiveIndex === selectedChapterIndex) {
+      setSelectedChapterIndex(null);
+      return;
+    }
+    const safetyTimer = setTimeout(() => {
+      setSelectedChapterIndex(null);
+    }, 1200);
+    return () => clearTimeout(safetyTimer);
+  }, [calculatedActiveIndex, selectedChapterIndex]);
+
   return (
-    <div 
-      className="chapters-modal-overlay"
-      style={{
-        position: 'fixed',
-        bottom: '94px',
-        right: '14px',
-        maxHeight: 'calc(100% - 154px)',
-        width: 'min(350px, calc(100vw - 28px))',
-        pointerEvents: 'none',
-        zIndex: 450,
-        display: 'flex',
-        flexDirection: 'column'
-      }}
-    >
+    <div className="chapters-modal-overlay">
       <div 
-        className={`media-info__section chapters-modal-card ${isClosing ? "chapters-modal-card--closing" : ""}`}
-        style={{ 
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '100%',
-          overflow: 'hidden',
-          background: 'var(--bg-pill)',
-          backdropFilter: 'var(--ui-backdrop)',
-          WebkitBackdropFilter: 'var(--ui-backdrop)',
-          border: '1px solid var(--border-pill)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '16px',
-          boxShadow: 'var(--shadow-md)',
-          pointerEvents: 'auto'
-        }}
+        className={`chapters-modal-card ${isClosing ? "chapters-modal-card--closing" : ""}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '16px',
-        }}>
-          <div style={{
-            fontSize: 'var(--fs-lg)',
-            fontWeight: 600,
-            color: 'var(--text-primary)'
-          }}>
+        <div className="chapters-modal-header">
+          <div className="chapters-modal-title">
             {dict.chapters.title(chapters.length)}
           </div>
           <button 
@@ -127,64 +111,32 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
           </button>
         </div>
 
-        <div style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto',
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '8px',
-          paddingRight: '4px'
-        }}>
+        <div className="chapters-list">
           {chapters.length > 0 ? (
             chapters.map((chapter) => (
               <button
                 key={chapter.index}
-                className="media-info__row"
-                style={{
-                  background: chapter.index === activeIndex ? 'var(--bg-active)' : 'transparent',
-                  border: '1px solid transparent',
-                  borderColor: chapter.index === activeIndex ? 'var(--accent)' : 'transparent',
-                  borderRadius: '6px',
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  transition: 'background 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  if (chapter.index !== activeIndex) {
-                    e.currentTarget.style.background = 'var(--bg-hover)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (chapter.index !== activeIndex) {
-                    e.currentTarget.style.background = 'transparent';
-                  }
-                }}
+                className={`chapter-item ${chapter.index === activeIndex ? "chapter-item--active" : ""}`}
                 onClick={async () => {
                   try {
-                    await invoke("seek_chapter", { index: chapter.index });
-                    // Убрано onClose(), чтобы окно оставалось открытым
+                    setSelectedChapterIndex(chapter.index);
+                    await seekTo(chapter.time);
+                    invoke("seek_chapter", { index: chapter.index }).catch(() => {});
                   } catch (e) {
                     console.error("Ошибка перехода к главе:", e);
                   }
                 }}
               >
-                <span style={{ 
-                  color: chapter.index === activeIndex ? 'var(--accent)' : 'var(--text-primary)',
-                  fontWeight: chapter.index === activeIndex ? 600 : 400
-                }}>
+                <span className="chapter-item__title">
                   {chapter.title}
                 </span>
-                <span style={{ color: 'var(--text-secondary)' }}>
+                <span className="chapter-item__time">
                   {formatTime(chapter.time)}
                 </span>
               </button>
             ))
           ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '20px 0' }}>
+            <div className="chapters-empty">
               {dict.chapters.noChapters}
             </div>
           )}

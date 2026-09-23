@@ -367,7 +367,7 @@ export function ContextMenu({
     setIsClosing(true);
     closingTimerRef.current = setTimeout(() => {
       onClose();
-    }, 155);
+    }, 120);
   }, [isClosing, onClose]);
 
   useEffect(() => {

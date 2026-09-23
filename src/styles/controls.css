@@ -271,11 +271,13 @@
   cursor: pointer;
   border-radius: 50%;
   transform-origin: center center;
+  transform: translateZ(0) scale(1);
+  will-change: transform;
+  backface-visibility: hidden;
   transition: transform var(--t-spring) var(--ease-spring-smooth),
               color var(--t-fast) var(--ease-smooth);
   flex-shrink: 0;
   padding: 0;
-  transform: scale(1);
 }
 
 .control-btn--with-label {
@@ -284,6 +286,8 @@
   padding: 0 8px;
   border-radius: var(--radius-md, 12px);
   gap: 5px;
+  transform: none !important;
+  will-change: auto;
 }
 
 .control-btn__label {
@@ -305,26 +309,31 @@
   stroke-width: 2.25;
   display: block;
   flex-shrink: 0;
-  transform-box: fill-box;
   transform-origin: center center;
-  transition: transform var(--t-spring) var(--ease-spring-smooth),
-              color var(--t-fast) var(--ease-smooth),
-              filter var(--t-fast) var(--ease-smooth);
+  transition: color var(--t-fast) var(--ease-smooth);
 }
 
 .control-btn:hover {
   background: transparent;
   color: var(--accent-hover, var(--accent));
-  transform: scale(1.08);
+  transform: translateZ(0) scale(1.08);
   box-shadow: none;
 }
 
 .control-btn--with-label:hover {
-  transform: none;
+  transform: none !important;
+}
+
+.control-btn--with-label svg {
+  transform-origin: center center;
+  transform: translateZ(0) scale(1);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--t-spring) var(--ease-spring-smooth);
 }
 
 .control-btn--with-label:hover svg {
-  transform: scale(1.08);
+  transform: translateZ(0) scale(1.08);
 }
 
 .control-btn:hover svg {
@@ -332,7 +341,12 @@
 }
 
 .control-btn:active {
-  transform: scale(0.92);
+  transform: translateZ(0) scale(0.92);
+  transition: transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+.control-btn--with-label:active svg {
+  transform: translateZ(0) scale(0.92);
   transition: transform var(--t-fast) var(--ease-spring-smooth);
 }
 
@@ -345,6 +359,9 @@
   background: transparent;
   box-shadow: none;
   transform-origin: center center;
+  transform: translateZ(0) scale(1);
+  will-change: transform;
+  backface-visibility: hidden;
   transition: transform var(--t-spring) var(--ease-spring-smooth),
               color var(--t-fast) var(--ease-smooth);
 }
@@ -356,11 +373,9 @@
   display: block;
   flex-shrink: 0;
   filter: var(--play-icon-glow, none);
-  transform-box: fill-box;
   transform-origin: center center;
   animation: playPausePop var(--t-spring) var(--ease-spring-smooth);
-  transition: filter var(--t-fast) var(--ease-smooth),
-              transform var(--t-spring) var(--ease-spring-smooth);
+  transition: color var(--t-fast) var(--ease-smooth);
 }
 
 @keyframes playPausePop {
@@ -381,7 +396,7 @@
 .control-btn--play:hover {
   color: var(--accent-hover, var(--accent));
   background: transparent;
-  transform: scale(1.08);
+  transform: translateZ(0) scale(1.08);
   box-shadow: none;
 }
 
@@ -390,7 +405,7 @@
 }
 
 .control-btn--play:active {
-  transform: scale(0.92);
+  transform: translateZ(0) scale(0.92);
   transition: transform var(--t-fast) var(--ease-spring-smooth);
 }
 
@@ -398,7 +413,6 @@
 .volume-slider #btn-volume svg {
   display: block;
   flex-shrink: 0;
-  transform-box: fill-box;
   transform-origin: center center;
   animation: volumeIconPop var(--t-spring) var(--ease-spring-smooth);
 }

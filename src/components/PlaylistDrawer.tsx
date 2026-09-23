@@ -1,18 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { usePlayerState } from "../contexts/PlayerStateContext";
+import { usePlayerState, PlaylistItem } from "../contexts/PlayerStateContext";
 import { useTranslation } from "../i18n/LanguageContext";
 import { getActiveUiScale } from "../utils/uiThemeUtils";
 import { X, Search, Play, Clapperboard, RotateCw } from "lucide-react";
 import { EmptyState } from "./settings/SettingBlocks";
-
-interface PlaylistItem {
-  index: number;
-  filename: string;
-  title: string;
-  current: boolean;
-}
 
 interface PlaylistItemRowProps {
   item: PlaylistItem;
@@ -74,9 +66,8 @@ const getInitialPlaylistWidth = (): number => {
 };
 
 export function PlaylistDrawer() {
-  const { isPlaylistOpen, setIsPlaylistOpen, mediaInfo } = usePlayerState();
+  const { isPlaylistOpen, setIsPlaylistOpen, playlist, setPlaylist, refreshPlaylist } = usePlayerState();
   const { dict } = useTranslation();
-  const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isClosing, setIsClosing] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -91,7 +82,6 @@ export function PlaylistDrawer() {
   const activeResizeCleanupRef = useRef<(() => void) | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const currentItemElRef = useRef<HTMLButtonElement | null>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
@@ -101,7 +91,6 @@ export function PlaylistDrawer() {
     return () => {
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
       activeResizeCleanupRef.current?.();
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
@@ -228,24 +217,15 @@ export function PlaylistDrawer() {
       setIsClosing(false);
       isClosingRef.current = false;
       closeTimerRef.current = null;
-    }, 155);
+    }, 120);
   }, [setIsPlaylistOpen]);
-
-  const loadPlaylist = useCallback(async () => {
-    try {
-      const items = await invoke<PlaylistItem[]>("get_playlist");
-      setPlaylist(items);
-    } catch (e) {
-      console.error("Ошибка загрузки плейлиста:", e);
-    }
-  }, []);
 
   const handleRefresh = useCallback(async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
       await invoke("reload_folder_playlist");
-      await loadPlaylist();
+      await refreshPlaylist();
     } catch (e) {
       console.error("Ошибка обновления плейлиста:", e);
     } finally {
@@ -254,56 +234,21 @@ export function PlaylistDrawer() {
         setIsRefreshing(false);
       }, 500);
     }
-  }, [isRefreshing, loadPlaylist]);
+  }, [isRefreshing, refreshPlaylist]);
 
-  // Загрузка плейлиста при открытии или смене активного медиафайла
+  const currentItemIndex = useMemo(() => {
+    return playlist.find((i) => i.current)?.index ?? -1;
+  }, [playlist]);
+
+  // Мгновенный автоскролл к текущему воспроизводимому элементу при открытии панели или смене трека
   useEffect(() => {
-    if (isPlaylistOpen) {
-      loadPlaylist();
-    }
-  }, [isPlaylistOpen, mediaInfo?.path, loadPlaylist]);
-
-  // Безопасная подписка на событие бэкенда playlist-updated без утечек памяти
-  useEffect(() => {
-    let isMounted = true;
-    let unlistenFn: (() => void) | null = null;
-
-    listen("playlist-updated", () => {
-      if (isMounted) {
-        loadPlaylist();
-      }
-    })
-      .then((unlisten) => {
-        if (!isMounted) {
-          unlisten();
-        } else {
-          unlistenFn = unlisten;
-        }
-      })
-      .catch((e) => {
-        console.error("Ошибка подписки на playlist-updated:", e);
+    if (isPlaylistOpen && currentItemIndex >= 0 && currentItemElRef.current) {
+      currentItemElRef.current.scrollIntoView({
+        block: "nearest",
+        behavior: "auto",
       });
-
-    return () => {
-      isMounted = false;
-      if (unlistenFn) {
-        unlistenFn();
-      }
-    };
-  }, [loadPlaylist]);
-
-  // Автоскролл к текущему воспроизводимому элементу
-  useEffect(() => {
-    if (isPlaylistOpen && currentItemElRef.current) {
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
-      scrollTimerRef.current = setTimeout(() => {
-        currentItemElRef.current?.scrollIntoView({
-          block: "nearest",
-          behavior: "smooth",
-        });
-      }, 60);
     }
-  }, [isPlaylistOpen, playlist]);
+  }, [isPlaylistOpen, currentItemIndex]);
 
   // Закрытие по Escape и клику вне панели
   useEffect(() => {
@@ -365,10 +310,10 @@ export function PlaylistDrawer() {
         await invoke("play_playlist_item", { index });
       } catch (e) {
         console.error("Ошибка воспроизведения файла из плейлиста", e);
-        loadPlaylist();
+        refreshPlaylist();
       }
     },
-    [playlist, loadPlaylist]
+    [playlist, setPlaylist, refreshPlaylist]
   );
 
   // Мемоизированная фильтрация для производительности на больших плейлистах

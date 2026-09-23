@@ -321,15 +321,18 @@ pub fn toggle_shuffle(
 
 // ─── Навигация по главам ────────────────────────────────
 
-/// Переход к главе по индексу.
+/// Переход к главе по индексу с покадровой точностью времени начала главы.
 #[tauri::command]
 pub fn seek_chapter(
     state: State<'_, PlayerState>,
     index: i64,
 ) -> Result<(), String> {
-    state
-        .mpv
-        .set_property_string("chapter", &index.to_string())
+    let mpv = &state.mpv;
+    if let Ok(time) = mpv.get_property_double(&format!("chapter-list/{}/time", index)) {
+        mpv.command(&format!("seek {} absolute+exact", time))
+    } else {
+        state.mpv.set_property_string("chapter", &index.to_string())
+    }
 }
 
 /// Получение списка глав.

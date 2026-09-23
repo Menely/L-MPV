@@ -78,7 +78,6 @@
 .side-panel__item svg {
   display: block;
   flex-shrink: 0;
-  transform-box: fill-box;
   transform-origin: center center;
 }
 

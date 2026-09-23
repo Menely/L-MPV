@@ -126,7 +126,6 @@
   display: block;
   flex-shrink: 0;
   stroke-width: 1.8;
-  transform-box: fill-box;
   transform-origin: center center;
 }
 

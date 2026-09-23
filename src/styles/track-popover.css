@@ -33,11 +33,11 @@
 @keyframes popoverFadeIn {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(8px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -49,11 +49,11 @@
 @keyframes popoverFadeOut {
   0% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
   100% {
     opacity: 0;
-    transform: translateY(6px) scale(0.98);
+    transform: translateY(6px);
   }
 }
 
@@ -101,7 +101,6 @@
 .track-popover__item svg {
   display: block;
   flex-shrink: 0;
-  transform-box: fill-box;
   transform-origin: center center;
 }
 
@@ -158,7 +157,6 @@ html[data-glow="off"] .track-popover__item--active svg {
 .track-popover__item-check svg {
   display: block;
   flex-shrink: 0;
-  transform-box: fill-box;
   transform-origin: center center;
 }
 
@@ -186,6 +184,9 @@ html[data-glow="off"] .track-popover__item--active svg {
   color: var(--text-secondary);
   cursor: pointer;
   transform-origin: center center;
+  transform: translateZ(0) scale(1);
+  will-change: transform;
+  backface-visibility: hidden;
   transition: background-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
@@ -198,7 +199,6 @@ html[data-glow="off"] .track-popover__item--active svg {
 .track-download-btn svg {
   display: block;
   flex-shrink: 0;
-  transform-box: fill-box;
   transform-origin: center center;
 }
 
@@ -206,12 +206,12 @@ html[data-glow="off"] .track-popover__item--active svg {
   background: var(--bg-hover);
   color: var(--accent);
   border-color: var(--accent);
-  transform: scale(1.05);
+  transform: translateZ(0) scale(1.05);
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
 }
 
 .track-download-btn:active:not(:disabled) {
-  transform: scale(0.92);
+  transform: translateZ(0) scale(0.92);
 }
 
 .track-download-btn:disabled {
