@@ -4,7 +4,7 @@
   "baseBranchPatterns": ["Develop"],
   "dependencyDashboard": true,
   "timezone": "Europe/Moscow",
-  "schedule": ["* 17 * * 1"],
+  "schedule": ["at any time"],
   "prHourlyLimit": 0,
   "prConcurrentLimit": 14,
   "minimumReleaseAge": "4 days",
