@@ -30,9 +30,9 @@
   --bg-pill:      rgba(var(--bg-pill-rgb), var(--ui-opacity));
 
   /* Текст */
-  --text-primary:   rgba(255, 255, 255, 0.92);
-  --text-secondary: rgba(255, 255, 255, 0.55);
-  --text-muted:     rgba(255, 255, 255, 0.28);
+  --text-primary:   rgba(255, 255, 255, 0.94);
+  --text-secondary: rgba(255, 255, 255, 0.70);
+  --text-muted:     rgba(255, 255, 255, 0.45);
 
   /* Бордеры и Поверхности */
   --border:         rgba(255, 255, 255, 0.06);
@@ -87,29 +87,23 @@
   --font-manrope: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono:    'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
   --font-family:  var(--active-font, var(--font-inter));
-  --fs-xs:   0.68rem;
-  --fs-sm:   0.78rem;
-  --fs-base: 0.88rem;
-  --fs-lg:   1.0rem;
-  --fs-xl:   1.2rem;
+  --fs-xs:   0.75rem;   /* 12px */
+  --fs-sm:   0.8125rem; /* 13px */
+  --fs-base: 0.875rem;  /* 14px */
+  --fs-lg:   1.0rem;    /* 16px */
+  --fs-xl:   1.1875rem; /* 19px */
   
-  /* Масштабирование UI для больших экранов */
+  /* Масштабирование UI для мониторов высокого разрешения */
   --ui-scale: 1;
 }
 
-/* ─── Адаптивность для больших экранов ───────────────── */
-@media (min-width: 1600px) {
-  :root { --ui-scale: 1.05; }
-}
-
-@media (min-width: 1920px) { /* Full HD */
-  :root { --ui-scale: 1.1; }
-}
-
+/* ─── Адаптивность для мониторов высокого разрешения (HiDPI) ────
+   На Full HD (1920x1080) и ниже базовый масштаб строго 1.0 (pixel-perfect).
+   Увеличение применяется только на 2K (1440p) и 4K дисплеях. */
 @media (min-width: 2560px) { /* 1440p / 2K */
-  :root { --ui-scale: 1.25; }
+  :root { --ui-scale: 1.15; }
 }
 
 @media (min-width: 3840px) { /* 4K */
-  :root { --ui-scale: 1.5; }
+  :root { --ui-scale: 1.35; }
 }

@@ -1,13 +1,14 @@
-import { useState, useRef, memo, useCallback } from "react";
+import { useState, useRef, memo, useCallback, useEffect } from "react";
 import {
-  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, Clock, RotateCcw, PanelBottom, Timer, Zap
+  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, Clock, RotateCcw, PanelBottom, Timer, Zap, FolderOpen
 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { AccordionSection } from "./AccordionSection";
 import { ColorSchemeSection } from "./ColorSchemeSection";
 import { VisualizerSettingsSection } from "./VisualizerSettingsSection";
 import { ControlButtonsPreviewCard } from "./ControlButtonsPreviewCard";
 import { optionCardStyle, optionResetBtnStyle, optionBtnStyle } from "./optionCardStyles";
-import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESETS, UI_FONT_PRESETS } from "../../utils/uiThemeUtils";
+import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESETS, UI_FONT_PRESETS, CustomFontItem, registerCustomFont } from "../../utils/uiThemeUtils";
 import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../utils/timePositionUtils";
 import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../utils/timeFormatUtils";
 import { ControlBarStyle } from "../../utils/controlBarStyleUtils";
@@ -285,7 +286,7 @@ interface AppearanceSettingsTabProps {
   saveUiOpacity: (o: number) => void;
   setUiOpacity: (o: number) => void;
   uiFont: UiFontId;
-  saveUiFont: (f: UiFontId) => void;
+  saveUiFont: (f: UiFontId, customFamily?: string) => void;
   setUiFont: (f: UiFontId) => void;
   timePosition: TimeDisplayPosition;
   saveTimePosition: (p: TimeDisplayPosition) => void;
@@ -329,6 +330,49 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
     openSections, onToggleSection: toggleSection,
     getEffectiveAccentColor
   } = props;
+
+  // ── Пользовательские шрифты из папки fonts/ ─────────────────────────────
+  const [customFonts, setCustomFonts] = useState<CustomFontItem[]>([]);
+
+  const loadFonts = useCallback(async () => {
+    try {
+      const items = await invoke<CustomFontItem[]>("get_custom_fonts");
+      const userFonts = (items || []).filter((f) => !f.is_builtin);
+      setCustomFonts((prev) => {
+        if (
+          prev.length === userFonts.length &&
+          prev.every((p, i) => p.id === userFonts[i]?.id)
+        ) {
+          return prev;
+        }
+        return userFonts;
+      });
+
+      // Фоновая регистрация обнаруженных пользовательских шрифтов
+      for (const font of userFonts) {
+        registerCustomFont(font).catch(() => {});
+      }
+    } catch (e) {
+      console.error("Ошибка загрузки пользовательских шрифтов:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFonts();
+    const handleFocus = () => {
+      loadFonts();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [loadFonts]);
+
+  const handleOpenFontsFolder = useCallback(async () => {
+    try {
+      await invoke("open_fonts_folder");
+    } catch (e) {
+      console.error("Ошибка открытия папки шрифтов:", e);
+    }
+  }, []);
 
   return (
     <>
@@ -713,6 +757,15 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                   {dict.settings.appearance.fontsLabel}
                                 </span>
                               </div>
+                              <button
+                                type="button"
+                                onClick={handleOpenFontsFolder}
+                                className="btn btn--secondary btn--sm"
+                                style={optionResetBtnStyle}
+                                title={dict.settings.appearance.openFontsFolderTooltip}
+                              >
+                                <FolderOpen size={13} style={{ color: "var(--accent)" }} />
+                              </button>
                             </div>
 
                             <div className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, overflowY: "auto", paddingRight: 4 }}>
@@ -749,6 +802,65 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                   </button>
                                 );
                               })}
+
+                              {customFonts.length > 0 && (
+                                <>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 0 2px 0" }}>
+                                    <div style={{ height: 1, flex: 1, background: "rgba(255, 255, 255, 0.08)" }} />
+                                    <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                                      {dict.settings.appearance.customFontsDivider}
+                                    </span>
+                                    <div style={{ height: 1, flex: 1, background: "rgba(255, 255, 255, 0.08)" }} />
+                                  </div>
+                                  {customFonts.map((font) => {
+                                    const isSel = uiFont === font.id;
+                                    return (
+                                      <button
+                                        key={font.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setUiFont(font.id);
+                                          saveUiFont(font.id, font.family);
+                                        }}
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "space-between",
+                                          padding: "6px 8px",
+                                          borderRadius: "var(--radius-sm)",
+                                          border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
+                                          background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
+                                          color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+                                          boxShadow: isSel
+                                            ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                                            : "0 1px 3px rgba(0, 0, 0, 0.2)",
+                                          cursor: "pointer",
+                                          fontFamily: `'${font.family}', sans-serif`,
+                                          transition: "all var(--t-fast) var(--ease-smooth)",
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        <span
+                                          style={{
+                                            fontSize: "0.78rem",
+                                            fontWeight: 600,
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                            marginRight: 6,
+                                          }}
+                                          title={font.name}
+                                        >
+                                          {font.name}
+                                        </span>
+                                        <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent)" : "var(--text-muted)", fontWeight: 700, flexShrink: 0 }}>
+                                          Aa
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>

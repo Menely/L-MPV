@@ -13,19 +13,17 @@
   z-index: 9999;
   animation: contextMenuFadeIn 150ms cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: top left;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  will-change: transform, opacity;
+  contain: layout style;
 }
 
 @keyframes contextMenuFadeIn {
   0% {
     opacity: 0;
-    transform: translateY(-4px) scale(0.98);
+    transform: translateY(-4px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -37,11 +35,11 @@
 @keyframes contextMenuFadeOut {
   0% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
   100% {
     opacity: 0;
-    transform: translateY(-4px) scale(0.98);
+    transform: translateY(-4px);
   }
 }
 
@@ -96,18 +94,25 @@
 }
 
 .context-menu__item-icon {
-  width: 18px;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
   text-align: center;
   flex-shrink: 0;
-  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  line-height: 1;
 }
 
 .context-menu__item-icon svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  display: block;
+  flex-shrink: 0;
   stroke-width: 1.8;
 }
 

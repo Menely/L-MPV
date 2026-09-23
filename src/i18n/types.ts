@@ -278,6 +278,8 @@ export interface TranslationDict {
       };
       fontsLabel: string;
       fontSystemLabel: string;
+      openFontsFolderTooltip: string;
+      customFontsDivider: string;
       controlBarStyleTitle: string;
       timePositionTitle: string;
       timeFormatTitle: string;

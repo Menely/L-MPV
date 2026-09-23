@@ -351,13 +351,25 @@ export function saveUiOpacity(opacity: number): void {
 
 // ─── Шрифтовая экосистема интерфейса (UI Font) ───────────────────────────────
 
-export type UiFontId = "inter" | "system" | "outfit" | "jakarta" | "manrope" | "mono";
+import { invoke } from "@tauri-apps/api/core";
+
+export type BuiltinFontId = "inter" | "system" | "outfit" | "jakarta" | "manrope" | "mono";
+export type UiFontId = BuiltinFontId | string;
 
 export interface UiFontPreset {
-  id: UiFontId;
+  id: BuiltinFontId;
   label: string;
   desc: string;
   fontFamilyVar: string;
+}
+
+export interface CustomFontItem {
+  id: string;
+  name: string;
+  family: string;
+  file_name: string;
+  format: string;
+  is_builtin: boolean;
 }
 
 export const UI_FONT_PRESETS: UiFontPreset[] = [
@@ -400,15 +412,84 @@ export const UI_FONT_PRESETS: UiFontPreset[] = [
 ];
 
 export const UI_FONT_STORAGE_KEY = "l-mpv-ui-font";
+export const UI_FONT_FAMILY_STORAGE_KEY = "l-mpv-ui-font-family";
+
+/** Кэш уже загруженных и зарегистрированных в DOM семейств шрифтов. */
+const registeredFamilies = new Set<string>();
+
+/**
+ * Динамическая регистрация пользовательского шрифта в браузере через W3C FontFace API.
+ */
+export async function registerCustomFont(font: {
+  family: string;
+  file_name: string;
+  format: string;
+}): Promise<boolean> {
+  if (typeof document === "undefined" || !("fonts" in document)) {
+    return false;
+  }
+  if (registeredFamilies.has(font.family)) {
+    return true;
+  }
+  try {
+    const base64Data = await invoke<string>("load_font_data", { fileName: font.file_name });
+    const mime =
+      font.format === "opentype"
+        ? "font/otf"
+        : font.format === "woff2"
+        ? "font/woff2"
+        : font.format === "woff"
+        ? "font/woff"
+        : "font/ttf";
+    const fontFace = new FontFace(
+      font.family,
+      `url(data:${mime};charset=utf-8;base64,${base64Data})`
+    );
+    const loadedFace = await fontFace.load();
+    document.fonts.add(loadedFace);
+    registeredFamilies.add(font.family);
+    return true;
+  } catch (err) {
+    console.error(`[Fonts] Ошибка динамической загрузки шрифта ${font.family}:`, err);
+    return false;
+  }
+}
+
+/**
+ * Инициализация активного пользовательского шрифта при холодном старте приложения.
+ */
+export async function initActiveCustomFont(): Promise<void> {
+  const savedFont = getSavedUiFont();
+  if (!savedFont.startsWith("custom:")) {
+    return;
+  }
+  const fileName = savedFont.slice("custom:".length);
+  const ext = fileName.split(".").pop()?.toLowerCase() || "ttf";
+  const format =
+    ext === "otf"
+      ? "opentype"
+      : ext === "woff2"
+      ? "woff2"
+      : ext === "woff"
+      ? "woff"
+      : "truetype";
+  const family =
+    localStorage.getItem(UI_FONT_FAMILY_STORAGE_KEY) ||
+    `LMPV_Custom_${fileName.replace(/\.[^/.]+$/, "").replace(/[\s-]/g, "_")}`;
+
+  await registerCustomFont({ family, file_name: fileName, format });
+}
 
 /**
  * Получить сохранённый идентификатор шрифта интерфейса.
  */
 export function getSavedUiFont(): UiFontId {
   try {
-    const raw = localStorage.getItem(UI_FONT_STORAGE_KEY) as UiFontId;
-    if (raw && UI_FONT_PRESETS.some((f) => f.id === raw)) {
-      return raw;
+    const raw = localStorage.getItem(UI_FONT_STORAGE_KEY);
+    if (raw) {
+      if (UI_FONT_PRESETS.some((f) => f.id === raw) || raw.startsWith("custom:")) {
+        return raw;
+      }
     }
   } catch (e) {
     console.error("Ошибка загрузки шрифта UI из localStorage:", e);
@@ -419,22 +500,45 @@ export function getSavedUiFont(): UiFontId {
 /**
  * Применить выбранный шрифт к CSS-переменной --active-font на :root.
  */
-export function applyUiFont(fontId: UiFontId): void {
-  const preset = UI_FONT_PRESETS.find((f) => f.id === fontId) || UI_FONT_PRESETS[0];
-  document.documentElement.style.setProperty("--active-font", preset.fontFamilyVar);
-  document.documentElement.setAttribute("data-ui-font", fontId);
+export function applyUiFont(fontId: UiFontId, customFamily?: string): void {
+  const preset = UI_FONT_PRESETS.find((f) => f.id === fontId);
+  if (preset) {
+    document.documentElement.style.setProperty("--active-font", preset.fontFamilyVar);
+    document.documentElement.setAttribute("data-ui-font", fontId);
+    return;
+  }
+
+  if (fontId.startsWith("custom:")) {
+    const family =
+      customFamily ||
+      localStorage.getItem(UI_FONT_FAMILY_STORAGE_KEY) ||
+      `LMPV_Custom_${fontId.replace(/^custom:/, "").replace(/\.[^/.]+$/, "").replace(/[\s-]/g, "_")}`;
+
+    document.documentElement.style.setProperty("--active-font", `'${family}', sans-serif`);
+    document.documentElement.setAttribute("data-ui-font", "custom");
+    return;
+  }
+
+  // Фолбэк на Inter по умолчанию
+  document.documentElement.style.setProperty("--active-font", "var(--font-inter)");
+  document.documentElement.setAttribute("data-ui-font", "inter");
 }
 
 /**
  * Сохранить и мгновенно применить шрифт интерфейса.
  */
-export function saveUiFont(fontId: UiFontId): void {
+export function saveUiFont(fontId: UiFontId, customFamily?: string): void {
   try {
     localStorage.setItem(UI_FONT_STORAGE_KEY, fontId);
+    if (customFamily) {
+      localStorage.setItem(UI_FONT_FAMILY_STORAGE_KEY, customFamily);
+    } else if (UI_FONT_PRESETS.some((f) => f.id === fontId)) {
+      localStorage.removeItem(UI_FONT_FAMILY_STORAGE_KEY);
+    }
   } catch (e) {
     console.error("Ошибка сохранения шрифта UI в localStorage:", e);
   }
-  applyUiFont(fontId);
+  applyUiFont(fontId, customFamily);
   window.dispatchEvent(new CustomEvent("l-mpv-ui-font-changed", { detail: fontId }));
   window.dispatchEvent(new Event("l-mpv-settings-changed"));
 }

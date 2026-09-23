@@ -322,6 +322,8 @@ export const en: TranslationDict = {
       },
       fontsLabel: 'Fonts',
       fontSystemLabel: 'System',
+      openFontsFolderTooltip: 'Open fonts folder (fonts/)',
+      customFontsDivider: 'Custom',
       controlBarStyleTitle: 'Control Bar Style',
       timePositionTitle: 'Time Position',
       timeFormatTitle: 'Time Format',

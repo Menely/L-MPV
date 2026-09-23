@@ -12,7 +12,6 @@
   transform: translateY(0);
   transition: opacity var(--t-base) var(--ease-smooth),
               transform var(--t-base) var(--ease-out);
-  will-change: transform, opacity;
 }
 
 /* ─── Таблетка управления ─────────────────────────────── */

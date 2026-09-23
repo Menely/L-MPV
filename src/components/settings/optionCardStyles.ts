@@ -29,7 +29,7 @@ export const optionResetBtnStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontSize: "0.70rem",
+  fontSize: "var(--fs-xs)",
   cursor: "pointer",
   flexShrink: 0,
 };
@@ -55,7 +55,7 @@ export const optionBtnStyle = (isSel: boolean, padding = "6px 4px"): React.CSSPr
 
 /** Описание-подзаголовок секции в стиле «Настроек интерфейса». */
 export const optionSectionDescStyle: React.CSSProperties = {
-  fontSize: "0.78rem",
+  fontSize: "var(--fs-sm)",
   color: "var(--text-secondary)",
   marginTop: 8,
   marginBottom: 12,
@@ -78,13 +78,13 @@ export const optionBlockTitleStyle: React.CSSProperties = {
 };
 
 export const optionBlockTitleTextStyle: React.CSSProperties = {
-  fontSize: "0.80rem",
+  fontSize: "var(--fs-sm)",
   fontWeight: 600,
   color: "var(--text-primary)",
 };
 
 export const optionValueBadgeStyle: React.CSSProperties = {
-  fontSize: "0.76rem",
+  fontSize: "var(--fs-xs)",
   fontWeight: 700,
   color: "var(--accent)",
   fontVariantNumeric: "tabular-nums",

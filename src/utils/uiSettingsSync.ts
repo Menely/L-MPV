@@ -30,6 +30,7 @@ import {
   applyUiScale,
   applyUiOpacity,
   applyUiFont,
+  initActiveCustomFont,
   UiFontId,
   UiRadiusLevel,
   UiScaleMode,
@@ -179,6 +180,7 @@ export function applyAllVisualSettings(): void {
 
   // Шрифт
   applyUiFont(getSavedUiFont());
+  initActiveCustomFont().catch(() => {});
 
   // Акцентный цвет
   const savedAccent = localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";

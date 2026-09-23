@@ -88,6 +88,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path "Portable-L-MPV/inference" | Out-Null
           New-Item -ItemType Directory -Force -Path "Portable-L-MPV/config/presets" | Out-Null
           New-Item -ItemType Directory -Force -Path "Portable-L-MPV/screenshots" | Out-Null
+          New-Item -ItemType Directory -Force -Path "Portable-L-MPV/fonts" | Out-Null
+          Copy-Item "src/assets/fonts/*" -Destination "Portable-L-MPV/fonts/" -Force
           
           Copy-Item "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MPV/l-mpv.exe" -Force
           Copy-Item "libmpv-2.dll" -Destination "Portable-L-MPV/libmpv-2.dll" -Force

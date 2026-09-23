@@ -7,6 +7,7 @@ mod ambient;
 pub mod upscale;
 mod audio_capture;
 mod commands;
+mod fonts_bundle;
 mod mediainfo;
 mod mpv_manager;
 mod system_integration;
@@ -97,6 +98,9 @@ pub fn run() {
     std::fs::create_dir_all(&thumb_dir).ok();
     std::fs::create_dir_all(&logs_dir).ok();
     std::fs::create_dir_all(&webview_dir).ok();
+
+    // Автоматическая распаковка и поддержание актуальности локальных шрифтов в папке fonts/
+    fonts_bundle::ensure_fonts_installed(&exe_dir);
 
     // Полная изоляция WebView2: localStorage, кэш и профиль хранятся строго в папке плеера
     std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", &webview_dir);
@@ -323,6 +327,10 @@ pub fn run() {
             upscale::switch_upscale_network_hotkey,
             upscale::precompile_model_engine_1080p,
             upscale::save_models_order,
+            // Шрифтовая экосистема
+            fonts_bundle::open_fonts_folder,
+            fonts_bundle::get_custom_fonts,
+            fonts_bundle::load_font_data,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {

@@ -5,9 +5,6 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
 /* Отключение стрелок спиннера у числовых полей ввода */
@@ -93,9 +90,9 @@ html, body, #root {
   font-size: var(--fs-base);
   color: var(--text-primary);
   background: transparent;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: geometricPrecision;
   user-select: none;
 }
 

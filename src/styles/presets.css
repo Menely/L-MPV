@@ -5,8 +5,6 @@
   flex-direction: column;
   gap: 20px;
   animation: presetsFadeIn 160ms var(--ease-out);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 @keyframes presetsFadeIn {

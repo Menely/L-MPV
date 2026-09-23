@@ -1,6 +1,9 @@
 /* ─── L-MPV Design System v2 ─────────────────────────── */
 /* Модульная архитектура стилей                            */
 
+/* 0. Локальные вариативные шрифты */
+@import './styles/fonts.css';
+
 /* 1. Design Tokens (переменные, масштабирование)  */
 @import './styles/variables.css';
 

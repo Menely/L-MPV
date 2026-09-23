@@ -103,10 +103,10 @@ export const ru: TranslationDict = {
     close: "Закрыть (Esc)",
     tabs: {
       general: "Общие",
-      appearance: "Внешний вид",
+      appearance: "Кастом",
       presets: "Пресеты",
       upscaling: "Апскейлинг",
-      hotkeys: "Горячие клавиши",
+      hotkeys: "Хоткей",
       integration: "Интеграции",
     },
     general: {
@@ -325,6 +325,8 @@ export const ru: TranslationDict = {
       },
       fontsLabel: 'Шрифты',
       fontSystemLabel: 'Системный',
+      openFontsFolderTooltip: 'Открыть папку со шрифтами (fonts/)',
+      customFontsDivider: 'Пользовательские',
       controlBarStyleTitle: 'Стиль панели управления',
       timePositionTitle: 'Позиция времени',
       timeFormatTitle: 'Формат времени',

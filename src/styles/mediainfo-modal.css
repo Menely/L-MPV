@@ -20,19 +20,17 @@
   overflow: hidden;
   animation: mediainfoSpringIn var(--t-spring) var(--ease-spring-smooth);
   transform-origin: center center;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
   transition: border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 @keyframes mediainfoSpringIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.98);
+    transform: translateY(10px);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateY(0);
   }
 }
 

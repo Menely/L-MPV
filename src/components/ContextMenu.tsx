@@ -129,31 +129,31 @@ const CONTROL_BUTTON_ITEMS = [
 
 /** Статические узлы иконок для предотвращения лишних пересозданий VNode при рендере. */
 const STATIC_ICONS = {
-  openFile: <FolderOpen size={15} />,
-  openFileSub: <FolderOpen size={14} />,
-  film: <Film size={14} />,
-  trash: <Trash2 size={14} />,
-  search: <Search size={15} />,
-  audioTrack: <AudioLines size={15} />,
-  subtitleTrack: <Subtitles size={15} />,
-  chapters: <BookOpen size={15} />,
-  aspectRatio: <Monitor size={15} />,
-  rotation: <RotateCw size={15} />,
-  ambient: <Sparkles size={15} />,
-  speed: <Zap size={15} />,
-  upscale: <Cpu size={15} />,
-  repeatMode: <Repeat size={15} />,
-  shuffle: <Shuffle size={15} />,
-  alwaysOnTop: <Pin size={15} />,
-  screenshot: <Camera size={15} />,
-  mediaInfo: <Info size={15} />,
-  detailedMediaInfo: <FileText size={15} />,
-  presets: <SlidersHorizontal size={15} />,
-  timePosition: <Clock size={15} />,
-  timeFormat: <Timer size={15} />,
-  controlBarStyle: <LayoutTemplate size={15} />,
-  controlButtonsVisibility: <Eye size={15} />,
-  settings: <Settings size={15} />,
+  openFile: <FolderOpen size={16} />,
+  openFileSub: <FolderOpen size={16} />,
+  film: <Film size={16} />,
+  trash: <Trash2 size={16} />,
+  search: <Search size={16} />,
+  audioTrack: <AudioLines size={16} />,
+  subtitleTrack: <Subtitles size={16} />,
+  chapters: <BookOpen size={16} />,
+  aspectRatio: <Monitor size={16} />,
+  rotation: <RotateCw size={16} />,
+  ambient: <Sparkles size={16} />,
+  speed: <Zap size={16} />,
+  upscale: <Cpu size={16} />,
+  repeatMode: <Repeat size={16} />,
+  shuffle: <Shuffle size={16} />,
+  alwaysOnTop: <Pin size={16} />,
+  screenshot: <Camera size={16} />,
+  mediaInfo: <Info size={16} />,
+  detailedMediaInfo: <FileText size={16} />,
+  presets: <SlidersHorizontal size={16} />,
+  timePosition: <Clock size={16} />,
+  timeFormat: <Timer size={16} />,
+  controlBarStyle: <LayoutTemplate size={16} />,
+  controlButtonsVisibility: <Eye size={16} />,
+  settings: <Settings size={16} />,
 };
 
 export function ContextMenu({
@@ -958,7 +958,7 @@ export function ContextMenu({
             >
               <span className="context-menu__track-title">{item.label}</span>
               <span className="context-menu__track-check">
-                {item.active && <Check size={14} />}
+                {item.active && <Check size={15} />}
               </span>
             </button>
             {item.onDownload && (
@@ -1020,7 +1020,7 @@ export function ContextMenu({
               <span className="context-menu__item-label">
                 {item.label}
               </span>
-              <ChevronRight size={14} style={{ opacity: 0.5 }} />
+              <ChevronRight size={15} style={{ opacity: 0.5 }} />
             </button>
 
             {isSubmenuOpen && item.children && (
@@ -1073,7 +1073,7 @@ export function ContextMenu({
           <span className="context-menu__item-label context-menu__item-label--truncate">
             {item.label}
           </span>
-          {item.active && <Check size={14} style={{ marginLeft: 6 }} />}
+          {item.active && <Check size={15} style={{ marginLeft: 6 }} />}
           {item.shortcut && (
             <span className="context-menu__item-shortcut">
               {item.shortcut}

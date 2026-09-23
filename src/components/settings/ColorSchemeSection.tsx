@@ -203,7 +203,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
 
   return (
     <>
-      <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 12, lineHeight: 1.35 }}>
+      <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-secondary)", marginTop: 8, marginBottom: 12, lineHeight: 1.35 }}>
         {dict.settings.appearance.colorScheme.sectionDesc}
       </div>
 
@@ -211,22 +211,22 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       <div className="settings-preview-card">
         <div className="settings-preview-card__info">
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+            <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
               {dict.settings.appearance.colorScheme.preview}
             </span>
-            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+            <span style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--accent)" }}>
               {dict.settings.appearance.colorScheme.playerThemes[playerTheme] || PLAYER_THEMES[playerTheme]?.name || "Dark Graphite"}
             </span>
-            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
-            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+            <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)" }}>•</span>
+            <span style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--accent)" }}>
               {dict.settings.appearance.colorScheme.accent} {activeColor === "windows" ? "Windows" : activeColor}
             </span>
-            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>•</span>
-            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+            <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)" }}>•</span>
+            <span style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--accent)" }}>
               {dict.settings.appearance.colorScheme.glow} {GLOW_LABEL_MAP[glowIntensity] || "Medium"}
             </span>
           </div>
-          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", lineHeight: 1.25 }}>
+          <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", lineHeight: 1.25 }}>
             {dict.settings.appearance.colorScheme.harmonyDesc}
           </span>
         </div>
@@ -295,12 +295,12 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
         <div className="player-themes-header">
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Palette size={14} style={{ color: "var(--accent)" }} />
-            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+            <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
               {dict.settings.appearance.colorScheme.playerThemeTitle}
             </span>
           </div>
           <div className="player-themes-header__right">
-            <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)" }}>
+            <span style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--accent)" }}>
               {dict.settings.appearance.colorScheme.playerThemes[playerTheme] || PLAYER_THEMES[playerTheme]?.name || "Dark Graphite"}
             </span>
             <button
@@ -314,7 +314,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 display: "flex",
                 alignItems: "center",
                 gap: 4,
-                fontSize: "0.70rem",
+                fontSize: "var(--fs-xs)",
                 cursor: "pointer",
               }}
             >
@@ -386,7 +386,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 >
                   <span
                     style={{
-                      fontSize: "0.76rem",
+                      fontSize: "var(--fs-xs)",
                       fontWeight: 600,
                       color: "var(--text-primary)",
                       whiteSpace: "nowrap",
@@ -404,10 +404,10 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       {/* ── Блок 2: Акцентный цвет ── */}
       <div style={{ ...cardStyle, marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+          <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
             {dict.settings.appearance.colorScheme.accentTitle}
           </span>
-          <span style={{ fontSize: "0.70rem", color: "var(--text-muted)" }}>
+          <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)" }}>
             {dict.settings.appearance.colorScheme.accentHint}
           </span>
         </div>
@@ -525,7 +525,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Sparkles size={14} style={{ color: "var(--accent)" }} />
-            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)" }}>
+            <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
               {dict.settings.appearance.colorScheme.glowTitle}
             </span>
           </div>
@@ -555,8 +555,8 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                   transition: "all var(--t-fast) var(--ease-smooth)",
                 }}
               >
-                <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>{mode.label}</span>
-                <span style={{ fontSize: "0.68rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
+                <span style={{ fontSize: "var(--fs-xs)", fontWeight: 600 }}>{mode.label}</span>
+                <span style={{ fontSize: "var(--fs-xs)", color: isSel ? "var(--accent-hover)" : "var(--text-secondary)" }}>
                   {dict.settings.appearance.colorScheme.glowLevels[mode.id === "intense" ? "high" : mode.id] || mode.desc}
                 </span>
               </button>
