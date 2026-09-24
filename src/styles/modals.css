@@ -1231,6 +1231,7 @@
   grid-template-rows: 0fr;
   transition: grid-template-rows 240ms cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+  overflow-anchor: none;
   contain: content;
 }
 
@@ -1250,7 +1251,7 @@
   transform: translateY(-4px);
   transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1),
               transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform, opacity;
+  will-change: auto;
 }
 
 .settings-accordion--open .settings-accordion__body {
@@ -1362,10 +1363,15 @@
 }
 
 /* Панель вкладок: высота анимируется из JS (старая -> новая),
-   скролл-якорь отключён чтобы браузер не дёргал скролл mid-transition */
+   скролл-якорь отключён чтобы браузер не дёргал скролл mid-transition.
+   clip-path ПОСТОЯННО в CSS, а не дёргается через JS: иначе его снятие
+   в конце перехода совпадало бы с разбором композитного слоя контента
+   (двойной растровый snap — карточки «дорисовывались»). Запас -20px
+   держит тени аккордеонов (14-18px) видимыми и во время езды. */
 .settings-tab-panel {
   overflow-anchor: none;
   min-height: 0;
+  clip-path: inset(-20px);
 }
 
 /* У последней секции вкладки нет висячего отступа — без мёртвого места над футером */
@@ -1380,37 +1386,14 @@
 }
 
 .settings-tab-content {
-  animation: settingsTabSlideIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  /* БЕЗ will-change: размер контейнера меняется при раскрытии аккордеона,
-     зафиксированный слой рерастеризовывался бы каждый кадр (дрожание текста). */
-}
-
-.settings-tab-content[data-slide-dir="-1"] {
-  animation-name: settingsTabSlideInBack;
-}
-
-@keyframes settingsTabSlideIn {
-  from {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes settingsTabSlideInBack {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  /* БЕЗ entrance-анимации слайда: translateX/opacity выносили весь контент
+     вкладки в композитный слой (серое сглаживание вместо ClearType), а его
+     разбор в конце перехода давал видимую «дорисовку» рамок/теней/текста —
+     особенно на тяжёлых вкладках, где первый paint и так опаздывает.
+     Движение несёт только твин высоты панели (чистый layout, без слоёв),
+     контент внутри меняется мгновенно и спокойно. */
+  transform: none;
+  will-change: auto;
 }
 /* ─── Эргономичный макет интерфейса ──────────────────── */
 .ui-ergonomics-grid {

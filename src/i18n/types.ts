@@ -450,6 +450,10 @@ export interface TranslationDict {
       folderDesc: (count: number) => string;
       btnShowNames: string;
       btnHideNames: string;
+      btnCollapseModels: string;
+      btnExpandModels: string;
+      btnCollapseEngines: string;
+      btnExpandEngines: string;
       btnOpenFolderTitle: string;
       loadingModels: string;
       noModelsTitle: string;

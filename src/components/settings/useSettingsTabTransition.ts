@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 
 const TRANSITION_MS = 220;
 
@@ -16,41 +16,40 @@ function motionAllowed(): boolean {
 }
 
 /**
- * Плавное переключение вкладок: анимация высоты панели (старая -> новая)
- * + направление слайда контента. Логика вкладок не затрагивается —
- * хук лишь замеряет DOM и анимирует обёртку.
- * Важно: обрезка лишнего контента делается через clip-path с запасом -20px,
- * а НЕ через overflow: hidden — иначе box-shadow свёрнутых аккордеонов
- * (уходят на ~14-18px за границы панели) срезаются на время анимации
- * и моргают в конце перехода.
+ * Плавное переключение вкладок: анимация высоты панели (старая -> новая).
+ * Контент внутри меняется мгновенно, без слайда: translateX/opacity выносили
+ * весь контент в композитный слой, а его разбор в конце давал «дорисовку».
+ * Движение несёт только твин высоты (чистый layout, без слоёв).
+ *
+ * Важно: clip-path с запасом -20px живёт ПОСТОЯННО в CSS
+ * (.settings-tab-panel), хук его не трогает — иначе снятие в конце
+ * совпадало бы с концом твина (snap). Запас держит box-shadow аккордеонов
+ * (14-18px) видимыми и во время езды.
  * Замер через offsetHeight (целые layout-px): getBoundingClientRect() под
  * `zoom: var(--ui-scale)` возвращает визуальные px (см. ContextMenu:
  * там rect делят на zoom) — запись rect в style завышала бы высоту.
  * Портативно: только чтение размеров, никаких внешних записей.
  */
 export function useSettingsTabTransition(activeTab: string, tabOrder: readonly string[]) {
+  void tabOrder;
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const prevTabRef = useRef(activeTab);
   const startHeightRef = useRef(0);
-  const [slideDir, setSlideDir] = useState<1 | -1>(1);
 
   // Вызывать ВМЕСТО setActiveTab. Возвращает false если вкладка та же.
   const beginSwitch = useCallback((next: string): boolean => {
     if (next === prevTabRef.current) return false;
-    const order = tabOrder as readonly string[];
-    setSlideDir(order.indexOf(next) >= order.indexOf(prevTabRef.current) ? 1 : -1);
     const panel = panelRef.current;
     if (panel && motionAllowed()) {
       startHeightRef.current = Math.round(panel.offsetHeight);
       panel.style.height = `${startHeightRef.current}px`;
-      panel.style.clipPath = "inset(-20px)";
     } else {
       startHeightRef.current = 0;
     }
     prevTabRef.current = next;
     return true;
-  }, [tabOrder]);
+  }, []);
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
@@ -62,7 +61,6 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     if (!panel || !motionAllowed() || startHeightRef.current <= 0) {
       if (panel) {
         panel.style.height = "";
-        panel.style.clipPath = "";
         panel.style.transition = "";
       }
       startHeightRef.current = 0;
@@ -75,7 +73,6 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     const h1 = Math.round(panel.offsetHeight);
     if (Math.abs(h1 - h0) < 2) {
       panel.style.height = "";
-      panel.style.clipPath = "";
       restoreBody();
       return;
     }
@@ -92,25 +89,27 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
       done = true;
       panel.style.transition = "";
       panel.style.height = "";
-      panel.style.clipPath = "";
       restoreBody();
       panel.removeEventListener("transitionend", onEnd);
+      panel.removeEventListener("transitioncancel", onEnd);
     };
     const onEnd = (e: TransitionEvent) => {
-      if (e.propertyName === "height") finish();
+      if (e.target !== panel || e.propertyName !== "height") return;
+      finish();
     };
     panel.addEventListener("transitionend", onEnd);
+    panel.addEventListener("transitioncancel", onEnd);
     const timer = window.setTimeout(finish, TRANSITION_MS + 40);
 
     return () => {
       window.clearTimeout(timer);
       panel.removeEventListener("transitionend", onEnd);
+      panel.removeEventListener("transitioncancel", onEnd);
       restoreBody();
       panel.style.transition = "";
       panel.style.height = "";
-      panel.style.clipPath = "";
     };
   }, [activeTab]);
 
-  return { bodyRef, panelRef, slideDir, beginSwitch };
+  return { bodyRef, panelRef, beginSwitch };
 }

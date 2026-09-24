@@ -27,6 +27,24 @@
               border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
+.glass-section--compact {
+  padding: 10px 12px;
+  gap: 8px;
+}
+
+.glass-section--compact .btn--icon {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+}
+
+.backend-selector-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 8px;
+}
+
 .glass-section:hover {
   border-color: var(--border-default, rgba(255, 255, 255, 0.10));
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.48), 0 2px 5px rgba(0, 0, 0, 0.3);

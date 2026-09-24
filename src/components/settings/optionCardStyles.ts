@@ -42,11 +42,11 @@ export const optionBtnStyle = (isSel: boolean, padding = "6px 4px"): React.CSSPr
   gap: 3,
   padding,
   borderRadius: "var(--radius-sm)",
-  border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
+  border: isSel ? "1.5px solid var(--accent)" : "1.5px solid rgba(255, 255, 255, 0.06)",
   cursor: "pointer",
   background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
   color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
-  fontWeight: isSel ? 600 : 450,
+  fontWeight: 500,
   boxShadow: isSel
     ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
     : "0 1px 3px rgba(0, 0, 0, 0.2)",
