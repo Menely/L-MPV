@@ -76,39 +76,57 @@ export function useFollowPlayback({
     }
 
     let rafId = 0;
+    let missFrames = 0;
 
     const tick = () => {
       const container = listContainerRef.current;
-      const el = activeLineElRef.current;
+      if (!container) {
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
 
-      if (container) {
-        if (el && el.isConnected) {
-          // Элемент присутствует в DOM — центруем по нему точно
-          const elRect = el.getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
-          const delta =
-            elRect.top -
-            containerRect.top +
-            elRect.height / 2 -
-            container.clientHeight / 2;
+      // Находим актуальный DOM-элемент активной реплики (проверяем соответствие data-sub-idx)
+      let targetEl = activeLineElRef.current;
+      if (
+        !targetEl ||
+        !targetEl.isConnected ||
+        targetEl.getAttribute("data-sub-idx") !== String(activeLineIndex)
+      ) {
+        targetEl = container.querySelector<HTMLDivElement>(
+          `[data-sub-idx="${activeLineIndex}"]`
+        );
+      }
 
-          if (Math.abs(delta) > 2) {
-            const maxTop = Math.max(
-              0,
-              container.scrollHeight - container.clientHeight
-            );
-            const step = calculateAdaptiveStep(delta);
-            const next = Math.max(
-              0,
-              Math.min(container.scrollTop + step, maxTop)
-            );
-            container.scrollTop = next;
-            expectedScrollTopRef.current = next;
-            scrollOffsetRef.current = next;
-          }
-        } else if (activeLineIndex >= 0) {
-          // Элемент не рендерится (вне окна виртуализации) —
-          // считаем целевой scrollTop через estimatedRowHeight
+      if (targetEl && targetEl.isConnected) {
+        missFrames = 0;
+        // Элемент присутствует в DOM — центруем по нему точно
+        const elRect = targetEl.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const delta =
+          elRect.top -
+          containerRect.top +
+          elRect.height / 2 -
+          container.clientHeight / 2;
+
+        if (Math.abs(delta) > 2) {
+          const maxTop = Math.max(
+            0,
+            container.scrollHeight - container.clientHeight
+          );
+          const step = calculateAdaptiveStep(delta);
+          const next = Math.max(
+            0,
+            Math.min(container.scrollTop + step, maxTop)
+          );
+          container.scrollTop = next;
+          expectedScrollTopRef.current = next;
+          scrollOffsetRef.current = next;
+        }
+      } else if (activeLineIndex >= 0) {
+        // Защита: не прыгаем по грубой estimatedRowHeight сразу в первом же кадре смены реплики,
+        // даём React до 3 кадров смонтировать DOM-элемент. Это предотвращает раскачку "вниз-вверх".
+        missFrames++;
+        if (missFrames > 3) {
           const activePos = filteredLines.findIndex(
             (l) => l.index === activeLineIndex
           );

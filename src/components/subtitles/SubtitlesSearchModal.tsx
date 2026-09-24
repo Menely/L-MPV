@@ -243,27 +243,18 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   });
 
   // ── Виртуализация списка (Phantom Spacer) ──────────────────────────────────
-  // Для списков до 600 строк виртуализация не нужна: нативный рендеринг
-  // полностью плавный и исключает скачки paddingTop при следовании.
+  // Для списков до 2500 строк виртуализация не требуется: WebView2 мгновенно
+  // рендерит легковесные мемоизированные элементы, гарантируя абсолютную плавность скролла.
   const { visibleLines, paddingTop, paddingBottom } = useMemo(() => {
     const total = filteredLines.length;
-    if (total <= 600) {
+    if (total <= 2500) {
       return { visibleLines: filteredLines, paddingTop: 0, paddingBottom: 0 };
     }
 
-    const overscan = 30;
-    let center: number;
-    if (followPlayback && activeLineIndex >= 0) {
-      const activePos = filteredLines.findIndex(
-        (l) => l.index === activeLineIndex
-      );
-      center =
-        activePos >= 0
-          ? activePos
-          : Math.floor(scrollOffset / estimatedRowHeight);
-    } else {
-      center = Math.floor(scrollOffset / estimatedRowHeight);
-    }
+    const overscan = 50;
+    // Для сверхдлинных списков (> 2500 строк) окно отслеживает реальный скролл
+    // без скачков paddingTop при смене отдельной реплики
+    const center = Math.floor(scrollOffset / estimatedRowHeight);
 
     const start = Math.max(
       0,
@@ -280,8 +271,6 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     filteredLines,
     scrollOffset,
     estimatedRowHeight,
-    followPlayback,
-    activeLineIndex,
   ]);
 
   // ── Плавное закрытие окна ──────────────────────────────────────────────────

@@ -89,7 +89,9 @@ export function useSubtitlesAnalysis() {
         });
         // Если пока шёл FFmpeg пользователь уже выбрал другую дорожку — игнорируем.
         if (analyzeSeqRef.current !== seq) return;
-        const validLines = result || [];
+        const validLines = (result || [])
+          .slice()
+          .sort((a, b) => a.start - b.start || a.index - b.index);
         setLines(validLines);
         globalSubtitlesCache.set(cacheKey, validLines);
         const trk = subTracks.find((t) => t.id === trackId);

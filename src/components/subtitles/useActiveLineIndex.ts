@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type { SubtitleLine } from "./subtitleTypes";
 
 interface UseActiveLineIndexParams {
@@ -8,83 +8,89 @@ interface UseActiveLineIndexParams {
 }
 
 /**
- * Вычисляет индекс активной реплики субтитров по текущей позиции плеера.
+ * Вычисляет индекс активной реплики субтитров по текущей позиции воспроизведения.
  *
- * Приоритеты определения (от высшего к низшему):
- * 1. Пользовательский клик/навигация (`clickedLineIndex`) — мгновенный
- *    визуальный отклик без ожидания асинхронного ответа mpv.
- * 2. Звучащая реплика (position >= start && position < end),
- *    при перекрытии предпочитается позже начавшаяся.
- * 3. Реплика, заканчивающаяся точно на position (position <= end).
- * 4. «Lead-in» — реплика, начинающаяся через ≤ 0.3 с от position.
- * 5. Ближайшая к position реплика (минимальное интервальное расстояние).
+ * Принципы детерминированности и стабильности:
+ * 1. Приоритет пользователя: явный клик или навигация стрелками (`clickedLineIndex`).
+ * 2. Звучащие реплики: если в момент времени `position` звучит одна или несколько реплик:
+ *    - Предпочитается реплика, начавшаяся позже (свежая речь).
+ *    - При близких таймингах старта (≤ 0.2 с) предпочтение отдаётся реплике с меньшей
+ *      длительностью (реплики диалогов короче многосекундных фоновых вывесок/песен).
+ *    - Гистерезис: пока текущая звучащая реплика не закончилась, не переключаемся
+ *      на старые фоновые дорожки.
+ * 3. Паузы между репликами (тишина):
+ *    - Список удерживает последнюю прозвучавшую реплику вплоть до начала следующей.
+ *    - Исключаются преждевременные скачки вперёд в паузах и осцилляции по Евклидову расстоянию.
  */
 export function useActiveLineIndex({
   lines,
   position,
   clickedLineIndex,
 }: UseActiveLineIndexParams): number {
+  const lastActiveIndexRef = useRef<number>(-1);
+
   return useMemo(() => {
     if (lines.length === 0) return -1;
 
-    // Приоритет 1: явный клик или навигация стрелками
+    // Приоритет 1: явный выбор пользователя
     if (clickedLineIndex !== null) {
       const clicked = lines.find((l) => l.index === clickedLineIndex);
-      if (clicked) return clicked.index;
-    }
-
-    // Приоритет 2: звучащая реплика
-    const matching = lines.filter(
-      (l) => position >= l.start && position < l.end
-    );
-    if (matching.length > 0) {
-      const exact = matching.reduce((prev, curr) =>
-        curr.start > prev.start ? curr : prev
-      );
-      return exact.index;
-    }
-
-    // Приоритет 3: реплика, которая только что закончилась
-    const exactAtEnd = lines.filter(
-      (l) => position >= l.start && position <= l.end
-    );
-    if (exactAtEnd.length > 0) {
-      const exact = exactAtEnd.reduce((prev, curr) =>
-        curr.start > prev.start ? curr : prev
-      );
-      return exact.index;
-    }
-
-    // Приоритет 4: «lead-in» — реплика вот-вот начнётся
-    const LEAD_IN = 0.3;
-    const upcoming = lines.find(
-      (l) =>
-        l.start > position && l.start - position <= LEAD_IN
-    );
-    if (upcoming) return upcoming.index;
-
-    // Приоритет 5: ближайшая по интервальному расстоянию
-    const getIntervalDist = (l: SubtitleLine): number => {
-      if (position < l.start) return l.start - position;
-      if (position > l.end) return position - l.end;
-      return 0;
-    };
-
-    let best = lines[0].index;
-    let bestDist = getIntervalDist(lines[0]);
-    for (let i = 1; i < lines.length; i++) {
-      const dist = getIntervalDist(lines[i]);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = lines[i].index;
-      } else if (
-        lines[i].start > position &&
-        lines[i].start - position > bestDist
-      ) {
-        // Строки упорядочены по возрастанию — дальше дистанция только растёт
-        break;
+      if (clicked) {
+        lastActiveIndexRef.current = clicked.index;
+        return clicked.index;
       }
     }
-    return best;
+
+    // 1. Поиск реплик, звучащих непосредственно в момент времени `position`
+    const activeMatches = lines.filter(
+      (l) => position >= l.start && position < l.end
+    );
+
+    let chosenIndex = -1;
+
+    if (activeMatches.length > 0) {
+      // Сортировка перекрывающихся реплик:
+      // 1) По времени начала (позже начавшиеся имеют высший приоритет)
+      // 2) При близком старте (разница ≤ 0.2с) — более короткие по длительности (диалог важнее вывески)
+      activeMatches.sort((a, b) => {
+        const startDiff = b.start - a.start;
+        if (Math.abs(startDiff) > 0.2) return startDiff;
+        return (a.end - a.start) - (b.end - b.start);
+      });
+
+      // Гистерезис: если предыдущая реплика всё ещё звучит и её начало не старше новой — держим её
+      const prevActive = lines.find((l) => l.index === lastActiveIndexRef.current);
+      if (
+        prevActive &&
+        position >= prevActive.start &&
+        position < prevActive.end &&
+        activeMatches[0].start <= prevActive.start + 0.15
+      ) {
+        chosenIndex = prevActive.index;
+      } else {
+        chosenIndex = activeMatches[0].index;
+      }
+    } else {
+      // В моменты тишины между репликами:
+      // Фиксируемся на последней прозвучавшей реплике (не прыгаем вперёд до старта новой)
+      let lastSpokenIndex = -1;
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].start <= position) {
+          lastSpokenIndex = lines[i].index;
+        } else if (lastSpokenIndex !== -1 && lines[i].start > position + 0.05) {
+          break;
+        }
+      }
+
+      if (lastSpokenIndex !== -1) {
+        chosenIndex = lastSpokenIndex;
+      } else {
+        // Позиция до первой реплики в файле
+        chosenIndex = lines[0].index;
+      }
+    }
+
+    lastActiveIndexRef.current = chosenIndex;
+    return chosenIndex;
   }, [lines, position, clickedLineIndex]);
 }
