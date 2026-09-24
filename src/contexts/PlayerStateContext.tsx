@@ -213,7 +213,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Синхронизация плейлиста по событию бэкенда playlist-updated
+  // Синхронизация плейлиста по событию бэкенда playlist-updated.
+  // Заодно обновляем дорожки: фоновая задача open_file добавляет внешние
+  // субтитры/аудио уже после первого get_tracks, без этого список отставал.
   useEffect(() => {
     let isMounted = true;
     let unlistenFn: (() => void) | null = null;
@@ -221,6 +223,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     listen("playlist-updated", () => {
       if (isMounted) {
         refreshPlaylist();
+        loadTracks();
       }
     })
       .then((unlisten) => {
@@ -240,7 +243,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         unlistenFn();
       }
     };
-  }, [refreshPlaylist]);
+  }, [refreshPlaylist, loadTracks]);
 
   // Вызывается при загрузке нового файла или изменении стейта hasMedia
   useEffect(() => {
@@ -361,24 +364,15 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             refreshPlaylist();
             if (fullInfo.paused) nextDelay = 1000;
 
-            // Проверяем историю и переходим на сохраненную позицию
-            try {
-              isResumingRef.current = true;
-              const lastPos = await invoke<number>("get_last_position", { path: fullInfo.path });
-              if (lastPos > 5.0 && fullInfo.position < 3.0) {
-                await invoke("seek_absolute", { seconds: lastPos });
-                lastSavedPositionRef.current = lastPos;
-              } else {
-                lastSavedPositionRef.current = fullInfo.position;
-              }
-            } catch (e) {
-              console.error("Ошибка авто-перехода к позиции истории:", e);
-            } finally {
-              // Предотвращаем ложное срабатывание автосохранения во время инициализации
-              setTimeout(() => {
-                isResumingRef.current = false;
-              }, 300);
-            }
+            // Resume выполняет бэкенд (mpv `start` в open_file/playlist_next/prev/play_index):
+            // второй seek здесь приводил к повторной буферизации. Локально лишь
+            // фиксируем позицию и блокируем автосейв на время инициализации.
+            isResumingRef.current = true;
+            lastSavedPositionRef.current = fullInfo.position;
+            // Предотвращаем ложное срабатывание автосохранения во время инициализации
+            setTimeout(() => {
+              isResumingRef.current = false;
+            }, 300);
           } else {
             currentPathRef.current = "";
             hasMediaInfoRef.current = false;
@@ -674,6 +668,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           path: curMedia.path,
           position: curMedia.position,
           duration: curMedia.duration,
+          flush: true,
         }).catch(() => {});
       }
     };

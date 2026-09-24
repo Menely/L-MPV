@@ -152,7 +152,12 @@ pub fn update_history_position(
     }
 }
 
-/// Сохраняет текущую позицию воспроизведения активного медиафайла напрямую из состояния MPV на диск.
+/// Сохраняет текущую позицию воспроизведения активного медиафайла в память.
+///
+/// Запись на диск идёт через внутренний дебаунс `update_history_position`
+/// (не чаще раза в 5 секунд): вызывать из горячего пути безопасно.
+/// Принудительный сброс на диск — только через `save_history_to_disk()`
+/// (закрытие окна/выход, явная команда `save_current_position`).
 pub fn save_current_playback_position(
     state: &PlayerState,
 ) {
@@ -172,9 +177,34 @@ pub fn save_current_playback_position(
                 position,
                 duration,
             );
-            save_history_to_disk();
         }
     }
+}
+
+/// Выставляет mpv-свойство `start` по истории для бесшовного resume.
+///
+/// Единственная точка продолжения просмотра: фронтенд второго seek не
+/// делает. Возвращает установленное значение (нужно фоновой задаче
+/// `open_file`, чтобы сбросить `start` в `none` только если его никто
+/// не перезаписал — например, быстрой навигацией Next/Prev).
+pub fn apply_resume_start(
+    state: &PlayerState,
+    path: &str,
+) -> String {
+    let key = normalize_history_path(path);
+    let position = get_history_map()
+        .lock()
+        .ok()
+        .and_then(|map| map.get(&key).map(|item| item.position))
+        .unwrap_or(0.0);
+    let start_value = if position > 5.0 {
+        format!("{:.2}", position)
+    } else {
+        "0".to_string()
+    };
+    let _ =
+        state.mpv.set_property_string("start", &start_value);
+    start_value
 }
 
 // ─── IPC-команды ────────────────────────────────────────
@@ -199,6 +229,7 @@ pub fn save_position(
     path: String,
     position: f64,
     duration: Option<f64>,
+    flush: Option<bool>,
 ) -> Result<(), String> {
     if path.trim().is_empty() {
         return Ok(());
@@ -208,7 +239,11 @@ pub fn save_position(
         position,
         duration.unwrap_or(0.0),
     );
-    save_history_to_disk();
+    // Автосейв из UI идёт через 5-секундный дебаунс внутри;
+    // принудительный сброс — только по явному `flush` (beforeunload).
+    if flush.unwrap_or(false) {
+        save_history_to_disk();
+    }
     Ok(())
 }
 
@@ -218,5 +253,6 @@ pub fn save_current_position(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
     save_current_playback_position(&state);
+    save_history_to_disk();
     Ok(())
 }

@@ -3,15 +3,17 @@
 //! Включает базовые операции mpv: play/pause/seek, а также
 //! команды получения метаданных медиафайла и навигации по главам.
 
-use super::history::save_current_playback_position;
+use super::dir_scan::{
+    current_open_generation, next_open_generation,
+};
+use super::history::{
+    apply_resume_start, save_current_playback_position,
+};
 use super::playlist::populate_folder_playlist;
 use super::tracks::load_external_tracks_internal;
 use super::types::{
-    escape_mpv_path, ChapterInfo,
+    escape_mpv_path, AppSettings, ChapterInfo,
     MediaInfo, PlaybackState, PlayerState,
-};
-use super::history::{
-    get_history_map, normalize_history_path,
 };
 use tauri::State;
 
@@ -27,37 +29,33 @@ pub fn open_file(
     open_file_internal(&state, &path, Some(&app))
 }
 
-/// Внутренняя функция открытия файла с опциональной отправкой события обновления плейлиста
+/// Внутренняя функция открытия файла с опциональной отправкой события обновления плейлиста.
+///
+/// Горячий путь устроен так, чтобы первый кадр пошёл максимально быстро:
+/// синхронно выполняются только дешёвые операции (сейв позиции в память,
+/// resume-старт, `loadfile`), а сканирование диска и достройка плейлиста
+/// уходят в фоновый поток. Команда возвращается сразу после постановки
+/// `loadfile` в очередь mpv.
 pub fn open_file_internal(
     state: &PlayerState,
     path: &str,
     app: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
-    // Сохраняем текущую позицию предыдущего проигрываемого медиафайла перед открытием нового
+    // Сохранение позиции предыдущего файла: только память + дебаунс диска.
     save_current_playback_position(state);
 
     let target_path = std::path::PathBuf::from(path);
     let safe_target = escape_mpv_path(path);
+    // Единственная точка resume: выставляем `start` ДО loadfile,
+    // фронтенд второго seek не делает.
+    let expected_start = apply_resume_start(state, path);
 
-    // Проверяем историю просмотров для автоматического продолжения (авто-resume)
-    let key = normalize_history_path(path);
-    if let Ok(map) = get_history_map().lock() {
-        if let Some(item) = map.get(&key) {
-            if item.position > 5.0 {
-                let _ = state.mpv.set_property_string(
-                    "start",
-                    &format!("{:.2}", item.position),
-                );
-            } else {
-                let _ = state
-                    .mpv
-                    .set_property_string("start", "0");
-            }
-        } else {
-            let _ =
-                state.mpv.set_property_string("start", "0");
-        }
-    }
+    // Путь, игравший до loadfile: нужен фоновой задаче, чтобы отличить
+    // «новый файл ещё грузится» от «пользователь уже переключил дальше».
+    let prev_path = state
+        .mpv
+        .get_property_string("path")
+        .unwrap_or_default();
 
     // 1. Мгновенно запускаем воспроизведение выбранного файла
     state.mpv.command(&format!(
@@ -65,16 +63,61 @@ pub fn open_file_internal(
         safe_target
     ))?;
 
-    // Сбрасываем параметр "start" в "none", чтобы следующие треки плейлиста стартовали с начала
-    let _ =
-        state.mpv.set_property_string("start", "none");
+    // Флаги читаются один раз (один парсинг settings.json на открытие).
+    let settings = AppSettings::load_portable();
+    let auto_load_tracks = settings.auto_load_tracks;
+    let auto_select_external_audio =
+        settings.auto_select_external_audio;
 
-    // Подгружаем внешние дорожки и субтитры для текущего файла (если опция активна в настройках)
-    let _ =
-        load_external_tracks_internal(state, &target_path);
+    // 2. Всё тяжёлое — в фон: внешние дорожки, плейлист, сброс `start`.
+    // Новое поколение отменяет устаревшую задачу прошлого открытия.
+    let generation = next_open_generation();
+    let bg_mpv = state.mpv.clone();
+    let bg_app = app.cloned();
+    let bg_prev_path = prev_path.clone();
+    let _ = std::thread::Builder::new()
+        .name("lmpv-open-bg".to_string())
+        .spawn(move || {
+            if current_open_generation() != generation {
+                return;
+            }
+            // Подгружаем внешние дорожки и субтитры (если опция активна).
+            // Скан каталога берётся из mtime-кэша.
+            if auto_load_tracks {
+                let _ = load_external_tracks_internal(
+                    &bg_mpv,
+                    &target_path,
+                    auto_select_external_audio,
+                    Some(generation),
+                    &bg_prev_path,
+                );
+            }
+            if current_open_generation() != generation {
+                return;
+            }
+            // Фоново формируем плейлист из остальных файлов в той же папке.
+            // Каталог читается один раз общим листингом (см. dir_scan).
+            let _ = populate_folder_playlist(
+                &bg_mpv,
+                &target_path,
+                bg_app.as_ref(),
+            );
 
-    // 2. Фоново формируем плейлист из остальных файлов в той же папке
-    populate_folder_playlist(state, &target_path, app)?;
+            // Сбрасываем параметр "start" в "none", чтобы следующие треки
+            // плейлиста стартовали с начала — но только если его никто не
+            // перезаписал (быстрая навигация Next/Prev выставила свой) и
+            // поколение не сменилось (открыли файл новее).
+            if current_open_generation() == generation {
+                let still_ours = bg_mpv
+                    .get_property_string("start")
+                    .map(|v| v == expected_start)
+                    .unwrap_or(false);
+                if still_ours {
+                    let _ = bg_mpv
+                        .set_property_string("start", "none");
+                }
+            }
+        });
 
     // 3. Переоценка Ambient Light под новое видео (авто-отключение без
     // полос). Дедупликация внутри apply отсекает лишнее — дёшево даже

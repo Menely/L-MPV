@@ -358,6 +358,7 @@ pub fn run() {
                 } else {
                     let state = window.state::<PlayerState>();
                     commands::save_current_playback_position(&state);
+                    commands::save_history_to_disk();
                     // Закрытие главного окна плеера обязано полностью завершать процесс приложения
                     window.app_handle().exit(0);
                 }
@@ -432,6 +433,7 @@ pub fn run() {
             if let tauri::RunEvent::ExitRequested { .. } = event {
                 let state = app_handle.state::<PlayerState>();
                 commands::save_current_playback_position(&state);
+                commands::save_history_to_disk();
             }
         });
 }

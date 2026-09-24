@@ -162,6 +162,7 @@ L-MPV/
 │   │   ├── lib.rs                        # Точка входа Tauri v2 (биндинг HWND к MPV, изоляция WebView2, регистрация команд)
 │   │   ├── commands/                     # Модульные IPC #[tauri::command] обработчики:
 │   │   │   ├── mod.rs                    # Реэкспорт всех подмодулей IPC-команд
+│   │   │   ├── dir_scan.rs               # Однократный листинг каталога + счётчик поколений фоновых задач открытия
 │   │   │   ├── types.rs                  # Общие DTO и структуры данных для обмена с фронтендом
 │   │   │   ├── playback.rs               # Управление воспроизведением, навигацией, громкостью, скоростью, скриншотами
 │   │   │   ├── tracks.rs                 # Управление аудио/видео дорожками, субтитрами и экспорт через FFmpeg
@@ -293,6 +294,13 @@ L-MPV/
 - Нативное динамическое связывание с `mediainfo.dll` через `libloading` (C-API: `MediaInfo_New`, `MediaInfo_Open`, `MediaInfo_Inform`, `MediaInfo_Close`, `MediaInfo_Delete`).
 - Управляет независимым окном MediaInfo через команды `open_mediainfo_window` и `toggle_mediainfo_window`.
 - Порядок разрешения нативных бинарников: каталог exe → `exe/resources/` → CWD → `src-tauri/binaries/` (legacy-фолбэк `src-tauri/`) → `Portable-L-MPV/`; тот же порядок (без `resources/`) для `ffmpeg.exe` в `commands/tracks.rs`.
+
+### 3.6. Горячий путь открытия файла (Open Fast-Path)
+- `open_file_internal` возвращается сразу после `loadfile`: синхронно — только сейв позиции в память, `apply_resume_start()` и постановка в очередь mpv.
+- Сканирование диска и достройка плейлиста идут в потоке `lmpv-open-bg`: внешние дорожки (mtime-кэш `cached_scan_external_tracks`), затем `populate_folder_playlist`, затем условный сброс `start` в `none` (только если значение не перезаписала навигация и поколение не сменилось).
+- Родительская папка читается один раз (`commands/dir_scan.rs::list_folder`, типы из `file_type()` без stat-сисколлов); повторные вызовы для той же папки обслуживаются mtime-кэшем.
+- Resume — только бэкенд (`history.rs::apply_resume_start` в `open_file`/`playlist_next`/`playlist_prev`/`play_playlist_item`); фронтенд второго seek не делает. Счётчик поколений `next_open_generation()` останавливает устаревшие фоновые задачи.
+- Запись `history.json`: память + дебаунс 5 сек; принудительный сброс — закрытие окна/выход (`save_history_to_disk`), команда `save_current_position` и `save_position` с `flush: true` (beforeunload).
 
 ---
 

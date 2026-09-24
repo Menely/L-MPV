@@ -4,6 +4,9 @@
 //! и субтитров, эвристическое сопоставление по имени файла,
 //! и извлечение дорожек через FFmpeg.
 
+use super::dir_scan::{
+    current_open_generation, dir_mtime, list_folder,
+};
 use super::subtitles::{
     MAX_SUBTITLE_STDOUT_BYTES, decode_subtitle_bytes,
     generate_subtitles_cache_key, is_bitmap_subtitle,
@@ -15,7 +18,11 @@ use super::types::{
     is_audio_extension, is_subtitle_extension, natural_cmp,
     AppSettings, PlayerState, SubtitleLineInfo, TrackInfo,
 };
+use crate::mpv_manager::MpvManager;
 use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
+use std::time::SystemTime;
 use tauri::State;
 
 // ─── Переключение дорожек ───────────────────────────────
@@ -337,9 +344,19 @@ pub fn load_external_tracks_for_file(
     state: State<'_, PlayerState>,
     path: String,
 ) -> Result<(), String> {
+    // Флаги читаются один раз здесь, а не внутри каждого прохода.
+    let settings = AppSettings::load_portable();
+    if !settings.auto_load_tracks {
+        return Ok(());
+    }
     load_external_tracks_internal(
-        &state,
+        &state.mpv,
         std::path::Path::new(&path),
+        settings.auto_select_external_audio,
+        // Прямой вызов для текущего файла: поколение не отслеживаем,
+        // актуальность определяется совпадением пути в mpv.
+        None,
+        "",
     )
 }
 
@@ -853,6 +870,99 @@ fn is_track_matching_video(
 
 /// Сканирование родительской директории видео (уровень 0) и прямых дочерних папок (уровень 1).
 /// Не спускается глубже 1 уровня вложенности («дальше в подпапку лезть не надо»).
+// ─── Кэш сканирования внешних дорожек ────────────────
+
+/// Закэшированный результат скана одного каталога.
+///
+/// Фронтенд вызывает `load_external_tracks_for_file` следом за `open_file`
+/// для того же файла, а навигация Next/Prev ходит по той же папке.
+/// Повторный `read_dir` при неизменном mtime каталога не нужен: отдаём
+/// копию закэшированных списков.
+struct ExternalScanCache {
+    dir: PathBuf,
+    mtime: Option<SystemTime>,
+    audio: Vec<PathBuf>,
+    subtitles: Vec<PathBuf>,
+}
+
+static EXTERNAL_SCAN_CACHE: OnceLock<
+    Mutex<Option<ExternalScanCache>>,
+> = OnceLock::new();
+
+/// Глобальная сериализация фазы добавления внешних дорожек.
+///
+/// Фоновая задача `open_file` и вызов `load_external_tracks_for_file` из
+/// фронтенда могут идти параллельно для одного файла. Без мьютекса обе
+/// стороны видели бы пустой `track-list` и добавляли бы дубликаты.
+/// Сканирование каталога под мьютекс не берётся (только чтение).
+static EXTERNAL_LOAD_LOCK: OnceLock<Mutex<()>> =
+    OnceLock::new();
+
+/// Проверка, что фоновая задача ещё актуальна.
+///
+/// `generation` отсекает устаревшие задачи прошлых открытий, а сравнение
+/// текущего пути mpv — случай, когда пользователь уже переключил файл
+/// (Next/Prev) посреди фоновой задачи: чужие дорожки подмешивать нельзя.
+/// `prev_path` — путь, игравший ДО `loadfile`: пока mpv его показывает,
+/// загрузка нового файла ещё идёт и задача актуальна.
+fn task_still_current(
+    mpv: &MpvManager,
+    video_path: &Path,
+    prev_path: &str,
+    generation: Option<u64>,
+) -> bool {
+    if let Some(gen) = generation {
+        if current_open_generation() != gen {
+            return false;
+        }
+    }
+    let current = mpv.get_property_string("path").unwrap_or_default();
+    if current.trim().is_empty() {
+        return true;
+    }
+    let norm = |s: &str| s.replace('\\', "/").to_lowercase();
+    let current_norm = norm(&current);
+    current_norm == norm(&video_path.to_string_lossy())
+        || current_norm == norm(prev_path)
+}
+
+/// Скан внешних дорожек с mtime-кэшем по родительскому каталогу.
+///
+/// Промах кэша — полный скан; попадание — клон двух векторов без единого
+/// обращения к диску, кроме одного `metadata()` для сверки mtime.
+fn cached_scan_external_tracks(
+    video_path: &Path,
+) -> (Vec<PathBuf>, Vec<PathBuf>) {
+    let parent = match video_path.parent() {
+        Some(p) => p.to_path_buf(),
+        None => return (Vec::new(), Vec::new()),
+    };
+    let mtime = dir_mtime(&parent);
+    let cache_lock = EXTERNAL_SCAN_CACHE
+        .get_or_init(|| Mutex::new(None));
+    if let Ok(slot) = cache_lock.lock() {
+        if let Some(cache) = slot.as_ref() {
+            if cache.dir == parent && cache.mtime == mtime {
+                return (
+                    cache.audio.clone(),
+                    cache.subtitles.clone(),
+                );
+            }
+        }
+    }
+    let (audio, subtitles) =
+        scan_external_tracks(video_path);
+    if let Ok(mut slot) = cache_lock.lock() {
+        *slot = Some(ExternalScanCache {
+            dir: parent,
+            mtime,
+            audio: audio.clone(),
+            subtitles: subtitles.clone(),
+        });
+    }
+    (audio, subtitles)
+}
+
 fn scan_external_tracks(
     video_path: &std::path::Path,
 ) -> (Vec<std::path::PathBuf>, Vec<std::path::PathBuf>) {
@@ -864,9 +974,12 @@ fn scan_external_tracks(
         None => return (audio_files, subtitle_files),
     };
 
-    let video_canonical = video_path
-        .canonicalize()
-        .unwrap_or_else(|_| video_path.to_path_buf());
+    // Имя видеофайла в нижнем регистре: тот же каталог => совпадение
+    // имён однозначно идентифицирует сам файл без canonicalize на запись.
+    let video_file_lower = video_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
     let video_stem = match video_path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -875,71 +988,58 @@ fn scan_external_tracks(
         None => return (audio_files, subtitle_files),
     };
 
+    // Один проход по каталогу вместо stat-сисколла на файл.
+    let listing = list_folder(parent);
     let mut direct_subdirs = Vec::new();
 
     // 1. Уровень 0: каталог рядом с видеофайлом
-    if let Ok(entries) = std::fs::read_dir(parent) {
-        for entry in entries.filter_map(|e| e.ok()) {
-            let path = entry.path();
-            if path.is_file() {
-                if path
-                    .canonicalize()
-                    .unwrap_or_else(|_| path.clone())
-                    == video_canonical
-                {
-                    continue;
-                }
+    for entry in listing.entries.iter().filter(|e| e.is_file) {
+        if !video_file_lower.is_empty()
+            && entry.file_name_lower == video_file_lower
+        {
+            continue;
+        }
 
-                if let Some(ext) = path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                {
-                    let track_stem = path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("");
-                    if is_track_matching_video(
-                        video_stem, track_stem,
-                    ) {
-                        if is_audio_extension(ext) {
-                            audio_files.push(path);
-                        } else if is_subtitle_extension(
-                            ext,
-                        ) {
-                            subtitle_files.push(path);
-                        }
-                    }
+        if let Some(ext) = entry.extension_lower.as_deref() {
+            let track_stem = Path::new(&entry.file_name)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("");
+            if is_track_matching_video(
+                video_stem, track_stem,
+            ) {
+                if is_audio_extension(ext) {
+                    audio_files.push(entry.path.clone());
+                } else if is_subtitle_extension(ext) {
+                    subtitle_files.push(entry.path.clone());
                 }
-            } else if path.is_dir() {
-                direct_subdirs.push(path);
             }
         }
+    }
+    for entry in listing.entries.iter().filter(|e| e.is_dir) {
+        direct_subdirs.push(entry.path.clone());
     }
 
     // 2. Уровень 1: прямые подкаталоги (например, Subs, Audio, Subtitles и др.), без рекурсии дальше
     for subdir in direct_subdirs {
-        if let Ok(entries) = std::fs::read_dir(&subdir) {
-            for entry in entries.filter_map(|e| e.ok()) {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(ext) = path
-                        .extension()
-                        .and_then(|e| e.to_str())
-                    {
-                        let track_stem = path
-                            .file_stem()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or("");
-                        if is_track_matching_video(
-                            video_stem, track_stem,
-                        ) {
-                            if is_audio_extension(ext) {
-                                audio_files.push(path);
-                            } else if is_subtitle_extension(ext) {
-                                subtitle_files
-                                    .push(path);
-                            }
-                        }
+        for entry in list_folder(&subdir)
+            .entries
+            .iter()
+            .filter(|e| e.is_file)
+        {
+            if let Some(ext) = entry.extension_lower.as_deref()
+            {
+                let track_stem = Path::new(&entry.file_name)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
+                if is_track_matching_video(
+                    video_stem, track_stem,
+                ) {
+                    if is_audio_extension(ext) {
+                        audio_files.push(entry.path.clone());
+                    } else if is_subtitle_extension(ext) {
+                        subtitle_files.push(entry.path.clone());
                     }
                 }
             }
@@ -974,22 +1074,25 @@ fn scan_external_tracks(
 }
 
 /// Внутренняя функция автоподхвата внешних дорожек и субтитров для медиафайла.
+///
+/// Принимает готовый `&MpvManager` (а не всё `PlayerState`), чтобы вызываться
+/// из фонового потока открытия файла. Флаги читаются вызывающим кодом один
+/// раз, скан каталога берётся из mtime-кэша (`cached_scan_external_tracks`).
+/// `generation` + `prev_path` защищают от подмешивания дорожек в чужой файл
+/// (см. `task_still_current`); фаза добавления сериализована глобальным
+/// мьютексом против дублей при параллельных вызовах.
 pub fn load_external_tracks_internal(
-    state: &PlayerState,
+    mpv: &MpvManager,
     video_path: &std::path::Path,
+    auto_select_audio: bool,
+    generation: Option<u64>,
+    prev_path: &str,
 ) -> Result<(), String> {
-    let settings = AppSettings::load_portable();
-    let (auto_load, auto_select_audio) = (
-        settings.auto_load_tracks,
-        settings.auto_select_external_audio,
-    );
-
-    if !auto_load {
+    if !task_still_current(mpv, video_path, prev_path, generation) {
         return Ok(());
     }
-
     let (audio_files, subtitle_files) =
-        scan_external_tracks(video_path);
+        cached_scan_external_tracks(video_path);
 
     if audio_files.is_empty()
         && subtitle_files.is_empty()
@@ -997,21 +1100,29 @@ pub fn load_external_tracks_internal(
         return Ok(());
     }
 
+    let _guard = EXTERNAL_LOAD_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .ok();
+    // Повторная проверка под мьютексом: пока ждали очередь,
+    // файл могли уже переключить.
+    if !task_still_current(mpv, video_path, prev_path, generation) {
+        return Ok(());
+    }
+
     // Запоминаем текущую активную аудиодорожку перед добавлением внешних файлов
-    let original_aid = state
-        .mpv
+    let original_aid = mpv
         .get_property_string("aid")
         .unwrap_or_default();
 
     // Собираем уже загруженные внешние файлы для предотвращения повторной загрузки
-    let track_count = state
-        .mpv
+    let track_count = mpv
         .get_property_double("track-list/count")
         .unwrap_or(0.0) as i64;
     let mut existing_external_files = HashSet::new();
     for i in 0..track_count {
         if let Ok(ext_fn) =
-            state.mpv.get_property_string(&format!(
+            mpv.get_property_string(&format!(
                 "track-list/{}/external-filename",
                 i
             ))
@@ -1038,7 +1149,7 @@ pub fn load_external_tracks_internal(
                 "audio-add \"{}\" cached",
                 safe_path
             );
-            if let Err(e) = state.mpv.command(&cmd) {
+            if let Err(e) = mpv.command(&cmd) {
                 eprintln!(
                     "Не удалось подключить внешнюю \
                      аудиодорожку {}: {}",
@@ -1058,8 +1169,7 @@ pub fn load_external_tracks_internal(
     if newly_added_audio {
         if !auto_select_audio {
             if !original_aid.is_empty() {
-                let _ = state
-                    .mpv
+                let _ = mpv
                     .set_property_string(
                         "aid",
                         &original_aid,
@@ -1067,28 +1177,24 @@ pub fn load_external_tracks_internal(
             }
         } else {
             // Переключаемся на подхваченную аудиодорожку (последний добавившийся ID в track-list)
-            let updated_count = state
-                .mpv
+            let updated_count = mpv
                 .get_property_double("track-list/count")
                 .unwrap_or(0.0) as i64;
             for i in (0..updated_count).rev() {
-                let t_type = state
-                    .mpv
+                let t_type = mpv
                     .get_property_string(&format!(
                         "track-list/{}/type",
                         i
                     ))
                     .unwrap_or_default();
                 if t_type == "audio" {
-                    if let Ok(id) = state
-                        .mpv
+                    if let Ok(id) = mpv
                         .get_property_double(&format!(
                             "track-list/{}/id",
                             i
                         ))
                     {
-                        let _ = state
-                            .mpv
+                        let _ = mpv
                             .set_property_string(
                                 "aid",
                                 &(id as i64).to_string(),
@@ -1111,7 +1217,7 @@ pub fn load_external_tracks_internal(
                 "sub-add \"{}\" cached",
                 safe_path
             );
-            if let Err(e) = state.mpv.command(&cmd) {
+            if let Err(e) = mpv.command(&cmd) {
                 eprintln!(
                     "Не удалось подключить внешние \
                      субтитры {}: {}",

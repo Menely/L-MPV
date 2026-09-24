@@ -7,6 +7,7 @@
 //! каждый подмодуль фокусируется на конкретном домене функциональности.
 
 mod config;
+mod dir_scan;
 mod history;
 mod playback;
 mod playlist;

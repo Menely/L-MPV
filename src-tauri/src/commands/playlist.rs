@@ -3,11 +3,18 @@
 //! Отвечает за формирование плейлиста из соседних файлов каталога,
 //! навигацию между элементами и принудительное обновление списка.
 
-use super::history::save_current_playback_position;
+use super::dir_scan::{
+    current_open_generation, list_folder,
+    next_open_generation,
+};
+use super::history::{
+    apply_resume_start, save_current_playback_position,
+};
 use super::types::{
     escape_mpv_path, is_video_extension, natural_cmp,
     PlayerState, PlaylistItem,
 };
+use crate::mpv_manager::MpvManager;
 use tauri::State;
 
 /// Переход к предыдущему файлу в плейлисте.
@@ -16,6 +23,13 @@ pub fn playlist_prev(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
     save_current_playback_position(&state);
+    let (pos, _) = playlist_position(&state.mpv);
+    if let Some(target) =
+        playlist_filename_at(&state.mpv, pos - 1)
+    {
+        // Единственная точка resume: фронтенд второго seek не делает.
+        apply_resume_start(&state, &target);
+    }
     state.mpv.command("playlist-prev")
 }
 
@@ -25,7 +39,46 @@ pub fn playlist_next(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
     save_current_playback_position(&state);
+    let (pos, _) = playlist_position(&state.mpv);
+    if let Some(target) =
+        playlist_filename_at(&state.mpv, pos + 1)
+    {
+        apply_resume_start(&state, &target);
+    }
     state.mpv.command("playlist-next")
+}
+
+/// Индекс текущего элемента и общее число элементов плейлиста.
+///
+/// Оба значения читаются из in-memory состояния mpv — без обращений к диску.
+fn playlist_position(mpv: &MpvManager) -> (i64, i64) {
+    let count = mpv
+        .get_property_double("playlist/count")
+        .unwrap_or(0.0) as i64;
+    let pos = mpv
+        .get_property_double("playlist-pos")
+        .unwrap_or(-1.0) as i64;
+    (pos, count)
+}
+
+/// Путь к файлу элемента плейлиста по индексу.
+///
+/// Используется для выставления resume-старта ДО навигации, пока mpv ещё
+/// не переключил текущий файл.
+fn playlist_filename_at(
+    mpv: &MpvManager,
+    index: i64,
+) -> Option<String> {
+    if index < 0 {
+        return None;
+    }
+    match mpv.get_property_string(&format!(
+        "playlist/{}/filename",
+        index
+    )) {
+        Ok(name) if !name.is_empty() => Some(name),
+        _ => None,
+    }
 }
 
 /// Получение плейлиста.
@@ -34,12 +87,7 @@ pub fn get_playlist(
     state: State<'_, PlayerState>,
 ) -> Result<Vec<PlaylistItem>, String> {
     let mpv = &state.mpv;
-    let count = mpv
-        .get_property_double("playlist/count")
-        .unwrap_or(0.0) as i64;
-    let current_pos = mpv
-        .get_property_double("playlist-pos")
-        .unwrap_or(-1.0) as i64;
+    let (current_pos, count) = playlist_position(mpv);
     let mut playlist =
         Vec::with_capacity(count.max(0) as usize);
 
@@ -104,6 +152,11 @@ pub fn play_playlist_item(
         return Ok(());
     }
     save_current_playback_position(&state);
+    if let Some(target) =
+        playlist_filename_at(&state.mpv, index)
+    {
+        apply_resume_start(&state, &target);
+    }
     state
         .mpv
         .set_property_string(
@@ -125,20 +178,27 @@ pub fn reload_folder_playlist(
     if current_path.is_empty() {
         return Ok(());
     }
+    // Новое поколение: устаревшая фоновая достройка из open_file
+    // обязана остановиться и не дублировать записи.
+    next_open_generation();
     // Очищаем остальные файлы плейлиста в mpv кроме текущего файла
     let _ = state.mpv.command("playlist-clear");
     let target_path =
         std::path::PathBuf::from(&current_path);
     populate_folder_playlist(
-        &state,
+        &state.mpv,
         &target_path,
         Some(&app),
     )
 }
 
-/// Автоматическое наполнение плейлиста видеофайлами из каталога с регистронезависимым сопоставлением
+/// Автоматическое наполнение плейлиста видеофайлами из каталога с регистронезависимым сопоставлением.
+///
+/// Каталог читается ОДИН раз через общий `list_folder` (без stat-сисколлов
+/// на файл); дальнейшая работа идёт с in-memory списком. Может выполняться
+/// в фоновом потоке: все обращения к mpv сериализованы внутри libmpv.
 pub fn populate_folder_playlist(
-    state: &PlayerState,
+    mpv: &MpvManager,
     target_path: &std::path::Path,
     app: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
@@ -147,21 +207,20 @@ pub fn populate_folder_playlist(
         _ => std::path::Path::new("."),
     };
 
-    let entries = match std::fs::read_dir(parent) {
-        Ok(e) => e,
-        Err(_) => return Ok(()),
-    };
+    let generation = current_open_generation();
+    let listing = list_folder(parent);
 
     let mut video_files: Vec<std::path::PathBuf> =
-        entries
-            .filter_map(|e| e.ok())
-            .map(|e| e.path())
-            .filter(|p| {
-                p.is_file()
-                    && p.extension()
-                        .and_then(|ext| ext.to_str())
+        listing
+            .entries
+            .iter()
+            .filter(|e| {
+                e.is_file
+                    && e.extension_lower
+                        .as_deref()
                         .is_some_and(is_video_extension)
             })
+            .map(|e| e.path.clone())
             .collect();
 
     // Сортировка файлов по естественному алфавитному порядку (Natural Sort)
@@ -198,30 +257,43 @@ pub fn populate_folder_playlist(
 
         if let Some(idx) = target_idx {
             // Файлы, идущие ДО текущего по алфавиту, добавляем и перемещаем в начало плейлиста,
-            // сдвигая текущий файл на его корректный алфавитный индекс
+            // сдвигая текущий файл на его корректный алфавитный индекс.
+            // Проверка поколения на каждой итерации: устаревшая задача обязана
+            // остановиться сразу, иначе её append'ы попадут в плейлист уже
+            // нового открытого файла.
             for (k, f) in
                 video_files[..idx].iter().enumerate()
             {
+                if current_open_generation() != generation {
+                    return Ok(());
+                }
                 let safe_f = escape_mpv_path(
                     &f.to_string_lossy(),
                 );
-                let _ = state.mpv.command(&format!(
+                let _ = mpv.command(&format!(
                     "loadfile \"{}\" append",
                     safe_f
                 ));
                 let last_idx = k + 1;
-                let _ = state.mpv.command(&format!(
+                let _ = mpv.command(&format!(
                     "playlist-move {} {}",
                     last_idx, k
                 ));
             }
+            // Устаревшая фоновая задача (открыли файл новее) дальше не идёт.
+            if current_open_generation() != generation {
+                return Ok(());
+            }
 
             // Файлы, идущие ПОСЛЕ текущего по алфавиту, добавляем в конец плейлиста
             for f in &video_files[(idx + 1)..] {
+                if current_open_generation() != generation {
+                    return Ok(());
+                }
                 let safe_f = escape_mpv_path(
                     &f.to_string_lossy(),
                 );
-                let _ = state.mpv.command(&format!(
+                let _ = mpv.command(&format!(
                     "loadfile \"{}\" append",
                     safe_f
                 ));
