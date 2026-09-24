@@ -39,6 +39,8 @@ interface UseFollowPlaybackParams {
   expectedScrollTopRef: RefObject<number>;
   /** Ref текущего scrollOffset для виртуализатора. */
   scrollOffsetRef: RefObject<number>;
+  /** Ref временной метки последней ручной навигации (стрелками или кликом). */
+  lastManualNavTimeRef?: RefObject<number>;
 }
 
 /**
@@ -50,6 +52,8 @@ interface UseFollowPlaybackParams {
  *   за доли секунды благодаря `calculateAdaptiveStep`.
  * - Скроллим строго контейнер списка (не scrollIntoView —
  *   тот тянет предков).
+ * - При недавней ручной навигации клавиатурой или клике rAF-цикл
+ *   приостанавливает центрирование на 2 секунды, чтобы не дергать экран.
  *
  * При выключенном следовании (`followPlayback = false`) или при
  * активном поисковом запросе эффект не запускается.
@@ -65,6 +69,7 @@ export function useFollowPlayback({
   activeLineElRef,
   expectedScrollTopRef,
   scrollOffsetRef,
+  lastManualNavTimeRef,
 }: UseFollowPlaybackParams): void {
   useEffect(() => {
     if (
@@ -81,6 +86,13 @@ export function useFollowPlayback({
     const tick = () => {
       const container = listContainerRef.current;
       if (!container) {
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+
+      // Если пользователь недавно переключал реплики стрелками или кликал вручную —
+      // не перетягиваем список в центр принудительно, даём спокойно просмотреть фрагмент
+      if (Date.now() - (lastManualNavTimeRef?.current ?? 0) < 2000) {
         rafId = requestAnimationFrame(tick);
         return;
       }
@@ -172,5 +184,6 @@ export function useFollowPlayback({
     activeLineElRef,
     expectedScrollTopRef,
     scrollOffsetRef,
+    lastManualNavTimeRef,
   ]);
 }

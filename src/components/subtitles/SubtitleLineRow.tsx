@@ -211,7 +211,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
         </button>
       </div>
 
-      {/* Раскрываемый блок исходного кода в техническом режиме */}
+      {/* Блок исходного кода в техническом режиме (всегда открыт) */}
       {isTech && (
         <SubtitleRawBlock
           line={line}

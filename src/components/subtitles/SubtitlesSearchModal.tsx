@@ -141,6 +141,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   const clickedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isClosingRef = useRef(false);
   const expectedScrollTopRef = useRef<number>(NaN);
+  const lastManualNavTimeRef = useRef<number>(0);
 
   // ── Высота строки ──────────────────────────────────────────────────────────
   const estimatedRowHeight =
@@ -217,7 +218,6 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     activeLineIndex,
     position,
     estimatedRowHeight,
-    followPlayback,
     searchQuery,
     listContainerRef,
     scrollOffsetRef,
@@ -226,6 +226,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     setClickedLineIndex,
     clickedTimerRef,
     seekTo,
+    lastManualNavTimeRef,
   });
 
   // ── rAF-следование за речью ────────────────────────────────────────────────
@@ -240,6 +241,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     activeLineElRef,
     expectedScrollTopRef,
     scrollOffsetRef,
+    lastManualNavTimeRef,
   });
 
   // ── Виртуализация списка (Phantom Spacer) ──────────────────────────────────
@@ -348,6 +350,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     if (Math.abs(container.scrollTop - expectedScrollTopRef.current) <= 2) {
       return;
     }
+    lastManualNavTimeRef.current = Date.now();
     if (followPlayback) setFollowPlayback(false);
   }, [followPlayback]);
 
@@ -375,13 +378,14 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   // ── Переход к реплике по клику ────────────────────────────────────
   const handleSeek = useCallback(
     (line: Parameters<typeof SubtitleLineRow>[0]["line"]) => {
-      // Сбрасываем якорь поиска, чтобы снять синюю подсветку «совпадение»
-      resetNavAnchor();
+      // Сбрасываем якорь поиска и запоминаем выбранную строку для навигации стрелками
+      resetNavAnchor(line.index);
+      lastManualNavTimeRef.current = Date.now();
       setClickedLineIndex(line.index);
       if (clickedTimerRef.current) clearTimeout(clickedTimerRef.current);
       clickedTimerRef.current = setTimeout(
         () => setClickedLineIndex(null),
-        800
+        1500
       );
       seekTo(line.start);
     },
