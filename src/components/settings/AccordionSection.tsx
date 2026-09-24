@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 export interface AccordionSectionProps {
@@ -18,18 +17,17 @@ export function AccordionSection({
   badge,
   children,
 }: AccordionSectionProps) {
-  const [hasInteracted, setHasInteracted] = useState(false);
-
+  // Анимация включена всегда (класс --animated статичен): раньше первое
+  // раскрытие было мгновенным, т.к. --animated и --open попадали в один
+  // коммит и transition не срабатывал. На маунте анимации нет — значение
+  // grid-template-rows не меняется без тоггла.
   const handleToggle = () => {
-    setHasInteracted(true);
     onToggle();
   };
 
   return (
     <div
-      className={`settings-accordion ${isOpen ? "settings-accordion--open" : ""} ${
-        hasInteracted ? "settings-accordion--animated" : ""
-      }`}
+      className={`settings-accordion ${isOpen ? "settings-accordion--open" : ""} settings-accordion--animated`}
     >
       <button
         type="button"

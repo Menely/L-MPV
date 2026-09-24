@@ -32,11 +32,9 @@
 
 @keyframes popoverFadeIn {
   0% {
-    opacity: 0;
     transform: translateY(8px);
   }
   100% {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -83,7 +81,7 @@
   padding: 8px 12px;
   flex: 1;
   min-width: 0;
-  border: 1px solid transparent;
+  border: 1.5px solid transparent;
   background: transparent;
   color: var(--text-primary);
   font-size: var(--fs-base);
@@ -116,8 +114,7 @@
 .track-popover__item--active {
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
   color: var(--text-primary) !important;
-  font-weight: 600;
-  border: 1.5px solid var(--accent) !important;
+  border-color: var(--accent) !important;
   box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
 }
 

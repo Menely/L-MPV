@@ -60,11 +60,9 @@
 
 @keyframes mediaInfoFadeIn {
   0% {
-    opacity: 0;
     transform: translateY(6px);
   }
   100% {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -769,11 +767,9 @@
 /* ─── Модальное окно автообновления (UpdateModal) ── */
 @keyframes updateModalFadeIn {
   from {
-    opacity: 0;
     transform: scale(0.95) translateY(8px);
   }
   to {
-    opacity: 1;
     transform: scale(1) translateY(0);
   }
 }
@@ -843,20 +839,15 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  animation: updateToastSpringIn var(--t-spring) var(--ease-spring-smooth);
+  animation: updateToastSpringIn var(--t-spring) var(--ease-out);
   transition: bottom var(--t-base) var(--ease-smooth);
 }
 
 @keyframes updateToastSpringIn {
   0% {
-    opacity: 0;
     transform: translate3d(0, 14px, 0) scale(0.96);
   }
-  70% {
-    transform: translate3d(0, -2px, 0) scale(1.005);
-  }
   100% {
-    opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
   }
 }

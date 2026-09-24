@@ -7,6 +7,17 @@
   box-sizing: border-box;
 }
 
+/* Наследование шрифта для интерактивных элементов: без этого Chromium
+   отрисовывает текст в <button>/<input>/<select> системным шрифтом
+   (Segoe UI) вместо Inter — расхождение метрик, «мыло» и микро-сдвиги
+   при смене состояний. Размеры заданы в rem и не меняются. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 /* Отключение стрелок спиннера у числовых полей ввода */
 .no-spin-input::-webkit-outer-spin-button,
 .no-spin-input::-webkit-inner-spin-button {
