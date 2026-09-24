@@ -405,10 +405,10 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
       className="subtitles-modal-overlay"
       style={{
         position: "fixed",
-        bottom: "94px",
+        bottom: "var(--bottom-overlays-bottom, 94px)",
         right: `${offsetX}px`,
-        height: "calc(100% - 154px)",
-        maxHeight: "calc(100% - 154px)",
+        height: "calc(100% - var(--bottom-overlays-bottom, 94px) - 60px)",
+        maxHeight: "calc(100% - var(--bottom-overlays-bottom, 94px) - 60px)",
         width: `${modalWidth}px`,
         maxWidth: "calc(100vw - 28px)",
         minWidth: `min(${

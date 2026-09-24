@@ -243,14 +243,14 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
               inert={controlsLocked}
               aria-disabled={controlsLocked}
             >
-              <div style={optionCardStyle}>
+              <div style={{ ...optionCardStyle, height: "100%", boxSizing: "border-box" }}>
                 <div style={optionBlockHeaderStyle}>
                   <div style={optionBlockTitleStyle}>
                     <Monitor size={14} style={{ color: "var(--accent)" }} />
                     <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.placement}</span>
                   </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateRows: "repeat(3, 1fr)", gap: 8, flex: 1 }}>
                   {PLACEMENT_ITEMS.map((item) => {
                     const isSel = visualizerConfig.placement === item.id;
                     const itemLabel = dict.settings.appearance.visualizer.placements[item.id]?.label || item.label;
@@ -260,17 +260,19 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         key={item.id}
                         type="button"
                         onClick={() => updateVisualizer({ placement: item.id })}
-                        style={optionBtnStyle(isSel, "8px 6px")}
+                        style={{ ...optionBtnStyle(isSel, "6px 8px"), height: "100%", minHeight: 38, boxSizing: "border-box" }}
                         title={itemDesc}
                       >
-                        <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{itemLabel}</span>
+                        <span style={{ fontSize: "0.80rem", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {itemLabel}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              <div style={optionCardStyle}>
+              <div style={{ ...optionCardStyle, height: "100%", boxSizing: "border-box" }}>
                 <div style={optionBlockHeaderStyle}>
                   <div style={optionBlockTitleStyle}>
                     <Layers size={14} style={{ color: "var(--accent)" }} />
@@ -280,7 +282,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                     {dict.settings.appearance.visualizer.modes[visualizerConfig.mode]?.label || visualizerConfig.mode}
                   </span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gridAutoRows: "1fr", gap: 8, flex: 1 }}>
                   {MODE_ITEMS.map((item) => {
                     const isSel = visualizerConfig.mode === item.id;
                     const itemLabel = dict.settings.appearance.visualizer.modes[item.id]?.label || item.label;
@@ -290,10 +292,12 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         key={item.id}
                         type="button"
                         onClick={() => updateVisualizer({ mode: item.id })}
-                        style={optionBtnStyle(isSel, "8px 6px")}
+                        style={{ ...optionBtnStyle(isSel, "6px 6px"), height: "100%", minHeight: 38, boxSizing: "border-box" }}
                         title={itemDesc}
                       >
-                        <span style={{ fontSize: "0.84rem", fontWeight: 600 }}>{itemLabel}</span>
+                        <span style={{ fontSize: "0.78rem", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                          {itemLabel}
+                        </span>
                       </button>
                     );
                   })}

@@ -30,9 +30,9 @@
 /* --- Media Info Overlay --- */
 .media-info-overlay {
   position: fixed;
-  bottom: 94px;
+  bottom: var(--bottom-overlays-bottom, 94px);
   left: 14px;
-  max-height: calc(100% - 154px);
+  max-height: calc(100% - var(--bottom-overlays-bottom, 94px) - 60px);
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--bg-pill);
@@ -54,6 +54,8 @@
   box-sizing: border-box;
   animation: mediaInfoFadeIn 160ms var(--ease-out);
   transform-origin: bottom left;
+  transition: bottom var(--t-base) var(--ease-smooth),
+              max-height var(--t-base) var(--ease-smooth);
 }
 
 @keyframes mediaInfoFadeIn {
@@ -86,14 +88,16 @@
 /* ─── Окно глав (Chapters Modal) ────────────────────────────── */
 .chapters-modal-overlay {
   position: fixed;
-  bottom: 94px;
+  bottom: var(--bottom-overlays-bottom, 94px);
   right: 14px;
-  max-height: calc(100% - 154px);
+  max-height: calc(100% - var(--bottom-overlays-bottom, 94px) - 60px);
   width: min(350px, calc(100vw - 28px));
   pointer-events: none;
   z-index: 450;
   display: flex;
   flex-direction: column;
+  transition: bottom var(--t-base) var(--ease-smooth),
+              max-height var(--t-base) var(--ease-smooth);
 }
 
 .chapters-modal-card {
@@ -403,9 +407,9 @@
 /* ─── Playlist Drawer (Floating Card Overlay) ────────────────── */
 .playlist-drawer {
   position: fixed;
-  bottom: 94px;
+  bottom: var(--bottom-overlays-bottom, 94px);
   right: 14px;
-  max-height: calc(100% - 154px);
+  max-height: calc(100% - var(--bottom-overlays-bottom, 94px) - 60px);
   min-width: min(360px, calc(100% - 28px));
   max-width: calc(100% - 28px);
   width: 360px;
@@ -421,6 +425,8 @@
   overflow: hidden;
   animation: playlistFadeIn 140ms var(--ease-out);
   transform-origin: bottom right;
+  transition: bottom var(--t-base) var(--ease-smooth),
+              max-height var(--t-base) var(--ease-smooth);
 }
 
 .playlist-drawer--resizing {
@@ -822,7 +828,7 @@
 /* ─── Всплывающее уведомление об обновлении (Update Toast) ── */
 .update-toast {
   position: fixed;
-  bottom: 94px;
+  bottom: var(--bottom-overlays-bottom, 94px);
   right: 18px;
   width: 320px;
   max-width: calc(100vw - 36px);
@@ -838,6 +844,7 @@
   flex-direction: column;
   gap: 12px;
   animation: updateToastSpringIn var(--t-spring) var(--ease-spring-smooth);
+  transition: bottom var(--t-base) var(--ease-smooth);
 }
 
 @keyframes updateToastSpringIn {

@@ -363,31 +363,47 @@ export function renderVisualizerFrame(
     const gap = 3;
     const barWidth = Math.max(3, (w - gap * (barCount - 1)) / barCount);
     const centerY = h / 2;
-    const maxHalfH = (h / 2) * 0.92;
+    const maxHalfH = Math.max(4, (h / 2) * 0.92);
+    const safeDt = Math.max(0.001, Math.min(0.064, isNaN(dt) ? 0.016 : dt));
+
+    if (!Array.isArray(state.bars) || state.bars.length < 48) {
+      state.bars = new Array(48).fill(2);
+    }
 
     for (let i = 0; i < barCount; i++) {
       const specIdx = Math.min(31, Math.floor((i / barCount) * 32));
       const val = spectrum[specIdx] || 0;
       const targetHalfH = isAudible ? Math.min(maxHalfH, Math.max(2, val * maxHalfH * 1.2)) : 2;
 
-      const attackSpeed = targetHalfH > (state.bars[i] || 2) ? 24.0 : 13.0;
-      state.bars[i] = (state.bars[i] || 2) + (targetHalfH - (state.bars[i] || 2)) * Math.min(1.0, dt * attackSpeed);
-      const curHalfH = state.bars[i];
+      const prevHalfH =
+        typeof state.bars[i] === "number" && !isNaN(state.bars[i]) && state.bars[i] > 0
+          ? state.bars[i]
+          : 2;
+      const attackSpeed = targetHalfH > prevHalfH ? 24.0 : 13.0;
+      state.bars[i] = Math.max(
+        2,
+        Math.min(maxHalfH, prevHalfH + (targetHalfH - prevHalfH) * Math.min(1.0, Math.max(0, safeDt * attackSpeed)))
+      );
+      const curHalfH = Math.max(2, state.bars[i]);
 
       const x = i * (barWidth + gap);
       const y = centerY - curHalfH;
-      const barH = curHalfH * 2;
+      const barH = Math.max(4, curHalfH * 2);
 
       ctx.fillStyle = gradient;
       ctx.globalAlpha = isPaused ? 0.35 : 0.92;
       ctx.shadowColor = glow;
       ctx.shadowBlur = isPaused ? 0 : 7;
 
-      const radius = Math.min(barWidth / 2, curHalfH);
+      const radius = Math.max(0.5, Math.min(barWidth / 2, curHalfH, barH / 2));
       if (ctx.roundRect) {
-        ctx.beginPath();
-        ctx.roundRect(x, y, barWidth, barH, radius);
-        ctx.fill();
+        try {
+          ctx.beginPath();
+          ctx.roundRect(x, y, barWidth, barH, radius);
+          ctx.fill();
+        } catch {
+          ctx.fillRect(x, y, barWidth, barH);
+        }
       } else {
         ctx.fillRect(x, y, barWidth, barH);
       }
@@ -789,7 +805,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
 
     const render = (time: number) => {
       const live = liveRef.current;
-      const dt = Math.min(64, time - lastTime) / 1000;
+      const dt = Math.max(0.001, Math.min(64, Math.max(0, time - lastTime))) / 1000;
       lastTime = time;
 
       const ctx = canvas.getContext("2d");

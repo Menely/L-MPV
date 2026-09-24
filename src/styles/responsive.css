@@ -67,12 +67,12 @@
   .playlist-drawer,
   .chapters-modal-overlay,
   .subtitles-modal-overlay {
-    bottom: 80px !important;
+    bottom: var(--bottom-overlays-bottom, 80px) !important;
     left: 8px !important;
     right: 8px !important;
     width: calc(100vw - 16px) !important;
     max-width: calc(100vw - 16px) !important;
-    max-height: calc(100% - 130px) !important;
+    max-height: calc(100% - var(--bottom-overlays-bottom, 80px) - 50px) !important;
   }
 
   /* Всплывающие списки выбора дорожек */

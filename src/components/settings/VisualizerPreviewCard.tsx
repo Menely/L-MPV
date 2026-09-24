@@ -24,6 +24,13 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animStateRef = useRef<VisualizerAnimState>(createInitialAnimState());
 
+  // Сброс буфера капсул при смене режима визуализации для исключения конфликтов интерполяции
+  useEffect(() => {
+    if (animStateRef.current) {
+      animStateRef.current.bars = new Array(48).fill(2);
+    }
+  }, [config.mode]);
+
   useEffect(() => {
     if (!isVisible) return;
     const canvas = canvasRef.current;
@@ -57,7 +64,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
         return;
       }
 
-      const dt = Math.min(64, time - lastTime) / 1000;
+      const dt = Math.max(0.001, Math.min(64, Math.max(0, time - lastTime))) / 1000;
       lastTime = time;
 
       const ctx = canvas.getContext("2d");
@@ -70,34 +77,38 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
         ctx.scale(dpr, dpr);
         ctx.clearRect(0, 0, w, h);
 
-        if (config.enabled) {
-          // Реалистичный синтез живого динамичного ритма для предпросмотра
-          const t = time / 1000;
-          const spectrum = new Array(32);
-          const beat = Math.pow(Math.sin(t * 3.4), 6) * 0.55 + 0.35;
-          for (let i = 0; i < 32; i++) {
-            const wave = Math.sin(t * 4.8 + i * 0.42) * 0.25 + Math.cos(t * 2.6 - i * 0.2) * 0.2;
-            const rollOff = Math.exp(-i / 18);
-            spectrum[i] = Math.max(0.06, Math.min(1.0, (beat * rollOff + wave + 0.32) * 0.9));
-          }
-
-          renderVisualizerFrame(
-            ctx,
-            w,
-            h,
-            config,
-            animStateRef.current,
-            spectrum,
-            dt,
-            {
-              isAudible: true,
-              isPaused: false,
-              speed: 1.0,
+        try {
+          if (config.enabled) {
+            // Реалистичный синтез живого динамичного ритма для предпросмотра
+            const t = time / 1000;
+            const spectrum = new Array(32);
+            const beat = Math.pow(Math.sin(t * 3.4), 6) * 0.55 + 0.35;
+            for (let i = 0; i < 32; i++) {
+              const wave = Math.sin(t * 4.8 + i * 0.42) * 0.25 + Math.cos(t * 2.6 - i * 0.2) * 0.2;
+              const rollOff = Math.exp(-i / 18);
+              spectrum[i] = Math.max(0.06, Math.min(1.0, (beat * rollOff + wave + 0.32) * 0.9));
             }
-          );
-        }
 
-        ctx.restore();
+            renderVisualizerFrame(
+              ctx,
+              w,
+              h,
+              config,
+              animStateRef.current,
+              spectrum,
+              dt,
+              {
+                isAudible: true,
+                isPaused: false,
+                speed: 1.0,
+              }
+            );
+          }
+        } catch (e) {
+          console.error("Ошибка рендеринга предпросмотра визуализатора:", e);
+        } finally {
+          ctx.restore();
+        }
       }
 
       animId = requestAnimationFrame(render);

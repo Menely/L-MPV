@@ -228,6 +228,52 @@ export function PlayerControls({
     return () => window.removeEventListener('l-mpv-settings-changed', updateSetting);
   }, []);
 
+  const controlsPillRef = useRef<HTMLDivElement | null>(null);
+
+  // Адаптивная синхронизация высоты панели управления с нижними всплывающими окнами (плейлист, главы, инфо о медиа)
+  useEffect(() => {
+    const el = controlsPillRef.current;
+    if (!el) return;
+
+    const updateControlsOffset = () => {
+      // Базовый отступ обертки панели от нижней границы окна:
+      // В docked-режиме панель прижата ко дну (0px), в обычном режиме — 12px (8px на узких экранах)
+      const wrapper = el.parentElement;
+      let bottomBase = controlBarStyle === "docked" ? 0 : 12;
+      if (wrapper) {
+        const parsed = parseFloat(window.getComputedStyle(wrapper).bottom);
+        if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+          bottomBase = parsed;
+        }
+      }
+
+      // Полная высота блока управления с учетом визуализатора над таймлайном
+      const controlsHeight = el.offsetHeight;
+      // Зазор между панелью управления и всплывающими окнами (совпадает с 14px поповера дорожек)
+      const GAP = 14;
+      const totalBottom = Math.max(76, Math.round(bottomBase + controlsHeight + GAP));
+
+      document.documentElement.style.setProperty(
+        "--bottom-overlays-bottom",
+        `${totalBottom}px`
+      );
+    };
+
+    updateControlsOffset();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateControlsOffset();
+    });
+    resizeObserver.observe(el);
+
+    window.addEventListener("resize", updateControlsOffset);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateControlsOffset);
+      document.documentElement.style.removeProperty("--bottom-overlays-bottom");
+    };
+  }, [controlBarStyle]);
+
   // Обработка внешних событий переключения поповеров дорожек
   useEffect(() => {
     const handleTogglePopover = (e: Event) => {
@@ -464,7 +510,7 @@ export function PlayerControls({
         controlBarStyle === "docked" ? "player-controls-wrapper--docked" : ""
       }`}
     >
-      <div className="player-controls">
+      <div ref={controlsPillRef} className="player-controls">
         {/* Всплывающее меню дорожек */}
         {(displayedPopover === "audio" || displayedPopover === "sub") && (
           <div

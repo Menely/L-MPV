@@ -66,6 +66,9 @@
   --radius-pill:     50px;
   --radius-controls: 16px;
 
+  /* Адаптивный отступ снизу для всплывающих окон над панелью управления */
+  --bottom-overlays-bottom: 94px;
+
   /* Анимации и Физические Кривые (Spring Physics, GPU-Optimized) */
   --ease-out:            cubic-bezier(0.16, 1, 0.3, 1);
   --ease-smooth:         cubic-bezier(0.4, 0, 0.2, 1);
