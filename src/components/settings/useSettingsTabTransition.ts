@@ -16,35 +16,17 @@ function motionAllowed(): boolean {
 }
 
 /**
- * Вычисляет реальную максимальную доступную высоту контентной области модального окна настроек.
- * Окно настроек ограничено 78vh. Зная габариты шапки, табов и футера, мы вычисляем потолок для panel,
- * благодаря чему transition высоты не улетает за пределы видимого экрана и не провоцирует
- * появление ложного скроллбара.
- */
-function getMaxBodyHeight(body: HTMLDivElement | null): number {
-  if (typeof window === "undefined") return 600;
-  const maxModalHeight = Math.floor(window.innerHeight * 0.78);
-  const modal = body?.closest<HTMLElement>(".modal--settings");
-  const headerHeight = modal?.querySelector<HTMLElement>(".modal__header")?.offsetHeight ?? 48;
-  const tabsHeight = modal?.querySelector<HTMLElement>(".settings-tabs")?.offsetHeight ?? 42;
-  const footerHeight = modal?.querySelector<HTMLElement>(".settings-footer")?.offsetHeight ?? 46;
-  const bodyPadding = 26; // 16px top + 10px bottom
-  const overhead = headerHeight + tabsHeight + footerHeight + bodyPadding;
-  return Math.max(180, maxModalHeight - overhead);
-}
-
-/**
- * Плавное переключение вкладок без скачков скроллбара и дергания контента.
- * 
- * Архитектурное решение:
- * 1. Изоляция переполнения по вертикали на время анимации через `overflow-y: clip`.
- *    В отличие от hidden, clip не создаёт промежуточный скролл-контейнер.
- *    При этом `overflow-x: visible` сохраняет тени аккордеонов без обрезки.
- * 2. Родительский `.modal__body` сохраняет `scrollbar-gutter: stable`, благодаря чему
- *    ширина контента фиксирована и иконки не смещаются.
- * 3. Целевая высота анимации ограничена `maxBodyHeight`, поэтому скроллбар
- *    активируется только на финальном этапе, если контент действительно длиннее окна,
- *    и никогда не мелькает при переходе с маленькой вкладки.
+ * Плавное переключение вкладок: анимация высоты панели (старая -> новая)
+ * + направление слайда контента. Логика вкладок не затрагивается —
+ * хук лишь замеряет DOM и анимирует обёртку.
+ * Важно: обрезка лишнего контента делается через clip-path с запасом -20px,
+ * а НЕ через overflow: hidden — иначе box-shadow свёрнутых аккордеонов
+ * (уходят на ~14-18px за границы панели) срезаются на время анимации
+ * и моргают в конце перехода.
+ * Замер через offsetHeight (целые layout-px): getBoundingClientRect() под
+ * `zoom: var(--ui-scale)` возвращает визуальные px (см. ContextMenu:
+ * там rect делят на zoom) — запись rect в style завышала бы высоту.
+ * Портативно: только чтение размеров, никаких внешних записей.
  */
 export function useSettingsTabTransition(activeTab: string, tabOrder: readonly string[]) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -59,13 +41,10 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     const order = tabOrder as readonly string[];
     setSlideDir(order.indexOf(next) >= order.indexOf(prevTabRef.current) ? 1 : -1);
     const panel = panelRef.current;
-    const body = bodyRef.current;
     if (panel && motionAllowed()) {
-      const maxH = getMaxBodyHeight(body);
-      startHeightRef.current = Math.min(Math.round(panel.offsetHeight), maxH);
+      startHeightRef.current = Math.round(panel.offsetHeight);
       panel.style.height = `${startHeightRef.current}px`;
-      panel.style.overflowY = "clip";
-      panel.style.overflowX = "visible";
+      panel.style.clipPath = "inset(-20px)";
     } else {
       startHeightRef.current = 0;
     }
@@ -77,63 +56,59 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     const panel = panelRef.current;
     const body = bodyRef.current;
     if (body) body.scrollTop = 0;
-
-    const cleanupPanel = () => {
-      if (!panel) return;
-      panel.style.height = "";
-      panel.style.overflowY = "";
-      panel.style.overflowX = "";
-      panel.style.clipPath = "";
-      panel.style.transition = "";
+    const restoreBody = () => {
+      if (body) body.style.overflowY = "";
     };
-
     if (!panel || !motionAllowed() || startHeightRef.current <= 0) {
-      cleanupPanel();
+      if (panel) {
+        panel.style.height = "";
+        panel.style.clipPath = "";
+        panel.style.transition = "";
+      }
       startHeightRef.current = 0;
+      restoreBody();
       return;
     }
-
     const h0 = startHeightRef.current;
     startHeightRef.current = 0;
-
-    // Снимаем ограничение высоты для замера контента новой вкладки
     panel.style.height = "auto";
-    const naturalHeight = Math.round(panel.offsetHeight);
-    const maxH = getMaxBodyHeight(body);
-    const h1 = Math.min(naturalHeight, maxH);
-
+    const h1 = Math.round(panel.offsetHeight);
     if (Math.abs(h1 - h0) < 2) {
-      cleanupPanel();
+      panel.style.height = "";
+      panel.style.clipPath = "";
+      restoreBody();
       return;
     }
-
+    // Пока окно едет — скроллбар тела прячем, иначе при сужении
+    // он мелькает на время анимации, хотя по факту не нужен.
+    if (body) body.style.overflowY = "hidden";
     panel.style.height = `${h0}px`;
-    panel.style.overflowY = "clip";
-    panel.style.overflowX = "visible";
     void panel.offsetHeight; // reflow: transition стартует со старой высоты
-
     panel.style.transition = `height ${TRANSITION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`;
     panel.style.height = `${h1}px`;
-
     let done = false;
     const finish = () => {
       if (done) return;
       done = true;
-      cleanupPanel();
+      panel.style.transition = "";
+      panel.style.height = "";
+      panel.style.clipPath = "";
+      restoreBody();
       panel.removeEventListener("transitionend", onEnd);
     };
-
     const onEnd = (e: TransitionEvent) => {
       if (e.propertyName === "height") finish();
     };
-
     panel.addEventListener("transitionend", onEnd);
     const timer = window.setTimeout(finish, TRANSITION_MS + 40);
 
     return () => {
       window.clearTimeout(timer);
       panel.removeEventListener("transitionend", onEnd);
-      cleanupPanel();
+      restoreBody();
+      panel.style.transition = "";
+      panel.style.height = "";
+      panel.style.clipPath = "";
     };
   }, [activeTab]);
 

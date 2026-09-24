@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { usePlayerState, usePlayerProgress, useLiveState } from "../../contexts/PlayerStateContext";
 import { formatTime } from "../../utils/timeUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 
 interface MediaInfoModalProps {
   /** Обработчик закрытия модального окна. */
@@ -104,15 +105,14 @@ export function MediaInfoModal({
 
   const handleClose = useCallback(() => {
     if (isClosing) return;
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
+    if (!isMotionAllowed()) {
       onClose();
       return;
     }
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 120);
+    }, getCloseTimeoutMs("fast"));
   }, [isClosing, onClose]);
 
   // Закрытие оверлея инфо по Escape

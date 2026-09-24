@@ -65,6 +65,7 @@ import {
   BUILT_IN_PRESETS,
   type SettingsPreset,
 } from "../../utils/presetsUtils";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import type { ModelFileItem, UpscaleStatus, UpscaleSettings } from "../upscale/types";
 
 interface ContextMenuProps {
@@ -366,15 +367,14 @@ export function ContextMenu({
       window.clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
+    if (!isMotionAllowed()) {
       onClose();
       return;
     }
     setIsClosing(true);
     closingTimerRef.current = setTimeout(() => {
       onClose();
-    }, 120);
+    }, getCloseTimeoutMs("fast"));
   }, [isClosing, onClose]);
 
   useEffect(() => {

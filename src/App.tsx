@@ -8,6 +8,7 @@ import {
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
+import { isMotionAllowed, CLOSE_OSD_MS } from "./utils/animationUtils";
 import { usePlayerState } from "./contexts/PlayerStateContext";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
@@ -117,8 +118,7 @@ function App() {
     setIsOsdClosing(false);
     setOsdText(text);
 
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    const fadeDuration = isNoAnim ? 0 : 200;
+    const fadeDuration = isMotionAllowed() ? CLOSE_OSD_MS : 0;
 
     osdTimerRef.current = window.setTimeout(() => {
       if (fadeDuration > 0) {

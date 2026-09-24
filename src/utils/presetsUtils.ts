@@ -5,6 +5,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
+import { setAnimationsEnabled } from "./animationUtils";
 import {
   applyAccentColor,
   GlowIntensity,
@@ -472,10 +473,9 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
     saveControlBarStyle(data.controlBarStyle);
   }
 
-  // 4. Плавные анимации
+  // 4. Плавные анимации — через единый сеттер (localStorage + класс + data-атрибут)
   if (typeof data.animationsEnabled === "boolean") {
-    localStorage.setItem("l-mpv-animations-enabled", data.animationsEnabled ? "true" : "false");
-    document.documentElement.setAttribute("data-animations", data.animationsEnabled ? "on" : "off");
+    setAnimationsEnabled(data.animationsEnabled);
   }
 
   // 5. Названия дорожек

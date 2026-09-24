@@ -75,6 +75,7 @@ import { AppearanceSettingsTab } from "../settings/AppearanceSettingsTab";
 import { GeneralSettingsTab } from "../settings/GeneralSettingsTab";
 import { useSettingsTabTransition } from "../settings/useSettingsTabTransition";
 import { preloadSettingsTabs } from "../settings/settingsTabPreload";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { SettingsPreset } from "../../utils/presetsUtils";
 import {
   UiRadiusLevel,
@@ -173,15 +174,14 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   const handleClose = useCallback(() => {
     if (closeTimerRef.current) return;
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
+    if (!isMotionAllowed()) {
       onClose();
       return;
     }
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 140);
+    }, getCloseTimeoutMs("base"));
   }, [onClose]);
 
   useEffect(() => {
@@ -599,7 +599,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         style={{
           width: 720,
           maxWidth: "95vw",
-          maxHeight: "78vh",
+          maxHeight: "75vh",
           display: "flex",
           flexDirection: "column",
         }}

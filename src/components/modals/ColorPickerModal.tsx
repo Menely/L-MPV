@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { X, Plus } from "lucide-react";
 import { hslToRgb, rgbToHex, hexToRgb, rgbToHsl } from "../../utils/colorUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 
 interface ColorPickerModalProps {
   initialColor?: string;
@@ -40,8 +41,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
 
   const handleClose = useCallback(() => {
     if (isClosing) return;
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
+    if (!isMotionAllowed()) {
       onClose();
       return;
     }
@@ -49,7 +49,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     closeTimerRef.current = setTimeout(() => {
       onClose();
       setIsClosing(false);
-    }, 175);
+    }, getCloseTimeoutMs("base"));
   }, [isClosing, onClose]);
 
   useEffect(() => {
