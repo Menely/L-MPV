@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from "react";
-import { usePlayerState, type TrackInfo } from "../contexts/PlayerStateContext";
-import { useTranslation } from "../i18n/LanguageContext";
+import { usePlayerState, type TrackInfo } from "../../contexts/PlayerStateContext";
+import { useTranslation } from "../../i18n/LanguageContext";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getSavedLayout, LAYOUT_CHANGED_EVENT, type LayoutEntry } from "../utils/contextMenuLayout";
+import { getSavedLayout, LAYOUT_CHANGED_EVENT, type LayoutEntry } from "../../utils/contextMenuLayout";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   FolderOpen,
@@ -40,32 +40,32 @@ import {
   getSavedTimePosition,
   saveTimePosition,
   TIME_POSITION_OPTIONS,
-} from "../utils/timePositionUtils";
+} from "../../utils/timePositionUtils";
 import {
   type RecentFile,
   getRecentFiles,
   clearRecentFiles,
-} from "../utils/recentFilesUtils";
+} from "../../utils/recentFilesUtils";
 import {
   type TimeFormatMode,
   getSavedTimeFormat,
   saveTimeFormat,
   TIME_FORMAT_OPTIONS,
-} from "../utils/timeFormatUtils";
+} from "../../utils/timeFormatUtils";
 import {
   type ControlBarStyle,
   getSavedControlBarStyle,
   saveControlBarStyle,
   CONTROL_BAR_STYLE_OPTIONS,
-} from "../utils/controlBarStyleUtils";
+} from "../../utils/controlBarStyleUtils";
 import {
   loadUserPresets,
   applySettingsPreset,
   getSavedActivePresetId,
   BUILT_IN_PRESETS,
   type SettingsPreset,
-} from "../utils/presetsUtils";
-import type { ModelFileItem, UpscaleStatus, UpscaleSettings } from "./upscale/types";
+} from "../../utils/presetsUtils";
+import type { ModelFileItem, UpscaleStatus, UpscaleSettings } from "../upscale/types";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */

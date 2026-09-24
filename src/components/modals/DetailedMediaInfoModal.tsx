@@ -11,7 +11,7 @@ import {
   AlertCircle,
   Languages,
 } from "lucide-react";
-import { usePlayerState } from "../contexts/PlayerStateContext";
+import { usePlayerState } from "../../contexts/PlayerStateContext";
 
 interface DetailedMediaInfoModalProps {
   isOpen: boolean;
@@ -24,8 +24,8 @@ interface DetailedMediaInfoResponse {
   json: string;
 }
 
-import { parseMediaInfoLines } from "../utils/mediaInfoParser";
-import { useTranslation } from "../i18n/LanguageContext";
+import { parseMediaInfoLines } from "../../utils/mediaInfoParser";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 export function DetailedMediaInfoModal({
   isOpen,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { usePlayerState } from "../contexts/PlayerStateContext";
-import { useTranslation } from "../i18n/LanguageContext";
+import { usePlayerState } from "../../contexts/PlayerStateContext";
+import { useTranslation } from "../../i18n/LanguageContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   Undo,
@@ -40,22 +40,22 @@ import {
   VisualizerConfig,
   VisualizerMode,
 } from "./AudioVisualizer";
-import { getCustomHotkeys } from "../utils/hotkeyUtils";
+import { getCustomHotkeys } from "../../utils/hotkeyUtils";
 import {
   TimeDisplayPosition,
   getSavedTimePosition,
-} from "../utils/timePositionUtils";
+} from "../../utils/timePositionUtils";
 import {
   TimeFormatMode,
   getSavedTimeFormat,
   saveTimeFormat,
   getNextTimeFormat,
   TIME_FORMAT_OPTIONS,
-} from "../utils/timeFormatUtils";
+} from "../../utils/timeFormatUtils";
 import {
   ControlBarStyle,
   getSavedControlBarStyle,
-} from "../utils/controlBarStyleUtils";
+} from "../../utils/controlBarStyleUtils";
 import { TimeDisplay } from "./TimeDisplay";
 
 export function PlayerControls({

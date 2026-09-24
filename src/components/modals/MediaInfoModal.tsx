@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { usePlayerState, usePlayerProgress, useLiveState } from "../contexts/PlayerStateContext";
-import { formatTime } from "../utils/timeUtils";
-import { useTranslation } from "../i18n/LanguageContext";
+import { usePlayerState, usePlayerProgress, useLiveState } from "../../contexts/PlayerStateContext";
+import { formatTime } from "../../utils/timeUtils";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 interface MediaInfoModalProps {
   /** Обработчик закрытия модального окна. */

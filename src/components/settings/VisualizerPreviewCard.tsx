@@ -6,7 +6,7 @@ import {
   createInitialAnimState,
   getVisualizerThemeColors,
   renderVisualizerFrame,
-} from "../AudioVisualizer";
+} from "../player/AudioVisualizer";
 
 interface VisualizerPreviewCardProps {
   config: VisualizerConfig;

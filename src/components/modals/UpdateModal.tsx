@@ -14,8 +14,8 @@ import {
   ChevronDown,
   Check,
 } from "lucide-react";
-import { MarkdownRenderer } from "./MarkdownRenderer";
-import { useTranslation } from "../i18n/LanguageContext";
+import { MarkdownRenderer } from "../common/MarkdownRenderer";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 /**
  * Иконка-логотип плеера L-MPV (векторный SVG).

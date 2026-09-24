@@ -54,9 +54,9 @@
       "timestampUrl": "http://timestamp.digicert.com"
     },
     "resources": [
-      "libmpv-2.dll",
-      "ffmpeg.exe",
-      "mediainfo.dll"
+      "binaries/libmpv-2.dll",
+      "binaries/ffmpeg.exe",
+      "binaries/mediainfo.dll"
     ],
     "icon": [
       "icons/32x32.png",

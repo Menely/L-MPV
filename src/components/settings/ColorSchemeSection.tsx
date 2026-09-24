@@ -27,7 +27,7 @@ import {
   getGlowIntensity,
   saveGlowIntensity,
 } from "../../utils/colorUtils";
-import { ColorPickerModal } from "../ColorPickerModal";
+import { ColorPickerModal } from "../modals/ColorPickerModal";
 
 interface ColorSchemeSectionProps {
   /** Опциональный callback при изменении акцентного цвета */

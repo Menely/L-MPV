@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { usePlayerState, PlaylistItem } from "../contexts/PlayerStateContext";
-import { useTranslation } from "../i18n/LanguageContext";
-import { getActiveUiScale } from "../utils/uiThemeUtils";
+import { usePlayerState, PlaylistItem } from "../../contexts/PlayerStateContext";
+import { useTranslation } from "../../i18n/LanguageContext";
+import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import { X, Search, Play, Clapperboard, RotateCw } from "lucide-react";
-import { EmptyState } from "./settings/SettingBlocks";
+import { EmptyState } from "../settings/SettingBlocks";
 
 interface PlaylistItemRowProps {
   item: PlaylistItem;

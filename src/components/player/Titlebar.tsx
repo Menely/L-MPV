@@ -6,20 +6,20 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { usePlayerState } from "../contexts/PlayerStateContext";
-import { useTranslation } from "../i18n/LanguageContext";
+import { usePlayerState } from "../../contexts/PlayerStateContext";
+import { useTranslation } from "../../i18n/LanguageContext";
 import { TimeDisplay } from "./TimeDisplay";
 import {
   TimeDisplayPosition,
   getSavedTimePosition,
-} from "../utils/timePositionUtils";
+} from "../../utils/timePositionUtils";
 import {
   TimeFormatMode,
   getSavedTimeFormat,
   saveTimeFormat,
   getNextTimeFormat,
   TIME_FORMAT_OPTIONS,
-} from "../utils/timeFormatUtils";
+} from "../../utils/timeFormatUtils";
 
 interface TitlebarProps {
   /** Заголовок окна плеера. */

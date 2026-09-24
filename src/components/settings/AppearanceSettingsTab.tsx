@@ -12,7 +12,7 @@ import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESE
 import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../utils/timePositionUtils";
 import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../utils/timeFormatUtils";
 import { ControlBarStyle } from "../../utils/controlBarStyleUtils";
-import { AmbientSettings } from "../SettingsModal";
+import { AmbientSettings } from "../modals/SettingsModal";
 
 interface VerticalSliderProps {
   value: number;

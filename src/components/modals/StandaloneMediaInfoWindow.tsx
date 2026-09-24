@@ -17,8 +17,8 @@ import {
   RefreshCw,
   Pin,
 } from "lucide-react";
-import { parseMediaInfoLines } from "../utils/mediaInfoParser";
-import "../styles/mediainfo-modal.css";
+import { parseMediaInfoLines } from "../../utils/mediaInfoParser";
+import "../../styles/mediainfo-modal.css";
 
 interface DetailedMediaInfoResponse {
   text: string;

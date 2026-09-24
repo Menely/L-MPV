@@ -9,7 +9,7 @@ import {
   Palette,
   Ruler,
 } from "lucide-react";
-import { AccordionSection } from "../SettingsModal";
+import { AccordionSection } from "./AccordionSection";
 import {
   optionCardStyle,
   optionResetBtnStyle,
@@ -24,7 +24,7 @@ import {
   VisualizerConfig,
   getVisualizerConfig,
   saveVisualizerConfig,
-} from "../AudioVisualizer";
+} from "../player/AudioVisualizer";
 
 interface VisualizerSettingsSectionProps {
   isOpen: boolean;

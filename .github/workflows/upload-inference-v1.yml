@@ -64,6 +64,30 @@ jobs:
             Write-Host "Готово: ${targetName} перепакован без папки animejanai."
           }
 
+      - name: Валидация собранных архивов перед публикацией
+        shell: pwsh
+        run: |
+          $expected = @(
+            "l-mpv_convert_fp16.zip",
+            "aji-windows-x64.zip",
+            "component-trt-runtime.7z",
+            "component-trt-sm120.7z",
+            "component-trt-sm100.7z",
+            "component-trt-sm90.7z",
+            "component-trt-sm89.7z",
+            "component-trt-sm86.7z",
+            "component-trt-sm80.7z",
+            "component-trt-sm75.7z",
+            "component-trt-ptx.7z"
+          )
+          foreach ($f in $expected) {
+            if (-not (Test-Path $f)) { throw "КРИТИЧЕСКАЯ ОШИБКА: отсутствует файл $f — релиз был бы неполным!" }
+            $size = (Get-Item $f).Length
+            if ($size -lt 100KB) { throw "КРИТИЧЕСКАЯ ОШИБКА: файл $f подозрительно мал ($size байт)!" }
+            Write-Host "OK: $f ($([math]::Round($size / 1MB, 1)) МБ)"
+          }
+          Write-Host "Все 11 артефактов inference-v1 проверены."
+
       - name: Публикация релиза inference-v1 на GitHub
         uses: softprops/action-gh-release@v2
         with:

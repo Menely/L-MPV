@@ -20,7 +20,7 @@ import {
   VisualizerConfig,
   getVisualizerConfig,
   saveVisualizerConfig,
-} from "../components/AudioVisualizer";
+} from "../components/player/AudioVisualizer";
 import { getCustomHotkeys, saveCustomHotkeys } from "./hotkeyUtils";
 import {
   UiRadiusLevel,

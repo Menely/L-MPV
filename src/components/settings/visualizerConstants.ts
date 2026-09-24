@@ -1,4 +1,4 @@
-import { VisualizerMode, VisualizerTheme } from "../AudioVisualizer";
+import { VisualizerMode, VisualizerTheme } from "../player/AudioVisualizer";
 
 export const MODE_LABELS: Record<VisualizerMode, string> = {
   waveform: "Waveform",

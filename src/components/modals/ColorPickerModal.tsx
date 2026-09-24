@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { X, Plus } from "lucide-react";
-import { hslToRgb, rgbToHex, hexToRgb, rgbToHsl } from "../utils/colorUtils";
-import { useTranslation } from "../i18n/LanguageContext";
+import { hslToRgb, rgbToHex, hexToRgb, rgbToHsl } from "../../utils/colorUtils";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 interface ColorPickerModalProps {
   initialColor?: string;

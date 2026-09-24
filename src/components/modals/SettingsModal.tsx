@@ -49,33 +49,33 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-import { useTranslation } from "../i18n/LanguageContext";
+import { useTranslation } from "../../i18n/LanguageContext";
 import {
   TimeDisplayPosition,
   getSavedTimePosition,
   saveTimePosition,
-} from "../utils/timePositionUtils";
+} from "../../utils/timePositionUtils";
 import {
   TimeFormatMode,
   getSavedTimeFormat,
   saveTimeFormat,
-} from "../utils/timeFormatUtils";
+} from "../../utils/timeFormatUtils";
 import {
   ControlBarStyle,
   getSavedControlBarStyle,
   saveControlBarStyle,
-} from "../utils/controlBarStyleUtils";
+} from "../../utils/controlBarStyleUtils";
 import { UpdateInfo } from "./UpdateModal";
-import { getEffectiveAccentColor } from "../utils/colorUtils";
-import { PresetsSection } from "./PresetsSection";
-import { UpscalingSettingsSection } from "./UpscalingSettingsSection";
-import { HotkeysSettingsTab } from "./settings/HotkeysSettingsTab";
-import { IntegrationSettingsTab } from "./settings/IntegrationSettingsTab";
-import { AppearanceSettingsTab } from "./settings/AppearanceSettingsTab";
-import { GeneralSettingsTab } from "./settings/GeneralSettingsTab";
-import { useSettingsTabTransition } from "./settings/useSettingsTabTransition";
-import { preloadSettingsTabs } from "./settings/settingsTabPreload";
-import { SettingsPreset } from "../utils/presetsUtils";
+import { getEffectiveAccentColor } from "../../utils/colorUtils";
+import { PresetsSection } from "../settings/PresetsSection";
+import { UpscalingSettingsSection } from "../settings/UpscalingSettingsSection";
+import { HotkeysSettingsTab } from "../settings/HotkeysSettingsTab";
+import { IntegrationSettingsTab } from "../settings/IntegrationSettingsTab";
+import { AppearanceSettingsTab } from "../settings/AppearanceSettingsTab";
+import { GeneralSettingsTab } from "../settings/GeneralSettingsTab";
+import { useSettingsTabTransition } from "../settings/useSettingsTabTransition";
+import { preloadSettingsTabs } from "../settings/settingsTabPreload";
+import { SettingsPreset } from "../../utils/presetsUtils";
 import {
   UiRadiusLevel,
   UI_RADIUS_PRESETS,
@@ -89,7 +89,7 @@ import {
   UiFontId,
   getSavedUiFont,
   saveUiFont,
-} from "../utils/uiThemeUtils";
+} from "../../utils/uiThemeUtils";
 
 export interface AmbientSettings {
   mode: "off" | "blur" | "color";
@@ -106,8 +106,8 @@ interface SettingsModalProps {
   onShowUpdate?: (info: UpdateInfo) => void;
 }
 
-export { AccordionSection } from "./settings/AccordionSection";
-export type { AccordionSectionProps } from "./settings/AccordionSection";
+export { AccordionSection } from "../settings/AccordionSection";
+export type { AccordionSectionProps } from "../settings/AccordionSection";
 
 const SETTINGS_TABS = [
   "general",

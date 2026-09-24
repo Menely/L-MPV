@@ -14,7 +14,7 @@ import {
   isCodeReservedForUpscaleOff,
   UPSCALE_OFF_ACTION_ID,
 } from "../../utils/hotkeyUtils";
-import { AccordionSection } from "../SettingsModal";
+import { AccordionSection } from "./AccordionSection";
 import { useTranslation } from "../../i18n/LanguageContext";
 
 export interface HotkeysSettingsTabProps {

@@ -14,12 +14,12 @@ import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Play } from "lucide-react";
 import "./index.css";
-import { Titlebar } from "./components/Titlebar";
-import { PlayerControls } from "./components/PlayerControls";
-import { ContextMenu } from "./components/ContextMenu";
-import { PlaylistDrawer } from "./components/PlaylistDrawer";
-import { UpdateInfo } from "./components/UpdateModal";
-import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/AudioVisualizer";
+import { Titlebar } from "./components/player/Titlebar";
+import { PlayerControls } from "./components/player/PlayerControls";
+import { ContextMenu } from "./components/player/ContextMenu";
+import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
+import { UpdateInfo } from "./components/modals/UpdateModal";
+import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
 import { applyAccentColor } from "./utils/colorUtils";
 import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
@@ -28,22 +28,22 @@ import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
 // Тяжёлые модалки грузятся лениво: в стартовый бандл не попадают,
 // парсятся только при первом открытии (dnd-kit едет вместе с настройками).
 const MediaInfoModal = lazy(() =>
-  import("./components/MediaInfoModal").then((m) => ({ default: m.MediaInfoModal }))
+  import("./components/modals/MediaInfoModal").then((m) => ({ default: m.MediaInfoModal }))
 );
 const ChaptersModal = lazy(() =>
-  import("./components/ChaptersModal").then((m) => ({ default: m.ChaptersModal }))
+  import("./components/modals/ChaptersModal").then((m) => ({ default: m.ChaptersModal }))
 );
 const SettingsModal = lazy(() =>
-  import("./components/SettingsModal").then((m) => ({ default: m.SettingsModal }))
+  import("./components/modals/SettingsModal").then((m) => ({ default: m.SettingsModal }))
 );
 const UpdateModal = lazy(() =>
-  import("./components/UpdateModal").then((m) => ({ default: m.UpdateModal }))
+  import("./components/modals/UpdateModal").then((m) => ({ default: m.UpdateModal }))
 );
 const UpdateToast = lazy(() =>
-  import("./components/UpdateModal").then((m) => ({ default: m.UpdateToast }))
+  import("./components/modals/UpdateModal").then((m) => ({ default: m.UpdateToast }))
 );
 const SubtitlesSearchModal = lazy(() =>
-  import("./components/SubtitlesSearchModal").then((m) => ({ default: m.SubtitlesSearchModal }))
+  import("./components/subtitles/SubtitlesSearchModal").then((m) => ({ default: m.SubtitlesSearchModal }))
 );
 
 function App() {

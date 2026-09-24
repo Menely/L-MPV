@@ -1,5 +1,5 @@
-import { formatTimeByMode, TimeFormatMode } from "../utils/timeFormatUtils";
-import { usePlayerProgress } from "../contexts/PlayerStateContext";
+import { formatTimeByMode, TimeFormatMode } from "../../utils/timeFormatUtils";
+import { usePlayerProgress } from "../../contexts/PlayerStateContext";
 
 export interface TimeDisplayProps {
   /** Дополнительные CSS-классы оформления */

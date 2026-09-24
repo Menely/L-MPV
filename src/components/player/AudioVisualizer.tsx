@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
+import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 
 export type VisualizerMode =
   | "waveform"

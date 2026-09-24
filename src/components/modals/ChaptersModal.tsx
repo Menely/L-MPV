@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X } from "lucide-react";
-import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
-import { useTranslation } from "../i18n/LanguageContext";
-import { formatTime } from "../utils/timeUtils";
+import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
+import { useTranslation } from "../../i18n/LanguageContext";
+import { formatTime } from "../../utils/timeUtils";
 
 interface ChaptersModalProps {
   /** Обработчик закрытия панели. */

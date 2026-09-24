@@ -109,6 +109,8 @@ fn find_mediainfo_dll() -> Result<PathBuf, String> {
 
     // 2. Относительные пути рабочей директории
     candidates.push(PathBuf::from("mediainfo.dll"));
+    candidates.push(PathBuf::from("src-tauri").join("binaries").join("mediainfo.dll"));
+    // Legacy-путь до реорганизации (src-tauri/mediainfo.dll) — оставлен для совместимости.
     candidates.push(PathBuf::from("src-tauri").join("mediainfo.dll"));
     candidates.push(PathBuf::from("Portable-L-MPV").join("mediainfo.dll"));
 

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
-import { usePlayerState, usePlayerProgress } from "../contexts/PlayerStateContext";
-import { formatTime } from "../utils/timeUtils";
+import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
+import { formatTime } from "../../utils/timeUtils";
 import { AudioVisualizer } from "./AudioVisualizer";
 
 export const Timeline = React.memo(() => {

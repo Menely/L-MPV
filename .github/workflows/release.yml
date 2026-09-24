@@ -38,15 +38,15 @@ jobs:
         run: |
           Write-Host "Скачивание зависимостей из релиза deps-v1..."
           Invoke-WebRequest -Uri "https://github.com/Menely/L-MPV/releases/download/deps-v1/mpv_libs.zip" -OutFile "mpv_libs.zip"
-          Write-Host "Распаковка в src-tauri..."
-          Expand-Archive -Path mpv_libs.zip -DestinationPath src-tauri/ -Force
-          Write-Host "Распаковка в корень..."
-          Expand-Archive -Path mpv_libs.zip -DestinationPath ./ -Force
+          Write-Host "Распаковка в src-tauri/binaries/..."
+          Expand-Archive -Path mpv_libs.zip -DestinationPath src-tauri/binaries/ -Force
           Remove-Item mpv_libs.zip -Force
 
           # Проверка наличия и целостности всех трех нативных компонентов
-          if (-not (Test-Path "src-tauri/libmpv-2.dll") -or -not (Test-Path "src-tauri/ffmpeg.exe") -or -not (Test-Path "src-tauri/mediainfo.dll")) {
-            throw "КРИТИЧЕСКАЯ ОШИБКА: Нативные зависимости отсутствуют в каталоге src-tauri!"
+          $binFiles = @("src-tauri/binaries/libmpv-2.dll", "src-tauri/binaries/ffmpeg.exe", "src-tauri/binaries/mediainfo.dll")
+          foreach ($f in $binFiles) {
+            if (-not (Test-Path $f)) { throw "КРИТИЧЕСКАЯ ОШИБКА: Нативные зависимости отсутствуют в каталоге src-tauri/binaries! Нет файла: $f" }
+            if ((Get-Item $f).Length -eq 0) { throw "КРИТИЧЕСКАЯ ОШИБКА: файл $f пуст!" }
           }
           Write-Host "Все нативные зависимости успешно проверены (libmpv-2.dll с vf_animejanai, ffmpeg.exe, mediainfo.dll)."
 
@@ -92,9 +92,9 @@ jobs:
           Copy-Item "src/assets/fonts/*" -Destination "Portable-L-MPV/fonts/" -Force
           
           Copy-Item "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MPV/l-mpv.exe" -Force
-          Copy-Item "libmpv-2.dll" -Destination "Portable-L-MPV/libmpv-2.dll" -Force
-          Copy-Item "ffmpeg.exe" -Destination "Portable-L-MPV/ffmpeg.exe" -Force
-          Copy-Item "mediainfo.dll" -Destination "Portable-L-MPV/mediainfo.dll" -Force
+          Copy-Item "src-tauri/binaries/libmpv-2.dll" -Destination "Portable-L-MPV/libmpv-2.dll" -Force
+          Copy-Item "src-tauri/binaries/ffmpeg.exe" -Destination "Portable-L-MPV/ffmpeg.exe" -Force
+          Copy-Item "src-tauri/binaries/mediainfo.dll" -Destination "Portable-L-MPV/mediainfo.dll" -Force
           
           $portableZip = "L-MPV-$tag-portable.zip"
           Write-Host "Создание архива $portableZip..."

@@ -48,22 +48,47 @@ L-MPV/
 ├── src/                                  # Фронтенд (React 19 + TypeScript 5.8)
 │   ├── assets/                           # Статические ресурсы, иконки и шрифты
 │   │   └── fonts/                        # Встроенные гарнитуры (Inter, JetBrainsMono, Manrope, Outfit, PlusJakartaSans)
-│   ├── components/                       # Модульные компоненты интерфейса
-│   │   ├── Titlebar.tsx                  # Шапка окна (логотип, по центру название файла, интерактивный бейдж времени, кнопки окна)
-│   │   ├── PlayerControls.tsx            # Нижняя плавающая «таблетка» управления (смена дорожек, скачивание, скриншот, плейлист, скорость)
-│   │   ├── TimeDisplay.tsx               # Интерактивный компонент отображения времени с переключением формата по клику
-│   │   ├── ContextMenu.tsx               # Кастомное ПКМ-меню (дорожки, расположение/формат времени, скорость, вид, масштабирование, подсветка)
-│   │   ├── SettingsModal.tsx             # Центр настроек (модульная архитектура вкладок с сохранением активной страницы)
-│   │   ├── settings/                     # Модульные компоненты вкладок настроек:
+│   ├── components/                       # Компоненты интерфейса (feature-папки, в каждой barrel index.ts)
+│   │   ├── player/                       # Оболочка плеера:
+│   │   │   ├── index.ts                  # Реэкспорт оболочки (Titlebar, PlayerControls, Timeline, ...)
+│   │   │   ├── Titlebar.tsx              # Шапка окна (логотип, по центру название файла, интерактивный бейдж времени, кнопки окна)
+│   │   │   ├── PlayerControls.tsx        # Нижняя плавающая «таблетка» управления (смена дорожек, скачивание, скриншот, плейлист, скорость)
+│   │   │   ├── Timeline.tsx              # Высокоточный таймлайн с изолированным контекстом времени (без лишних ререндеров)
+│   │   │   ├── TimeDisplay.tsx           # Интерактивный компонент отображения времени с переключением формата по клику
+│   │   │   ├── ContextMenu.tsx           # Кастомное ПКМ-меню (дорожки, расположение/формат времени, скорость, вид, масштабирование, подсветка)
+│   │   │   ├── PlaylistDrawer.tsx        # Выдвижная боковая панель плейлиста (Natural Sort, поиск, переключение)
+│   │   │   └── AudioVisualizer.tsx       # Высокопроизводительный Canvas-визуалайзер аудио-волн (Waveform / Spectrum / Bars)
+│   │   ├── modals/                       # Модальные и отдельные окна:
+│   │   │   ├── index.ts                  # Реэкспорт окон (+ тип AmbientSettings)
+│   │   │   ├── SettingsModal.tsx         # Центр настроек (модульная архитектура вкладок с сохранением активной страницы)
+│   │   │   ├── MediaInfoModal.tsx        # Компактное окно технической информации о медиафайле
+│   │   │   ├── DetailedMediaInfoModal.tsx # Резерв: в текущей сборке не монтируется (функционал переехал в StandaloneMediaInfoWindow)
+│   │   │   ├── StandaloneMediaInfoWindow.tsx # Независимое нативное окно MediaInfo (565x685, Always on Top с Pin, Drag&Drop, запуск из проводника)
+│   │   │   ├── ChaptersModal.tsx         # Модальное окно навигации по главам видео (Chapters)
+│   │   │   ├── UpdateModal.tsx           # Модальное окно информирования и управления обновлениями плеера
+│   │   │   └── ColorPickerModal.tsx      # Кастомное модальное окно выбора цвета (круг спектра HSV/RGB/HEX, слайдер яркости, палитра)
+│   │   ├── common/                       # Переиспользуемые презентационные компоненты:
+│   │   │   ├── index.ts                  # Реэкспорт
+│   │   │   └── MarkdownRenderer.tsx      # Компонент безопасного рендеринга Markdown (списки изменений, документация)
+│   │   ├── settings/                     # Вкладки и секции Центра настроек (18 модулей):
 │   │   │   ├── GeneralSettingsTab.tsx    # Основные настройки (4 эргономичных блока: скриншоты, воспроизведение и окна, аудиодорожки и субтитры — в т.ч. названия дорожек на панели, контекстное меню ПКМ)
+│   │   │   ├── AppearanceSettingsTab.tsx # Эргономичный дизайн: темы, прозрачность, скругление, масштаб, шрифты, стиль панели, 6 позиций времени, 4 формата
+│   │   │   ├── HotkeysSettingsTab.tsx    # Управление горячими клавишами и биндами
+│   │   │   ├── IntegrationSettingsTab.tsx # Системная интеграция и ассоциации файлов в Windows
 │   │   │   ├── ContextMenuSettingsTab.tsx # Интерактивный Drag-and-Drop редактор контекстного меню ПКМ (@dnd-kit)
 │   │   │   ├── UpscalingSettingsSection.tsx # Управление 4K AI апскейлингом (DirectML / TensorRT, библиотека ONNX моделей, порядок моделей мышкой, хоткеи)
-│   │   │   ├── AppearanceSettingsTab.tsx # Эргономичный дизайн: темы, прозрачность, скругление, масштаб, шрифты, стиль панели, 6 позиций времени, 4 формата
 │   │   │   ├── VisualizerSettingsSection.tsx # Секция настроек аудио-визуалайзера (размещение, режимы, палитры, locked-состояния)
-│   │   │   ├── VisualizerPreviewCard.tsx # Интерактивная карточка предпросмотра аудио-визуализатора (Canvas + FFT-ритм)
+│   │   │   ├── ColorSchemeSection.tsx    # Секция цветового оформления с живым предпросмотром
 │   │   │   ├── PresetsSection.tsx        # Секция управления пресетами («Мои пресеты» и «Готовые стили») с унифицированными кнопками
-│   │   │   ├── HotkeysSettingsTab.tsx    # Управление горячими клавишами и биндами
-│   │   │   └── IntegrationSettingsTab.tsx # Системная интеграция и ассоциации файлов в Windows
+│   │   │   ├── VisualizerPreviewCard.tsx # Интерактивная карточка предпросмотра аудио-визуализатора (Canvas + FFT-ритм)
+│   │   │   ├── ControlButtonsPreviewCard.tsx # Живое превью кнопок панели управления
+│   │   │   ├── AccordionSection.tsx      # Переиспользуемая collapsible-секция настроек
+│   │   │   ├── SettingBlocks.tsx         # Базовые блоки и EmptyState настроек
+│   │   │   ├── ContextMenuEntryCard.tsx  # Карточка пункта DnD-редактора меню (SortableCard, OverlayCard, MENU_ICON_MAP)
+│   │   │   ├── settingsTabPreload.ts     # Предзагрузка данных тяжёлых вкладок (пресеты, upscale-статус)
+│   │   │   ├── useSettingsTabTransition.ts # Анимация переходов между вкладками
+│   │   │   ├── visualizerConstants.ts    # Константы визуалайзера
+│   │   │   └── optionCardStyles.ts       # Общие стили карточек опций
 │   │   ├── upscale/                      # Модульные подкомпоненты апскейлинга:
 │   │   │   ├── types.ts                  # Интерфейсы моделей данных, прогресса и настроек
 │   │   │   ├── GpuHardwareCard.tsx       # Информационная карточка обнаруженного GPU (VRAM, рекомендации)
@@ -71,12 +96,13 @@ L-MPV/
 │   │   │   ├── ModelListItem.tsx         # Карточка модели нейросети с Drag-and-Drop мышкой (@dnd-kit/sortable), высотой 24px и React.memo
 │   │   │   ├── ModelTensorRtAction.tsx   # Статус 1080p готов, микро-прогрессбар компиляции, кнопки сборки/перекомпиляции 24px (React.memo)
 │   │   │   └── ModelHotkeyButton.tsx     # Компактная кнопка назначения хоткея активации модели в едином стиле хоткеев (React.memo)
-│   │   ├── ColorPickerModal.tsx          # Кастомное модальное окно выбора цвета (круг спектра HSV/RGB/HEX, слайдер яркости, палитра)
-│   │   ├── MediaInfoModal.tsx            # Компактное окно технической информации о медиафайле
-│   │   ├── StandaloneMediaInfoWindow.tsx # Независимое нативное окно MediaInfo (565x685, Always on Top с Pin, Drag&Drop, запуск из проводника)
-│   │   ├── subtitles/                    # Модульная подсистема интерактивного поиска и навигации по субтитрам:
+│   │   ├── subtitles/                    # Модульная подсистема интерактивного поиска и навигации по субтитрам (17 модулей):
+│   │   │   ├── SubtitlesSearchModal.tsx  # Корневой модальный контейнер с виртуализацией DOM
 │   │   │   ├── subtitleTypes.ts          # Общие типы, интерфейсы и константы виртуализации/геометрии
 │   │   │   ├── subtitleFormatters.ts     # Утилиты конвертации цветов ASS/BGR в HEX/HTML и парсинга тегов стилей
+│   │   │   ├── TrackPicker.tsx           # Выпадающий селектор дорожки субтитров
+│   │   │   ├── HighlightedText.tsx       # Подсветка совпадений поискового запроса (React.memo)
+│   │   │   ├── useSubtitlesAnalysis.ts   # Анализ и загрузка строк дорожки
 │   │   │   ├── usePersistentState.ts     # Дженерик-хук сохранения состояния в localStorage
 │   │   │   ├── useModalGeometry.ts       # Хук управления шириной, ресайзом и отступами модального окна
 │   │   │   ├── useSearchNavigation.ts    # Хук быстрого поиска, индексации совпадений и навигации клавишами Вверх/Вниз
@@ -87,17 +113,14 @@ L-MPV/
 │   │   │   ├── SubtitleLineRow.tsx       # Виртуализированная строка субтитров (React.memo)
 │   │   │   ├── SubtitlesModalHeader.tsx  # Шапка окна поиска (переключатели режимов, слежка, непрозрачность)
 │   │   │   ├── SubtitleSearchBar.tsx     # Поисковая строка, счетчик совпадений и регулятор задержки субтитров (Sub Delay)
-│   │   │   ├── SubtitleEmptyState.tsx    # Экран заглушки (загрузка, дорожка без субтитров, отсутствие совпадений)
-│   │   │   └── SubtitlesSearchModal.tsx  # Корневой модальный контейнер с виртуализацией DOM
-│   │   ├── DetailedMediaInfoModal.tsx    # Расширенное модальное окно MediaInfo с детальными древовидными метаданными
-│   │   ├── ChaptersModal.tsx             # Модальное окно навигации по главам видео (Chapters)
-│   │   ├── UpdateModal.tsx               # Модальное окно информирования и управления обновлениями плеера
-│   │   ├── MarkdownRenderer.tsx          # Компонент безопасного рендеринга Markdown (списки изменений, документация)
-│   │   ├── Timeline.tsx                  # Высокоточный таймлайн с изолированным контекстом времени (без лишних ререндеров)
-│   │   ├── AudioVisualizer.tsx           # Высокопроизводительный Canvas-визуалайзер аудио-волн (Waveform / Spectrum / Bars, пастель/неон)
-│   │   └── PlaylistDrawer.tsx            # Выдвижная боковая панель плейлиста (Natural Sort, поиск, переключение)
-│   ├── contexts/                         # Реактивные контексты React
+│   │   │   └── SubtitleEmptyState.tsx    # Экран заглушки (загрузка, дорожка без субтитров, отсутствие совпадений)
+│   │   ├── contexts/                         # Реактивные контексты React
 │   │   └── PlayerStateContext.tsx        # Трёхуровневый контекст: PlayerStateContext (метаданные) + LiveStateContext (показатели) + PlayerProgressContext (10–60 FPS)
+│   ├── i18n/                             # Локализация интерфейса (RU/EN)
+│   │   ├── LanguageContext.tsx           # Провайдер языка и хук useTranslation
+│   │   ├── types.ts                      # Типы словарей локализации
+│   │   ├── index.ts                      # Реэкспорт и helpers (getDict, getEffectiveLocale, saveLocale)
+│   │   └── locales/                      # Словари ru.ts / en.ts
 │   ├── styles/                           # Модульная система стилей (16 модулей Vanilla CSS)
 │   │   ├── fonts.css                     # Локальные @font-face декларации встроенных гарнитур (Inter, Outfit, Jakarta, Manrope, JetBrains)
 │   │   ├── variables.css                 # CSS Custom Properties, темы, UI Scale, шрифтовые гарнитуры, акцентные палитры, параметры свечения
@@ -121,8 +144,7 @@ L-MPV/
 │   │   ├── timePositionUtils.ts          # 6 вариантов расположения времени (таймлайн, тулбар, парящий бейдж, Titlebar)
 │   │   ├── timeFormatUtils.ts            # 4 формата отображения времени (прошедшее/общее, оставшееся, расчет окончания, миллисекунды)
 │   │   ├── controlBarStyleUtils.ts       # Стили нижней панели управления («Парящий остров» и «Пристыкованная плашка»)
-│   │   ├── uiThemeUtils.ts               # Управление скруглением углов, масштабом (UI Scale), прозрачностью и шрифтовой экосистемой (UI Font)
-│   │   ├── fontUtils.ts                  # Динамическая загрузка пользовательских шрифтов (FontFace API), сканирование и синхронизация
+│   │   ├── uiThemeUtils.ts               # Управление скруглением углов, масштабом (UI Scale), прозрачностью, шрифтами (UI Font) и их загрузкой (FontFace API)
 │   │   ├── uiSettingsSync.ts             # Синхронизация системных CSS-переменных, палитр и стилей оформления с DOM
 │   │   ├── colorUtils.ts                 # Цветовые палитры и вычисление HSL/RGB акцентов, градиентов и параметров свечения drop-shadow
 │   │   ├── hotkeyUtils.ts                # Реестр действий, бинды, сохранение и сброс горячих клавиш (включая Ctrl+J для статистики, Shift+1..7)
@@ -165,7 +187,20 @@ L-MPV/
 │   │   ├── system_integration.rs         # Интеграция с Проводником Windows (контекстное меню, ассоциации файлов)
 │   │   └── updater.rs                    # Модуль автообновления приложения
 │   ├── Cargo.toml                        # Зависимости Rust (tauri, libloading, serde, tokio, reqwest, zip, windows-sys)
-│   └── tauri.conf.json                   # Конфигурация приложения Tauri (NSIS bundle, resources, окна)
+│   ├── tauri.conf.json                   # Конфигурация приложения Tauri (NSIS bundle, resources, окна)
+│   ├── capabilities/default.json         # Манифест разрешений Tauri v2
+│   ├── icons/                            # Иконки приложения
+│   ├── nsis/                             # Хуки NSIS-инсталлятора
+│   ├── build.rs                          # Build-скрипт Tauri
+│   └── binaries/                         # Нативные бинарники для dev-сборки и bundle resources (gitignored):
+│       ├── libmpv-2.dll                  # Медиадвижок MPV (со встроенным vf_animejanai)
+│       ├── mediainfo.dll                 # Подробный анализ MediaInfo
+│       └── ffmpeg.exe                    # Прямой экспорт дорожек
+├── tools/                                # Вспомогательные скрипты
+│   └── build_check.bat                   # Быстрый cargo check бэкенда (портативный, без хардкода путей)
+├── docs/
+│   └── archive/old-banners/              # Архив старых баннеров
+├── scripts/                              # Python-утилиты (convert_fp16.py — конвертация ONNX в FP16)
 ├── models/                               # Корневой каталог нейросетей
 │   └── onnx/                             # Универсальная папка для размещения ONNX-моделей
 ├── inference/                            # Папка для библиотек инференса (aji.dll, DirectML, TensorRT)
@@ -197,7 +232,7 @@ L-MPV/
 ### 3.2. `src-tauri/src/upscale/` (Модульная Подсистема 4K AI-Апскейлинга)
 Архитектура подсистемы разделена на специализированные слабосвязанные модули с высокой связностью (High Cohesion):
 - **`mod.rs` (Фасад и IPC-диспетчер):**
-  - Единая точка входа для Tauri Builder (`generate_handler!`), экспортирует 10 IPC-команд.
+  - Единая точка входа для Tauri Builder (`generate_handler!`), экспортирует 11 IPC-команд.
   - Содержит модульные тесты: валидация CRC32-хеширования путей, корректность маппинга SM-архитектур NVIDIA и устойчивость аппаратной диагностики GPU.
 - **`types.rs` (Типизированные DTO и Модели Состояния):**
   - `ModelFileItem`: метаданные ONNX-модели (имя, путь, размер, присвоенный слот 1001+, флаг скомпилированного `.engine` под 1080p).
@@ -252,17 +287,18 @@ L-MPV/
 - **Управление жизненным циклом и фокусом:**
   - Обработка `WindowEvent::Focused` для динамического Z-порядка в полноэкранном режиме (`Alt+Tab`).
   - Обработка `WindowEvent::CloseRequested` с сохранением позиции и гарантированным чистым выходом `window.app_handle().exit(0)`.
-- Регистрирует все **103 IPC-команды** в `tauri::Builder`.
+- Регистрирует все **114 IPC-команд** в `tauri::Builder`.
 
 ### 3.5. `mediainfo.rs`
 - Нативное динамическое связывание с `mediainfo.dll` через `libloading` (C-API: `MediaInfo_New`, `MediaInfo_Open`, `MediaInfo_Inform`, `MediaInfo_Close`, `MediaInfo_Delete`).
 - Управляет независимым окном MediaInfo через команды `open_mediainfo_window` и `toggle_mediainfo_window`.
+- Порядок разрешения нативных бинарников: каталог exe → `exe/resources/` → CWD → `src-tauri/binaries/` (legacy-фолбэк `src-tauri/`) → `Portable-L-MPV/`; тот же порядок (без `resources/`) для `ffmpeg.exe` в `commands/tracks.rs`.
 
 ---
 
 ## 4. Полный Реестр IPC-Команд Rust
 
-В бэкенде зарегистрировано **103 IPC-команды**:
+В бэкенде зарегистрировано **114 IPC-команд** (сверено с `generate_handler!` в `lib.rs`):
 
 | Категория | IPC Команда | Параметры | Возвращает | Описание |
 | :--- | :--- | :--- | :--- | :--- |
@@ -276,6 +312,7 @@ L-MPV/
 | | `delete_inference_engine` | `backend: String` | `Result<String, String>` | Удаление библиотек выбранного бэкенда из каталога `inference/` |
 | | `switch_upscale_network_hotkey` | `slot: u32, backend: Option<String>` | `Result<(), String>` | Мгновенное переключение нейросети/слота по хоткеям Shift+1..4 |
 | | `precompile_model_engine_1080p` | `slot: u32, filename: String` | `Result<String, String>` | Фоновая компиляция `.engine` под 1080p через trtexec с отслеживанием прогресса |
+| | `save_models_order` | `order: Vec<String>` | `Result<(), String>` | Сохранение порядка моделей (DnD) в `config/models_order.json` |
 | **Воспроизведение и Плейлист** | `open_file` | `path: String` | `Result<(), String>` | Загрузка файла в плеер + авто-создание плейлиста из папки |
 | | `toggle_pause` | — | `Result<(), String>` | Переключение паузы (`cycle pause`) |
 | | `set_pause` | `paused: bool` | `Result<(), String>` | Явная установка паузы (`yes` / `no`) |
@@ -287,6 +324,7 @@ L-MPV/
 | | `playlist_next` | — | `Result<(), String>` | Переход к следующему файлу в плейлисте |
 | | `get_playlist` | — | `Result<Vec<PlaylistItem>, String>` | Чтение элементов внутреннего плейлиста MPV |
 | | `play_playlist_item` | `index: i64` | `Result<(), String>` | Воспроизведение файла плейлиста по индексу |
+| | `reload_folder_playlist` | — | `Result<(), String>` | Пересканирование папки текущего файла и обновление плейлиста |
 | | `set_loop_file` | `loop_file: String` | `Result<(), String>` | Зацикливание текущего файла (`inf` / `no`) |
 | | `set_loop_playlist` | `loop_playlist: String` | `Result<(), String>` | Зацикливание всего плейлиста (`inf` / `no`) |
 | | `toggle_shuffle` | — | `Result<(), String>` | Переключение случайного порядка плейлиста (`playlist-shuffle`) |
@@ -301,6 +339,8 @@ L-MPV/
 | | `load_subtitle_file` | `path: String` | `Result<(), String>` | Подключение внешнего файла субтитров (`sub-add`) |
 | | `load_audio_file` | `path: String` | `Result<(), String>` | Подключение внешнего аудиофайла (`audio-add`) |
 | | `set_video_track` | `track_id: i64` | `Result<(), String>` | Переключение видеопотока по ID (`vid`) |
+| | `set_sub_delay` | `delay: f64` | `Result<(), String>` | Сдвиг таймингов субтитров в секундах (+ — позже, − — раньше) |
+| | `get_sub_delay` | — | `Result<f64, String>` | Текущий сдвиг таймингов субтитров в секундах |
 | | `extract_track` | `video_path, track_type, track_index, ff_index, external_filename, target_path` | `Result<String, String>` | Извлечение аудио/субтитров (Direct Stream Copy `-c copy`, многопоточный fallback `-threads 0`) |
 | | `get_auto_load_tracks` | — | `Result<bool, String>` | Получение статуса автоподхвата внешних дорожек |
 | | `set_auto_load_tracks` | `enabled: bool` | `Result<(), String>` | Включение/выключение автоподхвата внешних дорожек |
@@ -335,6 +375,8 @@ L-MPV/
 | | `save_position` | `path: String, position: f64` | `Result<(), String>` | Сохранение позиции воспроизведения в историю |
 | | `save_current_position` | — | `Result<(), String>` | Принудительное сохранение текущей позиции |
 | | `get_app_version` | — | `Result<String, String>` | Получение актуальной версии приложения |
+| | `get_active_subtitle_lines` | — | `Result<Vec<SubtitleLineInfo>, String>` | Активные строки текущей дорожки субтитров для окна поиска |
+| | `analyze_subtitle_track` | `track_id: Option<i64>` | `Result<Vec<SubtitleLineInfo>, String>` | Полный разбор дорожки субтитров (ASS/SRT/VTT) в структурированные строки |
 | **Анализ MediaInfo (C-FFI)** | `get_detailed_media_info` | `path: String` | `Result<DetailedMediaInfo, String>` | Полный парсинг всех потоков и тегов через `mediainfo.dll` |
 | | `is_standalone_mode` | — | `Result<bool, String>` | Определение, запущено ли окно в автономном режиме MediaInfo |
 | | `get_standalone_mediainfo_path` | — | `Result<Option<String>, String>` | Получение пути к файлу для MediaInfo |
@@ -367,6 +409,13 @@ L-MPV/
 | | `read_text_file` | `path: String` | `Result<String, String>` | Чтение файла по произвольному пути диалога выбора файла |
 | **Контекстное меню (ПКМ)** | `get_context_menu_layout` | — | `Result<String, String>` | Чтение пользовательской раскладки контекстного меню из портативного файла `config/context_menu.json` |
 | | `save_context_menu_layout` | `layout_json: String` | `Result<(), String>` | Сохранение пользовательской раскладки пунктов и разделителей меню в `config/context_menu.json` |
+| **Аудио-визуалайзер** | `get_audio_spectrum` | — | `[f32; 32]` | Снимок 32 логарифмических частотных полос WASAPI-захвата для Canvas-рендера |
+| | `set_visualizer_active` | `active: bool` | `()` | Включение/выключение фонового WASAPI-захвата (сон при паузе/IDLE) |
+| **UI-настройки** | `get_ui_settings` | — | `Result<UiSettings, String>` | Чтение визуальных настроек (тема, акцент, скругление, масштаб) из `config/settings.json` |
+| | `save_ui_settings` | `ui: UiSettings` | `Result<(), String>` | Атомарное сохранение UI-настроек в `config/settings.json` |
+| **Шрифтовая экосистема** | `open_fonts_folder` | — | `Result<(), String>` | Открытие локальной папки `fonts/` в Проводнике Windows |
+| | `get_custom_fonts` | — | `Result<Vec<CustomFontItem>, String>` | Список пользовательских шрифтов с настоящими типографическими именами |
+| | `load_font_data` | `file_name: String` | `Result<String, String>` | Чтение бинарных данных шрифта (base64) для FontFace API |
 
 ---
 
@@ -630,7 +679,7 @@ L-MPV/
 - **Синхронизация оболочки Explorer:** автоматическое оповещение Проводника через WinAPI `Shell32::SHChangeNotify(SHCNE_ASSOCCHANGED)` при установке и деинсталляции для мгновенного обновления системного кэша иконок без перезагрузки.
 
 ### 5.15. Интеллектуальное Окно Обновлений и Markdown-Рендеринг (UpdateModal)
-- **Нативный и безопасный MarkdownRenderer (`MarkdownRenderer.tsx`):**
+- **Нативный и безопасный MarkdownRenderer (`components/common/MarkdownRenderer.tsx`):**
   - Разбор и стилизованный рендеринг заголовков (`#`, `##`, `###`, `####`), списков, чекбоксов (`[x]`/`[ ]`), цитат, блоков кода, GFM-таблиц и клавиатурных клавиш `<kbd>` без использования небезопасного `dangerouslySetInnerHTML`.
   - Устойчивый инлайн-парсер с lookbehind границами слов: устранена ложная токенизация технических идентификаторов (`snake_case_variable`, `sub_pos`, `download_url`) в курсив.
   - Полноценная поддержка изображений и бейджей со ссылками (`[![alt](src)](href)` и `![alt](url)`) со скруглением, теневыми акцентами, открытием оригинала в браузере по клику и обработкой сетевых сбоев.
@@ -645,7 +694,7 @@ L-MPV/
   - Команда бэкенда `check_for_updates` при обнаружении релиза автоматически сбрасывает счётчик откладывания (`settings.postponed_until_launch = 0`), гарантируя отмену паузы при явном ручном запросе пользователя.
 - **Интерактивный просмотр описания текущей версии (Release Notes):**
   - Бейдж текущей версии `v{appVersion}` в футере окна «Настройки» сделан интерактивной кнопкой с индикатором загрузки.
-  - По клику на бейдж открывается модальное окно [UpdateModal](file:///D:/My-programs/L-MPV/src/components/UpdateModal.tsx) с форматированным Markdown-описанием релиза (`MarkdownRenderer`).
+  - По клику на бейдж открывается модальное окно [UpdateModal](file:///D:/My-programs/L-MPV/src/components/modals/UpdateModal.tsx) с форматированным Markdown-описанием релиза (`MarkdownRenderer`).
   - В режиме просмотра текущей установленной версии (`has_update: false`) шапка отображает статус «Информация о версии», плашка показывает актуальный номер версии, а футер содержит единую кнопку «Понятно». Предусмотрен оффлайн-фоллбек с ключевыми характеристиками плеера при отсутствии сети.
 - **Интерактивный Менеджер Версий и Система Отката (Downgrade Engine):**
   - Загрузка до 30 последних релизов плеера с GitHub через IPC-команду `get_available_releases`.
@@ -720,7 +769,7 @@ L-MPV/
 ### Необходимые зависимости
 - **Node.js** v20+ и **npm**.
 - **Rust toolchain** (`stable-x86_64-pc-windows-msvc`).
-- Библиотеки в корне или `src-tauri/`:
+- Нативные бинарники в `src-tauri/binaries/` (gitignored, скачать вручную или через CI из релиза `deps-v1`):
   - `libmpv-2.dll` (сборка `the-database/mpv-winbuild` с `vf_animejanai`).
   - `ffmpeg.exe` (gyan.dev).
   - `mediainfo.dll` (MediaArea).
@@ -744,20 +793,28 @@ npm run build:bundle
 ### Копирование в портативную сборку
 ```powershell
 Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MPV/L-MPV.exe" -Force
+Copy-Item -Path "src-tauri/binaries/libmpv-2.dll", "src-tauri/binaries/ffmpeg.exe", "src-tauri/binaries/mediainfo.dll" -Destination "Portable-L-MPV/" -Force
 ```
 
 ---
 
 ## 7. CI/CD и Автоматическая Публикация Релизов (GitHub Actions)
 
-### 7.1. Сборщик зависимостей (`upload-dependencies.yml`)
-- Автоматически скачивает свежую сборку `libmpv-2.dll` из репозитория `the-database/mpv-winbuild` с фильтром `vf_animejanai`, `ffmpeg.exe` и `mediainfo.dll`.
-- Запаковывает их в `mpv_libs.zip` и публикует в релиз `deps-v1`.
+### 7.1. Сборщик зависимостей (`upload-dependencies.yml`, ручной запуск)
+- Скачивает пинированные апстрим-сборки: `libmpv-2.dll` из `the-database/mpv-winbuild` (тег `2026-09-13-d4c06dd342`), `ffmpeg.exe` с gyan.dev (rolling `ffmpeg-git-essentials`), `MediaInfo.dll` 26.05 (MediaArea).
+- Валидация перед упаковкой: поиск ASCII-сигнатуры `animejanai` в теле `libmpv-2.dll` (гарантия наличия `vf_animejanai`, а не только имени файла) + smoke-запуск `ffmpeg.exe -version`.
+- Запаковывает trio в `mpv_libs.zip` (файлы в корне архива) и публикует в релиз `deps-v1`.
 
 ### 7.2. Рабочий процесс релиза (`release.yml`)
 1. `actions/checkout@v4` — получение кода.
 2. `actions/setup-node@v4` и `rust-toolchain@stable`.
-3. Скачивание `mpv_libs.zip` из релиза `deps-v1`, распаковка в `src-tauri/` и корень, строгая валидация наличия всех трех компонентов (`libmpv-2.dll` с `vf_animejanai`, `ffmpeg.exe`, `mediainfo.dll`).
+3. Скачивание `mpv_libs.zip` из релиза `deps-v1`, распаковка в `src-tauri/binaries/`, строгая валидация наличия всех трех компонентов (`libmpv-2.dll` с `vf_animejanai`, `ffmpeg.exe`, `mediainfo.dll`).
 4. Синхронизация версии из Git-тега в `package.json` и `Cargo.toml`.
 5. Сборка и публикация инсталлятора NSIS через `tauri-apps/tauri-action@v0`.
 6. Сборка полного портативного архива `L-MPV-v<версия>-portable.zip` со всеми нативными библиотеками и структурой папок (`models/onnx`, `inference`, `config`, `screenshots`), а также загрузка автономного `L-MPV.exe` через `gh release upload`.
+
+### 7.3. Сборщик инференс-движков (`upload-inference-v1.yml`, ручной запуск)
+- Компилирует `l-mpv_convert_fp16.exe` из `scripts/convert_fp16.py` через PyInstaller и публикует как `l-mpv_convert_fp16.zip`.
+- Перепаковывает апстрим `the-database/mpv-AnimeJaNai@3.6.2` в плоский вид (без вложенной папки `animejanai/inference`): `component-trt-runtime.7z` + 8 архитектурных билдеров (`sm120`, `sm100`, `sm90`, `sm89`, `sm86`, `sm80`, `sm75`, `ptx`); `aji-windows-x64.zip` (`animejanai-inference@v0.9.0`) публикуется как есть — вложенность отрабатывает `move_nested_animejanai_files` в рантайме.
+- Валидация перед публикацией: все 11 ожидаемых артефактов обязаны существовать и быть больше 100 КБ, иначе релиз `inference-v1` не собирается.
+- Потребитель — `upscale/downloader.rs`: имена `component-trt-{sm}.7z` 1:1 соответствуют `sm_architecture` из `hardware.rs` с фолбэком на `component-trt-ptx.7z` при 404.

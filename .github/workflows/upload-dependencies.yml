@@ -46,6 +46,17 @@ jobs:
           
           $miDll = Get-ChildItem -Path temp_ext -Recurse -Filter "MediaInfo.dll" | Select-Object -First 1
           if (-not $miDll) { throw "КРИТИЧЕСКАЯ ОШИБКА: MediaInfo.dll не найден в распакованном архиве mediainfo!" }
+
+          Write-Host "5.1. Проверка наличия фильтра vf_animejanai в libmpv-2.dll..."
+          $dllBytes = [System.IO.File]::ReadAllBytes($dll.FullName)
+          $dllText = [System.Text.Encoding]::ASCII.GetString($dllBytes)
+          if ($dllText -notmatch 'animejanai') { throw "КРИТИЧЕСКАЯ ОШИБКА: в libmpv-2.dll отсутствует фильтр vf_animejanai — сборка mpv-winbuild не подходит!" }
+          Write-Host "Фильтр vf_animejanai найден в libmpv-2.dll."
+
+          Write-Host "5.2. Smoke-тест ffmpeg.exe..."
+          $ffOut = & $exe.FullName -version 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0 -or $ffOut -notmatch 'ffmpeg version') { throw "КРИТИЧЕСКАЯ ОШИБКА: ffmpeg.exe не запускается!" }
+          Write-Host "ffmpeg.exe запускается."
           
           New-Item -ItemType Directory -Force -Path dist_libs
           Copy-Item -Path $dll.FullName -Destination "dist_libs/libmpv-2.dll" -Force

@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "./App";
-import { StandaloneMediaInfoWindow } from "./components/StandaloneMediaInfoWindow";
+import { StandaloneMediaInfoWindow } from "./components/modals/StandaloneMediaInfoWindow";
 import "./index.css";
 import { PlayerStateProvider } from "./contexts/PlayerStateContext";
 import { LanguageProvider } from "./i18n/LanguageContext";

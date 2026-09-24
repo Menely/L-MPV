@@ -376,6 +376,14 @@ pub async fn extract_track(
             ffmpeg_path =
                 std::path::PathBuf::from("ffmpeg.exe");
         } else if std::path::Path::new(
+            "src-tauri/binaries/ffmpeg.exe",
+        )
+        .exists()
+        {
+            ffmpeg_path = std::path::PathBuf::from(
+                "src-tauri/binaries/ffmpeg.exe",
+            );
+        } else if std::path::Path::new(
             "Portable-L-MPV/ffmpeg.exe",
         )
         .exists()
@@ -1254,6 +1262,8 @@ pub async fn analyze_subtitle_track(
         if !ffmpeg_path.exists() {
             if std::path::Path::new("ffmpeg.exe").exists() {
                 ffmpeg_path = std::path::PathBuf::from("ffmpeg.exe");
+            } else if std::path::Path::new("src-tauri/binaries/ffmpeg.exe").exists() {
+                ffmpeg_path = std::path::PathBuf::from("src-tauri/binaries/ffmpeg.exe");
             } else if std::path::Path::new("Portable-L-MPV/ffmpeg.exe").exists() {
                 ffmpeg_path = std::path::PathBuf::from("Portable-L-MPV/ffmpeg.exe");
             } else {
