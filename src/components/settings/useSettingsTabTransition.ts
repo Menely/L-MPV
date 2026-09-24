@@ -2,6 +2,22 @@ import { useCallback, useLayoutEffect, useRef } from "react";
 
 const TRANSITION_MS = 220;
 
+function getPanelHeight(panel: HTMLDivElement, body: HTMLDivElement | null): number {
+  const contentHeight = Math.round(panel.offsetHeight);
+  if (!body) return contentHeight;
+
+  // The modal body is the panel's scrollport. Long tabs can have a much
+  // larger scrollHeight than the space available inside the max-height modal;
+  // animating to that full height makes the flex modal cross its height cap
+  // partway through the transition and shifts the centered dialog abruptly.
+  const bodyStyle = window.getComputedStyle(body);
+  const verticalPadding =
+    Number.parseFloat(bodyStyle.paddingTop) + Number.parseFloat(bodyStyle.paddingBottom);
+  const availableHeight = Math.max(0, Math.floor(body.clientHeight - verticalPadding));
+
+  return Math.min(contentHeight, availableHeight);
+}
+
 function motionAllowed(): boolean {
   if (typeof document === "undefined") return false;
   if (document.documentElement.classList.contains("no-animations")) return false;
@@ -25,6 +41,8 @@ function motionAllowed(): boolean {
  * (.settings-tab-panel), хук его не трогает — иначе снятие в конце
  * совпадало бы с концом твина (snap). Запас держит box-shadow аккордеонов
  * (14-18px) видимыми и во время езды.
+ * Анимируемая высота ограничена доступной областью прокрутки: полная высота
+ * содержимого длинных вкладок остаётся scrollHeight тела, а не целью tween.
  * Замер через offsetHeight (целые layout-px): getBoundingClientRect() под
  * `zoom: var(--ui-scale)` возвращает визуальные px (см. ContextMenu:
  * там rect делят на zoom) — запись rect в style завышала бы высоту.
@@ -42,7 +60,7 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     if (next === prevTabRef.current) return false;
     const panel = panelRef.current;
     if (panel && motionAllowed()) {
-      startHeightRef.current = Math.round(panel.offsetHeight);
+      startHeightRef.current = getPanelHeight(panel, bodyRef.current);
       panel.style.height = `${startHeightRef.current}px`;
     } else {
       startHeightRef.current = 0;
@@ -70,7 +88,7 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     const h0 = startHeightRef.current;
     startHeightRef.current = 0;
     panel.style.height = "auto";
-    const h1 = Math.round(panel.offsetHeight);
+    const h1 = getPanelHeight(panel, body);
     if (Math.abs(h1 - h0) < 2) {
       panel.style.height = "";
       restoreBody();
