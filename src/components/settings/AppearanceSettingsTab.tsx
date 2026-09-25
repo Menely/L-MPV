@@ -13,7 +13,8 @@ import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESE
 import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../utils/timePositionUtils";
 import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../utils/timeFormatUtils";
 import { ControlBarStyle } from "../../utils/controlBarStyleUtils";
-import { AmbientSettings } from "../modals/SettingsModal";
+import type { AmbientMode } from "../../utils/ambientSettingsUtils";
+import type { AmbientSettings } from "../modals/SettingsModal";
 
 interface VerticalSliderProps {
   value: number;
@@ -273,6 +274,11 @@ const AmbientTuneRow = memo(function AmbientTuneRow({
     </div>
   );
 });
+
+function getAmbientPreviewColor(side: number, index: number, count: number): string {
+  const hue = (190 + side * 67 + (index / Math.max(1, count - 1)) * 80) % 360;
+  return `hsl(${hue}, 74%, 56%)`;
+}
 
 interface AppearanceSettingsTabProps {
   activeColor: string;
@@ -1241,7 +1247,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
                       gap: 8,
                       padding: 4,
                       background: "rgba(255, 255, 255, 0.03)",
@@ -1253,16 +1259,18 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                       { id: "off", label: dict.settings.appearance.ambientOff, desc: dict.settings.appearance.ambientOffDesc },
                       { id: "blur", label: dict.settings.appearance.ambientBlur, desc: dict.settings.appearance.ambientBlurDesc },
                       { id: "color", label: dict.settings.appearance.ambientColor, desc: dict.settings.appearance.ambientColorDesc },
+                      { id: "ambilight", label: dict.settings.appearance.ambientAmbilight, desc: dict.settings.appearance.ambientAmbilightDesc },
                     ].map((item) => {
                       const isSel = ambientSettings.mode === item.id;
                       return (
                         <button
                           key={item.id}
-                          onClick={() => updateAmbient({ mode: item.id as "off" | "blur" | "color" }, true)}
+                          onClick={() => updateAmbient({ mode: item.id as AmbientMode }, true)}
                           style={{
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
+
                             justifyContent: "center",
                             gap: 3,
                             padding: "8px 6px",
@@ -1288,7 +1296,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
                   {/* Настройка радиуса размытия (только для режима blur) */}
                   {ambientSettings.mode === "blur" && (() => {
-                    const bMin = 10;
+                    const bMin = 5;
                     const bMax = 150;
                     const bDef = 100;
                     const bVal = ambientSettings.blur_radius;
@@ -1344,10 +1352,11 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                   })()}
 
                   {/* Яркость/насыщенность (режим color) */}
-                  {ambientSettings.mode === "color" && (
+                  {(ambientSettings.mode === "color" || ambientSettings.mode === "ambilight") && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       <AmbientTuneRow
                         icon={<Sparkles size={15} />}
+
                         label={dict.settings.appearance.ambientBrightness}
                         value={ambientSettings.brightness ?? 100}
                         min={20}
@@ -1459,6 +1468,171 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             background: "none",
                           }}
                         />
+                      </div>
+                    </div>
+                  )}
+
+                  {ambientSettings.mode === "ambilight" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <AmbientTuneRow
+                        icon={<Sparkles size={15} />}
+                        label={dict.settings.appearance.ambientSegmentCount}
+                        value={ambientSettings.segment_count}
+                        min={3}
+                        max={16}
+                        step={1}
+                        def={7}
+                        unit=""
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientSegmentCountAria}
+                        onChange={(v) => updateAmbient({ segment_count: v }, false)}
+                        onReset={() => updateAmbient({ segment_count: 7 }, true)}
+                      />
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <span style={{ fontSize: "0.80rem", color: "var(--text-secondary)", fontWeight: 500 }}>
+                          {dict.settings.appearance.ambientSampleWidth}
+                        </span>
+                        {([
+                          { key: "top" as const, label: dict.settings.appearance.ambientSampleTop },
+                          { key: "right" as const, label: dict.settings.appearance.ambientSampleRight },
+                          { key: "bottom" as const, label: dict.settings.appearance.ambientSampleBottom },
+                          { key: "left" as const, label: dict.settings.appearance.ambientSampleLeft },
+                        ] as const).map((item) => (
+                          <AmbientTuneRow
+                            key={item.key}
+                            icon={<Maximize2 size={15} />}
+                            label={item.label}
+                            value={ambientSettings.sample_widths[item.key]}
+                            min={1}
+                            max={15}
+                            step={1}
+                            def={3}
+                            unit="%"
+                            resetTitle={dict.settings.appearance.ambientResetDefault}
+                            ariaLabel={`${dict.settings.appearance.ambientSampleWidth}: ${item.label}`}
+                            onChange={(v) => updateAmbient({
+                              sample_widths: {
+                                ...ambientSettings.sample_widths,
+                                [item.key]: v,
+                              },
+                            }, false)}
+                            onReset={() => updateAmbient({
+                              sample_widths: {
+                                ...ambientSettings.sample_widths,
+                                [item.key]: 3,
+                              },
+                            }, true)}
+                          />
+                        ))}
+                      </div>
+                      <AmbientTuneRow
+                        icon={<Timer size={15} />}
+                        label={dict.settings.appearance.ambientSampleInterval}
+                        value={ambientSettings.sample_interval_ms}
+                        min={100}
+                        max={500}
+                        step={10}
+                        def={100}
+                        unit="ms"
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientSampleIntervalAria}
+                        onChange={(v) => updateAmbient({ sample_interval_ms: v }, false)}
+                        onReset={() => updateAmbient({ sample_interval_ms: 100 }, true)}
+                      />
+                      <AmbientTuneRow
+                        icon={<Zap size={15} />}
+                        label={dict.settings.appearance.ambientAttack}
+                        value={ambientSettings.smoothing_attack_ms}
+                        min={50}
+                        max={2000}
+                        step={10}
+                        def={180}
+                        unit="ms"
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientAttackAria}
+                        onChange={(v) => updateAmbient({ smoothing_attack_ms: v }, false)}
+                        onReset={() => updateAmbient({ smoothing_attack_ms: 180 }, true)}
+                      />
+                      <AmbientTuneRow
+                        icon={<Clock size={15} />}
+                        label={dict.settings.appearance.ambientRelease}
+                        value={ambientSettings.smoothing_release_ms}
+                        min={100}
+                        max={5000}
+                        step={50}
+                        def={650}
+                        unit="ms"
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientReleaseAria}
+                        onChange={(v) => updateAmbient({ smoothing_release_ms: v }, false)}
+                        onReset={() => updateAmbient({ smoothing_release_ms: 650 }, true)}
+                      />
+                      <AmbientTuneRow
+                        icon={<SlidersHorizontal size={15} />}
+                        label={dict.settings.appearance.ambientSpread}
+                        value={ambientSettings.segment_spread}
+                        min={100}
+                        max={200}
+                        step={1}
+                        def={130}
+                        unit="%"
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientSpreadAria}
+                        onChange={(v) => updateAmbient({ segment_spread: v }, false)}
+                        onReset={() => updateAmbient({ segment_spread: 130 }, true)}
+                      />
+                      <AmbientTuneRow
+                        icon={<SlidersHorizontal size={15} />}
+                        label={dict.settings.appearance.ambientGap}
+                        value={ambientSettings.segment_gap}
+                        min={0}
+                        max={50}
+                        step={1}
+                        def={0}
+                        unit="%"
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientGapAria}
+                        onChange={(v) => updateAmbient({ segment_gap: v }, false)}
+                        onReset={() => updateAmbient({ segment_gap: 0 }, true)}
+                      />
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8,
+                          padding: "12px 14px",
+                          borderRadius: "var(--radius-md)",
+                          background: "rgba(255, 255, 255, 0.03)",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        <span style={{ fontSize: "0.80rem", color: "var(--text-secondary)", fontWeight: 500 }}>
+                          {dict.settings.appearance.ambientPreview}
+                        </span>
+                        <div style={{ display: "grid", gridTemplateRows: "repeat(4, 10px)", gap: 3, opacity: 0.9 }}>
+                          {Array.from({ length: 4 }, (_, side) => (
+                            <div
+                              key={side}
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: `repeat(${ambientSettings.segment_count}, minmax(0, 1fr))`,
+                                gap: 2,
+                              }}
+                            >
+                              {Array.from({ length: ambientSettings.segment_count }, (_, index) => (
+                                <span
+                                  key={index}
+                                  style={{
+                                    display: "block",
+                                    minWidth: 0,
+                                    borderRadius: 2,
+                                    background: getAmbientPreviewColor(side, index, ambientSettings.segment_count),
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}

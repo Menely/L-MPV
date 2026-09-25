@@ -65,6 +65,11 @@ import {
   getSavedControlBarStyle,
   saveControlBarStyle,
 } from "../../utils/controlBarStyleUtils";
+import {
+  createDefaultAmbientSettings,
+  normalizeAmbientSettings,
+} from "../../utils/ambientSettingsUtils";
+import type { AmbientSettings } from "../../utils/ambientSettingsUtils";
 import { UpdateInfo } from "./UpdateModal";
 import { getEffectiveAccentColor } from "../../utils/colorUtils";
 import { PresetsSection } from "../settings/PresetsSection";
@@ -92,15 +97,7 @@ import {
   saveUiFont,
 } from "../../utils/uiThemeUtils";
 
-export interface AmbientSettings {
-  mode: "off" | "blur" | "color";
-  blur_radius: number;
-  color: string;
-  /** Яркость подсветки %, 20..150 (опционально для старых пресетов) */
-  brightness?: number;
-  /** Насыщенность подсветки %, 0..150 (опционально для старых пресетов) */
-  saturation?: number;
-}
+export type { AmbientSettings } from "../../utils/ambientSettingsUtils";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -269,20 +266,16 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     if (typeof data.animationsEnabled === "boolean") setAnimationsEnabled(data.animationsEnabled);
     if (typeof data.showTrackNames === "boolean") setShowTrackNames(data.showTrackNames);
     if (data.visibleButtons) setVisibleButtons(data.visibleButtons);
-    if (data.ambient) setAmbientSettings(data.ambient);
+    if (data.ambient) setAmbientSettings(normalizeAmbientSettings(data.ambient));
     if (typeof data.saveTracksToVideoDir === "boolean") setSaveTracksToVideoDir(data.saveTracksToVideoDir);
     if (typeof data.hotloadEnabled === "boolean") setHotloadEnabled(data.hotloadEnabled);
     if (typeof data.skipOpeningSeconds === "number") setSkipOpeningSeconds(data.skipOpeningSeconds);
       }, []);
 
           
-    const [ambientSettings, setAmbientSettings] = useState<AmbientSettings>({
-    mode: "off",
-    blur_radius: 100,
-    color: "#7fc7ff",
-    brightness: 100,
-    saturation: 100,
-  });
+  const [ambientSettings, setAmbientSettings] = useState<AmbientSettings>(() =>
+    createDefaultAmbientSettings()
+  );
 
   useEffect(() => {
     const handleRadiusChanged = (e: Event) => {
@@ -363,6 +356,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   ambientSettingsRef.current = ambientSettings;
   const isAmbientDirtyRef = useRef<boolean>(false);
   const ambientSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ambientLocalEventRef = useRef(false);
   // Коалесцинг превью: драг слайдера шлёт десятки onChange/сек,
   // в mpv уходит максимум один IPC за кадр.
   const ambientPreviewRafRef = useRef<number | null>(null);
@@ -421,9 +415,35 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   // Загружаем текущий путь к скриншотам из mpv
   useEffect(() => {
-    const loadAmbient = () => {
-      invoke<AmbientSettings>("get_ambient_settings")
-        .then(setAmbientSettings)
+    let ambientRevision = 0;
+    const loadAmbient = (event?: Event) => {
+      const detail = (event as CustomEvent<unknown> | undefined)?.detail;
+      if (detail) {
+        ambientRevision += 1;
+        const normalized = normalizeAmbientSettings(detail);
+        ambientSettingsRef.current = normalized;
+        if (!ambientLocalEventRef.current) {
+          if (ambientPreviewRafRef.current !== null) {
+            cancelAnimationFrame(ambientPreviewRafRef.current);
+            ambientPreviewRafRef.current = null;
+          }
+          pendingPreviewRef.current = null;
+          if (ambientSaveTimeoutRef.current) {
+            clearTimeout(ambientSaveTimeoutRef.current);
+            ambientSaveTimeoutRef.current = null;
+          }
+          isAmbientDirtyRef.current = false;
+        }
+        setAmbientSettings(normalized);
+        return;
+      }
+      const requestRevision = ambientRevision;
+      invoke<unknown>("get_ambient_settings")
+        .then((settings) => {
+          if (requestRevision === ambientRevision) {
+            setAmbientSettings(normalizeAmbientSettings(settings));
+          }
+        })
         .catch((e) => console.error("Ошибка загрузки настроек Ambient Light:", e));
     };
 
@@ -462,12 +482,22 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   // Оптимизированное применение: шейдерный preview на GPU через rAF-коалесцинг
   // (максимум один IPC за кадр при драге слайдера) + отложенное сохранение (Debounce 400ms)
   const updateAmbient = async (newSettings: Partial<AmbientSettings>, immediateSave: boolean = false) => {
-    const updated = { ...ambientSettingsRef.current, ...newSettings };
+    const updated = normalizeAmbientSettings({
+      ...ambientSettingsRef.current,
+      ...newSettings,
+      sample_widths: {
+        ...ambientSettingsRef.current.sample_widths,
+        ...newSettings.sample_widths,
+      },
+    });
     ambientSettingsRef.current = updated;
     setAmbientSettings(updated);
 
     // 1. Мгновенное применение шейдеров в mpv без блокирующего дискового ввода-вывода
     scheduleAmbientPreview(updated);
+    ambientLocalEventRef.current = true;
+    window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: updated }));
+    ambientLocalEventRef.current = false;
 
     // 2. Дебаунсинг сохранения настроек в файл config/settings.json
     if (ambientSaveTimeoutRef.current) {
@@ -479,7 +509,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       isAmbientDirtyRef.current = false;
       try {
         await invoke("set_ambient_settings", { settings: updated });
-        window.dispatchEvent(new Event('l-mpv-ambient-changed'));
       } catch (err) {
         console.error("Ошибка сохранения настроек Ambient Light:", err);
       }
@@ -489,12 +518,12 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         isAmbientDirtyRef.current = false;
         try {
           await invoke("set_ambient_settings", { settings: updated });
-          window.dispatchEvent(new Event('l-mpv-ambient-changed'));
         } catch (err) {
           console.error("Ошибка отложенного сохранения настроек Ambient Light:", err);
         }
       }, 400);
     }
+
   };
 
   // Выбор папки скриншотов через диалог Tauri

@@ -17,6 +17,16 @@ use super::types::{
 };
 use tauri::State;
 
+fn invalidate_ambient_result<T>(
+    state: &PlayerState,
+    result: Result<T, String>,
+) -> Result<T, String> {
+    if result.is_ok() {
+        state.ambient_controller.invalidate();
+    }
+    result
+}
+
 // ─── Открытие файла ─────────────────────────────────────
 
 /// Открытие медиафайла для воспроизведения.
@@ -62,6 +72,7 @@ pub fn open_file_internal(
         "loadfile \"{}\" replace",
         safe_target
     ))?;
+    state.ambient_controller.invalidate();
 
     // Флаги читаются один раз (один парсинг settings.json на открытие).
     let settings = AppSettings::load_portable();
@@ -157,14 +168,13 @@ pub fn toggle_pause(
         dur > 0.0
     };
 
-    if is_near_end {
-        let _ =
-            state.mpv.command("seek 0 absolute+exact");
-        let _ =
-            state.mpv.set_property_string("pause", "no");
-        return Ok(());
-    }
-    state.mpv.command("cycle pause")
+    let result = if is_near_end {
+        let _ = state.mpv.command("seek 0 absolute+exact");
+        state.mpv.set_property_string("pause", "no")
+    } else {
+        state.mpv.command("cycle pause")
+    };
+    invalidate_ambient_result(&state, result)
 }
 
 /// Установка паузы в конкретное состояние.
@@ -173,6 +183,7 @@ pub fn set_pause(
     state: State<'_, PlayerState>,
     paused: bool,
 ) -> Result<(), String> {
+    let mut restart = false;
     if !paused {
         let dur = state
             .mpv
@@ -183,7 +194,7 @@ pub fn set_pause(
                 .mpv
                 .get_property_bool("eof-reached")
                 .unwrap_or(false);
-        let is_near_end = if !is_eof {
+        restart = if !is_eof {
             let pos = state
                 .mpv
                 .get_property_double("time-pos")
@@ -192,18 +203,17 @@ pub fn set_pause(
         } else {
             dur > 0.0
         };
-
-        if is_near_end {
-            let _ = state
-                .mpv
-                .command("seek 0 absolute+exact");
-            return state
-                .mpv
-                .set_property_string("pause", "no");
-        }
     }
     let value = if paused { "yes" } else { "no" };
-    state.mpv.set_property_string("pause", value)
+    let result = if restart {
+        let _ = state
+            .mpv
+            .command("seek 0 absolute+exact");
+        state.mpv.set_property_string("pause", value)
+    } else {
+        state.mpv.set_property_string("pause", value)
+    };
+    invalidate_ambient_result(&state, result)
 }
 
 /// Перемотка на указанное количество секунд (относительная).
@@ -212,10 +222,11 @@ pub fn seek(
     state: State<'_, PlayerState>,
     seconds: f64,
 ) -> Result<(), String> {
-    state.mpv.command(&format!(
+    let result = state.mpv.command(&format!(
         "seek {} relative+exact",
         seconds
-    ))
+    ));
+    invalidate_ambient_result(&state, result)
 }
 
 /// Перемотка к абсолютной позиции в секундах.
@@ -230,10 +241,11 @@ pub fn seek_absolute(
         } else {
             seconds.max(0.0)
         };
-    state.mpv.command(&format!(
+    let result = state.mpv.command(&format!(
         "seek {} absolute+exact",
         safe_seconds
-    ))
+    ));
+    invalidate_ambient_result(&state, result)
 }
 
 /// Шаг на один кадр вперед.
@@ -241,7 +253,8 @@ pub fn seek_absolute(
 pub fn frame_step(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
-    state.mpv.command("frame-step")
+    let result = state.mpv.command("frame-step");
+    invalidate_ambient_result(&state, result)
 }
 
 /// Шаг на один кадр назад.
@@ -249,7 +262,8 @@ pub fn frame_step(
 pub fn frame_back_step(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
-    state.mpv.command("frame-back-step")
+    let result = state.mpv.command("frame-back-step");
+    invalidate_ambient_result(&state, result)
 }
 
 // ─── Громкость и скорость ────────────────────────────────

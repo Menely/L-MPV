@@ -102,7 +102,7 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "resetZoom", label: "Сброс масштаба видео (100%)", defaultKeys: DEFAULT_HOTKEYS["resetZoom"], category: "interface" },
   { id: "screenshot", label: "Сохранить кадр", defaultKeys: DEFAULT_HOTKEYS["screenshot"], category: "interface" },
   { id: "copyFrame", label: "Копировать кадр в буфер", defaultKeys: DEFAULT_HOTKEYS["copyFrame"], category: "interface" },
-  { id: "toggleAmbient", label: "Подсветка полос (Ambient Light)", defaultKeys: DEFAULT_HOTKEYS["toggleAmbient"], category: "interface" },
+  { id: "toggleAmbient", label: "Подсветка полос (Ambient Light: off / blur / color / ambilight)", defaultKeys: DEFAULT_HOTKEYS["toggleAmbient"], category: "interface" },
   { id: "toggleLanguage", label: "Переключить язык интерфейса", defaultKeys: DEFAULT_HOTKEYS["toggleLanguage"], category: "interface" },
 
   // Плейлист

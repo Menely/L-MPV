@@ -50,6 +50,8 @@ import {
   getSavedControlBarStyle,
   saveControlBarStyle,
 } from "./controlBarStyleUtils";
+import type { AmbientPresetSettings } from "./ambientSettingsUtils";
+import { normalizeAmbientSettings } from "./ambientSettingsUtils";
 
 export interface SettingsPresetData {
   /** Тема оформления плеера (расцветка фона и поверхностей) */
@@ -84,13 +86,7 @@ export interface SettingsPresetData {
   /** Пользовательская сохранённая палитра цветов */
   customColors?: string[];
   /** Параметры подсветки полос (Ambient Light) */
-  ambient: {
-    mode: "off" | "blur" | "color";
-    blur_radius: number;
-    color: string;
-    brightness?: number;
-    saturation?: number;
-  };
+  ambient: AmbientPresetSettings;
   /** Конфигурация аудио-визуализатора */
   visualizer: VisualizerConfig;
   /** Сохранять извлечённые дорожки в папку с видео */
@@ -333,29 +329,15 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
 
   const customColors = getCustomColors();
 
-  let ambient: {
-    mode: "off" | "blur" | "color";
-    blur_radius: number;
-    color: string;
-    brightness?: number;
-    saturation?: number;
-  } = {
+  let ambient: AmbientPresetSettings = {
     mode: "off",
     blur_radius: 35,
     color: "#000000",
   };
   try {
-    const savedAmbient = await invoke<{
-      mode: "off" | "blur" | "color";
-      blur_radius: number;
-      color: string;
-      brightness?: number;
-      saturation?: number;
-    }>(
-      "get_ambient_settings"
-    );
+    const savedAmbient = await invoke<unknown>("get_ambient_settings");
     if (savedAmbient) {
-      ambient = savedAmbient;
+      ambient = normalizeAmbientSettings(savedAmbient);
     }
   } catch (e) {
     console.error("Ошибка получения настроек Ambient Light:", e);
@@ -495,10 +477,10 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
 
   // 8. Подсветка полос (Ambient Light)
   if (data.ambient) {
+    const ambient = normalizeAmbientSettings(data.ambient);
     try {
-      await invoke("set_ambient_settings", { settings: data.ambient });
-      await invoke("apply_ambient_preview", { settings: data.ambient }).catch(() => {});
-      window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: data.ambient }));
+      await invoke("set_ambient_settings", { settings: ambient });
+      window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: ambient }));
     } catch (e) {
       console.error("Ошибка применения Ambient Light:", e);
     }
@@ -547,7 +529,10 @@ export async function loadUserPresets(): Promise<SettingsPreset[]> {
         createdAt: typeof item.createdAt === "number" ? item.createdAt : Date.now(),
         updatedAt: typeof item.updatedAt === "number" ? item.updatedAt : undefined,
         isBuiltIn: false,
-        data: item.data || {},
+        data: {
+          ...(item.data || {}),
+          ambient: normalizeAmbientSettings(item.data?.ambient),
+        },
       }));
   };
 
@@ -749,7 +734,7 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
             showTrackNames: item.data.showTrackNames !== false,
             visibleButtons: item.data.visibleButtons || {},
             customColors: item.data.customColors || [],
-            ambient: item.data.ambient || { mode: "off", blur_radius: 35, color: "#000000" },
+            ambient: normalizeAmbientSettings(item.data.ambient),
             visualizer: item.data.visualizer || {
               enabled: false,
               placement: "off",
@@ -871,13 +856,29 @@ export function isSettingsMatchingPreset(
 
   // 11. Ambient Light
   if (current.ambient && preset.ambient) {
-    if (current.ambient.mode !== preset.ambient.mode) return false;
-    if (current.ambient.mode !== "off") {
-      if (current.ambient.blur_radius !== preset.ambient.blur_radius) return false;
-      if (current.ambient.mode === "color" && current.ambient.color.toLowerCase() !== preset.ambient.color.toLowerCase()) return false;
-      // Яркость/насыщенность сравниваем только если пресет их задаёт
-      if (preset.ambient.brightness !== undefined && (current.ambient.brightness ?? 100) !== preset.ambient.brightness) return false;
-      if (preset.ambient.saturation !== undefined && (current.ambient.saturation ?? 100) !== preset.ambient.saturation) return false;
+    const currentAmbient = normalizeAmbientSettings(current.ambient);
+    const presetAmbient = normalizeAmbientSettings(preset.ambient);
+    if (currentAmbient.mode !== presetAmbient.mode) return false;
+    if (currentAmbient.mode === "blur") {
+      if (currentAmbient.blur_radius !== presetAmbient.blur_radius) return false;
+    }
+    if (currentAmbient.mode === "color") {
+      if (currentAmbient.color.toLowerCase() !== presetAmbient.color.toLowerCase()) return false;
+      if (currentAmbient.brightness !== presetAmbient.brightness) return false;
+      if (currentAmbient.saturation !== presetAmbient.saturation) return false;
+    }
+    if (currentAmbient.mode === "ambilight") {
+      if (currentAmbient.brightness !== presetAmbient.brightness) return false;
+      if (currentAmbient.saturation !== presetAmbient.saturation) return false;
+      if (currentAmbient.segment_count !== presetAmbient.segment_count) return false;
+      if (currentAmbient.sample_interval_ms !== presetAmbient.sample_interval_ms) return false;
+      if (currentAmbient.smoothing_attack_ms !== presetAmbient.smoothing_attack_ms) return false;
+      if (currentAmbient.smoothing_release_ms !== presetAmbient.smoothing_release_ms) return false;
+      if (Math.abs(currentAmbient.segment_spread - presetAmbient.segment_spread) > 0.01) return false;
+      if (Math.abs(currentAmbient.segment_gap - presetAmbient.segment_gap) > 0.01) return false;
+      for (const edge of ["top", "right", "bottom", "left"] as const) {
+        if (currentAmbient.sample_widths[edge] !== presetAmbient.sample_widths[edge]) return false;
+      }
     }
   }
 
