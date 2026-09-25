@@ -9,7 +9,7 @@ import { ColorSchemeSection } from "./ColorSchemeSection";
 import { VisualizerSettingsSection } from "./VisualizerSettingsSection";
 import { ControlButtonsPreviewCard } from "./ControlButtonsPreviewCard";
 import { optionCardStyle, optionResetBtnStyle, optionBtnStyle } from "./optionCardStyles";
-import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESETS, UI_FONT_PRESETS, CustomFontItem, registerCustomFont } from "../../utils/uiThemeUtils";
+import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESETS, UI_FONT_PRESETS, CustomFontItem, registerCustomFont, getSavedUiSettingsStyle, saveUiSettingsStyle, type UiSettingsStyle } from "../../utils/uiThemeUtils";
 import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../utils/timePositionUtils";
 import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../utils/timeFormatUtils";
 import { ControlBarStyle } from "../../utils/controlBarStyleUtils";
@@ -102,9 +102,16 @@ const VerticalSlider = memo(function VerticalSlider({
       aria-valuenow={value}
       aria-valuemin={min}
       aria-valuemax={max}
+      aria-orientation="vertical"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+        if (e.key === "Home") {
+          e.preventDefault();
+          onChange(min);
+        } else if (e.key === "End") {
+          e.preventDefault();
+          onChange(max);
+        } else if (e.key === "ArrowUp" || e.key === "ArrowRight") {
           e.preventDefault();
           const nextVal = Math.min(max, Number((value + step).toFixed(decimals)));
           if (nextVal !== value) onChange(nextVal);
@@ -116,8 +123,8 @@ const VerticalSlider = memo(function VerticalSlider({
       }}
       style={{
         position: "relative",
-        width: 20,
-        minWidth: 20,
+         width: 16,
+         minWidth: 16,
         height: "100%",
         display: "flex",
         alignItems: "center",
@@ -341,6 +348,18 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
   // ── Пользовательские шрифты из папки fonts/ ─────────────────────────────
   const [customFonts, setCustomFonts] = useState<CustomFontItem[]>([]);
 
+  // ── Стиль окна настроек ───────────────────────────────────────────────────
+  const [settingsStyle, setSettingsStyle] = useState<UiSettingsStyle>(getSavedUiSettingsStyle);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<UiSettingsStyle>;
+      setSettingsStyle(ce.detail);
+    };
+    window.addEventListener("l-mpv-ui-settings-style-changed", handler);
+    return () => window.removeEventListener("l-mpv-ui-settings-style-changed", handler);
+  }, []);
+
   const loadFonts = useCallback(async () => {
     try {
       const items = await invoke<CustomFontItem[]>("get_custom_fonts");
@@ -420,6 +439,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           const opacityPct = Math.round(((uiOpacity - 0.10) / (1.00 - 0.10)) * 100);
                           return (
                             <div
+                              className="settings-opacity-row"
                               style={{
                                 ...cardStyle,
                                 flexDirection: "row",
@@ -530,7 +550,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                         <div className="ui-ergonomics-grid">
 
                           {/* Колонка 1: Скругление */}
-                          <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                          <div className="ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Square size={14} style={{ color: "var(--accent)" }} />
@@ -543,15 +563,15 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </span>
                             </div>
 
-                            <div style={{ display: "flex", gap: 10, flex: 1, minHeight: 0, alignItems: "stretch" }}>
+                            <div className="ui-ergonomics-control-row" style={{ display: "flex", gap: 10, flex: 1, minHeight: 0, alignItems: "stretch" }}>
                               {/* Сетка 2x2 для пресетов */}
                               <div
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "1fr 1fr",
-                                  gridTemplateRows: "repeat(2, minmax(0, 1fr))",
-                                  gap: 6,
-                                  flex: 1,
+                                   gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                                   gridTemplateRows: "repeat(2, minmax(0, 1fr))",
+                                   gap: 4,
+                                   flex: 1,
                                   minWidth: 0,
                                   minHeight: 0,
                                 }}
@@ -608,16 +628,16 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                             }}
                                           />
                                         </div>
-                                        <span style={{ fontSize: "0.70rem", fontWeight: 600, lineHeight: 1.15, textAlign: "center", whiteSpace: "nowrap" }}>
-                                          {dict.settings.appearance.roundingPresets[level === "default" ? "standard" : level] || preset.label}
-                                        </span>
+                                         <span style={{ fontSize: "0.66rem", fontWeight: 600, lineHeight: 1.15, textAlign: "center", whiteSpace: "nowrap", letterSpacing: "-0.02em", padding: "0 1px", maxWidth: "100%" }}>
+                                           {dict.settings.appearance.roundingPresets[level === "default" ? "standard" : level] || preset.label}
+                                         </span>
                                       </button>
                                     );
                                 })}
                               </div>
 
                               {/* Вертикальный ползунок */}
-                              <div style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
+                              <div className="ui-ergonomics-slider" style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
                                 <VerticalSlider
                                   value={uiRadius.value}
                                   min={0}
@@ -638,7 +658,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           </div>
 
                           {/* Колонка 2: Масштаб */}
-                          <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                          <div className="ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Maximize2 size={14} style={{ color: "var(--accent)" }} />
@@ -678,15 +698,15 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </div>
                             </div>
 
-                            <div style={{ display: "flex", gap: 10, flex: 1, minHeight: 0, alignItems: "stretch" }}>
+                            <div className="ui-ergonomics-control-row" style={{ display: "flex", gap: 10, flex: 1, minHeight: 0, alignItems: "stretch" }}>
                               {/* Сетка 2x2 для пресетов */}
                               <div
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "1fr 1fr",
-                                  gridTemplateRows: "repeat(2, minmax(0, 1fr))",
-                                  gap: 6,
-                                  flex: 1,
+                                   gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                                   gridTemplateRows: "repeat(2, minmax(0, 1fr))",
+                                   gap: 4,
+                                   flex: 1,
                                   minWidth: 0,
                                   minHeight: 0,
                                 }}
@@ -710,14 +730,13 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     >
                                       <span
                                         style={{
-                                          fontSize: "0.70rem",
-                                          fontWeight: 600,
-                                          lineHeight: 1.15,
-                                          textAlign: "center",
-                                          whiteSpace: "nowrap",
-                                          overflow: "hidden",
-                                          textOverflow: "ellipsis",
-                                          maxWidth: "100%",
+                                         fontSize: "0.66rem",
+                                         fontWeight: 600,
+                                         lineHeight: 1.15,
+                                         textAlign: "center",
+                                         whiteSpace: "nowrap",
+                                         letterSpacing: "-0.02em",
+                                         maxWidth: "100%",
                                         }}
                                       >
                                         {preset.id === "compact"
@@ -737,7 +756,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </div>
 
                               {/* Вертикальный ползунок */}
-                              <div style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
+                              <div className="ui-ergonomics-slider" style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
                                 <VerticalSlider
                                   value={uiScale.value}
                                   min={0.70}
@@ -756,7 +775,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           </div>
 
                           {/* Колонка 3: Шрифты */}
-                          <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                          <div className="ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Type size={14} style={{ color: "var(--accent)" }} />
@@ -781,6 +800,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 return (
                                   <button
                                     key={fontPreset.id}
+                                    className="ui-font-choice"
                                     type="button"
                                     onClick={() => {
                                       setUiFont(fontPreset.id);
@@ -822,8 +842,9 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                   {customFonts.map((font) => {
                                     const isSel = uiFont === font.id;
                                     return (
-                                      <button
-                                        key={font.id}
+                                    <button
+                                      key={font.id}
+                                      className="ui-font-choice"
                                         type="button"
                                         onClick={() => {
                                           setUiFont(font.id);
@@ -871,6 +892,62 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             </div>
                           </div>
                         </div>
+                      </div>
+
+                      {/* ── Блок Стиль окна настроек ── */}
+                      <div style={{ ...cardStyle, marginTop: 10, display: "flex", flexDirection: "column" }}>
+                        <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                            <SlidersHorizontal size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
+                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
+                              {dict.settings.appearance.settingsWindow.title}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => saveUiSettingsStyle("sidebar")}
+                            className="btn btn--secondary btn--sm"
+                            style={{
+                              ...resetBtnStyle,
+                              opacity: settingsStyle !== "sidebar" ? 1 : 0,
+                              visibility: settingsStyle !== "sidebar" ? "visible" : "hidden",
+                              pointerEvents: settingsStyle !== "sidebar" ? "auto" : "none",
+                              transform: settingsStyle !== "sidebar" ? "scale(1)" : "scale(0.85)",
+                              transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                            }}
+                            title={dict.settings.appearance.settingsWindow.resetTitle}
+                            tabIndex={settingsStyle !== "sidebar" ? 0 : -1}
+                          >
+                            <RotateCcw size={11} />
+                          </button>
+                        </div>
+                        <div className="settings-window-choice-grid">
+                          <button
+                            type="button"
+                            className={`visual-bar-card visual-bar-card--row settings-window-choice ${settingsStyle === "sidebar" ? "visual-bar-card--active" : ""}`}
+                            aria-pressed={settingsStyle === "sidebar"}
+                            onClick={() => saveUiSettingsStyle("sidebar")}
+                          >
+                            <span className="visual-bar-card__info">
+                              <span className="visual-bar-card__label">{dict.settings.appearance.settingsWindow.sidebar}</span>
+                              <span className="visual-bar-card__desc">{dict.settings.appearance.settingsWindow.sidebarDesc}</span>
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`visual-bar-card visual-bar-card--row settings-window-choice ${settingsStyle === "modal" ? "visual-bar-card--active" : ""}`}
+                            aria-pressed={settingsStyle === "modal"}
+                            onClick={() => saveUiSettingsStyle("modal")}
+                          >
+                            <span className="visual-bar-card__info">
+                              <span className="visual-bar-card__label">{dict.settings.appearance.settingsWindow.modal}</span>
+                              <span className="visual-bar-card__desc">{dict.settings.appearance.settingsWindow.modalDesc}</span>
+                            </span>
+                          </button>
+                        </div>
+                        <span className="settings-window-choice__note">
+                          {dict.settings.appearance.settingsWindow.nextOpen}
+                        </span>
                       </div>
 
                       {/* ── Блок 5 и 6: Стиль панели управления (слева) + Позиция и Формат времени (справа) ── */}
@@ -1161,10 +1238,27 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     { id: 'skipOpening', label: dict.settings.appearance.visSkipOpening, defaultChecked: false }
                   ].map(btn => {
                     const isChecked = visibleButtons[btn.id] !== undefined 
-                      ? visibleButtons[btn.id] 
+                      ? visibleButtons[btn.id]
                       : btn.defaultChecked;
+                    const isWideSkipRow = btn.id === "skipOpening" && isChecked;
                     return (
-                      <label key={btn.id} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 24, height: 24, cursor: "pointer", userSelect: "none", boxSizing: "border-box" }}>
+                      <label
+                        key={btn.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          minHeight: 24,
+                          height: "auto",
+                          minWidth: 0,
+                          flexWrap: "wrap",
+                          rowGap: 4,
+                          cursor: "pointer",
+                          userSelect: "none",
+                          boxSizing: "border-box",
+                          ...(isWideSkipRow ? { gridColumn: "1 / -1" } : {}),
+                        }}
+                      >
                         <input
                           type="checkbox"
                           className="ui-checkbox"
@@ -1177,13 +1271,13 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             window.dispatchEvent(new Event('l-mpv-settings-changed'));
                           }}
                         />
-                        <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500, lineHeight: 1 }}>
+                        <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500, lineHeight: 1.2, minWidth: 0, whiteSpace: "normal" }}>
                           {btn.label}
                         </span>
                         {btn.id === 'skipOpening' && isChecked && (
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 4, height: 20 }}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 4, height: 20, flexShrink: 0, whiteSpace: "nowrap" }}
                           >
                             <input
                               type="text"
@@ -1210,7 +1304,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               style={{
                                 width: 44,
                                 height: 20,
-                                padding: "0 4px",
+                                padding: "0 2px",
                                 background: "rgba(0, 0, 0, 0.4)",
                                 border: "1px solid var(--border)",
                                 borderRadius: "var(--radius-sm)",
@@ -1218,11 +1312,12 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 fontSize: "0.78rem",
                                 textAlign: "center",
                                 fontWeight: 600,
-                                boxSizing: "border-box",
-                                outline: "none"
+                                 boxSizing: "border-box",
+                                 outline: "none",
+                                 flexShrink: 0
                               }}
                             />
-                            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1 }}>{dict.settings.appearance.secSuffix}</span>
+                             <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1, flexShrink: 0, whiteSpace: "nowrap" }}>{dict.settings.appearance.secSuffix}</span>
                           </div>
                         )}
                       </label>

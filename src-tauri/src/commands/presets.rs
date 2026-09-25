@@ -35,7 +35,12 @@ fn get_presets_dir(
 ) -> Result<std::path::PathBuf, String> {
     let dir = get_config_dir()?.join("presets");
     if !dir.exists() {
-        let _ = std::fs::create_dir_all(&dir);
+        std::fs::create_dir_all(&dir).map_err(|e| {
+            format!(
+                "Не удалось создать папку пресетов {}: {}",
+                dir.display(), e
+            )
+        })?;
     }
     Ok(dir)
 }
@@ -159,61 +164,70 @@ pub fn save_settings_presets(
     presets_json: String,
 ) -> Result<(), String> {
     let presets_dir = get_presets_dir()?;
-    if let Ok(parsed) = serde_json::from_str::<
-        serde_json::Value,
-    >(&presets_json)
-    {
-        if let Some(list) = parsed.as_array() {
-            let mut active_files =
-                std::collections::HashSet::new();
-            for item in list {
-                if let Some(name) = item
-                    .get("name")
-                    .and_then(|n| n.as_str())
-                {
-                    let safe_name =
-                        sanitize_filename(name);
-                    let file_name =
-                        format!("{safe_name}.json");
-                    let file_path =
-                        presets_dir.join(&file_name);
-                    if let Ok(item_str) =
-                        serde_json::to_string_pretty(
-                            item,
-                        )
-                    {
-                        let _ = std::fs::write(
-                            &file_path, item_str,
-                        );
-                    }
-                    active_files.insert(file_name);
-                }
-            }
+    let list = serde_json::from_str::<Vec<serde_json::Value>>(
+        &presets_json,
+    )
+    .map_err(|e| {
+        format!(
+            "Некорректный JSON списка пресетов: {}",
+            e
+        )
+    })?;
+    let mut active_files =
+        std::collections::HashSet::new();
 
-            // Удаляем файлы пресетов, которые были удалены пользователем
-            if let Ok(entries) =
-                std::fs::read_dir(&presets_dir)
+    for item in &list {
+        let name = item
+            .get("name")
+            .and_then(|value| value.as_str())
+            .ok_or_else(|| {
+                "Пресет без поля name".to_string()
+            })?;
+        let file_name = format!(
+            "{}.json", sanitize_filename(name)
+        );
+        let file_path = presets_dir.join(&file_name);
+        let item_json =
+            serde_json::to_string_pretty(item)
+                .map_err(|e| e.to_string())?;
+        std::fs::write(&file_path, item_json)
+            .map_err(|e| {
+                format!(
+                    "Не удалось сохранить пресет {}: {}",
+                    file_path.display(), e
+                )
+            })?;
+        active_files.insert(file_name);
+    }
+
+    if let Ok(entries) = std::fs::read_dir(&presets_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Some(file_name) = path
+                .file_name()
+                .and_then(|value| value.to_str())
+            else {
+                continue;
+            };
+            if file_name.ends_with(".json")
+                && !active_files.contains(file_name)
             {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if let Some(fname) = path
-                        .file_name()
-                        .and_then(|f| f.to_str())
-                    {
-                        if fname.ends_with(".json")
-                            && !active_files
-                                .contains(fname)
-                        {
-                            let _ =
-                                std::fs::remove_file(
-                                    &path,
-                                );
-                        }
+                match std::fs::remove_file(&path) {
+                    Ok(()) => {}
+                    Err(error)
+                        if error.kind()
+                            == std::io::ErrorKind::NotFound => {}
+                    Err(error) => {
+                        return Err(format!(
+                            "Не удалось удалить пресет {}: {}",
+                            path.display(), error
+                        ));
                     }
                 }
             }
         }
     }
+
     Ok(())
 }
 

@@ -11,6 +11,7 @@ import React from "react";
 export const optionCardStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
+  minWidth: 0,
   gap: 8,
   padding: "10px 12px",
   background: "rgba(255, 255, 255, 0.025)",
@@ -39,6 +40,8 @@ export const optionBtnStyle = (isSel: boolean, padding = "6px 4px"): React.CSSPr
   flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
+  minWidth: 0,
+  overflow: "hidden",
   gap: 3,
   padding,
   borderRadius: "var(--radius-sm)",

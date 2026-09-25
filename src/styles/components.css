@@ -347,3 +347,8 @@
   margin-bottom: 2px;
 }
 
+:where(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+

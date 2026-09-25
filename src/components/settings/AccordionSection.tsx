@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { ChevronDown } from "lucide-react";
 
 export interface AccordionSectionProps {
@@ -17,6 +18,8 @@ export function AccordionSection({
   badge,
   children,
 }: AccordionSectionProps) {
+  const contentId = useId();
+
   return (
     <div className={`settings-accordion ${isOpen ? "settings-accordion--open" : ""}`}>
       <button
@@ -24,6 +27,7 @@ export function AccordionSection({
         className="settings-accordion__header"
         onClick={onToggle}
         aria-expanded={isOpen}
+        aria-controls={contentId}
       >
         <div className="settings-accordion__title">
           <span className="settings-accordion__icon">{icon}</span>
@@ -32,7 +36,12 @@ export function AccordionSection({
         </div>
         <ChevronDown size={18} className="settings-accordion__chevron" aria-hidden />
       </button>
-      <div className="settings-accordion__collapse" aria-hidden={!isOpen}>
+      <div
+        id={contentId}
+        className="settings-accordion__collapse"
+        aria-hidden={!isOpen}
+        inert={!isOpen}
+      >
         <div className="settings-accordion__inner">
           <div className="settings-accordion__body">
             {children}

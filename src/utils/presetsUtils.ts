@@ -34,6 +34,9 @@ import {
   UiFontId,
   getSavedUiFont,
   saveUiFont,
+  getSavedUiSettingsStyle,
+  saveUiSettingsStyle,
+  UiSettingsStyle,
 } from "./uiThemeUtils";
 import {
   TimeDisplayPosition,
@@ -56,6 +59,7 @@ import { normalizeAmbientSettings } from "./ambientSettingsUtils";
 export interface SettingsPresetData {
   /** Тема оформления плеера (расцветка фона и поверхностей) */
   playerTheme?: PlayerThemeId | string;
+  settingsStyle?: UiSettingsStyle;
   /** Семейство шрифта интерфейса */
   uiFont?: UiFontId | string;
   /** Положение отображения времени воспроизведения видео */
@@ -359,8 +363,9 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
     createdAt: Date.now(),
     isBuiltIn: false,
     data: {
-      playerTheme,
-      uiFont,
+       playerTheme,
+       settingsStyle: getSavedUiSettingsStyle(),
+       uiFont,
       timePosition: getSavedTimePosition(),
       timeFormat: getSavedTimeFormat(),
       controlBarStyle: getSavedControlBarStyle(),
@@ -388,6 +393,12 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
  */
 export async function applySettingsPreset(preset: SettingsPreset): Promise<void> {
   const { data } = preset;
+
+  if (data.ambient) {
+    const ambient = normalizeAmbientSettings(data.ambient);
+    await invoke("set_ambient_settings", { settings: ambient });
+    window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: ambient }));
+  }
 
   // 0. Тема оформления плеера (расцветка фона и поверхностей)
   if (data.playerTheme) {
@@ -455,6 +466,10 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
     saveControlBarStyle(data.controlBarStyle);
   }
 
+  if (data.settingsStyle === "modal" || data.settingsStyle === "sidebar") {
+    saveUiSettingsStyle(data.settingsStyle);
+  }
+
   // 4. Плавные анимации — через единый сеттер (localStorage + класс + data-атрибут)
   if (typeof data.animationsEnabled === "boolean") {
     setAnimationsEnabled(data.animationsEnabled);
@@ -473,17 +488,6 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   // 7. Пользовательские цвета
   if (data.customColors && Array.isArray(data.customColors)) {
     saveCustomColors(data.customColors);
-  }
-
-  // 8. Подсветка полос (Ambient Light)
-  if (data.ambient) {
-    const ambient = normalizeAmbientSettings(data.ambient);
-    try {
-      await invoke("set_ambient_settings", { settings: ambient });
-      window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: ambient }));
-    } catch (e) {
-      console.error("Ошибка применения Ambient Light:", e);
-    }
   }
 
   // 9. Аудио-визуализатор
@@ -580,11 +584,7 @@ export async function saveUserPresets(presets: SettingsPreset[]): Promise<void> 
     console.error("Ошибка записи пресетов в localStorage:", e);
   }
 
-  try {
-    await invoke("save_settings_presets", { presetsJson: jsonStr });
-  } catch (e) {
-    console.error("Ошибка сохранения пресетов в config/presets.json:", e);
-  }
+  await invoke("save_settings_presets", { presetsJson: jsonStr });
 
   window.dispatchEvent(new CustomEvent("l-mpv-presets-updated"));
 }
@@ -724,7 +724,8 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
           createdAt: Date.now(),
           isBuiltIn: false,
           data: {
-            playerTheme: item.data.playerTheme || "graphite",
+             playerTheme: item.data.playerTheme || "graphite",
+             settingsStyle: item.data.settingsStyle === "modal" || item.data.settingsStyle === "sidebar" ? item.data.settingsStyle : undefined,
             accentColor: item.data.accentColor || "#7fc7ff",
             glowIntensity: item.data.glowIntensity || "medium",
             uiOpacity: typeof item.data.uiOpacity === "number" ? item.data.uiOpacity : 0.88,
@@ -802,6 +803,10 @@ export function isSettingsMatchingPreset(
   const curFont = current.uiFont || "inter";
   const preFont = preset.uiFont || "inter";
   if (curFont !== preFont) return false;
+
+  if (preset.settingsStyle) {
+    if (getSavedUiSettingsStyle() !== preset.settingsStyle) return false;
+  }
 
   // 3. Акцентный цвет
   const curAccent = (current.accentColor || "#7fc7ff").toLowerCase();

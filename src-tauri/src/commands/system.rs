@@ -137,19 +137,20 @@ pub fn set_ambient_settings(
     state: State<'_, PlayerState>,
     settings: AmbientSettings,
 ) -> Result<(), String> {
+    let previous = state.ambient_controller.get_settings();
     state.ambient_controller.apply(&settings)?;
 
     let normalized = state.ambient_controller.get_settings();
-    let mut current_settings =
-        AppSettings::load_portable();
-    current_settings.ambient = normalized;
-    current_settings.save_portable().map_err(|e| {
-        format!(
+    if let Err(error) = AppSettings::update_portable(|current_settings| {
+        current_settings.ambient = normalized;
+    }) {
+        let _ = state.ambient_controller.apply(&previous);
+        return Err(format!(
             "Не удалось сохранить настройки \
              подсветки полос: {}",
-            e
-        )
-    })?;
+            error
+        ));
+    }
 
     Ok(())
 }
@@ -159,22 +160,23 @@ pub fn set_ambient_settings(
 pub fn toggle_ambient_mode(
     state: State<'_, PlayerState>,
 ) -> Result<AmbientSettings, String> {
-    let mut current =
+    let previous =
         state.ambient_controller.get_settings();
+    let mut current = previous.clone();
     current.mode =
         AmbientController::cycle_mode(&current.mode);
     state.ambient_controller.apply(&current)?;
 
-    let mut current_settings =
-        AppSettings::load_portable();
-    current_settings.ambient = current.clone();
-    current_settings.save_portable().map_err(|e| {
-        format!(
+    if let Err(error) = AppSettings::update_portable(|current_settings| {
+        current_settings.ambient = current.clone();
+    }) {
+        let _ = state.ambient_controller.apply(&previous);
+        return Err(format!(
             "Не удалось сохранить настройки \
              подсветки полос: {}",
-            e
-        )
-    })?;
+            error
+        ));
+    }
 
     Ok(current)
 }

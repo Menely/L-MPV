@@ -40,7 +40,11 @@ import {
 } from "@dnd-kit/sortable";
 import { BackendSelector } from "../upscale/BackendSelector";
 import { ModelListItem } from "../upscale/ModelListItem";
-import { getPreloadedUpscaleStatus, storeUpscaleStatus } from "./settingsTabPreload";
+import {
+  getPreloadedUpscaleStatus,
+  loadPreloadedUpscaleStatus,
+  storeUpscaleStatus,
+} from "./settingsTabPreload";
 import { SectionHeader, EmptyState } from "./SettingBlocks";
 
 export type {
@@ -93,16 +97,15 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   const [isModelsListOpen, setIsModelsListOpen] = useState(false);
 
   const toggleHideModelNames = () => {
-    setHideModelNames((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("l-mpv-hide-model-names", next ? "true" : "false");
-        window.dispatchEvent(new Event("l-mpv-settings-changed"));
-      } catch (e) {
-        console.error(dict.settings.upscaling.errSaveHideModels, e);
-      }
-      return next;
-    });
+    const next = !hideModelNames;
+    setHideModelNames(next);
+    try {
+      localStorage.setItem("l-mpv-hide-model-names", next ? "true" : "false");
+      window.dispatchEvent(new Event("l-mpv-settings-changed"));
+    } catch (e) {
+      setHideModelNames(!next);
+      console.error(dict.settings.upscaling.errSaveHideModels, e);
+    }
   };
 
   const ignoreClickUntilRef = useRef<number>(0);
@@ -182,7 +185,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
         if (isMountedRef.current && !isInitialLoadedRef.current && !getPreloadedUpscaleStatus()) {
           setLoading(true);
         }
-        const currentStatus = await invoke<UpscaleStatus>("get_upscale_status");
+        const currentStatus = await loadPreloadedUpscaleStatus(true);
         if (isMountedRef.current) {
           storeUpscaleStatus(currentStatus);
           setStatus(currentStatus);

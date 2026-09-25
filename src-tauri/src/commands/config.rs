@@ -36,6 +36,10 @@ pub fn set_screenshot_dir(
         safe_path.clone()
     };
 
+    let previous_path = state
+        .mpv
+        .get_property_string("screenshot-directory")
+        .ok();
     state
         .mpv
         .set_property_string(
@@ -43,13 +47,21 @@ pub fn set_screenshot_dir(
             &target_path,
         )?;
 
-    let mut settings = AppSettings::load_portable();
-    if is_reset {
-        settings.screenshot_directory = None;
-    } else {
-        settings.screenshot_directory = Some(target_path);
+    if let Err(error) = AppSettings::update_portable(|settings| {
+        if is_reset {
+            settings.screenshot_directory = None;
+        } else {
+            settings.screenshot_directory = Some(target_path.clone());
+        }
+    }) {
+        if let Some(previous_path) = previous_path {
+            let _ = state.mpv.set_property_string(
+                "screenshot-directory",
+                &previous_path,
+            );
+        }
+        return Err(error);
     }
-    let _ = settings.save_portable();
 
     Ok(())
 }
@@ -57,7 +69,7 @@ pub fn set_screenshot_dir(
 /// Получить настройку multi-instance.
 #[tauri::command]
 pub fn get_multi_instance() -> Result<bool, String> {
-    Ok(AppSettings::load_portable().allow_multi_instance)
+    Ok(AppSettings::load_portable_result()?.allow_multi_instance)
 }
 
 /// Установить настройку multi-instance.
@@ -65,15 +77,16 @@ pub fn get_multi_instance() -> Result<bool, String> {
 pub fn set_multi_instance(
     allow: bool,
 ) -> Result<(), String> {
-    let mut settings = AppSettings::load_portable();
-    settings.allow_multi_instance = allow;
-    settings.save_portable()
+    AppSettings::update_portable(|settings| {
+        settings.allow_multi_instance = allow;
+    })
+    .map(|_| ())
 }
 
 /// Получить текущий статус настройки автоматического подхвата внешних дорожек.
 #[tauri::command]
 pub fn get_auto_load_tracks() -> Result<bool, String> {
-    Ok(AppSettings::load_portable().auto_load_tracks)
+    Ok(AppSettings::load_portable_result()?.auto_load_tracks)
 }
 
 /// Установить статус настройки автоматического подхвата внешних дорожек с сохранением в settings.json.
@@ -81,16 +94,17 @@ pub fn get_auto_load_tracks() -> Result<bool, String> {
 pub fn set_auto_load_tracks(
     enabled: bool,
 ) -> Result<(), String> {
-    let mut settings = AppSettings::load_portable();
-    settings.auto_load_tracks = enabled;
-    settings.save_portable()
+    AppSettings::update_portable(|settings| {
+        settings.auto_load_tracks = enabled;
+    })
+    .map(|_| ())
 }
 
 /// Получить текущий статус настройки автоматического переключения звука на внешнюю аудиодорожку.
 #[tauri::command]
 pub fn get_auto_select_external_audio(
 ) -> Result<bool, String> {
-    Ok(AppSettings::load_portable()
+    Ok(AppSettings::load_portable_result()?
         .auto_select_external_audio)
 }
 
@@ -99,15 +113,16 @@ pub fn get_auto_select_external_audio(
 pub fn set_auto_select_external_audio(
     enabled: bool,
 ) -> Result<(), String> {
-    let mut settings = AppSettings::load_portable();
-    settings.auto_select_external_audio = enabled;
-    settings.save_portable()
+    AppSettings::update_portable(|settings| {
+        settings.auto_select_external_audio = enabled;
+    })
+    .map(|_| ())
 }
 
 /// Получить текущий статус настройки автоматического переключения на следующее видео по окончании.
 #[tauri::command]
 pub fn get_play_next_on_end() -> Result<bool, String> {
-    Ok(AppSettings::load_portable().play_next_on_end)
+    Ok(AppSettings::load_portable_result()?.play_next_on_end)
 }
 
 /// Установить статус настройки автоматического переключения на следующее видео по окончании.
@@ -116,20 +131,30 @@ pub fn set_play_next_on_end(
     state: State<'_, PlayerState>,
     enabled: bool,
 ) -> Result<(), String> {
-    let mut settings = AppSettings::load_portable();
-    settings.play_next_on_end = enabled;
+    let previous = AppSettings::load_portable().play_next_on_end;
     let keep_open_val =
         if enabled { "yes" } else { "always" };
-    let _ = state
+    state
         .mpv
-        .set_property_string("keep-open", keep_open_val);
-    settings.save_portable()
+        .set_property_string("keep-open", keep_open_val)?;
+    if let Err(error) = AppSettings::update_portable(|settings| {
+        settings.play_next_on_end = enabled;
+    }) {
+        let previous_keep_open =
+            if previous { "yes" } else { "always" };
+        let _ = state.mpv.set_property_string(
+            "keep-open",
+            previous_keep_open,
+        );
+        return Err(error);
+    }
+    Ok(())
 }
 
 /// Получить текущий статус настройки динамического смещения субтитров выше интерфейса.
 #[tauri::command]
 pub fn get_subtitles_avoid_ui() -> Result<bool, String> {
-    Ok(AppSettings::load_portable().subtitles_avoid_ui)
+    Ok(AppSettings::load_portable_result()?.subtitles_avoid_ui)
 }
 
 /// Установить статус настройки динамического смещения субтитров с сохранением в settings.json.
@@ -138,16 +163,20 @@ pub fn set_subtitles_avoid_ui_setting(
     state: State<'_, PlayerState>,
     enabled: bool,
 ) -> Result<(), String> {
-    let mut settings = AppSettings::load_portable();
-    settings.subtitles_avoid_ui = enabled;
     if !enabled {
-        let _ =
-            state.mpv.set_property_string("sub-pos", "100");
-        let _ = state
-            .mpv
-            .set_property_string("sub-margin-y", "22");
+        state.mpv.set_property_string("sub-pos", "100")?;
+        state.mpv.set_property_string("sub-margin-y", "22")?;
     }
-    settings.save_portable()
+    if let Err(error) = AppSettings::update_portable(|settings| {
+        settings.subtitles_avoid_ui = enabled;
+    }) {
+        if !enabled {
+            let _ = state.mpv.set_property_string("sub-pos", "100");
+            let _ = state.mpv.set_property_string("sub-margin-y", "22");
+        }
+        return Err(error);
+    }
+    Ok(())
 }
 
 /// Динамическое адаптивное обновление позиции субтитров при изменении видимости элементов управления.
@@ -189,7 +218,7 @@ pub fn update_subtitles_avoid_ui(
 /// Получить сохранённые настройки пользовательского интерфейса из config/settings.json.
 #[tauri::command]
 pub fn get_ui_settings() -> Result<UiSettings, String> {
-    Ok(AppSettings::load_portable().ui)
+    Ok(AppSettings::load_portable_result()?.ui)
 }
 
 /// Сохранить настройки пользовательского интерфейса в config/settings.json.
@@ -197,9 +226,10 @@ pub fn get_ui_settings() -> Result<UiSettings, String> {
 pub fn save_ui_settings(
     ui: UiSettings,
 ) -> Result<(), String> {
-    let mut settings = AppSettings::load_portable();
-    settings.ui = ui;
-    settings.save_portable()
+    AppSettings::update_portable(|settings| {
+        settings.ui = ui;
+    })
+    .map(|_| ())
 }
 
 /// Получить текущую версию приложения (из Cargo.toml).

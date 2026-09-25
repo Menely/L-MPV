@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { X, Plus } from "lucide-react";
 import { hslToRgb, rgbToHex, hexToRgb, rgbToHsl } from "../../utils/colorUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
@@ -34,10 +35,13 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   const [bInput, setBInput] = useState<number>(initRgb.b);
 
   const wheelCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const isDraggingRef = useRef<boolean>(false);
 
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const handleClose = useCallback(() => {
     if (isClosing) return;
@@ -48,15 +52,20 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-      setIsClosing(false);
     }, getCloseTimeoutMs("base"));
   }, [isClosing, onClose]);
 
   useEffect(() => {
+    returnFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusFrame = requestAnimationFrame(() => closeButtonRef.current?.focus());
     return () => {
+      cancelAnimationFrame(focusFrame);
       if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current);
       }
+      returnFocusRef.current?.focus();
     };
   }, []);
 
@@ -66,6 +75,21 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
       if (e.key === "Escape") {
         e.stopPropagation();
         handleClose();
+        return;
+      }
+      if (e.key !== "Tab" || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      ));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !dialogRef.current.contains(document.activeElement))) {
+        e.preventDefault();
+        first.focus();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -89,6 +113,9 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const pixelRatio = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    canvas.width = Math.round(180 * pixelRatio);
+    canvas.height = Math.round(180 * pixelRatio);
     const size = canvas.width;
     const center = size / 2;
     const radius = center - 2;
@@ -178,6 +205,13 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     } catch (_) {}
   };
 
+  const handlePointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    isDraggingRef.current = false;
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch (_) {}
+  };
+
   // Позиция маркера на круге
   const wheelRadiusPx = 90; // половина 180px
   const markerAngleRad = (hue * Math.PI) / 180;
@@ -209,27 +243,35 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     setLightness(hsl.l);
   };
 
-  return (
+  return createPortal(
     <div
-      className={`modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`}
+      className={`modal-overlay color-picker-overlay ${isClosing ? "modal-overlay--closing" : ""}`}
       style={{
         zIndex: 11000,
         background: "rgba(0, 0, 0, 0.65)",
         backdropFilter: "blur(10px)",
       }}
-      onClick={handleClose}
+      onClick={(event) => {
+        event.stopPropagation();
+        handleClose();
+      }}
     >
       <div
+        ref={dialogRef}
         className={`modal color-picker-modal ${isClosing ? "modal--closing" : ""}`}
+        role="dialog"
+        aria-modal="true"
         style={{
           width: 330,
-          maxWidth: "92vw",
-          borderRadius: "16px",
+           maxWidth: "92vw",
+           maxHeight: "calc(100vh - 24px)",
+           borderRadius: "16px",
           padding: "18px 20px",
           background: "linear-gradient(180deg, rgba(24, 28, 38, 0.98) 0%, rgba(14, 16, 24, 0.98) 100%)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           boxShadow: `0 20px 50px rgba(0, 0, 0, 0.65), 0 0 30px ${currentHex}30`,
-          overflow: "visible",
+           overflowY: "auto",
+           overflowX: "hidden",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -246,6 +288,8 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             {dict.settings.appearance.colorScheme.colorPickerTitle}
           </span>
           <button
+            ref={closeButtonRef}
+            type="button"
             onClick={handleClose}
             className="modal__close"
             title={dict.settings.appearance.colorScheme.colorPickerClose}
@@ -272,6 +316,8 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
+            aria-label={dict.settings.appearance.colorScheme.colorPickerTitle}
             style={{
               width: 180,
               height: 180,
@@ -427,7 +473,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
         {/* Кнопки действий */}
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="settings-action-btn settings-action-btn--secondary"
             style={{ height: 32, padding: "0 14px", fontSize: "0.82rem" }}
           >
@@ -436,7 +482,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
           <button
             onClick={() => {
               onSelectColor(currentHex);
-              onClose();
+              handleClose();
             }}
             className="settings-action-btn settings-action-btn--primary"
             style={{ height: 32, padding: "0 16px", fontSize: "0.82rem", gap: 6 }}
@@ -445,6 +491,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.querySelector<HTMLElement>(".app-container") || document.body,
   );
 };

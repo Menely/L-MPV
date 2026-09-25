@@ -1,0 +1,381 @@
+:root {
+  --settings-panel-width: clamp(560px, 64vw, 720px);
+  --settings-panel-css-width: var(--settings-panel-width);
+  --settings-panel-offset: 720px;
+  --settings-controls-left: 734px;
+  --settings-controls-width: calc(100% - 748px);
+  --settings-docked-left: 720px;
+  --settings-docked-width: calc(100% - 720px);
+}
+
+.settings-panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  background: transparent;
+}
+
+.settings-panel-overlay--closing {
+  pointer-events: none;
+}
+
+.settings-side-panel {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--settings-panel-css-width);
+  z-index: 9001;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: auto;
+  background: var(--bg-glass, var(--bg-modal-solid, #11141c));
+  backdrop-filter: var(--ui-backdrop, blur(16px));
+  -webkit-backdrop-filter: var(--ui-backdrop, blur(16px));
+  border-right: 1px solid var(--border-pill);
+  box-shadow: 4px 0 40px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border);
+  animation: settingsPanelIn 220ms var(--ease-out);
+  transform-origin: left center;
+  container-type: inline-size;
+  container-name: settings-shell;
+}
+
+@keyframes settingsPanelIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.settings-side-panel--closing {
+  animation: settingsPanelOut var(--t-close-base) var(--ease-out) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes settingsPanelOut {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+.settings-side-panel__nav {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 54px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  user-select: none;
+}
+
+.settings-side-panel__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-side-panel__nav-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: max-content;
+  margin-right: 10px;
+  flex-shrink: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.settings-side-panel__nav-sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 5px;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.settings-side-panel__nav-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.settings-side-panel__nav-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-side-panel__nav-btn--active {
+  background: rgba(var(--accent-rgb), 0.15);
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 7px rgba(var(--accent-rgb), 0.3);
+}
+
+.settings-side-panel__nav-btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.settings-side-panel__close {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-out);
+}
+
+.settings-side-panel__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-side-panel__close:active {
+  transform: scale(0.9);
+}
+
+.settings-side-panel__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 20px 10px;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scroll-behavior: smooth;
+}
+
+.settings-section-anchor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  scroll-margin-top: 8px;
+}
+
+.settings-section-block {
+  margin-bottom: 30px;
+}
+
+.settings-section-placeholder {
+  height: 180px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(100deg, var(--surface-level-2), var(--surface-level-3), var(--surface-level-2));
+  opacity: 0.65;
+}
+
+.titlebar,
+.player-controls-wrapper,
+.player-controls-wrapper--docked {
+  transition: left 220ms var(--ease-out), width 220ms var(--ease-out), opacity var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-out);
+}
+
+body.settings-open .titlebar {
+  left: var(--settings-panel-offset);
+}
+
+body.settings-open .player-controls-wrapper {
+  left: var(--settings-controls-left);
+  width: var(--settings-controls-width);
+}
+
+body.settings-open .player-controls-wrapper--docked {
+  left: var(--settings-docked-left);
+  width: var(--settings-docked-width);
+}
+
+.settings-side-panel .settings-footer {
+  border-radius: 0;
+  flex-shrink: 0;
+}
+
+.settings-window-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.settings-window-choice-grid > * {
+  min-width: 0;
+}
+
+.settings-window-choice {
+  width: 100%;
+  gap: 0;
+  align-items: stretch;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: hidden;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.settings-window-choice .visual-bar-card__info {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.settings-window-choice .visual-bar-card__label,
+.settings-window-choice .visual-bar-card__desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-window-choice .visual-bar-card__label {
+  white-space: nowrap;
+}
+
+.settings-window-choice.visual-bar-card--active {
+  border-width: 1.5px !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+}
+
+.settings-window-choice__note {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+@container settings-shell (max-width: 480px) {
+  .settings-window-choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container settings-shell (max-width: 480px) {
+  .settings-opacity-row {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .settings-opacity-row > :nth-child(2) {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .settings-opacity-row > :nth-child(3) {
+    margin-left: auto;
+  }
+
+  .time-pos-compact-grid,
+  .time-format-compact-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .visual-bar-card--row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .visual-bar-card--row .visual-bar-preview {
+    width: 100%;
+  }
+}
+
+@container settings-shell (max-width: 620px) {
+  .settings-side-panel__scroll {
+    padding: 12px 14px 8px;
+  }
+
+  .settings-side-panel__nav {
+    padding-inline: 10px;
+  }
+
+  .settings-side-panel__nav-title {
+    margin-right: 6px;
+  }
+
+  .settings-side-panel__scroll .controls-and-time-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --settings-panel-width: 100vw;
+  }
+
+  body.settings-open .titlebar,
+  body.settings-open .player-controls-wrapper,
+  body.settings-open .player-controls-wrapper--docked {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+@media (max-height: 360px) {
+  .settings-side-panel__nav {
+    min-height: 42px;
+    padding-block: 5px;
+  }
+
+  .settings-side-panel__nav-btn,
+  .settings-side-panel__close {
+    width: 30px;
+    height: 30px;
+  }
+
+  .settings-side-panel .settings-footer {
+    padding: 5px 10px;
+  }
+
+  .settings-footer__edition,
+  .settings-footer__title {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-side-panel {
+    animation: none;
+    transform: translateX(0);
+  }
+
+  .settings-side-panel--closing {
+    animation: none;
+  }
+
+  .settings-side-panel__scroll {
+    scroll-behavior: auto;
+  }
+
+  .titlebar,
+  .player-controls-wrapper,
+  .player-controls-wrapper--docked {
+    transition: none;
+  }
+}

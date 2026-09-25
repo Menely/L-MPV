@@ -1,8 +1,73 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
-
+import {
+  Keyboard,
+  SlidersHorizontal,
+  Palette,
+  Link,
+  Loader2,
+  Sparkles,
+  Layers,
+  RefreshCw,
+  X,
+} from "lucide-react";
+import { useTranslation } from "../../i18n/LanguageContext";
+import {
+  TimeDisplayPosition,
+  getSavedTimePosition,
+  saveTimePosition,
+} from "../../utils/timePositionUtils";
+import {
+  TimeFormatMode,
+  getSavedTimeFormat,
+  saveTimeFormat,
+} from "../../utils/timeFormatUtils";
+import {
+  ControlBarStyle,
+  getSavedControlBarStyle,
+  saveControlBarStyle,
+} from "../../utils/controlBarStyleUtils";
+import {
+  createDefaultAmbientSettings,
+  normalizeAmbientSettings,
+} from "../../utils/ambientSettingsUtils";
+import type { AmbientSettings } from "../../utils/ambientSettingsUtils";
+import { UpdateInfo } from "../modals/UpdateModal";
+import { getEffectiveAccentColor } from "../../utils/colorUtils";
+import { PresetsSection } from "../settings/PresetsSection";
+import { UpscalingSettingsSection } from "../settings/UpscalingSettingsSection";
+import { HotkeysSettingsTab } from "../settings/HotkeysSettingsTab";
+import { IntegrationSettingsTab } from "../settings/IntegrationSettingsTab";
+import { AppearanceSettingsTab } from "../settings/AppearanceSettingsTab";
+import { GeneralSettingsTab } from "../settings/GeneralSettingsTab";
+import {
+  preloadPresetsSettings,
+  preloadUpscaleSettings,
+} from "../settings/settingsTabPreload";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import {
+  getSettingsViewSession,
+  modalTabForSection,
+  updateSettingsViewSession,
+} from "./settingsViewSession";
+import { SettingsPreset } from "../../utils/presetsUtils";
+import {
+  UiRadiusLevel,
+  UI_RADIUS_PRESETS,
+  getSavedUiRadius,
+  saveUiRadius,
+  UiScaleMode,
+  getSavedUiScale,
+  saveUiScale,
+  getSavedUiOpacity,
+  saveUiOpacity,
+  UiFontId,
+  getSavedUiFont,
+  saveUiFont,
+  getActiveUiScale,
+} from "../../utils/uiThemeUtils";
 /**
  * Векторная иконка GitHub для ссылки на репозиторий.
  */
@@ -38,76 +103,10 @@ const TelegramIcon: React.FC<{ size?: number; className?: string }> = ({ size = 
     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.96 1.25-5.54 3.69-.52.36-1 .54-1.42.53-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 4.02-1.75 6.7-2.9 8.04-3.46 3.83-1.6 4.62-1.88 5.14-1.89.11 0 .37.03.54.17.14.12.18.28.2.4.02.12.01.24 0 .35z" />
   </svg>
 );
-import {
-  Keyboard,
-  SlidersHorizontal,
-  Palette,
-  Link,
-  Loader2,
-  Sparkles,
-  Layers,
-  RefreshCw,
-  X,
-} from "lucide-react";
-import { useTranslation } from "../../i18n/LanguageContext";
-import {
-  TimeDisplayPosition,
-  getSavedTimePosition,
-  saveTimePosition,
-} from "../../utils/timePositionUtils";
-import {
-  TimeFormatMode,
-  getSavedTimeFormat,
-  saveTimeFormat,
-} from "../../utils/timeFormatUtils";
-import {
-  ControlBarStyle,
-  getSavedControlBarStyle,
-  saveControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
-import {
-  createDefaultAmbientSettings,
-  normalizeAmbientSettings,
-} from "../../utils/ambientSettingsUtils";
-import type { AmbientSettings } from "../../utils/ambientSettingsUtils";
-import { UpdateInfo } from "./UpdateModal";
-import { getEffectiveAccentColor } from "../../utils/colorUtils";
-import { PresetsSection } from "../settings/PresetsSection";
-import { UpscalingSettingsSection } from "../settings/UpscalingSettingsSection";
-import { HotkeysSettingsTab } from "../settings/HotkeysSettingsTab";
-import { IntegrationSettingsTab } from "../settings/IntegrationSettingsTab";
-import { AppearanceSettingsTab } from "../settings/AppearanceSettingsTab";
-import { GeneralSettingsTab } from "../settings/GeneralSettingsTab";
-import { useSettingsTabTransition } from "../settings/useSettingsTabTransition";
-import {
-  getSettingsViewSession,
-  sectionIdForModalTab,
-  updateSettingsViewSession,
-} from "../settings/settingsViewSession";
-import {
-  preloadPresetsSettings,
-  preloadUpscaleSettings,
-} from "../settings/settingsTabPreload";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
-import { SettingsPreset } from "../../utils/presetsUtils";
-import {
-  UiRadiusLevel,
-  UI_RADIUS_PRESETS,
-  getSavedUiRadius,
-  saveUiRadius,
-  UiScaleMode,
-  getSavedUiScale,
-  saveUiScale,
-  getSavedUiOpacity,
-  saveUiOpacity,
-  UiFontId,
-  getSavedUiFont,
-  saveUiFont,
-} from "../../utils/uiThemeUtils";
 
 export type { AmbientSettings } from "../../utils/ambientSettingsUtils";
 
-interface SettingsModalProps {
+interface SettingsPanelProps {
   onClose: () => void;
   onShowUpdate?: (info: UpdateInfo) => void;
 }
@@ -115,18 +114,58 @@ interface SettingsModalProps {
 export { AccordionSection } from "../settings/AccordionSection";
 export type { AccordionSectionProps } from "../settings/AccordionSection";
 
-const SETTINGS_TABS = [
-  "general",
-  "appearance",
-  "presets",
-  "upscaling",
-  "hotkeys",
-  "integration",
+const SECTION_DEFS = [
+  { id: "section-general",     Icon: SlidersHorizontal, labelKey: "general"      },
+  { id: "section-appearance",  Icon: Palette,           labelKey: "appearance"   },
+  { id: "section-presets",     Icon: Layers,            labelKey: "presets"      },
+  { id: "section-upscaling",   Icon: Sparkles,          labelKey: "upscaling"    },
+  { id: "section-hotkeys",     Icon: Keyboard,          labelKey: "hotkeys"      },
+  { id: "section-integration", Icon: Link,              labelKey: "integration"  },
 ] as const;
 
-type SettingsTabId = (typeof SETTINGS_TABS)[number];
+type SectionId = (typeof SECTION_DEFS)[number]["id"];
 
-export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
+const MemoizedGeneralSettingsTab = memo(GeneralSettingsTab);
+const MemoizedAppearanceSettingsTab = memo(AppearanceSettingsTab);
+const MemoizedPresetsSection = memo(PresetsSection);
+const MemoizedUpscalingSettingsSection = memo(UpscalingSettingsSection);
+const MemoizedHotkeysSettingsTab = memo(HotkeysSettingsTab);
+const MemoizedIntegrationSettingsTab = memo(IntegrationSettingsTab);
+
+interface SectionBlockProps {
+  id: string;
+  Icon: React.FC<{ size?: number }>;
+  label: string;
+  isMounted: boolean;
+  children: React.ReactNode;
+}
+
+function SectionBlock({ id, Icon, label, isMounted, children }: SectionBlockProps) {
+  return (
+    <div id={id} className="settings-section-block" data-settings-section={id}>
+      <div className="settings-section-anchor">
+        <Icon size={14} />
+        {label}
+      </div>
+      {isMounted ? children : <div className="settings-section-placeholder" aria-hidden="true" />}
+    </div>
+  );
+}
+
+export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
+  const initialViewSession = getSettingsViewSession();
+  const savedPanelSection = initialViewSession.panelSection as SectionId;
+  const initialPanelSection = SECTION_DEFS.some(({ id }) => id === savedPanelSection)
+    ? savedPanelSection
+    : "section-general";
+  const [activeSection, setActiveSection] = useState<SectionId>(initialPanelSection);
+  const [mountedSections, setMountedSections] = useState<Set<SectionId>>(
+    () => new Set<SectionId>([initialPanelSection]),
+  );
+
   const [screenshotDir, setScreenshotDir] = useState<string>("");
   const [uiOpacity, setUiOpacity] = useState<number>(() => getSavedUiOpacity());
   const [activeColor, setActiveColor] = useState<string>(() => {
@@ -158,33 +197,18 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => localStorage.getItem('l-mpv-hide-controls-upper-half') === 'true');
-    const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
-    const [uiRadius, setUiRadius] = useState<{ level: UiRadiusLevel; value: number }>(() => getSavedUiRadius());
+  const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
+  const [uiRadius, setUiRadius] = useState<{ level: UiRadiusLevel; value: number }>(() => getSavedUiRadius());
   const [uiScale, setUiScale] = useState<{ mode: UiScaleMode; value: number }>(() => getSavedUiScale());
   const [uiFont, setUiFont] = useState<UiFontId>(() => getSavedUiFont());
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
-  const initialViewSession = getSettingsViewSession();
-  const [activeTab, setActiveTab] = useState<SettingsTabId>(() => {
-    const saved = initialViewSession.modalTab as SettingsTabId;
-    return SETTINGS_TABS.includes(saved) ? saved : "general";
-  });
-  const { bodyRef, panelRef, beginSwitch } = useSettingsTabTransition(activeTab, SETTINGS_TABS);
+  
   const { dict } = useTranslation();
-
-  // Единая точка смены вкладки: плавный переход высоты + слайд, логика табов не меняется
-  const handleTabChange = useCallback((next: SettingsTabId) => {
-    if (next === "presets") preloadPresetsSettings();
-    if (next === "upscaling") preloadUpscaleSettings();
-    if (beginSwitch(next)) setActiveTab(next);
-  }, [beginSwitch]);
 
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
-  const returnFocusRef = useRef<HTMLElement | null>(null);
 
   const handleClose = useCallback(() => {
     if (closeTimerRef.current) return;
@@ -199,41 +223,64 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   }, [onClose]);
 
   useEffect(() => {
-    returnFocusRef.current = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
-    const focusFrame = requestAnimationFrame(() => closeButtonRef.current?.focus());
     return () => {
-      cancelAnimationFrame(focusFrame);
       if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current);
       }
-      returnFocusRef.current?.focus();
     };
   }, []);
 
-  // Навигация стрелками влево и вправо для переключения категорий настроек
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+      const updateLayout = () => {
+        const scale = Math.max(0.5, getActiveUiScale());
+        const viewportWidth = window.innerWidth;
+        const layoutViewportWidth = viewportWidth / scale;
+        const width = layoutViewportWidth <= 768
+          ? layoutViewportWidth
+          : Math.min(720, Math.max(560, layoutViewportWidth * 0.64));
+        const available = Math.max(0, layoutViewportWidth - width);
+        document.body.style.setProperty("--settings-panel-css-width", `${width}px`);
+        document.body.style.setProperty("--settings-panel-offset", `${width}px`);
+        document.body.style.setProperty("--settings-controls-left", `${width + 14}px`);
+        document.body.style.setProperty("--settings-controls-width", `${Math.max(0, available - 28)}px`);
+        document.body.style.setProperty("--settings-docked-left", `${width}px`);
+        document.body.style.setProperty("--settings-docked-width", `${available}px`);
+      };
+
+    updateLayout();
+    const observer = new ResizeObserver(updateLayout);
+    observer.observe(panel);
+    window.addEventListener("resize", updateLayout);
+    window.addEventListener("l-mpv-ui-scale-changed", updateLayout);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateLayout);
+      window.removeEventListener("l-mpv-ui-scale-changed", updateLayout);
+      document.body.style.removeProperty("--settings-panel-css-width");
+      document.body.style.removeProperty("--settings-panel-offset");
+      document.body.style.removeProperty("--settings-controls-left");
+      document.body.style.removeProperty("--settings-controls-width");
+      document.body.style.removeProperty("--settings-docked-left");
+      document.body.style.removeProperty("--settings-docked-width");
+    };
+  }, []);
+
+  // Навигация клавишами
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.closest(".color-picker-modal")) return;
-
-      if (e.key === "Tab" && modalRef.current) {
-        const focusable = Array.from(modalRef.current.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])',
-        )).filter((element) => !element.closest("[inert]"));
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (first && last) {
-          if (e.shiftKey && (document.activeElement === first || !modalRef.current.contains(document.activeElement))) {
-            e.preventDefault();
-            last.focus();
-          } else if (!e.shiftKey && (document.activeElement === last || !modalRef.current.contains(document.activeElement))) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }
 
       if (isRecordingHotkey) return;
 
@@ -241,36 +288,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         e.preventDefault();
         e.stopPropagation();
         handleClose();
-        return;
-      }
-
-      if (target?.getAttribute("role") === "slider") return;
-
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
-      const currentIndex = SETTINGS_TABS.indexOf(activeTab);
-      if (currentIndex === -1) return;
-
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        const nextIndex = (currentIndex + 1) % SETTINGS_TABS.length;
-        handleTabChange(SETTINGS_TABS[nextIndex]);
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        const prevIndex = (currentIndex - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length;
-        handleTabChange(SETTINGS_TABS[prevIndex]);
       }
     };
 
@@ -278,9 +295,77 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [activeTab, isRecordingHotkey, handleClose, handleTabChange]);
+  }, [isRecordingHotkey, handleClose]);
 
-  // Синхронизация локальных состояний SettingsModal при применении любого пресета
+  const markSectionMounted = useCallback((id: SectionId) => {
+    setMountedSections((previous) => {
+      if (previous.has(id)) return previous;
+      const next = new Set(previous);
+      next.add(id);
+      return next;
+    });
+    if (id === "section-presets") preloadPresetsSettings();
+    if (id === "section-upscaling") preloadUpscaleSettings();
+  }, []);
+
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root) return;
+
+    const activeObserver = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible.length > 0) {
+          setActiveSection(visible[0].target.id as SectionId);
+        }
+      },
+      {
+        root,
+        rootMargin: "0px 0px -65% 0px",
+        threshold: 0,
+      },
+    );
+
+    const preloadObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            markSectionMounted(entry.target.id as SectionId);
+          }
+        });
+      },
+      {
+        root,
+        rootMargin: "480px 0px 480px 0px",
+        threshold: 0,
+      },
+    );
+
+    SECTION_DEFS.forEach(({ id }) => {
+      const element = document.getElementById(id);
+      if (element) {
+        activeObserver.observe(element);
+        preloadObserver.observe(element);
+      }
+    });
+
+    return () => {
+      activeObserver.disconnect();
+      preloadObserver.disconnect();
+    };
+  }, [markSectionMounted]);
+
+  const scrollToSection = useCallback((id: SectionId) => {
+    setActiveSection(id);
+    markSectionMounted(id);
+    document.getElementById(id)?.scrollIntoView({
+      behavior: isMotionAllowed() ? "smooth" : "auto",
+      block: "start",
+    });
+  }, [markSectionMounted]);
+
   const handlePresetApplied = useCallback((preset: SettingsPreset) => {
     const { data } = preset;
     if (data.accentColor) setActiveColor(data.accentColor);
@@ -307,9 +392,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     if (typeof data.saveTracksToVideoDir === "boolean") setSaveTracksToVideoDir(data.saveTracksToVideoDir);
     if (typeof data.hotloadEnabled === "boolean") setHotloadEnabled(data.hotloadEnabled);
     if (typeof data.skipOpeningSeconds === "number") setSkipOpeningSeconds(data.skipOpeningSeconds);
-      }, []);
+  }, []);
 
-          
   const [ambientSettings, setAmbientSettings] = useState<AmbientSettings>(() =>
     createDefaultAmbientSettings()
   );
@@ -357,7 +441,21 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       setTimePosition(getSavedTimePosition());
       setTimeFormat(getSavedTimeFormat());
       setControlBarStyle(getSavedControlBarStyle());
-      setSubtitlesAvoidUi(localStorage.getItem('l-mpv-subtitles-avoid-ui') === 'true');
+      setSubtitlesAvoidUi(localStorage.getItem("l-mpv-subtitles-avoid-ui") === "true");
+      setAnimationsEnabled(localStorage.getItem("l-mpv-animations-enabled") !== "false");
+      setShowTrackNames(localStorage.getItem("l-mpv-show-track-names") !== "false");
+      setHotloadEnabled(localStorage.getItem("l-mpv-hotload-enabled") === "true");
+      setHideControlsInUpperHalf(localStorage.getItem("l-mpv-hide-controls-upper-half") === "true");
+      setSaveTracksToVideoDir(localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false");
+      const skipSeconds = Number(localStorage.getItem("l-mpv-skip-opening-seconds") || 90);
+      setSkipOpeningSeconds(Number.isFinite(skipSeconds) ? Math.min(600, Math.max(1, skipSeconds)) : 90);
+      setActiveColor(localStorage.getItem("l-mpv-accent-color") || "#7fc7ff");
+      try {
+        const rawButtons = localStorage.getItem("l-mpv-visible-buttons");
+        if (rawButtons) setVisibleButtons(JSON.parse(rawButtons));
+      } catch {
+        setVisibleButtons({});
+      }
     };
     window.addEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
     window.addEventListener("l-mpv-ui-scale-changed", handleScaleChanged);
@@ -372,43 +470,43 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
     };
   }, []);
-  // По умолчанию все категории свернуты (пустой Set / объект)
+
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(
     () => initialViewSession.openSections,
   );
 
   useEffect(() => {
     updateSettingsViewSession({
-      modalTab: activeTab,
-      panelSection: sectionIdForModalTab(activeTab),
+      panelSection: activeSection,
+      modalTab: modalTabForSection(activeSection),
       openSections,
     });
-  }, [activeTab, openSections]);
+  }, [activeSection, openSections]);
 
   useEffect(() => {
-    const body = bodyRef.current;
-    if (!body) return;
-    const savedScrollTop = getSettingsViewSession().modalScrollTop;
+    const scrollElement = scrollRef.current;
+    if (!scrollElement) return;
+    const savedScrollTop = getSettingsViewSession().panelScrollTop;
     const restoreFrame = requestAnimationFrame(() => {
-      body.scrollTop = savedScrollTop;
+      scrollElement.scrollTop = savedScrollTop;
     });
     const handleScroll = () => {
-      updateSettingsViewSession({ modalScrollTop: body.scrollTop });
+      updateSettingsViewSession({ panelScrollTop: scrollElement.scrollTop });
     };
-    body.addEventListener("scroll", handleScroll, { passive: true });
+    scrollElement.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       cancelAnimationFrame(restoreFrame);
-      body.removeEventListener("scroll", handleScroll);
-      updateSettingsViewSession({ modalScrollTop: body.scrollTop });
+      scrollElement.removeEventListener("scroll", handleScroll);
+      updateSettingsViewSession({ panelScrollTop: scrollElement.scrollTop });
     };
-  }, [bodyRef]);
+  }, []);
 
-  const toggleSection = (id: string) => {
+  const toggleSection = useCallback((id: string) => {
     setOpenSections((prev) => ({
       ...prev,
       [id]: !prev[id],
     }));
-  };
+  }, []);
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
@@ -416,44 +514,45 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [foundUpdate, setFoundUpdate] = useState<UpdateInfo | null>(null);
   const [isLoadingVersionInfo, setIsLoadingVersionInfo] = useState<boolean>(false);
   const updateStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const updateRequestRef = useRef(0);
 
   const ambientSettingsRef = useRef<AmbientSettings>(ambientSettings);
   ambientSettingsRef.current = ambientSettings;
   const isAmbientDirtyRef = useRef<boolean>(false);
   const ambientSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ambientLocalEventRef = useRef(false);
-  // Коалесцинг превью: драг слайдера шлёт десятки onChange/сек,
-  // в mpv уходит максимум один IPC за кадр.
   const ambientPreviewRafRef = useRef<number | null>(null);
+  const ambientPreviewInFlightRef = useRef(false);
   const pendingPreviewRef = useRef<AmbientSettings | null>(null);
   const ambientSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const ambientSaveRevisionRef = useRef(0);
-  const ambientMountedRef = useRef(true);
 
-  const flushAmbientPreview = () => {
+  const flushAmbientPreview = useCallback(function flushAmbientPreview() {
     ambientPreviewRafRef.current = null;
+    if (ambientPreviewInFlightRef.current) return;
     const settings = pendingPreviewRef.current;
     pendingPreviewRef.current = null;
-    if (settings) {
-      invoke("apply_ambient_preview", { settings }).catch((err) => {
-        console.error("Ошибка предпросмотра Ambient Light:", err);
-      });
-    }
-  };
+    if (!settings) return;
 
-  const scheduleAmbientPreview = (settings: AmbientSettings) => {
+    ambientPreviewInFlightRef.current = true;
+    invoke("apply_ambient_preview", { settings })
+      .catch((err) => {
+        console.error("Ошибка предпросмотра Ambient Light:", err);
+      })
+      .finally(() => {
+        ambientPreviewInFlightRef.current = false;
+        if (mountedRef.current && pendingPreviewRef.current && ambientPreviewRafRef.current === null) {
+          ambientPreviewRafRef.current = requestAnimationFrame(flushAmbientPreview);
+        }
+      });
+  }, []);
+
+  const scheduleAmbientPreview = useCallback((settings: AmbientSettings) => {
     pendingPreviewRef.current = settings;
-    if (ambientPreviewRafRef.current === null) {
+    if (ambientPreviewRafRef.current === null && !ambientPreviewInFlightRef.current) {
       ambientPreviewRafRef.current = requestAnimationFrame(flushAmbientPreview);
     }
-  };
-
-  useEffect(() => {
-    ambientMountedRef.current = true;
-    return () => {
-      ambientMountedRef.current = false;
-    };
-  }, []);
+  }, [flushAmbientPreview]);
 
   const queueAmbientSave = useCallback(function queueAmbientSave(
     settings: AmbientSettings,
@@ -469,15 +568,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       });
     ambientSaveQueueRef.current = request.catch((error) => {
       console.error("Ошибка сохранения настроек Ambient Light:", error);
-      if (revision === ambientSaveRevisionRef.current && ambientMountedRef.current) {
+      if (revision === ambientSaveRevisionRef.current && mountedRef.current) {
         isAmbientDirtyRef.current = true;
         if (ambientSaveTimeoutRef.current !== null) {
           clearTimeout(ambientSaveTimeoutRef.current);
         }
         ambientSaveTimeoutRef.current = setTimeout(() => {
           ambientSaveTimeoutRef.current = null;
-          if (revision === ambientSaveRevisionRef.current && ambientMountedRef.current) {
-            void queueAmbientSave(settings, revision);
+          if (revision === ambientSaveRevisionRef.current && mountedRef.current) {
+            void queueAmbientSave(settings);
           }
         }, 1000);
       }
@@ -485,23 +584,17 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     return ambientSaveQueueRef.current;
   }, []);
 
-  // Сброс таймера статуса при размонтировании
+  // Единый cleanup: таймеры проверки обновлений + ambient RAF/таймаут
   useEffect(() => {
     return () => {
+      updateRequestRef.current += 1;
       if (updateStatusTimerRef.current) {
         clearTimeout(updateStatusTimerRef.current);
       }
-    };
-  }, []);
-
-  // Сброс несохраненных изменений на диск при закрытии/размонтировании модального окна
-  useEffect(() => {
-    return () => {
       if (ambientPreviewRafRef.current !== null) {
         cancelAnimationFrame(ambientPreviewRafRef.current);
         ambientPreviewRafRef.current = null;
       }
-      // Неприменённое превью не теряем: дожимаем последнее значение в mpv
       if (pendingPreviewRef.current) {
         const settings = pendingPreviewRef.current;
         pendingPreviewRef.current = null;
@@ -521,9 +614,10 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     };
   }, [queueAmbientSave]);
 
-  // Загружаем текущий путь к скриншотам из mpv
   useEffect(() => {
+    let effectRevision = 0;
     let ambientRevision = 0;
+    const requestEffectRevision = effectRevision;
     const loadAmbient = (event?: Event) => {
       const detail = (event as CustomEvent<unknown> | undefined)?.detail;
       if (detail) {
@@ -543,29 +637,44 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           }
           isAmbientDirtyRef.current = false;
         }
-        setAmbientSettings(normalized);
+        if (mountedRef.current && requestEffectRevision === effectRevision) setAmbientSettings(normalized);
         return;
       }
       const requestRevision = ambientRevision;
       invoke<unknown>("get_ambient_settings")
         .then((settings) => {
-          if (requestRevision === ambientRevision) {
-            setAmbientSettings(normalizeAmbientSettings(settings));
+          if (mountedRef.current && requestEffectRevision === effectRevision && requestRevision === ambientRevision) {
+            const normalized = normalizeAmbientSettings(settings);
+            ambientSettingsRef.current = normalized;
+            setAmbientSettings(normalized);
           }
         })
         .catch((e) => console.error("Ошибка загрузки настроек Ambient Light:", e));
     };
 
-    invoke<string>("get_screenshot_dir").then(setScreenshotDir).catch(console.error);
-    invoke<boolean>("get_multi_instance").then(setMultiInstance).catch(console.error);
-    invoke<boolean>("get_auto_load_tracks").then(setAutoLoadTracks).catch(console.error);
-    invoke<boolean>("get_auto_select_external_audio").then(setAutoSelectExternalAudio).catch(console.error);
-    invoke<boolean>("get_play_next_on_end").then(setPlayNextOnEnd).catch(console.error);
+    invoke<string>("get_screenshot_dir").then((value) => {
+      if (mountedRef.current && requestEffectRevision === effectRevision) setScreenshotDir(value);
+    }).catch(console.error);
+    invoke<boolean>("get_multi_instance").then((value) => {
+      if (mountedRef.current && requestEffectRevision === effectRevision) setMultiInstance(value);
+    }).catch(console.error);
+    invoke<boolean>("get_auto_load_tracks").then((value) => {
+      if (mountedRef.current && requestEffectRevision === effectRevision) setAutoLoadTracks(value);
+    }).catch(console.error);
+    invoke<boolean>("get_auto_select_external_audio").then((value) => {
+      if (mountedRef.current && requestEffectRevision === effectRevision) setAutoSelectExternalAudio(value);
+    }).catch(console.error);
+    invoke<boolean>("get_play_next_on_end").then((value) => {
+      if (mountedRef.current && requestEffectRevision === effectRevision) setPlayNextOnEnd(value);
+    }).catch(console.error);
     invoke<boolean>("get_subtitles_avoid_ui").then((val) => {
+      if (!mountedRef.current || requestEffectRevision !== effectRevision) return;
       setSubtitlesAvoidUi(val);
       localStorage.setItem("l-mpv-subtitles-avoid-ui", val ? "true" : "false");
     }).catch(console.error);
-    invoke<string>("get_app_version").then(setAppVersion).catch(console.error);
+    invoke<string>("get_app_version").then((value) => {
+      if (mountedRef.current && requestEffectRevision === effectRevision) setAppVersion(value);
+    }).catch(console.error);
     loadAmbient();
 
     const savedAccent = localStorage.getItem("l-mpv-accent-color");
@@ -584,13 +693,13 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
     window.addEventListener("l-mpv-ambient-changed", loadAmbient);
     return () => {
+      effectRevision += 1;
+      ambientRevision += 1;
       window.removeEventListener("l-mpv-ambient-changed", loadAmbient);
     };
   }, []);
 
-  // Оптимизированное применение: шейдерный preview на GPU через rAF-коалесцинг
-  // (максимум один IPC за кадр при драге слайдера) + отложенное сохранение (Debounce 400ms)
-  const updateAmbient = async (newSettings: Partial<AmbientSettings>, immediateSave: boolean = false) => {
+  const updateAmbient = useCallback(async (newSettings: Partial<AmbientSettings>, immediateSave: boolean = false) => {
     const updated = normalizeAmbientSettings({
       ...ambientSettingsRef.current,
       ...newSettings,
@@ -603,13 +712,11 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     ambientSettingsRef.current = updated;
     setAmbientSettings(updated);
 
-    // 1. Мгновенное применение шейдеров в mpv без блокирующего дискового ввода-вывода
     scheduleAmbientPreview(updated);
     ambientLocalEventRef.current = true;
     window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: updated }));
     ambientLocalEventRef.current = false;
 
-    // 2. Дебаунсинг сохранения настроек в файл config/settings.json
     if (ambientSaveTimeoutRef.current) {
       clearTimeout(ambientSaveTimeoutRef.current);
       ambientSaveTimeoutRef.current = null;
@@ -617,22 +724,17 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
     if (immediateSave) {
       isAmbientDirtyRef.current = false;
-        void queueAmbientSave(updated, revision);
+      await queueAmbientSave(updated, revision);
     } else {
       isAmbientDirtyRef.current = true;
-      ambientSaveTimeoutRef.current = setTimeout(async () => {
+      ambientSaveTimeoutRef.current = setTimeout(() => {
+        ambientSaveTimeoutRef.current = null;
         isAmbientDirtyRef.current = false;
-        try {
-        await queueAmbientSave(updated, revision);
-        } catch (err) {
-          console.error("Ошибка отложенного сохранения настроек Ambient Light:", err);
-        }
+        void queueAmbientSave(updated, revision);
       }, 400);
     }
+  }, [queueAmbientSave, scheduleAmbientPreview]);
 
-  };
-
-  // Выбор папки скриншотов через диалог Tauri
   const handlePickFolder = async () => {
     try {
       const selected = await open({
@@ -649,7 +751,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     }
   };
 
-  // Сброс папки скриншотов на значение по умолчанию ("screenshots")
   const handleResetDefault = async () => {
     try {
       const defaultPath = "screenshots";
@@ -660,8 +761,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     }
   };
 
-  // Ручная проверка обновлений через GitHub Releases API
   const handleCheckForUpdates = async () => {
+    const request = ++updateRequestRef.current;
     setIsCheckingUpdate(true);
     setUpdateStatus(null);
     setFoundUpdate(null);
@@ -672,29 +773,30 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
     try {
       const info = await invoke<UpdateInfo>("check_for_updates");
+      if (!mountedRef.current || request !== updateRequestRef.current) return;
       setFoundUpdate(info);
       if (info.has_update) {
         setUpdateStatus(dict.settings.integration.updateFound(info.latest_version.replace(/^[vV]/, "")));
         setIsUpdateFound(true);
-        if (onShowUpdate) {
-          onShowUpdate(info);
-        }
+        onShowUpdate?.(info);
       } else {
         setUpdateStatus(dict.settings.integration.upToDate);
         setIsUpdateFound(false);
         updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
       }
     } catch (err) {
+      if (!mountedRef.current || request !== updateRequestRef.current) return;
       console.error("Ошибка проверки обновлений:", err);
       setUpdateStatus(dict.settings.integration.checkFailed);
       setIsUpdateFound(false);
       updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
     } finally {
-      setIsCheckingUpdate(false);
+      if (mountedRef.current && request === updateRequestRef.current) {
+        setIsCheckingUpdate(false);
+      }
     }
   };
 
-  // Показ информации о текущей установленной версии и её чейнджлога (при клике на v{appVersion})
   const handleShowVersionInfo = async () => {
     if (!onShowUpdate || isLoadingVersionInfo) return;
 
@@ -703,12 +805,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       return;
     }
 
+    const request = ++updateRequestRef.current;
     setIsLoadingVersionInfo(true);
     try {
       const info = await invoke<UpdateInfo>("check_for_updates");
+      if (!mountedRef.current || request !== updateRequestRef.current) return;
       setFoundUpdate(info);
       onShowUpdate(info);
     } catch (err) {
+      if (!mountedRef.current || request !== updateRequestRef.current) return;
       console.warn("Не удалось получить описание версии из сети, открытие резервного окна:", err);
       const fallbackInfo: UpdateInfo = {
         current_version: appVersion,
@@ -723,39 +828,47 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       setFoundUpdate(fallbackInfo);
       onShowUpdate(fallbackInfo);
     } finally {
-      setIsLoadingVersionInfo(false);
+      if (mountedRef.current && request === updateRequestRef.current) {
+        setIsLoadingVersionInfo(false);
+      }
     }
   };
 
   return (
-    <div className={`modal-overlay settings-modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`} onClick={handleClose}>
+    <div className={`settings-panel-overlay ${isClosing ? "settings-panel-overlay--closing" : ""}`}>
       <div
-        ref={modalRef}
-        className={`modal modal--settings ${isClosing ? "modal--closing" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-modal-title"
-        style={{
-          width: 720,
-          maxWidth: "95vw",
-          maxHeight: "75vh",
-          display: "flex",
-          flexDirection: "column",
-        }}
-        onClick={(e) => e.stopPropagation()}
+        ref={panelRef}
+        className={`settings-side-panel ${isClosing ? "settings-side-panel--closing" : ""}`}
+        role="region"
+        aria-label={dict.settings.title}
+        inert={isClosing}
       >
-        {/* Шапка модального окна */}
-        <div className="modal__header" style={{ padding: "14px 18px", flexShrink: 0 }}>
-          <h2 id="settings-modal-title" className="modal__title" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "1.15rem" }}>
-            <SlidersHorizontal size={20} color="var(--accent)" /> {dict.settings.title}
+        <div className="settings-side-panel__nav">
+          <h2 className="settings-side-panel__nav-title" data-tauri-drag-region>
+            <SlidersHorizontal size={19} color="var(--accent)" />
+            {dict.settings.title}
           </h2>
 
+          <div className="settings-side-panel__nav-sep" />
+
+          {SECTION_DEFS.map(({ id, Icon, labelKey }) => (
+            <button
+              key={id}
+              type="button"
+              className={`settings-side-panel__nav-btn ${activeSection === id ? "settings-side-panel__nav-btn--active" : ""}`}
+              onClick={() => scrollToSection(id)}
+              title={dict.settings.tabs[labelKey as keyof typeof dict.settings.tabs]}
+              aria-label={dict.settings.tabs[labelKey as keyof typeof dict.settings.tabs]}
+              aria-current={activeSection === id ? "true" : undefined}
+            >
+              <Icon size={17} />
+            </button>
+          ))}
+
           <button
-            ref={closeButtonRef}
             type="button"
-            className="modal__close"
+            className="settings-side-panel__close"
             onClick={handleClose}
-            id="btn-settings-close"
             title={dict.settings.close}
             aria-label={dict.settings.close}
           >
@@ -763,37 +876,14 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           </button>
         </div>
 
-        {/* Навигация по вкладкам */}
-        <div className="settings-tabs">
-          {[
-            { id: "general", label: dict.settings.tabs.general, icon: SlidersHorizontal },
-            { id: "appearance", label: dict.settings.tabs.appearance, icon: Palette },
-            { id: "presets", label: dict.settings.tabs.presets, icon: Layers },
-            { id: "upscaling", label: dict.settings.tabs.upscaling, icon: Sparkles },
-            { id: "hotkeys", label: dict.settings.tabs.hotkeys, icon: Keyboard },
-            { id: "integration", label: dict.settings.tabs.integration, icon: Link },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id as typeof activeTab)}
-                className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
-              >
-                <Icon size={16} className="settings-tab-icon" />
-                <span className="settings-tab-label">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Тело модального окна */}
-        <div className="modal__body" ref={bodyRef} style={{ padding: "16px 20px 10px 20px" }}>
-          <div ref={panelRef} className="settings-tab-panel">
-          <div key={activeTab} className="settings-tab-content">
-            {activeTab === "general" && (
-            <GeneralSettingsTab
+        <div className="settings-side-panel__scroll" ref={scrollRef}>
+          <SectionBlock
+            id="section-general"
+            Icon={SlidersHorizontal}
+            label={dict.settings.tabs.general}
+            isMounted={mountedSections.has("section-general")}
+          >
+            <MemoizedGeneralSettingsTab
               multiInstance={multiInstance} setMultiInstance={setMultiInstance}
               saveTracksToVideoDir={saveTracksToVideoDir} setSaveTracksToVideoDir={setSaveTracksToVideoDir}
               autoLoadTracks={autoLoadTracks} setAutoLoadTracks={setAutoLoadTracks}
@@ -810,10 +900,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               subtitlesAvoidUi={subtitlesAvoidUi}
               setSubtitlesAvoidUi={setSubtitlesAvoidUi}
             />
-          )}
+          </SectionBlock>
 
-          {activeTab === "appearance" && (
-            <AppearanceSettingsTab
+          <SectionBlock
+            id="section-appearance"
+            Icon={Palette}
+            label={dict.settings.tabs.appearance}
+            isMounted={mountedSections.has("section-appearance")}
+          >
+            <MemoizedAppearanceSettingsTab
               activeColor={activeColor} setActiveColor={setActiveColor}
               uiRadius={uiRadius} saveUiRadius={saveUiRadius} setUiRadius={setUiRadius}
               uiScale={uiScale} saveUiScale={saveUiScale} setUiScale={setUiScale}
@@ -829,38 +924,55 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               openSections={openSections} onToggleSection={toggleSection}
               getEffectiveAccentColor={getEffectiveAccentColor}
             />
-          )}
+          </SectionBlock>
 
-          {activeTab === "presets" && (
+          <SectionBlock
+            id="section-presets"
+            Icon={Layers}
+            label={dict.settings.tabs.presets}
+            isMounted={mountedSections.has("section-presets")}
+          >
             <div className="modal__section" style={{ display: "flex", flexDirection: "column" }}>
-              <PresetsSection onPresetApplied={handlePresetApplied} />
+              <MemoizedPresetsSection onPresetApplied={handlePresetApplied} />
             </div>
-          )}
+          </SectionBlock>
 
-          {activeTab === "upscaling" && (
+          <SectionBlock
+            id="section-upscaling"
+            Icon={Sparkles}
+            label={dict.settings.tabs.upscaling}
+            isMounted={mountedSections.has("section-upscaling")}
+          >
             <div className="modal__section" style={{ display: "flex", flexDirection: "column" }}>
-              <UpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
+              <MemoizedUpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
             </div>
-          )}
+          </SectionBlock>
 
-          {activeTab === "hotkeys" && (
-            <HotkeysSettingsTab
+          <SectionBlock
+            id="section-hotkeys"
+            Icon={Keyboard}
+            label={dict.settings.tabs.hotkeys}
+            isMounted={mountedSections.has("section-hotkeys")}
+          >
+            <MemoizedHotkeysSettingsTab
               openSections={openSections}
               onToggleSection={toggleSection}
               onRecordingChange={setIsRecordingHotkey}
             />
-          )}
+          </SectionBlock>
 
-          {activeTab === "integration" && (
-            <IntegrationSettingsTab />
-          )}
-          </div>
-          </div>
+          <SectionBlock
+            id="section-integration"
+            Icon={Link}
+            label={dict.settings.tabs.integration}
+            isMounted={mountedSections.has("section-integration")}
+          >
+            <MemoizedIntegrationSettingsTab />
+          </SectionBlock>
         </div>
-        {/* Футер с версией приложения и проверкой обновлений */}
+
         <div className="settings-footer">
           <div className="settings-footer__left">
-            {/* Иконки социальных сетей слева от названия L-MPV */}
             <div className="settings-footer__icons">
               <button
                 type="button"
@@ -935,7 +1047,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               )
             )}
           </div>
-          <span style={{ fontSize: "0.76rem" }}>{dict.settings.integration.portableEdition}</span>
+          <span className="settings-footer__edition">{dict.settings.integration.portableEdition}</span>
         </div>
       </div>
     </div>

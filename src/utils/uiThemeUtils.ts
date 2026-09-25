@@ -416,6 +416,7 @@ export const UI_FONT_FAMILY_STORAGE_KEY = "l-mpv-ui-font-family";
 
 /** Кэш уже загруженных и зарегистрированных в DOM семейств шрифтов. */
 const registeredFamilies = new Set<string>();
+const pendingFontLoads = new Map<string, Promise<boolean>>();
 
 /**
  * Динамическая регистрация пользовательского шрифта в браузере через W3C FontFace API.
@@ -431,28 +432,38 @@ export async function registerCustomFont(font: {
   if (registeredFamilies.has(font.family)) {
     return true;
   }
-  try {
-    const base64Data = await invoke<string>("load_font_data", { fileName: font.file_name });
-    const mime =
-      font.format === "opentype"
-        ? "font/otf"
-        : font.format === "woff2"
-        ? "font/woff2"
-        : font.format === "woff"
-        ? "font/woff"
-        : "font/ttf";
-    const fontFace = new FontFace(
-      font.family,
-      `url(data:${mime};charset=utf-8;base64,${base64Data})`
-    );
-    const loadedFace = await fontFace.load();
-    document.fonts.add(loadedFace);
-    registeredFamilies.add(font.family);
-    return true;
-  } catch (err) {
-    console.error(`[Fonts] Ошибка динамической загрузки шрифта ${font.family}:`, err);
-    return false;
-  }
+  const pending = pendingFontLoads.get(font.family);
+  if (pending) return pending;
+
+  const request = (async () => {
+    try {
+      const base64Data = await invoke<string>("load_font_data", { fileName: font.file_name });
+      const mime =
+        font.format === "opentype"
+          ? "font/otf"
+          : font.format === "woff2"
+          ? "font/woff2"
+          : font.format === "woff"
+          ? "font/woff"
+          : "font/ttf";
+      const fontFace = new FontFace(
+        font.family,
+        `url(data:${mime};charset=utf-8;base64,${base64Data})`
+      );
+      const loadedFace = await fontFace.load();
+      document.fonts.add(loadedFace);
+      registeredFamilies.add(font.family);
+      return true;
+    } catch (err) {
+      console.error(`[Fonts] Ошибка динамической загрузки шрифта ${font.family}:`, err);
+      return false;
+    }
+  })().finally(() => {
+    pendingFontLoads.delete(font.family);
+  });
+
+  pendingFontLoads.set(font.family, request);
+  return request;
 }
 
 /**
@@ -543,3 +554,30 @@ export function saveUiFont(fontId: UiFontId, customFamily?: string): void {
   window.dispatchEvent(new Event("l-mpv-settings-changed"));
 }
 
+
+// ─── Стиль окна настроек (Settings Style) ─────────────────────────
+
+export type UiSettingsStyle = "modal" | "sidebar";
+const UI_SETTINGS_STYLE_KEY = "l-mpv-ui-settings-style";
+
+export function getSavedUiSettingsStyle(): UiSettingsStyle {
+  try {
+    const val = localStorage.getItem(UI_SETTINGS_STYLE_KEY);
+    if (val === "modal" || val === "sidebar") {
+      return val;
+    }
+  } catch (e) {
+    console.error("Ошибка чтения стиля окна настроек из localStorage:", e);
+  }
+  return "sidebar"; // Значение по умолчанию
+}
+
+export function saveUiSettingsStyle(style: UiSettingsStyle): void {
+  try {
+    localStorage.setItem(UI_SETTINGS_STYLE_KEY, style);
+  } catch (e) {
+    console.error("Ошибка сохранения стиля окна настроек в localStorage:", e);
+  }
+  window.dispatchEvent(new CustomEvent("l-mpv-ui-settings-style-changed", { detail: style }));
+  window.dispatchEvent(new Event("l-mpv-settings-changed"));
+}

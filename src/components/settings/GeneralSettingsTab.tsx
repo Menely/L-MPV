@@ -274,6 +274,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   try {
                     await invoke("set_play_next_on_end", { enabled: true });
                   } catch (err) {
+                    setPlayNextOnEnd(false);
                     console.error("Ошибка сохранения настройки play_next_on_end:", err);
                   }
                 }}
@@ -295,6 +296,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   try {
                     await invoke("set_play_next_on_end", { enabled: false });
                   } catch (err) {
+                    setPlayNextOnEnd(true);
                     console.error("Ошибка сохранения настройки play_next_on_end:", err);
                   }
                 }}
@@ -323,6 +325,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   try {
                     await invoke("set_multi_instance", { allow: val });
                   } catch (err) {
+                    setMultiInstance(!val);
                     console.error(err);
                   }
                 }}
@@ -399,6 +402,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   try {
                     await invoke("set_auto_load_tracks", { enabled: val });
                   } catch (err) {
+                    setAutoLoadTracks(!val);
                     console.error("Ошибка сохранения настройки auto_load_tracks:", err);
                   }
                 }}
@@ -441,6 +445,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                       try {
                         await invoke("set_auto_select_external_audio", { enabled: val });
                       } catch (err) {
+                        setAutoSelectExternalAudio(!val);
                         console.error("Ошибка сохранения настройки auto_select_external_audio:", err);
                       }
                     }}
@@ -530,17 +535,23 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 onChange={async (e) => {
                   const val = e.target.checked;
                   setSubtitlesAvoidUi(val);
-                  localStorage.setItem('l-mpv-subtitles-avoid-ui', val ? 'true' : 'false');
                   try {
                     await invoke("set_subtitles_avoid_ui_setting", { enabled: val });
+                  } catch (err) {
+                    setSubtitlesAvoidUi(!val);
+                    console.error("Ошибка сохранения настройки subtitles_avoid_ui:", err);
+                    return;
+                  }
+                  try {
                     await invoke("update_subtitles_avoid_ui", {
                       controlsVisible: val,
                       windowHeight: window.innerHeight,
                     });
                   } catch (err) {
-                    console.error("Ошибка сохранения настройки subtitles_avoid_ui:", err);
+                    console.warn("Не удалось обновить позицию субтитров:", err);
                   }
-                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                  localStorage.setItem("l-mpv-subtitles-avoid-ui", val ? "true" : "false");
+                  window.dispatchEvent(new Event("l-mpv-settings-changed"));
                 }}
               />
               <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
@@ -568,7 +579,13 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 onChange={(e) => {
                   const val = e.target.checked;
                   setSaveTracksToVideoDir(val);
-                  localStorage.setItem('l-mpv-save-tracks-to-video-dir', val ? 'true' : 'false');
+                  try {
+                    localStorage.setItem("l-mpv-save-tracks-to-video-dir", val ? "true" : "false");
+                    window.dispatchEvent(new Event("l-mpv-settings-changed"));
+                  } catch (err) {
+                    setSaveTracksToVideoDir(!val);
+                    console.error(err);
+                  }
                 }}
               />
               <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>

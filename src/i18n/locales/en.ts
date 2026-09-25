@@ -184,6 +184,15 @@ export const en: TranslationDict = {
       scaleAria: "Interface scale",
       fonts: "Fonts",
       controlBarStyle: "Control bar style",
+      settingsWindow: {
+        title: "Settings menu style",
+        resetTitle: "Reset to sidebar",
+        sidebar: "Sidebar",
+        sidebarDesc: "Keep the player available on the right",
+        modal: "Modal window",
+        modalDesc: "Classic centered settings window",
+        nextOpen: "The style applies immediately",
+      },
       controlButtons: {
         openingSkip: (sec: number) => `Skip opening (+${sec}s)`,
         alwaysOnTop: 'Always on top',

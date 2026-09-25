@@ -2,6 +2,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   lazy,
   Suspense,
@@ -27,6 +28,8 @@ import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
 import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
+import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
+import { resetSettingsViewSession } from "./components/settings/settingsViewSession";
 
 // Тяжёлые модалки грузятся лениво: в стартовый бандл не попадают,
 // парсятся только при первом открытии (dnd-kit едет вместе с настройками).
@@ -36,9 +39,12 @@ const MediaInfoModal = lazy(() =>
 const ChaptersModal = lazy(() =>
   import("./components/modals/ChaptersModal").then((m) => ({ default: m.ChaptersModal }))
 );
-const SettingsModal = lazy(() =>
-  import("./components/modals/SettingsModal").then((m) => ({ default: m.SettingsModal }))
-);
+const loadSettingsModal = () =>
+  import("./components/modals/SettingsModal").then((m) => ({ default: m.SettingsModal }));
+const loadSettingsPanel = () =>
+  import("./components/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel }));
+const SettingsModal = lazy(loadSettingsModal);
+const SettingsPanel = lazy(loadSettingsPanel);
 const UpdateModal = lazy(() =>
   import("./components/modals/UpdateModal").then((m) => ({ default: m.UpdateModal }))
 );
@@ -96,6 +102,83 @@ function App() {
     }
   });
   
+  const [settingsStyle, setSettingsStyle] = useState<UiSettingsStyle>(getSavedUiSettingsStyle);
+  const settingsWasOpenRef = useRef(false);
+  const settingsModulesReadyRef = useRef<Promise<void> | null>(null);
+  const settingsOpenRequestRef = useRef(0);
+
+  const ensureSettingsModules = useCallback(() => {
+    if (!settingsModulesReadyRef.current) {
+      const loadPromise = Promise.all([
+        loadSettingsPanel(),
+        loadSettingsModal(),
+      ]).then(() => undefined);
+      settingsModulesReadyRef.current = loadPromise.catch((error) => {
+        settingsModulesReadyRef.current = null;
+        throw error;
+      });
+    }
+    return settingsModulesReadyRef.current;
+  }, []);
+
+  const openSettings = useCallback(() => {
+    const requestId = ++settingsOpenRequestRef.current;
+    setIsPlaylistOpen(false);
+    setShowMediaInfo(false);
+    setShowChapters(false);
+    setShowSubtitlesSearch(false);
+    setShowUpdateToast(false);
+    setContextMenu(null);
+    void ensureSettingsModules()
+      .then(() => {
+        if (requestId === settingsOpenRequestRef.current) {
+          setShowSettings(true);
+        }
+      })
+      .catch(console.error);
+  }, [ensureSettingsModules]);
+
+  const closeSettings = useCallback(() => {
+    settingsOpenRequestRef.current += 1;
+    setShowSettings(false);
+  }, []);
+
+  useEffect(() => {
+    void ensureSettingsModules().catch(console.error);
+  }, [ensureSettingsModules]);
+
+  useEffect(() => {
+    const handleSettingsStyleChanged = (e: Event) => {
+      const ce = e as CustomEvent<UiSettingsStyle>;
+      if (ce.detail === "modal" || ce.detail === "sidebar") {
+        void ensureSettingsModules().catch(console.error);
+        setSettingsStyle(ce.detail);
+      }
+    };
+    window.addEventListener("l-mpv-ui-settings-style-changed", handleSettingsStyleChanged);
+    return () => window.removeEventListener("l-mpv-ui-settings-style-changed", handleSettingsStyleChanged);
+  }, [ensureSettingsModules]);
+
+  useEffect(() => {
+    if (!showSettings) {
+      setSettingsStyle(getSavedUiSettingsStyle());
+    }
+  }, [showSettings]);
+
+  useLayoutEffect(() => {
+    if (settingsWasOpenRef.current && !showSettings) {
+      resetSettingsViewSession();
+    }
+    settingsWasOpenRef.current = showSettings;
+    document.body.classList.toggle(
+      "settings-open",
+      showSettings && settingsStyle === "sidebar",
+    );
+    return () => {
+      document.body.classList.remove("settings-open");
+    };
+  }, [showSettings, settingsStyle]);
+
   const mediaTitle = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "";
 
   const osdTimerRef = useRef<number | null>(null);
@@ -149,10 +232,10 @@ function App() {
     if (isPlaylistOpen) {
       setShowChapters(false);
       setShowMediaInfo(false);
-      setShowSettings(false);
+      closeSettings();
       setShowSubtitlesSearch(false);
     }
-  }, [isPlaylistOpen]);
+  }, [closeSettings, isPlaylistOpen]);
 
   useEffect(() => {
     const savedVol = localStorage.getItem('l-mpv-volume');
@@ -523,6 +606,7 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
+    showSettings,
     hotkeys,
   });
 
@@ -538,6 +622,7 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
+    showSettings,
     hotkeys,
   };
 
@@ -582,6 +667,7 @@ function App() {
       cycleSubTrack: curCycleSubTrack,
       isPlaylistOpen: curIsPlaylistOpen,
       setIsPlaylistOpen: curSetIsPlaylistOpen,
+      showSettings: curShowSettings,
     } = latestRef.current;
 
     const curLocale = getEffectiveLocale();
@@ -703,7 +789,11 @@ function App() {
         });
         break;
       case "settings":
-        setShowSettings((v) => !v);
+        if (curShowSettings) {
+          closeSettings();
+        } else {
+          openSettings();
+        }
         break;
       case "toggleVisualizer": {
         const cfg = getVisualizerConfig();
@@ -955,7 +1045,7 @@ function App() {
         break;
       }
     }
-  }, [handleOpenFile, triggerFrameOsd]);
+  }, [closeSettings, handleOpenFile, openSettings, triggerFrameOsd]);
 
   const handleVideoClick = useCallback(
     (e: React.MouseEvent) => {
@@ -1085,10 +1175,27 @@ function App() {
   // ─── Горячие клавиши ──────────────────────────────
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target?.closest(".color-picker-modal")) return;
+
+      const isEditing = target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || target?.isContentEditable
+        || target?.getAttribute("role") === "slider";
+      if (isEditing) return;
+
+      const inSettings = latestRef.current.showSettings
+        && Boolean(target?.closest(".settings-side-panel, .modal--settings"));
+      const curHotkeys = latestRef.current.hotkeys;
+      if (inSettings) {
+        if (e.key === "Escape") return;
+        const settingsCodes = curHotkeys.settings || [];
+        if (!settingsCodes.some((code) => isKeyboardEventMatch(e, code))) {
+          return;
+        }
+        e.preventDefault();
+        executeAction("settings");
         return;
       }
 
@@ -1098,7 +1205,6 @@ function App() {
         return;
       }
 
-      const curHotkeys = latestRef.current.hotkeys;
       for (const actionId of Object.keys(curHotkeys)) {
         const customCodes = curHotkeys[actionId] || [];
         const isMatch = customCodes.some(c => isKeyboardEventMatch(e, c));
@@ -1375,12 +1481,7 @@ function App() {
             setShowSubtitlesSearch(true);
             closeContextMenu();
           }}
-          onShowSettings={() => {
-            setIsPlaylistOpen(false);
-            setShowMediaInfo(false);
-            setShowSettings(true);
-            closeContextMenu();
-          }}
+           onShowSettings={openSettings}
         />
       )}
 
@@ -1410,15 +1511,27 @@ function App() {
 
       {showSettings && (
         <Suspense fallback={null}>
-          <SettingsModal
-            onClose={() => setShowSettings(false)}
-            onShowUpdate={(info) => {
-              setShowSettings(false);
-              setShowUpdateToast(false);
-              setPendingUpdate(info);
-              setShowUpdateModal(true);
-            }}
-          />
+          {settingsStyle === "modal" ? (
+            <SettingsModal
+              onClose={closeSettings}
+              onShowUpdate={(info: UpdateInfo) => {
+                closeSettings();
+                setShowUpdateToast(false);
+                setPendingUpdate(info);
+                setShowUpdateModal(true);
+              }}
+            />
+          ) : (
+            <SettingsPanel
+              onClose={closeSettings}
+              onShowUpdate={(info: UpdateInfo) => {
+                closeSettings();
+                setShowUpdateToast(false);
+                setPendingUpdate(info);
+                setShowUpdateModal(true);
+              }}
+            />
+          )}
         </Suspense>
       )}
 

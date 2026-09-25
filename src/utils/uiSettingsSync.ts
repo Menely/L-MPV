@@ -17,6 +17,7 @@ import {
   saveCustomColors,
   applyAccentColor,
   applyPlayerTheme,
+  type GlowIntensity,
 } from "./colorUtils";
 import {
   getSavedUiRadius,
@@ -32,6 +33,9 @@ import {
   applyUiOpacity,
   applyUiFont,
   initActiveCustomFont,
+  getSavedUiSettingsStyle,
+  saveUiSettingsStyle,
+  UiSettingsStyle,
   UiFontId,
   UiRadiusLevel,
   UiScaleMode,
@@ -54,6 +58,14 @@ import {
 import { getCustomHotkeys, saveCustomHotkeys } from "./hotkeyUtils";
 import { getSavedLocale, saveLocale, type Locale } from "../i18n/index";
 
+export interface StoredVisualizerSettings {
+  enabled: boolean;
+  placement: string;
+  mode: string;
+  theme: string;
+  height: number;
+}
+
 export interface UiSettings {
   player_theme?: string;
   ui_font?: string;
@@ -73,12 +85,87 @@ export interface UiSettings {
   custom_colors?: string[];
   visible_buttons?: Record<string, boolean>;
   custom_hotkeys?: Record<string, string[]>;
-  /** Язык интерфейса плеера: 'ru' | 'en'. */
   language?: string;
+  settings_style?: string;
+  hide_controls_in_upper_half?: boolean;
+  hotload_enabled?: boolean;
+  save_tracks_to_video_dir?: boolean;
+  skip_opening_seconds?: number;
+  visualizer_config?: StoredVisualizerSettings;
 }
 
+const UI_SYNC_PENDING_KEY = "l-mpv-ui-sync-pending";
+
 let isHydrating = false;
+let hydrationBlocked = false;
+let hydrationRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let isApplyingHydration = false;
+let pendingHydrationSnapshot: UiSettings | null = null;
+let pendingDiskSnapshot: UiSettings | null = null;
+let syncWriteInFlight: Promise<void> | null = null;
 let syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let syncRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let syncRetryDelay = 500;
+
+function markUiSyncPending(): void {
+  try {
+    localStorage.setItem(UI_SYNC_PENDING_KEY, "true");
+  } catch {}
+}
+
+function scheduleSyncRetry(): void {
+  if (syncRetryTimer !== null || !pendingDiskSnapshot) return;
+  syncRetryTimer = setTimeout(() => {
+    syncRetryTimer = null;
+    void flushUiSettingsQueue();
+  }, syncRetryDelay);
+  syncRetryDelay = Math.min(syncRetryDelay * 2, 30000);
+}
+
+async function flushUiSettingsQueue(): Promise<void> {
+  if (syncWriteInFlight || !pendingDiskSnapshot) return;
+  if (syncRetryTimer !== null) {
+    clearTimeout(syncRetryTimer);
+    syncRetryTimer = null;
+  }
+  const snapshot = pendingDiskSnapshot;
+  pendingDiskSnapshot = null;
+  let retryQueued = false;
+  const request = invoke<void>("save_ui_settings", { ui: snapshot })
+    .then(() => {
+      syncRetryDelay = 500;
+      if (!pendingDiskSnapshot && syncDebounceTimer === null) {
+        try {
+          localStorage.removeItem(UI_SYNC_PENDING_KEY);
+        } catch {}
+      }
+    })
+    .catch((error) => {
+      console.error("[UiSettingsSync] Ошибка сохранения настроек интерфейса в config/settings.json:", error);
+      if (!pendingDiskSnapshot) {
+        pendingDiskSnapshot = snapshot;
+        retryQueued = true;
+      }
+      scheduleSyncRetry();
+    })
+    .finally(() => {
+      syncWriteInFlight = null;
+      if (pendingDiskSnapshot && !retryQueued) void flushUiSettingsQueue();
+    });
+  syncWriteInFlight = request;
+  await request;
+}
+
+function queueUiSettingsSnapshot(snapshot: UiSettings): void {
+  pendingDiskSnapshot = snapshot;
+  markUiSyncPending();
+  if (syncRetryTimer !== null) {
+    clearTimeout(syncRetryTimer);
+    syncRetryTimer = null;
+  }
+  syncRetryDelay = 500;
+  void flushUiSettingsQueue();
+}
 
 /**
  * Сбор всех активных визуальных настроек приложения из localStorage и системных утилит.
@@ -95,6 +182,27 @@ export function collectCurrentUiSettings(): UiSettings {
     }
   } catch (e) {
     console.error("[UiSettingsSync] Ошибка чтения видимости кнопок:", e);
+  }
+
+  let visualizerConfig: StoredVisualizerSettings | undefined;
+  try {
+    const rawVisualizer = localStorage.getItem("l-mpv-visualizer-settings");
+    if (rawVisualizer) {
+      const parsed = JSON.parse(rawVisualizer) as Partial<StoredVisualizerSettings>;
+      const placements = ["above_timeline", "toolbar", "inside_timeline", "off"];
+      const modes = ["waveform", "spectrum", "bars", "matrix", "ribbon", "particles", "circular", "blob", "strings"];
+      const themes = ["accent", "pastel", "neon", "sunset", "aurora", "ocean", "crimson", "mint", "violet", "gold"];
+      const height = Number(parsed.height);
+      visualizerConfig = {
+        enabled: parsed.enabled === true,
+        placement: placements.includes(parsed.placement || "") ? parsed.placement! : "above_timeline",
+        mode: modes.includes(parsed.mode || "") ? parsed.mode! : "waveform",
+        theme: themes.includes(parsed.theme || "") ? parsed.theme! : "accent",
+        height: Number.isFinite(height) ? Math.min(80, Math.max(8, Math.round(height))) : 22,
+      };
+    }
+  } catch (error) {
+    console.error("[UiSettingsSync] Ошибка чтения визуализатора:", error);
   }
 
   let playlistWidth: number | undefined = undefined;
@@ -130,6 +238,12 @@ export function collectCurrentUiSettings(): UiSettings {
     visible_buttons: visibleButtons,
     custom_hotkeys: getCustomHotkeys(),
     language: getSavedLocale(),
+    settings_style: getSavedUiSettingsStyle(),
+    hide_controls_in_upper_half: localStorage.getItem("l-mpv-hide-controls-upper-half") === "true",
+    hotload_enabled: localStorage.getItem("l-mpv-hotload-enabled") === "true",
+    save_tracks_to_video_dir: localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false",
+    skip_opening_seconds: Math.min(600, Math.max(1, Number(localStorage.getItem("l-mpv-skip-opening-seconds")) || 90)),
+    visualizer_config: visualizerConfig,
   };
 }
 
@@ -138,7 +252,11 @@ export function collectCurrentUiSettings(): UiSettings {
  * Предотвращает частые дисковые операции при плавном перемещении ползунков.
  */
 export function syncUiSettingsToDisk(delayMs = 400): void {
-  if (isHydrating) {
+  if (!isApplyingHydration) markUiSyncPending();
+  if (isHydrating || hydrationBlocked) {
+    if (!isApplyingHydration) {
+      pendingHydrationSnapshot = collectCurrentUiSettings();
+    }
     return;
   }
 
@@ -146,14 +264,9 @@ export function syncUiSettingsToDisk(delayMs = 400): void {
     clearTimeout(syncDebounceTimer);
   }
 
-  syncDebounceTimer = setTimeout(async () => {
+  syncDebounceTimer = setTimeout(() => {
     syncDebounceTimer = null;
-    try {
-      const currentUi = collectCurrentUiSettings();
-      await invoke("save_ui_settings", { ui: currentUi });
-    } catch (err) {
-      console.error("[UiSettingsSync] Ошибка сохранения настроек интерфейса в config/settings.json:", err);
-    }
+    queueUiSettingsSnapshot(collectCurrentUiSettings());
   }, delayMs);
 }
 
@@ -198,113 +311,190 @@ export function applyAllVisualSettings(): void {
   }
 }
 
+function applyUiSettingsSnapshot(ui: UiSettings): boolean {
+  let restored = false;
+  if (ui.player_theme) {
+    savePlayerTheme(ui.player_theme);
+    restored = true;
+  }
+  if (ui.ui_font) {
+    saveUiFont(ui.ui_font as UiFontId);
+    restored = true;
+  }
+  if (ui.accent_color) {
+    localStorage.setItem("l-mpv-accent-color", ui.accent_color);
+    restored = true;
+  }
+  if (ui.glow_intensity && ["off", "soft", "medium", "intense"].includes(ui.glow_intensity)) {
+    saveGlowIntensity(ui.glow_intensity as GlowIntensity);
+    restored = true;
+  }
+  if (typeof ui.ui_opacity === "number") {
+    saveUiOpacity(ui.ui_opacity);
+    restored = true;
+  }
+  if (ui.ui_radius_level) {
+    saveUiRadius(ui.ui_radius_level as UiRadiusLevel, ui.ui_radius_value);
+    restored = true;
+  }
+  if (ui.ui_scale_mode) {
+    saveUiScale(ui.ui_scale_mode as UiScaleMode, ui.ui_scale_value);
+    restored = true;
+  }
+  if (ui.control_bar_style) {
+    saveControlBarStyle(ui.control_bar_style as ControlBarStyle);
+    restored = true;
+  }
+  if (ui.time_position) {
+    saveTimePosition(ui.time_position as TimeDisplayPosition);
+    restored = true;
+  }
+  if (ui.time_format) {
+    saveTimeFormat(ui.time_format as TimeFormatMode);
+    restored = true;
+  }
+  if (typeof ui.animations_enabled === "boolean") {
+    localStorage.setItem("l-mpv-animations-enabled", ui.animations_enabled ? "true" : "false");
+    restored = true;
+  }
+  if (typeof ui.show_track_names === "boolean") {
+    localStorage.setItem("l-mpv-show-track-names", ui.show_track_names ? "true" : "false");
+    restored = true;
+  }
+  if (typeof ui.playlist_width === "number" && ui.playlist_width >= 360) {
+    localStorage.setItem("l-mpv-playlist-width", ui.playlist_width.toString());
+    restored = true;
+  }
+  if (ui.custom_colors && Array.isArray(ui.custom_colors)) {
+    saveCustomColors(ui.custom_colors);
+    restored = true;
+  }
+  if (ui.visible_buttons && typeof ui.visible_buttons === "object") {
+    localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(ui.visible_buttons));
+    restored = true;
+  }
+  if (ui.custom_hotkeys && typeof ui.custom_hotkeys === "object") {
+    saveCustomHotkeys(ui.custom_hotkeys);
+    restored = true;
+  }
+  if (ui.language === "ru" || ui.language === "en") {
+    saveLocale(ui.language as Locale);
+    restored = true;
+  }
+  if (ui.settings_style === "modal" || ui.settings_style === "sidebar") {
+    saveUiSettingsStyle(ui.settings_style as UiSettingsStyle);
+    restored = true;
+  }
+  if (typeof ui.hide_controls_in_upper_half === "boolean") {
+    localStorage.setItem("l-mpv-hide-controls-upper-half", ui.hide_controls_in_upper_half ? "true" : "false");
+    restored = true;
+  }
+  if (typeof ui.hotload_enabled === "boolean") {
+    localStorage.setItem("l-mpv-hotload-enabled", ui.hotload_enabled ? "true" : "false");
+    restored = true;
+  }
+  if (typeof ui.save_tracks_to_video_dir === "boolean") {
+    localStorage.setItem("l-mpv-save-tracks-to-video-dir", ui.save_tracks_to_video_dir ? "true" : "false");
+    restored = true;
+  }
+  if (typeof ui.skip_opening_seconds === "number" && Number.isFinite(ui.skip_opening_seconds)) {
+    const skipSeconds = Math.min(600, Math.max(1, Math.round(ui.skip_opening_seconds)));
+    localStorage.setItem("l-mpv-skip-opening-seconds", skipSeconds.toString());
+    restored = true;
+  }
+  if (ui.visualizer_config && typeof ui.visualizer_config === "object") {
+    const visualizer = ui.visualizer_config;
+    const placements = ["above_timeline", "toolbar", "inside_timeline", "off"];
+    const modes = ["waveform", "spectrum", "bars", "matrix", "ribbon", "particles", "circular", "blob", "strings"];
+    const themes = ["accent", "pastel", "neon", "sunset", "aurora", "ocean", "crimson", "mint", "violet", "gold"];
+    const height = Number(visualizer.height);
+    localStorage.setItem("l-mpv-visualizer-settings", JSON.stringify({
+      enabled: visualizer.enabled === true,
+      placement: placements.includes(visualizer.placement) ? visualizer.placement : "above_timeline",
+      mode: modes.includes(visualizer.mode) ? visualizer.mode : "waveform",
+      theme: themes.includes(visualizer.theme) ? visualizer.theme : "accent",
+      height: Number.isFinite(height) ? Math.min(80, Math.max(8, Math.round(height))) : 22,
+    } satisfies StoredVisualizerSettings));
+    restored = true;
+  }
+  return restored;
+}
+
+function scheduleHydrationRetry(): void {
+  if (hydrationRetryTimer !== null) return;
+  hydrationRetryTimer = setTimeout(() => {
+    hydrationRetryTimer = null;
+    void hydrateUiSettingsFromDisk();
+  }, 2000);
+}
+
 /**
  * Гидратация визуальных настроек из config/settings.json при холодном запуске приложения.
  * Если в файле конфигурации уже сохранены параметры, они восстанавливаются в localStorage
  * и немедленно активируются в DOM.
  */
 export async function hydrateUiSettingsFromDisk(): Promise<void> {
+  if (isHydrating) return;
   isHydrating = true;
+  isApplyingHydration = false;
+  try {
+    if (localStorage.getItem(UI_SYNC_PENDING_KEY) === "true") {
+      pendingHydrationSnapshot = collectCurrentUiSettings();
+    }
+  } catch {}
+  let restored = false;
+  let hydrationSucceeded = false;
+  let localSnapshot: UiSettings | null = null;
+
   try {
     const ui = await invoke<UiSettings>("get_ui_settings");
-    let hasRestoredValues = false;
-
-    if (ui) {
-      if (ui.player_theme) {
-        savePlayerTheme(ui.player_theme);
-        hasRestoredValues = true;
-      }
-      if (ui.ui_font) {
-        saveUiFont(ui.ui_font as UiFontId);
-        hasRestoredValues = true;
-      }
-      if (ui.accent_color) {
-        localStorage.setItem("l-mpv-accent-color", ui.accent_color);
-        hasRestoredValues = true;
-      }
-      if (ui.glow_intensity) {
-        saveGlowIntensity(ui.glow_intensity as any);
-        hasRestoredValues = true;
-      }
-      if (typeof ui.ui_opacity === "number") {
-        saveUiOpacity(ui.ui_opacity);
-        hasRestoredValues = true;
-      }
-      if (ui.ui_radius_level) {
-        saveUiRadius(ui.ui_radius_level as UiRadiusLevel, ui.ui_radius_value);
-        hasRestoredValues = true;
-      }
-      if (ui.ui_scale_mode) {
-        saveUiScale(ui.ui_scale_mode as UiScaleMode, ui.ui_scale_value);
-        hasRestoredValues = true;
-      }
-      if (ui.control_bar_style) {
-        saveControlBarStyle(ui.control_bar_style as ControlBarStyle);
-        hasRestoredValues = true;
-      }
-      if (ui.time_position) {
-        saveTimePosition(ui.time_position as TimeDisplayPosition);
-        hasRestoredValues = true;
-      }
-      if (ui.time_format) {
-        saveTimeFormat(ui.time_format as TimeFormatMode);
-        hasRestoredValues = true;
-      }
-      if (typeof ui.animations_enabled === "boolean") {
-        // Пишем только в localStorage, DOM synced централизованно ниже через applyAllVisualSettings().
-        try {
-          localStorage.setItem(
-            "l-mpv-animations-enabled",
-            ui.animations_enabled ? "true" : "false"
-          );
-        } catch {
-          /* ignore */
-        }
-        hasRestoredValues = true;
-      }
-      if (typeof ui.show_track_names === "boolean") {
-        localStorage.setItem(
-          "l-mpv-show-track-names",
-          ui.show_track_names ? "true" : "false"
-        );
-        hasRestoredValues = true;
-      }
-      if (typeof ui.playlist_width === "number" && ui.playlist_width >= 360) {
-        localStorage.setItem("l-mpv-playlist-width", ui.playlist_width.toString());
-        hasRestoredValues = true;
-      }
-      if (ui.custom_colors && Array.isArray(ui.custom_colors)) {
-        saveCustomColors(ui.custom_colors);
-        hasRestoredValues = true;
-      }
-      if (ui.visible_buttons && typeof ui.visible_buttons === "object") {
-        localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(ui.visible_buttons));
-        hasRestoredValues = true;
-      }
-      if (ui.custom_hotkeys && typeof ui.custom_hotkeys === "object") {
-        saveCustomHotkeys(ui.custom_hotkeys);
-        hasRestoredValues = true;
-      }
-      if (ui.language === "ru" || ui.language === "en") {
-        saveLocale(ui.language as Locale);
-        hasRestoredValues = true;
-      }
+    hydrationSucceeded = true;
+    isApplyingHydration = true;
+    try {
+      if (ui) restored = applyUiSettingsSnapshot(ui);
+    } finally {
+      isApplyingHydration = false;
     }
+  } catch (error) {
+    isApplyingHydration = false;
+    console.error("[UiSettingsSync] Ошибка гидратации визуальных настроек с диска:", error);
+  }
 
-    // Применяем восстановленные настройки к DOM
+  localSnapshot = pendingHydrationSnapshot;
+  pendingHydrationSnapshot = null;
+  if (localSnapshot) {
+    isApplyingHydration = true;
+    try {
+      applyUiSettingsSnapshot(localSnapshot);
+    } catch (error) {
+      console.error("[UiSettingsSync] Ошибка применения локального снимка во время гидратации:", error);
+    } finally {
+      isApplyingHydration = false;
+    }
+  }
+  try {
     applyAllVisualSettings();
-
-    // Если в settings.json ещё не было сохранённых настроек (например, первый запуск после обновления),
-    // персистируем текущие стартовые параметры в config/settings.json
-    if (!hasRestoredValues) {
-      isHydrating = false;
-      syncUiSettingsToDisk(100);
-      return;
-    }
-  } catch (err) {
-    console.error("[UiSettingsSync] Ошибка гидратации визуальных настроек с диска:", err);
   } finally {
     isHydrating = false;
+  }
+
+  pendingHydrationSnapshot = null;
+  if (!hydrationSucceeded) {
+    hydrationBlocked = true;
+    if (localSnapshot) pendingHydrationSnapshot = localSnapshot;
+    scheduleHydrationRetry();
+    return;
+  }
+
+  hydrationBlocked = false;
+  if (hydrationRetryTimer !== null) {
+    clearTimeout(hydrationRetryTimer);
+    hydrationRetryTimer = null;
+  }
+  if (localSnapshot) {
+    queueUiSettingsSnapshot(localSnapshot);
+  } else if (!restored) {
+    queueUiSettingsSnapshot(collectCurrentUiSettings());
   }
 }
 
@@ -337,5 +527,17 @@ export function initUiSettingsAutoSync(): () => void {
   return () => {
     events.forEach((evt) => window.removeEventListener(evt, handleSettingsChanged));
     window.removeEventListener("storage", handleSettingsChanged);
+    if (syncDebounceTimer !== null) {
+      clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = null;
+    }
+    if (hydrationRetryTimer !== null) {
+      clearTimeout(hydrationRetryTimer);
+      hydrationRetryTimer = null;
+    }
+    if (syncRetryTimer !== null) {
+      clearTimeout(syncRetryTimer);
+      syncRetryTimer = null;
+    }
   };
 }

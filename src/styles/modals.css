@@ -41,6 +41,16 @@
               border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
+@media (max-width: 800px) {
+  .modal--settings {
+    width: min(720px, calc(100vw - 24px)) !important;
+    height: auto !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: min(75vh, calc(100vh - 24px)) !important;
+    border-radius: var(--radius-lg);
+  }
+}
+
 @keyframes modalSlideIn {
   from {
     transform: translateY(8px);
@@ -140,6 +150,7 @@
 
 .modal__section {
   margin-bottom: 14px;
+  min-width: 0;
 }
 
 .modal__section-title {
@@ -570,6 +581,7 @@
 .visual-bar-card {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
@@ -772,13 +784,32 @@
   line-height: 1.35;
 }
 
+.ui-font-choice {
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+.ui-font-choice > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ─── Сетка панели управления и времени (слева стиль, справа время) ─── */
 .controls-and-time-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   align-items: stretch;
   margin-top: 10px;
+  min-width: 0;
+}
+
+.controls-and-time-grid > *,
+.time-settings-row > * {
+  min-width: 0;
 }
 
 @media (max-width: 640px) {
@@ -790,9 +821,10 @@
 /* ─── Двухколоночный ряд настроек времени видео ─── */
 .time-settings-row {
   display: grid;
-  grid-template-columns: 1fr 1.25fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
   gap: 10px;
   margin-top: 10px;
+  min-width: 0;
 }
 
 @media (max-width: 620px) {
@@ -829,6 +861,9 @@
   justify-content: center;
   text-align: center;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background-color var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
@@ -1248,6 +1283,8 @@
 .settings-accordion__body {
   padding: 4px 14px 14px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
+  min-width: 0;
+  overflow-wrap: anywhere;
   opacity: 1;
   transform: none !important;
   will-change: auto !important;
@@ -1382,8 +1419,14 @@
   margin-bottom: 0 !important;
 }
 
+.modal--settings {
+  container-type: inline-size;
+  container-name: settings-shell;
+  background: var(--bg-glass, var(--bg-modal-solid, #11141c));
+}
+
 .modal--settings .modal__body {
-  background: var(--bg-modal-solid, #11141c);
+  background: transparent;
   overflow-anchor: none;
 }
 
@@ -1397,30 +1440,35 @@
   transform: none !important;
   will-change: auto !important;
 }
-/* ─── Эргономичный макет интерфейса ──────────────────── */
-.ui-ergonomics-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-@media (max-width: 600px) {
-  .ui-ergonomics-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ─── Эргономичный макет интерфейса ──────────────────── */
 .ui-ergonomics-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   align-items: stretch;
+  min-width: 0;
 }
 
-@media (max-width: 600px) {
+.ui-ergonomics-grid > * {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ui-ergonomics-card {
+  padding-inline: 8px !important;
+}
+
+.ui-ergonomics-control-row {
+  gap: 4px !important;
+}
+
+.ui-ergonomics-slider {
+  width: 16px !important;
+}
+
+@container settings-shell (max-width: 480px) {
   .ui-ergonomics-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

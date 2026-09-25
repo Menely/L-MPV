@@ -187,6 +187,15 @@ export const ru: TranslationDict = {
       scaleAria: "Масштаб интерфейса",
       fonts: "Шрифты",
       controlBarStyle: "Стиль панели управления",
+      settingsWindow: {
+        title: "Стиль меню настроек",
+        resetTitle: "Сбросить на боковую панель",
+        sidebar: "Боковая панель",
+        sidebarDesc: "Плеер остаётся доступным справа",
+        modal: "Модальное окно",
+        modalDesc: "Классическое окно по центру экрана",
+        nextOpen: "Стиль применяется сразу",
+      },
       controlButtons: {
         openingSkip: (sec: number) => `Перемотка опенинга (+${sec}с)`,
         alwaysOnTop: 'Поверх всех окон',

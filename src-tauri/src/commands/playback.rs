@@ -223,7 +223,7 @@ pub fn seek(
     seconds: f64,
 ) -> Result<(), String> {
     let result = state.mpv.command(&format!(
-        "seek {} relative+exact",
+        "seek {} relative",
         seconds
     ));
     invalidate_ambient_result(&state, result)
@@ -242,7 +242,7 @@ pub fn seek_absolute(
             seconds.max(0.0)
         };
     let result = state.mpv.command(&format!(
-        "seek {} absolute+exact",
+        "seek {} absolute",
         safe_seconds
     ));
     invalidate_ambient_result(&state, result)

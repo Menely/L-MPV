@@ -7,7 +7,28 @@ use crate::ambient::AmbientSettings;
 use crate::mpv_manager::MpvManager;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
+
+static SETTINGS_FILE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+struct SettingsFileGuard {
+    _process_guard: std::sync::MutexGuard<'static, ()>,
+    lock_path: PathBuf,
+    lock_token: String,
+}
+
+impl Drop for SettingsFileGuard {
+    fn drop(&mut self) {
+        if std::fs::read_to_string(&self.lock_path)
+            .map(|content| content == self.lock_token)
+            .unwrap_or(false)
+        {
+            let _ = std::fs::remove_file(&self.lock_path);
+        }
+    }
+}
 
 /// Вспомогательная функция десериализации для полей `bool` с дефолтом `true`.
 pub fn default_true() -> bool {
@@ -55,6 +76,20 @@ pub struct UiSettings {
     pub visible_buttons: Option<HashMap<String, bool>>,
     #[serde(default)]
     pub custom_hotkeys: Option<HashMap<String, Vec<String>>>,
+    #[serde(default)]
+    pub language: Option<String>,
+    #[serde(default)]
+    pub settings_style: Option<String>,
+    #[serde(default)]
+    pub hide_controls_in_upper_half: Option<bool>,
+    #[serde(default)]
+    pub hotload_enabled: Option<bool>,
+    #[serde(default)]
+    pub save_tracks_to_video_dir: Option<bool>,
+    #[serde(default)]
+    pub skip_opening_seconds: Option<u32>,
+    #[serde(default)]
+    pub visualizer_config: Option<serde_json::Value>,
 }
 
 /// Конфигурация приложения, сохраняемая в config/settings.json.
@@ -112,13 +147,94 @@ impl Default for AppSettings {
 }
 
 impl AppSettings {
-    pub fn load(config_dir: &std::path::Path) -> Self {
-        let settings_path = if config_dir.ends_with("config") {
+    fn settings_path(config_dir: &Path) -> PathBuf {
+        if config_dir.ends_with("config") {
             config_dir.join("settings.json")
         } else {
             config_dir.join("config").join("settings.json")
-        };
+        }
+    }
 
+    fn lock_settings_file(
+        config_dir: &Path,
+    ) -> Result<SettingsFileGuard, String> {
+        let process_guard = SETTINGS_FILE_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let target_dir = if config_dir.ends_with("config") {
+            config_dir.to_path_buf()
+        } else {
+            config_dir.join("config")
+        };
+        std::fs::create_dir_all(&target_dir)
+            .map_err(|error| error.to_string())?;
+        let lock_path = target_dir.join(".settings.lock");
+        let lock_token = format!(
+            "{}:{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_nanos())
+                .unwrap_or(0)
+        );
+
+        for _ in 0..300 {
+            match std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&lock_path)
+            {
+                Ok(mut file) => {
+                    if let Err(error) = file.write_all(
+                        lock_token.as_bytes(),
+                    ) {
+                        let _ = std::fs::remove_file(&lock_path);
+                        return Err(error.to_string());
+                    }
+                    return Ok(SettingsFileGuard {
+                        _process_guard: process_guard,
+                        lock_path,
+                        lock_token,
+                    });
+                }
+                Err(error)
+                    if error.kind()
+                        == std::io::ErrorKind::AlreadyExists =>
+                {
+                    let is_stale = std::fs::metadata(
+                        &lock_path,
+                    )
+                    .and_then(|metadata| metadata.modified())
+                    .ok()
+                    .and_then(|modified| {
+                        modified.elapsed().ok()
+                    })
+                    .map(|elapsed| {
+                        elapsed > std::time::Duration::from_secs(600)
+                    })
+                    .unwrap_or(false);
+                    if is_stale {
+                        let _ = std::fs::remove_file(
+                            &lock_path,
+                        );
+                        continue;
+                    }
+                    std::thread::sleep(
+                        std::time::Duration::from_millis(10),
+                    );
+                }
+                Err(error) => {
+                    return Err(error.to_string());
+                }
+            }
+        }
+
+        Err("Не удалось получить блокировку settings.json".to_string())
+    }
+
+    fn load_unlocked(config_dir: &Path) -> Self {
+        let settings_path = Self::settings_path(config_dir);
         if settings_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&settings_path) {
                 if let Ok(settings) = serde_json::from_str::<AppSettings>(&content) {
@@ -127,57 +243,169 @@ impl AppSettings {
                     return normalized;
                 }
                 eprintln!("L-MPV: Предупреждение: ошибка полного парсинга settings.json, попытка частичного восстановления");
-                // Попытка частичного восстановления параметров из JSON
-                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) {
                     let mut fallback = AppSettings::default();
-                    if let Some(ui_val) = val.get("ui") {
-                        if let Ok(ui_parsed) = serde_json::from_value::<UiSettings>(ui_val.clone()) {
-                            fallback.ui = ui_parsed;
+                    if let Some(ui_value) = value.get("ui") {
+                        if let Ok(ui) = serde_json::from_value::<UiSettings>(ui_value.clone()) {
+                            fallback.ui = ui;
                         }
                     }
-                    if let Some(amb_val) = val.get("ambient") {
-                        if let Ok(amb_parsed) = serde_json::from_value::<AmbientSettings>(amb_val.clone()) {
-                            fallback.ambient = amb_parsed.normalized();
+                    if let Some(ambient_value) = value.get("ambient") {
+                        if let Ok(ambient) = serde_json::from_value::<AmbientSettings>(ambient_value.clone()) {
+                            fallback.ambient = ambient.normalized();
                         }
                     }
-                    if let Some(scr) = val.get("screenshot_directory").and_then(|v| v.as_str()) {
-                        fallback.screenshot_directory = Some(scr.to_string());
+                    if let Some(path) = value.get("screenshot_directory").and_then(|item| item.as_str()) {
+                        fallback.screenshot_directory = Some(path.to_string());
+                    }
+                    if let Some(value) = value.get("allow_multi_instance").and_then(|item| item.as_bool()) {
+                        fallback.allow_multi_instance = value;
+                    }
+                    if let Some(value) = value.get("auto_load_tracks").and_then(|item| item.as_bool()) {
+                        fallback.auto_load_tracks = value;
+                    }
+                    if let Some(value) = value.get("auto_select_external_audio").and_then(|item| item.as_bool()) {
+                        fallback.auto_select_external_audio = value;
+                    }
+                    if let Some(value) = value.get("subtitles_avoid_ui").and_then(|item| item.as_bool()) {
+                        fallback.subtitles_avoid_ui = value;
+                    }
+                    if let Some(value) = value.get("play_next_on_end").and_then(|item| item.as_bool()) {
+                        fallback.play_next_on_end = value;
+                    }
+                    if let Some(value) = value.get("launch_count").and_then(|item| item.as_u64()) {
+                        fallback.launch_count = value;
+                    }
+                    if let Some(value) = value.get("postponed_until_launch").and_then(|item| item.as_u64()) {
+                        fallback.postponed_until_launch = value;
+                    }
+                    if let Some(value) = value.get("last_version").and_then(|item| item.as_str()) {
+                        fallback.last_version = value.to_string();
                     }
                     return fallback;
                 }
             }
         }
-        AppSettings::default()
+        Self::default()
     }
 
-    pub fn save(
+    fn replace_file(temp_path: &Path, target_path: &Path) -> Result<(), String> {
+        #[cfg(windows)]
+        {
+            use std::os::windows::ffi::OsStrExt;
+            use windows::core::PCWSTR;
+            use windows::Win32::Storage::FileSystem::{
+                MoveFileExW, MOVEFILE_REPLACE_EXISTING,
+                MOVEFILE_WRITE_THROUGH,
+            };
+
+            let temp_wide = temp_path
+                .as_os_str()
+                .encode_wide()
+                .chain(std::iter::once(0))
+                .collect::<Vec<_>>();
+            let target_wide = target_path
+                .as_os_str()
+                .encode_wide()
+                .chain(std::iter::once(0))
+                .collect::<Vec<_>>();
+            unsafe {
+                MoveFileExW(
+                    PCWSTR(temp_wide.as_ptr()),
+                    PCWSTR(target_wide.as_ptr()),
+                    MOVEFILE_REPLACE_EXISTING
+                        | MOVEFILE_WRITE_THROUGH,
+                )
+            }
+            .map_err(|error| {
+                format!(
+                    "Не удалось атомарно заменить settings.json: {}",
+                    error
+                )
+            })
+        }
+        #[cfg(not(windows))]
+        {
+            std::fs::rename(temp_path, target_path)
+                .map_err(|error| error.to_string())
+        }
+    }
+
+    fn save_unlocked(
         &self,
-        config_dir: &std::path::Path,
+        config_dir: &Path,
     ) -> Result<(), String> {
         let target_dir = if config_dir.ends_with("config") {
             config_dir.to_path_buf()
         } else {
             config_dir.join("config")
         };
-        std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(&target_dir)
+            .map_err(|error| error.to_string())?;
         let settings_path = target_dir.join("settings.json");
-        let json = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
-        std::fs::write(&settings_path, json).map_err(|e| e.to_string())
+        let temp_path = target_dir.join(format!(
+            ".settings.{}.tmp",
+            std::process::id()
+        ));
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|error| error.to_string())?;
+
+        let write_result = (|| {
+            let mut file = std::fs::OpenOptions::new()
+                .create(true)
+                .truncate(true)
+                .write(true)
+                .open(&temp_path)
+                .map_err(|error| error.to_string())?;
+            file.write_all(json.as_bytes())
+                .map_err(|error| error.to_string())?;
+            file.sync_all()
+                .map_err(|error| error.to_string())?;
+            Self::replace_file(&temp_path, &settings_path)
+        })();
+        if write_result.is_err() {
+            let _ = std::fs::remove_file(&temp_path);
+        }
+        write_result
+    }
+
+    fn load_result(config_dir: &Path) -> Result<Self, String> {
+        let _guard = Self::lock_settings_file(config_dir)?;
+        Ok(Self::load_unlocked(config_dir))
+    }
+
+    pub fn update<F>(
+        config_dir: &Path,
+        update: F,
+    ) -> Result<Self, String>
+    where
+        F: FnOnce(&mut Self),
+    {
+        let _guard = Self::lock_settings_file(config_dir)?;
+        let mut settings = Self::load_unlocked(config_dir);
+        update(&mut settings);
+        settings.save_unlocked(config_dir)?;
+        Ok(settings)
+    }
+
+    pub fn update_portable<F>(
+        update: F,
+    ) -> Result<Self, String>
+    where
+        F: FnOnce(&mut Self),
+    {
+        let dir = get_app_dir()?;
+        Self::update(&dir, update)
+    }
+
+    pub fn load_portable_result() -> Result<Self, String> {
+        let dir = get_app_dir()?;
+        Self::load_result(&dir)
     }
 
     /// Загрузка настроек из локальной портативной папки config/settings.json.
     pub fn load_portable() -> Self {
-        if let Ok(dir) = get_app_dir() {
-            Self::load(&dir)
-        } else {
-            Self::default()
-        }
-    }
-
-    /// Сохранение настроек в локальную портативную папку config/settings.json.
-    pub fn save_portable(&self) -> Result<(), String> {
-        let dir = get_app_dir()?;
-        self.save(&dir)
+        Self::load_portable_result().unwrap_or_default()
     }
 }
 
@@ -538,5 +766,128 @@ pub fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod settings_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEST_ID: AtomicU64 = AtomicU64::new(0);
+
+    fn test_dir(name: &str) -> PathBuf {
+        let id = TEST_ID.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "l-mpv-{name}-{}-{id}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&path);
+        std::fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    #[test]
+    fn settings_round_trip_preserves_ui_fields() {
+        let root = test_dir("settings-round-trip");
+        let mut settings = AppSettings {
+            screenshot_directory: Some("captures".to_string()),
+            ..AppSettings::default()
+        };
+        settings.ui.settings_style =
+            Some("sidebar".to_string());
+        settings.ui.language = Some("en".to_string());
+        settings.ui.skip_opening_seconds = Some(120);
+        settings.ui.visualizer_config = Some(
+            serde_json::json!({
+                "enabled": true,
+                "placement": "toolbar",
+                "mode": "bars",
+                "theme": "neon",
+                "height": 24
+            }),
+        );
+
+        AppSettings::update(&root, |stored| {
+            *stored = settings.clone();
+        })
+        .unwrap();
+        let loaded = AppSettings::load_result(&root).unwrap();
+
+        assert_eq!(
+            loaded.screenshot_directory.as_deref(),
+            Some("captures")
+        );
+        assert_eq!(
+            loaded.ui.settings_style.as_deref(),
+            Some("sidebar")
+        );
+        assert_eq!(loaded.ui.language.as_deref(), Some("en"));
+        assert_eq!(loaded.ui.skip_opening_seconds, Some(120));
+        assert!(loaded.ui.visualizer_config.is_some());
+        assert!(!root
+            .join("config")
+            .join(".settings.lock")
+            .exists());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn malformed_settings_recovers_valid_fields() {
+        let root = test_dir("settings-recovery");
+        let config = root.join("config");
+        std::fs::create_dir_all(&config).unwrap();
+        std::fs::write(
+            config.join("settings.json"),
+            r#"{
+                "screenshot_directory": "shots",
+                "allow_multi_instance": true,
+                "auto_load_tracks": true,
+                "ambient": "invalid",
+                "ui": {
+                    "settings_style": "sidebar",
+                    "language": "en"
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let loaded = AppSettings::load_result(&root).unwrap();
+        assert_eq!(
+            loaded.screenshot_directory.as_deref(),
+            Some("shots")
+        );
+        assert!(loaded.allow_multi_instance);
+        assert!(loaded.auto_load_tracks);
+        assert_eq!(
+            loaded.ui.settings_style.as_deref(),
+            Some("sidebar")
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn concurrent_updates_do_not_lose_changes() {
+        let root = Arc::new(test_dir("settings-concurrent"));
+        let mut threads = Vec::new();
+        for _ in 0..8 {
+            let path = Arc::clone(&root);
+            threads.push(std::thread::spawn(move || {
+                for _ in 0..25 {
+                    AppSettings::update(&path, |settings| {
+                        settings.launch_count =
+                            settings.launch_count.saturating_add(1);
+                    })
+                    .unwrap();
+                }
+            }));
+        }
+        for thread in threads {
+            thread.join().unwrap();
+        }
+
+        let loaded = AppSettings::load_result(root.as_ref()).unwrap();
+        assert_eq!(loaded.launch_count, 200);
+        let _ = std::fs::remove_dir_all(root.as_ref());
     }
 }

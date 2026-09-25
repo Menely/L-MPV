@@ -178,6 +178,15 @@ export interface TranslationDict {
       scaleAria: string;
       fonts: string;
       controlBarStyle: string;
+      settingsWindow: {
+        title: string;
+        resetTitle: string;
+        sidebar: string;
+        sidebarDesc: string;
+        modal: string;
+        modalDesc: string;
+        nextOpen: string;
+      };
       controlButtons: {
         openingSkip: (sec: number) => string;
         alwaysOnTop: string;

@@ -93,6 +93,8 @@ function ScrollSync({
     if (!isDragging) return;
     const el = containerRef.current;
     if (!el) return;
+    const outer = el.closest(".settings-side-panel__scroll, .modal__body");
+    const scrollContainers = outer && outer !== el ? [el, outer] : [el];
 
     let rafId: number | null = null;
     const handleScroll = () => {
@@ -103,9 +105,13 @@ function ScrollSync({
       });
     };
 
-    el.addEventListener("scroll", handleScroll, { passive: true });
+    scrollContainers.forEach((container) => {
+      container.addEventListener("scroll", handleScroll, { passive: true });
+    });
     return () => {
-      el.removeEventListener("scroll", handleScroll);
+      scrollContainers.forEach((container) => {
+        container.removeEventListener("scroll", handleScroll);
+      });
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [containerRef, isDragging, measureDroppableContainers]);
@@ -124,6 +130,16 @@ export function ContextMenuSettingsTab() {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isSelfUpdateRef = useRef(false);
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
+
+  const commitEntries = useCallback((next: KeyedEntry[]) => {
+    entriesRef.current = next;
+    setEntries(next);
+    isSelfUpdateRef.current = true;
+    saveLayout(next.map((entry) => entry.entry));
+    setSaved(true);
+  }, []);
 
   // Синхронизация раскладки при фоновой загрузке из файла config/context_menu.json
   useEffect(() => {
@@ -287,47 +303,32 @@ export function ContextMenuSettingsTab() {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    setEntries((prev) => {
-      const oldIndex = prev.findIndex((e) => String(e.key) === String(active.id));
-      const newIndex = prev.findIndex((e) => String(e.key) === String(over.id));
-      if (oldIndex < 0 || newIndex < 0) return prev;
-      const updated = arrayMove(prev, oldIndex, newIndex);
-      // Сразу сохраняем обновленный порядок на диск и в память
-      isSelfUpdateRef.current = true;
-      saveLayout(updated.map((e) => e.entry));
-      return updated;
-    });
-    setSaved(true);
-  }, []);
+    const current = entriesRef.current;
+    const oldIndex = current.findIndex((entry) => String(entry.key) === String(active.id));
+    const newIndex = current.findIndex((entry) => String(entry.key) === String(over.id));
+    if (oldIndex >= 0 && newIndex >= 0) {
+      commitEntries(arrayMove(current, oldIndex, newIndex));
+    }
+  }, [commitEntries]);
 
   // ── Мутации ─────────────────────────────────────────────────────────────
 
   const removeEntry = useCallback((key: string) => {
-    setEntries((prev) => {
-      const next = prev.filter((e) => e.key !== key);
-      isSelfUpdateRef.current = true;
-      saveLayout(next.map((e) => e.entry));
-      return next;
-    });
-    setSaved(true);
-  }, []);
+    commitEntries(entriesRef.current.filter((entry) => entry.key !== key));
+  }, [commitEntries]);
 
   const addDividerBefore = useCallback((key: string) => {
-    setEntries((prev) => {
-      const idx = prev.findIndex((e) => e.key === key);
-      if (idx < 0) return prev;
-      const newEntry: KeyedEntry = {
-        key: generateStableKey({ type: "divider" }),
-        entry: { type: "divider" },
-      };
-      const copy = [...prev];
-      copy.splice(idx, 0, newEntry);
-      isSelfUpdateRef.current = true;
-      saveLayout(copy.map((e) => e.entry));
-      return copy;
-    });
-    setSaved(true);
-  }, []);
+    const current = entriesRef.current;
+    const index = current.findIndex((entry) => entry.key === key);
+    if (index < 0) return;
+    const newEntry: KeyedEntry = {
+      key: generateStableKey({ type: "divider" }),
+      entry: { type: "divider" },
+    };
+    const next = [...current];
+    next.splice(index, 0, newEntry);
+    commitEntries(next);
+  }, [commitEntries]);
 
   const addItem = useCallback((descriptor: MenuItemDescriptor) => {
     const entry: LayoutEntry = { type: "item", id: descriptor.id };
@@ -335,28 +336,16 @@ export function ContextMenuSettingsTab() {
       key: generateStableKey(entry),
       entry,
     };
-    setEntries((prev) => {
-      const next = [...prev, newEntry];
-      isSelfUpdateRef.current = true;
-      saveLayout(next.map((e) => e.entry));
-      return next;
-    });
-    setSaved(true);
-  }, []);
+    commitEntries([...entriesRef.current, newEntry]);
+  }, [commitEntries]);
 
   const addDividerAtEnd = useCallback(() => {
     const newEntry: KeyedEntry = {
       key: generateStableKey({ type: "divider" }),
       entry: { type: "divider" },
     };
-    setEntries((prev) => {
-      const next = [...prev, newEntry];
-      isSelfUpdateRef.current = true;
-      saveLayout(next.map((e) => e.entry));
-      return next;
-    });
-    setSaved(true);
-  }, []);
+    commitEntries([...entriesRef.current, newEntry]);
+  }, [commitEntries]);
 
   // ── Сохранение / сброс ──────────────────────────────────────────────────
 
@@ -429,8 +418,8 @@ export function ContextMenuSettingsTab() {
             collisionDetection={collisionDetectionStrategy}
             measuring={{
               droppable: {
-                strategy: MeasuringStrategy.Always,
-                frequency: 20,
+                strategy: MeasuringStrategy.WhileDragging,
+                frequency: 32,
               },
             }}
             autoScroll={{

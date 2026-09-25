@@ -36,8 +36,16 @@ import {
   isSettingsMatchingPreset,
 } from "../../utils/presetsUtils";
 import { PLAYER_THEMES, PlayerThemeId } from "../../utils/colorUtils";
-import { getPreloadedUserPresets, storeUserPresets } from "./settingsTabPreload";
+import {
+  getPreloadedUserPresets,
+  loadPreloadedUserPresets,
+  storeUserPresets,
+} from "./settingsTabPreload";
 import { EmptyState } from "./SettingBlocks";
+import {
+  getSettingsViewSession,
+  updateSettingsViewSession,
+} from "./settingsViewSession";
 
 const PRESETS_USER_OPEN_KEY = "l-mpv-presets-user-open";
 const PRESETS_BUILTIN_OPEN_KEY = "l-mpv-presets-builtin-open";
@@ -76,7 +84,13 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   // Синхронное чтение предзагруженного кэша: первый paint уже полный,
   // окно настроек не прыгает после прилёта данных.
   const [userPresets, setUserPresets] = useState<SettingsPreset[]>(() => getPreloadedUserPresets() ?? []);
-  const [newPresetName, setNewPresetName] = useState<string>("");
+  const [newPresetName, setNewPresetName] = useState<string>(
+    () => getSettingsViewSession().draftPresetName,
+  );
+  const updateDraftName = useCallback((value: string) => {
+    setNewPresetName(value);
+    updateSettingsViewSession({ draftPresetName: value });
+  }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -88,6 +102,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
   const isMountedRef = useRef<boolean>(true);
   const toastTimerRef = useRef<number | null>(null);
+  const detectTimerRef = useRef<number | null>(null);
+  const detectRevisionRef = useRef(0);
   const userPresetsRef = useRef<SettingsPreset[]>([]);
   userPresetsRef.current = userPresets;
 
@@ -106,11 +122,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
   // Определение пресета, соответствующего текущим настройкам плеера
   const detectActivePreset = useCallback(async (availablePresets?: SettingsPreset[]) => {
+    const revision = ++detectRevisionRef.current;
     try {
       const savedId = getSavedActivePresetId();
-      // Если пресет не был сохранён или применён — активного пресета нет
       if (!savedId) {
-        if (isMountedRef.current) {
+        if (isMountedRef.current && revision === detectRevisionRef.current) {
           setActivePresetId(null);
         }
         return;
@@ -119,27 +135,22 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       const presetsToCheck = availablePresets || [...userPresetsRef.current, ...BUILT_IN_PRESETS];
       const target = presetsToCheck.find((p) => p.id === savedId);
       if (!target) {
-        saveActivePresetId(null);
-        if (isMountedRef.current) {
+        if (isMountedRef.current && revision === detectRevisionRef.current) {
+          saveActivePresetId(null);
           setActivePresetId(null);
         }
         return;
       }
 
       const currentSnapshot = await captureCurrentSettings("");
+      if (!isMountedRef.current || revision !== detectRevisionRef.current) return;
       const currentSettings = currentSnapshot.data;
 
-      // Проверяем сохранённый активный пресет: если он полностью совпадает с текущими настройками
       if (isSettingsMatchingPreset(currentSettings, target.data)) {
-        if (isMountedRef.current) {
-          setActivePresetId(savedId);
-        }
+        setActivePresetId(savedId);
       } else {
-        // Настройки разошлись с сохранённым пресетом — сбрасываем активность
         saveActivePresetId(null);
-        if (isMountedRef.current) {
-          setActivePresetId(null);
-        }
+        setActivePresetId(null);
       }
     } catch (e) {
       console.error("Ошибка проверки активного пресета:", e);
@@ -149,7 +160,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   // Первоначальная загрузка пользовательских пресетов
   useEffect(() => {
     isMountedRef.current = true;
-    loadUserPresets()
+    loadPreloadedUserPresets()
       .then((presets) => {
         if (isMountedRef.current) {
           storeUserPresets(presets);
@@ -161,12 +172,10 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         console.error("Ошибка загрузки пресетов:", err);
       });
 
-    // Автоматическая синхронизация при возврате фокуса в окно L-MPV
     const handleFocus = () => {
-      loadUserPresets()
+      loadPreloadedUserPresets(true)
         .then((presets) => {
           if (isMountedRef.current) {
-            storeUserPresets(presets);
             setUserPresets(presets);
             detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
           }
@@ -175,12 +184,22 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     };
 
     const handleSettingsChanged = () => {
-      detectActivePreset();
+      if (detectTimerRef.current !== null) {
+        window.clearTimeout(detectTimerRef.current);
+      }
+      detectTimerRef.current = window.setTimeout(() => {
+        detectTimerRef.current = null;
+        detectActivePreset();
+      }, 250);
     };
 
     const handlePresetAppliedEvent = (e: Event) => {
       const customEvent = e as CustomEvent<SettingsPreset>;
       if (customEvent.detail?.id && isMountedRef.current) {
+        if (detectTimerRef.current !== null) {
+          window.clearTimeout(detectTimerRef.current);
+          detectTimerRef.current = null;
+        }
         setActivePresetId(customEvent.detail.id);
       }
     };
@@ -191,11 +210,15 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
     return () => {
       isMountedRef.current = false;
+      detectRevisionRef.current += 1;
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
       window.removeEventListener("l-mpv-preset-applied", handlePresetAppliedEvent);
       if (toastTimerRef.current !== null) {
         window.clearTimeout(toastTimerRef.current);
+      }
+      if (detectTimerRef.current !== null) {
+        window.clearTimeout(detectTimerRef.current);
       }
     };
   }, [detectActivePreset]);
@@ -223,6 +246,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       return;
     }
 
+    const previous = userPresets;
     try {
       const newPreset = await captureCurrentSettings(name);
       const existingIdx = userPresets.findIndex(
@@ -248,10 +272,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       setUserPresets(updated);
       await saveUserPresets(updated);
       storeUserPresets(updated);
-      setNewPresetName("");
+       updateDraftName("");
       saveActivePresetId(targetId);
       setActivePresetId(targetId);
     } catch (err) {
+      setUserPresets(previous);
       console.error("Ошибка сохранения пресета:", err);
       showToast(dict.settings.presets.toastSaveFail);
     }
@@ -275,6 +300,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
   // Перезапись пресета текущими настройками плеера
   const handleOverwrite = async (preset: SettingsPreset) => {
+    const previous = userPresets;
     try {
       const fresh = await captureCurrentSettings(preset.name);
       const updated = userPresets.map((p) =>
@@ -287,6 +313,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       setActivePresetId(preset.id);
       showToast(dict.settings.presets.toastPresetUpdated(preset.name));
     } catch (err) {
+      setUserPresets(previous);
       console.error("Ошибка обновления пресета:", err);
       showToast(dict.settings.presets.toastUpdateFail);
     }
@@ -297,14 +324,21 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     if (!window.confirm(dict.settings.presets.confirmDelete(preset.name))) {
       return;
     }
+    const previous = userPresets;
     const updated = userPresets.filter((p) => p.id !== preset.id);
-    setUserPresets(updated);
-    await saveUserPresets(updated);
-    if (activePresetId === preset.id) {
-      saveActivePresetId(null);
-      setActivePresetId(null);
+    try {
+      setUserPresets(updated);
+      await saveUserPresets(updated);
+      if (activePresetId === preset.id) {
+        saveActivePresetId(null);
+        setActivePresetId(null);
+      }
+      showToast(dict.settings.presets.toastDeleted(preset.name));
+    } catch (err) {
+      setUserPresets(previous);
+      console.error("Ошибка удаления пресета:", err);
+      showToast(dict.settings.presets.toastSaveFail);
     }
-    showToast(dict.settings.presets.toastDeleted(preset.name));
   };
 
   // Сохранение нового имени пресета
@@ -314,16 +348,24 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     if (!trimmed) return;
     const current = userPresets.find((p) => p.id === presetId);
     if (!current || current.name === trimmed) return;
+    const previous = userPresets;
     const updated = userPresets.map((p) =>
       p.id === presetId ? { ...p, name: trimmed, updatedAt: Date.now() } : p
     );
-    setUserPresets(updated);
-    await saveUserPresets(updated);
-    showToast(dict.settings.presets.toastRenamed(trimmed));
+    try {
+      setUserPresets(updated);
+      await saveUserPresets(updated);
+      showToast(dict.settings.presets.toastRenamed(trimmed));
+    } catch (err) {
+      setUserPresets(previous);
+      console.error("Ошибка переименования пресета:", err);
+      showToast(dict.settings.presets.toastSaveFail);
+    }
   };
 
   // Нативный импорт пресета через проводник Windows
   const handleNativeImport = async () => {
+    const previous = userPresets;
     try {
       const imported = await importPresetsFromNativeDialog();
       if (!isMountedRef.current || imported.length === 0) return;
@@ -333,6 +375,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       storeUserPresets(updated);
       showToast(dict.settings.presets.toastImported(imported.length));
     } catch (err) {
+      if (isMountedRef.current) setUserPresets(previous);
       console.error("Ошибка импорта:", err);
       showToast(dict.settings.presets.toastImportFail);
     }
@@ -673,7 +716,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             className="presets-creator__input"
             placeholder={dict.settings.presets.savePlaceholder}
             value={newPresetName}
-            onChange={(e) => setNewPresetName(e.target.value)}
+             onChange={(e) => updateDraftName(e.target.value)}
           />
           <button type="submit" className="presets-creator__btn-save">
             <Plus size={15} />
@@ -685,6 +728,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       {/* Тост с уведомлением */}
       {toastMessage && (
         <div
+          role="status"
+          aria-live="polite"
           style={{
             padding: "8px 14px",
             borderRadius: "var(--radius-sm)",
