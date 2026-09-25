@@ -20,8 +20,10 @@ import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
 import { UpdateInfo } from "./components/modals/UpdateModal";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
+import { AmbilightCanvas } from "./components/player/AmbilightCanvas";
 import { applyAccentColor } from "./utils/colorUtils";
 import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
+import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
 
@@ -815,25 +817,24 @@ function App() {
         break;
       case "toggleAmbient":
         try {
-          const res = await invoke<{ mode: string }>("toggle_ambient_mode");
-          const labels: Record<string, string> = curLocale === "en" ? {
-            off: "Off",
-            blur: "Blur (GPU)",
-            color: "Color Ambient",
-          } : {
-            off: "Выкл",
-            blur: "Размытие (GPU)",
-            color: "Цветной Ambient",
+          const res = normalizeAmbientSettings(await invoke<unknown>("toggle_ambient_mode"));
+          const labels: Record<string, string> = {
+            off: dict.settings.cmenuUI.ambientOff,
+            blur: dict.settings.cmenuUI.ambientBlur,
+            color: dict.settings.cmenuUI.ambientColor,
+            ambilight: dict.settings.cmenuUI.ambientAmbilight,
           };
           setOsdText(dict.osd.ambientMode(labels[res.mode] || res.mode));
           if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
           osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
-          window.dispatchEvent(new Event("l-mpv-ambient-changed"));
+          window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: res }));
+          window.dispatchEvent(new Event("l-mpv-settings-changed"));
         } catch (e) {
           console.error("Ошибка переключения подсветки полос:", e);
         }
         break;
       case "upscaleStats": {
+
         try {
           const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
           const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
@@ -1295,6 +1296,7 @@ function App() {
           }
         }}
       >
+        <AmbilightCanvas />
         {!hasMedia && (
           <div className="video-area__placeholder">
             <div className="video-area__placeholder-icon">

@@ -472,8 +472,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                 ? dict.settings.presets.ambientOff
                 : data.ambient.mode === "blur"
                 ? dict.settings.presets.ambientBlur
+                : data.ambient.mode === "ambilight"
+                ? dict.settings.presets.ambientAmbilight
                 : dict.settings.presets.ambientColor}
             </span>
+
           </div>
         )}
 

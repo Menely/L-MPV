@@ -66,6 +66,8 @@ import {
   type SettingsPreset,
 } from "../../utils/presetsUtils";
 import type { ModelFileItem, UpscaleStatus, UpscaleSettings } from "../upscale/types";
+import type { AmbientMode } from "../../utils/ambientSettingsUtils";
+import { normalizeAmbientSettings } from "../../utils/ambientSettingsUtils";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */
@@ -184,7 +186,7 @@ export function ContextMenu({
   } = usePlayerState();
 
   const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
-  const [ambientMode, setAmbientMode] = useState<string>("off");
+  const [ambientMode, setAmbientMode] = useState<AmbientMode>("off");
   const [currentTimePos, setCurrentTimePos] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
@@ -221,9 +223,32 @@ export function ContextMenu({
   });
 
   useEffect(() => {
-    invoke<{ mode: string }>("get_ambient_settings")
-      .then((cfg) => setAmbientMode(cfg.mode))
+    let ambientRevision = 0;
+    const requestRevision = ambientRevision;
+    invoke<unknown>("get_ambient_settings")
+      .then((cfg) => {
+        if (requestRevision === ambientRevision) {
+          setAmbientMode(normalizeAmbientSettings(cfg).mode);
+        }
+      })
       .catch(console.error);
+
+    const handleAmbientChanged = (event: Event) => {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (detail) {
+        ambientRevision += 1;
+        setAmbientMode(normalizeAmbientSettings(detail).mode);
+        return;
+      }
+      const currentRevision = ambientRevision;
+      invoke<unknown>("get_ambient_settings")
+        .then((cfg) => {
+          if (currentRevision === ambientRevision) {
+            setAmbientMode(normalizeAmbientSettings(cfg).mode);
+          }
+        })
+        .catch(console.error);
+    };
 
     // Загрузка пресетов
     loadUserPresets()
@@ -279,6 +304,7 @@ export function ContextMenu({
     };
 
     window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-ambient-changed", handleAmbientChanged);
     window.addEventListener("l-mpv-time-format-changed", handleSettingsChanged);
     window.addEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
     window.addEventListener("l-mpv-recent-files-changed", handleRecentChanged);
@@ -288,6 +314,7 @@ export function ContextMenu({
 
     return () => {
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-ambient-changed", handleAmbientChanged);
       window.removeEventListener("l-mpv-time-format-changed", handleSettingsChanged);
       window.removeEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
       window.removeEventListener("l-mpv-recent-files-changed", handleRecentChanged);
@@ -464,24 +491,26 @@ export function ContextMenu({
     handleClose();
   }, [handleClose]);
 
-  const handleSetAmbientMode = useCallback(async (mode: "off" | "blur" | "color") => {
+  const handleSetAmbientMode = useCallback(async (mode: AmbientMode) => {
     try {
-      const cfg = await invoke<{ mode: string; blur_radius: number; color: string }>("get_ambient_settings");
-      const updated = { ...cfg, mode };
+      const cfg = await invoke<unknown>("get_ambient_settings");
+      const updated = normalizeAmbientSettings({ ...normalizeAmbientSettings(cfg), mode });
       await invoke("set_ambient_settings", { settings: updated });
-      setAmbientMode(mode);
-      const labels: Record<string, string> = {
+      setAmbientMode(updated.mode);
+      const labels: Record<AmbientMode, string> = {
         off: dict.settings.cmenuUI.ambientOff,
         blur: dict.settings.cmenuUI.ambientBlur,
         color: dict.settings.cmenuUI.ambientColor,
+        ambilight: dict.settings.cmenuUI.ambientAmbilight,
       };
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdAmbient(labels[mode] || mode) }));
-      window.dispatchEvent(new Event("l-mpv-ambient-changed"));
+      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdAmbient(labels[updated.mode] || updated.mode) }));
+      window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: updated }));
+      window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
       console.error("Ошибка смены режима подсветки полос:", e);
     }
     handleClose();
-  }, [handleClose]);
+  }, [dict.settings.cmenuUI, handleClose]);
 
   const handleToggleAlwaysOnTop = useCallback(async () => {
     try {
@@ -687,7 +716,9 @@ export function ContextMenu({
           { type: "item", label: dict.settings.cmenuUI.ambOff, active: ambientMode === "off", action: () => handleSetAmbientMode("off") },
           { type: "item", label: dict.settings.cmenuUI.ambBlur, active: ambientMode === "blur", action: () => handleSetAmbientMode("blur") },
           { type: "item", label: dict.settings.cmenuUI.ambColor, active: ambientMode === "color", action: () => handleSetAmbientMode("color") },
+          { type: "item", label: dict.settings.cmenuUI.ambAmbilight, active: ambientMode === "ambilight", action: () => handleSetAmbientMode("ambilight") },
         ],
+
       }),
       speed: () => ({
         type: "submenu", icon: STATIC_ICONS.speed, label: dict.settings.cmenuUI.speed,

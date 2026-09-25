@@ -30,7 +30,9 @@ pub fn playlist_prev(
         // Единственная точка resume: фронтенд второго seek не делает.
         apply_resume_start(&state, &target);
     }
-    state.mpv.command("playlist-prev")
+    state.mpv.command("playlist-prev")?;
+    state.ambient_controller.invalidate();
+    Ok(())
 }
 
 /// Переход к следующему файлу в плейлисте.
@@ -45,7 +47,9 @@ pub fn playlist_next(
     {
         apply_resume_start(&state, &target);
     }
-    state.mpv.command("playlist-next")
+    state.mpv.command("playlist-next")?;
+    state.ambient_controller.invalidate();
+    Ok(())
 }
 
 /// Индекс текущего элемента и общее число элементов плейлиста.
@@ -162,7 +166,9 @@ pub fn play_playlist_item(
         .set_property_string(
             "playlist-pos",
             &index.to_string(),
-        )
+        )?;
+    state.ambient_controller.invalidate();
+    Ok(())
 }
 
 /// Принудительное пересканирование каталога и обновление плейлиста

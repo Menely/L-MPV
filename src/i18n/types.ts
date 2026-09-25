@@ -322,9 +322,31 @@ export interface TranslationDict {
       ambientBlurDesc: string;
       ambientColor: string;
       ambientColorDesc: string;
+      ambientAmbilight: string;
+      ambientAmbilightDesc: string;
+      ambientResetDefault: string;
+      ambientSegmentCount: string;
+      ambientSegmentCountAria: string;
+      ambientSampleWidth: string;
+      ambientSampleTop: string;
+      ambientSampleRight: string;
+      ambientSampleBottom: string;
+      ambientSampleLeft: string;
+      ambientSampleInterval: string;
+      ambientSampleIntervalAria: string;
+      ambientAttack: string;
+      ambientAttackAria: string;
+      ambientRelease: string;
+      ambientReleaseAria: string;
+      ambientSpread: string;
+      ambientSpreadAria: string;
+      ambientGap: string;
+      ambientGapAria: string;
+      ambientPreview: string;
       ambientRadius: string;
       ambientRadiusAria: string;
       reset100px: string;
+
       ambientBrightness: string;
       ambientBrightnessAria: string;
       reset100pct: string;
@@ -378,9 +400,11 @@ export interface TranslationDict {
       ambientOff: string;
       ambientBlur: string;
       ambientColor: string;
+      ambientAmbilight: string;
       visualizerTitle: string;
       visualizerMode: (mode: string) => string;
       visualizerOff: string;
+
       opacityTitle: string;
       radiusTitleTooltip: string;
       scaleTitle: string;
@@ -615,9 +639,11 @@ export interface TranslationDict {
       ambientOff: string;
       ambientBlur: string;
       ambientColor: string;
+      ambientAmbilight: string;
       osdAmbient: (mode: string) => string;
       errAmbient: (err: string) => string;
       errTop: (err: string) => string;
+
       osdScreenshot: string;
       errScreenshot: (err: string) => string;
       osdScreenshotErr: string;
@@ -655,9 +681,11 @@ export interface TranslationDict {
       ambOff: string;
       ambBlur: string;
       ambColor: string;
+      ambAmbilight: string;
       speed: string;
       speedNormal: string;
       upscale: string;
+
       upscaleOff: string;
       noModels: string;
       repeatMode: string;

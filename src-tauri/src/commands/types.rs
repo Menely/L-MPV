@@ -122,7 +122,9 @@ impl AppSettings {
         if settings_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&settings_path) {
                 if let Ok(settings) = serde_json::from_str::<AppSettings>(&content) {
-                    return settings;
+                    let mut normalized = settings;
+                    normalized.ambient = normalized.ambient.normalized();
+                    return normalized;
                 }
                 eprintln!("L-MPV: Предупреждение: ошибка полного парсинга settings.json, попытка частичного восстановления");
                 // Попытка частичного восстановления параметров из JSON
@@ -135,7 +137,7 @@ impl AppSettings {
                     }
                     if let Some(amb_val) = val.get("ambient") {
                         if let Ok(amb_parsed) = serde_json::from_value::<AmbientSettings>(amb_val.clone()) {
-                            fallback.ambient = amb_parsed;
+                            fallback.ambient = amb_parsed.normalized();
                         }
                     }
                     if let Some(scr) = val.get("screenshot_directory").and_then(|v| v.as_str()) {
