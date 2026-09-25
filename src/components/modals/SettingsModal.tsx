@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -75,6 +75,7 @@ import { AppearanceSettingsTab } from "../settings/AppearanceSettingsTab";
 import { GeneralSettingsTab } from "../settings/GeneralSettingsTab";
 import { useSettingsTabTransition } from "../settings/useSettingsTabTransition";
 import { preloadSettingsTabs } from "../settings/settingsTabPreload";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { SettingsPreset } from "../../utils/presetsUtils";
 import {
   UiRadiusLevel,
@@ -160,7 +161,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
   const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
-  const { bodyRef, panelRef, slideDir, beginSwitch } = useSettingsTabTransition(activeTab, SETTINGS_TABS);
+  const { bodyRef, panelRef, beginSwitch } = useSettingsTabTransition(activeTab, SETTINGS_TABS);
   const { dict } = useTranslation();
 
   // Единая точка смены вкладки: плавный переход высоты + слайд, логика табов не меняется
@@ -173,15 +174,14 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   const handleClose = useCallback(() => {
     if (closeTimerRef.current) return;
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
+    if (!isMotionAllowed()) {
       onClose();
       return;
     }
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 140);
+    }, getCloseTimeoutMs("base"));
   }, [onClose]);
 
   useEffect(() => {
@@ -194,7 +194,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   // Прогрев тяжёлых вкладок (пресеты, апскейлинг) при открытии окна:
   // к моменту переключения данные уже в кэше, первый paint полный.
-  useEffect(() => {
+  useLayoutEffect(() => {
     preloadSettingsTabs();
   }, []);
 
@@ -599,7 +599,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         style={{
           width: 720,
           maxWidth: "95vw",
-          maxHeight: "78vh",
+          maxHeight: "75vh",
           display: "flex",
           flexDirection: "column",
         }}
@@ -650,7 +650,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         {/* Тело модального окна */}
         <div className="modal__body" ref={bodyRef} style={{ padding: "16px 20px 10px 20px" }}>
           <div ref={panelRef} className="settings-tab-panel">
-          <div key={activeTab} data-slide-dir={slideDir} className="settings-tab-content">
+          <div key={activeTab} className="settings-tab-content">
             {activeTab === "general" && (
             <GeneralSettingsTab
               multiInstance={multiInstance} setMultiInstance={setMultiInstance}

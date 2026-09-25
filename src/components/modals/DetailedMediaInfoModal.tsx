@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import {
   FileText,
   X,
@@ -173,8 +174,7 @@ export function DetailedMediaInfoModal({
 
   const handleClose = useCallback(() => {
     if (isClosing) return;
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
+    if (!isMotionAllowed()) {
       onClose();
       return;
     }
@@ -182,7 +182,7 @@ export function DetailedMediaInfoModal({
     closeTimerRef.current = setTimeout(() => {
       onClose();
       setIsClosing(false);
-    }, 155);
+    }, getCloseTimeoutMs("base"));
   }, [isClosing, onClose]);
 
   useEffect(() => {

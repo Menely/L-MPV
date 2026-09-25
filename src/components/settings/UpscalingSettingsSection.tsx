@@ -8,6 +8,7 @@ import {
   Layers,
   Eye,
   EyeOff,
+  ChevronDown,
 } from "lucide-react";
 import {
   getCustomHotkeys,
@@ -89,6 +90,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       return false;
     }
   });
+  const [isModelsListOpen, setIsModelsListOpen] = useState(false);
 
   const toggleHideModelNames = () => {
     setHideModelNames((prev) => {
@@ -623,9 +625,22 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       />
 
       {/* 3. Универсальная библиотека ONNX-моделей (`models/onnx/`) с биндом клавиш */}
-      <div className="glass-section" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <SectionHeader
-          icon={<Layers size={17} />}
+      <div className="glass-section glass-section--compact" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div
+          role="button"
+          tabIndex={0}
+          aria-expanded={isModelsListOpen}
+          onClick={() => setIsModelsListOpen((prev) => !prev)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setIsModelsListOpen((prev) => !prev);
+            }
+          }}
+          style={{ cursor: "pointer" }}
+        >
+          <SectionHeader
+            icon={<Layers size={17} />}
           title={dict.settings.upscaling.folderTitle}
           desc={dict.settings.upscaling.folderDesc(status?.models_count || 0)}
           right={
@@ -633,7 +648,29 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
               <button
                 type="button"
                 className="btn btn--secondary btn--icon"
-                onClick={toggleHideModelNames}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsModelsListOpen((prev) => !prev);
+                }}
+                aria-expanded={isModelsListOpen}
+                title={isModelsListOpen ? dict.settings.upscaling.btnCollapseModels : dict.settings.upscaling.btnExpandModels}
+              >
+                <ChevronDown
+                  size={16}
+                  style={{
+                    transform: isModelsListOpen ? "rotate(0deg)" : "rotate(-90deg)",
+                    transition: "transform 180ms var(--ease-smooth)",
+                  }}
+                />
+              </button>
+
+              <button
+                type="button"
+                className="btn btn--secondary btn--icon"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleHideModelNames();
+                }}
                 title={hideModelNames ? dict.settings.upscaling.btnShowNames : dict.settings.upscaling.btnHideNames}
               >
                 {hideModelNames ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -649,75 +686,84 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
               </button>
             </>
           }
-        />
-
-        {/* Список обнаруженных файлов ONNX-моделей */}
-        <div
-          style={{
-            maxHeight: 220,
-            minHeight: 80,
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-            padding: "5px 6px",
-            margin: "2px -6px 0",
-            boxSizing: "border-box",
-          }}
-        >
-          {loading && !status ? (
-            <EmptyState loading title={dict.settings.upscaling.loadingModels} />
-          ) : status?.models && status.models.length > 0 ? (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={status.models.map((m) => m.filename)}
-                strategy={verticalListSortingStrategy}
-              >
-                {status.models.map((model, idx) => {
-                  const actionId = `upscaleNet${idx + 1}`;
-                  return (
-                    <ModelListItem
-                      key={model.filename}
-                      model={model}
-                      idx={idx}
-                      isSelected={settings.active_slot === model.slot || settings.selected_model === model.filename}
-                      hideModelNames={hideModelNames}
-                      customHotkeys={customHotkeys}
-                      recordingActionId={recordingActionId}
-                      supportsTensorrt={!!status.gpu_info?.supports_tensorrt}
-                      compilingModel={compilingModel}
-                      compileProgressItem={compileProgress[model.filename]}
-                      onSelect={() => updateSettings({ active_slot: model.slot, selected_model: model.filename })}
-                      onPrecompile={() => handlePrecompileModel(model)}
-                      onStartRecordKey={() => handleStartRecordKey(actionId)}
-                      onKeyRecord={(e) => handleKeyRecord(e, actionId)}
-                      onMouseRecord={(e) => handleMouseRecord(e, actionId)}
-                    />
-                  );
-                })}
-              </SortableContext>
-            </DndContext>
-          ) : (
-            <EmptyState
-              icon={<Layers size={24} />}
-              title={dict.settings.upscaling.noModelsTitle}
-              desc={dict.settings.upscaling.noModelsDesc}
-              action={
-                <button
-                  type="button"
-                  className="btn btn--secondary btn--sm"
-                  onClick={handleOpenModelsFolder}
-                >
-                  <FolderOpen size={14} /> {dict.settings.upscaling.btnOpenFolder}
-                </button>
-              }
-            />
-          )}
+          />
         </div>
+
+        <div className={`collapse-fold ${isModelsListOpen ? "collapse-fold--open" : ""}`}>
+          <div className="collapse-fold__inner">
+            <div className="collapse-fold__body">
+              <div
+                style={{
+                  maxHeight: 220,
+                  minHeight: 80,
+                  overflowY: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                  padding: "5px 6px",
+                  margin: "2px -6px 0",
+                  boxSizing: "border-box",
+                }}
+              >
+                {loading && !status ? (
+                  <EmptyState loading title={dict.settings.upscaling.loadingModels} />
+                ) : status?.models && status.models.length > 0 ? (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={status.models.map((m) => m.filename)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {status.models.map((model, idx) => {
+                        const actionId = `upscaleNet${idx + 1}`;
+                        return (
+                          <ModelListItem
+                            key={model.filename}
+                            model={model}
+                            idx={idx}
+                            isSelected={settings.active_slot === model.slot || settings.selected_model === model.filename}
+                            hideModelNames={hideModelNames}
+                            customHotkeys={customHotkeys}
+                            recordingActionId={recordingActionId}
+                            supportsTensorrt={!!status.gpu_info?.supports_tensorrt}
+                            compilingModel={compilingModel}
+                            compileProgressItem={compileProgress[model.filename]}
+                            onSelect={() => updateSettings({ active_slot: model.slot, selected_model: model.filename })}
+                            onPrecompile={() => handlePrecompileModel(model)}
+                            onStartRecordKey={() => handleStartRecordKey(actionId)}
+                            onKeyRecord={(e) => handleKeyRecord(e, actionId)}
+                            onMouseRecord={(e) => handleMouseRecord(e, actionId)}
+                          />
+                        );
+                      })}
+                    </SortableContext>
+                  </DndContext>
+                ) : (
+                  <EmptyState
+                    icon={<Layers size={24} />}
+                    title={dict.settings.upscaling.noModelsTitle}
+                    desc={dict.settings.upscaling.noModelsDesc}
+                    action={
+                      <button
+                        type="button"
+                        className="btn btn--secondary btn--sm"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleOpenModelsFolder();
+                }}
+                      >
+                        <FolderOpen size={14} /> {dict.settings.upscaling.btnOpenFolder}
+                      </button>
+                    }
+                  />
+                )}
+        </div>
+      </div>
+    </div>
+      </div>
       </div>
     </div>
   );

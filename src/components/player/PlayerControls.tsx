@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
@@ -115,8 +116,7 @@ export function PlayerControls({
       clearTimeout(closePopoverTimerRef.current);
       closePopoverTimerRef.current = null;
     }
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    if (immediate || isNoAnim) {
+    if (immediate || !isMotionAllowed()) {
       setActivePopover(null);
       setClosingPopover(null);
       return;
@@ -127,7 +127,7 @@ export function PlayerControls({
       closePopoverTimerRef.current = setTimeout(() => {
         setClosingPopover(null);
         closePopoverTimerRef.current = null;
-      }, 120);
+      }, getCloseTimeoutMs("fast"));
       return null;
     });
   }, []);

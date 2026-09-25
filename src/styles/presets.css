@@ -9,11 +9,9 @@
 
 @keyframes presetsFadeIn {
   from {
-    opacity: 0.35;
     transform: translateY(4px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -219,7 +217,7 @@
 
 .preset-card--active {
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
-  border: 1.5px solid var(--accent) !important;
+  border-color: var(--accent) !important;
   box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
 }
 
@@ -387,9 +385,8 @@
 .preset-action-btn--applied {
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
   color: var(--text-primary) !important;
-  border: 1.5px solid var(--accent) !important;
+  border-color: var(--accent) !important;
   box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
-  font-weight: 600;
 }
 
 .preset-action-btn--danger:hover {
@@ -417,16 +414,14 @@
   font-weight: 500;
   z-index: 100000;
   backdrop-filter: blur(12px);
-  animation: toastSlideUp 0.25s var(--ease-spring-smooth);
+  animation: toastSlideUp 0.25s var(--ease-out);
 }
 
 @keyframes toastSlideUp {
   from {
-    opacity: 0;
     transform: translate(-50%, 14px) scale(0.95);
   }
   to {
-    opacity: 1;
     transform: translate(-50%, 0) scale(1);
   }
 }

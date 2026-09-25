@@ -65,6 +65,7 @@ import {
   BUILT_IN_PRESETS,
   type SettingsPreset,
 } from "../../utils/presetsUtils";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import type { ModelFileItem, UpscaleStatus, UpscaleSettings } from "../upscale/types";
 
 interface ContextMenuProps {
@@ -297,7 +298,12 @@ export function ContextMenu({
     };
   }, []);
 
-  // Позиционирование меню с учётом масштаба интерфейса и границ экрана
+  // Позиционирование меню с учётом масштаба интерфейса и границ экрана.
+  // Первый кадр скрыт (visibility), пока useLayoutEffect не замерит реальный
+  // размер: иначе меню сначала рисуется по грубой оценке 220x440, а затем
+  // видимо прыгает в измеренную позицию у краёв экрана.
+  const [positioned, setPositioned] = useState(false);
+  const [menuWidth, setMenuWidth] = useState(220);
   const [adjustedPos, setAdjustedPos] = useState(() => {
     if (typeof window === "undefined") return { x, y };
     const zoom = getUiScale();
@@ -336,6 +342,8 @@ export function ContextMenu({
         x: Math.max(0, newX),
         y: Math.max(0, newY),
       });
+      setMenuWidth(cssWidth);
+      setPositioned(true);
     }
   }, [x, y]);
 
@@ -359,15 +367,14 @@ export function ContextMenu({
       window.clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
+    if (!isMotionAllowed()) {
       onClose();
       return;
     }
     setIsClosing(true);
     closingTimerRef.current = setTimeout(() => {
       onClose();
-    }, 120);
+    }, getCloseTimeoutMs("fast"));
   }, [isClosing, onClose]);
 
   useEffect(() => {
@@ -903,12 +910,13 @@ export function ContextMenu({
     handleSetUpscaleOff, handleSelectUpscaleModel, handleToggleControlButton,
   ]);
 
-  // Проверка близости к правому краю для открытия подменю влево
+  // Проверка близости к правому краю для открытия подменю влево.
+  // Ширина меню — измеренная (а не константа), ширина подменю — оценка 220.
   const isRightScreenEdge = useMemo(() => {
     if (typeof window === "undefined") return false;
     const zoom = getUiScale();
-    return adjustedPos.x + 220 + 220 > (window.innerWidth / zoom);
-  }, [adjustedPos.x]);
+    return adjustedPos.x + menuWidth + 220 > (window.innerWidth / zoom);
+  }, [adjustedPos.x, menuWidth]);
 
   // Красивая точка роста меню: origin следует за реальным флипом по X/Y
   const menuOrigin = useMemo(() => {
@@ -1155,6 +1163,7 @@ export function ContextMenu({
         left: adjustedPos.x,
         top: adjustedPos.y,
         transformOrigin: menuOrigin,
+        visibility: positioned ? "visible" : "hidden",
       }}
     >
       {menuItems.map((item, index) => renderItem(item, index, false))}

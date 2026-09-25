@@ -27,6 +27,24 @@
               border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
+.glass-section--compact {
+  padding: 10px 12px;
+  gap: 8px;
+}
+
+.glass-section--compact .btn--icon {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+}
+
+.backend-selector-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 8px;
+}
+
 .glass-section:hover {
   border-color: var(--border-default, rgba(255, 255, 255, 0.10));
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.48), 0 2px 5px rgba(0, 0, 0, 0.3);
@@ -61,10 +79,11 @@
   background: rgba(255, 255, 255, 0.09);
 }
 
-/* Активная выбранная плитка (Selected) */
+/* Активная выбранная плитка (Selected). Ширина рамки НЕ меняется (1px как
+   в базе) — иначе контент сжимается; акцент несёт цвет + inset-кольцо. */
 .glass-tile--active {
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
-  border: 1.5px solid var(--accent) !important;
+  border-color: var(--accent) !important;
   box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
   color: var(--text-primary);
 }
@@ -273,7 +292,7 @@
 
 .kbd-chip--recording {
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
-  border: 1.5px solid var(--accent) !important;
+  border-color: var(--accent) !important;
   color: var(--text-primary) !important;
   box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
 }

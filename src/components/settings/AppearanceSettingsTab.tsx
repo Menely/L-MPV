@@ -3,6 +3,7 @@ import {
   Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, Clock, RotateCcw, PanelBottom, Timer, Zap, FolderOpen
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { setAnimationsEnabled as applyAnimationsEnabledToDom } from "../../utils/animationUtils";
 import { AccordionSection } from "./AccordionSection";
 import { ColorSchemeSection } from "./ColorSchemeSection";
 import { VisualizerSettingsSection } from "./VisualizerSettingsSection";
@@ -1108,13 +1109,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                       onChange={(e) => {
                         const val = e.target.checked;
                         setAnimationsEnabled(val);
-                        localStorage.setItem('l-mpv-animations-enabled', val ? 'true' : 'false');
-                        if (val) {
-                          document.documentElement.classList.remove('no-animations');
-                        } else {
-                          document.documentElement.classList.add('no-animations');
-                        }
-                        window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                        applyAnimationsEnabledToDom(val);
                       }}
                     />
                     <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>

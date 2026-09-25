@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState, PlaylistItem } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import { X, Search, Play, Clapperboard, RotateCw } from "lucide-react";
 import { EmptyState } from "../settings/SettingBlocks";
@@ -200,10 +201,7 @@ export function PlaylistDrawer() {
 
   const handleClose = useCallback(() => {
     if (isClosingRef.current) return;
-    const isNoAnim =
-      typeof document !== "undefined" &&
-      document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
+    if (!isMotionAllowed()) {
       setIsPlaylistOpen(false);
       return;
     }
@@ -217,7 +215,7 @@ export function PlaylistDrawer() {
       setIsClosing(false);
       isClosingRef.current = false;
       closeTimerRef.current = null;
-    }, 120);
+    }, getCloseTimeoutMs("fast"));
   }, [setIsPlaylistOpen]);
 
   const handleRefresh = useCallback(async () => {

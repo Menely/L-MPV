@@ -7,6 +7,17 @@
   box-sizing: border-box;
 }
 
+/* Наследование шрифта для интерактивных элементов: без этого Chromium
+   отрисовывает текст в <button>/<input>/<select> системным шрифтом
+   (Segoe UI) вместо Inter — расхождение метрик, «мыло» и микро-сдвиги
+   при смене состояний. Размеры заданы в rem и не меняются. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 /* Отключение стрелок спиннера у числовых полей ввода */
 .no-spin-input::-webkit-outer-spin-button,
 .no-spin-input::-webkit-inner-spin-button {
@@ -290,13 +301,23 @@ html, body, #root {
   transform: rotate(90deg);
 }
 
-/* ─── Отключение анимаций при выключении в настройках ── */
+/* ─── Отключение анимаций при выключении в настройках ──
+   Единственный kill-switch. Глушит transition/animation полностью (а не до
+   0.001ms — иначе transitionend всё равно фаерится и JS-таймеры закрытия
+   отрабатывают по обрезанной анимации с миганием). */
 html.no-animations *,
 html.no-animations *::before,
 html.no-animations *::after {
-  animation-duration: 0.001ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.001ms !important;
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+/* Grid-раскрытие аккордеона/коллапсов тоже мгновенно, без 240ms езды. */
+html.no-animations .settings-accordion__collapse,
+html.no-animations .collapse-fold,
+html.no-animations .settings-tab-panel {
+  transition: none !important;
 }
 
 html.no-animations .modal__close:hover svg,
@@ -334,9 +355,8 @@ html.no-animations .control-btn--play::before {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    animation: none !important;
+    transition: none !important;
     scroll-behavior: auto !important;
   }
 }

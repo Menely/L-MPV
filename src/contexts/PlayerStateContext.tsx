@@ -744,11 +744,14 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const appWindow = getCurrentWindow();
     let isMounted = true;
+    let checkVersion = 0;
+    let resizeFrame = 0;
 
     const checkFs = async () => {
+      const version = ++checkVersion;
       try {
         const fs = await appWindow.isFullscreen();
-        if (isMounted) {
+        if (isMounted && version === checkVersion) {
           setIsFullscreen(fs);
         }
       } catch (e) {
@@ -756,13 +759,25 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    checkFs();
-    const unlistenResize = appWindow.onResized(() => {
-      checkFs();
-    });
+    const scheduleFsCheck = () => {
+      if (resizeFrame) {
+        window.cancelAnimationFrame(resizeFrame);
+      }
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = 0;
+        void checkFs();
+      });
+    };
+
+    void checkFs();
+    const unlistenResize = appWindow.onResized(scheduleFsCheck);
 
     return () => {
       isMounted = false;
+      checkVersion += 1;
+      if (resizeFrame) {
+        window.cancelAnimationFrame(resizeFrame);
+      }
       unlistenResize.then((f) => f());
     };
   }, []);

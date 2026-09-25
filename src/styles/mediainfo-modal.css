@@ -18,18 +18,16 @@
   box-shadow: 0 16px 45px rgba(0, 0, 0, 0.75), 0 0 1px rgba(255, 255, 255, 0.2);
   z-index: 9999;
   overflow: hidden;
-  animation: mediainfoSpringIn var(--t-spring) var(--ease-spring-smooth);
+  animation: mediainfoSpringIn var(--t-spring) var(--ease-out);
   transform-origin: center center;
   transition: border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 @keyframes mediainfoSpringIn {
   0% {
-    opacity: 0;
     transform: translateY(10px);
   }
   100% {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -125,8 +123,7 @@
 .mediainfo-floating-window__btn--active {
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
   color: var(--text-primary) !important;
-  font-weight: 600;
-  border: 1.5px solid var(--accent) !important;
+  border-color: var(--accent) !important;
   box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
 }
 
@@ -576,8 +573,7 @@
 .mediainfo-standalone__action-btn--active {
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
   color: var(--text-primary) !important;
-  font-weight: 600;
-  border: 1.5px solid var(--accent) !important;
+  border-color: var(--accent) !important;
   box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
 }
 

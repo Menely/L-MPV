@@ -7,6 +7,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
+import { applyAnimationsFlagToDom } from "./animationUtils";
 import {
   getSavedPlayerTheme,
   savePlayerTheme,
@@ -160,9 +161,8 @@ export function syncUiSettingsToDisk(delayMs = 400): void {
  * Применение параметров оформления ко всем DOM-элементам плеера.
  */
 export function applyAllVisualSettings(): void {
-  // Анимации
-  const isAnimOff = localStorage.getItem("l-mpv-animations-enabled") === "false";
-  document.documentElement.classList.toggle("no-animations", isAnimOff);
+  // Анимации — единый источник правды (класс + data-атрибут + localStorage)
+  applyAnimationsFlagToDom();
 
   // Тема
   applyPlayerTheme(getSavedPlayerTheme());
@@ -251,14 +251,15 @@ export async function hydrateUiSettingsFromDisk(): Promise<void> {
         hasRestoredValues = true;
       }
       if (typeof ui.animations_enabled === "boolean") {
-        localStorage.setItem(
-          "l-mpv-animations-enabled",
-          ui.animations_enabled ? "true" : "false"
-        );
-        document.documentElement.setAttribute(
-          "data-animations",
-          ui.animations_enabled ? "on" : "off"
-        );
+        // Пишем только в localStorage, DOM synced централизованно ниже через applyAllVisualSettings().
+        try {
+          localStorage.setItem(
+            "l-mpv-animations-enabled",
+            ui.animations_enabled ? "true" : "false"
+          );
+        } catch {
+          /* ignore */
+        }
         hasRestoredValues = true;
       }
       if (typeof ui.show_track_names === "boolean") {
