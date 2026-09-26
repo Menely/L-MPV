@@ -21,6 +21,9 @@ export interface MediaInfo {
   fps: number;
   width: number;
   height: number;
+  video_track?: boolean;
+  has_video: boolean;
+  video_ready: boolean;
   video_codec: string;
   audio_codec: string;
   paused: boolean;
@@ -49,6 +52,9 @@ export interface PlaybackState {
   path: string;
   video_width: number;
   video_height: number;
+  video_track?: boolean;
+  has_video: boolean;
+  video_ready: boolean;
   current_aid: string;
   current_sid: string;
   eof_reached?: boolean;
@@ -79,6 +85,10 @@ export interface PlayerProgress {
   seeking: boolean;
   seekTarget: number | null;
 }
+
+// Количество одинаковых подряд снапшотов видеовыхода, нужное для подтверждения геометрии.
+// Значение 2 даёт ~200ms задержку вместо ~300ms при 100ms-тиках, сохраняя надёжность.
+const REQUIRED_STABLE_VIDEO_GEOMETRY_POLLS = 2;
 
 const PlayerProgressContext = createContext<PlayerProgress>({
   position: 0,
@@ -194,6 +204,26 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const currentAidRef = useRef<string>("");
   const currentSidRef = useRef<string>("");
   const mediaInfoRef = useRef<MediaInfo | null>(null);
+  const videoGeometryCandidateRef = useRef<{
+    path: string;
+    width: number;
+    height: number;
+    stableCount: number;
+  } | null>(null);
+  const confirmedVideoGeometryRef = useRef<{
+    path: string;
+    width: number;
+    height: number;
+  } | null>(null);
+  const videoTrackCandidateRef = useRef<{
+    path: string;
+    present: boolean;
+    stableCount: number;
+  } | null>(null);
+  const confirmedVideoTrackRef = useRef<{
+    path: string;
+    present: boolean;
+  } | null>(null);
 
   const loadTracks = useCallback(async () => {
     try {
@@ -213,6 +243,104 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Одного готового ответа бэкенда недостаточно: переходные значения могут
+  // оставаться от предыдущего файла. Содержимое списка дорожек тоже считается
+  // известным только после нескольких одинаковых подряд снапшотов.
+  const confirmVideoTrack = (
+    path: string,
+    present: boolean | undefined,
+  ) => {
+    const confirmed = confirmedVideoTrackRef.current;
+    if (!path || present === undefined) {
+      confirmedVideoTrackRef.current = null;
+      videoTrackCandidateRef.current = null;
+      return undefined;
+    }
+    if (confirmed && confirmed.path === path && confirmed.present === present) {
+      return confirmed.present;
+    }
+    const candidate = videoTrackCandidateRef.current;
+    if (
+      candidate &&
+      candidate.path === path &&
+      candidate.present === present
+    ) {
+      candidate.stableCount += 1;
+    } else {
+      videoTrackCandidateRef.current = {
+        path,
+        present,
+        stableCount: 1,
+      };
+    }
+    const currentCandidate = videoTrackCandidateRef.current;
+    if (
+      currentCandidate &&
+      currentCandidate.stableCount >= REQUIRED_STABLE_VIDEO_GEOMETRY_POLLS
+    ) {
+      confirmedVideoTrackRef.current = {
+        path,
+        present,
+      };
+      return confirmedVideoTrackRef.current.present;
+    }
+    return undefined;
+  };
+
+  // Одного готового ответа бэкенда недостаточно: переходные значения могут
+  // оставаться от предыдущего файла. Геометрия считается подтверждённой
+  // только после нескольких одинаковых подряд снапшотов для текущего пути.
+  const confirmVideoGeometry = (
+    path: string,
+    width: number,
+    height: number,
+    ready: boolean,
+  ) => {
+    const confirmed = confirmedVideoGeometryRef.current;
+    if (!path || !ready || width <= 0 || height <= 0) {
+      confirmedVideoGeometryRef.current = null;
+      videoGeometryCandidateRef.current = null;
+      return null;
+    }
+    if (
+      confirmed &&
+      confirmed.path === path &&
+      confirmed.width === width &&
+      confirmed.height === height
+    ) {
+      return confirmed;
+    }
+    const candidate = videoGeometryCandidateRef.current;
+    if (
+      candidate &&
+      candidate.path === path &&
+      candidate.width === width &&
+      candidate.height === height
+    ) {
+      candidate.stableCount += 1;
+    } else {
+      videoGeometryCandidateRef.current = {
+        path,
+        width,
+        height,
+        stableCount: 1,
+      };
+    }
+    const currentCandidate = videoGeometryCandidateRef.current;
+    if (
+      currentCandidate &&
+      currentCandidate.stableCount >= REQUIRED_STABLE_VIDEO_GEOMETRY_POLLS
+    ) {
+      confirmedVideoGeometryRef.current = {
+        path,
+        width,
+        height,
+      };
+      return confirmedVideoGeometryRef.current;
+    }
+    return null;
+  };
+
   // Синхронизация плейлиста по событию бэкенда playlist-updated.
   // Заодно обновляем дорожки: фоновая задача open_file добавляет внешние
   // субтитры/аудио уже после первого get_tracks, без этого список отставал.
@@ -224,6 +352,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       if (isMounted) {
         refreshPlaylist();
         loadTracks();
+        // Пробуждаем цикл поллинга от 1-секундного сна на паузе: события
+        // (новые дорожки, конец загрузки плейлиста) должны сразу попасть в UI.
+        window.dispatchEvent(new Event("l-mpv-force-poll"));
       }
     })
       .then((unlisten) => {
@@ -346,11 +477,25 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
             currentPathRef.current = fullInfo.path;
             hasMediaInfoRef.current = effectiveDuration > 0;
+            fullInfo.video_track = confirmVideoTrack(
+              fullInfo.path,
+              fullInfo.video_track,
+            );
+            const confirmedGeometry = confirmVideoGeometry(
+              fullInfo.path,
+              fullInfo.width,
+              fullInfo.height,
+              fullInfo.video_ready,
+            );
+            fullInfo.width = confirmedGeometry?.width ?? 0;
+            fullInfo.height = confirmedGeometry?.height ?? 0;
+            fullInfo.video_ready = confirmedGeometry !== null;
             mediaInfoRef.current = fullInfo;
             setMediaInfo(fullInfo);
             setHasMedia(true);
-            // Подгружаем внешние дорожки и субтитры (если опция активна в настройках)
-            await invoke("load_external_tracks_for_file", { path: fullInfo.path }).catch(() => {});
+            // Внешние дорожки загружает фоновый поток lmpv-open-bg (playback.rs).
+            // Повторный вызов здесь создавал дублирование дорожек и лишний I/O.
+            // Список дорожек будет обновлён через событие playlist-updated.
             loadTracks();
             setProgress({
               position: fullInfo.position,
@@ -375,6 +520,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             }, 300);
           } else {
             currentPathRef.current = "";
+            currentPositionRef.current = 0;
             hasMediaInfoRef.current = false;
             mediaInfoRef.current = null;
             setMediaInfo(null);
@@ -458,18 +604,36 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             const isPausedChanged = currentMedia.paused !== dynState.paused;
             const isSpeedChanged = currentMedia.speed !== dynState.speed;
             const isVolumeChanged = currentMedia.volume !== dynState.volume;
+            const confirmedVideoTrack = confirmVideoTrack(
+              dynState.path,
+              dynState.video_track,
+            );
+            const confirmedGeometry = confirmVideoGeometry(
+              dynState.path,
+              dynState.video_width,
+              dynState.video_height,
+              dynState.video_ready,
+            );
             const isSizeChanged =
-              (dynState.video_width > 0 && dynState.video_width !== currentMedia.width) ||
-              (dynState.video_height > 0 && dynState.video_height !== currentMedia.height);
+              confirmedGeometry !== null &&
+              (confirmedGeometry.width !== currentMedia.width ||
+                confirmedGeometry.height !== currentMedia.height);
+            const isVideoStatusChanged =
+              currentMedia.video_track !== confirmedVideoTrack ||
+              currentMedia.has_video !== dynState.has_video ||
+              currentMedia.video_ready !== dynState.video_ready;
 
-            if (isPausedChanged || isSpeedChanged || isVolumeChanged || isSizeChanged) {
+            if (isPausedChanged || isSpeedChanged || isVolumeChanged || isSizeChanged || isVideoStatusChanged) {
               const updated: MediaInfo = {
                 ...currentMedia,
                 paused: dynState.paused,
                 speed: dynState.speed,
                 volume: dynState.volume,
-                width: dynState.video_width > 0 ? dynState.video_width : currentMedia.width,
-                height: dynState.video_height > 0 ? dynState.video_height : currentMedia.height,
+                width: confirmedGeometry?.width ?? currentMedia.width,
+                height: confirmedGeometry?.height ?? currentMedia.height,
+                video_track: confirmedVideoTrack,
+                has_video: dynState.has_video,
+                video_ready: confirmedGeometry !== null,
                 audio_bitrate: dynState.audio_bitrate,
                 video_bitrate: dynState.video_bitrate,
                 dropped_frames: dynState.dropped_frames,
@@ -663,13 +827,17 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleBeforeUnload = () => {
       const curMedia = mediaInfoRef.current;
-      if (curMedia && curMedia.path && curMedia.duration > 0) {
-        invoke("save_position", {
-          path: curMedia.path,
-          position: curMedia.position,
-          duration: curMedia.duration,
-          flush: true,
-        }).catch(() => {});
+      const curPos = currentPositionRef.current;
+      if (curMedia && curMedia.path && curMedia.duration > 0 && !isResumingRef.current) {
+        // Сохраняем только актуальную ненулевую позицию (не затираем историю нулём при выгрузке страницы)
+        if (curPos > 0) {
+          invoke("save_position", {
+            path: curMedia.path,
+            position: curPos,
+            duration: curMedia.duration,
+            flush: true,
+          }).catch(() => {});
+        }
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);

@@ -1334,10 +1334,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 title={dict.settings.appearance.ambientSection}
               >
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-                  <span style={{ fontSize: "0.80rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>
-                    {dict.settings.appearance.ambientDesc}
-                  </span>
-
                   {/* Переключатель режимов */}
                   <div
                     style={{
@@ -1351,10 +1347,10 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     }}
                   >
                     {[
-                      { id: "off", label: dict.settings.appearance.ambientOff, desc: dict.settings.appearance.ambientOffDesc },
-                      { id: "blur", label: dict.settings.appearance.ambientBlur, desc: dict.settings.appearance.ambientBlurDesc },
-                      { id: "color", label: dict.settings.appearance.ambientColor, desc: dict.settings.appearance.ambientColorDesc },
-                      { id: "ambilight", label: dict.settings.appearance.ambientAmbilight, desc: dict.settings.appearance.ambientAmbilightDesc },
+                      { id: "off", label: dict.settings.appearance.ambientOff },
+                      { id: "blur", label: dict.settings.appearance.ambientBlur },
+                      { id: "color", label: dict.settings.appearance.ambientColor },
+                      { id: "ambilight", label: dict.settings.appearance.ambientAmbilight },
                     ].map((item) => {
                       const isSel = ambientSettings.mode === item.id;
                       return (
@@ -1365,10 +1361,9 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
-
                             justifyContent: "center",
                             gap: 3,
-                            padding: "8px 6px",
+                            padding: "10px 6px",
                             borderRadius: "var(--radius-sm)",
                             border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                             cursor: "pointer",
@@ -1381,9 +1376,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           }}
                         >
                           <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>{item.label}</span>
-                          <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
-                            {item.desc}
-                          </span>
                         </button>
                       );
                     })}

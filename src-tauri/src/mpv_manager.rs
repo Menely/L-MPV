@@ -77,6 +77,56 @@ pub struct MpvOsdDimensions {
     pub margin_bottom: f64,
     pub margin_left: f64,
 }
+/// Статус сконфигурированного видеовыхода.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VideoOutputStatus {
+    /// Фактическая ширина видеовыхода после фильтров и коррекции пропорций.
+    pub width: i64,
+    /// Фактическая высота видеовыхода после фильтров и коррекции пропорций.
+    pub height: i64,
+    /// Есть ли видеодорожка в списке дорожек (`None` — список ещё пуст).
+    pub video_track: Option<bool>,
+    /// Выбрана ли видеодорожка (`vid` не равен `no`).
+    pub has_video: bool,
+    /// Относятся ли размеры к ожидаемому файлу и готов ли видеовыход.
+    pub ready: bool,
+}
+
+fn positive_video_dimension(value: f64) -> i64 {
+    if value.is_finite() && value > 0.0 {
+        value as i64
+    } else {
+        0
+    }
+}
+
+fn video_output_status_from_properties(
+    expected_path: &str,
+    observed_path: &str,
+    video_track_present: Option<bool>,
+    video_track: &str,
+    output_width: f64,
+    output_height: f64,
+) -> VideoOutputStatus {
+    let normalized_track = video_track.trim();
+    let has_video =
+        !normalized_track.is_empty() && normalized_track != "no";
+    let path_matches = !expected_path.trim().is_empty()
+        && observed_path == expected_path;
+    let width = positive_video_dimension(output_width);
+    let height = positive_video_dimension(output_height);
+    VideoOutputStatus {
+        width,
+        height,
+        video_track: video_track_present,
+        has_video,
+        ready: path_matches
+            && video_track_present == Some(true)
+            && has_video
+            && width > 0
+            && height > 0,
+    }
+}
 
 pub fn copy_bgr0_frame(
     data: &[u8],
@@ -455,6 +505,8 @@ impl MpvManager {
             Self::set_option(&api, handle, "screenshot-directory", &screenshots_dir);
             Self::set_option(&api, handle, "screenshot-format", "png");
 
+
+
             // ─── Оптимизированный рендеринг: Direct3D 11 (нативный для Windows / DWM) ───
             Self::set_option(&api, handle, "vo", "gpu-next");
             Self::set_option(&api, handle, "gpu-api", "d3d11,auto");
@@ -475,7 +527,7 @@ impl MpvManager {
             Self::set_option(&api, handle, "demuxer-max-bytes", "64MiB");
             Self::set_option(&api, handle, "demuxer-readahead-secs", "5");
             Self::set_option(&api, handle, "demuxer-max-back-bytes", "32MiB");
-            Self::set_option(&api, handle, "hr-seek-framedrop", "yes"); // Использовать drop кадров при перемотке для снижения RAM
+            Self::set_option(&api, handle, "hr-seek-framedrop", "no"); // Запрещаем пропуск видеокадров при перемотке/старте для идеальной A/V-синхронизации
             Self::set_option(&api, handle, "cache-pause", "no"); // Не ставить на паузу при буферизации локальных файлов
 
             // ─── Качественный отзывчивый звук (WASAPI) ───
@@ -485,6 +537,13 @@ impl MpvManager {
             Self::set_option(&api, handle, "audio-pitch-correction", "yes"); // Сохранение тональности при изменении скорости
             Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от клиппинга при даунмиксе
             Self::set_option(&api, handle, "volume-max", "150.0"); // Максимальная громкость с софтверным усилением (до 150%)
+
+            // ─── Гарантированная A/V-синхронизация при старте ───
+            // Явно фиксируем дефолты, чтобы пользовательский mpv.conf не смог
+            // их переопределить и сломать синхронизацию при открытии файла.
+            Self::set_option(&api, handle, "initial-audio-sync", "yes"); // Ждать выровненного A/V перед первым кадром
+            Self::set_option(&api, handle, "video-sync", "audio"); // Видео синхронизируется по аудиочасам
+            Self::set_option(&api, handle, "hr-seek", "yes"); // Точный seek для идеальной синхронизации аудио и видео после перемотки (и при старте с позиции)
 
             // ─── Субтитры ───────────────────────────────
             Self::set_option(&api, handle, "demuxer-mkv-subtitle-preroll", "yes");
@@ -842,6 +901,50 @@ impl MpvManager {
         })
     }
 
+    pub fn video_output_status_for(
+        &self,
+        expected_path: &str,
+    ) -> VideoOutputStatus {
+        let video_track_present = self
+            .with_handle(|handle| unsafe {
+                Ok(Self::video_track_present_raw(
+                    &self.api,
+                    handle,
+                ))
+            })
+            .unwrap_or(None);
+        let observed_path =
+            self.get_property_string("path").unwrap_or_default();
+        let video_track =
+            self.get_property_string("vid").unwrap_or_default();
+        let mut output_width = self
+            .get_property_double("video-out-params/dw")
+            .unwrap_or(0.0);
+        let mut output_height = self
+            .get_property_double("video-out-params/dh")
+            .unwrap_or(0.0);
+        if output_width <= 0.0 || output_height <= 0.0 {
+            output_width = self
+                .get_property_double("video-params/dw")
+                .or_else(|_| self.get_property_double("dwidth"))
+                .or_else(|_| self.get_property_double("width"))
+                .unwrap_or(0.0);
+            output_height = self
+                .get_property_double("video-params/dh")
+                .or_else(|_| self.get_property_double("dheight"))
+                .or_else(|_| self.get_property_double("height"))
+                .unwrap_or(0.0);
+        }
+        video_output_status_from_properties(
+            expected_path,
+            &observed_path,
+            video_track_present,
+            &video_track,
+            output_width,
+            output_height,
+        )
+    }
+
     pub fn get_ambient_geometry(
         &self,
     ) -> Result<Option<crate::ambient_sampler::AmbientGeometry>, String> {
@@ -1072,6 +1175,28 @@ impl MpvManager {
         value
     }
 
+    unsafe fn video_track_present_raw(api: &MpvApi, handle: *mut MpvHandle) -> Option<bool> {
+        let track_count =
+            Self::get_double_raw(api, handle, c"track-list/count");
+        if !track_count.is_finite() || track_count < 0.0 {
+            return None;
+        }
+        if track_count == 0.0 {
+            return None;
+        }
+        for index in 0..track_count as i64 {
+            let name = CString::new(format!(
+                "track-list/{}/type",
+                index
+            ))
+            .ok()?;
+            if Self::get_string_raw(api, handle, name.as_c_str()) == "video" {
+                return Some(true);
+            }
+        }
+        Some(false)
+    }
+
     /// Пакетный сбор динамического состояния плеера за один захват мьютекса
     /// со статическими C-строками без повторных блокировок и лишних аллокаций.
     pub fn get_playback_state_snapshot(&self) -> Result<crate::commands::PlaybackState, String> {
@@ -1105,19 +1230,30 @@ impl MpvManager {
                 Self::get_double_raw(&self.api, handle, c"vo-delayed-frame-count") as i64;
             let stream_pos = Self::get_double_raw(&self.api, handle, c"stream-pos");
 
-            let dw = Self::get_double_raw(&self.api, handle, c"video-params/dw");
-            let video_width = if dw > 0.0 {
-                dw as i64
-            } else {
-                Self::get_double_raw(&self.api, handle, c"width") as i64
-            };
-
-            let dh = Self::get_double_raw(&self.api, handle, c"video-params/dh");
-            let video_height = if dh > 0.0 {
-                dh as i64
-            } else {
-                Self::get_double_raw(&self.api, handle, c"height") as i64
-            };
+            let video_track_present =
+                Self::video_track_present_raw(&self.api, handle);
+            let video_track =
+                Self::get_string_raw(&self.api, handle, c"vid");
+            let output_width = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"video-out-params/dw",
+            );
+            let output_height = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"video-out-params/dh",
+            );
+            let output_path =
+                Self::get_string_raw(&self.api, handle, c"path");
+            let output_status = video_output_status_from_properties(
+                &path,
+                &output_path,
+                video_track_present,
+                &video_track,
+                output_width,
+                output_height,
+            );
 
             let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
             let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
@@ -1134,8 +1270,11 @@ impl MpvManager {
                 dropped_frames,
                 stream_pos,
                 path,
-                video_width,
-                video_height,
+                video_width: output_status.width,
+                video_height: output_status.height,
+                video_track: output_status.video_track,
+                has_video: output_status.has_video,
+                video_ready: output_status.ready,
                 current_aid,
                 current_sid,
                 eof_reached,
@@ -1384,6 +1523,83 @@ mod tests {
         let result = copy_bgr0_samples(&data, 2, 2, 10, &[(1, 1), (0, 0)]).unwrap();
         assert_eq!(result, vec![13, 14, 15, 1, 2, 3]);
         assert!(copy_bgr0_samples(&data, 2, 2, 10, &[(2, 0)]).is_err());
+    }
+
+    #[test]
+    fn video_output_status_requires_matching_path_track_and_dimensions() {
+        let ready = video_output_status_from_properties(
+            "movie.mkv",
+            "movie.mkv",
+            Some(true),
+            "1",
+            1920.0,
+            1080.0,
+        );
+        assert_eq!(
+            ready,
+            VideoOutputStatus {
+                width: 1920,
+                height: 1080,
+                video_track: Some(true),
+                has_video: true,
+                ready: true,
+            }
+        );
+        assert!(
+            !video_output_status_from_properties(
+                "movie.mkv",
+                "other.mkv",
+                Some(true),
+                "1",
+                1920.0,
+                1080.0,
+            )
+            .ready
+        );
+        assert!(
+            !video_output_status_from_properties(
+                "movie.mkv",
+                "movie.mkv",
+                Some(true),
+                "no",
+                1920.0,
+                1080.0,
+            )
+            .ready
+        );
+        assert!(
+            !video_output_status_from_properties(
+                "movie.mkv",
+                "movie.mkv",
+                None,
+                "1",
+                1920.0,
+                1080.0,
+            )
+            .ready
+        );
+        assert!(
+            !video_output_status_from_properties(
+                "movie.mkv",
+                "movie.mkv",
+                Some(true),
+                "1",
+                0.0,
+                1080.0,
+            )
+            .ready
+        );
+        assert!(
+            !video_output_status_from_properties(
+                "movie.mkv",
+                "movie.mkv",
+                Some(true),
+                "1",
+                f64::NAN,
+                f64::INFINITY,
+            )
+            .ready
+        );
     }
 
     #[test]

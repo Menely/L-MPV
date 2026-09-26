@@ -8,6 +8,7 @@ use super::dir_scan::{
 };
 use super::history::{
     apply_resume_start, save_current_playback_position,
+    save_history_to_disk,
 };
 use super::playlist::populate_folder_playlist;
 use super::tracks::load_external_tracks_internal;
@@ -51,14 +52,15 @@ pub fn open_file_internal(
     path: &str,
     app: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
-    // Сохранение позиции предыдущего файла: только память + дебаунс диска.
+    // Сохранение позиции предыдущего файла перед открытием нового
     save_current_playback_position(state);
+    save_history_to_disk();
 
     let target_path = std::path::PathBuf::from(path);
     let safe_target = escape_mpv_path(path);
     // Единственная точка resume: выставляем `start` ДО loadfile,
     // фронтенд второго seek не делает.
-    let expected_start = apply_resume_start(state, path);
+    let _ = apply_resume_start(state, path);
 
     // Путь, игравший до loadfile: нужен фоновой задаче, чтобы отличить
     // «новый файл ещё грузится» от «пользователь уже переключил дальше».
@@ -67,7 +69,7 @@ pub fn open_file_internal(
         .get_property_string("path")
         .unwrap_or_default();
 
-    // 1. Мгновенно запускаем воспроизведение выбранного файла
+    // 1. Мгновенно запускаем воспроизведение выбранного файла.
     state.mpv.command(&format!(
         "loadfile \"{}\" replace",
         safe_target
@@ -80,7 +82,7 @@ pub fn open_file_internal(
     let auto_select_external_audio =
         settings.auto_select_external_audio;
 
-    // 2. Всё тяжёлое — в фон: внешние дорожки, плейлист, сброс `start`.
+    // 2. Всё тяжёлое — в фон: внешние дорожки и плейлист.
     // Новое поколение отменяет устаревшую задачу прошлого открытия.
     let generation = next_open_generation();
     let bg_mpv = state.mpv.clone();
@@ -113,21 +115,6 @@ pub fn open_file_internal(
                 &target_path,
                 bg_app.as_ref(),
             );
-
-            // Сбрасываем параметр "start" в "none", чтобы следующие треки
-            // плейлиста стартовали с начала — но только если его никто не
-            // перезаписал (быстрая навигация Next/Prev выставила свой) и
-            // поколение не сменилось (открыли файл новее).
-            if current_open_generation() == generation {
-                let still_ours = bg_mpv
-                    .get_property_string("start")
-                    .map(|v| v == expected_start)
-                    .unwrap_or(false);
-                if still_ours {
-                    let _ = bg_mpv
-                        .set_property_string("start", "none");
-                }
-            }
         });
 
     // 3. Переоценка Ambient Light под новое видео (авто-отключение без
@@ -487,6 +474,9 @@ pub fn get_media_info(
     let mpv = &state.mpv;
     let current_path =
         mpv.get_property_string("path").unwrap_or_default();
+    // Размеры окна можно использовать только после того, как проверяемые
+    // свойства относятся к тому же файлу, что и текущий путь.
+    let output_status = mpv.video_output_status_for(&current_path);
 
     Ok(MediaInfo {
         path: current_path,
@@ -505,44 +495,11 @@ pub fn get_media_info(
         fps: mpv
             .get_property_double("container-fps")
             .unwrap_or(0.0),
-        width: {
-            let dw = mpv
-                .get_property_double("video-params/dw")
-                .unwrap_or(0.0);
-            if dw > 0.0 {
-                dw as i64
-            } else {
-                let dwidth = mpv
-                    .get_property_double("dwidth")
-                    .unwrap_or(0.0);
-                if dwidth > 0.0 {
-                    dwidth as i64
-                } else {
-                    mpv.get_property_double("width")
-                        .unwrap_or(0.0)
-                        as i64
-                }
-            }
-        },
-        height: {
-            let dh = mpv
-                .get_property_double("video-params/dh")
-                .unwrap_or(0.0);
-            if dh > 0.0 {
-                dh as i64
-            } else {
-                let dheight = mpv
-                    .get_property_double("dheight")
-                    .unwrap_or(0.0);
-                if dheight > 0.0 {
-                    dheight as i64
-                } else {
-                    mpv.get_property_double("height")
-                        .unwrap_or(0.0)
-                        as i64
-                }
-            }
-        },
+        width: output_status.width,
+        height: output_status.height,
+        video_track: output_status.video_track,
+        has_video: output_status.has_video,
+        video_ready: output_status.ready,
         video_codec: mpv
             .get_property_string("video-codec")
             .unwrap_or_default(),
@@ -627,23 +584,14 @@ pub fn get_playback_state(
     state.mpv.get_playback_state_snapshot()
 }
 
-/// Получение только точных размеров видео
+/// Получение фактических размеров сконфигурированного видеовыхода.
 #[tauri::command]
 pub fn get_video_dimensions(
     state: State<'_, PlayerState>,
 ) -> Result<(i64, i64), String> {
     let mpv = &state.mpv;
-    let w = mpv
-        .get_property_double("video-params/dw")
-        .unwrap_or_else(|_| {
-            mpv.get_property_double("width")
-                .unwrap_or(0.0)
-        }) as i64;
-    let h = mpv
-        .get_property_double("video-params/dh")
-        .unwrap_or_else(|_| {
-            mpv.get_property_double("height")
-                .unwrap_or(0.0)
-        }) as i64;
-    Ok((w, h))
+    let current_path =
+        mpv.get_property_string("path").unwrap_or_default();
+    let status = mpv.video_output_status_for(&current_path);
+    Ok((status.width, status.height))
 }

@@ -1,5 +1,6 @@
 use crate::ambient_sampler::{
-    build_segment_sample_points, sample_bgr_samples, temporal_attack_release, Oklab,
+    apply_vibrance, build_segment_sample_points, mean_luma, sample_bgr_samples,
+    spatial_smooth_segments, suppress_dark_noise, temporal_attack_release, Oklab,
     MAX_SEGMENT_COUNT, MIN_SEGMENT_COUNT,
 };
 use crate::mpv_manager::MpvManager;
@@ -14,6 +15,16 @@ pub use crate::ambient_sampler::SampleWidths as AmbientSampleWidths;
 
 const MIN_SMOOTHING_ATTACK_MS: u32 = 50;
 const MIN_SMOOTHING_RELEASE_MS: u32 = 100;
+/// Проходов пространственного сглаживания между соседними сегментами.
+const SPATIAL_SMOOTH_PASSES: u32 = 2;
+/// Ниже этой средней светлоты грань считается «тёмной» и шум в ней гасится.
+const DARK_NOISE_LUMA_THRESHOLD: f32 = 0.035;
+/// Усиление малонасыщенных цветов (vibrance), 0..1.
+const VIBRANCE_AMOUNT: f32 = 0.22;
+/// Скачок средней светлоты, после которого сцена считается сменой.
+const SCENE_CUT_LUMA_JUMP: f32 = 0.12;
+/// Время атаки при обнаруженной смене сцены.
+const SCENE_CUT_ATTACK_MS: f32 = 60.0;
 
 fn default_segment_count() -> u8 {
     7
@@ -215,6 +226,10 @@ pub struct AmbientPalette {
     pub gap: f32,
     pub attack_ms: u32,
     pub release_ms: u32,
+    /// Размер OSD в пикселях, в котором заданы доли `top/right/bottom/left`.
+    /// Фронтенд использует его, чтобы маска свечения точно совпала с кадром.
+    pub osd_width: f32,
+    pub osd_height: f32,
 }
 
 impl Default for AmbientPalette {
@@ -233,6 +248,8 @@ impl Default for AmbientPalette {
             gap: default_segment_gap(),
             attack_ms: default_smoothing_attack_ms(),
             release_ms: default_smoothing_release_ms(),
+            osd_width: 0.0,
+            osd_height: 0.0,
         }
     }
 }
@@ -253,6 +270,8 @@ impl AmbientPalette {
             gap: settings.segment_gap,
             attack_ms: settings.smoothing_attack_ms,
             release_ms: settings.smoothing_release_ms,
+            osd_width: 0.0,
+            osd_height: 0.0,
         }
     }
 }
@@ -815,6 +834,19 @@ fn ambient_worker(mpv: Arc<MpvManager>, runtime: Arc<AmbientRuntime>) {
             .map(|value| now.duration_since(value).as_secs_f32() * 1000.0)
             .unwrap_or(0.0);
         let reset = smooth_generation != Some(generation) || smoothed.len() != target.len();
+        // Смена сцены: при большом скачке светлоты ускоряем атаку, иначе
+        // свечение «отстаёт» от резкой смены кадра.
+        let attack_ms = if reset {
+            settings.smoothing_attack_ms as f32
+        } else {
+            let previous_mean = mean_luma(&smoothed);
+            let target_mean = mean_luma(&target);
+            if (target_mean - previous_mean).abs() > SCENE_CUT_LUMA_JUMP {
+                SCENE_CUT_ATTACK_MS.min(settings.smoothing_attack_ms as f32)
+            } else {
+                settings.smoothing_attack_ms as f32
+            }
+        };
         if reset {
             smoothed = target;
             smooth_generation = Some(generation);
@@ -824,10 +856,16 @@ fn ambient_worker(mpv: Arc<MpvManager>, runtime: Arc<AmbientRuntime>) {
                     smoothed[index],
                     value,
                     delta_ms,
-                    settings.smoothing_attack_ms as f32,
+                    attack_ms,
                     settings.smoothing_release_ms as f32,
                 );
             }
+        }
+        // Пространственное сглаживание убирает «ступеньки» между сегментами,
+        // подавление тёмного шума — дрожание на почти чёрных сценах.
+        if smoothed.len() == segment_count * 4 {
+            spatial_smooth_segments(&mut smoothed, segment_count, SPATIAL_SMOOTH_PASSES);
+            suppress_dark_noise(&mut smoothed, segment_count, DARK_NOISE_LUMA_THRESHOLD);
         }
         let mut colors = Vec::with_capacity(smoothed.len() * 3);
         for value in &smoothed {
@@ -836,6 +874,7 @@ fn ambient_worker(mpv: Arc<MpvManager>, runtime: Arc<AmbientRuntime>) {
                 settings.brightness as f32,
                 settings.saturation as f32,
             );
+            let adjusted = apply_vibrance(adjusted, VIBRANCE_AMOUNT);
             colors.extend_from_slice(&crate::ambient_sampler::oklab_to_rgb_bytes(adjusted));
         }
         let thickness = geometry.edge_thickness();
@@ -853,6 +892,8 @@ fn ambient_worker(mpv: Arc<MpvManager>, runtime: Arc<AmbientRuntime>) {
             gap: settings.segment_gap,
             attack_ms: settings.smoothing_attack_ms,
             release_ms: settings.smoothing_release_ms,
+            osd_width: geometry.display_width,
+            osd_height: geometry.display_height,
         };
         if generation == runtime.current_generation() && runtime.is_active() {
             runtime.publish(palette);
@@ -940,12 +981,15 @@ mod tests {
             gap: 0.0,
             attack_ms: 100,
             release_ms: 400,
+            osd_width: 1920.0,
+            osd_height: 1080.0,
         };
         let value = serde_json::to_value(palette).unwrap();
         let object = value.as_object().unwrap();
-        assert_eq!(object.len(), 13);
+        assert_eq!(object.len(), 15);
         assert_eq!(object["colors"].as_array().unwrap().len(), 36);
         assert_eq!(object["generation"], 4);
+        assert_eq!(object["osd_width"], 1920.0);
     }
 
     #[test]

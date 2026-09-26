@@ -9,6 +9,7 @@ use super::dir_scan::{
 };
 use super::history::{
     apply_resume_start, save_current_playback_position,
+    save_history_to_disk,
 };
 use super::types::{
     escape_mpv_path, is_video_extension, natural_cmp,
@@ -23,12 +24,13 @@ pub fn playlist_prev(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
     save_current_playback_position(&state);
+    save_history_to_disk();
     let (pos, _) = playlist_position(&state.mpv);
     if let Some(target) =
         playlist_filename_at(&state.mpv, pos - 1)
     {
         // Единственная точка resume: фронтенд второго seek не делает.
-        apply_resume_start(&state, &target);
+        let _ = apply_resume_start(&state, &target);
     }
     state.mpv.command("playlist-prev")?;
     state.ambient_controller.invalidate();
@@ -41,11 +43,12 @@ pub fn playlist_next(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
     save_current_playback_position(&state);
+    save_history_to_disk();
     let (pos, _) = playlist_position(&state.mpv);
     if let Some(target) =
         playlist_filename_at(&state.mpv, pos + 1)
     {
-        apply_resume_start(&state, &target);
+        let _ = apply_resume_start(&state, &target);
     }
     state.mpv.command("playlist-next")?;
     state.ambient_controller.invalidate();
@@ -156,10 +159,11 @@ pub fn play_playlist_item(
         return Ok(());
     }
     save_current_playback_position(&state);
+    save_history_to_disk();
     if let Some(target) =
         playlist_filename_at(&state.mpv, index)
     {
-        apply_resume_start(&state, &target);
+        let _ = apply_resume_start(&state, &target);
     }
     state
         .mpv

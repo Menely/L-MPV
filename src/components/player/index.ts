@@ -9,3 +9,4 @@ export { ContextMenu } from "./ContextMenu";
 export { PlaylistDrawer } from "./PlaylistDrawer";
 export * from "./AudioVisualizer";
 export * from "./AmbilightCanvas";
+export * from "./ambilightRender";

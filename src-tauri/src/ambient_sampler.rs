@@ -6,6 +6,12 @@ pub const MIN_SEGMENT_COUNT: usize = 3;
 pub const MAX_SEGMENT_COUNT: usize = 16;
 pub const MIN_SAMPLE_WIDTH: u8 = 1;
 pub const MAX_SAMPLE_WIDTH: u8 = 15;
+/// Количество выборок вдоль сегмента (равномерно по его длине).
+pub const ALONG_SAMPLE_COUNT: usize = 5;
+/// Количество выборок вглубь от края кадра.
+pub const DEPTH_SAMPLE_COUNT: usize = 4;
+/// Итоговое количество выборок на один сегмент.
+pub const SAMPLES_PER_SEGMENT: usize = ALONG_SAMPLE_COUNT * DEPTH_SAMPLE_COUNT;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(default)]
@@ -410,6 +416,124 @@ pub fn apply_brightness_saturation(
     }
 }
 
+/// Средняя светлота палитры (используется для детекции сцен и нормализации).
+pub fn mean_luma(values: &[Oklab]) -> f32 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    let total: f32 = values.iter().map(|value| value.l).sum();
+    let mean = total / values.len() as f32;
+    if mean.is_finite() {
+        mean.clamp(0.0, 1.5)
+    } else {
+        0.0
+    }
+}
+
+/// Пространственное сглаживание между соседними сегментами одной грани.
+///
+/// Каждый сегмент смешивается со своими соседями симметричным ядром [1, 2, 1]/4
+/// (с зеркалированием на краях грани). Несколько проходов дают плавный
+/// переход между сегментами без «ступенек», как в LED-лентах Ambilight.
+pub fn spatial_smooth_segments(values: &mut [Oklab], segment_count: usize, passes: u32) {
+    if segment_count < 2 || values.len() < segment_count * EDGE_COUNT {
+        return;
+    }
+    let mut scratch = vec![Oklab { l: 0.0, a: 0.0, b: 0.0 }; values.len()];
+    for _ in 0..passes.max(1) {
+        for edge in 0..EDGE_COUNT {
+            let start = edge * segment_count;
+            let end = start + segment_count;
+            let slice = &values[start..end];
+            let target = &mut scratch[start..end];
+            for index in 0..segment_count {
+                let previous = if index == 0 {
+                    slice[0]
+                } else {
+                    slice[index - 1]
+                };
+                let current = slice[index];
+                let next = if index + 1 >= segment_count {
+                    slice[segment_count - 1]
+                } else {
+                    slice[index + 1]
+                };
+                target[index] = Oklab {
+                    l: (previous.l + current.l * 2.0 + next.l) * 0.25,
+                    a: (previous.a + current.a * 2.0 + next.a) * 0.25,
+                    b: (previous.b + current.b * 2.0 + next.b) * 0.25,
+                };
+            }
+        }
+        values.copy_from_slice(&scratch);
+    }
+}
+
+/// Подавление шума в почти чёрных сценах.
+///
+/// Если грань в среднем темнее `luma_threshold`, её сегменты подтягиваются к
+/// среднему цвету грани: это убирает дрожание на статичных тёмных участках
+/// (ночные сцены, чёрные полосы внутри кадра), не влияя на обычные сцены.
+pub fn suppress_dark_noise(values: &mut [Oklab], segment_count: usize, luma_threshold: f32) {
+    if segment_count == 0 || values.len() < segment_count * EDGE_COUNT {
+        return;
+    }
+    let threshold = if luma_threshold.is_finite() {
+        luma_threshold.clamp(0.0, 0.2)
+    } else {
+        return;
+    };
+    for edge in 0..EDGE_COUNT {
+        let start = edge * segment_count;
+        let end = start + segment_count;
+        let slice = &mut values[start..end];
+        let mean = mean_luma(slice);
+        if mean >= threshold {
+            continue;
+        }
+        let strength = if threshold <= 0.0 {
+            0.0
+        } else {
+            1.0 - mean / threshold
+        };
+        let mean_color = Oklab {
+            l: mean,
+            a: slice.iter().map(|value| value.a).sum::<f32>() / segment_count as f32,
+            b: slice.iter().map(|value| value.b).sum::<f32>() / segment_count as f32,
+        };
+        for value in slice.iter_mut() {
+            value.l += (mean_color.l - value.l) * strength * 0.6;
+            value.a += (mean_color.a - value.a) * strength * 0.6;
+            value.b += (mean_color.b - value.b) * strength * 0.6;
+        }
+    }
+}
+
+/// Vibrance: усиление малонасыщенных цветов без «пересола» уже ярких.
+///
+/// Классический приём из видеообработки: чем ближе цвет к серому, тем сильнее
+/// он поднимается по насыщенности; уже насыщенные цвета почти не меняются.
+pub fn apply_vibrance(value: Oklab, amount: f32) -> Oklab {
+    let amount = if amount.is_finite() {
+        amount.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    if amount <= 0.0 {
+        return value;
+    }
+    let chroma = (value.a * value.a + value.b * value.b).sqrt();
+    if !chroma.is_finite() || chroma < 1.0e-5 {
+        return value;
+    }
+    let boost = 1.0 + amount * (1.0 - chroma.clamp(0.0, 1.0));
+    Oklab {
+        l: value.l,
+        a: value.a * boost,
+        b: value.b * boost,
+    }
+}
+
 fn build_spans(
     start: f32,
     length: f32,
@@ -562,8 +686,14 @@ fn sample_bgr_pixel(
     ])
 }
 
-pub fn sample_weights_along_segment() -> [f32; 3] {
-    [1.0, 2.0, 1.0]
+/// Нормированные веса выборок вдоль сегмента (гауссов профиль, симметричный).
+pub fn sample_along_weights() -> [f32; ALONG_SAMPLE_COUNT] {
+    [1.0, 2.0, 3.0, 2.0, 1.0]
+}
+
+/// Позиции выборок вдоль сегмента (0..1), без захвата самых краёв.
+pub fn sample_along_fractions() -> [f32; ALONG_SAMPLE_COUNT] {
+    [0.1, 0.3, 0.5, 0.7, 0.9]
 }
 
 pub fn sample_depth_fractions() -> [f32; 4] {
@@ -582,7 +712,7 @@ fn segment_sample_points(
     sample_count: u8,
 ) -> Result<Vec<(usize, usize)>, String> {
     let sample_percent = sample_count.clamp(MIN_SAMPLE_WIDTH, MAX_SAMPLE_WIDTH) as f32;
-    let along = [0.25f32, 0.5, 0.75];
+    let along_fractions = sample_along_fractions();
     let depth_fractions = sample_depth_fractions();
     let cross_length = match span.edge {
         AmbientEdge::Top | AmbientEdge::Bottom => video_rect.height,
@@ -593,11 +723,11 @@ fn segment_sample_points(
         .round()
         .max(1.0)
         .min(cross_length);
-    let mut result = Vec::with_capacity(depth_fractions.len() * along.len());
+    let mut result = Vec::with_capacity(SAMPLES_PER_SEGMENT);
     for depth_ratio in depth_fractions {
         let depth_value = depth_ratio * sample_depth;
-        for along_value in along {
-            let coordinate = span.position(along_value);
+        for along_ratio in along_fractions {
+            let coordinate = span.position(along_ratio);
             let point = match span.edge {
                 AmbientEdge::Top => (coordinate, video_rect.y + depth_value),
                 AmbientEdge::Right => (video_rect.x + video_rect.width - depth_value, coordinate),
@@ -622,7 +752,7 @@ pub fn build_segment_sample_points(
         .ok_or_else(|| "Некорректный размер кадра BGR0".to_string())?;
     let geometry = build_strip_geometry(video_rect, segment_count, 100.0, 0.0)
         .ok_or_else(|| "Некорректная геометрия полос".to_string())?;
-    let mut result = Vec::with_capacity(segment_count * EDGE_COUNT * 12);
+    let mut result = Vec::with_capacity(segment_count * EDGE_COUNT * SAMPLES_PER_SEGMENT);
     for span in &geometry.top {
         result.extend(segment_sample_points(
             video_rect,
@@ -671,13 +801,13 @@ fn aggregate_segment(
     sample_count: u8,
 ) -> Result<Oklab, String> {
     let points = segment_sample_points(video_rect, frame_width, frame_height, span, sample_count)?;
-    let along_weights = sample_weights_along_segment();
+    let along_weights = sample_along_weights();
     let depth_weights = sample_depth_weights();
     let mut samples = Vec::with_capacity(points.len());
     for (index, (x, y)) in points.into_iter().enumerate() {
         let rgb = sample_bgr_pixel(frame, frame_width, frame_height, x, y)?;
-        let depth_index = index / 3;
-        let along_index = index % 3;
+        let depth_index = index / ALONG_SAMPLE_COUNT;
+        let along_index = index % ALONG_SAMPLE_COUNT;
         samples.push((
             srgb_to_oklab(rgb),
             along_weights[along_index] * depth_weights[depth_index],
@@ -756,7 +886,7 @@ pub fn sample_bgr_samples(samples: &[u8], segment_count: usize) -> Result<Vec<Ok
     if segment_count < MIN_SEGMENT_COUNT || segment_count > MAX_SEGMENT_COUNT {
         return Err("Некорректное количество Ambient сегментов".to_string());
     }
-    let samples_per_segment = sample_depth_fractions().len() * 3;
+    let samples_per_segment = SAMPLES_PER_SEGMENT;
     let required = segment_count
         .checked_mul(EDGE_COUNT)
         .and_then(|value| value.checked_mul(samples_per_segment))
@@ -769,7 +899,7 @@ pub fn sample_bgr_samples(samples: &[u8], segment_count: usize) -> Result<Vec<Ok
             samples.len()
         ));
     }
-    let along_weights = sample_weights_along_segment();
+    let along_weights = sample_along_weights();
     let depth_weights = sample_depth_weights();
     let mut result = Vec::with_capacity(segment_count * EDGE_COUNT);
     for segment in 0..segment_count * EDGE_COUNT {
@@ -783,7 +913,8 @@ pub fn sample_bgr_samples(samples: &[u8], segment_count: usize) -> Result<Vec<Ok
                     samples[offset + 1] as f32 / 255.0,
                     samples[offset] as f32 / 255.0,
                 ]),
-                along_weights[index % 3] * depth_weights[index / 3],
+                along_weights[index % ALONG_SAMPLE_COUNT]
+                    * depth_weights[index / ALONG_SAMPLE_COUNT],
             ));
         }
         result.push(
@@ -954,9 +1085,50 @@ mod tests {
 
     #[test]
     fn sample_weights_favor_segment_center_and_edge() {
-        assert_eq!(sample_weights_along_segment(), [1.0, 2.0, 1.0]);
+        assert_eq!(sample_along_weights(), [1.0, 2.0, 3.0, 2.0, 1.0]);
+        assert_eq!(sample_along_fractions(), [0.1, 0.3, 0.5, 0.7, 0.9]);
         assert_eq!(sample_depth_fractions(), [0.125, 0.375, 0.625, 0.875]);
         assert_eq!(sample_depth_weights(), [1.0, 2.0 / 3.0, 1.0 / 3.0, 0.2]);
+        assert_eq!(SAMPLES_PER_SEGMENT, 20);
+    }
+
+    #[test]
+    fn spatial_smoothing_removes_segment_steps() {
+        let mut values = vec![
+            Oklab { l: 0.0, a: 0.0, b: 0.0 },
+            Oklab { l: 1.0, a: 0.0, b: 0.0 },
+            Oklab { l: 0.0, a: 0.0, b: 0.0 },
+        ];
+        values.extend_from_slice(&[Oklab { l: 0.5, a: 0.0, b: 0.0 }; 9]);
+        spatial_smooth_segments(&mut values, 3, 2);
+        // Пик сглажен, среднее сохранено (зеркалирование сохраняет сумму).
+        assert!(values[1].l < 1.0);
+        assert!(values[0].l > 0.0);
+        let sum: f32 = values.iter().map(|value| value.l).sum();
+        assert!((sum - 5.5).abs() < 0.0001, "сумма {} != 5.5", sum);
+    }
+
+    #[test]
+    fn dark_noise_suppression_pulls_segments_to_edge_mean() {
+        let mut values = vec![
+            Oklab { l: 0.001, a: 0.05, b: -0.04 },
+            Oklab { l: 0.003, a: -0.05, b: 0.05 },
+            Oklab { l: 0.002, a: 0.0, b: 0.0 },
+        ];
+        values.extend_from_slice(&[Oklab { l: 0.5, a: 0.1, b: 0.1 }; 9]);
+        suppress_dark_noise(&mut values, 3, 0.05);
+        let chroma: f32 = values[0..3].iter().map(|value| value.a.abs()).sum();
+        assert!(chroma < 0.15, "хроматический шум должен быть подавлен: {}", chroma);
+    }
+
+    #[test]
+    fn vibrance_boosts_gray_more_than_saturated() {
+        let gray = Oklab { l: 0.5, a: 0.01, b: 0.0 };
+        let vivid = Oklab { l: 0.5, a: 0.25, b: 0.05 };
+        let gray_boost = apply_vibrance(gray, 0.4).a / gray.a;
+        let vivid_boost = apply_vibrance(vivid, 0.4).a / vivid.a;
+        assert!(gray_boost > vivid_boost);
+        assert!(gray_boost > 1.0);
     }
 
     #[test]

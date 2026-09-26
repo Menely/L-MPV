@@ -412,6 +412,15 @@ function App() {
 
   const isWindowRevealedRef = useRef(false);
 
+  const revealWindow = useCallback(async () => {
+    if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
+      isWindowRevealedRef.current = true;
+      try {
+        await getCurrentWindow().show();
+      } catch {}
+    }
+  }, []);
+
   // ─── Автоматическая подгонка окна под размер и пропорции видео ───
   const resizeWindowForVideo = useCallback(async (w: number, h: number) => {
     try {
@@ -459,20 +468,14 @@ function App() {
       }
 
       // Показываем окно строго ПОСЛЕ изменения размера и готовности первого кадра
-      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-        isWindowRevealedRef.current = true;
-        await appWindow.show();
-      }
+      await revealWindow();
       return true;
     } catch (e) {
       console.error("Ошибка при изменении размера окна:", e);
-      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-        isWindowRevealedRef.current = true;
-        getCurrentWindow().show().catch(() => {});
-      }
+      await revealWindow();
     }
     return false;
-  }, []);
+  }, [revealWindow]);
 
   // Флаг того, что начальный размер окна под первое видео в текущей сессии уже был применён
   const hasInitialVideoSizedRef = useRef<boolean>(false);
@@ -484,22 +487,16 @@ function App() {
       // или хотлоад дорожек/субтитров не сбрасывает размер окна, сохраняя выбор пользователя.
       if (!hasInitialVideoSizedRef.current) {
         hasInitialVideoSizedRef.current = true;
-        resizeWindowForVideo(mediaInfo.width, mediaInfo.height);
+        void resizeWindowForVideo(mediaInfo.width, mediaInfo.height);
       } else {
         // Окно уже было спозиционировано под первое видео — просто гарантируем видимость
-        if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-          isWindowRevealedRef.current = true;
-          getCurrentWindow().show().catch(() => {});
-        }
+        revealWindow();
       }
     } else if (mediaInfo?.path) {
-      // Аудиофайл или файл без видеоряда
-      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-        isWindowRevealedRef.current = true;
-        getCurrentWindow().show().catch(() => {});
-      }
+      // Аудиофайл или файл без видеоряда: список дорожек уже известен и видео в нём нет.
+      revealWindow();
     }
-  }, [mediaInfo?.path, mediaInfo?.width, mediaInfo?.height, resizeWindowForVideo]);
+  }, [mediaInfo?.path, mediaInfo?.width, mediaInfo?.height, resizeWindowForVideo, revealWindow]);
 
   // Автоматическое применение AI Upscaling при загрузке нового файла
   useEffect(() => {
@@ -525,10 +522,7 @@ function App() {
         isStandaloneModeRef.current = isStandalone;
         if (!isStandalone) {
           timer = window.setTimeout(() => {
-            if (!isWindowRevealedRef.current) {
-              isWindowRevealedRef.current = true;
-              getCurrentWindow().show().catch(() => {});
-            }
+            revealWindow();
           }, 1500);
         }
       })
@@ -537,7 +531,7 @@ function App() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, []);
+  }, [revealWindow]);
 
   // ─── Отображение OSD кадра в левом верхнем углу ────
   const triggerFrameOsd = useCallback(async () => {
