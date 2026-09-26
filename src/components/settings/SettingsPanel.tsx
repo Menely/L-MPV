@@ -144,10 +144,12 @@ function SectionBlock({ id, Icon, label, isMounted, children }: SectionBlockProp
   return (
     <div id={id} className="settings-section-block" data-settings-section={id}>
       <div className="settings-section-anchor">
-        <Icon size={14} />
+        <Icon size={15} />
         {label}
       </div>
-      {isMounted ? children : <div className="settings-section-placeholder" aria-hidden="true" />}
+      <div className="settings-section-content">
+        {isMounted ? children : <div className="settings-section-placeholder" aria-hidden="true" />}
+      </div>
     </div>
   );
 }
@@ -245,35 +247,48 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
         const scale = Math.max(0.5, getActiveUiScale());
         const viewportWidth = window.innerWidth;
         const layoutViewportWidth = viewportWidth / scale;
+        const radiusValue = Number.parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue("--radius-controls"),
+        );
+        const panelInset = Number.isFinite(radiusValue)
+          ? Math.min(24, Math.max(0, radiusValue * 0.5))
+          : 8;
         const width = layoutViewportWidth <= 768
-          ? layoutViewportWidth
+          ? Math.max(0, layoutViewportWidth - panelInset)
           : Math.min(720, Math.max(560, layoutViewportWidth * 0.64));
-        const available = Math.max(0, layoutViewportWidth - width);
+        const rightEdge = width + panelInset;
+        const available = Math.max(0, layoutViewportWidth - rightEdge);
         document.body.style.setProperty("--settings-panel-css-width", `${width}px`);
-        document.body.style.setProperty("--settings-panel-offset", `${width}px`);
-        document.body.style.setProperty("--settings-controls-left", `${width + 14}px`);
+        document.body.style.setProperty("--settings-panel-top-inset", `${panelInset}px`);
+        document.body.style.setProperty("--settings-panel-left-inset", `${panelInset}px`);
+        document.body.style.setProperty("--settings-panel-offset", `${rightEdge}px`);
+        document.body.style.setProperty("--settings-controls-left", `${rightEdge + 14}px`);
         document.body.style.setProperty("--settings-controls-width", `${Math.max(0, available - 28)}px`);
-        document.body.style.setProperty("--settings-docked-left", `${width}px`);
+        document.body.style.setProperty("--settings-docked-left", `${rightEdge}px`);
         document.body.style.setProperty("--settings-docked-width", `${available}px`);
       };
 
     updateLayout();
     const observer = new ResizeObserver(updateLayout);
     observer.observe(panel);
-    window.addEventListener("resize", updateLayout);
-    window.addEventListener("l-mpv-ui-scale-changed", updateLayout);
+     window.addEventListener("resize", updateLayout);
+     window.addEventListener("l-mpv-ui-scale-changed", updateLayout);
+     window.addEventListener("l-mpv-ui-radius-changed", updateLayout);
 
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateLayout);
-      window.removeEventListener("l-mpv-ui-scale-changed", updateLayout);
-      document.body.style.removeProperty("--settings-panel-css-width");
-      document.body.style.removeProperty("--settings-panel-offset");
-      document.body.style.removeProperty("--settings-controls-left");
-      document.body.style.removeProperty("--settings-controls-width");
-      document.body.style.removeProperty("--settings-docked-left");
-      document.body.style.removeProperty("--settings-docked-width");
-    };
+     return () => {
+       observer.disconnect();
+       window.removeEventListener("resize", updateLayout);
+       window.removeEventListener("l-mpv-ui-scale-changed", updateLayout);
+       window.removeEventListener("l-mpv-ui-radius-changed", updateLayout);
+       document.body.style.removeProperty("--settings-panel-css-width");
+       document.body.style.removeProperty("--settings-panel-top-inset");
+       document.body.style.removeProperty("--settings-panel-left-inset");
+       document.body.style.removeProperty("--settings-panel-offset");
+       document.body.style.removeProperty("--settings-controls-left");
+       document.body.style.removeProperty("--settings-controls-width");
+       document.body.style.removeProperty("--settings-docked-left");
+       document.body.style.removeProperty("--settings-docked-width");
+     };
   }, []);
 
   // Навигация клавишами

@@ -128,6 +128,7 @@ export function ContextMenuSettingsTab() {
   );
   const [saved, setSaved] = useState(true);
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const [activeOverlaySize, setActiveOverlaySize] = useState<{ width: number; height: number } | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isSelfUpdateRef = useRef(false);
   const entriesRef = useRef(entries);
@@ -291,14 +292,20 @@ export function ContextMenuSettingsTab() {
   // ── Обработчики перетаскивания ──────────────────────────────────────────
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
+    const initialRect = event.active.rect.current.initial;
+    const width = initialRect?.width || 0;
+    const height = initialRect?.height || 0;
+    setActiveOverlaySize(width > 0 && height > 0 ? { width, height } : null);
     setActiveId(event.active.id);
   }, []);
 
   const handleDragCancel = useCallback(() => {
+    setActiveOverlaySize(null);
     setActiveId(null);
   }, []);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
+    setActiveOverlaySize(null);
     setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -469,8 +476,18 @@ export function ContextMenuSettingsTab() {
             </SortableContext>
 
             <DragOverlay dropAnimation={null}>
-              {activeEntry ? (
-                <div style={{ pointerEvents: "none", cursor: "grabbing" }}>
+              {activeEntry && activeOverlaySize ? (
+                <div
+                  className="cmenu-editor__drag-overlay"
+                  style={{
+                    pointerEvents: "none",
+                    cursor: "grabbing",
+                    width: activeOverlaySize.width,
+                    minHeight: activeOverlaySize.height,
+                    maxWidth: activeOverlaySize.width,
+                    boxSizing: "border-box",
+                  }}
+                >
                   <OverlayCard entry={activeEntry.entry} descriptor={activeDescriptor} />
                 </div>
               ) : null}

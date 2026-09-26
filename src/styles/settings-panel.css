@@ -1,6 +1,9 @@
 :root {
   --settings-panel-width: clamp(560px, 64vw, 720px);
   --settings-panel-css-width: var(--settings-panel-width);
+  --player-controls-bottom: 12px;
+  --settings-panel-top-inset: calc(var(--radius-controls, 16px) * 0.5);
+  --settings-panel-left-inset: calc(var(--radius-controls, 16px) * 0.5);
   --settings-panel-offset: 720px;
   --settings-controls-left: 734px;
   --settings-controls-width: calc(100% - 748px);
@@ -22,7 +25,7 @@
 
 .settings-side-panel {
   position: fixed;
-  inset: 0 auto 0 0;
+  inset: var(--settings-panel-top-inset, calc(var(--radius-controls, 16px) * 0.5)) auto var(--player-controls-bottom, 12px) var(--settings-panel-left-inset, 0px);
   width: var(--settings-panel-css-width);
   z-index: 9001;
   display: flex;
@@ -34,8 +37,10 @@
   background: var(--bg-glass, var(--bg-modal-solid, #11141c));
   backdrop-filter: var(--ui-backdrop, blur(16px));
   -webkit-backdrop-filter: var(--ui-backdrop, blur(16px));
-  border-right: 1px solid var(--border-pill);
-  box-shadow: 4px 0 40px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border);
+  border: 1px solid var(--border);
+  border-right-color: var(--border-pill);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.02);
   animation: settingsPanelIn 220ms var(--ease-out);
   transform-origin: left center;
   container-type: inline-size;
@@ -166,23 +171,69 @@
   scroll-behavior: smooth;
 }
 
-.settings-section-anchor {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0 8px;
-  margin-bottom: 10px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  scroll-margin-top: 8px;
+.settings-section-block {
+  position: relative;
+  min-width: 0;
+  padding-top: 8px;
+  margin-bottom: 32px;
 }
 
-.settings-section-block {
-  margin-bottom: 30px;
+.settings-section-anchor {
+  position: static;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 0 12px;
+  padding: 0 2px 10px;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(var(--accent-rgb, 127, 199, 255), 0.28);
+  border-radius: 0;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.settings-section-content {
+  position: relative;
+  display: flow-root;
+  min-width: 0;
+  padding-top: 12px;
+}
+
+.settings-section-content::before {
+  content: "";
+  position: absolute;
+  inset: 0 -10px -12px;
+  z-index: 0;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.012);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.28),
+    0 3px 10px rgba(0, 0, 0, 0.16);
+}
+
+.settings-section-content > * {
+  position: relative;
+  z-index: 1;
+}
+
+.settings-section-content > *:last-child,
+.settings-section-content > .modal__section > *:last-child {
+  margin-bottom: 0;
+}
+
+.settings-section-anchor > svg {
+  flex-shrink: 0;
+  color: var(--accent);
 }
 
 .settings-section-placeholder {
@@ -193,14 +244,22 @@
   opacity: 0.65;
 }
 
-.titlebar,
 .player-controls-wrapper,
 .player-controls-wrapper--docked {
   transition: left 220ms var(--ease-out), width 220ms var(--ease-out), opacity var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-out);
 }
 
-body.settings-open .titlebar {
-  left: var(--settings-panel-offset);
+.titlebar__left,
+.titlebar__center {
+  transition: transform 220ms var(--ease-out);
+}
+
+body.settings-open .titlebar__left {
+  transform: translateX(var(--settings-panel-offset, 0px));
+}
+
+body.settings-open .titlebar__center {
+  transform: translateX(calc(-50% + var(--settings-panel-offset, 0px)));
 }
 
 body.settings-open .player-controls-wrapper {
@@ -373,9 +432,13 @@ body.settings-open .player-controls-wrapper--docked {
     scroll-behavior: auto;
   }
 
-  .titlebar,
   .player-controls-wrapper,
   .player-controls-wrapper--docked {
+    transition: none;
+  }
+
+  .titlebar__left,
+  .titlebar__center {
     transition: none;
   }
 }

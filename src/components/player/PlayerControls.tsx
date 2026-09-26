@@ -251,12 +251,16 @@ export function PlayerControls({
       const controlsHeight = el.offsetHeight;
       // Зазор между панелью управления и всплывающими окнами (совпадает с 14px поповера дорожек)
       const GAP = 14;
-      const totalBottom = Math.max(76, Math.round(bottomBase + controlsHeight + GAP));
+       const totalBottom = Math.max(76, Math.round(bottomBase + controlsHeight + GAP));
 
-      document.documentElement.style.setProperty(
-        "--bottom-overlays-bottom",
-        `${totalBottom}px`
-      );
+       document.documentElement.style.setProperty(
+         "--player-controls-bottom",
+         `${bottomBase}px`
+       );
+       document.documentElement.style.setProperty(
+         "--bottom-overlays-bottom",
+         `${totalBottom}px`
+       );
     };
 
     updateControlsOffset();
@@ -269,8 +273,9 @@ export function PlayerControls({
     window.addEventListener("resize", updateControlsOffset);
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("resize", updateControlsOffset);
-      document.documentElement.style.removeProperty("--bottom-overlays-bottom");
+       window.removeEventListener("resize", updateControlsOffset);
+       document.documentElement.style.removeProperty("--player-controls-bottom");
+       document.documentElement.style.removeProperty("--bottom-overlays-bottom");
     };
   }, [controlBarStyle]);
 

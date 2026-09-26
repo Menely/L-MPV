@@ -1745,6 +1745,9 @@
 
 /* Карточка-оверлей при перетаскивании */
 .cmenu-entry--overlay {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5),
               0 0 0 2px var(--accent),
               0 0 20px rgba(127, 199, 255, 0.25);

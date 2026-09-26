@@ -14,9 +14,9 @@
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
-  <img src="https://img.shields.io/badge/Tauri-v2.1-blue?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri v2">
-  <img src="https://img.shields.io/badge/React-19.1-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19">
-  <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Tauri-v2-blue?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri v2">
+  <img src="https://img.shields.io/badge/React-19.3-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19">
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Rust-2021-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
   <img src="https://img.shields.io/badge/MPV-libmpv--2-red?style=for-the-badge&logo=mpv&logoColor=white" alt="libmpv">
   <img src="https://img.shields.io/badge/AI%20Upscale-4K%20DirectML%20%7C%20TensorRT-success?style=for-the-badge" alt="AI Upscale">
@@ -264,13 +264,28 @@
   - Детализированные интерактивные мини-превью плеера `148×64px` в Настройках с неоновой подсветкой активного выбора.
 - **Эргономичный редизайн вкладки «Кастом»:**
   - Верхний горизонтальный слайдер прозрачности интерфейса (от 20% до 100%).
-  - Симметричная трёхколоночная сетка: Скругление углов (карточки 2x2 + вертикальный ползунок) | Масштабирование UI Scale (карточки 2x2 + вертикальный ползунок + кнопка «A» авто-масштаба) | Шрифты (список 6 гарнитур + кастомные шрифты пользователя с кнопкой папки).
+  - Адаптивная сетка (3 колонки, при ширине панели ≤ 480px — одна колонка): Скругление углов (карточки 2x2 + компактный ползунок) | Масштабирование UI Scale (карточки 2x2 + ползунок + кнопка «A» авто-масштаба) | Шрифты (список 6 гарнитур + кастомные шрифты пользователя с кнопкой папки).
   - Нижний блок: стиль панели управления с мини-превью (слева) + компактные сетки выбора позиций времени (3x2) и формата времени (2x2) (справа).
 - **Динамическая система скругления углов (UI Corner Radius):** 4 уровня скругления (*Без скругления 0px*, *Умеренное 8px*, *Закругленное 14px*, *Овальное 20px/Pill*) с моментальным применением ко всем окнам, кнопкам и плашкам интерфейса.
 - **Плавающая панель управления:** минималистичная нижняя «таблетка» с акцентной подсветкой, быстрым доступом к аудио, субтитрам, главам, скриншотам, скорости и плейлисту.
 - **Мягкое контурное свечение (Vector Drop-Shadow):** филигранное рассеивание света строго по контуру векторных SVG-иконок с плавным градиентным угасанием без грубых круговых ареолов.
 - **Многоуровневая адаптивность (Container Queries):** многоступенчатое умное сжатие и скрытие подписей дорожек, компактное масштабирование аудио-визуализатора и второстепенных кнопок при сужении окна.
 - **Умное автоскрытие в Fullscreen:** возможность мгновенного скрытия всего интерфейса при подведении курсора к верхнему краю экрана.
+
+</details>
+
+<details>
+<summary><b>⚙️ Экран Настроек: Боковая Панель или Модальное Окно</b></summary>
+
+- **Две формы на одной кодовой базе:** пользователь выбирает стиль настроек (Sidebar-панель или модальное окно) в разделе «Внешний вид»; выбор сохраняется между запусками и применяется мгновенно, без перезапуска плеера.
+- **Никаких «пустых» окон при открытии:** экран настроек подключён статически, поэтому `F2` открывает уже готовый интерфейс, а другие тяжёлые модальные окна при этом остаются ленивыми.
+- **Сохранение контекста при переключении формы:** активная категория, вкладка, раскрытые секции, позиция прокрутки и черновик имени пресета сохраняются между Sidebar и Modal.
+- **Умная геометрия панели:** боковые и верхние отступы панели подстраиваются под выбранное скругление углов, а нижний край синхронизируется с фактическим положением панели управления — панель не наезжает на кнопки и не «обрезается» у краёв окна.
+- **Корректный масштаб интерфейса:** ширина панели рассчитывается от реальной ширины окна с учётом `UI Scale`, поэтому элементы не «разъезжаются» при масштабировании на 2K/4K мониторах.
+- **Неподвижный верхний градиент:** при открытии панели сдвигается только содержимое шапки окна, а сам верхний градиент остаётся привязанным к краям окна и не смещается.
+- **Единая прозрачность:** настройка прозрачности применяется к фону панели и модального окна через общий токен, поэтому вложенные секции и карточки остаются читаемыми при любом уровне.
+- **Адаптивные сетки настроек:** блоки перестраиваются из трёх колонок в одну на узких панелях, подписи не переносятся, а вертикальные ползунки не выдавливают соседние блоки.
+- **Редактор контекстного меню:** карточки пунктов перетаскиваются мышью с точно такой же шириной, как у исходной строки, поэтому при переносе пункта список не «разъезжается».
 
 </details>
 
@@ -433,7 +448,9 @@ L-MPV/
 │   │   ├── modals/                       # Окна: SettingsModal, MediaInfoModal, DetailedMediaInfoModal,
 │   │   │                                # StandaloneMediaInfoWindow, ChaptersModal, UpdateModal, ColorPickerModal
 │   │   ├── common/                       # Переиспользуемое: MarkdownRenderer
-│   │   ├── settings/                     # Вкладки и секции Центра настроек (18 модулей):
+│   │   ├── settings/                     # Экран настроек: SettingsPanel (Sidebar-форма) + вкладки и секции
+│   │   │   ├── SettingsPanel.tsx          # Sidebar-форма: адаптивная геометрия, scroll-spy, ленивый mount вкладок
+│   │   │   ├── settingsViewSession.ts     # Общее состояние обеих форм (секция, вкладка, скролл, draft пресета)
 │   │   │   ├── GeneralSettingsTab.tsx    # Основные (скриншоты, воспроизведение и окна, аудиодорожки и субтитры — в т.ч. названия дорожек на панели, меню ПКМ)
 │   │   │   ├── AppearanceSettingsTab.tsx # Эргономичный дизайн: темы, прозрачность, скругление, масштаб, шрифты, стиль панели, 6 позиций времени, 4 формата
 │   │   │   ├── HotkeysSettingsTab.tsx    # Управление горячими клавишами и биндами
@@ -448,7 +465,7 @@ L-MPV/
 │   │   │   ├── AccordionSection.tsx      # Переиспользуемая collapsible-секция настроек
 │   │   │   ├── SettingBlocks.tsx         # Базовые блоки и EmptyState настроек
 │   │   │   ├── ContextMenuEntryCard.tsx  # Карточка пункта DnD-редактора меню
-│   │   │   ├── settingsTabPreload.ts     # Предзагрузка данных тяжёлых вкладок
+│   │   │   ├── settingsTabPreload.ts     # Кэш «холодных» данных тяжёлых вкладок (пресеты, upscale-статус)
 │   │   │   ├── useSettingsTabTransition.ts # Анимация переходов между вкладками
 │   │   │   ├── visualizerConstants.ts    # Константы визуалайзера
 │   │   │   └── optionCardStyles.ts       # Общие стили карточек опций
@@ -470,8 +487,10 @@ L-MPV/
 │   │   │   ├── types.ts                      # Типы словарей
 │   │   │   ├── index.ts                      # Реэкспорт и helpers (getDict, getEffectiveLocale, saveLocale)
 │   │   │   └── locales/                      # Словари ru.ts / en.ts
-│   ├── styles/                           # Модульная система стилей (16 модулей Vanilla CSS)
+│   ├── styles/                           # Модульная система стилей (17 модулей Vanilla CSS)
+│   │   ├── fonts.css                     # Локальные @font-face встроенных гарнитур
 │   │   ├── variables.css                 # CSS-переменные, палитры, UI Scale, параметры свечения
+│   │   ├── components.css                # Дизайн-система (.glass-panel, .glass-section, .glass-tile, .btn, .badge)
 │   │   ├── base.css                      # Глобальный сброс, IDLE-режим, OSD
 │   │   ├── titlebar.css                  # Шапка окна и бейдж времени
 │   │   ├── video-area.css                # Видеообласть
@@ -484,6 +503,7 @@ L-MPV/
 │   │   ├── side-panel.css                # Панель глав
 │   │   ├── track-popover.css             # Меню дорожек
 │   │   ├── overlays.css                  # Overlay-элементы (Drag&Drop, Playlist Drawer и др.)
+│   │   ├── settings-panel.css            # Sidebar-форма настроек: адаптивные отступы, привязка к панели управления, сдвиг контента шапки
 │   │   └── responsive.css                # Адаптивность и медиа-запросы
 │   ├── utils/                            # Вспомогательные утилиты
 │   │   ├── contextMenuRegistry.ts        # Типизированный реестр 22 доступных элементов меню
@@ -491,7 +511,7 @@ L-MPV/
 │   │   ├── timePositionUtils.ts          # 6 вариантов расположения времени (таймлайн, тулбар, парящий бейдж, Titlebar)
 │   │   ├── timeFormatUtils.ts            # 4 формата отображения времени (прошедшее/общее, оставшееся, расчет окончания, миллисекунды)
 │   │   ├── controlBarStyleUtils.ts       # Стили нижней панели управления («Парящий остров» и «Пристыкованная плашка»)
-│   │   ├── uiThemeUtils.ts               # Управление скруглением углов, масштабом (UI Scale), прозрачностью и шрифтами (UI Font)
+│   │   ├── uiThemeUtils.ts               # Управление скруглением углов, масштабом (UI Scale), прозрачностью (--ui-opacity/--bg-glass) и шрифтами (UI Font)
 │   │   ├── uiSettingsSync.ts             # Синхронизация системных CSS-переменных, палитр и стилей оформления с DOM
 │   │   ├── colorUtils.ts                 # Цветовые темы, генерация градиентов и HSL/RGB преобразования
 │   │   ├── hotkeyUtils.ts                # Реестр действий, обработка биндов и локальное сохранение
@@ -499,9 +519,11 @@ L-MPV/
 │   │   ├── presetsUtils.ts               # Управление, импорт и экспорт пользовательских пресетов
 │   │   ├── recentFilesUtils.ts           # Управление списком недавних файлов и синхронизация с локальной историей
 │   │   └── timeUtils.ts                  # Высокоточное форматирование временных меток
-│   ├── App.tsx                           # Главный контейнер (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, OSD)
+│   ├── hooks/                            # Локальные хуки
+│   │   └── useVideoMargin.ts             # Отключение video-margin (резерв)
+│   ├── App.tsx                           # Главный контейнер (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, OSD); SettingsModal и SettingsPanel подключены статически
 │   ├── index.css                         # Единый импорт модулей стилей
-│   └── main.tsx                          # Точка входа React
+│   └── main.tsx                          # Точка входа React (импортирует index.css и settings-panel.css)
 ├── src-tauri/                            # Бэкенд (Rust + Tauri v2)
 │   ├── src/
 │   │   ├── main.rs                       # Точка входа приложения
@@ -600,7 +622,7 @@ L-MPV/
 | | Поворот видео на 90° | `Alt + R` |
 | | Масштабирование видео (Zoom & Pan) | `Ctrl` + Колесо мыши |
 | | Сброс масштаба к 100% | `0` |
-| | Подсветка полос (Ambient Light) | `B` (циклически: Off → Blur → Color) |
+| | Подсветка полос (Ambient Light) | `B` (циклически: Off → Blur → Color → Ambilight) |
 | | Копировать кадр в буфер обмена | `Ctrl + C` |
 | | Сохранить кадр (Скриншот PNG) | `S` |
 | | Информация о видео (Компактная) | `I` |
@@ -614,7 +636,7 @@ L-MPV/
 
 ## ⚡ IPC-Архитектура (Rust ↔ React)
 
-Связь интерфейса React с движком MPV, подсистемой апскейлинга и системными модулями осуществляется через **114 нативные IPC-команды**, гарантирующие мгновенный отклик и отсутствие задержек:
+Связь интерфейса React с движком MPV, подсистемой апскейлинга и системными модулями осуществляется через **115 нативных IPC-команд**, гарантирующие мгновенный отклик и отсутствие задержек:
 
 - **Апскейлинг и AI Модели (11 команд):** `get_upscale_status`, `get_system_gpu_info`, `scan_onnx_models`, `open_models_folder`, `open_inference_folder`, `apply_upscale_settings`, `download_inference_engine`, `delete_inference_engine`, `switch_upscale_network_hotkey`, `precompile_model_engine_1080p`, `save_models_order`.
 - **Воспроизведение и Плейлист (17 команд):** `open_file`, `toggle_pause`, `set_pause`, `seek`, `seek_absolute`, `frame_step`, `frame_back_step`, `playlist_prev`, `playlist_next`, `get_playlist`, `play_playlist_item`, `reload_folder_playlist`, `set_loop_file`, `set_loop_playlist`, `toggle_shuffle`, `get_play_next_on_end`, `set_play_next_on_end`.
@@ -626,7 +648,7 @@ L-MPV/
 - **Главы (2 команды):** `get_chapters`, `seek_chapter`.
 - **Метаданные и Позиция (13 команд):** `get_position`, `get_duration`, `get_frame_number`, `get_frame_count`, `get_fps`, `get_media_info`, `get_playback_state`, `get_last_position`, `save_position`, `save_current_position`, `get_app_version`, `get_active_subtitle_lines`, `analyze_subtitle_track`.
 - **Интеграция с Windows (9 команд):** `register_file_associations`, `unregister_file_associations`, `open_default_apps_settings`, `register_explorer_context_menu`, `unregister_explorer_context_menu`, `is_explorer_context_menu_registered`, `get_windows_accent_color`, `get_multi_instance`, `set_multi_instance`.
-- **Подсветка Полос / Ambient Light (4 команды):** `get_ambient_settings`, `apply_ambient_preview`, `set_ambient_settings`, `toggle_ambient_mode`.
+- **Подсветка Полос / Ambient Light (5 команд):** `get_ambient_settings`, `get_ambient_palette`, `apply_ambient_preview`, `set_ambient_settings`, `toggle_ambient_mode`.
 - **Пресеты настроек и Файлы (8 команд):** `get_settings_presets`, `save_settings_presets`, `save_single_preset`, `delete_preset_file`, `rename_preset_file`, `open_presets_folder`, `write_text_file`, `read_text_file`.
 - **Аудио-визуалайзер (2 команды):** `get_audio_spectrum`, `set_visualizer_active`.
 - **Раскладка ПКМ-меню (2 команды):** `get_context_menu_layout`, `save_context_menu_layout`.
@@ -667,6 +689,18 @@ npm run build:bundle
 ```
 
 Готовый бинарный файл создается по пути `src-tauri/target/release/l-mpv.exe`.
+
+### Проверки Перед Релизом
+```bash
+# Типизация и production-сборка фронтенда
+npx tsc --noEmit --pretty false
+npm run build
+
+# Юнит-тесты бэкенда
+cargo test --manifest-path src-tauri/Cargo.toml --locked
+```
+
+> Экран настроек подключён статически ради мгновенного открытия, поэтому Vite может предупреждать о размере основного чанка (порог 500 kB) — это ожидаемо.
 
 ### Формирование Портативной Версии
 Для развертывания в папку `Portable-L-MPV/` (exe + нативные библиотеки из `src-tauri/binaries/`):

@@ -30,6 +30,8 @@ import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
 import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
 import { resetSettingsViewSession } from "./components/settings/settingsViewSession";
+import { SettingsModal } from "./components/modals/SettingsModal";
+import { SettingsPanel } from "./components/settings/SettingsPanel";
 
 // Тяжёлые модалки грузятся лениво: в стартовый бандл не попадают,
 // парсятся только при первом открытии (dnd-kit едет вместе с настройками).
@@ -39,12 +41,8 @@ const MediaInfoModal = lazy(() =>
 const ChaptersModal = lazy(() =>
   import("./components/modals/ChaptersModal").then((m) => ({ default: m.ChaptersModal }))
 );
-const loadSettingsModal = () =>
-  import("./components/modals/SettingsModal").then((m) => ({ default: m.SettingsModal }));
-const loadSettingsPanel = () =>
-  import("./components/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel }));
-const SettingsModal = lazy(loadSettingsModal);
-const SettingsPanel = lazy(loadSettingsPanel);
+
+
 const UpdateModal = lazy(() =>
   import("./components/modals/UpdateModal").then((m) => ({ default: m.UpdateModal }))
 );
@@ -104,60 +102,31 @@ function App() {
   
   const [settingsStyle, setSettingsStyle] = useState<UiSettingsStyle>(getSavedUiSettingsStyle);
   const settingsWasOpenRef = useRef(false);
-  const settingsModulesReadyRef = useRef<Promise<void> | null>(null);
-  const settingsOpenRequestRef = useRef(0);
-
-  const ensureSettingsModules = useCallback(() => {
-    if (!settingsModulesReadyRef.current) {
-      const loadPromise = Promise.all([
-        loadSettingsPanel(),
-        loadSettingsModal(),
-      ]).then(() => undefined);
-      settingsModulesReadyRef.current = loadPromise.catch((error) => {
-        settingsModulesReadyRef.current = null;
-        throw error;
-      });
-    }
-    return settingsModulesReadyRef.current;
-  }, []);
 
   const openSettings = useCallback(() => {
-    const requestId = ++settingsOpenRequestRef.current;
     setIsPlaylistOpen(false);
     setShowMediaInfo(false);
     setShowChapters(false);
     setShowSubtitlesSearch(false);
     setShowUpdateToast(false);
     setContextMenu(null);
-    void ensureSettingsModules()
-      .then(() => {
-        if (requestId === settingsOpenRequestRef.current) {
-          setShowSettings(true);
-        }
-      })
-      .catch(console.error);
-  }, [ensureSettingsModules]);
-
-  const closeSettings = useCallback(() => {
-    settingsOpenRequestRef.current += 1;
-    setShowSettings(false);
+    setShowSettings(true);
   }, []);
 
-  useEffect(() => {
-    void ensureSettingsModules().catch(console.error);
-  }, [ensureSettingsModules]);
+  const closeSettings = useCallback(() => {
+    setShowSettings(false);
+  }, []);
 
   useEffect(() => {
     const handleSettingsStyleChanged = (e: Event) => {
       const ce = e as CustomEvent<UiSettingsStyle>;
       if (ce.detail === "modal" || ce.detail === "sidebar") {
-        void ensureSettingsModules().catch(console.error);
         setSettingsStyle(ce.detail);
       }
     };
     window.addEventListener("l-mpv-ui-settings-style-changed", handleSettingsStyleChanged);
     return () => window.removeEventListener("l-mpv-ui-settings-style-changed", handleSettingsStyleChanged);
-  }, [ensureSettingsModules]);
+  }, []);
 
   useEffect(() => {
     if (!showSettings) {
@@ -1510,29 +1479,27 @@ function App() {
       )}
 
       {showSettings && (
-        <Suspense fallback={null}>
-          {settingsStyle === "modal" ? (
-            <SettingsModal
-              onClose={closeSettings}
-              onShowUpdate={(info: UpdateInfo) => {
-                closeSettings();
-                setShowUpdateToast(false);
-                setPendingUpdate(info);
-                setShowUpdateModal(true);
-              }}
-            />
-          ) : (
-            <SettingsPanel
-              onClose={closeSettings}
-              onShowUpdate={(info: UpdateInfo) => {
-                closeSettings();
-                setShowUpdateToast(false);
-                setPendingUpdate(info);
-                setShowUpdateModal(true);
-              }}
-            />
-          )}
-        </Suspense>
+        settingsStyle === "modal" ? (
+          <SettingsModal
+            onClose={closeSettings}
+            onShowUpdate={(info: UpdateInfo) => {
+              closeSettings();
+              setShowUpdateToast(false);
+              setPendingUpdate(info);
+              setShowUpdateModal(true);
+            }}
+          />
+        ) : (
+          <SettingsPanel
+            onClose={closeSettings}
+            onShowUpdate={(info: UpdateInfo) => {
+              closeSettings();
+              setShowUpdateToast(false);
+              setPendingUpdate(info);
+              setShowUpdateModal(true);
+            }}
+          />
+        )
       )}
 
       {showUpdateModal && pendingUpdate && (
