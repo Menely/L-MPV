@@ -2,11 +2,6 @@
   <img src="./assets/banner.png" alt="L-MPV Banner" width="100%" style="border-radius: 12px;">
 </p>
 
-<p align="center">
-  <a href="#"><img src="https://img.shields.io/badge/Language-English-blue?style=for-the-badge" alt="English"></a>
-  <a href="README.ru.md"><img src="https://img.shields.io/badge/Language-Русский-lightgrey?style=for-the-badge" alt="Русский"></a>
-</p>
-
 <h1 align="center"> <img src="https://github.com/Menely/L-MPV/blob/main/src-tauri/icons/icon.png" width="50" height="50" align="absmiddle"> L-MPV — Modern & Portable Media Player</h1>
 
 <p align="center">
@@ -26,6 +21,10 @@
   <img src="https://img.shields.io/badge/MPV-libmpv--2-red?style=for-the-badge&logo=mpv&logoColor=white" alt="libmpv">
   <img src="https://img.shields.io/badge/AI%20Upscale-4K%20DirectML%20%7C%20TensorRT-success?style=for-the-badge" alt="AI Upscale">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge" alt="GPLv3 License"></a>
+</p>
+
+<p align="center">
+  <b>English</b> | <a href="README.ru.md">Русский</a>
 </p>
 
 ---
