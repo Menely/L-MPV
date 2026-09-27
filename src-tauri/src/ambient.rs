@@ -352,6 +352,20 @@ impl AmbientRuntime {
         *wake = false;
     }
 
+    /// Полный сон потока без таймаута до поступления сигнала notify()
+    /// или команды завершения работы stop.
+    fn wait_idle(&self) {
+        let wake = self
+            .wake
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut wake = self
+            .signal
+            .wait_while(wake, |w| !*w && !self.stop.load(Ordering::SeqCst))
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *wake = false;
+    }
+
     fn attach_app(&self, app: tauri::AppHandle) {
         *self
             .app
@@ -703,17 +717,18 @@ fn ambient_worker(mpv: Arc<MpvManager>, runtime: Arc<AmbientRuntime>) {
     let mut sampled_frame = None::<i64>;
     let mut sampled_video_track = None::<String>;
     let mut sampled_geometry = None::<(f32, f32, f32, f32, f32, f32)>;
-    let mut last_paused_sample = None::<Instant>;
     let mut last_capture_attempt = None::<Instant>;
     let mut last_error_logged = None::<Instant>;
     while !runtime.stop.load(Ordering::SeqCst) {
         let (settings, snapshot_generation) = runtime.settings_with_generation();
         if !runtime.is_active() || settings.mode != AmbientMode::Ambilight {
             last_capture_attempt = None;
-            runtime.sleep(Duration::from_millis(200));
+            runtime.wait_idle();
             continue;
         }
-        let interval = Duration::from_millis(settings.sample_interval_ms as u64);
+        let interval = Duration::from_millis(
+            settings.sample_interval_ms as u64,
+        );
         if let Some(last_attempt) = last_capture_attempt {
             let elapsed = last_attempt.elapsed();
             if elapsed < interval {
@@ -723,7 +738,7 @@ fn ambient_worker(mpv: Arc<MpvManager>, runtime: Arc<AmbientRuntime>) {
         }
         let path = mpv.get_property_string("path").unwrap_or_default();
         if path.trim().is_empty() {
-            runtime.sleep(interval);
+            runtime.sleep(Duration::from_millis(500));
             continue;
         }
         let current_generation = runtime.current_generation();
@@ -771,13 +786,13 @@ fn ambient_worker(mpv: Arc<MpvManager>, runtime: Arc<AmbientRuntime>) {
             || sampled_generation != capture_generation
             || sampled_frame != Some(frame_number)
             || sampled_video_track.as_deref() != Some(video_track.as_str())
-            || sampled_geometry != Some(geometry_key)
-            || (paused
-                && last_paused_sample
-                    .map(|value| value.elapsed() >= Duration::from_secs(1))
-                    .unwrap_or(true));
+            || sampled_geometry != Some(geometry_key);
         if !should_sample {
-            runtime.sleep(interval);
+            runtime.sleep(if paused {
+                Duration::from_millis(250)
+            } else {
+                interval
+            });
             continue;
         }
         let segment_count = settings.segment_count as usize;
@@ -901,7 +916,6 @@ fn ambient_worker(mpv: Arc<MpvManager>, runtime: Arc<AmbientRuntime>) {
             sampled_frame = Some(frame_number);
             sampled_video_track = Some(video_track);
             sampled_geometry = Some(geometry_key);
-            last_paused_sample = paused.then_some(now);
         }
         last_sample = Some(now);
     }

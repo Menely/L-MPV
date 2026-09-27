@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import {
@@ -13,6 +13,15 @@ import {
   Languages,
 } from "lucide-react";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
+import { parseMediaInfoLines } from "../../utils/mediaInfoParser";
+import { useTranslation } from "../../i18n/LanguageContext";
+import {
+  CategoryKey,
+  buildCategoryTabs,
+  filterAndProcessSections,
+  MediaInfoTabsBar,
+  MediaInfoSectionList,
+} from "./mediainfo";
 
 interface DetailedMediaInfoModalProps {
   isOpen: boolean;
@@ -24,9 +33,6 @@ interface DetailedMediaInfoResponse {
   text: string;
   json: string;
 }
-
-import { parseMediaInfoLines } from "../../utils/mediaInfoParser";
-import { useTranslation } from "../../i18n/LanguageContext";
 
 export function DetailedMediaInfoModal({
   isOpen,
@@ -46,8 +52,22 @@ export function DetailedMediaInfoModal({
   const [copied, setCopied] = useState<boolean>(false);
   const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
 
+  const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
   const modalRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copySectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Очистка таймеров копирования при размонтировании
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      if (copySectionTimerRef.current) clearTimeout(copySectionTimerRef.current);
+    };
+  }, []);
 
   // Получение актуального коэффициента масштабирования интерфейса из CSS-переменной --ui-scale
   const getUiScale = useCallback((): number => {
@@ -59,119 +79,55 @@ export function DetailedMediaInfoModal({
     return Number.isFinite(scale) && scale > 0 ? scale : 1;
   }, []);
 
-  // Позиция перемещаемого окна (в масштабированных координатах контейнера)
-  const [pos, setPos] = useState<{ x: number; y: number }>(() => {
-    const zoom = typeof document !== "undefined"
-      ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ui-scale")) || 1)
-      : 1;
-    const effectiveWidth = typeof window !== "undefined" ? window.innerWidth / zoom : 1280;
-    return {
-      x: Math.max(20, effectiveWidth - 505),
-      y: 54,
-    };
-  });
+  // Позиционирование по центру окна при первом открытии
+  const setInitialPosition = useCallback(() => {
+    if (!modalRef.current) return;
+    const rect = modalRef.current.getBoundingClientRect();
+    const uiScale = getUiScale();
+    const targetLeft = Math.max(16, (window.innerWidth - rect.width * uiScale) / 2);
+    const targetTop = Math.max(16, (window.innerHeight - rect.height * uiScale) / 2);
 
-  const posRef = useRef(pos);
-  posRef.current = pos;
-
-  // Коррекция позиции при изменении размера экрана с учётом масштаба UI
-  useEffect(() => {
-    const handleResize = () => {
-      const zoom = getUiScale();
-      setPos((prev) => ({
-        x: Math.max(10, Math.min((window.innerWidth / zoom) - 420, prev.x)),
-        y: Math.max(10, Math.min((window.innerHeight / zoom) - 150, prev.y)),
-      }));
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    modalRef.current.style.left = `${targetLeft / uiScale}px`;
+    modalRef.current.style.top = `${targetTop / uiScale}px`;
   }, [getUiScale]);
 
-  // Обработчик плавного перетаскивания окна за заголовок с компенсацией --ui-scale (без рывков и сдвигов)
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Реагируем только на нажатие основной (левой) кнопки мыши
-    if (e.button !== 0) return;
-    // Игнорируем клики по кнопкам управления и полям ввода
-    if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("input")) {
+  // Загрузка подробного отчёта MediaInfo
+  const loadInfo = useCallback(async () => {
+    if (!currentPath) {
+      setError(dict.detailedMediaInfoModal.analysisFailed);
       return;
     }
-
-    const modalEl = modalRef.current;
-    if (!modalEl) return;
-
-    const zoom = getUiScale();
-    const startMouseX = e.clientX;
-    const startMouseY = e.clientY;
-    const startPosX = posRef.current.x;
-    const startPosY = posRef.current.y;
-
-    let latestX = startPosX;
-    let latestY = startPosY;
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      // Смещение курсора переводится в CSS-координаты контейнера с делением на zoom
-      const deltaX = (moveEvent.clientX - startMouseX) / zoom;
-      const deltaY = (moveEvent.clientY - startMouseY) / zoom;
-
-      const rawX = startPosX + deltaX;
-      const rawY = startPosY + deltaY;
-
-      // Ограничение перемещения в пределах рабочей области плеера
-      const modalWidth = modalEl.offsetWidth || 500;
-      const maxInnerWidth = (window.innerWidth / zoom) - Math.min(modalWidth, 120);
-      const maxInnerHeight = (window.innerHeight / zoom) - 50;
-
-      latestX = Math.max(0, Math.min(maxInnerWidth, rawX));
-      latestY = Math.max(0, Math.min(maxInnerHeight, rawY));
-
-      modalEl.style.left = `${latestX}px`;
-      modalEl.style.top = `${latestY}px`;
-    };
-
-    const handleMouseUp = () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      setPos({ x: latestX, y: latestY });
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-  }, [getUiScale]);
-
-  // Загрузка детальной информации через MediaInfo.dll
-  useEffect(() => {
-    if (!isOpen) return;
-
-    let isMounted = true;
     setLoading(true);
     setError(null);
     setData(null);
+    setActiveCategory("all");
+    setCollapsedSections(new Set());
+    setSearchQuery("");
 
-    invoke<DetailedMediaInfoResponse>("get_detailed_media_info", {
-      path: currentPath || null,
-    })
-      .then((res) => {
-        if (isMounted) {
-          setData(res);
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          console.error("Ошибка получения MediaInfo:", err);
-          setError(typeof err === "string" ? err : dict.detailedMediaInfoModal.analysisFailed);
-          setLoading(false);
-        }
+    try {
+      const res = await invoke<DetailedMediaInfoResponse>("get_detailed_media_info", {
+        path: currentPath,
       });
+      setData(res);
+    } catch (err) {
+      console.error("Ошибка вызова get_detailed_media_info:", err);
+      setError(typeof err === "string" ? err : dict.detailedMediaInfoModal.analysisFailed);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPath, dict]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen, currentPath]);
+  useEffect(() => {
+    if (isOpen) {
+      loadInfo();
+      requestAnimationFrame(() => {
+        setInitialPosition();
+      });
+    }
+  }, [isOpen, loadInfo, setInitialPosition]);
 
+  // Закрытие окна с анимацией
   const [isClosing, setIsClosing] = useState<boolean>(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const handleClose = useCallback(() => {
     if (isClosing) return;
     if (!isMotionAllowed()) {
@@ -179,19 +135,11 @@ export function DetailedMediaInfoModal({
       return;
     }
     setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
+    setTimeout(() => {
       setIsClosing(false);
-    }, getCloseTimeoutMs("base"));
+      onClose();
+    }, getCloseTimeoutMs("fast"));
   }, [isClosing, onClose]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
 
   // Закрытие по Escape или Shift+F10 (если в поиске есть текст — первый Esc очищает поиск)
   useEffect(() => {
@@ -205,10 +153,13 @@ export function DetailedMediaInfoModal({
         } else {
           handleClose();
         }
-      } else if (e.shiftKey && (e.key === "F10" || e.code === "F10")) {
+      } else if (e.shiftKey && e.key === "F10") {
         e.preventDefault();
-        e.stopPropagation();
         handleClose();
+      } else if (e.ctrlKey && (e.key === "f" || e.key === "F" || e.key === "а" || e.key === "А")) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
       }
     };
 
@@ -224,26 +175,44 @@ export function DetailedMediaInfoModal({
     return parseMediaInfoLines(data.text, useRussian);
   }, [data?.text, useRussian]);
 
+  // Список доступных интерактивных чипов-вкладок
+  const categoryTabs = useMemo(() => {
+    return buildCategoryTabs(baseReport.sections, useRussian);
+  }, [baseReport.sections, useRussian]);
+
   // Фильтрация и подсветка поиска по свойствам категорий
   const displaySections = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) {
-      return baseReport.sections.map((sec) => ({
-        ...sec,
-        rows: sec.rows.map((r) => ({ ...r, isMatch: false })),
-      }));
-    }
-    return baseReport.sections.map((sec) => ({
-      ...sec,
-      rows: sec.rows.map((r) => ({
-        ...r,
-        isMatch:
-          (!!r.key && r.key.toLowerCase().includes(q)) ||
-          (!!r.value && r.value.toLowerCase().includes(q)),
-      })),
-    }));
-  }, [baseReport.sections, searchQuery]);
+    return filterAndProcessSections(baseReport.sections, activeCategory, searchQuery);
+  }, [baseReport.sections, activeCategory, searchQuery]);
 
+  // Переключение состояния сворачивания отдельной секции
+  const toggleSection = useCallback((sectionId: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Проверка: все ли отображаемые секции свернуты
+  const areAllCollapsed = useMemo(() => {
+    if (displaySections.length === 0) return false;
+    return displaySections.every((sec) => collapsedSections.has(sec.id));
+  }, [displaySections, collapsedSections]);
+
+  // Свернуть все / Развернуть все
+  const toggleCollapseAll = useCallback(() => {
+    if (areAllCollapsed) {
+      setCollapsedSections(new Set());
+    } else {
+      const allIds = new Set(displaySections.map((s) => s.id));
+      setCollapsedSections(allIds);
+    }
+  }, [areAllCollapsed, displaySections]);
 
   // Автопрокрутка к первому совпадению при поиске
   useEffect(() => {
@@ -266,13 +235,14 @@ export function DetailedMediaInfoModal({
           detail: dict.detailedMediaInfoModal.reportCopied,
         })
       );
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch (e) {
-      console.error("Ошибка копирования в буфер:", e);
+      console.error("Ошибка копирования отчёта MediaInfo в буфер:", e);
     }
   }, [baseReport.cleanText, baseReport.rawText, dict]);
 
-  // Копирование конкретной категории без лишних пробелов
+  // Копирование отдельной категории
   const handleCopySection = useCallback(async (sectionTitle: string, sectionCleanText: string) => {
     if (!sectionCleanText) return;
     try {
@@ -283,46 +253,46 @@ export function DetailedMediaInfoModal({
           detail: dict.detailedMediaInfoModal.sectionCopied(sectionTitle),
         })
       );
-      setTimeout(() => setCopiedSectionId(null), 2000);
+      if (copySectionTimerRef.current) clearTimeout(copySectionTimerRef.current);
+      copySectionTimerRef.current = setTimeout(() => setCopiedSectionId(null), 2000);
     } catch (e) {
-      console.error("Ошибка копирования категории:", e);
+      console.error("Ошибка копирования категории MediaInfo:", e);
     }
   }, [dict]);
 
-  // Экспорт полного отчёта в файл .txt без лишних пробелов
+  // Экспорт в текстовый файл
   const handleExportTxt = useCallback(() => {
     const textToExport = baseReport.cleanText || baseReport.rawText;
     if (!textToExport) return;
     try {
-      const filename = currentPath ? currentPath.split(/[/\\]/).pop() || "media" : "media";
+      const fileName = currentPath ? currentPath.split(/[/\\]/).pop() : "mediainfo";
+      const exportName = `${fileName}.mediainfo.txt`;
       const blob = new Blob([textToExport], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const exportName = `${filename}.mediainfo.txt`;
       a.download = exportName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
       window.dispatchEvent(
         new CustomEvent("show-osd", {
           detail: dict.detailedMediaInfoModal.fileExported(exportName),
         })
       );
     } catch (e) {
-      console.error("Ошибка экспорта MediaInfo в файл:", e);
+      console.error("Ошибка экспорта в файл:", e);
     }
   }, [baseReport.cleanText, baseReport.rawText, currentPath, dict]);
 
-  // Количество совпадений поиска
+  // Подсчёт количества совпадений поиска
   const matchCount = useMemo(() => {
     if (!searchQuery.trim()) return 0;
     let count = 0;
     for (const sec of displaySections) {
-      for (const r of sec.rows) {
-        if (r.isMatch) count++;
-      }
+      count += sec.matchesCount;
     }
     return count;
   }, [searchQuery, displaySections]);
@@ -332,77 +302,79 @@ export function DetailedMediaInfoModal({
   return (
     <div
       ref={modalRef}
-      className={`mediainfo-floating-window ${isClosing ? "mediainfo-floating-window--closing" : ""}`}
-      style={{ left: pos.x, top: pos.y }}
-      role="region"
+      className={`mediainfo-floating-window ${
+        isClosing ? "mediainfo-floating-window--closing" : ""
+      }`}
+      role="dialog"
       aria-label={dict.detailedMediaInfoModal.title}
     >
-      {/* Шапка окна с возможностью перетаскивания */}
+      {/* Шапка окна с кнопками управления */}
       <div
         className="mediainfo-floating-window__header"
-        onMouseDown={handleMouseDown}
         title={dict.detailedMediaInfoModal.dragHeader}
       >
         <div className="mediainfo-floating-window__header-left">
-          <div className="mediainfo-floating-window__icon">
-            <FileText size={15} />
-          </div>
+          <FileText size={16} className="mediainfo-floating-window__icon" />
           <span className="mediainfo-floating-window__title">
             {dict.detailedMediaInfoModal.title}
           </span>
         </div>
 
         <div className="mediainfo-floating-window__actions">
-          {/* Переключение языка RU / EN */}
+          {/* Переключение языка (RU / EN) */}
           <button
-            className={`mediainfo-floating-window__btn ${useRussian ? "mediainfo-floating-window__btn--active" : ""}`}
             onClick={() => setUseRussian(!useRussian)}
+            className={`mediainfo-floating-window__btn ${
+              useRussian ? "mediainfo-floating-window__btn--active" : ""
+            }`}
             title={useRussian ? dict.detailedMediaInfoModal.langTooltipRu : dict.detailedMediaInfoModal.langTooltipEn}
           >
-            <Languages size={13} />
+            <Languages size={14} />
+            <span style={{ fontSize: "0.7rem", fontWeight: 600 }}>{useRussian ? "RU" : "EN"}</span>
           </button>
 
-          {/* Копировать */}
+          {/* Копировать всё */}
           <button
-            className="mediainfo-floating-window__btn"
             onClick={handleCopy}
-            title={dict.detailedMediaInfoModal.copyReport}
-            disabled={!data?.text}
-          >
-            {copied ? <Check size={13} color="var(--accent)" /> : <Copy size={13} />}
-          </button>
-
-          {/* Экспорт */}
-          <button
             className="mediainfo-floating-window__btn"
-            onClick={handleExportTxt}
-            title={dict.detailedMediaInfoModal.exportTxt}
-            disabled={!data?.text}
+            title={dict.detailedMediaInfoModal.copyReport}
+            disabled={!baseReport.rawText}
           >
-            <Download size={13} />
+            {copied ? <Check size={14} color="#4ade80" /> : <Copy size={14} />}
           </button>
 
-          {/* Закрыть */}
+          {/* Экспорт в TXT */}
           <button
-            className="mediainfo-floating-window__btn mediainfo-floating-window__btn--close"
+            onClick={handleExportTxt}
+            className="mediainfo-floating-window__btn"
+            title={dict.detailedMediaInfoModal.exportTxt}
+            disabled={!baseReport.rawText}
+          >
+            <Download size={14} />
+          </button>
+
+          {/* Закрыть окно */}
+          <button
             onClick={handleClose}
+            className="mediainfo-floating-window__btn mediainfo-floating-window__btn--close"
             title={dict.detailedMediaInfoModal.close}
             aria-label={dict.detailedMediaInfoModal.close}
           >
-            <X size={14} />
+            <X size={15} />
           </button>
         </div>
       </div>
 
-      {/* Поисковая строка / быстрый фильтр */}
+      {/* Панель поиска по свойствам */}
       <div className="mediainfo-floating-window__search-bar">
-        <Search size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+        <Search size={14} className="mediainfo-floating-window__search-icon" />
         <input
+          ref={searchInputRef}
           type="text"
-          className="mediainfo-floating-window__search-input"
-          placeholder={dict.detailedMediaInfoModal.searchPlaceholder}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={dict.detailedMediaInfoModal.searchPlaceholder}
+          className="mediainfo-floating-window__search-input"
         />
         {searchQuery && (
           <span
@@ -428,6 +400,19 @@ export function DetailedMediaInfoModal({
         )}
       </div>
 
+      {/* Интерактивные чипы-вкладки категорий и управление аккордеоном */}
+      {!loading && !error && (
+        <MediaInfoTabsBar
+          tabs={categoryTabs}
+          activeCategory={activeCategory}
+          onSelectCategory={setActiveCategory}
+          areAllCollapsed={areAllCollapsed}
+          onToggleCollapseAll={toggleCollapseAll}
+          useRussian={useRussian}
+          style={{ padding: "4px 12px" }}
+        />
+      )}
+
       {/* Тело окна со скроллом */}
       <div className="mediainfo-floating-window__body" ref={bodyRef}>
         {loading && (
@@ -445,48 +430,14 @@ export function DetailedMediaInfoModal({
         )}
 
         {!loading && !error && data && (
-          <div className="mediainfo-floating-window__content">
-            {displaySections.map((section) => (
-              <div key={section.id} className="mediainfo-section">
-                <div className="mediainfo-section__header">
-                  <span className="mediainfo-section__title">{section.title}</span>
-                  <button
-                    type="button"
-                    className={`mediainfo-section__copy-btn ${
-                      copiedSectionId === section.title ? "mediainfo-section__copy-btn--copied" : ""
-                    }`}
-                    title={dict.detailedMediaInfoModal.copyCategoryTooltip(section.title)}
-                    onClick={() => handleCopySection(section.title, section.cleanText)}
-                  >
-                    {copiedSectionId === section.title ? (
-                      <>
-                        <Check size={12} color="#4ade80" />
-                        <span>{dict.detailedMediaInfoModal.copied}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={12} />
-                        <span>{dict.detailedMediaInfoModal.copy}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="mediainfo-section__rows">
-                  {section.rows.map((row) => (
-                    <div
-                      key={row.id}
-                      className={`mediainfo-row ${row.isMatch ? "mediainfo-row--match" : ""}`}
-                    >
-                      <span className="mediainfo-row__key">{row.key}</span>
-                      <span className="mediainfo-row__colon">:</span>
-                      <span className="mediainfo-row__val">{row.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <MediaInfoSectionList
+            sections={displaySections}
+            collapsedSections={collapsedSections}
+            onToggleSection={toggleSection}
+            onCopySection={handleCopySection}
+            copiedSectionId={copiedSectionId}
+            useRussian={useRussian}
+          />
         )}
       </div>
     </div>

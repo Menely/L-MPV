@@ -57,6 +57,8 @@ export interface PlaybackState {
   video_ready: boolean;
   current_aid: string;
   current_sid: string;
+  current_vid: string;
+  track_count: number;
   eof_reached?: boolean;
 }
 
@@ -86,9 +88,6 @@ export interface PlayerProgress {
   seekTarget: number | null;
 }
 
-// Количество одинаковых подряд снапшотов видеовыхода, нужное для подтверждения геометрии.
-// Значение 2 даёт ~200ms задержку вместо ~300ms при 100ms-тиках, сохраняя надёжность.
-const REQUIRED_STABLE_VIDEO_GEOMETRY_POLLS = 2;
 
 const PlayerProgressContext = createContext<PlayerProgress>({
   position: 0,
@@ -118,6 +117,7 @@ interface PlayerStateContextType {
   seeking: boolean;
   seekTarget: number | null;
   seekTo: (seconds: number) => Promise<void>;
+  seekBy: (deltaSeconds: number) => Promise<void>;
   togglePause: () => Promise<void>;
   setVolume: (vol: number) => void;
   tracks: TrackInfo[];
@@ -157,6 +157,7 @@ const PlayerStateContext = createContext<PlayerStateContextType>({
   seeking: false,
   seekTarget: null,
   seekTo: async () => {},
+  seekBy: async () => {},
   togglePause: async () => {},
   setVolume: () => {},
   tracks: [],
@@ -203,27 +204,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const currentPathRef = useRef<string>("");
   const currentAidRef = useRef<string>("");
   const currentSidRef = useRef<string>("");
+  const currentVidRef = useRef<string>("");
+  const trackCountRef = useRef<number>(0);
   const mediaInfoRef = useRef<MediaInfo | null>(null);
-  const videoGeometryCandidateRef = useRef<{
-    path: string;
-    width: number;
-    height: number;
-    stableCount: number;
-  } | null>(null);
-  const confirmedVideoGeometryRef = useRef<{
-    path: string;
-    width: number;
-    height: number;
-  } | null>(null);
-  const videoTrackCandidateRef = useRef<{
-    path: string;
-    present: boolean;
-    stableCount: number;
-  } | null>(null);
-  const confirmedVideoTrackRef = useRef<{
-    path: string;
-    present: boolean;
-  } | null>(null);
 
   const loadTracks = useCallback(async () => {
     try {
@@ -242,104 +225,6 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       console.error("Ошибка обновления плейлиста в контексте:", e);
     }
   }, []);
-
-  // Одного готового ответа бэкенда недостаточно: переходные значения могут
-  // оставаться от предыдущего файла. Содержимое списка дорожек тоже считается
-  // известным только после нескольких одинаковых подряд снапшотов.
-  const confirmVideoTrack = (
-    path: string,
-    present: boolean | undefined,
-  ) => {
-    const confirmed = confirmedVideoTrackRef.current;
-    if (!path || present === undefined) {
-      confirmedVideoTrackRef.current = null;
-      videoTrackCandidateRef.current = null;
-      return undefined;
-    }
-    if (confirmed && confirmed.path === path && confirmed.present === present) {
-      return confirmed.present;
-    }
-    const candidate = videoTrackCandidateRef.current;
-    if (
-      candidate &&
-      candidate.path === path &&
-      candidate.present === present
-    ) {
-      candidate.stableCount += 1;
-    } else {
-      videoTrackCandidateRef.current = {
-        path,
-        present,
-        stableCount: 1,
-      };
-    }
-    const currentCandidate = videoTrackCandidateRef.current;
-    if (
-      currentCandidate &&
-      currentCandidate.stableCount >= REQUIRED_STABLE_VIDEO_GEOMETRY_POLLS
-    ) {
-      confirmedVideoTrackRef.current = {
-        path,
-        present,
-      };
-      return confirmedVideoTrackRef.current.present;
-    }
-    return undefined;
-  };
-
-  // Одного готового ответа бэкенда недостаточно: переходные значения могут
-  // оставаться от предыдущего файла. Геометрия считается подтверждённой
-  // только после нескольких одинаковых подряд снапшотов для текущего пути.
-  const confirmVideoGeometry = (
-    path: string,
-    width: number,
-    height: number,
-    ready: boolean,
-  ) => {
-    const confirmed = confirmedVideoGeometryRef.current;
-    if (!path || !ready || width <= 0 || height <= 0) {
-      confirmedVideoGeometryRef.current = null;
-      videoGeometryCandidateRef.current = null;
-      return null;
-    }
-    if (
-      confirmed &&
-      confirmed.path === path &&
-      confirmed.width === width &&
-      confirmed.height === height
-    ) {
-      return confirmed;
-    }
-    const candidate = videoGeometryCandidateRef.current;
-    if (
-      candidate &&
-      candidate.path === path &&
-      candidate.width === width &&
-      candidate.height === height
-    ) {
-      candidate.stableCount += 1;
-    } else {
-      videoGeometryCandidateRef.current = {
-        path,
-        width,
-        height,
-        stableCount: 1,
-      };
-    }
-    const currentCandidate = videoGeometryCandidateRef.current;
-    if (
-      currentCandidate &&
-      currentCandidate.stableCount >= REQUIRED_STABLE_VIDEO_GEOMETRY_POLLS
-    ) {
-      confirmedVideoGeometryRef.current = {
-        path,
-        width,
-        height,
-      };
-      return confirmedVideoGeometryRef.current;
-    }
-    return null;
-  };
 
   // Синхронизация плейлиста по событию бэкенда playlist-updated.
   // Заодно обновляем дорожки: фоновая задача open_file добавляет внешние
@@ -386,6 +271,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       setPlaylist([]);
       currentAidRef.current = "";
       currentSidRef.current = "";
+      currentVidRef.current = "";
+      trackCountRef.current = 0;
     }
   }, [hasMedia, loadTracks, refreshPlaylist]);
 
@@ -476,20 +363,18 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             fullInfo.duration = effectiveDuration;
 
             currentPathRef.current = fullInfo.path;
+            currentAidRef.current = "";
+            currentSidRef.current = "";
+            currentVidRef.current = "";
+            trackCountRef.current = 0;
             hasMediaInfoRef.current = effectiveDuration > 0;
-            fullInfo.video_track = confirmVideoTrack(
-              fullInfo.path,
-              fullInfo.video_track,
-            );
-            const confirmedGeometry = confirmVideoGeometry(
-              fullInfo.path,
-              fullInfo.width,
-              fullInfo.height,
-              fullInfo.video_ready,
-            );
-            fullInfo.width = confirmedGeometry?.width ?? 0;
-            fullInfo.height = confirmedGeometry?.height ?? 0;
-            fullInfo.video_ready = confirmedGeometry !== null;
+            const effectiveWidth = fullInfo.width > 0 ? fullInfo.width : 0;
+            const effectiveHeight = fullInfo.height > 0 ? fullInfo.height : 0;
+            const hasVideoDimensions = effectiveWidth > 0 && effectiveHeight > 0;
+
+            fullInfo.width = effectiveWidth;
+            fullInfo.height = effectiveHeight;
+            fullInfo.video_ready = hasVideoDimensions || fullInfo.video_ready;
             mediaInfoRef.current = fullInfo;
             setMediaInfo(fullInfo);
             setHasMedia(true);
@@ -536,10 +421,30 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             });
           }
         } else {
-          // Отслеживаем изменения выбранных дорожек через поллинг
-          if (dynState.current_aid !== currentAidRef.current || dynState.current_sid !== currentSidRef.current) {
+          // Отслеживаем изменения дорожек через поллинг (смена audio/sub/video,
+          // появление дорожек демуксером или добавление внешних дорожек).
+          const aidChanged =
+            dynState.current_aid !== currentAidRef.current;
+          const sidChanged =
+            dynState.current_sid !== currentSidRef.current;
+          const vidChanged =
+            dynState.current_vid !== currentVidRef.current;
+          const countChanged =
+            dynState.track_count !== trackCountRef.current;
+          const tracksMissing =
+            tracks.length === 0 && dynState.track_count > 0;
+
+          if (
+            aidChanged ||
+            sidChanged ||
+            vidChanged ||
+            countChanged ||
+            tracksMissing
+          ) {
             currentAidRef.current = dynState.current_aid;
             currentSidRef.current = dynState.current_sid;
+            currentVidRef.current = dynState.current_vid;
+            trackCountRef.current = dynState.track_count;
             loadTracks();
           }
 
@@ -598,42 +503,58 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             seekTarget: seekTargetRef.current,
           });
 
-          // Обновляем mediaInfo только если изменились значимые свойства (пауза, скорость, громкость, разрешение)
+          // Обновляем mediaInfo только при изменении значимых свойств
           const currentMedia = mediaInfoRef.current;
-          if (currentMedia) {
+          if (currentMedia && dynState.path === currentPathRef.current) {
             const isPausedChanged = currentMedia.paused !== dynState.paused;
             const isSpeedChanged = currentMedia.speed !== dynState.speed;
             const isVolumeChanged = currentMedia.volume !== dynState.volume;
-            const confirmedVideoTrack = confirmVideoTrack(
-              dynState.path,
-              dynState.video_track,
-            );
-            const confirmedGeometry = confirmVideoGeometry(
-              dynState.path,
-              dynState.video_width,
-              dynState.video_height,
-              dynState.video_ready,
-            );
-            const isSizeChanged =
-              confirmedGeometry !== null &&
-              (confirmedGeometry.width !== currentMedia.width ||
-                confirmedGeometry.height !== currentMedia.height);
-            const isVideoStatusChanged =
-              currentMedia.video_track !== confirmedVideoTrack ||
-              currentMedia.has_video !== dynState.has_video ||
-              currentMedia.video_ready !== dynState.video_ready;
 
-            if (isPausedChanged || isSpeedChanged || isVolumeChanged || isSizeChanged || isVideoStatusChanged) {
+            // Новые валидные размеры (защита от сброса в 0)
+            const targetWidth =
+              dynState.video_width > 0
+                ? dynState.video_width
+                : currentMedia.width;
+            const targetHeight =
+              dynState.video_height > 0
+                ? dynState.video_height
+                : currentMedia.height;
+            const isSizeChanged =
+              (dynState.video_width > 0 &&
+                dynState.video_width !== currentMedia.width) ||
+              (dynState.video_height > 0 &&
+                dynState.video_height !== currentMedia.height);
+
+            const nextVideoTrack =
+              dynState.video_track !== undefined
+                ? dynState.video_track
+                : currentMedia.video_track;
+            const isVideoStatusChanged =
+              (dynState.video_track !== undefined &&
+                currentMedia.video_track !== dynState.video_track) ||
+              currentMedia.has_video !== dynState.has_video ||
+              (dynState.video_ready && !currentMedia.video_ready);
+
+            if (
+              isPausedChanged ||
+              isSpeedChanged ||
+              isVolumeChanged ||
+              isSizeChanged ||
+              isVideoStatusChanged
+            ) {
               const updated: MediaInfo = {
                 ...currentMedia,
                 paused: dynState.paused,
                 speed: dynState.speed,
                 volume: dynState.volume,
-                width: confirmedGeometry?.width ?? currentMedia.width,
-                height: confirmedGeometry?.height ?? currentMedia.height,
-                video_track: confirmedVideoTrack,
+                width: targetWidth,
+                height: targetHeight,
+                video_track: nextVideoTrack,
                 has_video: dynState.has_video,
-                video_ready: confirmedGeometry !== null,
+                video_ready:
+                  (targetWidth > 0 && targetHeight > 0) ||
+                  currentMedia.video_ready ||
+                  dynState.video_ready,
                 audio_bitrate: dynState.audio_bitrate,
                 video_bitrate: dynState.video_bitrate,
                 dropped_frames: dynState.dropped_frames,
@@ -714,6 +635,67 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       setSeeking(false);
       setSeekTarget(null);
       setProgress(prev => ({ ...prev, seeking: false, seekTarget: null }));
+    }
+  }, []);
+
+  // ─── Относительная быстрая перемотка с мгновенным UI ───
+  const seekBy = useCallback(async (deltaSeconds: number) => {
+    if (seekTimeoutIdRef.current !== null) {
+      window.clearTimeout(seekTimeoutIdRef.current);
+      seekTimeoutIdRef.current = null;
+    }
+
+    const dur = mediaInfoRef.current?.duration || 0;
+    const cur = currentPositionRef.current;
+    const target = dur > 0
+      ? Math.max(0, Math.min(dur, cur + deltaSeconds))
+      : Math.max(0, cur + deltaSeconds);
+
+    currentPositionRef.current = target;
+    seekingRef.current = true;
+    seekTargetRef.current = target;
+    seekTimestampRef.current = Date.now();
+    setSeeking(true);
+    setSeekTarget(target);
+    setProgress(prev => ({
+      ...prev,
+      position: target,
+      seeking: true,
+      seekTarget: target,
+    }));
+
+    // Пробуждаем поллинг, чтобы на паузе не ждать секунду
+    window.dispatchEvent(new Event("l-mpv-force-poll"));
+
+    // Страховочный таймер сброса флага seeking
+    seekTimeoutIdRef.current = window.setTimeout(() => {
+      if (seekingRef.current) {
+        seekingRef.current = false;
+        seekTargetRef.current = null;
+        setSeeking(false);
+        setSeekTarget(null);
+      }
+      seekTimeoutIdRef.current = null;
+    }, 1200);
+
+    try {
+      await invoke("seek", { seconds: deltaSeconds });
+      window.dispatchEvent(new Event("l-mpv-force-poll"));
+    } catch (e) {
+      console.error("Ошибка относительной перемотки:", e);
+      if (seekTimeoutIdRef.current !== null) {
+        window.clearTimeout(seekTimeoutIdRef.current);
+        seekTimeoutIdRef.current = null;
+      }
+      seekingRef.current = false;
+      seekTargetRef.current = null;
+      setSeeking(false);
+      setSeekTarget(null);
+      setProgress(prev => ({
+        ...prev,
+        seeking: false,
+        seekTarget: null,
+      }));
     }
   }, []);
 
@@ -1123,6 +1105,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     seeking,
     seekTarget,
     seekTo,
+    seekBy,
     togglePause,
     setVolume,
     tracks,
@@ -1150,6 +1133,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     seeking,
     seekTarget,
     seekTo,
+    seekBy,
     togglePause,
     setVolume,
     tracks,

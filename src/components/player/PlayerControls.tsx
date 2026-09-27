@@ -88,6 +88,7 @@ export function PlayerControls({
 
   const {
     togglePause,
+    seekBy,
     setVolume,
     tracks,
     loadTracks,
@@ -420,11 +421,11 @@ export function PlayerControls({
 
   const handleSeek = useCallback(async (seconds: number) => {
     try {
-      await invoke("seek", { seconds });
+      await seekBy(seconds);
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [seekBy]);
 
   const handlePlaylistPrev = useCallback(async () => {
     try {

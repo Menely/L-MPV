@@ -6,6 +6,7 @@
 
 use libloading::{Library, Symbol};
 use std::ffi::{CStr, CString};
+use std::io::Write;
 use std::os::raw::{c_char, c_double, c_int, c_void};
 use std::path::Path;
 use std::sync::Mutex;
@@ -527,7 +528,8 @@ impl MpvManager {
             Self::set_option(&api, handle, "demuxer-max-bytes", "64MiB");
             Self::set_option(&api, handle, "demuxer-readahead-secs", "5");
             Self::set_option(&api, handle, "demuxer-max-back-bytes", "32MiB");
-            Self::set_option(&api, handle, "hr-seek-framedrop", "no"); // Запрещаем пропуск видеокадров при перемотке/старте для идеальной A/V-синхронизации
+            // Разрешаем пропуск промежуточных кадров при перемотке
+            Self::set_option(&api, handle, "hr-seek-framedrop", "yes");
             Self::set_option(&api, handle, "cache-pause", "no"); // Не ставить на паузу при буферизации локальных файлов
 
             // ─── Качественный отзывчивый звук (WASAPI) ───
@@ -905,44 +907,74 @@ impl MpvManager {
         &self,
         expected_path: &str,
     ) -> VideoOutputStatus {
-        let video_track_present = self
-            .with_handle(|handle| unsafe {
-                Ok(Self::video_track_present_raw(
-                    &self.api,
-                    handle,
-                ))
-            })
-            .unwrap_or(None);
-        let observed_path =
-            self.get_property_string("path").unwrap_or_default();
-        let video_track =
-            self.get_property_string("vid").unwrap_or_default();
-        let mut output_width = self
-            .get_property_double("video-out-params/dw")
-            .unwrap_or(0.0);
-        let mut output_height = self
-            .get_property_double("video-out-params/dh")
-            .unwrap_or(0.0);
-        if output_width <= 0.0 || output_height <= 0.0 {
-            output_width = self
-                .get_property_double("video-params/dw")
-                .or_else(|_| self.get_property_double("dwidth"))
-                .or_else(|_| self.get_property_double("width"))
-                .unwrap_or(0.0);
-            output_height = self
-                .get_property_double("video-params/dh")
-                .or_else(|_| self.get_property_double("dheight"))
-                .or_else(|_| self.get_property_double("height"))
-                .unwrap_or(0.0);
-        }
-        video_output_status_from_properties(
-            expected_path,
-            &observed_path,
-            video_track_present,
-            &video_track,
-            output_width,
-            output_height,
-        )
+        self.with_handle(|handle| unsafe {
+            let video_track_present =
+                Self::video_track_present_raw(&self.api, handle);
+            let observed_path =
+                Self::get_string_raw(&self.api, handle, c"path");
+            let mut vid_buf = [0u8; 32];
+            let video_track = Self::get_property_str_buf_raw(
+                &self.api,
+                handle,
+                c"vid",
+                &mut vid_buf,
+            );
+            let mut output_width = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"video-params/dw",
+            );
+            if output_width <= 0.0 {
+                output_width =
+                    Self::get_double_raw(&self.api, handle, c"dwidth");
+                if output_width <= 0.0 {
+                    output_width =
+                        Self::get_double_raw(&self.api, handle, c"width");
+                    if output_width <= 0.0 {
+                        output_width = Self::get_double_raw(
+                            &self.api,
+                            handle,
+                            c"video-out-params/dw",
+                        );
+                    }
+                }
+            }
+            let mut output_height = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"video-params/dh",
+            );
+            if output_height <= 0.0 {
+                output_height =
+                    Self::get_double_raw(&self.api, handle, c"dheight");
+                if output_height <= 0.0 {
+                    output_height =
+                        Self::get_double_raw(&self.api, handle, c"height");
+                    if output_height <= 0.0 {
+                        output_height = Self::get_double_raw(
+                            &self.api,
+                            handle,
+                            c"video-out-params/dh",
+                        );
+                    }
+                }
+            }
+            Ok(video_output_status_from_properties(
+                expected_path,
+                &observed_path,
+                video_track_present,
+                video_track,
+                output_width,
+                output_height,
+            ))
+        })
+        .unwrap_or(VideoOutputStatus {
+            width: 0,
+            height: 0,
+            video_track: None,
+            has_video: false,
+            ready: false,
+        })
     }
 
     pub fn get_ambient_geometry(
@@ -1175,22 +1207,114 @@ impl MpvManager {
         value
     }
 
-    unsafe fn video_track_present_raw(api: &MpvApi, handle: *mut MpvHandle) -> Option<bool> {
+    /// Статические C-строки для первых 16 треков, позволяющие избежать
+    /// динамических аллокаций памяти при частом опросе свойств плеера.
+    const STATIC_TRACK_TYPES: [&'static CStr; 16] = [
+        c"track-list/0/type",
+        c"track-list/1/type",
+        c"track-list/2/type",
+        c"track-list/3/type",
+        c"track-list/4/type",
+        c"track-list/5/type",
+        c"track-list/6/type",
+        c"track-list/7/type",
+        c"track-list/8/type",
+        c"track-list/9/type",
+        c"track-list/10/type",
+        c"track-list/11/type",
+        c"track-list/12/type",
+        c"track-list/13/type",
+        c"track-list/14/type",
+        c"track-list/15/type",
+    ];
+
+    /// Сравнивает строковое свойство libmpv с ожидаемым байтовым срезом
+    /// напрямую через сырой указатель без выделения Rust String в куче.
+    #[inline]
+    unsafe fn property_string_equals_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        name: &CStr,
+        expected: &[u8],
+    ) -> bool {
+        let result = (api.get_property_string)(handle, name.as_ptr());
+        if result.is_null() {
+            return false;
+        }
+        let matches = CStr::from_ptr(result).to_bytes() == expected;
+        (api.free)(result as *mut c_void);
+        matches
+    }
+
+    /// Считывает короткое строковое свойство libmpv в предоставленный
+    /// буфер на стеке, исключая любые аллокации памяти в куче.
+    #[inline]
+    unsafe fn get_property_str_buf_raw<'a>(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        name: &CStr,
+        buf: &'a mut [u8],
+    ) -> &'a str {
+        let result = (api.get_property_string)(handle, name.as_ptr());
+        if result.is_null() {
+            return "";
+        }
+        let bytes = CStr::from_ptr(result).to_bytes();
+        let len = bytes.len().min(buf.len());
+        buf[..len].copy_from_slice(&bytes[..len]);
+        (api.free)(result as *mut c_void);
+        match std::str::from_utf8(&buf[..len]) {
+            Ok(valid_str) => valid_str,
+            Err(err) => {
+                std::str::from_utf8(&buf[..err.valid_up_to()])
+                    .unwrap_or("")
+            }
+        }
+    }
+
+    /// Проверяет наличие хотя бы одной видеодорожки в контейнере без аллокаций.
+    /// Использует статические C-строки для типичных индексов и буфер на стеке.
+    unsafe fn video_track_present_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+    ) -> Option<bool> {
         let track_count =
             Self::get_double_raw(api, handle, c"track-list/count");
         if !track_count.is_finite() || track_count < 0.0 {
             return None;
         }
-        if track_count == 0.0 {
+        let count = (track_count as i64).min(256);
+        if count == 0 {
             return None;
         }
-        for index in 0..track_count as i64 {
-            let name = CString::new(format!(
-                "track-list/{}/type",
-                index
-            ))
-            .ok()?;
-            if Self::get_string_raw(api, handle, name.as_c_str()) == "video" {
+        for index in 0..count {
+            let is_video = if let Some(&name) =
+                Self::STATIC_TRACK_TYPES.get(index as usize)
+            {
+                Self::property_string_equals_raw(
+                    api,
+                    handle,
+                    name,
+                    b"video",
+                )
+            } else {
+                let mut buf = [0u8; 32];
+                let mut cursor = std::io::Cursor::new(&mut buf[..]);
+                if write!(cursor, "track-list/{index}/type\0").is_err() {
+                    false
+                } else {
+                    match CStr::from_bytes_until_nul(&buf) {
+                        Ok(c_name) => Self::property_string_equals_raw(
+                            api,
+                            handle,
+                            c_name,
+                            b"video",
+                        ),
+                        Err(_) => false,
+                    }
+                }
+            };
+            if is_video {
                 return Some(true);
             }
         }
@@ -1199,12 +1323,18 @@ impl MpvManager {
 
     /// Пакетный сбор динамического состояния плеера за один захват мьютекса
     /// со статическими C-строками без повторных блокировок и лишних аллокаций.
-    pub fn get_playback_state_snapshot(&self) -> Result<crate::commands::PlaybackState, String> {
+    pub fn get_playback_state_snapshot(
+        &self,
+    ) -> Result<crate::commands::PlaybackState, String> {
         self.with_handle(|handle| unsafe {
             let path = Self::get_string_raw(&self.api, handle, c"path");
             let position = Self::get_double_raw(&self.api, handle, c"time-pos");
             let duration = Self::get_double_raw(&self.api, handle, c"duration");
-            let frame = Self::get_double_raw(&self.api, handle, c"estimated-frame-number") as i64;
+            let frame = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"estimated-frame-number",
+            ) as i64;
             let paused_flag = Self::get_flag_raw(&self.api, handle, c"pause");
             let eof_reached = Self::get_flag_raw(&self.api, handle, c"eof-reached");
             let paused = paused_flag || eof_reached;
@@ -1226,37 +1356,79 @@ impl MpvManager {
                 Self::get_double_raw(&self.api, handle, c"video-bitrate")
             };
 
-            let dropped_frames =
-                Self::get_double_raw(&self.api, handle, c"vo-delayed-frame-count") as i64;
+            let dropped_frames = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"vo-delayed-frame-count",
+            ) as i64;
             let stream_pos = Self::get_double_raw(&self.api, handle, c"stream-pos");
 
             let video_track_present =
                 Self::video_track_present_raw(&self.api, handle);
-            let video_track =
-                Self::get_string_raw(&self.api, handle, c"vid");
-            let output_width = Self::get_double_raw(
+            let mut vid_buf = [0u8; 32];
+            let video_track = Self::get_property_str_buf_raw(
                 &self.api,
                 handle,
-                c"video-out-params/dw",
+                c"vid",
+                &mut vid_buf,
             );
-            let output_height = Self::get_double_raw(
+            let mut output_width = Self::get_double_raw(
                 &self.api,
                 handle,
-                c"video-out-params/dh",
+                c"video-params/dw",
             );
-            let output_path =
-                Self::get_string_raw(&self.api, handle, c"path");
+            if output_width <= 0.0 {
+                output_width =
+                    Self::get_double_raw(&self.api, handle, c"dwidth");
+                if output_width <= 0.0 {
+                    output_width =
+                        Self::get_double_raw(&self.api, handle, c"width");
+                    if output_width <= 0.0 {
+                        output_width = Self::get_double_raw(
+                            &self.api,
+                            handle,
+                            c"video-out-params/dw",
+                        );
+                    }
+                }
+            }
+            let mut output_height = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"video-params/dh",
+            );
+            if output_height <= 0.0 {
+                output_height =
+                    Self::get_double_raw(&self.api, handle, c"dheight");
+                if output_height <= 0.0 {
+                    output_height =
+                        Self::get_double_raw(&self.api, handle, c"height");
+                    if output_height <= 0.0 {
+                        output_height = Self::get_double_raw(
+                            &self.api,
+                            handle,
+                            c"video-out-params/dh",
+                        );
+                    }
+                }
+            }
             let output_status = video_output_status_from_properties(
                 &path,
-                &output_path,
+                &path,
                 video_track_present,
-                &video_track,
+                video_track,
                 output_width,
                 output_height,
             );
 
             let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
             let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
+            let current_vid = Self::get_string_raw(&self.api, handle, c"vid");
+            let track_count = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"track-list/count",
+            ) as i64;
 
             Ok(crate::commands::PlaybackState {
                 position,
@@ -1277,8 +1449,198 @@ impl MpvManager {
                 video_ready: output_status.ready,
                 current_aid,
                 current_sid,
+                current_vid,
+                track_count,
                 eof_reached,
             })
+        })
+    }
+
+    /// Пакетный сбор всех доступных медиадорожек плеера за один захват
+    /// мьютекса с прямыми FFI-вызовами libmpv без повторных блокировок.
+    pub fn get_tracks_snapshot(
+        &self,
+    ) -> Result<Vec<crate::commands::TrackInfo>, String> {
+        self.with_handle(|handle| unsafe {
+            let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
+            let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
+            let current_vid = Self::get_string_raw(&self.api, handle, c"vid");
+            let count_raw = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"track-list/count",
+            );
+            let count = if count_raw > 0.0 {
+                (count_raw as i64).min(256)
+            } else {
+                0
+            };
+            let mut tracks = Vec::with_capacity(count as usize);
+
+            let mut prop_buf = [0u8; 48];
+
+            for i in 0..count {
+                // track-list/{i}/type
+                let track_type = {
+                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
+                    let _ = write!(cur, "track-list/{i}/type\0");
+                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
+                        Self::get_string_raw(&self.api, handle, c_name)
+                    } else {
+                        String::new()
+                    }
+                };
+
+                // track-list/{i}/id
+                let id = {
+                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
+                    let _ = write!(cur, "track-list/{i}/id\0");
+                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
+                        Self::get_double_raw(&self.api, handle, c_name) as i64
+                    } else {
+                        0
+                    }
+                };
+
+                // track-list/{i}/title
+                let title = {
+                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
+                    let _ = write!(cur, "track-list/{i}/title\0");
+                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
+                        Self::get_string_raw(&self.api, handle, c_name)
+                    } else {
+                        String::new()
+                    }
+                };
+
+                // track-list/{i}/lang
+                let lang = {
+                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
+                    let _ = write!(cur, "track-list/{i}/lang\0");
+                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
+                        Self::get_string_raw(&self.api, handle, c_name)
+                    } else {
+                        String::new()
+                    }
+                };
+
+                // track-list/{i}/selected
+                let is_selected_by_list = {
+                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
+                    let _ = write!(cur, "track-list/{i}/selected\0");
+                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
+                        Self::property_string_equals_raw(
+                            &self.api,
+                            handle,
+                            c_name,
+                            b"yes",
+                        )
+                    } else {
+                        false
+                    }
+                };
+
+                let selected = match track_type.as_str() {
+                    "audio" => {
+                        if current_aid == "no" {
+                            false
+                        } else if let Ok(aid_id) = current_aid.parse::<i64>() {
+                            id == aid_id
+                        } else {
+                            is_selected_by_list
+                        }
+                    }
+                    "sub" => {
+                        if current_sid == "no" {
+                            false
+                        } else if let Ok(sid_id) = current_sid.parse::<i64>() {
+                            id == sid_id
+                        } else {
+                            is_selected_by_list
+                        }
+                    }
+                    "video" => {
+                        if current_vid == "no" {
+                            false
+                        } else if let Ok(vid_id) = current_vid.parse::<i64>() {
+                            id == vid_id
+                        } else {
+                            is_selected_by_list
+                        }
+                    }
+                    _ => is_selected_by_list,
+                };
+
+                // track-list/{i}/codec
+                let codec = {
+                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
+                    let _ = write!(cur, "track-list/{i}/codec\0");
+                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
+                        Self::get_string_raw(&self.api, handle, c_name)
+                    } else {
+                        String::new()
+                    }
+                };
+
+                // track-list/{i}/external
+                let external = {
+                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
+                    let _ = write!(cur, "track-list/{i}/external\0");
+                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
+                        Self::property_string_equals_raw(
+                            &self.api,
+                            handle,
+                            c_name,
+                            b"yes",
+                        )
+                    } else {
+                        false
+                    }
+                };
+
+                // track-list/{i}/external-filename
+                let external_filename = if external {
+                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
+                    let _ = write!(cur, "track-list/{i}/external-filename\0");
+                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
+                        Self::get_string_raw(&self.api, handle, c_name)
+                    } else {
+                        String::new()
+                    }
+                } else {
+                    String::new()
+                };
+
+                // track-list/{i}/ff-index
+                let ff_index = {
+                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
+                    let _ = write!(cur, "track-list/{i}/ff-index\0");
+                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
+                        let f = Self::get_double_raw(&self.api, handle, c_name);
+                        if f >= 0.0 {
+                            f as i64
+                        } else {
+                            -1
+                        }
+                    } else {
+                        -1
+                    }
+                };
+
+                tracks.push(crate::commands::TrackInfo {
+                    id,
+                    track_type,
+                    title,
+                    lang,
+                    selected,
+                    codec,
+                    external,
+                    external_filename,
+                    ff_index,
+                });
+            }
+
+            Ok(tracks)
         })
     }
 

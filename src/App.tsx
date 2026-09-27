@@ -61,6 +61,7 @@ function App() {
     isPlaylistOpen,
     setIsPlaylistOpen,
     togglePause,
+    seekBy,
     setVolume,
     isFullscreen,
     toggleFullscreen,
@@ -492,11 +493,11 @@ function App() {
         // Окно уже было спозиционировано под первое видео — просто гарантируем видимость
         revealWindow();
       }
-    } else if (mediaInfo?.path) {
-      // Аудиофайл или файл без видеоряда: список дорожек уже известен и видео в нём нет.
+    } else if (mediaInfo?.path && mediaInfo.video_track === false) {
+      // Аудиофайл или файл без видеоряда: список дорожек уже известен и видео в нём точно нет.
       revealWindow();
     }
-  }, [mediaInfo?.path, mediaInfo?.width, mediaInfo?.height, resizeWindowForVideo, revealWindow]);
+  }, [mediaInfo?.path, mediaInfo?.width, mediaInfo?.height, mediaInfo?.video_track, resizeWindowForVideo, revealWindow]);
 
   // Автоматическое применение AI Upscaling при загрузке нового файла
   useEffect(() => {
@@ -562,6 +563,7 @@ function App() {
     mediaInfo,
     isFullscreen,
     togglePause,
+    seekBy,
     setVolume,
     toggleFullscreen,
     cycleAudioTrack,
@@ -578,6 +580,7 @@ function App() {
     mediaInfo,
     isFullscreen,
     togglePause,
+    seekBy,
     setVolume,
     toggleFullscreen,
     cycleAudioTrack,
@@ -624,6 +627,7 @@ function App() {
       hasMedia: curHasMedia,
       mediaInfo: curMediaInfo,
       togglePause: curTogglePause,
+      seekBy: curSeekBy,
       setVolume: curSetVolume,
       toggleFullscreen: curToggleFullscreen,
       cycleAudioTrack: curCycleAudioTrack,
@@ -647,20 +651,21 @@ function App() {
         }
         break;
       case "seekBack":
-        await invoke("seek", { seconds: -5 });
+        await curSeekBy(-5);
         break;
       case "seekForward":
-        await invoke("seek", { seconds: 5 });
+        await curSeekBy(5);
         break;
       case "seekBack10":
-        await invoke("seek", { seconds: -10 });
+        await curSeekBy(-10);
         break;
       case "seekForward10":
-        await invoke("seek", { seconds: 10 });
+        await curSeekBy(10);
         break;
       case "skipOpening": {
-        const seconds = Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90);
-        await invoke("seek", { seconds });
+        const raw = localStorage.getItem('l-mpv-skip-opening-seconds');
+        const seconds = Number(raw || 90);
+        await curSeekBy(seconds);
         break;
       }
       case "volumeUp":

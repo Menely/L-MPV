@@ -16,8 +16,17 @@ import {
   Square,
   RefreshCw,
   Pin,
+  FileUp,
 } from "lucide-react";
 import { parseMediaInfoLines } from "../../utils/mediaInfoParser";
+import {
+  CategoryKey,
+  buildCategoryTabs,
+  filterAndProcessSections,
+  MediaInfoTabsBar,
+  MediaInfoSectionList,
+  useMediaInfoDragDrop,
+} from "./mediainfo";
 import "../../styles/mediainfo-modal.css";
 
 interface DetailedMediaInfoResponse {
@@ -39,6 +48,9 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
   const [useRussian, setUseRussian] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
@@ -48,6 +60,16 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
 
   const bodyRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copySectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Очистка таймеров копирования при размонтировании
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      if (copySectionTimerRef.current) clearTimeout(copySectionTimerRef.current);
+    };
+  }, []);
 
   // Извлечение короткого имени файла для заголовка
   const fileName = useMemo(() => {
@@ -67,6 +89,9 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     setLoading(true);
     setError(null);
     setData(null);
+    setActiveCategory("all");
+    setCollapsedSections(new Set());
+    setSearchQuery("");
 
     invoke<DetailedMediaInfoResponse>("get_detailed_media_info", { path })
       .then((res) => {
@@ -79,6 +104,11 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
         setLoading(false);
       });
   }, []);
+
+  // Поддержка безопасного Drag & Drop перетаскивания файлов прямо в окно MediaInfo
+  const { isDragOver, dragHandlers } = useMediaInfoDragDrop({
+    onFileDrop: loadMediaInfoForPath,
+  });
 
   // Первоначальное получение пути файла и подписка на события обновления
   useEffect(() => {
@@ -210,25 +240,44 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     return parseMediaInfoLines(data.text, useRussian);
   }, [data?.text, useRussian]);
 
+  // Список доступных интерактивных чипов-вкладок (только непустые)
+  const categoryTabs = useMemo(() => {
+    return buildCategoryTabs(baseReport.sections, useRussian);
+  }, [baseReport.sections, useRussian]);
+
   // Фильтрация и подсветка поиска по свойствам категорий
   const displaySections = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) {
-      return baseReport.sections.map((sec) => ({
-        ...sec,
-        rows: sec.rows.map((r) => ({ ...r, isMatch: false })),
-      }));
+    return filterAndProcessSections(baseReport.sections, activeCategory, searchQuery);
+  }, [baseReport.sections, activeCategory, searchQuery]);
+
+  // Переключение состояния сворачивания отдельной секции
+  const toggleSection = useCallback((sectionId: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Проверка: все ли отображаемые секции свернуты
+  const areAllCollapsed = useMemo(() => {
+    if (displaySections.length === 0) return false;
+    return displaySections.every((sec) => collapsedSections.has(sec.id));
+  }, [displaySections, collapsedSections]);
+
+  // Свернуть все / Развернуть все
+  const toggleCollapseAll = useCallback(() => {
+    if (areAllCollapsed) {
+      setCollapsedSections(new Set());
+    } else {
+      const allIds = new Set(displaySections.map((s) => s.id));
+      setCollapsedSections(allIds);
     }
-    return baseReport.sections.map((sec) => ({
-      ...sec,
-      rows: sec.rows.map((r) => ({
-        ...r,
-        isMatch:
-          (!!r.key && r.key.toLowerCase().includes(q)) ||
-          (!!r.value && r.value.toLowerCase().includes(q)),
-      })),
-    }));
-  }, [baseReport.sections, searchQuery]);
+  }, [areAllCollapsed, displaySections]);
 
   // Автопрокрутка к первому совпадению при вводе запроса
   useEffect(() => {
@@ -246,7 +295,8 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     try {
       await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch (e) {
       console.error("Ошибка копирования в буфер обмена:", e);
     }
@@ -258,7 +308,8 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     try {
       await navigator.clipboard.writeText(sectionCleanText);
       setCopiedSectionId(sectionTitle);
-      setTimeout(() => setCopiedSectionId(null), 2000);
+      if (copySectionTimerRef.current) clearTimeout(copySectionTimerRef.current);
+      copySectionTimerRef.current = setTimeout(() => setCopiedSectionId(null), 2000);
     } catch (e) {
       console.error("Ошибка копирования категории:", e);
     }
@@ -289,15 +340,32 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     if (!searchQuery.trim()) return 0;
     let count = 0;
     for (const sec of displaySections) {
-      for (const r of sec.rows) {
-        if (r.isMatch) count++;
-      }
+      count += sec.matchesCount;
     }
     return count;
   }, [searchQuery, displaySections]);
 
   return (
-    <div className="mediainfo-standalone">
+    <div
+      className={`mediainfo-standalone ${isDragOver ? "mediainfo-standalone--drag-over" : ""}`}
+      {...dragHandlers}
+    >
+      {isDragOver && (
+        <div className="mediainfo-standalone__drag-overlay">
+          <div className="mediainfo-standalone__drag-box">
+            <FileUp size={44} className="mediainfo-standalone__drag-icon" />
+            <span className="mediainfo-standalone__drag-title">
+              {useRussian ? "Отпустите медиафайл для анализа" : "Drop media file to analyze"}
+            </span>
+            <span className="mediainfo-standalone__drag-sub">
+              {useRussian
+                ? "L-MPV мгновенно сформирует отчёт MediaInfo"
+                : "L-MPV will instantly analyze media container properties"}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* ─── Кастомный заголовок окна с нативной поддержкой перетаскивания Tauri ──── */}
       <div 
         className="mediainfo-standalone__titlebar" 
@@ -425,6 +493,18 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
         </div>
       </div>
 
+      {/* ─── Интерактивные чипы-вкладки категорий и управление аккордеоном ──── */}
+      {!loading && !error && (
+        <MediaInfoTabsBar
+          tabs={categoryTabs}
+          activeCategory={activeCategory}
+          onSelectCategory={setActiveCategory}
+          areAllCollapsed={areAllCollapsed}
+          onToggleCollapseAll={toggleCollapseAll}
+          useRussian={useRussian}
+        />
+      )}
+
       {/* ─── Основное тело отчёта ──── */}
       <div ref={bodyRef} className="mediainfo-standalone__body">
         {loading && (
@@ -453,48 +533,14 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
         )}
 
         {!loading && !error && data && (
-          <div className="mediainfo-standalone__content">
-            {displaySections.map((section) => (
-              <div key={section.id} className="mediainfo-section">
-                <div className="mediainfo-section__header">
-                  <span className="mediainfo-section__title">{section.title}</span>
-                  <button
-                    type="button"
-                    className={`mediainfo-section__copy-btn ${
-                      copiedSectionId === section.title ? "mediainfo-section__copy-btn--copied" : ""
-                    }`}
-                    title={`Скопировать категорию «${section.title}»`}
-                    onClick={() => handleCopySection(section.title, section.cleanText)}
-                  >
-                    {copiedSectionId === section.title ? (
-                      <>
-                        <Check size={12} color="#4ade80" />
-                        <span>Скопировано</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={12} />
-                        <span>Копировать</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="mediainfo-section__rows">
-                  {section.rows.map((row) => (
-                    <div
-                      key={row.id}
-                      className={`mediainfo-row ${row.isMatch ? "mediainfo-row--match" : ""}`}
-                    >
-                      <span className="mediainfo-row__key">{row.key}</span>
-                      <span className="mediainfo-row__colon">:</span>
-                      <span className="mediainfo-row__val">{row.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <MediaInfoSectionList
+            sections={displaySections}
+            collapsedSections={collapsedSections}
+            onToggleSection={toggleSection}
+            onCopySection={handleCopySection}
+            copiedSectionId={copiedSectionId}
+            useRussian={useRussian}
+          />
         )}
       </div>
     </div>

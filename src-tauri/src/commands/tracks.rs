@@ -203,143 +203,39 @@ pub fn set_video_track(
 }
 
 /// Получение списка всех доступных дорожек (аудио, субтитры, видео).
+///
+/// Обеспечивает мгновенную синхронную доступность встроенных дорожек: если
+/// демультиплексор mpv только начинает чтение контейнера после loadfile,
+/// выполняет ультракороткое адаптивное ожидание (до 60 мс с шагом 5 мс),
+/// после чего атомарно собирает снимок за один захват мьютекса mpv.
 #[tauri::command]
 pub fn get_tracks(
     state: State<'_, PlayerState>,
 ) -> Result<Vec<TrackInfo>, String> {
     let mpv = &state.mpv;
-    let count = mpv
+    let mut count = mpv
         .get_property_double("track-list/count")
         .unwrap_or(0.0) as i64;
-    let mut tracks = Vec::new();
 
-    let current_aid =
-        mpv.get_property_string("aid").unwrap_or_default();
-    let current_sid =
-        mpv.get_property_string("sid").unwrap_or_default();
-    let current_vid =
-        mpv.get_property_string("vid").unwrap_or_default();
-
-    for i in 0..count {
-        let track_type = mpv
-            .get_property_string(&format!(
-                "track-list/{}/type",
-                i
-            ))
-            .unwrap_or_default();
-        let id = mpv
-            .get_property_double(&format!(
-                "track-list/{}/id",
-                i
-            ))
-            .unwrap_or(0.0) as i64;
-        let title = mpv
-            .get_property_string(&format!(
-                "track-list/{}/title",
-                i
-            ))
-            .unwrap_or_default();
-        let lang = mpv
-            .get_property_string(&format!(
-                "track-list/{}/lang",
-                i
-            ))
-            .unwrap_or_default();
-
-        let is_selected_by_list = mpv
-            .get_property_string(&format!(
-                "track-list/{}/selected",
-                i
-            ))
-            .unwrap_or_default()
-            == "yes";
-
-        // Синхронизация статуса активности с актуальными свойствами aid/sid/vid плеера,
-        // чтобы исключить задержку обновления track-list при смене дорожки демуксером.
-        let selected = match track_type.as_str() {
-            "audio" => {
-                if current_aid == "no" {
-                    false
-                } else if let Ok(aid_id) =
-                    current_aid.parse::<i64>()
-                {
-                    id == aid_id
-                } else {
-                    is_selected_by_list
+    // Если список пуст, но файл уже открыт демуксером, ожидаем готовности
+    // встроенных дорожек (типичный парсинг MKV/MP4 занимает 2-10 мс).
+    if count == 0 {
+        let current_path =
+            mpv.get_property_string("path").unwrap_or_default();
+        if !current_path.is_empty() {
+            for _ in 0..12 {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+                count = mpv
+                    .get_property_double("track-list/count")
+                    .unwrap_or(0.0) as i64;
+                if count > 0 {
+                    break;
                 }
             }
-            "sub" => {
-                if current_sid == "no" {
-                    false
-                } else if let Ok(sid_id) =
-                    current_sid.parse::<i64>()
-                {
-                    id == sid_id
-                } else {
-                    is_selected_by_list
-                }
-            }
-            "video" => {
-                if current_vid == "no" {
-                    false
-                } else if let Ok(vid_id) =
-                    current_vid.parse::<i64>()
-                {
-                    id == vid_id
-                } else {
-                    is_selected_by_list
-                }
-            }
-            _ => is_selected_by_list,
-        };
-
-        let codec = mpv
-            .get_property_string(&format!(
-                "track-list/{}/codec",
-                i
-            ))
-            .unwrap_or_default();
-
-        let external = mpv
-            .get_property_string(&format!(
-                "track-list/{}/external",
-                i
-            ))
-            .unwrap_or_default()
-            == "yes";
-
-        let external_filename = if external {
-            mpv.get_property_string(&format!(
-                "track-list/{}/external-filename",
-                i
-            ))
-            .unwrap_or_default()
-        } else {
-            String::new()
-        };
-
-        let ff_index = mpv
-            .get_property_double(&format!(
-                "track-list/{}/ff-index",
-                i
-            ))
-            .map(|f| f as i64)
-            .unwrap_or(-1);
-
-        tracks.push(TrackInfo {
-            id,
-            track_type,
-            title,
-            lang,
-            selected,
-            codec,
-            external,
-            external_filename,
-            ff_index,
-        });
+        }
     }
 
-    Ok(tracks)
+    mpv.get_tracks_snapshot()
 }
 
 /// Сканирование и загрузка внешних дорожек и субтитров для указанного медиафайла.

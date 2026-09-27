@@ -49,7 +49,8 @@
   box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
   font-size: var(--fs-sm);
   min-width: min(360px, calc(100vw - 28px));
-  max-width: min(420px, calc(100vw - 28px));
+  max-width: min(655px, calc(100vw - 28px));
+  width: min(655px, calc(100vw - 28px));
   pointer-events: auto;
   box-sizing: border-box;
   animation: mediaInfoFadeIn 160ms var(--ease-out);
