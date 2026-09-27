@@ -66,6 +66,27 @@
   margin-bottom: 4px;
 }
 
+/* ─── Скролл-контейнер списка дорожек ───────────────── */
+.track-popover__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Ограничение высоты ровно под 7 дорожек (38px * 7 + 4px * 6 = 290px) */
+  max-height: min(290px, calc(100vh - 160px));
+  /* Полное скрытие полосы прокрутки */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 2px 4px 2px 2px;
+}
+
+.track-popover__list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 .track-popover__row {
   display: flex;
   align-items: center;
