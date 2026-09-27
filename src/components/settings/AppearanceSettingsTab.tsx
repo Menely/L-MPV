@@ -905,18 +905,18 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           </div>
                           <button
                             type="button"
-                            onClick={() => saveUiSettingsStyle("sidebar")}
+                            onClick={() => saveUiSettingsStyle("modal")}
                             className="btn btn--secondary btn--sm"
                             style={{
                               ...resetBtnStyle,
-                              opacity: settingsStyle !== "sidebar" ? 1 : 0,
-                              visibility: settingsStyle !== "sidebar" ? "visible" : "hidden",
-                              pointerEvents: settingsStyle !== "sidebar" ? "auto" : "none",
-                              transform: settingsStyle !== "sidebar" ? "scale(1)" : "scale(0.85)",
+                              opacity: settingsStyle !== "modal" ? 1 : 0,
+                              visibility: settingsStyle !== "modal" ? "visible" : "hidden",
+                              pointerEvents: settingsStyle !== "modal" ? "auto" : "none",
+                              transform: settingsStyle !== "modal" ? "scale(1)" : "scale(0.85)",
                               transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                             }}
                             title={dict.settings.appearance.settingsWindow.resetTitle}
-                            tabIndex={settingsStyle !== "sidebar" ? 0 : -1}
+                            tabIndex={settingsStyle !== "modal" ? 0 : -1}
                           >
                             <RotateCcw size={11} />
                           </button>

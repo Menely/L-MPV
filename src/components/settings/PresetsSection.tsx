@@ -19,6 +19,7 @@ import {
   ChevronDown,
   FolderOpen,
   Keyboard,
+  Globe,
 } from "lucide-react";
 import {
   SettingsPreset,
@@ -564,6 +565,22 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           <div className="preset-tag" title={dict.settings.presets.hotkeysTitle}>
             <Keyboard size={11} />
             <span>{dict.settings.presets.hotkeysLabel(hotkeyCount)}</span>
+          </div>
+        )}
+
+        {/* 10. Язык интерфейса (если сохранён в пресете) */}
+        {data.language && (
+          <div className="preset-tag" title={`${dict.settings.general.languageTitle}: ${data.language.toUpperCase()}`}>
+            <Globe size={11} />
+            <span>{data.language.toUpperCase()}</span>
+          </div>
+        )}
+
+        {/* 11. Стиль меню настроек (если сохранён в пресете) */}
+        {data.settingsStyle && (
+          <div className="preset-tag" title={`${dict.settings.appearance.settingsWindow.title}: ${data.settingsStyle === "modal" ? dict.settings.appearance.settingsWindow.modal : dict.settings.appearance.settingsWindow.sidebar}`}>
+            <Layers size={11} />
+            <span>{data.settingsStyle === "modal" ? dict.settings.appearance.settingsWindow.modal : dict.settings.appearance.settingsWindow.sidebar}</span>
           </div>
         )}
       </div>

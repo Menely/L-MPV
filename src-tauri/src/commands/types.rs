@@ -240,6 +240,15 @@ impl AppSettings {
                 if let Ok(settings) = serde_json::from_str::<AppSettings>(&content) {
                     let mut normalized = settings;
                     normalized.ambient = normalized.ambient.normalized();
+                    // Существующие пользователи L-MPV обновляются со старых версий,
+                    // где язык был исключительно русским: сохраняем "ru".
+                    if normalized.ui.language.is_none() {
+                        normalized.ui.language = Some("ru".to_string());
+                    }
+                    // В старых версиях окно настроек всегда было классическим модальным:
+                    if normalized.ui.settings_style.is_none() {
+                        normalized.ui.settings_style = Some("modal".to_string());
+                    }
                     return normalized;
                 }
                 eprintln!("L-MPV: Предупреждение: ошибка полного парсинга settings.json, попытка частичного восстановления");
@@ -249,6 +258,12 @@ impl AppSettings {
                         if let Ok(ui) = serde_json::from_value::<UiSettings>(ui_value.clone()) {
                             fallback.ui = ui;
                         }
+                    }
+                    if fallback.ui.language.is_none() {
+                        fallback.ui.language = Some("ru".to_string());
+                    }
+                    if fallback.ui.settings_style.is_none() {
+                        fallback.ui.settings_style = Some("modal".to_string());
                     }
                     if let Some(ambient_value) = value.get("ambient") {
                         if let Ok(ambient) = serde_json::from_value::<AmbientSettings>(ambient_value.clone()) {
@@ -881,6 +896,28 @@ mod settings_tests {
             loaded.ui.settings_style.as_deref(),
             Some("sidebar")
         );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn legacy_settings_without_language_migrates_to_russian() {
+        let root = test_dir("settings-legacy-ru");
+        let config = root.join("config");
+        std::fs::create_dir_all(&config).unwrap();
+        std::fs::write(
+            config.join("settings.json"),
+            r##"{
+                "screenshot_directory": "shots",
+                "ui": {
+                    "accent_color": "#7fc7ff"
+                }
+            }"##,
+        )
+        .unwrap();
+
+        let loaded = AppSettings::load_result(&root).unwrap();
+        assert_eq!(loaded.ui.language.as_deref(), Some("ru"));
+        assert_eq!(loaded.ui.settings_style.as_deref(), Some("modal"));
         let _ = std::fs::remove_dir_all(root);
     }
 

@@ -56,7 +56,7 @@ import {
   TimeFormatMode,
 } from "./timeFormatUtils";
 import { getCustomHotkeys, saveCustomHotkeys } from "./hotkeyUtils";
-import { getSavedLocale, saveLocale, type Locale } from "../i18n/index";
+import { saveLocale, getEffectiveLocale, type Locale } from "../i18n/index";
 
 export interface StoredVisualizerSettings {
   enabled: boolean;
@@ -237,7 +237,7 @@ export function collectCurrentUiSettings(): UiSettings {
     custom_colors: getCustomColors(),
     visible_buttons: visibleButtons,
     custom_hotkeys: getCustomHotkeys(),
-    language: getSavedLocale(),
+    language: getEffectiveLocale(),
     settings_style: getSavedUiSettingsStyle(),
     hide_controls_in_upper_half: localStorage.getItem("l-mpv-hide-controls-upper-half") === "true",
     hotload_enabled: localStorage.getItem("l-mpv-hotload-enabled") === "true",

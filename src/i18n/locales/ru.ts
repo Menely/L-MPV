@@ -189,7 +189,7 @@ export const ru: TranslationDict = {
       controlBarStyle: "Стиль панели управления",
       settingsWindow: {
         title: "Стиль меню настроек",
-        resetTitle: "Сбросить на боковую панель",
+        resetTitle: "Сбросить на модальное окно",
         sidebar: "Боковая панель",
         sidebarDesc: "Плеер остаётся доступным справа",
         modal: "Модальное окно",

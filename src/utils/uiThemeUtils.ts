@@ -569,7 +569,7 @@ export function getSavedUiSettingsStyle(): UiSettingsStyle {
   } catch (e) {
     console.error("Ошибка чтения стиля окна настроек из localStorage:", e);
   }
-  return "sidebar"; // Значение по умолчанию
+  return "modal"; // Значение по умолчанию
 }
 
 export function saveUiSettingsStyle(style: UiSettingsStyle): void {

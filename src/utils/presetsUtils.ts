@@ -55,11 +55,15 @@ import {
 } from "./controlBarStyleUtils";
 import type { AmbientPresetSettings } from "./ambientSettingsUtils";
 import { normalizeAmbientSettings } from "./ambientSettingsUtils";
+import { getEffectiveLocale, saveLocale, type Locale } from "../i18n/index";
 
 export interface SettingsPresetData {
   /** Тема оформления плеера (расцветка фона и поверхностей) */
   playerTheme?: PlayerThemeId | string;
+  /** Стиль окна настроек (модальное окно или боковая панель) */
   settingsStyle?: UiSettingsStyle;
+  /** Язык интерфейса (ru или en) */
+  language?: Locale;
   /** Семейство шрифта интерфейса */
   uiFont?: UiFontId | string;
   /** Положение отображения времени воспроизведения видео */
@@ -365,6 +369,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
     data: {
        playerTheme,
        settingsStyle: getSavedUiSettingsStyle(),
+       language: getEffectiveLocale(),
        uiFont,
       timePosition: getSavedTimePosition(),
       timeFormat: getSavedTimeFormat(),
@@ -468,6 +473,11 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
 
   if (data.settingsStyle === "modal" || data.settingsStyle === "sidebar") {
     saveUiSettingsStyle(data.settingsStyle);
+  }
+
+  // 3.7 Язык интерфейса
+  if (data.language === "ru" || data.language === "en") {
+    saveLocale(data.language);
   }
 
   // 4. Плавные анимации — через единый сеттер (localStorage + класс + data-атрибут)
@@ -726,6 +736,7 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
           data: {
              playerTheme: item.data.playerTheme || "graphite",
              settingsStyle: item.data.settingsStyle === "modal" || item.data.settingsStyle === "sidebar" ? item.data.settingsStyle : undefined,
+             language: item.data.language === "ru" || item.data.language === "en" ? item.data.language : undefined,
             accentColor: item.data.accentColor || "#7fc7ff",
             glowIntensity: item.data.glowIntensity || "medium",
             uiOpacity: typeof item.data.uiOpacity === "number" ? item.data.uiOpacity : 0.88,
@@ -806,6 +817,10 @@ export function isSettingsMatchingPreset(
 
   if (preset.settingsStyle) {
     if (getSavedUiSettingsStyle() !== preset.settingsStyle) return false;
+  }
+
+  if (preset.language) {
+    if (getEffectiveLocale() !== preset.language) return false;
   }
 
   // 3. Акцентный цвет

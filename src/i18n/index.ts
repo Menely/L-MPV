@@ -43,23 +43,37 @@ export function saveLocale(locale: Locale): void {
   }
 }
 
+let cachedSystemLocale: Locale | null = null;
+
 /**
- * Автоопределяет предпочтительную локаль по языку системы/браузера.
- * Возвращает "ru" если язык системы русский, иначе "en".
+ * Автоопределяет предпочтительную локаль системы пользователя.
+ * Если среди языков системы или браузера присутствует русский язык, возвращает "ru",
+ * для остальных международных локалей возвращает английский ("en").
  */
 export function detectSystemLocale(): Locale {
+  if (cachedSystemLocale) return cachedSystemLocale;
   try {
     const lang = navigator.language?.toLowerCase() ?? "";
-    if (lang.startsWith("ru")) return "ru";
+    if (lang.startsWith("ru")) {
+      cachedSystemLocale = "ru";
+      return "ru";
+    }
+    if (Array.isArray(navigator.languages)) {
+      if (navigator.languages.some((l) => l.toLowerCase().startsWith("ru"))) {
+        cachedSystemLocale = "ru";
+        return "ru";
+      }
+    }
   } catch {
     // navigator недоступен
   }
+  cachedSystemLocale = "en";
   return "en";
 }
 
 /**
- * Возвращает эффективную локаль: сохранённую пользователем,
- * либо определённую автоматически по языку системы.
+ * Возвращает эффективную локаль: явно сохранённую пользователем,
+ * либо автоматически определённую по языку системы пользователя.
  */
 export function getEffectiveLocale(): Locale {
   return getSavedLocale() ?? detectSystemLocale();

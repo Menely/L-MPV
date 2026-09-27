@@ -186,7 +186,7 @@ export const en: TranslationDict = {
       controlBarStyle: "Control bar style",
       settingsWindow: {
         title: "Settings menu style",
-        resetTitle: "Reset to sidebar",
+        resetTitle: "Reset to modal window",
         sidebar: "Sidebar",
         sidebarDesc: "Keep the player available on the right",
         modal: "Modal window",

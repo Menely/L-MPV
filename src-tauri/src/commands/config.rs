@@ -227,7 +227,14 @@ pub fn save_ui_settings(
     ui: UiSettings,
 ) -> Result<(), String> {
     AppSettings::update_portable(|settings| {
-        settings.ui = ui;
+        let mut new_ui = ui;
+        if new_ui.language.is_none() {
+            new_ui.language = settings.ui.language.clone();
+        }
+        if new_ui.settings_style.is_none() {
+            new_ui.settings_style = settings.ui.settings_style.clone();
+        }
+        settings.ui = new_ui;
     })
     .map(|_| ())
 }

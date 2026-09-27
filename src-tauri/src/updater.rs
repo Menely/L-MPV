@@ -108,14 +108,26 @@ fn get_app_dir() -> Result<std::path::PathBuf, String> {
         .ok_or_else(|| "Не удалось определить директорию приложения".to_string())
 }
 
-/// Создание настроенного HTTP-клиента с User-Agent и таймаутом
+/// Создание настроенного HTTP-клиента для быстрых запросов к API (проверка версий)
 fn create_http_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .user_agent("L-MPV-Updater")
-        .timeout(std::time::Duration::from_secs(12))
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(15))
         .build()
-        .map_err(|e| format!("Не удалось инициализировать HTTP-клиент: {}", e))
+        .map_err(|e| format!("Не удалось инициализировать HTTP-клиент API: {}", e))
 }
+
+/// Создание HTTP-клиента с расширенным таймаутом для скачивания бинарных файлов (dll/exe)
+fn create_download_http_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .user_agent("L-MPV-Updater-Download")
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(900))
+        .build()
+        .map_err(|e| format!("Не удалось инициализировать HTTP-клиент загрузки: {}", e))
+}
+
 
 /// Преобразование ответа GitHubRelease в модель UpdateInfo приложения L-MPV
 fn release_to_update_info(release: GitHubRelease, current_version: &str) -> UpdateInfo {
@@ -324,10 +336,10 @@ pub async fn download_and_install_update(
     _asset_name: String,
     tag: Option<String>,
 ) -> Result<(), String> {
-    let client = create_http_client()?;
+    let api_client = create_http_client()?;
     let release = match tag.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
-        Some(target_tag) => fetch_github_release_by_tag(&client, target_tag).await?,
-        None => fetch_latest_github_release(&client).await?,
+        Some(target_tag) => fetch_github_release_by_tag(&api_client, target_tag).await?,
+        None => fetch_latest_github_release(&api_client).await?,
     };
 
     let portable_assets: Vec<GitHubAsset> = release
@@ -353,8 +365,10 @@ pub async fn download_and_install_update(
     let mut downloaded_bytes: u64 = 0;
     let mut last_percentage: f64 = 0.0;
 
+    let download_client = create_download_http_client()?;
+
     for asset in &portable_assets {
-        let mut asset_resp = client
+        let mut asset_resp = download_client
             .get(&asset.browser_download_url)
             .send()
             .await
