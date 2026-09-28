@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import type { SubtitleLine } from "./subtitleTypes";
+import type { SubtitleLine } from "../subtitleTypes";
 
 interface UseActiveLineIndexParams {
   lines: SubtitleLine[];

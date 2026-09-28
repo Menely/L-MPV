@@ -1,4 +1,4 @@
-import { useTranslation } from "../../i18n/LanguageContext";
+import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useState, useEffect, useRef } from "react";
 import {
   AudioWaveform,
@@ -9,7 +9,7 @@ import {
   Palette,
   Ruler,
 } from "lucide-react";
-import { AccordionSection } from "./AccordionSection";
+import { AccordionSection } from "../components/AccordionSection";
 import {
   optionCardStyle,
   optionResetBtnStyle,
@@ -19,12 +19,12 @@ import {
   optionBlockTitleStyle,
   optionBlockTitleTextStyle,
   optionValueBadgeStyle,
-} from "./optionCardStyles";
+} from "../components/optionCardStyles";
 import {
   VisualizerConfig,
   getVisualizerConfig,
   saveVisualizerConfig,
-} from "../player/AudioVisualizer";
+} from "../../player/AudioVisualizer";
 
 interface VisualizerSettingsSectionProps {
   isOpen: boolean;
@@ -36,8 +36,8 @@ import {
   MODE_ITEMS,
   THEME_ITEMS,
   THEME_SWATCH,
-} from "./visualizerConstants";
-import { VisualizerPreviewCard } from "./VisualizerPreviewCard";
+} from "../lib/visualizerConstants";
+import { VisualizerPreviewCard } from "../components/VisualizerPreviewCard";
 
 /**
  * Изолированная секция настроек аудио-визуализатора для окна настроек (SettingsModal).

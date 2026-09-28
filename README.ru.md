@@ -472,25 +472,31 @@ L-MPV/
 │   │   ├── common/                       # Переиспользуемое: MarkdownRenderer
 │   │   ├── settings/                     # Экран настроек: SettingsPanel (Sidebar-форма) + вкладки и секции
 │   │   │   ├── SettingsPanel.tsx          # Sidebar-форма: адаптивная геометрия, scroll-spy, ленивый mount вкладок
-│   │   │   ├── settingsViewSession.ts     # Общее состояние обеих форм (секция, вкладка, скролл, draft пресета)
-│   │   │   ├── GeneralSettingsTab.tsx    # Основные (скриншоты, воспроизведение и окна, аудиодорожки и субтитры — в т.ч. названия дорожек на панели, меню ПКМ)
-│   │   │   ├── AppearanceSettingsTab.tsx # Эргономичный дизайн: темы, прозрачность, скругление, масштаб, шрифты, стиль панели, 6 позиций времени, 4 формата
-│   │   │   ├── HotkeysSettingsTab.tsx    # Управление горячими клавишами и биндами
-│   │   │   ├── IntegrationSettingsTab.tsx # Системная интеграция и ассоциации файлов в Windows
-│   │   │   ├── ContextMenuSettingsTab.tsx # Визуальный Drag-and-Drop редактор контекстного меню (@dnd-kit)
-│   │   │   ├── UpscalingSettingsSection.tsx # Управление 4K AI апскейлингом (DirectML / TensorRT, библиотека ONNX моделей, порядок моделей мышкой, хоткеи)
-│   │   │   ├── VisualizerSettingsSection.tsx # Настройки аудио-визуалайзера (режимы, стили, баллистика)
-│   │   │   ├── ColorSchemeSection.tsx    # Секция цветового оформления с живым предпросмотром
-│   │   │   ├── PresetsSection.tsx        # Секция управления пресетами («Мои пресеты» и «Готовые стили») с унифицированными кнопками
-│   │   │   ├── VisualizerPreviewCard.tsx # Интерактивная карточка предпросмотра аудио-визуализатора (Canvas + FFT-ритм)
-│   │   │   ├── ControlButtonsPreviewCard.tsx # Живое превью кнопок панели управления
-│   │   │   ├── AccordionSection.tsx      # Переиспользуемая collapsible-секция настроек
-│   │   │   ├── SettingBlocks.tsx         # Базовые блоки и EmptyState настроек
-│   │   │   ├── ContextMenuEntryCard.tsx  # Карточка пункта DnD-редактора меню
-│   │   │   ├── settingsTabPreload.ts     # Кэш «холодных» данных тяжёлых вкладок (пресеты, upscale-статус)
-│   │   │   ├── useSettingsTabTransition.ts # Анимация переходов между вкладками
-│   │   │   ├── visualizerConstants.ts    # Константы визуалайзера
-│   │   │   └── optionCardStyles.ts       # Общие стили карточек опций
+│   │   │   ├── tabs/                      # Вкладки настроек:
+│   │   │   │   ├── GeneralSettingsTab.tsx    # Основные (скриншоты, воспроизведение и окна, аудиодорожки и субтитры — в т.ч. названия дорожек на панели, меню ПКМ)
+│   │   │   │   ├── AppearanceSettingsTab.tsx # Эргономичный дизайн: темы, прозрачность, скругление, масштаб, шрифты, стиль панели, 6 позиций времени, 4 формата
+│   │   │   │   ├── HotkeysSettingsTab.tsx    # Управление горячими клавишами и биндами
+│   │   │   │   ├── IntegrationSettingsTab.tsx # Системная интеграция и ассоциации файлов в Windows
+│   │   │   │   └── ContextMenuSettingsTab.tsx # Визуальный Drag-and-Drop редактор контекстного меню (@dnd-kit)
+│   │   │   ├── sections/                  # Секции настроек:
+│   │   │   │   ├── PresetsSection.tsx        # Секция управления пресетами («Мои пресеты» и «Готовые стили») с унифицированными кнопками
+│   │   │   │   ├── UpscalingSettingsSection.tsx # Управление 4K AI апскейлингом (DirectML / TensorRT, библиотека ONNX моделей, порядок моделей мышкой, хоткеи)
+│   │   │   │   └── VisualizerSettingsSection.tsx # Настройки аудио-визуалайзера (режимы, стили, баллистика)
+│   │   │   ├── components/                # Переиспользуемые компоненты настроек:
+│   │   │   │   ├── AccordionSection.tsx      # Переиспользуемая collapsible-секция настроек
+│   │   │   │   ├── SettingBlocks.tsx         # Базовые блоки и EmptyState настроек
+│   │   │   │   ├── ColorSchemeSection.tsx    # Секция цветового оформления с живым предпросмотром
+│   │   │   │   ├── ControlButtonsPreviewCard.tsx # Живое превью кнопок панели управления
+│   │   │   │   ├── VisualizerPreviewCard.tsx # Интерактивная карточка предпросмотра аудио-визуализатора (Canvas + FFT-ритм)
+│   │   │   │   ├── ContextMenuEntryCard.tsx  # Карточка пункта DnD-редактора меню
+│   │   │   │   └── optionCardStyles.ts       # Общие стили карточек опций
+│   │   │   ├── appearance/                # Примитивы вкладки «Внешний вид»:
+│   │   │   │   └── ambientPrimitives.tsx     # VerticalSlider, AmbientTuneRow, getAmbientPreviewColor (вынесены из AppearanceSettingsTab)
+│   │   │   └── lib/                       # Инфраструктура настроек:
+│   │   │       ├── settingsViewSession.ts     # Общее состояние обеих форм (секция, вкладка, скролл, draft пресета)
+│   │   │       ├── settingsTabPreload.ts     # Кэш «холодных» данных тяжёлых вкладок (пресеты, upscale-статус)
+│   │   │       ├── useSettingsTabTransition.ts # Анимация переходов между вкладками
+│   │   │       └── visualizerConstants.ts    # Константы визуалайзера
 │   │   ├── upscale/                      # Модульные подкомпоненты апскейлинга:
 │   │   │   ├── types.ts                  # Модели данных и событий прогресса
 │   │   │   ├── GpuHardwareCard.tsx       # Информационная карточка обнаруженного GPU (VRAM, архитектура, рекомендации)
@@ -499,9 +505,9 @@ L-MPV/
 │   │   │   ├── ModelTensorRtAction.tsx   # Статус 1080p готов, микро-прогрессбар компиляции, кнопки сборки/перекомпиляции 24px (React.memo)
 │   │   │   └── ModelHotkeyButton.tsx     # Компактная кнопка назначения хоткея активации модели в едином стиле хоткеев (React.memo)
 │   │   ├── subtitles/                    # Окно субтитров: SubtitlesSearchModal (корневой контейнер),
-│   │   │                                # строки, шапка, поиск, бейджи, TrackPicker, 6 хуков
-│   │   │                                # (useSubtitlesAnalysis, useModalGeometry, useActiveLineIndex,
-│   │   │                                #  useFollowPlayback, useSearchNavigation, usePersistentState)
+│   │   │                                # строки, шапка, поиск, бейджи, TrackPicker, hooks/ (6 хуков:
+│   │   │                                # useSubtitlesAnalysis, useModalGeometry, useActiveLineIndex,
+│   │   │                                # useFollowPlayback, useSearchNavigation, usePersistentState)
 │   │   ├── contexts/                         # Реактивные контексты состояния
 │   │   │   └── PlayerStateContext.tsx        # Трёхуровневый контекст: PlayerStateContext + LiveStateContext + PlayerProgressContext
 │   │   ├── i18n/                             # Локализация (RU/EN)
@@ -542,8 +548,9 @@ L-MPV/
 │   │   ├── recentFilesUtils.ts           # Управление списком недавних файлов и синхронизация с локальной историей
 │   │   └── timeUtils.ts                  # Высокоточное форматирование временных меток
 │   ├── hooks/                            # Локальные хуки
-│   │   └── useVideoMargin.ts             # Отключение video-margin (резерв)
-│   ├── App.tsx                           # Главный контейнер (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, OSD); SettingsModal и SettingsPanel подключены статически
+│   │   ├── useVideoMargin.ts             # Отключение video-margin (резерв)
+│   │   └── useOsd.ts                     # Централизованный хук экранных уведомлений (OSD)
+│   ├── App.tsx                           # Главный контейнер (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, модалки; использует useOsd); SettingsModal и SettingsPanel подключены статически
 │   ├── index.css                         # Единый импорт модулей стилей
 │   └── main.tsx                          # Точка входа React (импортирует index.css и settings-panel.css)
 ├── src-tauri/                            # Бэкенд (Rust + Tauri v2)

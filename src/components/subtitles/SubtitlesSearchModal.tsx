@@ -15,12 +15,12 @@ import { TrackPicker } from "./TrackPicker";
 import { SubtitlesModalHeader } from "./SubtitlesModalHeader";
 import { SubtitleSearchBar } from "./SubtitleSearchBar";
 import { SubtitleEmptyState } from "./SubtitleEmptyState";
-import { useSubtitlesAnalysis } from "./useSubtitlesAnalysis";
-import { useModalGeometry } from "./useModalGeometry";
-import { useActiveLineIndex } from "./useActiveLineIndex";
-import { useFollowPlayback } from "./useFollowPlayback";
-import { useSearchNavigation } from "./useSearchNavigation";
-import { usePersistentState } from "./usePersistentState";
+import { useSubtitlesAnalysis } from "./hooks/useSubtitlesAnalysis";
+import { useModalGeometry } from "./hooks/useModalGeometry";
+import { useActiveLineIndex } from "./hooks/useActiveLineIndex";
+import { useFollowPlayback } from "./hooks/useFollowPlayback";
+import { useSearchNavigation } from "./hooks/useSearchNavigation";
+import { usePersistentState } from "./hooks/usePersistentState";
 import { useTranslation } from "../../i18n/LanguageContext";
 import {
   MIN_MODAL_WIDTH,

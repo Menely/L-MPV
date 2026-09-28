@@ -28,12 +28,12 @@ import {
   Cpu,
   Eye,
 } from "lucide-react";
-import type { LayoutEntry } from "../../utils/contextMenuLayout";
+import type { LayoutEntry } from "../../../utils/contextMenuLayout";
 import {
   type MenuItemDescriptor,
   getLocalizedMenuItem,
-} from "../../utils/contextMenuRegistry";
-import { useTranslation } from "../../i18n/LanguageContext";
+} from "../../../utils/contextMenuRegistry";
+import { useTranslation } from "../../../i18n/LanguageContext";
 
 /** Статичный маппинг имени иконки в React-элемент превью. */
 export const MENU_ICON_MAP: Record<string, React.ReactNode> = {

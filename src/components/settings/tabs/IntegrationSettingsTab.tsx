@@ -8,7 +8,7 @@ import {
   Trash2,
   FileText,
 } from "lucide-react";
-import { useTranslation } from "../../i18n/LanguageContext";
+import { useTranslation } from "../../../i18n/LanguageContext";
 
 /**
  * Вкладка интеграции с Windows: ассоциации файлов и контекстное меню Проводника.

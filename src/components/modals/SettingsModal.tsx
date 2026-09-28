@@ -72,22 +72,22 @@ import {
 import type { AmbientSettings } from "../../utils/ambientSettingsUtils";
 import { UpdateInfo } from "./UpdateModal";
 import { getEffectiveAccentColor } from "../../utils/colorUtils";
-import { PresetsSection } from "../settings/PresetsSection";
-import { UpscalingSettingsSection } from "../settings/UpscalingSettingsSection";
-import { HotkeysSettingsTab } from "../settings/HotkeysSettingsTab";
-import { IntegrationSettingsTab } from "../settings/IntegrationSettingsTab";
-import { AppearanceSettingsTab } from "../settings/AppearanceSettingsTab";
-import { GeneralSettingsTab } from "../settings/GeneralSettingsTab";
-import { useSettingsTabTransition } from "../settings/useSettingsTabTransition";
+import { PresetsSection } from "../settings/sections/PresetsSection";
+import { UpscalingSettingsSection } from "../settings/sections/UpscalingSettingsSection";
+import { HotkeysSettingsTab } from "../settings/tabs/HotkeysSettingsTab";
+import { IntegrationSettingsTab } from "../settings/tabs/IntegrationSettingsTab";
+import { AppearanceSettingsTab } from "../settings/tabs/AppearanceSettingsTab";
+import { GeneralSettingsTab } from "../settings/tabs/GeneralSettingsTab";
+import { useSettingsTabTransition } from "../settings/lib/useSettingsTabTransition";
 import {
   getSettingsViewSession,
   sectionIdForModalTab,
   updateSettingsViewSession,
-} from "../settings/settingsViewSession";
+} from "../settings/lib/settingsViewSession";
 import {
   preloadPresetsSettings,
   preloadUpscaleSettings,
-} from "../settings/settingsTabPreload";
+} from "../settings/lib/settingsTabPreload";
 import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { SettingsPreset } from "../../utils/presetsUtils";
 import {
@@ -112,8 +112,8 @@ interface SettingsModalProps {
   onShowUpdate?: (info: UpdateInfo) => void;
 }
 
-export { AccordionSection } from "../settings/AccordionSection";
-export type { AccordionSectionProps } from "../settings/AccordionSection";
+export { AccordionSection } from "../settings/components/AccordionSection";
+export type { AccordionSectionProps } from "../settings/components/AccordionSection";
 
 const SETTINGS_TABS = [
   "general",

@@ -7,7 +7,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import type { SubtitleLine } from "./subtitleTypes";
+import type { SubtitleLine } from "../subtitleTypes";
 
 interface UseSearchNavigationParams {
   filteredLines: SubtitleLine[];

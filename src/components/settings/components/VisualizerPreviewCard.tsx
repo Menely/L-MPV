@@ -1,4 +1,4 @@
-import { useTranslation } from "../../i18n/LanguageContext";
+import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useEffect, useRef } from "react";
 import {
   VisualizerConfig,
@@ -6,7 +6,7 @@ import {
   createInitialAnimState,
   getVisualizerThemeColors,
   renderVisualizerFrame,
-} from "../player/AudioVisualizer";
+} from "../../player/AudioVisualizer";
 
 interface VisualizerPreviewCardProps {
   config: VisualizerConfig;

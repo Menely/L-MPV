@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { RefObject } from "react";
-import type { SubtitleLine } from "./subtitleTypes";
+import type { SubtitleLine } from "../subtitleTypes";
 
 /**
  * Адаптивный шаг скролла в зависимости от расстояния до цели.

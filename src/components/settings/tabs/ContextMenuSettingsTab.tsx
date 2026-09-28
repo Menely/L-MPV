@@ -1,4 +1,4 @@
-import { useTranslation } from "../../i18n/LanguageContext";
+import { useTranslation } from "../../../i18n/LanguageContext";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   DndContext,
@@ -38,18 +38,18 @@ import {
   saveLayout,
   resetLayout,
   LAYOUT_CHANGED_EVENT,
-} from "../../utils/contextMenuLayout";
+} from "../../../utils/contextMenuLayout";
 import {
   MENU_ITEM_REGISTRY,
   MENU_ITEM_MAP,
   type MenuItemDescriptor,
   getLocalizedMenuItem,
-} from "../../utils/contextMenuRegistry";
+} from "../../../utils/contextMenuRegistry";
 import {
   SortableCard,
   OverlayCard,
   MENU_ICON_MAP,
-} from "./ContextMenuEntryCard";
+} from "../components/ContextMenuEntryCard";
 
 let uniqueKeyCounter = 0;
 

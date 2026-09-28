@@ -1,4 +1,4 @@
-import { useTranslation } from "../../i18n/LanguageContext";
+import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Sparkles,
@@ -35,18 +35,18 @@ import {
   getSavedActivePresetId,
   saveActivePresetId,
   isSettingsMatchingPreset,
-} from "../../utils/presetsUtils";
-import { PLAYER_THEMES, PlayerThemeId } from "../../utils/colorUtils";
+} from "../../../utils/presetsUtils";
+import { PLAYER_THEMES, PlayerThemeId } from "../../../utils/colorUtils";
 import {
   getPreloadedUserPresets,
   loadPreloadedUserPresets,
   storeUserPresets,
-} from "./settingsTabPreload";
-import { EmptyState } from "./SettingBlocks";
+} from "../lib/settingsTabPreload";
+import { EmptyState } from "../components/SettingBlocks";
 import {
   getSettingsViewSession,
   updateSettingsViewSession,
-} from "./settingsViewSession";
+} from "../lib/settingsViewSession";
 
 const PRESETS_USER_OPEN_KEY = "l-mpv-presets-user-open";
 const PRESETS_BUILTIN_OPEN_KEY = "l-mpv-presets-builtin-open";

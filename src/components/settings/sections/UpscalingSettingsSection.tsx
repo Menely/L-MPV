@@ -1,4 +1,4 @@
-import { useTranslation } from "../../i18n/LanguageContext";
+import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -14,7 +14,7 @@ import {
   getCustomHotkeys,
   saveCustomHotkeys,
   isCodeReservedForUpscaleOff,
-} from "../../utils/hotkeyUtils";
+} from "../../../utils/hotkeyUtils";
 import {
   ModelFileItem,
   GpuHardwareInfo,
@@ -22,7 +22,7 @@ import {
   UpscaleSettings,
   DownloadProgressPayload,
   UpscaleCompileProgress,
-} from "../upscale/types";
+} from "../../upscale/types";
 import {
   DndContext,
   closestCenter,
@@ -38,14 +38,14 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { BackendSelector } from "../upscale/BackendSelector";
-import { ModelListItem } from "../upscale/ModelListItem";
+import { BackendSelector } from "../../upscale/BackendSelector";
+import { ModelListItem } from "../../upscale/ModelListItem";
 import {
   getPreloadedUpscaleStatus,
   loadPreloadedUpscaleStatus,
   storeUpscaleStatus,
-} from "./settingsTabPreload";
-import { SectionHeader, EmptyState } from "./SettingBlocks";
+} from "../lib/settingsTabPreload";
+import { SectionHeader, EmptyState } from "../components/SettingBlocks";
 
 export type {
   ModelFileItem,

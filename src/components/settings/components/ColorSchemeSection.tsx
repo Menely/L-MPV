@@ -1,4 +1,4 @@
-import { useTranslation } from "../../i18n/LanguageContext";
+import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -26,8 +26,8 @@ import {
   GlowIntensity,
   getGlowIntensity,
   saveGlowIntensity,
-} from "../../utils/colorUtils";
-import { ColorPickerModal } from "../modals/ColorPickerModal";
+} from "../../../utils/colorUtils";
+import { ColorPickerModal } from "../../modals/ColorPickerModal";
 
 interface ColorSchemeSectionProps {
   /** Опциональный callback при изменении акцентного цвета */

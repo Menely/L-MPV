@@ -4,11 +4,11 @@ import {
   MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles, Globe
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-import { AccordionSection } from "./AccordionSection";
+import { AccordionSection } from "../components/AccordionSection";
 import { ContextMenuSettingsTab } from "./ContextMenuSettingsTab";
-import { SectionHeader } from "./SettingBlocks";
-import { useTranslation } from "../../i18n/LanguageContext";
-import type { Locale } from "../../i18n/types";
+import { SectionHeader } from "../components/SettingBlocks";
+import { useTranslation } from "../../../i18n/LanguageContext";
+import type { Locale } from "../../../i18n/types";
 
 interface GeneralSettingsTabProps {
   multiInstance: boolean;

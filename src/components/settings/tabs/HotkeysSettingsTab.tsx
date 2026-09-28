@@ -13,9 +13,9 @@ import {
   getKeyDisplay,
   isCodeReservedForUpscaleOff,
   UPSCALE_OFF_ACTION_ID,
-} from "../../utils/hotkeyUtils";
-import { AccordionSection } from "./AccordionSection";
-import { useTranslation } from "../../i18n/LanguageContext";
+} from "../../../utils/hotkeyUtils";
+import { AccordionSection } from "../components/AccordionSection";
+import { useTranslation } from "../../../i18n/LanguageContext";
 
 export interface HotkeysSettingsTabProps {
   /** Внешние состояния accordion-секций */

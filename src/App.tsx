@@ -9,8 +9,8 @@ import {
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
-import { isMotionAllowed, CLOSE_OSD_MS } from "./utils/animationUtils";
 import { usePlayerState } from "./contexts/PlayerStateContext";
+import { useOsd } from "./hooks/useOsd";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -29,7 +29,7 @@ import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
 import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
-import { resetSettingsViewSession } from "./components/settings/settingsViewSession";
+import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
 import { SettingsModal } from "./components/modals/SettingsModal";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
 
@@ -83,8 +83,7 @@ function App() {
   const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showUpdateToast, setShowUpdateToast] = useState(false);
-  const [osdText, setOsdText] = useState<string | null>(null);
-  const [isOsdClosing, setIsOsdClosing] = useState<boolean>(false);
+  const { osdText, isOsdClosing, triggerOsd, clearOsd, getOsdText } = useOsd();
   const [isCursorInUpperHalf, setIsCursorInUpperHalf] = useState(false);
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => {
     try {
@@ -165,8 +164,6 @@ function App() {
 
   const mediaTitle = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "";
 
-  const osdTimerRef = useRef<number | null>(null);
-  const osdFadeTimerRef = useRef<number | null>(null);
   const clickTimerRef = useRef<number | null>(null);
   const hasMediaRef = useRef(hasMedia);
   const isSteppingRef = useRef(false);
@@ -175,36 +172,7 @@ function App() {
   const videoPanYRef = useRef<number>(0);
   const rafIdRef = useRef<number | null>(null);
 
-  const triggerOsd = useCallback((text: string, durationMs: number = 1400) => {
-    if (osdTimerRef.current !== null) {
-      window.clearTimeout(osdTimerRef.current);
-      osdTimerRef.current = null;
-    }
-    if (osdFadeTimerRef.current !== null) {
-      window.clearTimeout(osdFadeTimerRef.current);
-      osdFadeTimerRef.current = null;
-    }
-    setIsOsdClosing(false);
-    setOsdText(text);
 
-    const fadeDuration = isMotionAllowed() ? CLOSE_OSD_MS : 0;
-
-    osdTimerRef.current = window.setTimeout(() => {
-      if (fadeDuration > 0) {
-        setIsOsdClosing(true);
-        osdFadeTimerRef.current = window.setTimeout(() => {
-          setOsdText(null);
-          setIsOsdClosing(false);
-          osdFadeTimerRef.current = null;
-        }, fadeDuration);
-      } else {
-        setOsdText(null);
-        setIsOsdClosing(false);
-      }
-      osdTimerRef.current = null;
-    }, durationMs);
-  }, []);
-  
   useEffect(() => {
     hasMediaRef.current = hasMedia;
     videoZoomRef.current = 0;
@@ -372,24 +340,6 @@ function App() {
 
   const isStandaloneModeRef = useRef(false);
 
-  useEffect(() => {
-    const handleOsd = (e: Event) => {
-      const text = (e as CustomEvent).detail;
-      triggerOsd(text, 1400);
-    };
-    window.addEventListener("show-osd", handleOsd);
-    return () => {
-      window.removeEventListener("show-osd", handleOsd);
-      if (osdTimerRef.current !== null) {
-        window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = null;
-      }
-      if (osdFadeTimerRef.current !== null) {
-        window.clearTimeout(osdFadeTimerRef.current);
-        osdFadeTimerRef.current = null;
-      }
-    };
-  }, [triggerOsd]);
 
   useEffect(() => {
     invoke<boolean>("is_standalone_mode")
@@ -554,17 +504,11 @@ function App() {
       await new Promise(r => setTimeout(r, 60));
       const frame = await invoke<number>("get_frame_number");
       const count = await invoke<number>("get_frame_count");
-      setOsdText(`${frame} / ${count}`);
-      if (osdTimerRef.current !== null) {
-        window.clearTimeout(osdTimerRef.current);
-      }
-      osdTimerRef.current = window.setTimeout(() => {
-        setOsdText(null);
-      }, 2000);
+      triggerOsd(`${frame} / ${count}`, 2000);
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [triggerOsd]);
 
   const closeContextMenu = useCallback(() => {
     setContextMenu(null);
@@ -720,9 +664,7 @@ function App() {
       case "copyFrame":
         try {
           await invoke("copy_frame_to_clipboard");
-          setOsdText(dict.osd.frameCopied);
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+          triggerOsd(dict.osd.frameCopied, 2000);
         } catch (err) {
           console.error(err);
         }
@@ -730,9 +672,7 @@ function App() {
       case "screenshot":
         try {
           await invoke("take_screenshot");
-          setOsdText(dict.osd.frameSaved);
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+          triggerOsd(dict.osd.frameSaved, 2000);
         } catch (err) {
           console.error(err);
         }
@@ -781,9 +721,7 @@ function App() {
         const cfg = getVisualizerConfig();
         const nextEnabled = !cfg.enabled;
         saveVisualizerConfig({ ...cfg, enabled: nextEnabled });
-        setOsdText(dict.osd.visualizerStatus(nextEnabled));
-        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        triggerOsd(dict.osd.visualizerStatus(nextEnabled), 1500);
         break;
       }
       case "cycleVisualizerMode": {
@@ -792,9 +730,7 @@ function App() {
         const nextIdx = (modes.indexOf(cfg.mode) + 1) % modes.length;
         const nextMode = modes[nextIdx];
         saveVisualizerConfig({ ...cfg, enabled: true, mode: nextMode });
-        setOsdText(dict.osd.visualizerMode(nextMode));
-        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        triggerOsd(dict.osd.visualizerMode(nextMode), 1500);
         break;
       }
       case "rotateVideo": {
@@ -802,9 +738,7 @@ function App() {
           const curRot = (mediaInfo as any)?.rotation || 0;
           const nextRot = (curRot + 90) % 360;
           await invoke("set_rotation", { degrees: nextRot });
-          setOsdText(dict.osd.rotation(nextRot));
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+          triggerOsd(dict.osd.rotation(nextRot), 1500);
         } catch (e) {
           console.error(e);
         }
@@ -816,9 +750,7 @@ function App() {
         const langName = nextLocale === "ru" ? "Русский" : "English";
         const nextDict = getDict(nextLocale);
         const osdMsg = nextDict.osd.languageSwitched(langName);
-        setOsdText(osdMsg);
-        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        triggerOsd(osdMsg, 1500);
         break;
       }
       case "resetZoom":
@@ -826,9 +758,7 @@ function App() {
         videoPanXRef.current = 0;
         videoPanYRef.current = 0;
         invoke("set_video_zoom_and_pan", { zoom: 0, panX: 0, panY: 0 }).catch(console.error);
-        setOsdText(dict.osd.zoomReset);
-        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        triggerOsd(dict.osd.zoomReset, 1500);
         break;
       case "playlist":
         curSetIsPlaylistOpen(!curIsPlaylistOpen);
@@ -896,9 +826,7 @@ function App() {
             color: dict.settings.cmenuUI.ambientColor,
             ambilight: dict.settings.cmenuUI.ambientAmbilight,
           };
-          setOsdText(dict.osd.ambientMode(labels[res.mode] || res.mode));
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+          triggerOsd(dict.osd.ambientMode(labels[res.mode] || res.mode), 2000);
           window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: res }));
           window.dispatchEvent(new Event("l-mpv-settings-changed"));
         } catch (e) {
@@ -914,9 +842,9 @@ function App() {
           const selectedModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
 
           // Если OSD со статистикой уже открыто, повторное нажатие хоткея скрывает его (toggle)
-          if (osdText && osdText.startsWith("✨ 4K AI Upscaling")) {
-            if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-            setOsdText(null);
+          const currentOsd = getOsdText();
+          if (currentOsd && currentOsd.startsWith("✨ 4K AI Upscaling")) {
+            clearOsd();
             break;
           }
 
@@ -952,18 +880,15 @@ function App() {
             }
 
             const message = dict.osd.upscaleStatsAi(slot, modelName, backendDesc, videoStats);
-            setOsdText(message);
+            triggerOsd(message, 3500);
           } else {
             let gpuHint = "";
             if (status?.gpu_info?.name) {
               gpuHint = `\nGPU: ${status.gpu_info.name} (${status.gpu_info.recommended_backend})`;
             }
             const message = dict.osd.upscaleStatsOff(gpuHint);
-            setOsdText(message);
+            triggerOsd(message, 3500);
           }
-
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 3500);
         } catch (e) {
           console.error("Ошибка отображения статистики апскейлинга:", e);
         }
@@ -974,9 +899,7 @@ function App() {
           const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
           await invoke("switch_upscale_network_hotkey", { slot: 0, backend });
           localStorage.setItem("l-mpv-upscale-mode", "off");
-          setOsdText(dict.osd.upscaleOff);
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+          triggerOsd(dict.osd.upscaleOff, 2000);
           window.dispatchEvent(new Event("l-mpv-settings-changed"));
         } catch (e) { console.error("Ошибка отключения апскейлинга:", e); }
         break;
@@ -1011,15 +934,11 @@ function App() {
             const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
             const modelTitle = isHideModelNames ? (curLocale === "en" ? `Model #${index + 1}` : `Модель #${index + 1}`) : targetModel.display_name;
 
-            setOsdText(dict.osd.upscaleModel(modelTitle));
-            if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-            osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+            triggerOsd(dict.osd.upscaleModel(modelTitle), 2000);
 
             window.dispatchEvent(new Event("l-mpv-settings-changed"));
           } else {
-            setOsdText(dict.osd.upscaleModelNotFound(index + 1));
-            if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-            osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+            triggerOsd(dict.osd.upscaleModelNotFound(index + 1), 2000);
           }
         } catch (e) {
           console.error("Ошибка переключения нейросети по хоткею:", e);
@@ -1027,7 +946,7 @@ function App() {
         break;
       }
     }
-  }, [closeSettings, handleOpenFile, openSettings, triggerFrameOsd]);
+  }, [clearOsd, closeSettings, getOsdText, handleOpenFile, openSettings, triggerFrameOsd, triggerOsd]);
 
   const handleVideoClick = useCallback(
     (e: React.MouseEvent) => {

@@ -36,22 +36,22 @@ import {
 import type { AmbientSettings } from "../../utils/ambientSettingsUtils";
 import { UpdateInfo } from "../modals/UpdateModal";
 import { getEffectiveAccentColor } from "../../utils/colorUtils";
-import { PresetsSection } from "../settings/PresetsSection";
-import { UpscalingSettingsSection } from "../settings/UpscalingSettingsSection";
-import { HotkeysSettingsTab } from "../settings/HotkeysSettingsTab";
-import { IntegrationSettingsTab } from "../settings/IntegrationSettingsTab";
-import { AppearanceSettingsTab } from "../settings/AppearanceSettingsTab";
-import { GeneralSettingsTab } from "../settings/GeneralSettingsTab";
+import { PresetsSection } from "./sections/PresetsSection";
+import { UpscalingSettingsSection } from "./sections/UpscalingSettingsSection";
+import { HotkeysSettingsTab } from "./tabs/HotkeysSettingsTab";
+import { IntegrationSettingsTab } from "./tabs/IntegrationSettingsTab";
+import { AppearanceSettingsTab } from "./tabs/AppearanceSettingsTab";
+import { GeneralSettingsTab } from "./tabs/GeneralSettingsTab";
 import {
   preloadPresetsSettings,
   preloadUpscaleSettings,
-} from "../settings/settingsTabPreload";
+} from "./lib/settingsTabPreload";
 import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import {
   getSettingsViewSession,
   modalTabForSection,
   updateSettingsViewSession,
-} from "./settingsViewSession";
+} from "./lib/settingsViewSession";
 import { SettingsPreset } from "../../utils/presetsUtils";
 import {
   UiRadiusLevel,
@@ -111,8 +111,8 @@ interface SettingsPanelProps {
   onShowUpdate?: (info: UpdateInfo) => void;
 }
 
-export { AccordionSection } from "../settings/AccordionSection";
-export type { AccordionSectionProps } from "../settings/AccordionSection";
+export { AccordionSection } from "./components/AccordionSection";
+export type { AccordionSectionProps } from "./components/AccordionSection";
 
 const SECTION_DEFS = [
   { id: "section-general",     Icon: SlidersHorizontal, labelKey: "general"      },

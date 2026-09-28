@@ -5,7 +5,7 @@ import { useTranslation } from "../../i18n/LanguageContext";
 import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import { X, Search, Play, Clapperboard, RotateCw } from "lucide-react";
-import { EmptyState } from "../settings/SettingBlocks";
+import { EmptyState } from "../settings/components/SettingBlocks";
 
 interface PlaylistItemRowProps {
   item: PlaylistItem;

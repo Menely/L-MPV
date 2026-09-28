@@ -472,25 +472,31 @@ L-MPV/
 │   │   ├── common/                       # Reusable components: MarkdownRenderer
 │   │   ├── settings/                     # Settings hub: SettingsPanel (Sidebar layout) + tabs & sections
 │   │   │   ├── SettingsPanel.tsx          # Sidebar layout: adaptive geometry, scroll-spy, lazy tab mounting
-│   │   │   ├── settingsViewSession.ts     # Shared state across layouts (active section, tab, scroll position, preset draft)
-│   │   │   ├── GeneralSettingsTab.tsx    # General settings (screenshots, playback, audio/sub titles on panel, context menu)
-│   │   │   ├── AppearanceSettingsTab.tsx # Ergonomic styling: themes, opacity, radius, scale, fonts, panel style, 6 time slots, 4 formats
-│   │   │   ├── HotkeysSettingsTab.tsx    # Keyboard and mouse shortcut remapping
-│   │   │   ├── IntegrationSettingsTab.tsx # Windows system integration and file associations
-│   │   │   ├── ContextMenuSettingsTab.tsx # Visual Drag-and-Drop context menu customizer (@dnd-kit)
-│   │   │   ├── UpscalingSettingsSection.tsx # 4K AI upscaling controls (DirectML/TensorRT, ONNX library, mouse ordering, hotkeys)
-│   │   │   ├── VisualizerSettingsSection.tsx # Audio visualizer options (modes, styles, ballistics)
-│   │   │   ├── ColorSchemeSection.tsx    # Accent color scheme customizer with live preview
-│   │   │   ├── PresetsSection.tsx        # Presets manager ("My Presets" and "Built-in Styles") with unified controls
-│   │   │   ├── VisualizerPreviewCard.tsx # Interactive visualizer preview card (Canvas + FFT rhythm generator)
-│   │   │   ├── ControlButtonsPreviewCard.tsx # Live preview of toolbar control buttons
-│   │   │   ├── AccordionSection.tsx      # Reusable collapsible settings section
-│   │   │   ├── SettingBlocks.tsx         # Foundational layout blocks and EmptyState components
-│   │   │   ├── ContextMenuEntryCard.tsx  # Draggable menu item card
-│   │   │   ├── settingsTabPreload.ts     # Cold-data caching for heavy tabs (presets, upscale status)
-│   │   │   ├── useSettingsTabTransition.ts # Tab transition animation orchestrator
-│   │   │   ├── visualizerConstants.ts    # Visualizer defaults and constants
-│   │   │   └── optionCardStyles.ts       # Shared styling definitions for option cards
+│   │   │   ├── tabs/                      # Settings tabs:
+│   │   │   │   ├── GeneralSettingsTab.tsx    # General settings (screenshots, playback, audio/sub titles on panel, context menu)
+│   │   │   │   ├── AppearanceSettingsTab.tsx # Ergonomic styling: themes, opacity, radius, scale, fonts, panel style, 6 time slots, 4 formats
+│   │   │   │   ├── HotkeysSettingsTab.tsx    # Keyboard and mouse shortcut remapping
+│   │   │   │   ├── IntegrationSettingsTab.tsx # Windows system integration and file associations
+│   │   │   │   └── ContextMenuSettingsTab.tsx # Visual Drag-and-Drop context menu customizer (@dnd-kit)
+│   │   │   ├── sections/                  # Settings sections:
+│   │   │   │   ├── PresetsSection.tsx        # Presets manager ("My Presets" and "Built-in Styles") with unified controls
+│   │   │   │   ├── UpscalingSettingsSection.tsx # 4K AI upscaling controls (DirectML/TensorRT, ONNX library, mouse ordering, hotkeys)
+│   │   │   │   └── VisualizerSettingsSection.tsx # Audio visualizer options (modes, styles, ballistics)
+│   │   │   ├── components/                # Reusable settings components:
+│   │   │   │   ├── AccordionSection.tsx      # Reusable collapsible settings section
+│   │   │   │   ├── SettingBlocks.tsx         # Foundational layout blocks and EmptyState components
+│   │   │   │   ├── ColorSchemeSection.tsx    # Accent color scheme customizer with live preview
+│   │   │   │   ├── ControlButtonsPreviewCard.tsx # Live preview of toolbar control buttons
+│   │   │   │   ├── VisualizerPreviewCard.tsx # Interactive visualizer preview card (Canvas + FFT rhythm generator)
+│   │   │   │   ├── ContextMenuEntryCard.tsx  # Draggable menu item card
+│   │   │   │   └── optionCardStyles.ts       # Shared styling definitions for option cards
+│   │   │   ├── appearance/                # Appearance tab primitives:
+│   │   │   │   └── ambientPrimitives.tsx     # VerticalSlider, AmbientTuneRow, getAmbientPreviewColor (extracted from AppearanceSettingsTab)
+│   │   │   └── lib/                       # Settings infrastructure:
+│   │   │       ├── settingsViewSession.ts     # Shared state across layouts (active section, tab, scroll position, preset draft)
+│   │   │       ├── settingsTabPreload.ts     # Cold-data caching for heavy tabs (presets, upscale status)
+│   │   │       ├── useSettingsTabTransition.ts # Tab transition animation orchestrator
+│   │   │       └── visualizerConstants.ts    # Visualizer defaults and constants
 │   │   ├── upscale/                      # Modular AI upscaling subcomponents:
 │   │   │   ├── types.ts                  # Data models and progress event contracts
 │   │   │   ├── GpuHardwareCard.tsx       # Detected GPU telemetry card (VRAM, architecture, recommendations)
@@ -499,9 +505,9 @@ L-MPV/
 │   │   │   ├── ModelTensorRtAction.tsx   # 1080p readiness status, compile micro-progressbar, 24px build/recompile buttons (React.memo)
 │   │   │   └── ModelHotkeyButton.tsx     # Compact hotkey assignment button matching hotkey settings design (React.memo)
 │   │   ├── subtitles/                    # Subtitle browser: SubtitlesSearchModal (root container),
-│   │   │                                # rows, header, search bar, badges, TrackPicker, 6 custom hooks
-│   │   │                                # (useSubtitlesAnalysis, useModalGeometry, useActiveLineIndex,
-│   │   │                                #  useFollowPlayback, useSearchNavigation, usePersistentState)
+│   │   │                                # rows, header, search bar, badges, TrackPicker, hooks/ (6 custom hooks:
+│   │   │                                # useSubtitlesAnalysis, useModalGeometry, useActiveLineIndex,
+│   │   │                                # useFollowPlayback, useSearchNavigation, usePersistentState)
 │   │   ├── contexts/                         # Reactive application state contexts
 │   │   │   └── PlayerStateContext.tsx        # Tri-level context: PlayerStateContext + LiveStateContext + PlayerProgressContext
 │   │   ├── i18n/                             # Localization system (EN/RU)
@@ -542,8 +548,9 @@ L-MPV/
 │   │   │   ├── recentFilesUtils.ts           # Recent files tracking and local history synchronization
 │   │   │   └── timeUtils.ts                  # High-precision timestamp formatting utilities
 │   │   ├── hooks/                            # Custom React hooks
-│   │   │   └── useVideoMargin.ts             # Video viewport margin calculation hook (reserved)
-│   │   ├── App.tsx                           # Main container (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, OSD); statically loads settings
+│   │   │   ├── useVideoMargin.ts             # Video viewport margin calculation hook (reserved)
+│   │   │   └── useOsd.ts                     # Centralized On-Screen Display (OSD) notification hook
+│   │   ├── App.tsx                           # Main container (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, modals; uses useOsd); statically loads settings
 │   │   ├── index.css                         # Central stylesheet import hub
 │   │   └── main.tsx                          # React entry point (imports index.css and settings-panel.css)
 ├── src-tauri/                            # Backend (Rust + Tauri v2)

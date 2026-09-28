@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getActiveUiScale } from "../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../../utils/uiThemeUtils";
 import {
   DEFAULT_MODAL_WIDTH,
   TECH_MODAL_DEFAULT_WIDTH,
@@ -11,7 +11,7 @@ import {
   getInitialWidth,
   getInitialOffsetX,
   type SubtitleViewMode,
-} from "./subtitleTypes";
+} from "../subtitleTypes";
 
 /**
  * Геометрия окна субтитров: ширина (ресайз левой границы) и горизонтальное

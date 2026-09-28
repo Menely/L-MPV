@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { usePlayerState } from "../../contexts/PlayerStateContext";
-import { useTranslation } from "../../i18n/LanguageContext";
-import type { SubtitleLine } from "./subtitleTypes";
+import { usePlayerState } from "../../../contexts/PlayerStateContext";
+import { useTranslation } from "../../../i18n/LanguageContext";
+import type { SubtitleLine } from "../subtitleTypes";
 
 /**
  * Глобальный кэш разобранных субтитров для мгновенного отображения

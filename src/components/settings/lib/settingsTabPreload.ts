@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { loadUserPresets, SettingsPreset } from "../../utils/presetsUtils";
-import { UpscaleStatus } from "../upscale/types";
+import { loadUserPresets, SettingsPreset } from "../../../utils/presetsUtils";
+import { UpscaleStatus } from "../../upscale/types";
 
 let presetsCache: SettingsPreset[] | null = null;
 let presetsInflight: Promise<SettingsPreset[]> | null = null;
