@@ -403,12 +403,14 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     };
   }, [bodyRef]);
 
-  const toggleSection = (id: string) => {
-    setOpenSections((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
+  const toggleSection = useCallback((id: string) => {
+    setOpenSections((prev) => {
+      if (prev[id]) {
+        return {};
+      }
+      return { [id]: true };
+    });
+  }, []);
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);

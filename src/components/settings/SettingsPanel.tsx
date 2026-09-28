@@ -517,10 +517,12 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   }, []);
 
   const toggleSection = useCallback((id: string) => {
-    setOpenSections((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setOpenSections((prev) => {
+      if (prev[id]) {
+        return {};
+      }
+      return { [id]: true };
+    });
   }, []);
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
