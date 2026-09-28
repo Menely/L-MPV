@@ -237,7 +237,10 @@ pub fn seek_absolute(
 
 /// Быстрый предпросмотр кадра во время скреббинга (режим keyframes).
 /// Менее точен, чем seek_absolute, но значительно быстрее — используется
-/// для живого обновления видео при перетаскивании ползунка.
+/// Точный предпросмотр кадра во время скреббинга.
+/// Использует точную перемотку с аппаратным декодированием и пропуском
+/// промежуточных кадров (hr-seek-framedrop), исключая расхождение и скачки
+/// между ключевыми и целевыми кадрами.
 #[tauri::command]
 pub fn seek_preview(
     state: State<'_, PlayerState>,
@@ -247,13 +250,11 @@ pub fn seek_preview(
         return Ok(());
     }
     let safe_seconds = seconds.max(0.0);
-    // absolute+keyframes — прыгает к ближайшему ключевому кадру без декодирования
-    // промежуточных кадров, что в ~5-10 раз быстрее absolute+exact.
-    let _ = state.mpv.command(&format!(
-        "seek {} absolute+keyframes",
+    let result = state.mpv.command(&format!(
+        "seek {} absolute+exact",
         safe_seconds
     ));
-    Ok(())
+    invalidate_ambient_result(&state, result)
 }
 
 

@@ -919,46 +919,8 @@ impl MpvManager {
                 c"vid",
                 &mut vid_buf,
             );
-            let mut output_width = Self::get_double_raw(
-                &self.api,
-                handle,
-                c"video-params/dw",
-            );
-            if output_width <= 0.0 {
-                output_width =
-                    Self::get_double_raw(&self.api, handle, c"dwidth");
-                if output_width <= 0.0 {
-                    output_width =
-                        Self::get_double_raw(&self.api, handle, c"width");
-                    if output_width <= 0.0 {
-                        output_width = Self::get_double_raw(
-                            &self.api,
-                            handle,
-                            c"video-out-params/dw",
-                        );
-                    }
-                }
-            }
-            let mut output_height = Self::get_double_raw(
-                &self.api,
-                handle,
-                c"video-params/dh",
-            );
-            if output_height <= 0.0 {
-                output_height =
-                    Self::get_double_raw(&self.api, handle, c"dheight");
-                if output_height <= 0.0 {
-                    output_height =
-                        Self::get_double_raw(&self.api, handle, c"height");
-                    if output_height <= 0.0 {
-                        output_height = Self::get_double_raw(
-                            &self.api,
-                            handle,
-                            c"video-out-params/dh",
-                        );
-                    }
-                }
-            }
+            let (output_width, output_height) =
+                Self::resolve_video_output_dimensions(&self.api, handle);
             Ok(video_output_status_from_properties(
                 expected_path,
                 &observed_path,
@@ -1184,6 +1146,55 @@ impl MpvManager {
         }
     }
 
+    /// Определение фактических геометрических размеров видеовыхода.
+    ///
+    /// Приоритет строго ориентирован на видеовыход (VO):
+    /// 1. `dwidth` / `dheight` — реальные размеры видеовыхода с учетом SAR/DAR,
+    ///    соотношения сторон (aspect ratio), фильтров и поворота видео;
+    /// 2. `video-out-params/dw` / `dh` — параметры активного видеовыхода;
+    /// 3. `video-params/dw` / `dh` — размеры декодированного видеопотока;
+    /// 4. `video-params/w` / `h` — исходные закодированные размеры;
+    /// 5. `width` / `height` — метаданные контейнера демуксера.
+    ///
+    /// В случае, когда `dwidth` ещё недоступен на этапе инициализации VO, но в видео
+    /// присутствует метатег поворота (90° / 270°), ширина и высота меняются местами
+    /// для предотвращения инверсии ориентации окна.
+    #[inline]
+    unsafe fn resolve_video_output_dimensions(api: &MpvApi, handle: *mut MpvHandle) -> (f64, f64) {
+        let mut width = Self::get_double_raw(api, handle, c"dwidth");
+        let mut height = Self::get_double_raw(api, handle, c"dheight");
+
+        if width <= 0.0 || height <= 0.0 {
+            width = Self::get_double_raw(api, handle, c"video-out-params/dw");
+            height = Self::get_double_raw(api, handle, c"video-out-params/dh");
+
+            if width <= 0.0 || height <= 0.0 {
+                width = Self::get_double_raw(api, handle, c"video-params/dw");
+                height = Self::get_double_raw(api, handle, c"video-params/dh");
+
+                if width <= 0.0 || height <= 0.0 {
+                    width = Self::get_double_raw(api, handle, c"video-params/w");
+                    height = Self::get_double_raw(api, handle, c"video-params/h");
+
+                    if width <= 0.0 || height <= 0.0 {
+                        width = Self::get_double_raw(api, handle, c"width");
+                        height = Self::get_double_raw(api, handle, c"height");
+                    }
+                }
+
+                // Корректировка ориентации при повороте видеопотока
+                if width > 0.0 && height > 0.0 {
+                    let rotate = Self::get_double_raw(api, handle, c"video-params/rotate") as i64;
+                    if rotate == 90 || rotate == 270 {
+                        std::mem::swap(&mut width, &mut height);
+                    }
+                }
+            }
+        }
+
+        (width, height)
+    }
+
     #[inline]
     unsafe fn get_flag_raw(api: &MpvApi, handle: *mut MpvHandle, name: &CStr) -> bool {
         let mut value: c_int = 0;
@@ -1372,46 +1383,8 @@ impl MpvManager {
                 c"vid",
                 &mut vid_buf,
             );
-            let mut output_width = Self::get_double_raw(
-                &self.api,
-                handle,
-                c"video-params/dw",
-            );
-            if output_width <= 0.0 {
-                output_width =
-                    Self::get_double_raw(&self.api, handle, c"dwidth");
-                if output_width <= 0.0 {
-                    output_width =
-                        Self::get_double_raw(&self.api, handle, c"width");
-                    if output_width <= 0.0 {
-                        output_width = Self::get_double_raw(
-                            &self.api,
-                            handle,
-                            c"video-out-params/dw",
-                        );
-                    }
-                }
-            }
-            let mut output_height = Self::get_double_raw(
-                &self.api,
-                handle,
-                c"video-params/dh",
-            );
-            if output_height <= 0.0 {
-                output_height =
-                    Self::get_double_raw(&self.api, handle, c"dheight");
-                if output_height <= 0.0 {
-                    output_height =
-                        Self::get_double_raw(&self.api, handle, c"height");
-                    if output_height <= 0.0 {
-                        output_height = Self::get_double_raw(
-                            &self.api,
-                            handle,
-                            c"video-out-params/dh",
-                        );
-                    }
-                }
-            }
+            let (output_width, output_height) =
+                Self::resolve_video_output_dimensions(&self.api, handle);
             let output_status = video_output_status_from_properties(
                 &path,
                 &path,

@@ -377,7 +377,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
             fullInfo.width = effectiveWidth;
             fullInfo.height = effectiveHeight;
-            fullInfo.video_ready = hasVideoDimensions || fullInfo.video_ready;
+            fullInfo.video_ready = Boolean(fullInfo.video_ready && hasVideoDimensions);
             mediaInfoRef.current = fullInfo;
             setMediaInfo(fullInfo);
             setHasMedia(true);
@@ -554,10 +554,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
                 height: targetHeight,
                 video_track: nextVideoTrack,
                 has_video: dynState.has_video,
-                video_ready:
-                  (targetWidth > 0 && targetHeight > 0) ||
-                  currentMedia.video_ready ||
-                  dynState.video_ready,
+                video_ready: Boolean(
+                  dynState.video_ready ||
+                  (currentMedia.video_ready && targetWidth > 0 && targetHeight > 0)
+                ),
                 audio_bitrate: dynState.audio_bitrate,
                 video_bitrate: dynState.video_bitrate,
                 dropped_frames: dynState.dropped_frames,

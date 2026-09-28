@@ -226,8 +226,7 @@ export const Timeline = React.memo(() => {
     firePulse(ratio * 100);
     setMousePosition(time);
     setHoverInfo({ ratio, time });
-    scheduleScrub(time);
-  }, [safeDuration, firePulse, scheduleScrub]);
+  }, [safeDuration, firePulse]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (safeDuration <= 0) return;

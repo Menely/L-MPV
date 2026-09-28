@@ -401,12 +401,14 @@ function App() {
           let targetWidth = w / scaleFactor;
           let targetHeight = h / scaleFactor;
           
-          // Ограничиваем сверху (чтобы окно не вылезало за экран и не было огромным)
+          // Ограничиваем сверху (не более 85% рабочего стола и не более комфортного лимита)
           const MAX_COMFORTABLE_WIDTH = 1280;
           const MAX_COMFORTABLE_HEIGHT = 720;
 
-          const maxWidth = Math.min(window.screen.availWidth * 0.50, MAX_COMFORTABLE_WIDTH);
-          const maxHeight = Math.min(window.screen.availHeight * 0.50, MAX_COMFORTABLE_HEIGHT);
+          const maxAvailW = window.screen.availWidth * 0.85;
+          const maxAvailH = window.screen.availHeight * 0.85;
+          const maxWidth = Math.min(maxAvailW, MAX_COMFORTABLE_WIDTH);
+          const maxHeight = Math.min(maxAvailH, MAX_COMFORTABLE_HEIGHT);
           
           if (targetWidth > maxWidth || targetHeight > maxHeight) {
             const ratio = Math.min(maxWidth / targetWidth, maxHeight / targetHeight);
@@ -414,7 +416,7 @@ function App() {
             targetHeight = targetHeight * ratio;
           }
           
-          // Ограничиваем снизу
+          // Ограничиваем снизу для сохранения читаемости UI и пропорций
           const MIN_WIDTH = 560;
           const MIN_HEIGHT = 180;
           
@@ -424,8 +426,11 @@ function App() {
             targetHeight = targetHeight * ratio;
           }
           
-          const physWidth = Math.round(targetWidth * scaleFactor);
-          const physHeight = Math.round(physWidth / videoAspect);
+          // Четные физические размеры исключают субпиксельные 1px полосы рассинхронизации DirectX swapchain
+          let physWidth = Math.round(targetWidth * scaleFactor);
+          if (physWidth % 2 !== 0) physWidth += 1;
+          let physHeight = Math.round(physWidth / videoAspect);
+          if (physHeight % 2 !== 0) physHeight += 1;
           
           await appWindow.setSize(new PhysicalSize(physWidth, physHeight));
           await appWindow.center();
@@ -442,26 +447,51 @@ function App() {
     return false;
   }, [revealWindow]);
 
-  // Флаг того, что начальный размер окна под первое видео в текущей сессии уже был применён
-  const hasInitialVideoSizedRef = useRef<boolean>(false);
+  // Хранилище параметров последнего спозиционированного видеофайла
+  const lastSizedVideoRef = useRef<{
+    path: string;
+    width: number;
+    height: number;
+    videoReady: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (mediaInfo?.path && mediaInfo.width > 0 && mediaInfo.height > 0) {
-      // Подгоняем окно под размер видео СТРОГО один раз за сессию для самого первого открытого видео.
-      // Любое последующее переключение видео (кнопки, плейлист, хоткей, drag&drop)
-      // или хотлоад дорожек/субтитров не сбрасывает размер окна, сохраняя выбор пользователя.
-      if (!hasInitialVideoSizedRef.current) {
-        hasInitialVideoSizedRef.current = true;
+      const prev = lastSizedVideoRef.current;
+      const isNewFile = !prev || prev.path !== mediaInfo.path;
+      // Если размеры уточнились после подтверждения готовности видеовыхода (VO ready)
+      const isGeometryRefined = Boolean(
+        prev &&
+        prev.path === mediaInfo.path &&
+        (!prev.videoReady && mediaInfo.video_ready) &&
+        (prev.width !== mediaInfo.width || prev.height !== mediaInfo.height)
+      );
+
+      if (isNewFile || isGeometryRefined) {
+        lastSizedVideoRef.current = {
+          path: mediaInfo.path,
+          width: mediaInfo.width,
+          height: mediaInfo.height,
+          videoReady: Boolean(mediaInfo.video_ready),
+        };
         void resizeWindowForVideo(mediaInfo.width, mediaInfo.height);
       } else {
-        // Окно уже было спозиционировано под первое видео — просто гарантируем видимость
+        // Окно уже спозиционировано под текущее видео — сохраняем выбор пользователя и гарантируем видимость
         revealWindow();
       }
     } else if (mediaInfo?.path && mediaInfo.video_track === false) {
       // Аудиофайл или файл без видеоряда: список дорожек уже известен и видео в нём точно нет.
       revealWindow();
     }
-  }, [mediaInfo?.path, mediaInfo?.width, mediaInfo?.height, mediaInfo?.video_track, resizeWindowForVideo, revealWindow]);
+  }, [
+    mediaInfo?.path,
+    mediaInfo?.width,
+    mediaInfo?.height,
+    mediaInfo?.video_track,
+    mediaInfo?.video_ready,
+    resizeWindowForVideo,
+    revealWindow,
+  ]);
 
   // Автоматическое применение AI Upscaling при загрузке нового файла
   useEffect(() => {
