@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.5.4-blueviolet?style=for-the-badge" alt="Version 2.5.4">
+  <img src="https://img.shields.io/badge/Version-2.5.5-blueviolet?style=for-the-badge" alt="Version 2.5.5">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -163,11 +163,13 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 </details>
 
 <details>
-<summary><b>⚡ Next-Gen Video Rendering (<code>vo=gpu-next</code>)</b></summary>
+<summary><b>⚡ Next-Gen Video Rendering (<code>vo=gpu-next</code>) & Adaptive Window Geometry</b></summary>
 
 - **GPU-HQ Pipeline:** Powered by `profile=gpu-hq`, native Direct3D 11 (`gpu-api=d3d11`), and hardware decoding (`hwdec=auto-safe`).
 - **High-Precision Scaling:** Reference `scale=spline36` and `cscale=spline36` interpolation algorithms delivering razor-sharp detail and pristine color transitions.
 - **Intelligent HDR:** Automatic display metadata passthrough (`target-colorspace-hint=yes`), dynamic peak brightness calculation (`hdr-compute-peak=yes`), and adaptive tone mapping.
+- **Letterbox Prevention (Zero Black Bars):** Automatic calculation of physical even pixel dimensions adhering strictly to the stream Display Aspect Ratio (DAR) with monitor DPI scaling. Window is automatically centered using `appWindow.center()` without unwanted black bars.
+- **Automatic Zoom & Pan Reset:** Guarantees `video-zoom` and `video-pan` reset to 0.0 upon opening every new media file.
 - **Zero-Flicker Lifecycle & Lightning Launch (< 1-2s):** The window initializes hidden, instantly reads container geometry from the demuxer, calculates true Display Aspect Ratio, centers itself, and reveals smoothly (`window.show()`) with zero stutter or flicker.
 - **Direct-to-Window HWND Output:** Video renders directly into the native Win32 HWND via C-FFI with zero latency underneath a fully transparent WebView2 DOM layer (`transparent: true`).
 
@@ -302,7 +304,17 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Two Form Factors, One Codebase:** Choose your preferred layout (Sidebar drawer or centered modal dialog) under "Appearance"; your selection is saved and applied immediately without restarting the player.
 - **Context Preservation Across Layouts:** Active category, tab, expanded accordions, scroll position, and draft preset name seamlessly persist when switching between Sidebar and Modal views.
 - **True Display Scaling:** Panel width is computed from actual window dimensions factoring in `UI Scale`, ensuring perfect proportions on 2K/4K high-DPI displays.
+- **Exclusive Single-Accordion Mode:** Expanding any settings category automatically and smoothly collapses sibling categories, maintaining a clean and focused workspace in both Sidebar and Modal layouts.
 - **Adaptive Settings Grids:** Blocks dynamically collapse from three columns to single-column layouts on compact windows without label truncation or slider clipping.
+
+</details>
+
+<details>
+<summary><b>✨ Interactive Timeline: Neon Pulse Wave & Live Scrubbing</b></summary>
+
+- **Kinematic Neon Pulse Wave:** Dynamic glowing neon sine wave expanding from the cursor hover point along the progress track, styled to match the active player accent theme.
+- **Unthrottled Live Scrubbing:** Ultra-responsive `pointermove` handling delivering silky smooth scrubbing without micro-stutters, fully optimized for high refresh rate (144Hz+) gaming monitors.
+- **Artifact-Free Instant Seeking (Anti-Flicker):** Timeline seeking employs `absolute+exact` positioning, completely eliminating keyframe jumps and double-frame flicker on timeline clicks.
 
 </details>
 
@@ -368,6 +380,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Interactive Stream Filter Tabs (Quick Filter):** Filter tracks instantly (*"All"*, *"General"*, *"Video"*, *"Audio"*, *"Subtitles"*, *"Chapters"*) with informative stream count badges and 6px rounded pills matching the design system.
 - **Collapsible Stream Accordions:** Collapse or expand individual streams or all at once ("Expand/Collapse All"), with auto-expansion during `Ctrl+F` search.
 - **Native Drag-and-Drop:** Drop any media file straight into the open MediaInfo window with a translucent overlay (`FileUp`) for instant analysis.
+- **Real-Time Bitrate Telemetry (Bitrate Sparkline):** Live interactive graph tracking incoming video and audio bitrates, demuxer cache depth, buffer metrics, and hardware decoder performance.
 - **Productivity Features:** Instant property search with highlighting (`Ctrl+F`), export to `.txt`, copy to clipboard, and bilingual interface (EN/RU).
 
 </details>
