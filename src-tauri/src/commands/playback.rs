@@ -74,6 +74,9 @@ pub fn open_file_internal(
         "loadfile \"{}\" replace",
         safe_target
     ))?;
+    let _ = state.mpv.set_property_double("video-zoom", 0.0);
+    let _ = state.mpv.set_property_double("video-pan-x", 0.0);
+    let _ = state.mpv.set_property_double("video-pan-y", 0.0);
     state.ambient_controller.invalidate();
 
     // Флаги читаются один раз (один парсинг settings.json на открытие).

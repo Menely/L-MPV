@@ -12,7 +12,7 @@ import { listen, emit } from "@tauri-apps/api/event";
 import { usePlayerState } from "./contexts/PlayerStateContext";
 import { useOsd } from "./hooks/useOsd";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Play } from "lucide-react";
 import "./index.css";
@@ -389,56 +389,14 @@ function App() {
   // ─── Автоматическая подгонка окна под размер и пропорции видео ───
   const resizeWindowForVideo = useCallback(async (w: number, h: number) => {
     try {
-      const appWindow = getCurrentWindow();
       if (w > 0 && h > 0) {
-        const isFs = await appWindow.isFullscreen();
-        const isMax = await appWindow.isMaximized();
-        if (!isFs && !isMax) {
-          const videoAspect = w / h;
-          
-          // Получаем масштаб экрана для перевода видео в логические пиксели
-          const scaleFactor = await appWindow.scaleFactor();
-          let targetWidth = w / scaleFactor;
-          let targetHeight = h / scaleFactor;
-          
-          // Ограничиваем сверху (не более 85% рабочего стола и не более комфортного лимита)
-          const MAX_COMFORTABLE_WIDTH = 1280;
-          const MAX_COMFORTABLE_HEIGHT = 720;
-
-          const maxAvailW = window.screen.availWidth * 0.85;
-          const maxAvailH = window.screen.availHeight * 0.85;
-          const maxWidth = Math.min(maxAvailW, MAX_COMFORTABLE_WIDTH);
-          const maxHeight = Math.min(maxAvailH, MAX_COMFORTABLE_HEIGHT);
-          
-          if (targetWidth > maxWidth || targetHeight > maxHeight) {
-            const ratio = Math.min(maxWidth / targetWidth, maxHeight / targetHeight);
-            targetWidth = targetWidth * ratio;
-            targetHeight = targetHeight * ratio;
-          }
-          
-          // Ограничиваем снизу для сохранения читаемости UI и пропорций
-          const MIN_WIDTH = 560;
-          const MIN_HEIGHT = 180;
-          
-          if (targetWidth < MIN_WIDTH || targetHeight < MIN_HEIGHT) {
-            const ratio = Math.max(MIN_WIDTH / targetWidth, MIN_HEIGHT / targetHeight);
-            targetWidth = targetWidth * ratio;
-            targetHeight = targetHeight * ratio;
-          }
-          
-          // Четные физические размеры исключают субпиксельные 1px полосы рассинхронизации DirectX swapchain
-          let physWidth = Math.round(targetWidth * scaleFactor);
-          if (physWidth % 2 !== 0) physWidth += 1;
-          let physHeight = Math.round(physWidth / videoAspect);
-          if (physHeight % 2 !== 0) physHeight += 1;
-          
-          await appWindow.setSize(new PhysicalSize(physWidth, physHeight));
-          await appWindow.center();
-        }
+        await invoke("resize_player_window", {
+          videoWidth: Math.round(w),
+          videoHeight: Math.round(h),
+        });
+      } else {
+        await revealWindow();
       }
-
-      // Показываем окно строго ПОСЛЕ изменения размера и готовности первого кадра
-      await revealWindow();
       return true;
     } catch (e) {
       console.error("Ошибка при изменении размера окна:", e);
@@ -459,15 +417,22 @@ function App() {
     if (mediaInfo?.path && mediaInfo.width > 0 && mediaInfo.height > 0) {
       const prev = lastSizedVideoRef.current;
       const isNewFile = !prev || prev.path !== mediaInfo.path;
+      const prevAspect = prev && prev.height > 0 ? prev.width / prev.height : 0;
+      const curAspect = mediaInfo.width / mediaInfo.height;
+      const isAspectChanged = Math.abs(prevAspect - curAspect) > 0.01;
       // Если размеры уточнились после подтверждения готовности видеовыхода (VO ready)
       const isGeometryRefined = Boolean(
         prev &&
         prev.path === mediaInfo.path &&
-        (!prev.videoReady && mediaInfo.video_ready) &&
-        (prev.width !== mediaInfo.width || prev.height !== mediaInfo.height)
+        (!prev.videoReady && mediaInfo.video_ready)
       );
 
-      if (isNewFile || isGeometryRefined) {
+      if (isNewFile || isAspectChanged || isGeometryRefined) {
+        if (isNewFile) {
+          videoZoomRef.current = 0;
+          videoPanXRef.current = 0;
+          videoPanYRef.current = 0;
+        }
         lastSizedVideoRef.current = {
           path: mediaInfo.path,
           width: mediaInfo.width,

@@ -112,8 +112,10 @@ fn video_output_status_from_properties(
     let normalized_track = video_track.trim();
     let has_video =
         !normalized_track.is_empty() && normalized_track != "no";
-    let path_matches = !expected_path.trim().is_empty()
-        && observed_path == expected_path;
+    let norm_expected = expected_path.replace('\\', "/");
+    let norm_observed = observed_path.replace('\\', "/");
+    let path_matches = !norm_expected.trim().is_empty()
+        && norm_observed.trim().eq_ignore_ascii_case(norm_expected.trim());
     let width = positive_video_dimension(output_width);
     let height = positive_video_dimension(output_height);
     VideoOutputStatus {

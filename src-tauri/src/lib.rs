@@ -282,6 +282,7 @@ pub fn run() {
             commands::save_current_position,
             commands::update_taskbar_progress,
             commands::toggle_fullscreen,
+            commands::resize_player_window,
             commands::extract_track,
             commands::get_active_subtitle_lines,
             commands::analyze_subtitle_track,
@@ -373,6 +374,10 @@ pub fn run() {
         })
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
+            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                width: 1280.0,
+                height: 720.0,
+            }));
             let state = app.state::<PlayerState>();
             state.ambient_controller.attach_app(app.handle().clone());
             state.ambient_controller.start_worker();
