@@ -36,6 +36,9 @@ export interface MediaInfo {
   total_bitrate: number;
   hdr_info: string;
   dropped_frames: number;
+  color_space?: string;
+  bit_depth?: string;
+  pixel_format?: string;
 }
 
 export interface PlaybackState {

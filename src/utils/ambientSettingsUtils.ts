@@ -66,7 +66,8 @@ function readNumber(value: unknown, fallback: number): number {
 }
 
 function readMode(value: unknown): AmbientMode {
-  return value === "blur" || value === "color" || value === "ambilight" ? value : "off";
+  // Режим ambilight временно отключен во избежание артефактов и ложных срабатываний
+  return value === "blur" || value === "color" ? value : "off";
 }
 
 function readColor(value: unknown): string {

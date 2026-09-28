@@ -644,7 +644,7 @@ export const en: TranslationDict = {
         resetZoom: "Reset video zoom (100%)",
         screenshot: "Take screenshot",
         copyFrame: "Copy frame to clipboard",
-        toggleAmbient: "Ambient Light (off / blur / color / ambilight)",
+        toggleAmbient: "Ambient Light (off / blur / color)",
         toggleLanguage: "Switch interface language",
         playlist: "Playlist sidebar",
 
@@ -724,7 +724,7 @@ export const en: TranslationDict = {
       rotation: "Video rotation",
       rotationDesc: "Rotate video to 0°, 90°, 180° or 270°",
       ambient: "Ambient Light",
-      ambientDesc: "Ambient Light mode: off / blur / color / ambilight",
+      ambientDesc: "Ambient Light mode: off / blur / color",
       speed: "Playback speed",
       speedDesc: "Playback speed: 0.25× – 2×",
 
@@ -866,6 +866,8 @@ export const en: TranslationDict = {
     currentBitrate: "Current bitrate:",
     totalBitrate: "Overall bitrate:",
     droppedFrames: "Dropped frames:",
+    colorSpace: "Color space:",
+    bitDepth: "Bit depth:",
     audio: "Audio:",
     bitrate: "Bitrate:",
     volume: "Volume:",

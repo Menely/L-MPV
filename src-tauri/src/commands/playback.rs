@@ -467,6 +467,67 @@ pub fn get_fps(
 }
 
 /// Получение полной информации о текущем медиафайле.
+/// Определение динамического диапазона (HDR10 / HLG / SDR) по кривой гаммы и матрице.
+pub(crate) fn resolve_hdr_info(gamma: &str, colormatrix: &str) -> String {
+    if gamma == "pq" || gamma == "smpte2084" {
+        "HDR10".to_string()
+    } else if gamma == "hlg" {
+        "HLG".to_string()
+    } else if gamma == "dovi" {
+        "Dolby Vision".to_string()
+    } else if colormatrix.contains("2020") {
+        "HDR (BT.2020)".to_string()
+    } else if !gamma.is_empty()
+        && gamma != "bt.1886"
+        && gamma != "srgb"
+        && gamma != "gamma22"
+    {
+        gamma.to_uppercase()
+    } else {
+        "SDR".to_string()
+    }
+}
+
+/// Определение цветового пространства по праймарис и матрице цветов.
+pub(crate) fn resolve_color_space(primaries: &str, colormatrix: &str) -> String {
+    if primaries.contains("2020") || colormatrix.contains("2020") {
+        "BT.2020".to_string()
+    } else if primaries.contains("709") || colormatrix.contains("709") {
+        "BT.709".to_string()
+    } else if primaries.contains("dci") || primaries.contains("display-p3") {
+        "DCI-P3".to_string()
+    } else if primaries.contains("601")
+        || primaries.contains("170m")
+        || colormatrix.contains("601")
+        || colormatrix.contains("170m")
+    {
+        "BT.601".to_string()
+    } else if !primaries.is_empty() {
+        primaries.to_uppercase()
+    } else if !colormatrix.is_empty() {
+        colormatrix.to_uppercase()
+    } else {
+        "—".to_string()
+    }
+}
+
+/// Определение разрядности цвета (бит на канал).
+pub(crate) fn resolve_bit_depth(plane_depth_str: &str, pixfmt: &str) -> String {
+    if !plane_depth_str.is_empty() && plane_depth_str != "0" {
+        format!("{plane_depth_str}-bit")
+    } else if pixfmt.contains("10") || pixfmt.contains("p010") {
+        "10-bit".to_string()
+    } else if pixfmt.contains("12") {
+        "12-bit".to_string()
+    } else if pixfmt.contains("16") {
+        "16-bit".to_string()
+    } else if !pixfmt.is_empty() {
+        "8-bit".to_string()
+    } else {
+        "—".to_string()
+    }
+}
+
 #[tauri::command]
 pub fn get_media_info(
     state: State<'_, PlayerState>,
@@ -478,11 +539,37 @@ pub fn get_media_info(
     // свойства относятся к тому же файлу, что и текущий путь.
     let output_status = mpv.video_output_status_for(&current_path);
 
+    let duration = mpv.get_property_double("duration").unwrap_or(0.0);
+    let file_size = mpv.get_property_double("file-size").unwrap_or(0.0);
+    let total_bitrate = if duration > 0.0 {
+        (file_size * 8.0) / duration
+    } else {
+        0.0
+    };
+
+    let gamma = mpv
+        .get_property_string("video-params/gamma")
+        .unwrap_or_default();
+    let colormatrix = mpv
+        .get_property_string("video-params/colormatrix")
+        .unwrap_or_default();
+    let primaries = mpv
+        .get_property_string("video-params/primaries")
+        .unwrap_or_default();
+    let plane_depth_str = mpv
+        .get_property_string("video-params/plane-depth")
+        .unwrap_or_default();
+    let pixel_format = mpv
+        .get_property_string("video-params/pixelformat")
+        .unwrap_or_default();
+
+    let hdr_info = resolve_hdr_info(&gamma, &colormatrix);
+    let color_space = resolve_color_space(&primaries, &colormatrix);
+    let bit_depth = resolve_bit_depth(&plane_depth_str, &pixel_format);
+
     Ok(MediaInfo {
         path: current_path,
-        duration: mpv
-            .get_property_double("duration")
-            .unwrap_or(0.0),
+        duration,
         position: mpv
             .get_property_double("time-pos")
             .unwrap_or(0.0),
@@ -516,9 +603,7 @@ pub fn get_media_info(
         volume: mpv
             .get_property_double("volume")
             .unwrap_or(100.0),
-        file_size: mpv
-            .get_property_double("file-size")
-            .unwrap_or(0.0),
+        file_size,
         audio_channels: mpv
             .get_property_string(
                 "audio-params/channel-count",
@@ -550,29 +635,16 @@ pub fn get_media_info(
                     .unwrap_or(0.0)
             }
         },
-        total_bitrate: {
-            let size = mpv
-                .get_property_double("file-size")
-                .unwrap_or(0.0);
-            let dur = mpv
-                .get_property_double("duration")
-                .unwrap_or(0.0);
-            if dur > 0.0 {
-                (size * 8.0) / dur
-            } else {
-                0.0
-            }
-        },
-        hdr_info: mpv
-            .get_property_string(
-                "video-params/colorlevels",
-            )
-            .unwrap_or_default(),
+        total_bitrate,
+        hdr_info,
         dropped_frames: mpv
             .get_property_double(
                 "vo-delayed-frame-count",
             )
             .unwrap_or(0.0) as i64,
+        color_space,
+        bit_depth,
+        pixel_format,
     })
 }
 
@@ -594,4 +666,45 @@ pub fn get_video_dimensions(
         mpv.get_property_string("path").unwrap_or_default();
     let status = mpv.video_output_status_for(&current_path);
     Ok((status.width, status.height))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_hdr_info() {
+        assert_eq!(resolve_hdr_info("pq", "bt.2020"), "HDR10");
+        assert_eq!(resolve_hdr_info("smpte2084", "bt.2020"), "HDR10");
+        assert_eq!(resolve_hdr_info("hlg", "bt.2020"), "HLG");
+        assert_eq!(resolve_hdr_info("dovi", "bt.2020"), "Dolby Vision");
+        assert_eq!(resolve_hdr_info("linear", "bt.2020"), "HDR (BT.2020)");
+        assert_eq!(resolve_hdr_info("bt.1886", "bt.709"), "SDR");
+        assert_eq!(resolve_hdr_info("", ""), "SDR");
+    }
+
+    #[test]
+    fn test_resolve_color_space() {
+        assert_eq!(resolve_color_space("bt.2020", "bt.2020"), "BT.2020");
+        assert_eq!(resolve_color_space("bt.709", ""), "BT.709");
+        assert_eq!(resolve_color_space("dci-p3", ""), "DCI-P3");
+        assert_eq!(resolve_color_space("display-p3", ""), "DCI-P3");
+        assert_eq!(resolve_color_space("smpte170m", ""), "BT.601");
+        assert_eq!(resolve_color_space("bt.601", ""), "BT.601");
+        assert_eq!(resolve_color_space("", "bt.709"), "BT.709");
+        assert_eq!(resolve_color_space("adobe-rgb", ""), "ADOBE-RGB");
+        assert_eq!(resolve_color_space("", ""), "—");
+    }
+
+    #[test]
+    fn test_resolve_bit_depth() {
+        assert_eq!(resolve_bit_depth("10", "yuv420p"), "10-bit");
+        assert_eq!(resolve_bit_depth("8", "yuv420p"), "8-bit");
+        assert_eq!(resolve_bit_depth("0", "yuv420p10le"), "10-bit");
+        assert_eq!(resolve_bit_depth("", "p010"), "10-bit");
+        assert_eq!(resolve_bit_depth("", "yuv420p12le"), "12-bit");
+        assert_eq!(resolve_bit_depth("", "yuv420p16le"), "16-bit");
+        assert_eq!(resolve_bit_depth("", "yuv420p"), "8-bit");
+        assert_eq!(resolve_bit_depth("", ""), "—");
+    }
 }

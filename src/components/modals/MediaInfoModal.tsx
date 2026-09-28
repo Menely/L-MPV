@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { X } from "lucide-react";
 import { usePlayerState, usePlayerProgress, useLiveState } from "../../contexts/PlayerStateContext";
 import { formatTime } from "../../utils/timeUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { BitrateSparkline } from "./BitrateSparkline";
 
 interface MediaInfoModalProps {
   /** Обработчик закрытия модального окна. */
@@ -13,10 +15,12 @@ interface MediaInfoModalProps {
  * Форматирование байт в человекочитаемый вид.
  */
 function formatBytes(bytes: number): string {
-  if (!bytes || bytes === 0) return "0 B";
+  if (!bytes || bytes <= 0 || !Number.isFinite(bytes)) return "0 B";
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
+  if (i < 0) return "0 B";
+  if (i >= sizes.length) return parseFloat((bytes / Math.pow(k, sizes.length - 1)).toFixed(2)) + " " + sizes[sizes.length - 1];
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
@@ -35,6 +39,7 @@ export function MediaInfoModal({
   const filename = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() : "—";
 
   const [instantBitrate, setInstantBitrate] = useState<number>(0);
+  const [bitrateHistory, setBitrateHistory] = useState<number[]>([]);
   // Храним историю позиций для скользящего среднего (окно ~3 секунды)
   const historyRef = useRef<{ time: number; pos: number }[]>([]);
   const lastUiUpdateRef = useRef<number>(0);
@@ -42,6 +47,7 @@ export function MediaInfoModal({
   // Сброс мгновенного битрейта при смене файла
   useEffect(() => {
     setInstantBitrate(0);
+    setBitrateHistory([]);
     historyRef.current = [];
   }, [mediaInfo?.path]);
 
@@ -84,8 +90,12 @@ export function MediaInfoModal({
         
         if (deltaT > 0 && deltaBytes >= 0) {
           const calculated = (deltaBytes * 8) / deltaT;
-          if (calculated > 0) {
+          if (Number.isFinite(calculated) && calculated > 0) {
             setInstantBitrate(calculated);
+            setBitrateHistory((prev) => {
+              const next = [...prev, calculated];
+              return next.length > 20 ? next.slice(next.length - 20) : next;
+            });
           }
         }
       }
@@ -101,19 +111,23 @@ export function MediaInfoModal({
   const currentVolume = liveState?.volume ?? mediaInfo?.volume ?? 100;
 
   const [isClosing, setIsClosing] = useState<boolean>(false);
+  const isClosingRef = useRef<boolean>(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const handleClose = useCallback(() => {
-    if (isClosing) return;
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    setIsClosing(true);
+
     if (!isMotionAllowed()) {
       onClose();
       return;
     }
-    setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
     }, getCloseTimeoutMs("fast"));
-  }, [isClosing, onClose]);
+  }, [onClose]);
 
   // Закрытие оверлея инфо по Escape
   useEffect(() => {
@@ -128,16 +142,50 @@ export function MediaInfoModal({
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [handleClose]);
 
+  // Закрытие по клику вне оверлея
+  useEffect(() => {
+    const handlePointerDown = (e: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+        handleClose();
+      }
+    };
+    const timer = setTimeout(() => {
+      window.addEventListener("mousedown", handlePointerDown);
+    }, 50);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [handleClose]);
+
   useEffect(() => {
     return () => {
       if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current);
       }
+      isClosingRef.current = false;
     };
   }, []);
 
   return (
-    <div className={`media-info-overlay ${isClosing ? "media-info-overlay--closing" : ""}`} onClick={handleClose}>
+    <div
+      ref={modalRef}
+      className={`media-info-overlay ${isClosing ? "media-info-overlay--closing" : ""}`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Шапка оверлея с заголовком и кнопкой закрытия */}
+      <div className="media-info__header">
+        <span className="media-info__title">{dict.mediaInfo.title}</span>
+        <button
+          className="modal__close media-info__close"
+          onClick={handleClose}
+          title={dict.mediaInfo.close}
+          aria-label={dict.mediaInfo.close}
+        >
+          <X size={15} />
+        </button>
+      </div>
+
       {/* Общие данные */}
       <div className="media-info__section">
         <div className="media-info__row media-info__row--filename">
@@ -180,10 +228,21 @@ export function MediaInfoModal({
           </span>
         </div>
         <div className="media-info__row">
+          <span className="media-info__label">{dict.mediaInfoModal.colorSpace}</span>
+          <span className="media-info__value">{mediaInfo?.color_space || "—"}</span>
+        </div>
+        <div className="media-info__row">
+          <span className="media-info__label">{dict.mediaInfoModal.bitDepth}</span>
+          <span className="media-info__value">{mediaInfo?.bit_depth || "—"}</span>
+        </div>
+        <div className="media-info__row">
           <span className="media-info__label">{dict.mediaInfoModal.currentBitrate}</span>
-          <span className="media-info__value">
-            {instantBitrate > 0 ? `${Math.round(instantBitrate / 1000)} ${dict.mediaInfoModal.kbps}` : "—"}
-          </span>
+          <div className="media-info__bitrate-wrap">
+            <BitrateSparkline data={bitrateHistory} />
+            <span className="media-info__value">
+              {instantBitrate > 0 ? `${Math.round(instantBitrate / 1000)} ${dict.mediaInfoModal.kbps}` : "—"}
+            </span>
+          </div>
         </div>
         <div className="media-info__row">
           <span className="media-info__label">{dict.mediaInfoModal.totalBitrate}</span>

@@ -648,7 +648,7 @@ export const ru: TranslationDict = {
         resetZoom: "Сброс масштаба видео (100%)",
         screenshot: "Сохранить кадр",
         copyFrame: "Копировать кадр в буфер",
-        toggleAmbient: "Подсветка полос (Ambient: выкл / размытие / цвет / Ambilight)",
+        toggleAmbient: "Подсветка полос (Ambient: выкл / размытие / цвет)",
         toggleLanguage: "Переключить язык интерфейса",
         playlist: "Боковая панель плейлиста",
 
@@ -728,7 +728,7 @@ export const ru: TranslationDict = {
       rotation: "Поворот видео",
       rotationDesc: "Поворот видео на 0°, 90°, 180° или 270°",
       ambient: "Подсветка полос",
-      ambientDesc: "Режим Ambient Light: выкл / размытие / цветной фон / Ambilight",
+      ambientDesc: "Режим Ambient Light: выкл / размытие / цветной фон",
       speed: "Скорость воспроизведения",
       speedDesc: "Скорость воспроизведения: 0.25× – 2×",
 
@@ -870,6 +870,8 @@ export const ru: TranslationDict = {
     currentBitrate: "Текущий битрейт:",
     totalBitrate: "Общий битрейт:",
     droppedFrames: "Дропы кадров:",
+    colorSpace: "Цветовое пространство:",
+    bitDepth: "Разрядность:",
     audio: "Аудио:",
     bitrate: "Битрейт:",
     volume: "Громкость:",

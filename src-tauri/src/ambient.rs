@@ -144,6 +144,10 @@ impl AmbientSettings {
             .clamp(MIN_SMOOTHING_RELEASE_MS, 5000);
         value.segment_spread = finite_clamp(value.segment_spread, 100.0, 200.0, 130.0);
         value.segment_gap = finite_clamp(value.segment_gap, 0.0, 50.0, 0.0);
+        // Режим Ambilight временно отключен во избежание артефактов и ложных срабатываний
+        if value.mode == AmbientMode::Ambilight {
+            value.mode = AmbientMode::Off;
+        }
         value
     }
 
@@ -574,7 +578,6 @@ impl AmbientController {
         let normalized = settings.normalized();
         let mut effective = normalized.clone();
         if effective.mode != AmbientMode::Off
-            && effective.mode != AmbientMode::Ambilight
             && !Self::has_bars(&self.mpv)
         {
             effective.mode = AmbientMode::Off;
@@ -683,7 +686,7 @@ impl AmbientController {
         match current {
             AmbientMode::Off => AmbientMode::Blur,
             AmbientMode::Blur => AmbientMode::Color,
-            AmbientMode::Color => AmbientMode::Ambilight,
+            AmbientMode::Color => AmbientMode::Off, // Ambilight временно отключен
             AmbientMode::Ambilight => AmbientMode::Off,
         }
     }
@@ -1012,10 +1015,10 @@ mod tests {
     }
 
     #[test]
-    fn mode_cycle_includes_ambilight() {
+    fn mode_cycle_skips_disabled_ambilight() {
         assert_eq!(
             AmbientController::cycle_mode(&AmbientMode::Color),
-            AmbientMode::Ambilight
+            AmbientMode::Off
         );
         assert_eq!(
             AmbientController::cycle_mode(&AmbientMode::Ambilight),

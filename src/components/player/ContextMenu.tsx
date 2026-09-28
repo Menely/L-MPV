@@ -723,7 +723,6 @@ export function ContextMenu({
           { type: "item", label: dict.settings.cmenuUI.ambOff, active: ambientMode === "off", action: () => handleSetAmbientMode("off") },
           { type: "item", label: dict.settings.cmenuUI.ambBlur, active: ambientMode === "blur", action: () => handleSetAmbientMode("blur") },
           { type: "item", label: dict.settings.cmenuUI.ambColor, active: ambientMode === "color", action: () => handleSetAmbientMode("color") },
-          { type: "item", label: dict.settings.cmenuUI.ambAmbilight, active: ambientMode === "ambilight", action: () => handleSetAmbientMode("ambilight") },
         ],
 
       }),

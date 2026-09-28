@@ -1068,7 +1068,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
                       gap: 8,
                       padding: 4,
                       background: "rgba(255, 255, 255, 0.03)",
@@ -1080,7 +1080,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                       { id: "off", label: dict.settings.appearance.ambientOff },
                       { id: "blur", label: dict.settings.appearance.ambientBlur },
                       { id: "color", label: dict.settings.appearance.ambientColor },
-                      { id: "ambilight", label: dict.settings.appearance.ambientAmbilight },
                     ].map((item) => {
                       const isSel = ambientSettings.mode === item.id;
                       return (
@@ -1169,7 +1168,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                   })()}
 
                   {/* Яркость/насыщенность (режим color) */}
-                  {(ambientSettings.mode === "color" || ambientSettings.mode === "ambilight") && (
+                  {ambientSettings.mode === "color" && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       <AmbientTuneRow
                         icon={<Sparkles size={15} />}

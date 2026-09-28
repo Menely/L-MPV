@@ -747,6 +747,8 @@ export interface TranslationDict {
     currentBitrate: string;
     totalBitrate: string;
     droppedFrames: string;
+    colorSpace: string;
+    bitDepth: string;
     audio: string;
     bitrate: string;
     volume: string;

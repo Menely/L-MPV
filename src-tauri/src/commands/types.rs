@@ -493,6 +493,15 @@ pub struct MediaInfo {
     pub hdr_info: String,
     /// Количество пропущенных кадров (dropped).
     pub dropped_frames: i64,
+    /// Цветовое пространство видеопотока (например, "BT.709", "BT.2020", "DCI-P3").
+    #[serde(default)]
+    pub color_space: String,
+    /// Глубина цвета / разрядность видеопотока (например, "10-bit", "8-bit", "12-bit").
+    #[serde(default)]
+    pub bit_depth: String,
+    /// Исходный формат пикселей (например, "yuv420p10le", "nv12").
+    #[serde(default)]
+    pub pixel_format: String,
 }
 
 /// Динамическое состояние воспроизведения для легкого регулярного поллинга.
