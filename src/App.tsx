@@ -118,6 +118,20 @@ function App() {
     setShowSettings(false);
   }, []);
 
+  const toggleSettings = useCallback(() => {
+    if (showSettings) {
+      setShowSettings(false);
+    } else {
+      setIsPlaylistOpen(false);
+      setShowMediaInfo(false);
+      setShowChapters(false);
+      setShowSubtitlesSearch(false);
+      setShowUpdateToast(false);
+      setContextMenu(null);
+      setShowSettings(true);
+    }
+  }, [showSettings]);
+
   useEffect(() => {
     const handleSettingsStyleChanged = (e: Event) => {
       const ce = e as CustomEvent<UiSettingsStyle>;
@@ -1449,7 +1463,7 @@ function App() {
             setShowSubtitlesSearch(true);
             closeContextMenu();
           }}
-           onShowSettings={openSettings}
+           onShowSettings={toggleSettings}
         />
       )}
 
