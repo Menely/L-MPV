@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 import { formatTime } from "../../utils/timeUtils";
 import { AudioVisualizer } from "./AudioVisualizer";
+import { useLiveScrubbing } from "./useLiveScrubbing";
+import { useNeonPulse } from "./useNeonPulse";
 
 export interface TimelineSegmentData {
   start: number;
@@ -12,6 +13,7 @@ export interface TimelineSegmentData {
 
 /**
  * Нормализация и разбивка шкалы на непрерывные сегменты глав [0, duration].
+ * Гарантирует покрытие 100% даже при несортированных или смещённых метках.
  */
 export function buildTimelineSegments(
   chapters: Array<{ time: number; title: string }>,
@@ -44,14 +46,38 @@ export function buildTimelineSegments(
   return segs.length > 0 ? segs : [{ start: 0, end: safeDuration, title: fallbackTitle }];
 }
 
-/**
- * Вспомогательный расчет процента заполнения отрезка [start, end].
- */
-function calcSegPercent(time: number, start: number, end: number): number {
-  if (time >= end) return 100;
-  if (time <= start) return 0;
-  return ((time - start) / (end - start)) * 100;
+/** Процент заполнения отрезка [segStart, segEnd] относительно позиции time. */
+function calcSegPercent(time: number, segStart: number, segEnd: number): number {
+  if (time >= segEnd) return 100;
+  if (time <= segStart) return 0;
+  return ((time - segStart) / (segEnd - segStart)) * 100;
 }
+
+// ─── Вспомогательные функции Pointer Capture ─────────────────────────────────
+
+function tryCapture(el: Element, pointerId: number): void {
+  try { el.setPointerCapture(pointerId); } catch { /* noop: не все env поддерживают */ }
+}
+
+function tryRelease(el: Element, pointerId: number): void {
+  try {
+    if (el.hasPointerCapture(pointerId)) el.releasePointerCapture(pointerId);
+  } catch { /* noop */ }
+}
+
+/** Конвертация clientX в позицию [0, duration] без layout thrashing. */
+function clientXToSeconds(clientX: number, rect: DOMRect, duration: number): number {
+  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+  return rect.width > 0 ? (x / rect.width) * duration : 0;
+}
+
+/** Конвертация clientX в ratio [0, 1]. */
+function clientXToRatio(clientX: number, rect: DOMRect): number {
+  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+  return rect.width > 0 ? x / rect.width : 0;
+}
+
+// ─── Мемоизированные sub-компоненты ──────────────────────────────────────────
 
 interface TimelineSegmentProps {
   flexBasis: number;
@@ -59,9 +85,6 @@ interface TimelineSegmentProps {
   segGhostProgress: number;
 }
 
-/**
- * Мемоизированный сегмент временной шкалы.
- */
 const TimelineSegment = React.memo<TimelineSegmentProps>(({ flexBasis, segProgress, segGhostProgress }) => (
   <div
     style={{
@@ -87,7 +110,6 @@ const TimelineSegment = React.memo<TimelineSegmentProps>(({ flexBasis, segProgre
     )}
   </div>
 ));
-
 TimelineSegment.displayName = "TimelineSegment";
 
 interface TimelinePreviewProps {
@@ -96,14 +118,11 @@ interface TimelinePreviewProps {
   mediaPath: string;
 }
 
-/**
- * Всплывающая плашка времени и названия главы при наведении и перетаскивании.
- */
 const TimelinePreview = React.memo<TimelinePreviewProps>(({ hoverInfo, segments, mediaPath }) => {
-  const activeSegment =
-    segments.find((seg) => hoverInfo.time >= seg.start && hoverInfo.time <= seg.end) ||
+  const active =
+    segments.find((s) => hoverInfo.time >= s.start && hoverInfo.time <= s.end) ||
     segments[segments.length - 1];
-  const showChapter = Boolean(activeSegment?.title && activeSegment.title !== mediaPath);
+  const showChapter = Boolean(active?.title && active.title !== mediaPath);
 
   return (
     <div
@@ -111,28 +130,32 @@ const TimelinePreview = React.memo<TimelinePreviewProps>(({ hoverInfo, segments,
       style={{ left: `clamp(48px, ${hoverInfo.ratio * 100}%, calc(100% - 48px))` }}
     >
       <div className="timeline-preview-card__time">{formatTime(hoverInfo.time)}</div>
-      {showChapter && <div className="timeline-preview-card__chapter">{activeSegment.title}</div>}
+      {showChapter && <div className="timeline-preview-card__chapter">{active.title}</div>}
     </div>
   );
 });
-
 TimelinePreview.displayName = "TimelinePreview";
 
-// ─── Интервал Live Scrubbing Throttling ────────────────
-const SCRUB_THROTTLE_MS = 120;
+// ─── Главный компонент ────────────────────────────────────────────────────────
 
 /**
- * Высокопроизводительный интерактивный таймлайн плеера L-MPV:
- * - Pointer Capture API: надежный скреббинг без утечек слушателей window;
- * - Live Scrubbing: живое обновление кадра видео во время drag (120 мс throttle);
- * - Neon Pulse Wave: неоновая волна при клике на шкалу;
- * - Единый rAF-батчер UI без Layout Thrashing;
- * - WAI-ARIA slider + навигация клавишами.
+ * Высокопроизводительный таймлайн плеера L-MPV.
+ *
+ * Архитектура:
+ * - useLiveScrubbing: throttled invoke("seek_preview") во время drag, с
+ *   автоматическим перепланированием rAF если throttle ещё не истёк;
+ * - useNeonPulse: CSS-анимация волны от точки клика;
+ * - Pointer Capture API: без глобальных window-слушателей и залипаний;
+ * - Единый rAF-батчер hover/drag обновлений (0 layout thrashing);
+ * - WAI-ARIA slider + полная клавиатурная навигация.
  */
 export const Timeline = React.memo(() => {
   const { mediaInfo, chapters, seekTo, seekBy } = usePlayerState();
   const { position, duration, seeking, seekTarget } = usePlayerProgress();
   const mediaPath = mediaInfo?.path || "";
+
+  const { scheduleScrub, cancelScrub } = useLiveScrubbing();
+  const { pulse, firePulse, dismissPulse } = useNeonPulse();
 
   const [mousePosition, setMousePosition] = useState<number | null>(null);
   const [isDraggingState, setIsDraggingState] = useState(false);
@@ -140,175 +163,125 @@ export const Timeline = React.memo(() => {
   const timelineRef = useRef<HTMLDivElement>(null);
   const cachedRectRef = useRef<DOMRect | null>(null);
 
-  // ─── Live Scrubbing: дросселирование вызовов seek_preview ────
-  const lastScrubTimeRef = useRef<number>(0);
-  const scrubRafRef = useRef<number | null>(null);
-  const pendingScrubPosRef = useRef<number | null>(null);
-
-  const flushScrub = useCallback(() => {
-    scrubRafRef.current = null;
-    const pos = pendingScrubPosRef.current;
-    if (pos === null) return;
-    pendingScrubPosRef.current = null;
-    const now = performance.now();
-    if (now - lastScrubTimeRef.current >= SCRUB_THROTTLE_MS) {
-      lastScrubTimeRef.current = now;
-      invoke("seek_preview", { seconds: pos }).catch(() => {});
-    }
-  }, []);
-
-  const scheduleScrub = useCallback((pos: number) => {
-    pendingScrubPosRef.current = pos;
-    if (scrubRafRef.current === null) {
-      scrubRafRef.current = requestAnimationFrame(flushScrub);
-    }
-  }, [flushScrub]);
-
-  // ─── Neon Pulse Wave: состояние вспышки при клике ────────────
-  // key изменяется на каждый клик, чтобы CSS-анимация рестартовала
-  const [pulseOrigin, setPulseOrigin] = useState<{ pct: number; key: number } | null>(null);
-
+  // ─── Производные значения ────────────────────────────────────
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
-  const rawPosition = mousePosition !== null
-    ? mousePosition
-    : (seeking && seekTarget !== null ? seekTarget : position);
-  const displayPosition = Number.isFinite(rawPosition)
-    ? Math.max(0, Math.min(safeDuration, rawPosition))
-    : 0;
+  const rawPos = mousePosition ?? (seeking && seekTarget !== null ? seekTarget : position);
+  const displayPos = Number.isFinite(rawPos) ? Math.max(0, Math.min(safeDuration, rawPos)) : 0;
+  const thumbPct = safeDuration > 0 ? Math.max(0, Math.min(100, (displayPos / safeDuration) * 100)) : 0;
 
-  const progress = safeDuration > 0
-    ? Math.max(0, Math.min(100, (displayPosition / safeDuration) * 100))
-    : 0;
+  const segments = useMemo(
+    () => buildTimelineSegments(chapters, safeDuration, mediaPath),
+    [chapters, safeDuration, mediaPath]
+  );
 
-  const segments = useMemo(() => {
-    return buildTimelineSegments(chapters, safeDuration, mediaPath);
-  }, [chapters, safeDuration, mediaPath]);
-
+  // ─── Hover rAF-батчер ────────────────────────────────────────
   const [hoverInfo, setHoverInfo] = useState<{ ratio: number; time: number } | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const pendingUpdateRef = useRef<{ clientX: number; rect: DOMRect; isDrag: boolean } | null>(null);
+  const rafId = useRef<number | null>(null);
+  const pendingClientX = useRef<{ x: number; rect: DOMRect; drag: boolean } | null>(null);
 
-  // Единый rAF-троттлинг обновлений позиции курсора (для hover и drag)
-  const applyPendingUpdate = useCallback(() => {
-    rafRef.current = null;
-    const pending = pendingUpdateRef.current;
-    if (!pending || safeDuration <= 0) return;
-
-    const { clientX, rect, isDrag } = pending;
-    const clickX = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    const ratio = rect.width > 0 ? clickX / rect.width : 0;
+  // applyHover вызывается только из rAF — всегда имеет актуальный safeDuration
+  const applyHoverRef = useRef(() => {});
+  applyHoverRef.current = () => {
+    rafId.current = null;
+    const p = pendingClientX.current;
+    if (!p || safeDuration <= 0) return;
+    const ratio = clientXToRatio(p.x, p.rect);
     const time = ratio * safeDuration;
-
-    if (isDrag) {
+    if (p.drag) {
       setMousePosition(time);
       scheduleScrub(time);
     }
     setHoverInfo({ ratio, time });
-  }, [safeDuration, scheduleScrub]);
+  };
 
-  const scheduleUpdate = useCallback((clientX: number, rect: DOMRect, isDrag: boolean) => {
-    pendingUpdateRef.current = { clientX, rect, isDrag };
-    if (rafRef.current === null) {
-      rafRef.current = requestAnimationFrame(applyPendingUpdate);
+  const scheduleHover = useCallback((x: number, rect: DOMRect, drag: boolean) => {
+    pendingClientX.current = { x, rect, drag };
+    if (rafId.current === null) {
+      rafId.current = requestAnimationFrame(applyHoverRef.current);
     }
-  }, [applyPendingUpdate]);
+  }, []);
 
   useEffect(() => {
     return () => {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      if (scrubRafRef.current !== null) {
-        cancelAnimationFrame(scrubRafRef.current);
-        scrubRafRef.current = null;
-      }
+      if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
       cachedRectRef.current = null;
       isDragging.current = false;
     };
   }, []);
 
-  // ─── Pointer Events Handlers ────────────────────────────────
+  // ─── Pointer handlers ────────────────────────────────────────
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || safeDuration <= 0) return;
-    const target = e.currentTarget;
-    try { target.setPointerCapture(e.pointerId); } catch { /* noop */ }
+    tryCapture(e.currentTarget, e.pointerId);
 
-    const rect = target.getBoundingClientRect();
+    const rect = e.currentTarget.getBoundingClientRect();
     cachedRectRef.current = rect;
     isDragging.current = true;
     setIsDraggingState(true);
 
-    const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const ratio = rect.width > 0 ? clickX / rect.width : 0;
+    const ratio = clientXToRatio(e.clientX, rect);
     const time = ratio * safeDuration;
 
-    // Neon Pulse Wave: запустить анимацию от точки клика
-    setPulseOrigin({ pct: ratio * 100, key: Date.now() });
-
+    firePulse(ratio * 100);
     setMousePosition(time);
     setHoverInfo({ ratio, time });
     scheduleScrub(time);
-  }, [safeDuration, scheduleScrub]);
+  }, [safeDuration, firePulse, scheduleScrub]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (safeDuration <= 0) return;
-    const rect = cachedRectRef.current || e.currentTarget.getBoundingClientRect();
-    scheduleUpdate(e.clientX, rect, isDragging.current);
-  }, [safeDuration, scheduleUpdate]);
+    scheduleHover(
+      e.clientX,
+      cachedRectRef.current ?? e.currentTarget.getBoundingClientRect(),
+      isDragging.current
+    );
+  }, [safeDuration, scheduleHover]);
 
-  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const stopDrag = useCallback((
+    e: React.PointerEvent<HTMLDivElement>,
+    commit: boolean
+  ) => {
     if (!isDragging.current) return;
     isDragging.current = false;
     setIsDraggingState(false);
 
-    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    if (scrubRafRef.current !== null) { cancelAnimationFrame(scrubRafRef.current); scrubRafRef.current = null; }
-    pendingScrubPosRef.current = null;
+    if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
+    cancelScrub();
+    tryRelease(e.currentTarget, e.pointerId);
 
-    try {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      }
-    } catch { /* noop */ }
-
-    const rect = cachedRectRef.current || e.currentTarget.getBoundingClientRect();
+    const rect = cachedRectRef.current ?? e.currentTarget.getBoundingClientRect();
     cachedRectRef.current = null;
 
-    const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const ratio = rect.width > 0 ? clickX / rect.width : 0;
-    const finalPos = ratio * safeDuration;
+    if (commit) {
+      const finalPos = clientXToSeconds(e.clientX, rect, safeDuration);
+      setMousePosition(null);
+      seekTo(finalPos);
 
-    setMousePosition(null);
-    // Точный seek при отпускании после live-preview
-    seekTo(finalPos);
+      // Скрыть подсказку если отпускание произошло вне шкалы
+      const outside =
+        e.clientX < rect.left || e.clientX > rect.right ||
+        e.clientY < rect.top || e.clientY > rect.bottom;
+      if (outside) setHoverInfo(null);
+    } else {
+      // cancel: откатываем без seek
+      setMousePosition(null);
+    }
+  }, [safeDuration, cancelScrub, seekTo]);
 
-    const isInside =
-      e.clientX >= rect.left && e.clientX <= rect.right &&
-      e.clientY >= rect.top && e.clientY <= rect.bottom;
-    if (!isInside) setHoverInfo(null);
-  }, [safeDuration, seekTo]);
-
-  const handlePointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging.current) return;
-    isDragging.current = false;
-    setIsDraggingState(false);
-    cachedRectRef.current = null;
-    setMousePosition(null);
-    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    if (scrubRafRef.current !== null) { cancelAnimationFrame(scrubRafRef.current); scrubRafRef.current = null; }
-    try {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      }
-    } catch { /* noop */ }
-  }, []);
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => stopDrag(e, true),
+    [stopDrag]
+  );
+  const handlePointerCancel = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => stopDrag(e, false),
+    [stopDrag]
+  );
 
   const handlePointerLeave = useCallback(() => {
     if (isDragging.current) return;
-    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    pendingUpdateRef.current = null;
+    if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
+    pendingClientX.current = null;
     setHoverInfo(null);
   }, []);
 
@@ -316,25 +289,23 @@ export const Timeline = React.memo(() => {
     if (safeDuration <= 0) return;
     e.preventDefault();
     e.stopPropagation();
-    seekBy(e.shiftKey ? (e.deltaY < 0 ? 1 : -1) : (e.deltaY < 0 ? 5 : -5));
+    const step = e.shiftKey ? 1 : 5;
+    seekBy(e.deltaY < 0 ? step : -step);
   }, [safeDuration, seekBy]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     if (safeDuration <= 0) return;
-    if (e.key === "ArrowLeft") {
-      e.preventDefault(); e.stopPropagation();
-      seekBy(e.shiftKey ? -1 : -5);
-    } else if (e.key === "ArrowRight") {
-      e.preventDefault(); e.stopPropagation();
-      seekBy(e.shiftKey ? 1 : 5);
-    } else if (e.key === "Home") {
-      e.preventDefault(); e.stopPropagation();
-      seekTo(0);
-    } else if (e.key === "End") {
-      e.preventDefault(); e.stopPropagation();
-      seekTo(safeDuration);
-    }
+    const actions: Record<string, () => void> = {
+      ArrowLeft: () => seekBy(e.shiftKey ? -1 : -5),
+      ArrowRight: () => seekBy(e.shiftKey ? 1 : 5),
+      Home: () => seekTo(0),
+      End: () => seekTo(safeDuration),
+    };
+    const action = actions[e.key];
+    if (action) { e.preventDefault(); e.stopPropagation(); action(); }
   }, [safeDuration, seekBy, seekTo]);
+
+  // ─── Рендер ──────────────────────────────────────────────────
 
   return (
     <div
@@ -345,8 +316,8 @@ export const Timeline = React.memo(() => {
       aria-label="Шкала времени воспроизведения"
       aria-valuemin={0}
       aria-valuemax={safeDuration}
-      aria-valuenow={Math.round(displayPosition)}
-      aria-valuetext={formatTime(displayPosition)}
+      aria-valuenow={Math.round(displayPos)}
+      aria-valuetext={formatTime(displayPos)}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -361,13 +332,12 @@ export const Timeline = React.memo(() => {
         <TimelinePreview hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath} />
       )}
 
-      {/* Neon Pulse Wave — волна расходится от точки клика */}
-      {pulseOrigin && (
+      {pulse && (
         <div
-          key={pulseOrigin.key}
+          key={pulse.key}
           className="timeline__pulse"
-          style={{ left: `${pulseOrigin.pct}%` }}
-          onAnimationEnd={() => setPulseOrigin(null)}
+          style={{ left: `${pulse.pct}%` }}
+          onAnimationEnd={dismissPulse}
         />
       )}
 
@@ -377,14 +347,14 @@ export const Timeline = React.memo(() => {
             display: "flex",
             width: "100%",
             height: "100%",
-            gap: segments.length > 1 ? "3px" : "0",
+            gap: segments.length > 1 ? "3px" : "0px",
           }}
         >
           {segments.map((seg, i) => {
-            const segDuration = seg.end - seg.start;
-            const flexBasis = safeDuration > 0 ? (segDuration / safeDuration) * 100 : 100;
-            const segProgress = segDuration > 0 ? calcSegPercent(displayPosition, seg.start, seg.end) : 0;
-            const segGhostProgress = hoverInfo && segDuration > 0
+            const segDur = seg.end - seg.start;
+            const flexBasis = safeDuration > 0 ? (segDur / safeDuration) * 100 : 100;
+            const segProgress = segDur > 0 ? calcSegPercent(displayPos, seg.start, seg.end) : 0;
+            const segGhost = hoverInfo && segDur > 0
               ? calcSegPercent(hoverInfo.time, seg.start, seg.end)
               : 0;
 
@@ -393,7 +363,7 @@ export const Timeline = React.memo(() => {
                 key={`${seg.start}-${i}`}
                 flexBasis={flexBasis}
                 segProgress={segProgress}
-                segGhostProgress={segGhostProgress}
+                segGhostProgress={segGhost}
               />
             );
           })}
@@ -401,7 +371,7 @@ export const Timeline = React.memo(() => {
 
         <div
           className={`timeline__thumb ${isDraggingState ? "timeline__thumb--dragging" : ""}`}
-          style={{ left: `${progress}%` }}
+          style={{ left: `${thumbPct}%` }}
         />
       </div>
     </div>
