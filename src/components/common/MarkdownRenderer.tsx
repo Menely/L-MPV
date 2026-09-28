@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { ExternalLink, Image as ImageIcon, CheckSquare, Square } from "lucide-react";
+import { ExternalLink, Image as ImageIcon, CheckSquare, Square, ChevronRight } from "lucide-react";
 
 interface MarkdownRendererProps {
   content: string;
@@ -49,6 +49,7 @@ type MarkdownBlock =
   | { type: "list"; items: { indent: number; checked: boolean | null; text: string }[]; ordered?: boolean }
   | { type: "table"; headers: string[]; rows: string[][] }
   | { type: "image"; alt: string; src: string; linkUrl?: string }
+  | { type: "details"; summary: string; innerBlocks: MarkdownBlock[]; defaultOpen?: boolean }
   | { type: "paragraph"; text: string };
 
 /**
@@ -105,6 +106,57 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
     // Пустая строка
     if (!trimmed) {
       i++;
+      continue;
+    }
+
+    // Сворачиваемый блок (<details> ... </details>)
+    const detailsMatch = trimmed.match(/^<details(\s+[^>]*)?>/i);
+    if (detailsMatch) {
+      const isDefaultOpen = /\bopen\b/i.test(detailsMatch[0]);
+      const detailLines: string[] = [];
+
+      // Однострочный <details>...</details>
+      if (/<\/details>/i.test(trimmed)) {
+        const withoutStart = trimmed.replace(/^<details(\s+[^>]*)?>/i, "");
+        const content = withoutStart.replace(/<\/details>/i, "");
+        detailLines.push(content);
+        i++;
+      } else {
+        i++;
+        let depth = 1;
+        while (i < lines.length) {
+          const curTrimmed = lines[i].trim();
+          if (/^<details(\s+[^>]*)?>/i.test(curTrimmed)) {
+            depth++;
+          } else if (/^<\/details>/i.test(curTrimmed)) {
+            depth--;
+            if (depth === 0) {
+              i++;
+              break;
+            }
+          }
+          detailLines.push(lines[i]);
+          i++;
+        }
+      }
+
+      let summary = "Подробнее / Details";
+      const fullDetailText = detailLines.join("\n");
+      const summaryMatch = fullDetailText.match(/<summary\b[^>]*>(.*?)<\/summary>/is);
+
+      let bodyMarkdown = fullDetailText;
+      if (summaryMatch) {
+        summary = summaryMatch[1].trim();
+        bodyMarkdown = fullDetailText.replace(/<summary\b[^>]*>.*?<\/summary>/is, "").trim();
+      }
+
+      const innerBlocks = parseMarkdownBlocks(bodyMarkdown);
+      blocks.push({
+        type: "details",
+        summary,
+        innerBlocks,
+        defaultOpen: isDefaultOpen,
+      });
       continue;
     }
 
@@ -272,7 +324,9 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
       !/^(-{3,}|\*{3,}|_{3,})$/.test(lines[i].trim()) &&
       !lines[i].match(/^(\s*)([-*+]|\d+\.)\s+/) &&
       !lines[i].trim().match(/^!?\[([^\]]*)\]\(([^)]+)\)/) &&
-      !(lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|"))
+      !(lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|")) &&
+      !lines[i].trim().match(/^<details(\s+[^>]*)?>/i) &&
+      !lines[i].trim().match(/^<\/details>/i)
     ) {
       paragraphLines.push(lines[i]);
       i++;
@@ -289,10 +343,86 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
   return blocks;
 }
 
+/* ─── Компонент сворачиваемого блока (<details>) ──────────── */
+
+interface MarkdownDetailsProps {
+  summary: string;
+  innerBlocks: MarkdownBlock[];
+  defaultOpen?: boolean;
+}
+
+const MarkdownDetails: React.FC<MarkdownDetailsProps> = ({ summary, innerBlocks, defaultOpen = false }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div
+      style={{
+        margin: "8px 0",
+        background: "rgba(255, 255, 255, 0.025)",
+        border: "1px solid rgba(255, 255, 255, 0.09)",
+        borderRadius: "var(--radius-sm, 6px)",
+        overflow: "hidden",
+        transition: "border-color 0.15s ease, background 0.15s ease",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 12px",
+          background: isOpen ? "rgba(255, 255, 255, 0.05)" : "transparent",
+          border: "none",
+          borderBottom: isOpen ? "1px solid rgba(255, 255, 255, 0.08)" : "none",
+          color: "var(--text, #ffffff)",
+          fontSize: "0.85rem",
+          fontWeight: 600,
+          cursor: "pointer",
+          textAlign: "left",
+          transition: "background 0.15s ease",
+        }}
+        className="hover-bright"
+      >
+        <ChevronRight
+          size={16}
+          style={{
+            transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+            transition: "transform 0.18s ease",
+            color: "var(--accent, #60a5fa)",
+            flexShrink: 0,
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <InlineContent text={summary} />
+        </div>
+      </button>
+
+      {isOpen && (
+        <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 4 }}>
+          {innerBlocks.map((b, idx) => (
+            <RenderBlock key={idx} block={b} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ─── Компонент рендеринга блока ─────────────────────── */
 
-const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
+function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | null {
   switch (block.type) {
+    case "details":
+      return (
+        <MarkdownDetails
+          summary={block.summary}
+          innerBlocks={block.innerBlocks}
+          defaultOpen={block.defaultOpen}
+        />
+      );
     case "heading": {
       const fontSizes = ["1.15rem", "1.02rem", "0.92rem", "0.86rem"];
       const margins = ["16px 0 8px", "14px 0 6px", "12px 0 4px", "10px 0 4px"];
@@ -693,10 +823,12 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
   // 7: Инлайн код `code`
   // 8: Клавиатурная кнопка <kbd>key</kbd>
   // 9: HTML перенос строки <br> или <br/>
-  // 10: Жирный **bold** или __bold__
-  // 11: Зачеркнутый ~~strike~~
-  // 12: Курсив *italic* или _italic_
-  const regex = /(\[\!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\))|(!\[([^\]]*)\]\(([^)]+)\))|(<img\s+([^>]+)>)|(<a\s+[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>)|(\[([^\]]+)\]\(([^)]+)\))|((?:https?:\/\/)[^\s<]+[^<.,:;"')\]\s])|(`([^`]+)`)|(<kbd>([^<]+)<\/kbd>)|(<br\s*\/?>)|(\*\*([^*]+)\*\*|(?<=\s|^|[^\w])__([^_]+)__(?=\s|$|[^\w]))|(~~([^~]+)~~)|((?<=\s|^|[^\w])\*([^*]+)\*(?=\s|$|[^\w])|(?<=\s|^|[^\w])_([^_]+)_(?=\s|$|[^\w]))/gi;
+  // 10: HTML тег bold <b>...</b> или <strong>...</strong>
+  // 11: Жирный **bold** или __bold__
+  // 12: Зачеркнутый ~~strike~~
+  // 13: HTML тег italic <i>...</i> или <em>...</em>
+  // 14: Курсив *italic* или _italic_
+  const regex = /(\[\!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\))|(!\[([^\]]*)\]\(([^)]+)\))|(<img\s+([^>]+)>)|(<a\s+[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>)|(\[([^\]]+)\]\(([^)]+)\))|((?:https?:\/\/)[^\s<]+[^<.,:;"')\]\s])|(`([^`]+)`)|(<kbd>([^<]+)<\/kbd>)|(<br\s*\/?>)|(<(?:b|strong)\b[^>]*>(.*?)<\/(?:b|strong)>)|(\*\*([^*]+)\*\*|(?<=\s|^|[^\w])__([^_]+)__(?=\s|$|[^\w]))|(~~([^~]+)~~)|(<(?:i|em)\b[^>]*>(.*?)<\/(?:i|em)>)|((?<=\s|^|[^\w])\*([^*]+)\*(?=\s|$|[^\w])|(?<=\s|^|[^\w])_([^_]+)_(?=\s|$|[^\w]))/gi;
 
   const elements: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -721,8 +853,10 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
       isCode, codeText,
       isKbd, kbdText,
       isBr,
+      isHtmlBold, htmlBoldText,
       isBold, boldText1, boldText2,
       isStrike, strikeText,
+      isHtmlItalic, htmlItalicText,
       isItalic, italicText1, italicText2,
     ] = match;
 
@@ -796,6 +930,12 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
           {kbdText}
         </kbd>
       );
+    } else if (isHtmlBold) {
+      elements.push(
+        <strong key={key} style={{ fontWeight: 700, color: "var(--text, #ffffff)" }}>
+          {htmlBoldText}
+        </strong>
+      );
     } else if (isBold) {
       elements.push(
         <strong key={key} style={{ fontWeight: 700, color: "var(--text, #ffffff)" }}>
@@ -807,6 +947,12 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
         <del key={key} style={{ opacity: 0.7 }}>
           {strikeText}
         </del>
+      );
+    } else if (isHtmlItalic) {
+      elements.push(
+        <em key={key} style={{ fontStyle: "italic", color: "var(--text-secondary, #d1d5db)" }}>
+          {htmlItalicText}
+        </em>
       );
     } else if (isItalic) {
       elements.push(
