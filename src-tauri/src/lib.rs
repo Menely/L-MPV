@@ -282,7 +282,6 @@ pub fn run() {
             commands::save_current_position,
             commands::update_taskbar_progress,
             commands::toggle_fullscreen,
-            commands::resize_player_window,
             commands::extract_track,
             commands::get_active_subtitle_lines,
             commands::analyze_subtitle_track,
