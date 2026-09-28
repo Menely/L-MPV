@@ -133,6 +133,8 @@
   align-items: center;
   cursor: pointer;
   margin-bottom: 2px;
+  outline: none;
+  touch-action: none;
 }
 
 .timeline__track {
@@ -143,7 +145,8 @@
 }
 
 .timeline:hover .timeline__track,
-.timeline--dragging .timeline__track {
+.timeline--dragging .timeline__track,
+.timeline:focus-visible .timeline__track {
   height: 8px;
 }
 
@@ -201,30 +204,53 @@
 
 .timeline:hover .timeline__thumb,
 .timeline--dragging .timeline__thumb,
-.timeline__thumb--dragging {
+.timeline__thumb--dragging,
+.timeline:focus-visible .timeline__thumb {
   transform: translate(-50%, -50%) scale(1.15);
 }
 
-/* Всплывающее превью времени при наведении */
-.timeline-tooltip {
+/* ─── Neон Pulse Wave: радиальная волна от точки клика ── */
+.timeline__pulse {
   position: absolute;
-  bottom: calc(100% + 8px);
-  transform: translateX(-50%);
-  background: rgba(10, 12, 18, 0.90);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-pill);
-  border-radius: var(--radius-sm);
-  padding: 4px 8px;
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow, var(--accent));
   pointer-events: none;
-  white-space: nowrap;
-  box-shadow: var(--shadow-sm);
-  z-index: 10;
+  z-index: 5;
+  animation: timeline-pulse 500ms var(--ease-smooth) forwards;
 }
+
+@keyframes timeline-pulse {
+  0% {
+    width: 10px;
+    height: 10px;
+    opacity: 0.9;
+    border-width: 2px;
+  }
+  60% {
+    width: 52px;
+    height: 52px;
+    opacity: 0.35;
+    border-width: 1.5px;
+  }
+  100% {
+    width: 72px;
+    height: 72px;
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+/* Отключаем волну при [data-glow="off"] */
+html[data-glow="off"] .timeline__pulse {
+  display: none;
+}
+
 
 /* ─── Кнопки управления (Grid с математическим центрированием) ── */
 .controls-row {
