@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Cpu,
   FolderOpen,
@@ -6,6 +6,7 @@ import {
   Trash2,
   RefreshCw,
   CheckCircle2,
+  ChevronDown,
   X,
 } from "lucide-react";
 import { UpscaleSettings, UpscaleStatus, DownloadProgressPayload } from "./types";
@@ -44,6 +45,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
   onError,
 }) => {
   const { dict } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
   const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
   const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
   const isCurrentBackendInstalled =
@@ -59,14 +61,25 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
     : Math.min(100, Math.max(0, Math.round(downloadProgress?.percent || 0)));
 
   return (
-    <div className="glass-section" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="glass-section glass-section--compact" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setIsOpen((prev) => !prev);
+          }
+        }}
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           flexWrap: "nowrap",
           gap: 12,
+          cursor: "pointer",
         }}
       >
         <div style={{ minWidth: 0 }}>
@@ -101,37 +114,61 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
           <button
             type="button"
             className="btn btn--secondary btn--icon"
-            onClick={onOpenInferenceFolder}
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsOpen((prev) => !prev);
+            }}
+            aria-expanded={isOpen}
+            title={isOpen ? dict.settings.upscaling.btnCollapseEngines : dict.settings.upscaling.btnExpandEngines}
+          >
+            <ChevronDown
+              size={16}
+              style={{
+                transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)",
+                transition: "transform 180ms var(--ease-smooth)",
+              }}
+            />
+          </button>
+
+          <button
+            type="button"
+            className="btn btn--secondary btn--icon"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenInferenceFolder();
+            }}
             title={dict.settings.upscaling.backendOpenFolderTitle}
           >
             <FolderOpen size={16} />
           </button>
 
           {isCurrentBackendInstalled ? (
-            <div
-              className="badge badge--success"
+            <span
+              title={dict.settings.upscaling.badgeInstalledTitle}
+              aria-label={dict.settings.upscaling.statusInstalled}
               style={{
-                height: 32,
-                padding: "0 14px",
-                fontSize: "0.82rem",
-                borderRadius: "var(--radius-sm, 8px)",
+                width: 30,
+                height: 30,
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 6,
-                minWidth: 145,
                 justifyContent: "center",
-                boxSizing: "border-box",
+                borderRadius: "50%",
+                color: "#2ecc71",
+                background: "rgba(46, 204, 113, 0.12)",
+                border: "1px solid rgba(46, 204, 113, 0.28)",
+                flexShrink: 0,
               }}
-              title={dict.settings.upscaling.badgeInstalledTitle}
             >
-              <CheckCircle2 size={15} color="#2ecc71" />
-              <span>{dict.settings.upscaling.statusInstalled}</span>
-            </div>
+              <CheckCircle2 size={18} />
+            </span>
           ) : (
             <button
               type="button"
               className="btn btn--primary"
-              onClick={onDownloadEngine}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDownloadEngine();
+              }}
               disabled={isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)}
               title={dict.settings.upscaling.btnDownloadLibsTitle}
               style={{ minWidth: 145, height: 32 }}
@@ -151,7 +188,10 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             <button
               type="button"
               className="btn btn--danger btn--icon"
-              onClick={onDeleteEngine}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDeleteEngine();
+              }}
               disabled={isDeletingEngine || isDownloadingEngine}
             >
               {isDeletingEngine ? (
@@ -164,6 +204,9 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
         </div>
       </div>
 
+      <div className={`collapse-fold ${isOpen ? "collapse-fold--open" : ""}`}>
+        <div className="collapse-fold__inner">
+          <div className="collapse-fold__body backend-selector-content">
       {/* Аппаратная карточка GPU */}
       <GpuHardwareCard gpuInfo={status?.gpu_info} />
 
@@ -466,6 +509,9 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             {dict.settings.upscaling.trtDesc}
           </p>
         </div>
+          </div>
+        </div>
+      </div>
       </div>
     </div>
   );

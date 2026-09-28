@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
@@ -87,6 +88,7 @@ export function PlayerControls({
 
   const {
     togglePause,
+    seekBy,
     setVolume,
     tracks,
     loadTracks,
@@ -115,8 +117,7 @@ export function PlayerControls({
       clearTimeout(closePopoverTimerRef.current);
       closePopoverTimerRef.current = null;
     }
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    if (immediate || isNoAnim) {
+    if (immediate || !isMotionAllowed()) {
       setActivePopover(null);
       setClosingPopover(null);
       return;
@@ -127,7 +128,7 @@ export function PlayerControls({
       closePopoverTimerRef.current = setTimeout(() => {
         setClosingPopover(null);
         closePopoverTimerRef.current = null;
-      }, 120);
+      }, getCloseTimeoutMs("fast"));
       return null;
     });
   }, []);
@@ -251,12 +252,16 @@ export function PlayerControls({
       const controlsHeight = el.offsetHeight;
       // Зазор между панелью управления и всплывающими окнами (совпадает с 14px поповера дорожек)
       const GAP = 14;
-      const totalBottom = Math.max(76, Math.round(bottomBase + controlsHeight + GAP));
+       const totalBottom = Math.max(76, Math.round(bottomBase + controlsHeight + GAP));
 
-      document.documentElement.style.setProperty(
-        "--bottom-overlays-bottom",
-        `${totalBottom}px`
-      );
+       document.documentElement.style.setProperty(
+         "--player-controls-bottom",
+         `${bottomBase}px`
+       );
+       document.documentElement.style.setProperty(
+         "--bottom-overlays-bottom",
+         `${totalBottom}px`
+       );
     };
 
     updateControlsOffset();
@@ -269,8 +274,9 @@ export function PlayerControls({
     window.addEventListener("resize", updateControlsOffset);
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("resize", updateControlsOffset);
-      document.documentElement.style.removeProperty("--bottom-overlays-bottom");
+       window.removeEventListener("resize", updateControlsOffset);
+       document.documentElement.style.removeProperty("--player-controls-bottom");
+       document.documentElement.style.removeProperty("--bottom-overlays-bottom");
     };
   }, [controlBarStyle]);
 
@@ -341,6 +347,18 @@ export function PlayerControls({
   }, []);
 
   const popoverRef = useRef<HTMLDivElement>(null);
+  const activeTrackItemRef = useRef<HTMLButtonElement | null>(null);
+
+  // ─── Автоскролл к активной дорожке при открытии поповера ──
+  useEffect(() => {
+    if (!activePopover) return;
+    const rafId = requestAnimationFrame(() => {
+      if (activeTrackItemRef.current) {
+        activeTrackItemRef.current.scrollIntoView({ block: "nearest", behavior: "auto" });
+      }
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [activePopover, tracks]);
 
   // ─── Закрытие всплывающих меню при клике вне ──────
   useEffect(() => {
@@ -415,11 +433,11 @@ export function PlayerControls({
 
   const handleSeek = useCallback(async (seconds: number) => {
     try {
-      await invoke("seek", { seconds });
+      await seekBy(seconds);
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [seekBy]);
 
   const handlePlaylistPrev = useCallback(async () => {
     try {
@@ -522,41 +540,44 @@ export function PlayerControls({
             </div>
             {displayedPopover === "audio" &&
               (audioTracks.length > 0 ? (
-                audioTracks.map((t) => (
-                  <div key={t.id} className="track-popover__row">
-                    <button
-                      type="button"
-                      className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
-                      onClick={() => {
-                        selectAudioTrack(t.id);
-                        closePopover();
-                      }}
-                    >
-                      <span className="track-popover__item-title">
-                        {t.title || dict.controls.trackLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
-                      </span>
-                      <span className="track-popover__item-check">
-                        {t.selected && <Check size={15} />}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="track-download-btn"
-                      title={dict.controls.downloadAudio}
-                      disabled={downloadingTrackKey === `audio-${t.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownloadTrack(t);
-                      }}
-                    >
-                      {downloadingTrackKey === `audio-${t.id}` ? (
-                        <Loader2 size={14} className="spin-animation" />
-                      ) : (
-                        <Download size={14} />
-                      )}
-                    </button>
-                  </div>
-                ))
+                <div className="track-popover__list">
+                  {audioTracks.map((t) => (
+                    <div key={t.id} className="track-popover__row">
+                      <button
+                        type="button"
+                        className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
+                        ref={t.selected ? activeTrackItemRef : null}
+                        onClick={() => {
+                          selectAudioTrack(t.id);
+                          closePopover();
+                        }}
+                      >
+                        <span className="track-popover__item-title">
+                          {t.title || dict.controls.trackLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
+                        </span>
+                        <span className="track-popover__item-check">
+                          {t.selected && <Check size={15} />}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="track-download-btn"
+                        title={dict.controls.downloadAudio}
+                        disabled={downloadingTrackKey === `audio-${t.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadTrack(t);
+                        }}
+                      >
+                        {downloadingTrackKey === `audio-${t.id}` ? (
+                          <Loader2 size={14} className="spin-animation" />
+                        ) : (
+                          <Download size={14} />
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="track-popover__item" style={{ opacity: 0.6 }}>
                   {dict.controls.noAudioTracks}
@@ -565,7 +586,7 @@ export function PlayerControls({
 
             {displayedPopover === "sub" && (
               <>
-                <div className="track-popover__row" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: 6, marginBottom: 6 }}>
+                <div className="track-popover__row" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: 6, marginBottom: 2 }}>
                   <button
                     type="button"
                     className="track-popover__item"
@@ -580,61 +601,65 @@ export function PlayerControls({
                     <span style={{ fontSize: "0.72rem", opacity: 0.7, marginLeft: "auto" }}>Ctrl+F</span>
                   </button>
                 </div>
-                <div className="track-popover__row">
-                  <button
-                    type="button"
-                    className={`track-popover__item ${
-                      !subTracks.some((t) => t.selected)
-                        ? "track-popover__item--active"
-                        : ""
-                    }`}
-                    style={{ width: "100%" }}
-                    onClick={() => {
-                      disableSubtitles();
-                      closePopover();
-                    }}
-                  >
-                    <span className="track-popover__item-title">{dict.controls.disableSubtitles}</span>
-                    <span className="track-popover__item-check">
-                      {!subTracks.some((t) => t.selected) && <Check size={15} />}
-                    </span>
-                  </button>
-                </div>
-                {subTracks.map((t) => (
-                  <div key={t.id} className="track-popover__row">
+                <div className="track-popover__list">
+                  <div className="track-popover__row">
                     <button
                       type="button"
-                      className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
+                      className={`track-popover__item ${
+                        !subTracks.some((t) => t.selected)
+                          ? "track-popover__item--active"
+                          : ""
+                      }`}
+                      ref={!subTracks.some((t) => t.selected) ? activeTrackItemRef : null}
+                      style={{ width: "100%" }}
                       onClick={() => {
-                        selectSubTrack(t.id);
+                        disableSubtitles();
                         closePopover();
                       }}
                     >
-                      <span className="track-popover__item-title">
-                        {t.title || dict.controls.subtitleLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
-                      </span>
+                      <span className="track-popover__item-title">{dict.controls.disableSubtitles}</span>
                       <span className="track-popover__item-check">
-                        {t.selected && <Check size={15} />}
+                        {!subTracks.some((t) => t.selected) && <Check size={15} />}
                       </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="track-download-btn"
-                      title={dict.controls.downloadSubtitle}
-                      disabled={downloadingTrackKey === `sub-${t.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownloadTrack(t);
-                      }}
-                    >
-                      {downloadingTrackKey === `sub-${t.id}` ? (
-                        <Loader2 size={14} className="spin-animation" />
-                      ) : (
-                        <Download size={14} />
-                      )}
                     </button>
                   </div>
-                ))}
+                  {subTracks.map((t) => (
+                    <div key={t.id} className="track-popover__row">
+                      <button
+                        type="button"
+                        className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
+                        ref={t.selected ? activeTrackItemRef : null}
+                        onClick={() => {
+                          selectSubTrack(t.id);
+                          closePopover();
+                        }}
+                      >
+                        <span className="track-popover__item-title">
+                          {t.title || dict.controls.subtitleLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
+                        </span>
+                        <span className="track-popover__item-check">
+                          {t.selected && <Check size={15} />}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="track-download-btn"
+                        title={dict.controls.downloadSubtitle}
+                        disabled={downloadingTrackKey === `sub-${t.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadTrack(t);
+                        }}
+                      >
+                        {downloadingTrackKey === `sub-${t.id}` ? (
+                          <Loader2 size={14} className="spin-animation" />
+                        ) : (
+                          <Download size={14} />
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </>
             )}
           </div>

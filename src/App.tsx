@@ -2,12 +2,14 @@ import {
   useState,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   lazy,
   Suspense,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
+import { isMotionAllowed, CLOSE_OSD_MS } from "./utils/animationUtils";
 import { usePlayerState } from "./contexts/PlayerStateContext";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
@@ -20,10 +22,16 @@ import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
 import { UpdateInfo } from "./components/modals/UpdateModal";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
+import { AmbilightCanvas } from "./components/player/AmbilightCanvas";
 import { applyAccentColor } from "./utils/colorUtils";
 import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
+import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
+import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
+import { resetSettingsViewSession } from "./components/settings/settingsViewSession";
+import { SettingsModal } from "./components/modals/SettingsModal";
+import { SettingsPanel } from "./components/settings/SettingsPanel";
 
 // Тяжёлые модалки грузятся лениво: в стартовый бандл не попадают,
 // парсятся только при первом открытии (dnd-kit едет вместе с настройками).
@@ -33,9 +41,8 @@ const MediaInfoModal = lazy(() =>
 const ChaptersModal = lazy(() =>
   import("./components/modals/ChaptersModal").then((m) => ({ default: m.ChaptersModal }))
 );
-const SettingsModal = lazy(() =>
-  import("./components/modals/SettingsModal").then((m) => ({ default: m.SettingsModal }))
-);
+
+
 const UpdateModal = lazy(() =>
   import("./components/modals/UpdateModal").then((m) => ({ default: m.UpdateModal }))
 );
@@ -54,6 +61,7 @@ function App() {
     isPlaylistOpen,
     setIsPlaylistOpen,
     togglePause,
+    seekBy,
     setVolume,
     isFullscreen,
     toggleFullscreen,
@@ -93,6 +101,68 @@ function App() {
     }
   });
   
+  const [settingsStyle, setSettingsStyle] = useState<UiSettingsStyle>(getSavedUiSettingsStyle);
+  const settingsWasOpenRef = useRef(false);
+
+  const openSettings = useCallback(() => {
+    setIsPlaylistOpen(false);
+    setShowMediaInfo(false);
+    setShowChapters(false);
+    setShowSubtitlesSearch(false);
+    setShowUpdateToast(false);
+    setContextMenu(null);
+    setShowSettings(true);
+  }, []);
+
+  const closeSettings = useCallback(() => {
+    setShowSettings(false);
+  }, []);
+
+  const toggleSettings = useCallback(() => {
+    if (showSettings) {
+      setShowSettings(false);
+    } else {
+      setIsPlaylistOpen(false);
+      setShowMediaInfo(false);
+      setShowChapters(false);
+      setShowSubtitlesSearch(false);
+      setShowUpdateToast(false);
+      setContextMenu(null);
+      setShowSettings(true);
+    }
+  }, [showSettings]);
+
+  useEffect(() => {
+    const handleSettingsStyleChanged = (e: Event) => {
+      const ce = e as CustomEvent<UiSettingsStyle>;
+      if (ce.detail === "modal" || ce.detail === "sidebar") {
+        setSettingsStyle(ce.detail);
+      }
+    };
+    window.addEventListener("l-mpv-ui-settings-style-changed", handleSettingsStyleChanged);
+    return () => window.removeEventListener("l-mpv-ui-settings-style-changed", handleSettingsStyleChanged);
+  }, []);
+
+  useEffect(() => {
+    if (!showSettings) {
+      setSettingsStyle(getSavedUiSettingsStyle());
+    }
+  }, [showSettings]);
+
+  useLayoutEffect(() => {
+    if (settingsWasOpenRef.current && !showSettings) {
+      resetSettingsViewSession();
+    }
+    settingsWasOpenRef.current = showSettings;
+    document.body.classList.toggle(
+      "settings-open",
+      showSettings && settingsStyle === "sidebar",
+    );
+    return () => {
+      document.body.classList.remove("settings-open");
+    };
+  }, [showSettings, settingsStyle]);
+
   const mediaTitle = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "";
 
   const osdTimerRef = useRef<number | null>(null);
@@ -117,8 +187,7 @@ function App() {
     setIsOsdClosing(false);
     setOsdText(text);
 
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    const fadeDuration = isNoAnim ? 0 : 200;
+    const fadeDuration = isMotionAllowed() ? CLOSE_OSD_MS : 0;
 
     osdTimerRef.current = window.setTimeout(() => {
       if (fadeDuration > 0) {
@@ -147,10 +216,10 @@ function App() {
     if (isPlaylistOpen) {
       setShowChapters(false);
       setShowMediaInfo(false);
-      setShowSettings(false);
+      closeSettings();
       setShowSubtitlesSearch(false);
     }
-  }, [isPlaylistOpen]);
+  }, [closeSettings, isPlaylistOpen]);
 
   useEffect(() => {
     const savedVol = localStorage.getItem('l-mpv-volume');
@@ -358,6 +427,15 @@ function App() {
 
   const isWindowRevealedRef = useRef(false);
 
+  const revealWindow = useCallback(async () => {
+    if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
+      isWindowRevealedRef.current = true;
+      try {
+        await getCurrentWindow().show();
+      } catch {}
+    }
+  }, []);
+
   // ─── Автоматическая подгонка окна под размер и пропорции видео ───
   const resizeWindowForVideo = useCallback(async (w: number, h: number) => {
     try {
@@ -405,20 +483,14 @@ function App() {
       }
 
       // Показываем окно строго ПОСЛЕ изменения размера и готовности первого кадра
-      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-        isWindowRevealedRef.current = true;
-        await appWindow.show();
-      }
+      await revealWindow();
       return true;
     } catch (e) {
       console.error("Ошибка при изменении размера окна:", e);
-      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-        isWindowRevealedRef.current = true;
-        getCurrentWindow().show().catch(() => {});
-      }
+      await revealWindow();
     }
     return false;
-  }, []);
+  }, [revealWindow]);
 
   // Флаг того, что начальный размер окна под первое видео в текущей сессии уже был применён
   const hasInitialVideoSizedRef = useRef<boolean>(false);
@@ -430,22 +502,16 @@ function App() {
       // или хотлоад дорожек/субтитров не сбрасывает размер окна, сохраняя выбор пользователя.
       if (!hasInitialVideoSizedRef.current) {
         hasInitialVideoSizedRef.current = true;
-        resizeWindowForVideo(mediaInfo.width, mediaInfo.height);
+        void resizeWindowForVideo(mediaInfo.width, mediaInfo.height);
       } else {
         // Окно уже было спозиционировано под первое видео — просто гарантируем видимость
-        if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-          isWindowRevealedRef.current = true;
-          getCurrentWindow().show().catch(() => {});
-        }
+        revealWindow();
       }
-    } else if (mediaInfo?.path) {
-      // Аудиофайл или файл без видеоряда
-      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-        isWindowRevealedRef.current = true;
-        getCurrentWindow().show().catch(() => {});
-      }
+    } else if (mediaInfo?.path && mediaInfo.video_track === false) {
+      // Аудиофайл или файл без видеоряда: список дорожек уже известен и видео в нём точно нет.
+      revealWindow();
     }
-  }, [mediaInfo?.path, mediaInfo?.width, mediaInfo?.height, resizeWindowForVideo]);
+  }, [mediaInfo?.path, mediaInfo?.width, mediaInfo?.height, mediaInfo?.video_track, resizeWindowForVideo, revealWindow]);
 
   // Автоматическое применение AI Upscaling при загрузке нового файла
   useEffect(() => {
@@ -471,10 +537,7 @@ function App() {
         isStandaloneModeRef.current = isStandalone;
         if (!isStandalone) {
           timer = window.setTimeout(() => {
-            if (!isWindowRevealedRef.current) {
-              isWindowRevealedRef.current = true;
-              getCurrentWindow().show().catch(() => {});
-            }
+            revealWindow();
           }, 1500);
         }
       })
@@ -483,7 +546,7 @@ function App() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, []);
+  }, [revealWindow]);
 
   // ─── Отображение OSD кадра в левом верхнем углу ────
   const triggerFrameOsd = useCallback(async () => {
@@ -514,6 +577,7 @@ function App() {
     mediaInfo,
     isFullscreen,
     togglePause,
+    seekBy,
     setVolume,
     toggleFullscreen,
     cycleAudioTrack,
@@ -521,6 +585,7 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
+    showSettings,
     hotkeys,
   });
 
@@ -529,6 +594,7 @@ function App() {
     mediaInfo,
     isFullscreen,
     togglePause,
+    seekBy,
     setVolume,
     toggleFullscreen,
     cycleAudioTrack,
@@ -536,6 +602,7 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
+    showSettings,
     hotkeys,
   };
 
@@ -574,12 +641,14 @@ function App() {
       hasMedia: curHasMedia,
       mediaInfo: curMediaInfo,
       togglePause: curTogglePause,
+      seekBy: curSeekBy,
       setVolume: curSetVolume,
       toggleFullscreen: curToggleFullscreen,
       cycleAudioTrack: curCycleAudioTrack,
       cycleSubTrack: curCycleSubTrack,
       isPlaylistOpen: curIsPlaylistOpen,
       setIsPlaylistOpen: curSetIsPlaylistOpen,
+      showSettings: curShowSettings,
     } = latestRef.current;
 
     const curLocale = getEffectiveLocale();
@@ -596,20 +665,21 @@ function App() {
         }
         break;
       case "seekBack":
-        await invoke("seek", { seconds: -5 });
+        await curSeekBy(-5);
         break;
       case "seekForward":
-        await invoke("seek", { seconds: 5 });
+        await curSeekBy(5);
         break;
       case "seekBack10":
-        await invoke("seek", { seconds: -10 });
+        await curSeekBy(-10);
         break;
       case "seekForward10":
-        await invoke("seek", { seconds: 10 });
+        await curSeekBy(10);
         break;
       case "skipOpening": {
-        const seconds = Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90);
-        await invoke("seek", { seconds });
+        const raw = localStorage.getItem('l-mpv-skip-opening-seconds');
+        const seconds = Number(raw || 90);
+        await curSeekBy(seconds);
         break;
       }
       case "volumeUp":
@@ -701,7 +771,11 @@ function App() {
         });
         break;
       case "settings":
-        setShowSettings((v) => !v);
+        if (curShowSettings) {
+          closeSettings();
+        } else {
+          openSettings();
+        }
         break;
       case "toggleVisualizer": {
         const cfg = getVisualizerConfig();
@@ -815,25 +889,24 @@ function App() {
         break;
       case "toggleAmbient":
         try {
-          const res = await invoke<{ mode: string }>("toggle_ambient_mode");
-          const labels: Record<string, string> = curLocale === "en" ? {
-            off: "Off",
-            blur: "Blur (GPU)",
-            color: "Color Ambient",
-          } : {
-            off: "Выкл",
-            blur: "Размытие (GPU)",
-            color: "Цветной Ambient",
+          const res = normalizeAmbientSettings(await invoke<unknown>("toggle_ambient_mode"));
+          const labels: Record<string, string> = {
+            off: dict.settings.cmenuUI.ambientOff,
+            blur: dict.settings.cmenuUI.ambientBlur,
+            color: dict.settings.cmenuUI.ambientColor,
+            ambilight: dict.settings.cmenuUI.ambientAmbilight,
           };
           setOsdText(dict.osd.ambientMode(labels[res.mode] || res.mode));
           if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
           osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
-          window.dispatchEvent(new Event("l-mpv-ambient-changed"));
+          window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: res }));
+          window.dispatchEvent(new Event("l-mpv-settings-changed"));
         } catch (e) {
           console.error("Ошибка переключения подсветки полос:", e);
         }
         break;
       case "upscaleStats": {
+
         try {
           const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
           const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
@@ -954,7 +1027,7 @@ function App() {
         break;
       }
     }
-  }, [handleOpenFile, triggerFrameOsd]);
+  }, [closeSettings, handleOpenFile, openSettings, triggerFrameOsd]);
 
   const handleVideoClick = useCallback(
     (e: React.MouseEvent) => {
@@ -1084,10 +1157,27 @@ function App() {
   // ─── Горячие клавиши ──────────────────────────────
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target?.closest(".color-picker-modal")) return;
+
+      const isEditing = target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || target?.isContentEditable
+        || target?.getAttribute("role") === "slider";
+      if (isEditing) return;
+
+      const inSettings = latestRef.current.showSettings
+        && Boolean(target?.closest(".settings-side-panel, .modal--settings"));
+      const curHotkeys = latestRef.current.hotkeys;
+      if (inSettings) {
+        if (e.key === "Escape") return;
+        const settingsCodes = curHotkeys.settings || [];
+        if (!settingsCodes.some((code) => isKeyboardEventMatch(e, code))) {
+          return;
+        }
+        e.preventDefault();
+        executeAction("settings");
         return;
       }
 
@@ -1097,7 +1187,6 @@ function App() {
         return;
       }
 
-      const curHotkeys = latestRef.current.hotkeys;
       for (const actionId of Object.keys(curHotkeys)) {
         const customCodes = curHotkeys[actionId] || [];
         const isMatch = customCodes.some(c => isKeyboardEventMatch(e, c));
@@ -1295,6 +1384,7 @@ function App() {
           }
         }}
       >
+        <AmbilightCanvas />
         {!hasMedia && (
           <div className="video-area__placeholder">
             <div className="video-area__placeholder-icon">
@@ -1373,12 +1463,7 @@ function App() {
             setShowSubtitlesSearch(true);
             closeContextMenu();
           }}
-          onShowSettings={() => {
-            setIsPlaylistOpen(false);
-            setShowMediaInfo(false);
-            setShowSettings(true);
-            closeContextMenu();
-          }}
+           onShowSettings={toggleSettings}
         />
       )}
 
@@ -1407,17 +1492,27 @@ function App() {
       )}
 
       {showSettings && (
-        <Suspense fallback={null}>
+        settingsStyle === "modal" ? (
           <SettingsModal
-            onClose={() => setShowSettings(false)}
-            onShowUpdate={(info) => {
-              setShowSettings(false);
+            onClose={closeSettings}
+            onShowUpdate={(info: UpdateInfo) => {
+              closeSettings();
               setShowUpdateToast(false);
               setPendingUpdate(info);
               setShowUpdateModal(true);
             }}
           />
-        </Suspense>
+        ) : (
+          <SettingsPanel
+            onClose={closeSettings}
+            onShowUpdate={(info: UpdateInfo) => {
+              closeSettings();
+              setShowUpdateToast(false);
+              setPendingUpdate(info);
+              setShowUpdateModal(true);
+            }}
+          />
+        )
       )}
 
       {showUpdateModal && pendingUpdate && (

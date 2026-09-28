@@ -2,55 +2,56 @@ import { invoke } from "@tauri-apps/api/core";
 import { loadUserPresets, SettingsPreset } from "../../utils/presetsUtils";
 import { UpscaleStatus } from "../upscale/types";
 
-/**
- * Предзагрузка тяжёлых данных вкладок настроек.
- *
- * Проблема: «Пресеты» и «Апскейлинг» грузят данные в useEffect при монте
- * вкладки, поэтому первый рендер короткий (скелетон/пусто), а через ~секунду
- * контент вырастает и окно настроек прыгает. Замер высоты в переходе
- * происходит раньше прилёта данных — дотягивать потом уже поздно.
- *
- * Решение: греть кэш в момент ОТКРЫТИЯ окна настроек. Секции читают кэш
- * синхронно в инициализаторе useState и первый paint уже полный.
- * Свежесть не страдает: секции как раньше refetch'ят при монте и пишут
- * результат обратно в кэш (форма та же — прыжка нет).
- * Портативно: только IPC-вызовы плеера, никаких внешних записей.
- */
-
 let presetsCache: SettingsPreset[] | null = null;
-let presetsInflight: Promise<void> | null = null;
-
+let presetsInflight: Promise<SettingsPreset[]> | null = null;
 let upscaleCache: UpscaleStatus | null = null;
-let upscaleInflight: Promise<void> | null = null;
+let upscaleInflight: Promise<UpscaleStatus> | null = null;
 
-/** Запустить фоновый прогрев данных. Вызывать при открытии SettingsModal. */
+export function loadPreloadedUserPresets(force = false): Promise<SettingsPreset[]> {
+  if (!force && presetsCache) return Promise.resolve(presetsCache);
+  if (presetsInflight) return presetsInflight;
+
+  const request = loadUserPresets()
+    .then((presets) => {
+      presetsCache = presets;
+      return presets;
+    })
+    .finally(() => {
+      presetsInflight = null;
+    });
+  presetsInflight = request;
+
+  return request;
+}
+
+export function loadPreloadedUpscaleStatus(force = false): Promise<UpscaleStatus> {
+  if (!force && upscaleCache) return Promise.resolve(upscaleCache);
+  if (upscaleInflight) return upscaleInflight;
+
+  const request = invoke<UpscaleStatus>("get_upscale_status")
+    .then((status) => {
+      upscaleCache = status;
+      return status;
+    })
+    .finally(() => {
+      upscaleInflight = null;
+    });
+  upscaleInflight = request;
+
+  return request;
+}
+
 export function preloadSettingsTabs(): void {
-  try {
-    if (!presetsCache && !presetsInflight) {
-      presetsInflight = (async () => {
-        try {
-          presetsCache = await loadUserPresets();
-        } catch {
-          /* ignore — секция сама покажет ошибку */
-        } finally {
-          presetsInflight = null;
-        }
-      })();
-    }
-    if (!upscaleCache && !upscaleInflight) {
-      upscaleInflight = (async () => {
-        try {
-          upscaleCache = await invoke<UpscaleStatus>("get_upscale_status");
-        } catch {
-          /* ignore */
-        } finally {
-          upscaleInflight = null;
-        }
-      })();
-    }
-  } catch {
-    /* ignore */
-  }
+  void loadPreloadedUserPresets().catch(() => {});
+  void loadPreloadedUpscaleStatus().catch(() => {});
+}
+
+export function preloadPresetsSettings(): void {
+  void loadPreloadedUserPresets().catch(() => {});
+}
+
+export function preloadUpscaleSettings(): void {
+  void loadPreloadedUpscaleStatus().catch(() => {});
 }
 
 export function getPreloadedUserPresets(): SettingsPreset[] | null {

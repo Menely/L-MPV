@@ -108,14 +108,26 @@ fn get_app_dir() -> Result<std::path::PathBuf, String> {
         .ok_or_else(|| "Не удалось определить директорию приложения".to_string())
 }
 
-/// Создание настроенного HTTP-клиента с User-Agent и таймаутом
+/// Создание настроенного HTTP-клиента для быстрых запросов к API (проверка версий)
 fn create_http_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .user_agent("L-MPV-Updater")
-        .timeout(std::time::Duration::from_secs(12))
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(15))
         .build()
-        .map_err(|e| format!("Не удалось инициализировать HTTP-клиент: {}", e))
+        .map_err(|e| format!("Не удалось инициализировать HTTP-клиент API: {}", e))
 }
+
+/// Создание HTTP-клиента с расширенным таймаутом для скачивания бинарных файлов (dll/exe)
+fn create_download_http_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .user_agent("L-MPV-Updater-Download")
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(900))
+        .build()
+        .map_err(|e| format!("Не удалось инициализировать HTTP-клиент загрузки: {}", e))
+}
+
 
 /// Преобразование ответа GitHubRelease в модель UpdateInfo приложения L-MPV
 fn release_to_update_info(release: GitHubRelease, current_version: &str) -> UpdateInfo {
@@ -232,32 +244,28 @@ pub async fn get_available_releases() -> Result<Vec<UpdateInfo>, String> {
 pub async fn check_launch_and_update() -> Result<Option<UpdateInfo>, String> {
     let mut should_check = false;
 
-    if let Ok(_p_dir) = get_app_dir() {
-        let mut settings = crate::commands::AppSettings::load_portable();
+    if get_app_dir().is_ok() {
         let current_version = env!("CARGO_PKG_VERSION");
+        let settings = crate::commands::AppSettings::update_portable(
+            |settings| {
+                if settings.last_version != current_version {
+                    settings.last_version = current_version.to_string();
+                    settings.launch_count = 0;
+                    settings.postponed_until_launch = 0;
+                }
 
-        // Если приложение обновилось на новую версию — сбрасываем счетчик запусков и откладываний
-        if settings.last_version != current_version {
-            settings.last_version = current_version.to_string();
-            settings.launch_count = 0;
-            settings.postponed_until_launch = 0;
-        }
-
-        settings.launch_count = settings.launch_count.saturating_add(1);
+                settings.launch_count = settings.launch_count.saturating_add(1);
+                if settings.postponed_until_launch > 0 {
+                    if settings.launch_count >= settings.postponed_until_launch {
+                        settings.postponed_until_launch = 0;
+                        should_check = true;
+                    }
+                } else if settings.launch_count.is_multiple_of(2) {
+                    should_check = true;
+                }
+            },
+        )?;
         println!("L-MPV запуск №{}", settings.launch_count);
-
-        if settings.postponed_until_launch > 0 {
-            if settings.launch_count >= settings.postponed_until_launch {
-                // Прошло 15 запусков с момента нажатия "Отложить", возвращаемся к проверке
-                settings.postponed_until_launch = 0;
-                should_check = true;
-            }
-        } else if settings.launch_count.is_multiple_of(2) {
-            // Базовый график: каждый 2-й запуск
-            should_check = true;
-        }
-
-        let _ = settings.save_portable();
     }
 
     if !should_check {
@@ -283,15 +291,22 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
 
     // Если обновление обнаружено при явной ручной проверке пользователем,
     // сбрасываем счетчик откладывания, так как ручной запрос отменяет таймер паузы.
-    if info.has_update {
-        let mut settings = crate::commands::AppSettings::load_portable();
-        if settings.postponed_until_launch > 0 {
-            settings.postponed_until_launch = 0;
-            if let Err(err) = settings.save_portable() {
-                eprintln!("Не удалось сохранить настройки при сбросе откладывания: {}", err);
-            } else {
-                println!("L-MPV: сброшен счётчик откладывания обновлений после ручной проверки");
-            }
+    if info.has_update
+        && crate::commands::AppSettings::load_portable()
+            .postponed_until_launch
+            > 0
+    {
+        if let Err(error) = crate::commands::AppSettings::update_portable(
+            |settings| {
+                settings.postponed_until_launch = 0;
+            },
+        ) {
+            eprintln!(
+                "L-MPV: не удалось сбросить откладывание обновления: {}",
+                error
+            );
+        } else {
+            println!("L-MPV: сброшен счётчик откладывания обновлений после ручной проверки");
         }
     }
 
@@ -301,9 +316,12 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
 /// Отложить проверку обновлений на 15 последующих запусков приложения.
 #[tauri::command]
 pub fn postpone_update() -> Result<(), String> {
-    let mut settings = crate::commands::AppSettings::load_portable();
-    settings.postponed_until_launch = settings.launch_count.saturating_add(15);
-    settings.save_portable()?;
+    let settings = crate::commands::AppSettings::update_portable(
+        |settings| {
+            settings.postponed_until_launch =
+                settings.launch_count.saturating_add(15);
+        },
+    )?;
     println!(
         "L-MPV: проверка обновлений отложена на 15 запусков (до запуска №{})",
         settings.postponed_until_launch
@@ -318,10 +336,10 @@ pub async fn download_and_install_update(
     _asset_name: String,
     tag: Option<String>,
 ) -> Result<(), String> {
-    let client = create_http_client()?;
+    let api_client = create_http_client()?;
     let release = match tag.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
-        Some(target_tag) => fetch_github_release_by_tag(&client, target_tag).await?,
-        None => fetch_latest_github_release(&client).await?,
+        Some(target_tag) => fetch_github_release_by_tag(&api_client, target_tag).await?,
+        None => fetch_latest_github_release(&api_client).await?,
     };
 
     let portable_assets: Vec<GitHubAsset> = release
@@ -347,8 +365,10 @@ pub async fn download_and_install_update(
     let mut downloaded_bytes: u64 = 0;
     let mut last_percentage: f64 = 0.0;
 
+    let download_client = create_download_http_client()?;
+
     for asset in &portable_assets {
-        let mut asset_resp = client
+        let mut asset_resp = download_client
             .get(&asset.browser_download_url)
             .send()
             .await
@@ -398,10 +418,17 @@ pub async fn download_and_install_update(
     }
 
     // Сбрасываем счётчики запусков и откладываний перед обновлением
-    let mut settings = crate::commands::AppSettings::load_portable();
-    settings.launch_count = 0;
-    settings.postponed_until_launch = 0;
-    let _ = settings.save_portable();
+    if let Err(error) = crate::commands::AppSettings::update_portable(
+        |settings| {
+            settings.launch_count = 0;
+            settings.postponed_until_launch = 0;
+        },
+    ) {
+        eprintln!(
+            "L-MPV: не удалось сбросить счётчики обновления: {}",
+            error
+        );
+    }
 
     let bat_path = updates_dir.join("update.bat");
     let current_exe_name = std::env::current_exe()

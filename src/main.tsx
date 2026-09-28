@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "./App";
 import { StandaloneMediaInfoWindow } from "./components/modals/StandaloneMediaInfoWindow";
 import "./index.css";
+import "./styles/settings-panel.css";
 import { PlayerStateProvider } from "./contexts/PlayerStateContext";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import { applyPlayerTheme } from "./utils/colorUtils";
@@ -43,37 +44,42 @@ if (typeof document !== "undefined") {
     localStorage.setItem("l-mpv-upscale-mode", "off");
   }
 
-  // Единовременная инициализация всех визуальных параметров оформления при старте
-  applyAllVisualSettings();
+  const runtimeWindow = window as Window & {
+    __lMpvUiRuntimeCleanup?: () => void;
+  };
+  runtimeWindow.__lMpvUiRuntimeCleanup?.();
 
-  // Асинхронная гидратация сохранённых настроек интерфейса из config/settings.json
-  hydrateUiSettingsFromDisk();
-
-  // Автоматическая двусторонняя синхронизация UI с config/settings.json
-  initUiSettingsAutoSync();
-
-  window.addEventListener("storage", () => {
-    applyAllVisualSettings();
-  });
-
-  window.addEventListener("l-mpv-player-theme-changed", (e: Event) => {
-    const detail = (e as CustomEvent<string>).detail;
-    if (detail) {
-      applyPlayerTheme(detail);
-    }
-  });
-
-  window.addEventListener("l-mpv-settings-changed", applyAllVisualSettings);
-
-  // Предотвращение вызова стандартного контекстного меню движка WebView2
-  window.addEventListener("contextmenu", (e) => {
-    // Разрешаем стандартное меню только для текстовых полей ввода при необходимости
-    const target = e.target as HTMLElement | null;
+  const handleStorage = () => applyAllVisualSettings();
+  const handlePlayerThemeChanged = (event: Event) => {
+    const detail = (event as CustomEvent<string>).detail;
+    if (detail) applyPlayerTheme(detail);
+  };
+  const handleContextMenu = (event: MouseEvent) => {
+    const target = event.target as HTMLElement | null;
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
       return;
     }
-    e.preventDefault();
-  });
+    event.preventDefault();
+  };
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener("l-mpv-player-theme-changed", handlePlayerThemeChanged);
+  window.addEventListener("l-mpv-settings-changed", applyAllVisualSettings);
+  window.addEventListener("contextmenu", handleContextMenu);
+
+  let cleanupUiSync = () => {};
+  applyAllVisualSettings();
+  if (!isMediaInfoWindow) {
+    void hydrateUiSettingsFromDisk();
+    cleanupUiSync = initUiSettingsAutoSync();
+  }
+
+  runtimeWindow.__lMpvUiRuntimeCleanup = () => {
+    cleanupUiSync();
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener("l-mpv-player-theme-changed", handlePlayerThemeChanged);
+    window.removeEventListener("l-mpv-settings-changed", applyAllVisualSettings);
+    window.removeEventListener("contextmenu", handleContextMenu);
+  };
 }
 
 // Глобальный перехватчик ошибок React во избежание белого экрана

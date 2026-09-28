@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Keyboard,
   RotateCcw,
@@ -94,10 +94,10 @@ export function HotkeysSettingsTab({
   const [conflict, setConflict] = useState<HotkeyConflict | null>(null);
   const ignoreClickUntilRef = useRef<number>(0);
 
-  const cancelRecording = () => {
+  const cancelRecording = useCallback(() => {
     setRecordingAction(null);
     setConflict(null);
-  };
+  }, []);
 
   // Финальная запись бинда. stealFrom — забрать комбинацию у другого действия.
   // Без сайд-эффектов внутри апдейтера: считаем от свежего стейта замыкания.
@@ -154,6 +154,35 @@ export function HotkeysSettingsTab({
       onRecordingChange(recordingAction !== null);
     }
   }, [recordingAction, onRecordingChange]);
+
+  useEffect(() => {
+    if (!recordingAction) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelRecording();
+      } else if (event.key === "Tab") {
+        cancelRecording();
+      }
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest("[data-hotkey-recorder]")) {
+        cancelRecording();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("pointerdown", handlePointerDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, [cancelRecording, recordingAction]);
+
+  useEffect(() => () => {
+    onRecordingChange?.(false);
+  }, [onRecordingChange]);
 
   return (
     <div className="modal__section">
@@ -258,6 +287,8 @@ export function HotkeysSettingsTab({
                             return (
                               <div key={idx} style={{ display: "flex", alignItems: "center" }}>
                                 <button
+                                  type="button"
+                                  data-hotkey-recorder={isRecording ? "" : undefined}
                                   onClick={(e) => {
                                     if (Date.now() < ignoreClickUntilRef.current) {
                                       e.preventDefault();
@@ -367,6 +398,8 @@ export function HotkeysSettingsTab({
                             if (isRecordingNew) {
                               return (
                                 <button
+                                  type="button"
+                                  data-hotkey-recorder=""
                                   onKeyDown={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();

@@ -223,6 +223,9 @@ export function IntegrationSettingsTab(): React.ReactElement {
       </div>
 
       <div
+        role="log"
+        aria-live="polite"
+        tabIndex={0}
         style={{
           background: "#0c0c0c",
           border: "1px solid var(--border)",
@@ -230,6 +233,8 @@ export function IntegrationSettingsTab(): React.ReactElement {
           padding: "12px",
           height: "200px",
           overflowY: "auto",
+          overflowX: "auto",
+          overflowWrap: "anywhere",
           fontFamily: "monospace",
           fontSize: "0.8rem",
           color: "#d4d4d4",

@@ -80,7 +80,8 @@
   --t-slow:              300ms;
   --t-spring:            260ms;
   --t-idle-hide:         340ms;
-  /* Единые длительности закрытия (JS-таймеры = CSS + ~35ms запас на пропуск кадра) */
+  /* Единые длительности закрытия (JS-таймеры = CSS + ~50ms запас на пропуск кадра).
+     Зеркало в src/utils/animationUtils.ts (CLOSE_FAST/BASE/OSD_MS) — менять вместе. */
   --t-close-fast:        120ms;
   --t-close-base:        140ms;
 

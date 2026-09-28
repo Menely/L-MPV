@@ -17,11 +17,9 @@
 
 @keyframes slidePanelIn {
   0% {
-    opacity: 0;
     transform: translateX(12px);
   }
   100% {
-    opacity: 1;
     transform: translateX(0);
   }
 }
@@ -101,7 +99,7 @@
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  border: none;
+  border: 1.5px solid transparent;
   background: transparent;
   color: var(--text-primary);
   font-size: var(--fs-sm);
@@ -128,9 +126,8 @@
 .side-panel__item--active {
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
   color: var(--text-primary) !important;
-  border: 1.5px solid var(--accent) !important;
+  border-color: var(--accent) !important;
   box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
-  font-weight: 600;
 }
 
 .side-panel__item--active svg {

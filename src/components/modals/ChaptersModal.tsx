@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X } from "lucide-react";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { formatTime } from "../../utils/timeUtils";
@@ -26,17 +27,14 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
     isClosingRef.current = true;
     setIsClosing(true);
 
-    const isNoAnim =
-      typeof document !== "undefined" &&
-      document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
+    if (!isMotionAllowed()) {
       onClose();
       return;
     }
 
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 120);
+    }, getCloseTimeoutMs("fast"));
   }, [onClose]);
 
   useEffect(() => {

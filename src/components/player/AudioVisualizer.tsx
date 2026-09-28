@@ -762,6 +762,11 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
     const container = containerRef.current;
     if (!canvas || !container) return;
 
+    // Кэшируем 2d-контекст один раз: getContext() каждый кадр — лишний
+    // dictionary-lookup + сброс state в Chromium, давал микро-джиттер.
+    const cachedCtx = canvas.getContext("2d");
+    if (!cachedCtx) return;
+
     let animId: number | null = null;
     let sleepTimer: number | null = null;
     let lastTime = performance.now();
@@ -808,11 +813,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       const dt = Math.max(0.001, Math.min(64, Math.max(0, time - lastTime))) / 1000;
       lastTime = time;
 
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        scheduleFrame();
-        return;
-      }
+      const ctx = cachedCtx;
 
       const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const w = canvas.width / dpr;

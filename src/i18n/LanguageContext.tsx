@@ -92,6 +92,10 @@ export function LanguageProvider({
     };
   }, [locale]);
 
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
   const dict = useMemo(() => getDict(locale), [locale]);
 
   const value = useMemo<LanguageContextValue>(

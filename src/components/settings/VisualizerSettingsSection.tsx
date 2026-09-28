@@ -1,5 +1,5 @@
 import { useTranslation } from "../../i18n/LanguageContext";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   AudioWaveform,
   RotateCcw,
@@ -50,10 +50,14 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
   const [visualizerConfig, setVisualizerConfig] = useState<VisualizerConfig>(() =>
     getVisualizerConfig()
   );
+  const visualizerConfigRef = useRef(visualizerConfig);
+  visualizerConfigRef.current = visualizerConfig;
 
   useEffect(() => {
     const handleSettingsUpdate = () => {
-      setVisualizerConfig(getVisualizerConfig());
+      const next = getVisualizerConfig();
+      visualizerConfigRef.current = next;
+      setVisualizerConfig(next);
     };
     window.addEventListener("l-mpv-settings-changed", handleSettingsUpdate);
     return () => {
@@ -62,11 +66,10 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
   }, []);
 
   const updateVisualizer = (partial: Partial<VisualizerConfig>) => {
-    setVisualizerConfig((prev) => {
-      const updated = { ...prev, ...partial };
-      saveVisualizerConfig(updated);
-      return updated;
-    });
+    const updated = { ...visualizerConfigRef.current, ...partial };
+    visualizerConfigRef.current = updated;
+    setVisualizerConfig(updated);
+    saveVisualizerConfig(updated);
   };
 
   // Заблокированные (серые, некликабельные) контролы вместо скрытия:

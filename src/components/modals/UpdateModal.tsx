@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   Download,
@@ -201,15 +202,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
 
   const handleClose = useCallback(() => {
     if (closeTimerRef.current || isDownloading) return;
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
+    if (!isMotionAllowed()) {
       onClose();
       return;
     }
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 175);
+    }, getCloseTimeoutMs("base"));
   }, [isDownloading, onClose]);
 
   useEffect(() => {
@@ -810,15 +810,14 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
 
   const handleClose = useCallback(() => {
     if (closeTimerRef.current) return;
-    const isNoAnim = typeof document !== "undefined" && document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
+    if (!isMotionAllowed()) {
       onClose();
       return;
     }
     setIsClosing(true);
     closeTimerRef.current = setTimeout(() => {
       onClose();
-    }, 155);
+    }, getCloseTimeoutMs("fast"));
   }, [onClose]);
 
   useEffect(() => {

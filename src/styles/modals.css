@@ -9,16 +9,16 @@
   background: rgba(0, 0, 0, 0.60);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  animation: modalOverlayFadeIn var(--t-spring) var(--ease-spring-smooth);
+  animation: fadeIn 200ms var(--ease-smooth);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .modal-overlay::before {
   display: none;
-}
-
-@keyframes modalOverlayFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
 }
 
 .modal {
@@ -33,7 +33,7 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg), 0 0 30px rgba(127, 199, 255, 0.05);
   overflow: hidden;
-  animation: modalSpringIn var(--t-spring) var(--ease-spring-smooth);
+  animation: modalSlideIn var(--t-base) var(--ease-out);
   transform-origin: center center;
   transition: background 0.25s var(--ease-smooth),
               border-color 0.25s var(--ease-smooth),
@@ -41,13 +41,21 @@
               border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
-@keyframes modalSpringIn {
-  0% {
-    opacity: 0;
-    transform: translateY(10px);
+@media (max-width: 800px) {
+  .modal--settings {
+    width: min(720px, calc(100vw - 24px)) !important;
+    height: auto !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: min(75vh, calc(100vh - 24px)) !important;
+    border-radius: var(--radius-lg);
   }
-  100% {
-    opacity: 1;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(8px);
+  }
+  to {
     transform: translateY(0);
   }
 }
@@ -142,6 +150,7 @@
 
 .modal__section {
   margin-bottom: 14px;
+  min-width: 0;
 }
 
 .modal__section-title {
@@ -572,6 +581,7 @@
 .visual-bar-card {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
@@ -774,13 +784,32 @@
   line-height: 1.35;
 }
 
+.ui-font-choice {
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+.ui-font-choice > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ─── Сетка панели управления и времени (слева стиль, справа время) ─── */
 .controls-and-time-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   align-items: stretch;
   margin-top: 10px;
+  min-width: 0;
+}
+
+.controls-and-time-grid > *,
+.time-settings-row > * {
+  min-width: 0;
 }
 
 @media (max-width: 640px) {
@@ -792,9 +821,10 @@
 /* ─── Двухколоночный ряд настроек времени видео ─── */
 .time-settings-row {
   display: grid;
-  grid-template-columns: 1fr 1.25fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
   gap: 10px;
   margin-top: 10px;
+  min-width: 0;
 }
 
 @media (max-width: 620px) {
@@ -831,6 +861,9 @@
   justify-content: center;
   text-align: center;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background-color var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
@@ -848,9 +881,8 @@
 .compact-segment-btn--active {
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
   color: var(--text-primary) !important;
-  border: 1.5px solid var(--accent) !important;
+  border-color: var(--accent) !important;
   box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
-  font-weight: 700;
 }
 
 .compact-segment-btn--mono {
@@ -1043,13 +1075,12 @@
   animation: versionPickerSlideUp var(--t-base) var(--ease-out);
 }
 
+/* Без opacity: фейд текста даёт snap ClearType в конце (см. modalSpringIn). */
 @keyframes versionPickerSlideUp {
   from {
-    opacity: 0;
     transform: translateY(6px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -1214,21 +1245,11 @@
 }
 
 .settings-accordion__chevron {
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
-  min-height: 18px;
-  display: block;
-  flex-shrink: 0;
-  transform-origin: center center;
   color: var(--text-secondary);
   transform: rotate(0deg);
-  transition: color var(--t-fast) var(--ease-smooth);
-}
-
-.settings-accordion--animated .settings-accordion__chevron {
-  transition: transform 260ms cubic-bezier(0.2, 0, 0, 1),
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
               color var(--t-fast) var(--ease-smooth);
+  flex-shrink: 0;
 }
 
 .settings-accordion--open .settings-accordion__chevron {
@@ -1237,25 +1258,17 @@
 }
 
 /* Плавный аккордеон через CSS Grid 0fr -> 1fr.
-   Ключевые правила стабильности:
-   1. overflow: hidden и min-height: 0 на inner-элементе обязательны ВСЕГДА
-      (для корректного расчёта минимального размера трека сетки в Chromium).
-      Если переключить overflow на visible при открытии, min-size трека прыгает
-      в auto (полный размер контента), что вызывает конфликт расчёта сетки,
-      дрожание (jitter) и резкий скачок в конце анимации.
-   2. Никаких анимаций opacity на body: при opacity < 1 движок Blink переключает
-      текст в grayscale AA, а при достижении 1.0 резко возвращает ClearType,
-      что воспринимается глазом как неприятный скачок резкости шрифта.
-   3. Чистая интерполяция grid-template-rows с выверенным cubic-bezier обеспечивает
-      абсолютно плавное раскрытие и скрытие без малейших скачков. */
+   Исключены contain: content, will-change, opacity и transform: translateY!
+   Они выносили поддерево в изолированный растровый буфер Skia с отключением
+   субпиксельного LCD ClearType в Chromium, создавая мыльный текст на 1080p
+   и скачок резкости при завершении перехода.
+   Раскрытие идет чистой интерполяцией высоты grid-template-rows. */
 .settings-accordion__collapse {
   display: grid;
   grid-template-rows: 0fr;
+  transition: grid-template-rows 240ms cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
-}
-
-.settings-accordion--animated .settings-accordion__collapse {
-  transition: grid-template-rows 260ms cubic-bezier(0.2, 0, 0, 1);
+  overflow-anchor: none;
 }
 
 .settings-accordion--open .settings-accordion__collapse {
@@ -1268,8 +1281,19 @@
 }
 
 .settings-accordion__body {
-  padding: 6px 14px 14px 14px;
+  padding: 4px 14px 14px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  opacity: 1;
   transform: none !important;
+  will-change: auto !important;
+}
+
+.settings-accordion--open .settings-accordion__body {
+  opacity: 1;
+  transform: none !important;
+  will-change: auto !important;
 }
 
 /* ─── Вкладки и анимация переключения категорий в настройках ─── */
@@ -1292,7 +1316,9 @@
   gap: 6px;
   padding: 7px 8px;
   background: transparent;
-  border: 1px solid transparent;
+  /* Рамка всегда 1.5px (прозрачная по умолчанию): переключение active
+     больше не меняет геометрию и не сдвигает иконки соседних вкладок. */
+  border: 1.5px solid transparent;
   color: var(--text-secondary);
   font-size: 0.84rem;
   font-weight: 500;
@@ -1333,8 +1359,9 @@
 .settings-tab-btn--active {
   color: var(--text-primary);
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
-  border: 1.5px solid var(--accent);
-  font-weight: 600;
+  border-color: var(--accent);
+  /* font-weight НЕ меняется (500): смена 500->600 расширяла подпись,
+     отбирала ширину у соседних кнопок (flex:1) и сдвигала все иконки. */
   box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent);
 }
 
@@ -1343,11 +1370,12 @@
 }
 
 /* ─── Универсальная плавная складка (как аккордеон настроек) ───
-   Использование: .collapse-fold > .collapse-fold__inner > контент. */
+   Использование: .collapse-fold > .collapse-fold__inner > контент.
+   Без contain, transform и opacity для сохранения кристальной чёткости DirectWrite. */
 .collapse-fold {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 260ms cubic-bezier(0.2, 0, 0, 1);
+  transition: grid-template-rows 240ms cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
 }
 
@@ -1361,15 +1389,27 @@
 }
 
 .collapse-fold__body {
+  opacity: 1;
   transform: none !important;
+  will-change: auto !important;
+}
+
+.collapse-fold--open .collapse-fold__body {
+  opacity: 1;
+  transform: none !important;
+  will-change: auto !important;
 }
 
 /* Панель вкладок: высота анимируется из JS (старая -> новая),
-   скролл-якорь отключён чтобы браузер не дёргал скролл mid-transition */
+   скролл-якорь отключён чтобы браузер не дёргал скролл mid-transition.
+   clip-path ПОСТОЯННО в CSS, а не дёргается через JS: иначе его снятие
+   в конце перехода совпадало бы с разбором композитного слоя контента
+   (двойной растровый snap — карточки «дорисовывались»). Запас -20px
+   держит тени аккордеонов (14-18px) видимыми и во время езды. */
 .settings-tab-panel {
   overflow-anchor: none;
   min-height: 0;
-  width: 100%;
+  clip-path: inset(-20px);
 }
 
 /* У последней секции вкладки нет висячего отступа — без мёртвого места над футером */
@@ -1379,55 +1419,56 @@
   margin-bottom: 0 !important;
 }
 
+.modal--settings {
+  container-type: inline-size;
+  container-name: settings-shell;
+  background: var(--bg-glass, var(--bg-modal-solid, #11141c));
+}
+
 .modal--settings .modal__body {
-  background: var(--bg-modal-solid, #11141c);
+  background: transparent;
   overflow-anchor: none;
 }
 
 .settings-tab-content {
-  animation: settingsTabFadeIn var(--t-fast) var(--ease-out);
+  /* БЕЗ entrance-анимации слайда: translateX/opacity выносили весь контент
+     вкладки в композитный слой (серое сглаживание вместо ClearType), а его
+     разбор в конце перехода давал видимую «дорисовку» рамок/теней/текста —
+     особенно на тяжёлых вкладках, где первый paint и так опаздывает.
+     Движение несёт только твин высоты панели (чистый layout, без слоёв),
+     контент внутри меняется мгновенно и спокойно. */
   transform: none !important;
   will-change: auto !important;
-  /* Плавный фейд без translateX: шрифт рендерится напрямую через DirectWrite LCD ClearType */
 }
-
-.settings-tab-content[data-slide-dir="-1"] {
-  animation-name: settingsTabFadeIn;
-}
-
-@keyframes settingsTabFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* ─── Эргономичный макет интерфейса ──────────────────── */
-.ui-ergonomics-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-@media (max-width: 600px) {
-  .ui-ergonomics-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ─── Эргономичный макет интерфейса ──────────────────── */
 .ui-ergonomics-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   align-items: stretch;
+  min-width: 0;
 }
 
-@media (max-width: 600px) {
+.ui-ergonomics-grid > * {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ui-ergonomics-card {
+  padding-inline: 8px !important;
+}
+
+.ui-ergonomics-control-row {
+  gap: 4px !important;
+}
+
+.ui-ergonomics-slider {
+  width: 16px !important;
+}
+
+@container settings-shell (max-width: 480px) {
   .ui-ergonomics-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1704,6 +1745,9 @@
 
 /* Карточка-оверлей при перетаскивании */
 .cmenu-entry--overlay {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5),
               0 0 0 2px var(--accent),
               0 0 20px rgba(127, 199, 255, 0.25);

@@ -25,6 +25,13 @@
     max-height: 86vh !important;
     border-radius: var(--radius-md);
   }
+  .modal--settings {
+    width: calc(100vw - 12px) !important;
+    height: auto !important;
+    max-width: calc(100vw - 12px) !important;
+    max-height: calc(100vh - 12px) !important;
+    border-radius: var(--radius-md);
+  }
   .modal__header {
     padding: 10px 14px;
   }

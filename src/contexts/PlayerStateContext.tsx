@@ -21,6 +21,9 @@ export interface MediaInfo {
   fps: number;
   width: number;
   height: number;
+  video_track?: boolean;
+  has_video: boolean;
+  video_ready: boolean;
   video_codec: string;
   audio_codec: string;
   paused: boolean;
@@ -49,8 +52,13 @@ export interface PlaybackState {
   path: string;
   video_width: number;
   video_height: number;
+  video_track?: boolean;
+  has_video: boolean;
+  video_ready: boolean;
   current_aid: string;
   current_sid: string;
+  current_vid: string;
+  track_count: number;
   eof_reached?: boolean;
 }
 
@@ -80,6 +88,7 @@ export interface PlayerProgress {
   seekTarget: number | null;
 }
 
+
 const PlayerProgressContext = createContext<PlayerProgress>({
   position: 0,
   duration: 0,
@@ -108,6 +117,7 @@ interface PlayerStateContextType {
   seeking: boolean;
   seekTarget: number | null;
   seekTo: (seconds: number) => Promise<void>;
+  seekBy: (deltaSeconds: number) => Promise<void>;
   togglePause: () => Promise<void>;
   setVolume: (vol: number) => void;
   tracks: TrackInfo[];
@@ -147,6 +157,7 @@ const PlayerStateContext = createContext<PlayerStateContextType>({
   seeking: false,
   seekTarget: null,
   seekTo: async () => {},
+  seekBy: async () => {},
   togglePause: async () => {},
   setVolume: () => {},
   tracks: [],
@@ -193,6 +204,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const currentPathRef = useRef<string>("");
   const currentAidRef = useRef<string>("");
   const currentSidRef = useRef<string>("");
+  const currentVidRef = useRef<string>("");
+  const trackCountRef = useRef<number>(0);
   const mediaInfoRef = useRef<MediaInfo | null>(null);
 
   const loadTracks = useCallback(async () => {
@@ -224,6 +237,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       if (isMounted) {
         refreshPlaylist();
         loadTracks();
+        // Пробуждаем цикл поллинга от 1-секундного сна на паузе: события
+        // (новые дорожки, конец загрузки плейлиста) должны сразу попасть в UI.
+        window.dispatchEvent(new Event("l-mpv-force-poll"));
       }
     })
       .then((unlisten) => {
@@ -255,6 +271,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       setPlaylist([]);
       currentAidRef.current = "";
       currentSidRef.current = "";
+      currentVidRef.current = "";
+      trackCountRef.current = 0;
     }
   }, [hasMedia, loadTracks, refreshPlaylist]);
 
@@ -345,12 +363,24 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             fullInfo.duration = effectiveDuration;
 
             currentPathRef.current = fullInfo.path;
+            currentAidRef.current = "";
+            currentSidRef.current = "";
+            currentVidRef.current = "";
+            trackCountRef.current = 0;
             hasMediaInfoRef.current = effectiveDuration > 0;
+            const effectiveWidth = fullInfo.width > 0 ? fullInfo.width : 0;
+            const effectiveHeight = fullInfo.height > 0 ? fullInfo.height : 0;
+            const hasVideoDimensions = effectiveWidth > 0 && effectiveHeight > 0;
+
+            fullInfo.width = effectiveWidth;
+            fullInfo.height = effectiveHeight;
+            fullInfo.video_ready = hasVideoDimensions || fullInfo.video_ready;
             mediaInfoRef.current = fullInfo;
             setMediaInfo(fullInfo);
             setHasMedia(true);
-            // Подгружаем внешние дорожки и субтитры (если опция активна в настройках)
-            await invoke("load_external_tracks_for_file", { path: fullInfo.path }).catch(() => {});
+            // Внешние дорожки загружает фоновый поток lmpv-open-bg (playback.rs).
+            // Повторный вызов здесь создавал дублирование дорожек и лишний I/O.
+            // Список дорожек будет обновлён через событие playlist-updated.
             loadTracks();
             setProgress({
               position: fullInfo.position,
@@ -375,6 +405,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             }, 300);
           } else {
             currentPathRef.current = "";
+            currentPositionRef.current = 0;
             hasMediaInfoRef.current = false;
             mediaInfoRef.current = null;
             setMediaInfo(null);
@@ -390,10 +421,30 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             });
           }
         } else {
-          // Отслеживаем изменения выбранных дорожек через поллинг
-          if (dynState.current_aid !== currentAidRef.current || dynState.current_sid !== currentSidRef.current) {
+          // Отслеживаем изменения дорожек через поллинг (смена audio/sub/video,
+          // появление дорожек демуксером или добавление внешних дорожек).
+          const aidChanged =
+            dynState.current_aid !== currentAidRef.current;
+          const sidChanged =
+            dynState.current_sid !== currentSidRef.current;
+          const vidChanged =
+            dynState.current_vid !== currentVidRef.current;
+          const countChanged =
+            dynState.track_count !== trackCountRef.current;
+          const tracksMissing =
+            tracks.length === 0 && dynState.track_count > 0;
+
+          if (
+            aidChanged ||
+            sidChanged ||
+            vidChanged ||
+            countChanged ||
+            tracksMissing
+          ) {
             currentAidRef.current = dynState.current_aid;
             currentSidRef.current = dynState.current_sid;
+            currentVidRef.current = dynState.current_vid;
+            trackCountRef.current = dynState.track_count;
             loadTracks();
           }
 
@@ -452,24 +503,58 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             seekTarget: seekTargetRef.current,
           });
 
-          // Обновляем mediaInfo только если изменились значимые свойства (пауза, скорость, громкость, разрешение)
+          // Обновляем mediaInfo только при изменении значимых свойств
           const currentMedia = mediaInfoRef.current;
-          if (currentMedia) {
+          if (currentMedia && dynState.path === currentPathRef.current) {
             const isPausedChanged = currentMedia.paused !== dynState.paused;
             const isSpeedChanged = currentMedia.speed !== dynState.speed;
             const isVolumeChanged = currentMedia.volume !== dynState.volume;
-            const isSizeChanged =
-              (dynState.video_width > 0 && dynState.video_width !== currentMedia.width) ||
-              (dynState.video_height > 0 && dynState.video_height !== currentMedia.height);
 
-            if (isPausedChanged || isSpeedChanged || isVolumeChanged || isSizeChanged) {
+            // Новые валидные размеры (защита от сброса в 0)
+            const targetWidth =
+              dynState.video_width > 0
+                ? dynState.video_width
+                : currentMedia.width;
+            const targetHeight =
+              dynState.video_height > 0
+                ? dynState.video_height
+                : currentMedia.height;
+            const isSizeChanged =
+              (dynState.video_width > 0 &&
+                dynState.video_width !== currentMedia.width) ||
+              (dynState.video_height > 0 &&
+                dynState.video_height !== currentMedia.height);
+
+            const nextVideoTrack =
+              dynState.video_track !== undefined
+                ? dynState.video_track
+                : currentMedia.video_track;
+            const isVideoStatusChanged =
+              (dynState.video_track !== undefined &&
+                currentMedia.video_track !== dynState.video_track) ||
+              currentMedia.has_video !== dynState.has_video ||
+              (dynState.video_ready && !currentMedia.video_ready);
+
+            if (
+              isPausedChanged ||
+              isSpeedChanged ||
+              isVolumeChanged ||
+              isSizeChanged ||
+              isVideoStatusChanged
+            ) {
               const updated: MediaInfo = {
                 ...currentMedia,
                 paused: dynState.paused,
                 speed: dynState.speed,
                 volume: dynState.volume,
-                width: dynState.video_width > 0 ? dynState.video_width : currentMedia.width,
-                height: dynState.video_height > 0 ? dynState.video_height : currentMedia.height,
+                width: targetWidth,
+                height: targetHeight,
+                video_track: nextVideoTrack,
+                has_video: dynState.has_video,
+                video_ready:
+                  (targetWidth > 0 && targetHeight > 0) ||
+                  currentMedia.video_ready ||
+                  dynState.video_ready,
                 audio_bitrate: dynState.audio_bitrate,
                 video_bitrate: dynState.video_bitrate,
                 dropped_frames: dynState.dropped_frames,
@@ -550,6 +635,67 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       setSeeking(false);
       setSeekTarget(null);
       setProgress(prev => ({ ...prev, seeking: false, seekTarget: null }));
+    }
+  }, []);
+
+  // ─── Относительная быстрая перемотка с мгновенным UI ───
+  const seekBy = useCallback(async (deltaSeconds: number) => {
+    if (seekTimeoutIdRef.current !== null) {
+      window.clearTimeout(seekTimeoutIdRef.current);
+      seekTimeoutIdRef.current = null;
+    }
+
+    const dur = mediaInfoRef.current?.duration || 0;
+    const cur = currentPositionRef.current;
+    const target = dur > 0
+      ? Math.max(0, Math.min(dur, cur + deltaSeconds))
+      : Math.max(0, cur + deltaSeconds);
+
+    currentPositionRef.current = target;
+    seekingRef.current = true;
+    seekTargetRef.current = target;
+    seekTimestampRef.current = Date.now();
+    setSeeking(true);
+    setSeekTarget(target);
+    setProgress(prev => ({
+      ...prev,
+      position: target,
+      seeking: true,
+      seekTarget: target,
+    }));
+
+    // Пробуждаем поллинг, чтобы на паузе не ждать секунду
+    window.dispatchEvent(new Event("l-mpv-force-poll"));
+
+    // Страховочный таймер сброса флага seeking
+    seekTimeoutIdRef.current = window.setTimeout(() => {
+      if (seekingRef.current) {
+        seekingRef.current = false;
+        seekTargetRef.current = null;
+        setSeeking(false);
+        setSeekTarget(null);
+      }
+      seekTimeoutIdRef.current = null;
+    }, 1200);
+
+    try {
+      await invoke("seek", { seconds: deltaSeconds });
+      window.dispatchEvent(new Event("l-mpv-force-poll"));
+    } catch (e) {
+      console.error("Ошибка относительной перемотки:", e);
+      if (seekTimeoutIdRef.current !== null) {
+        window.clearTimeout(seekTimeoutIdRef.current);
+        seekTimeoutIdRef.current = null;
+      }
+      seekingRef.current = false;
+      seekTargetRef.current = null;
+      setSeeking(false);
+      setSeekTarget(null);
+      setProgress(prev => ({
+        ...prev,
+        seeking: false,
+        seekTarget: null,
+      }));
     }
   }, []);
 
@@ -663,13 +809,17 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleBeforeUnload = () => {
       const curMedia = mediaInfoRef.current;
-      if (curMedia && curMedia.path && curMedia.duration > 0) {
-        invoke("save_position", {
-          path: curMedia.path,
-          position: curMedia.position,
-          duration: curMedia.duration,
-          flush: true,
-        }).catch(() => {});
+      const curPos = currentPositionRef.current;
+      if (curMedia && curMedia.path && curMedia.duration > 0 && !isResumingRef.current) {
+        // Сохраняем только актуальную ненулевую позицию (не затираем историю нулём при выгрузке страницы)
+        if (curPos > 0) {
+          invoke("save_position", {
+            path: curMedia.path,
+            position: curPos,
+            duration: curMedia.duration,
+            flush: true,
+          }).catch(() => {});
+        }
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -744,11 +894,14 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const appWindow = getCurrentWindow();
     let isMounted = true;
+    let checkVersion = 0;
+    let resizeFrame = 0;
 
     const checkFs = async () => {
+      const version = ++checkVersion;
       try {
         const fs = await appWindow.isFullscreen();
-        if (isMounted) {
+        if (isMounted && version === checkVersion) {
           setIsFullscreen(fs);
         }
       } catch (e) {
@@ -756,13 +909,25 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    checkFs();
-    const unlistenResize = appWindow.onResized(() => {
-      checkFs();
-    });
+    const scheduleFsCheck = () => {
+      if (resizeFrame) {
+        window.cancelAnimationFrame(resizeFrame);
+      }
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = 0;
+        void checkFs();
+      });
+    };
+
+    void checkFs();
+    const unlistenResize = appWindow.onResized(scheduleFsCheck);
 
     return () => {
       isMounted = false;
+      checkVersion += 1;
+      if (resizeFrame) {
+        window.cancelAnimationFrame(resizeFrame);
+      }
       unlistenResize.then((f) => f());
     };
   }, []);
@@ -940,6 +1105,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     seeking,
     seekTarget,
     seekTo,
+    seekBy,
     togglePause,
     setVolume,
     tracks,
@@ -967,6 +1133,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     seeking,
     seekTarget,
     seekTo,
+    seekBy,
     togglePause,
     setVolume,
     tracks,

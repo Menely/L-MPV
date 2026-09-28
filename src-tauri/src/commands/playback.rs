@@ -8,6 +8,7 @@ use super::dir_scan::{
 };
 use super::history::{
     apply_resume_start, save_current_playback_position,
+    save_history_to_disk,
 };
 use super::playlist::populate_folder_playlist;
 use super::tracks::load_external_tracks_internal;
@@ -16,6 +17,16 @@ use super::types::{
     MediaInfo, PlaybackState, PlayerState,
 };
 use tauri::State;
+
+fn invalidate_ambient_result<T>(
+    state: &PlayerState,
+    result: Result<T, String>,
+) -> Result<T, String> {
+    if result.is_ok() {
+        state.ambient_controller.invalidate();
+    }
+    result
+}
 
 // ─── Открытие файла ─────────────────────────────────────
 
@@ -41,14 +52,15 @@ pub fn open_file_internal(
     path: &str,
     app: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
-    // Сохранение позиции предыдущего файла: только память + дебаунс диска.
+    // Сохранение позиции предыдущего файла перед открытием нового
     save_current_playback_position(state);
+    save_history_to_disk();
 
     let target_path = std::path::PathBuf::from(path);
     let safe_target = escape_mpv_path(path);
     // Единственная точка resume: выставляем `start` ДО loadfile,
     // фронтенд второго seek не делает.
-    let expected_start = apply_resume_start(state, path);
+    let _ = apply_resume_start(state, path);
 
     // Путь, игравший до loadfile: нужен фоновой задаче, чтобы отличить
     // «новый файл ещё грузится» от «пользователь уже переключил дальше».
@@ -57,11 +69,12 @@ pub fn open_file_internal(
         .get_property_string("path")
         .unwrap_or_default();
 
-    // 1. Мгновенно запускаем воспроизведение выбранного файла
+    // 1. Мгновенно запускаем воспроизведение выбранного файла.
     state.mpv.command(&format!(
         "loadfile \"{}\" replace",
         safe_target
     ))?;
+    state.ambient_controller.invalidate();
 
     // Флаги читаются один раз (один парсинг settings.json на открытие).
     let settings = AppSettings::load_portable();
@@ -69,7 +82,7 @@ pub fn open_file_internal(
     let auto_select_external_audio =
         settings.auto_select_external_audio;
 
-    // 2. Всё тяжёлое — в фон: внешние дорожки, плейлист, сброс `start`.
+    // 2. Всё тяжёлое — в фон: внешние дорожки и плейлист.
     // Новое поколение отменяет устаревшую задачу прошлого открытия.
     let generation = next_open_generation();
     let bg_mpv = state.mpv.clone();
@@ -102,21 +115,6 @@ pub fn open_file_internal(
                 &target_path,
                 bg_app.as_ref(),
             );
-
-            // Сбрасываем параметр "start" в "none", чтобы следующие треки
-            // плейлиста стартовали с начала — но только если его никто не
-            // перезаписал (быстрая навигация Next/Prev выставила свой) и
-            // поколение не сменилось (открыли файл новее).
-            if current_open_generation() == generation {
-                let still_ours = bg_mpv
-                    .get_property_string("start")
-                    .map(|v| v == expected_start)
-                    .unwrap_or(false);
-                if still_ours {
-                    let _ = bg_mpv
-                        .set_property_string("start", "none");
-                }
-            }
         });
 
     // 3. Переоценка Ambient Light под новое видео (авто-отключение без
@@ -157,14 +155,13 @@ pub fn toggle_pause(
         dur > 0.0
     };
 
-    if is_near_end {
-        let _ =
-            state.mpv.command("seek 0 absolute+exact");
-        let _ =
-            state.mpv.set_property_string("pause", "no");
-        return Ok(());
-    }
-    state.mpv.command("cycle pause")
+    let result = if is_near_end {
+        let _ = state.mpv.command("seek 0 absolute+exact");
+        state.mpv.set_property_string("pause", "no")
+    } else {
+        state.mpv.command("cycle pause")
+    };
+    invalidate_ambient_result(&state, result)
 }
 
 /// Установка паузы в конкретное состояние.
@@ -173,6 +170,7 @@ pub fn set_pause(
     state: State<'_, PlayerState>,
     paused: bool,
 ) -> Result<(), String> {
+    let mut restart = false;
     if !paused {
         let dur = state
             .mpv
@@ -183,7 +181,7 @@ pub fn set_pause(
                 .mpv
                 .get_property_bool("eof-reached")
                 .unwrap_or(false);
-        let is_near_end = if !is_eof {
+        restart = if !is_eof {
             let pos = state
                 .mpv
                 .get_property_double("time-pos")
@@ -192,18 +190,17 @@ pub fn set_pause(
         } else {
             dur > 0.0
         };
-
-        if is_near_end {
-            let _ = state
-                .mpv
-                .command("seek 0 absolute+exact");
-            return state
-                .mpv
-                .set_property_string("pause", "no");
-        }
     }
     let value = if paused { "yes" } else { "no" };
-    state.mpv.set_property_string("pause", value)
+    let result = if restart {
+        let _ = state
+            .mpv
+            .command("seek 0 absolute+exact");
+        state.mpv.set_property_string("pause", value)
+    } else {
+        state.mpv.set_property_string("pause", value)
+    };
+    invalidate_ambient_result(&state, result)
 }
 
 /// Перемотка на указанное количество секунд (относительная).
@@ -212,10 +209,11 @@ pub fn seek(
     state: State<'_, PlayerState>,
     seconds: f64,
 ) -> Result<(), String> {
-    state.mpv.command(&format!(
+    let result = state.mpv.command(&format!(
         "seek {} relative+exact",
         seconds
-    ))
+    ));
+    invalidate_ambient_result(&state, result)
 }
 
 /// Перемотка к абсолютной позиции в секундах.
@@ -230,10 +228,11 @@ pub fn seek_absolute(
         } else {
             seconds.max(0.0)
         };
-    state.mpv.command(&format!(
+    let result = state.mpv.command(&format!(
         "seek {} absolute+exact",
         safe_seconds
-    ))
+    ));
+    invalidate_ambient_result(&state, result)
 }
 
 /// Шаг на один кадр вперед.
@@ -241,7 +240,8 @@ pub fn seek_absolute(
 pub fn frame_step(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
-    state.mpv.command("frame-step")
+    let result = state.mpv.command("frame-step");
+    invalidate_ambient_result(&state, result)
 }
 
 /// Шаг на один кадр назад.
@@ -249,7 +249,8 @@ pub fn frame_step(
 pub fn frame_back_step(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
-    state.mpv.command("frame-back-step")
+    let result = state.mpv.command("frame-back-step");
+    invalidate_ambient_result(&state, result)
 }
 
 // ─── Громкость и скорость ────────────────────────────────
@@ -473,6 +474,9 @@ pub fn get_media_info(
     let mpv = &state.mpv;
     let current_path =
         mpv.get_property_string("path").unwrap_or_default();
+    // Размеры окна можно использовать только после того, как проверяемые
+    // свойства относятся к тому же файлу, что и текущий путь.
+    let output_status = mpv.video_output_status_for(&current_path);
 
     Ok(MediaInfo {
         path: current_path,
@@ -491,44 +495,11 @@ pub fn get_media_info(
         fps: mpv
             .get_property_double("container-fps")
             .unwrap_or(0.0),
-        width: {
-            let dw = mpv
-                .get_property_double("video-params/dw")
-                .unwrap_or(0.0);
-            if dw > 0.0 {
-                dw as i64
-            } else {
-                let dwidth = mpv
-                    .get_property_double("dwidth")
-                    .unwrap_or(0.0);
-                if dwidth > 0.0 {
-                    dwidth as i64
-                } else {
-                    mpv.get_property_double("width")
-                        .unwrap_or(0.0)
-                        as i64
-                }
-            }
-        },
-        height: {
-            let dh = mpv
-                .get_property_double("video-params/dh")
-                .unwrap_or(0.0);
-            if dh > 0.0 {
-                dh as i64
-            } else {
-                let dheight = mpv
-                    .get_property_double("dheight")
-                    .unwrap_or(0.0);
-                if dheight > 0.0 {
-                    dheight as i64
-                } else {
-                    mpv.get_property_double("height")
-                        .unwrap_or(0.0)
-                        as i64
-                }
-            }
-        },
+        width: output_status.width,
+        height: output_status.height,
+        video_track: output_status.video_track,
+        has_video: output_status.has_video,
+        video_ready: output_status.ready,
         video_codec: mpv
             .get_property_string("video-codec")
             .unwrap_or_default(),
@@ -613,23 +584,14 @@ pub fn get_playback_state(
     state.mpv.get_playback_state_snapshot()
 }
 
-/// Получение только точных размеров видео
+/// Получение фактических размеров сконфигурированного видеовыхода.
 #[tauri::command]
 pub fn get_video_dimensions(
     state: State<'_, PlayerState>,
 ) -> Result<(i64, i64), String> {
     let mpv = &state.mpv;
-    let w = mpv
-        .get_property_double("video-params/dw")
-        .unwrap_or_else(|_| {
-            mpv.get_property_double("width")
-                .unwrap_or(0.0)
-        }) as i64;
-    let h = mpv
-        .get_property_double("video-params/dh")
-        .unwrap_or_else(|_| {
-            mpv.get_property_double("height")
-                .unwrap_or(0.0)
-        }) as i64;
-    Ok((w, h))
+    let current_path =
+        mpv.get_property_string("path").unwrap_or_default();
+    let status = mpv.video_output_status_for(&current_path);
+    Ok((status.width, status.height))
 }

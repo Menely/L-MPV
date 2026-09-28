@@ -3,16 +3,18 @@ import {
   Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, Clock, RotateCcw, PanelBottom, Timer, Zap, FolderOpen
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { setAnimationsEnabled as applyAnimationsEnabledToDom } from "../../utils/animationUtils";
 import { AccordionSection } from "./AccordionSection";
 import { ColorSchemeSection } from "./ColorSchemeSection";
 import { VisualizerSettingsSection } from "./VisualizerSettingsSection";
 import { ControlButtonsPreviewCard } from "./ControlButtonsPreviewCard";
 import { optionCardStyle, optionResetBtnStyle, optionBtnStyle } from "./optionCardStyles";
-import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESETS, UI_FONT_PRESETS, CustomFontItem, registerCustomFont } from "../../utils/uiThemeUtils";
+import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESETS, UI_FONT_PRESETS, CustomFontItem, registerCustomFont, getSavedUiSettingsStyle, saveUiSettingsStyle, type UiSettingsStyle } from "../../utils/uiThemeUtils";
 import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../utils/timePositionUtils";
 import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../utils/timeFormatUtils";
 import { ControlBarStyle } from "../../utils/controlBarStyleUtils";
-import { AmbientSettings } from "../modals/SettingsModal";
+import type { AmbientMode } from "../../utils/ambientSettingsUtils";
+import type { AmbientSettings } from "../modals/SettingsModal";
 
 interface VerticalSliderProps {
   value: number;
@@ -100,9 +102,16 @@ const VerticalSlider = memo(function VerticalSlider({
       aria-valuenow={value}
       aria-valuemin={min}
       aria-valuemax={max}
+      aria-orientation="vertical"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+        if (e.key === "Home") {
+          e.preventDefault();
+          onChange(min);
+        } else if (e.key === "End") {
+          e.preventDefault();
+          onChange(max);
+        } else if (e.key === "ArrowUp" || e.key === "ArrowRight") {
           e.preventDefault();
           const nextVal = Math.min(max, Number((value + step).toFixed(decimals)));
           if (nextVal !== value) onChange(nextVal);
@@ -114,8 +123,8 @@ const VerticalSlider = memo(function VerticalSlider({
       }}
       style={{
         position: "relative",
-        width: 20,
-        minWidth: 20,
+         width: 16,
+         minWidth: 16,
         height: "100%",
         display: "flex",
         alignItems: "center",
@@ -273,6 +282,11 @@ const AmbientTuneRow = memo(function AmbientTuneRow({
   );
 });
 
+function getAmbientPreviewColor(side: number, index: number, count: number): string {
+  const hue = (190 + side * 67 + (index / Math.max(1, count - 1)) * 80) % 360;
+  return `hsl(${hue}, 74%, 56%)`;
+}
+
 interface AppearanceSettingsTabProps {
   activeColor: string;
   setActiveColor: (c: string) => void;
@@ -333,6 +347,18 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
   // ── Пользовательские шрифты из папки fonts/ ─────────────────────────────
   const [customFonts, setCustomFonts] = useState<CustomFontItem[]>([]);
+
+  // ── Стиль окна настроек ───────────────────────────────────────────────────
+  const [settingsStyle, setSettingsStyle] = useState<UiSettingsStyle>(getSavedUiSettingsStyle);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<UiSettingsStyle>;
+      setSettingsStyle(ce.detail);
+    };
+    window.addEventListener("l-mpv-ui-settings-style-changed", handler);
+    return () => window.removeEventListener("l-mpv-ui-settings-style-changed", handler);
+  }, []);
 
   const loadFonts = useCallback(async () => {
     try {
@@ -413,6 +439,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           const opacityPct = Math.round(((uiOpacity - 0.10) / (1.00 - 0.10)) * 100);
                           return (
                             <div
+                              className="settings-opacity-row"
                               style={{
                                 ...cardStyle,
                                 flexDirection: "row",
@@ -523,7 +550,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                         <div className="ui-ergonomics-grid">
 
                           {/* Колонка 1: Скругление */}
-                          <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                          <div className="ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Square size={14} style={{ color: "var(--accent)" }} />
@@ -536,15 +563,15 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </span>
                             </div>
 
-                            <div style={{ display: "flex", gap: 10, flex: 1, minHeight: 0, alignItems: "stretch" }}>
+                            <div className="ui-ergonomics-control-row" style={{ display: "flex", gap: 10, flex: 1, minHeight: 0, alignItems: "stretch" }}>
                               {/* Сетка 2x2 для пресетов */}
                               <div
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "1fr 1fr",
-                                  gridTemplateRows: "repeat(2, minmax(0, 1fr))",
-                                  gap: 6,
-                                  flex: 1,
+                                   gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                                   gridTemplateRows: "repeat(2, minmax(0, 1fr))",
+                                   gap: 4,
+                                   flex: 1,
                                   minWidth: 0,
                                   minHeight: 0,
                                 }}
@@ -601,16 +628,16 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                             }}
                                           />
                                         </div>
-                                        <span style={{ fontSize: "0.70rem", fontWeight: 600, lineHeight: 1.15, textAlign: "center", whiteSpace: "nowrap" }}>
-                                          {dict.settings.appearance.roundingPresets[level === "default" ? "standard" : level] || preset.label}
-                                        </span>
+                                         <span style={{ fontSize: "0.66rem", fontWeight: 600, lineHeight: 1.15, textAlign: "center", whiteSpace: "nowrap", letterSpacing: "-0.02em", padding: "0 1px", maxWidth: "100%" }}>
+                                           {dict.settings.appearance.roundingPresets[level === "default" ? "standard" : level] || preset.label}
+                                         </span>
                                       </button>
                                     );
                                 })}
                               </div>
 
                               {/* Вертикальный ползунок */}
-                              <div style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
+                              <div className="ui-ergonomics-slider" style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
                                 <VerticalSlider
                                   value={uiRadius.value}
                                   min={0}
@@ -631,7 +658,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           </div>
 
                           {/* Колонка 2: Масштаб */}
-                          <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                          <div className="ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Maximize2 size={14} style={{ color: "var(--accent)" }} />
@@ -671,15 +698,15 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </div>
                             </div>
 
-                            <div style={{ display: "flex", gap: 10, flex: 1, minHeight: 0, alignItems: "stretch" }}>
+                            <div className="ui-ergonomics-control-row" style={{ display: "flex", gap: 10, flex: 1, minHeight: 0, alignItems: "stretch" }}>
                               {/* Сетка 2x2 для пресетов */}
                               <div
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "1fr 1fr",
-                                  gridTemplateRows: "repeat(2, minmax(0, 1fr))",
-                                  gap: 6,
-                                  flex: 1,
+                                   gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                                   gridTemplateRows: "repeat(2, minmax(0, 1fr))",
+                                   gap: 4,
+                                   flex: 1,
                                   minWidth: 0,
                                   minHeight: 0,
                                 }}
@@ -703,14 +730,13 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     >
                                       <span
                                         style={{
-                                          fontSize: "0.70rem",
-                                          fontWeight: 600,
-                                          lineHeight: 1.15,
-                                          textAlign: "center",
-                                          whiteSpace: "nowrap",
-                                          overflow: "hidden",
-                                          textOverflow: "ellipsis",
-                                          maxWidth: "100%",
+                                         fontSize: "0.66rem",
+                                         fontWeight: 600,
+                                         lineHeight: 1.15,
+                                         textAlign: "center",
+                                         whiteSpace: "nowrap",
+                                         letterSpacing: "-0.02em",
+                                         maxWidth: "100%",
                                         }}
                                       >
                                         {preset.id === "compact"
@@ -730,7 +756,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </div>
 
                               {/* Вертикальный ползунок */}
-                              <div style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
+                              <div className="ui-ergonomics-slider" style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
                                 <VerticalSlider
                                   value={uiScale.value}
                                   min={0.70}
@@ -749,7 +775,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           </div>
 
                           {/* Колонка 3: Шрифты */}
-                          <div style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                          <div className="ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Type size={14} style={{ color: "var(--accent)" }} />
@@ -774,6 +800,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 return (
                                   <button
                                     key={fontPreset.id}
+                                    className="ui-font-choice"
                                     type="button"
                                     onClick={() => {
                                       setUiFont(fontPreset.id);
@@ -815,8 +842,9 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                   {customFonts.map((font) => {
                                     const isSel = uiFont === font.id;
                                     return (
-                                      <button
-                                        key={font.id}
+                                    <button
+                                      key={font.id}
+                                      className="ui-font-choice"
                                         type="button"
                                         onClick={() => {
                                           setUiFont(font.id);
@@ -864,6 +892,62 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             </div>
                           </div>
                         </div>
+                      </div>
+
+                      {/* ── Блок Стиль окна настроек ── */}
+                      <div style={{ ...cardStyle, marginTop: 10, display: "flex", flexDirection: "column" }}>
+                        <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                            <SlidersHorizontal size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
+                            <span style={{ fontSize: "0.80rem", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
+                              {dict.settings.appearance.settingsWindow.title}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => saveUiSettingsStyle("modal")}
+                            className="btn btn--secondary btn--sm"
+                            style={{
+                              ...resetBtnStyle,
+                              opacity: settingsStyle !== "modal" ? 1 : 0,
+                              visibility: settingsStyle !== "modal" ? "visible" : "hidden",
+                              pointerEvents: settingsStyle !== "modal" ? "auto" : "none",
+                              transform: settingsStyle !== "modal" ? "scale(1)" : "scale(0.85)",
+                              transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                            }}
+                            title={dict.settings.appearance.settingsWindow.resetTitle}
+                            tabIndex={settingsStyle !== "modal" ? 0 : -1}
+                          >
+                            <RotateCcw size={11} />
+                          </button>
+                        </div>
+                        <div className="settings-window-choice-grid">
+                          <button
+                            type="button"
+                            className={`visual-bar-card visual-bar-card--row settings-window-choice ${settingsStyle === "sidebar" ? "visual-bar-card--active" : ""}`}
+                            aria-pressed={settingsStyle === "sidebar"}
+                            onClick={() => saveUiSettingsStyle("sidebar")}
+                          >
+                            <span className="visual-bar-card__info">
+                              <span className="visual-bar-card__label">{dict.settings.appearance.settingsWindow.sidebar}</span>
+                              <span className="visual-bar-card__desc">{dict.settings.appearance.settingsWindow.sidebarDesc}</span>
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`visual-bar-card visual-bar-card--row settings-window-choice ${settingsStyle === "modal" ? "visual-bar-card--active" : ""}`}
+                            aria-pressed={settingsStyle === "modal"}
+                            onClick={() => saveUiSettingsStyle("modal")}
+                          >
+                            <span className="visual-bar-card__info">
+                              <span className="visual-bar-card__label">{dict.settings.appearance.settingsWindow.modal}</span>
+                              <span className="visual-bar-card__desc">{dict.settings.appearance.settingsWindow.modalDesc}</span>
+                            </span>
+                          </button>
+                        </div>
+                        <span className="settings-window-choice__note">
+                          {dict.settings.appearance.settingsWindow.nextOpen}
+                        </span>
                       </div>
 
                       {/* ── Блок 5 и 6: Стиль панели управления (слева) + Позиция и Формат времени (справа) ── */}
@@ -1108,13 +1192,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                       onChange={(e) => {
                         const val = e.target.checked;
                         setAnimationsEnabled(val);
-                        localStorage.setItem('l-mpv-animations-enabled', val ? 'true' : 'false');
-                        if (val) {
-                          document.documentElement.classList.remove('no-animations');
-                        } else {
-                          document.documentElement.classList.add('no-animations');
-                        }
-                        window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                        applyAnimationsEnabledToDom(val);
                       }}
                     />
                     <span style={{ fontSize: "0.88rem", color: "var(--text-primary)", fontWeight: 500 }}>
@@ -1160,10 +1238,27 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     { id: 'skipOpening', label: dict.settings.appearance.visSkipOpening, defaultChecked: false }
                   ].map(btn => {
                     const isChecked = visibleButtons[btn.id] !== undefined 
-                      ? visibleButtons[btn.id] 
+                      ? visibleButtons[btn.id]
                       : btn.defaultChecked;
+                    const isWideSkipRow = btn.id === "skipOpening" && isChecked;
                     return (
-                      <label key={btn.id} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 24, height: 24, cursor: "pointer", userSelect: "none", boxSizing: "border-box" }}>
+                      <label
+                        key={btn.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          minHeight: 24,
+                          height: "auto",
+                          minWidth: 0,
+                          flexWrap: "wrap",
+                          rowGap: 4,
+                          cursor: "pointer",
+                          userSelect: "none",
+                          boxSizing: "border-box",
+                          ...(isWideSkipRow ? { gridColumn: "1 / -1" } : {}),
+                        }}
+                      >
                         <input
                           type="checkbox"
                           className="ui-checkbox"
@@ -1176,13 +1271,13 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             window.dispatchEvent(new Event('l-mpv-settings-changed'));
                           }}
                         />
-                        <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500, lineHeight: 1 }}>
+                        <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500, lineHeight: 1.2, minWidth: 0, whiteSpace: "normal" }}>
                           {btn.label}
                         </span>
                         {btn.id === 'skipOpening' && isChecked && (
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 4, height: 20 }}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 4, height: 20, flexShrink: 0, whiteSpace: "nowrap" }}
                           >
                             <input
                               type="text"
@@ -1209,7 +1304,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               style={{
                                 width: 44,
                                 height: 20,
-                                padding: "0 4px",
+                                padding: "0 2px",
                                 background: "rgba(0, 0, 0, 0.4)",
                                 border: "1px solid var(--border)",
                                 borderRadius: "var(--radius-sm)",
@@ -1217,11 +1312,12 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 fontSize: "0.78rem",
                                 textAlign: "center",
                                 fontWeight: 600,
-                                boxSizing: "border-box",
-                                outline: "none"
+                                 boxSizing: "border-box",
+                                 outline: "none",
+                                 flexShrink: 0
                               }}
                             />
-                            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1 }}>{dict.settings.appearance.secSuffix}</span>
+                             <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1, flexShrink: 0, whiteSpace: "nowrap" }}>{dict.settings.appearance.secSuffix}</span>
                           </div>
                         )}
                       </label>
@@ -1238,15 +1334,11 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 title={dict.settings.appearance.ambientSection}
               >
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-                  <span style={{ fontSize: "0.80rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>
-                    {dict.settings.appearance.ambientDesc}
-                  </span>
-
                   {/* Переключатель режимов */}
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
                       gap: 8,
                       padding: 4,
                       background: "rgba(255, 255, 255, 0.03)",
@@ -1255,22 +1347,23 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     }}
                   >
                     {[
-                      { id: "off", label: dict.settings.appearance.ambientOff, desc: dict.settings.appearance.ambientOffDesc },
-                      { id: "blur", label: dict.settings.appearance.ambientBlur, desc: dict.settings.appearance.ambientBlurDesc },
-                      { id: "color", label: dict.settings.appearance.ambientColor, desc: dict.settings.appearance.ambientColorDesc },
+                      { id: "off", label: dict.settings.appearance.ambientOff },
+                      { id: "blur", label: dict.settings.appearance.ambientBlur },
+                      { id: "color", label: dict.settings.appearance.ambientColor },
+                      { id: "ambilight", label: dict.settings.appearance.ambientAmbilight },
                     ].map((item) => {
                       const isSel = ambientSettings.mode === item.id;
                       return (
                         <button
                           key={item.id}
-                          onClick={() => updateAmbient({ mode: item.id as "off" | "blur" | "color" }, true)}
+                          onClick={() => updateAmbient({ mode: item.id as AmbientMode }, true)}
                           style={{
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
                             justifyContent: "center",
                             gap: 3,
-                            padding: "8px 6px",
+                            padding: "10px 6px",
                             borderRadius: "var(--radius-sm)",
                             border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                             cursor: "pointer",
@@ -1283,9 +1376,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           }}
                         >
                           <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>{item.label}</span>
-                          <span style={{ fontSize: "0.70rem", color: isSel ? "var(--accent-hover)" : "var(--text-muted)" }}>
-                            {item.desc}
-                          </span>
                         </button>
                       );
                     })}
@@ -1293,7 +1383,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
                   {/* Настройка радиуса размытия (только для режима blur) */}
                   {ambientSettings.mode === "blur" && (() => {
-                    const bMin = 10;
+                    const bMin = 5;
                     const bMax = 150;
                     const bDef = 100;
                     const bVal = ambientSettings.blur_radius;
@@ -1349,10 +1439,11 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                   })()}
 
                   {/* Яркость/насыщенность (режим color) */}
-                  {ambientSettings.mode === "color" && (
+                  {(ambientSettings.mode === "color" || ambientSettings.mode === "ambilight") && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       <AmbientTuneRow
                         icon={<Sparkles size={15} />}
+
                         label={dict.settings.appearance.ambientBrightness}
                         value={ambientSettings.brightness ?? 100}
                         min={20}
@@ -1464,6 +1555,171 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             background: "none",
                           }}
                         />
+                      </div>
+                    </div>
+                  )}
+
+                  {ambientSettings.mode === "ambilight" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <AmbientTuneRow
+                        icon={<Sparkles size={15} />}
+                        label={dict.settings.appearance.ambientSegmentCount}
+                        value={ambientSettings.segment_count}
+                        min={3}
+                        max={16}
+                        step={1}
+                        def={7}
+                        unit=""
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientSegmentCountAria}
+                        onChange={(v) => updateAmbient({ segment_count: v }, false)}
+                        onReset={() => updateAmbient({ segment_count: 7 }, true)}
+                      />
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <span style={{ fontSize: "0.80rem", color: "var(--text-secondary)", fontWeight: 500 }}>
+                          {dict.settings.appearance.ambientSampleWidth}
+                        </span>
+                        {([
+                          { key: "top" as const, label: dict.settings.appearance.ambientSampleTop },
+                          { key: "right" as const, label: dict.settings.appearance.ambientSampleRight },
+                          { key: "bottom" as const, label: dict.settings.appearance.ambientSampleBottom },
+                          { key: "left" as const, label: dict.settings.appearance.ambientSampleLeft },
+                        ] as const).map((item) => (
+                          <AmbientTuneRow
+                            key={item.key}
+                            icon={<Maximize2 size={15} />}
+                            label={item.label}
+                            value={ambientSettings.sample_widths[item.key]}
+                            min={1}
+                            max={15}
+                            step={1}
+                            def={3}
+                            unit="%"
+                            resetTitle={dict.settings.appearance.ambientResetDefault}
+                            ariaLabel={`${dict.settings.appearance.ambientSampleWidth}: ${item.label}`}
+                            onChange={(v) => updateAmbient({
+                              sample_widths: {
+                                ...ambientSettings.sample_widths,
+                                [item.key]: v,
+                              },
+                            }, false)}
+                            onReset={() => updateAmbient({
+                              sample_widths: {
+                                ...ambientSettings.sample_widths,
+                                [item.key]: 3,
+                              },
+                            }, true)}
+                          />
+                        ))}
+                      </div>
+                      <AmbientTuneRow
+                        icon={<Timer size={15} />}
+                        label={dict.settings.appearance.ambientSampleInterval}
+                        value={ambientSettings.sample_interval_ms}
+                        min={100}
+                        max={500}
+                        step={10}
+                        def={100}
+                        unit="ms"
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientSampleIntervalAria}
+                        onChange={(v) => updateAmbient({ sample_interval_ms: v }, false)}
+                        onReset={() => updateAmbient({ sample_interval_ms: 100 }, true)}
+                      />
+                      <AmbientTuneRow
+                        icon={<Zap size={15} />}
+                        label={dict.settings.appearance.ambientAttack}
+                        value={ambientSettings.smoothing_attack_ms}
+                        min={50}
+                        max={2000}
+                        step={10}
+                        def={180}
+                        unit="ms"
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientAttackAria}
+                        onChange={(v) => updateAmbient({ smoothing_attack_ms: v }, false)}
+                        onReset={() => updateAmbient({ smoothing_attack_ms: 180 }, true)}
+                      />
+                      <AmbientTuneRow
+                        icon={<Clock size={15} />}
+                        label={dict.settings.appearance.ambientRelease}
+                        value={ambientSettings.smoothing_release_ms}
+                        min={100}
+                        max={5000}
+                        step={50}
+                        def={650}
+                        unit="ms"
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientReleaseAria}
+                        onChange={(v) => updateAmbient({ smoothing_release_ms: v }, false)}
+                        onReset={() => updateAmbient({ smoothing_release_ms: 650 }, true)}
+                      />
+                      <AmbientTuneRow
+                        icon={<SlidersHorizontal size={15} />}
+                        label={dict.settings.appearance.ambientSpread}
+                        value={ambientSettings.segment_spread}
+                        min={100}
+                        max={200}
+                        step={1}
+                        def={130}
+                        unit="%"
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientSpreadAria}
+                        onChange={(v) => updateAmbient({ segment_spread: v }, false)}
+                        onReset={() => updateAmbient({ segment_spread: 130 }, true)}
+                      />
+                      <AmbientTuneRow
+                        icon={<SlidersHorizontal size={15} />}
+                        label={dict.settings.appearance.ambientGap}
+                        value={ambientSettings.segment_gap}
+                        min={0}
+                        max={50}
+                        step={1}
+                        def={0}
+                        unit="%"
+                        resetTitle={dict.settings.appearance.ambientResetDefault}
+                        ariaLabel={dict.settings.appearance.ambientGapAria}
+                        onChange={(v) => updateAmbient({ segment_gap: v }, false)}
+                        onReset={() => updateAmbient({ segment_gap: 0 }, true)}
+                      />
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8,
+                          padding: "12px 14px",
+                          borderRadius: "var(--radius-md)",
+                          background: "rgba(255, 255, 255, 0.03)",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        <span style={{ fontSize: "0.80rem", color: "var(--text-secondary)", fontWeight: 500 }}>
+                          {dict.settings.appearance.ambientPreview}
+                        </span>
+                        <div style={{ display: "grid", gridTemplateRows: "repeat(4, 10px)", gap: 3, opacity: 0.9 }}>
+                          {Array.from({ length: 4 }, (_, side) => (
+                            <div
+                              key={side}
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: `repeat(${ambientSettings.segment_count}, minmax(0, 1fr))`,
+                                gap: 2,
+                              }}
+                            >
+                              {Array.from({ length: ambientSettings.segment_count }, (_, index) => (
+                                <span
+                                  key={index}
+                                  style={{
+                                    display: "block",
+                                    minWidth: 0,
+                                    borderRadius: 2,
+                                    background: getAmbientPreviewColor(side, index, ambientSettings.segment_count),
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}

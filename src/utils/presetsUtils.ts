@@ -5,6 +5,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
+import { setAnimationsEnabled } from "./animationUtils";
 import {
   applyAccentColor,
   GlowIntensity,
@@ -33,6 +34,9 @@ import {
   UiFontId,
   getSavedUiFont,
   saveUiFont,
+  getSavedUiSettingsStyle,
+  saveUiSettingsStyle,
+  UiSettingsStyle,
 } from "./uiThemeUtils";
 import {
   TimeDisplayPosition,
@@ -49,10 +53,17 @@ import {
   getSavedControlBarStyle,
   saveControlBarStyle,
 } from "./controlBarStyleUtils";
+import type { AmbientPresetSettings } from "./ambientSettingsUtils";
+import { normalizeAmbientSettings } from "./ambientSettingsUtils";
+import { getEffectiveLocale, saveLocale, type Locale } from "../i18n/index";
 
 export interface SettingsPresetData {
   /** Тема оформления плеера (расцветка фона и поверхностей) */
   playerTheme?: PlayerThemeId | string;
+  /** Стиль окна настроек (модальное окно или боковая панель) */
+  settingsStyle?: UiSettingsStyle;
+  /** Язык интерфейса (ru или en) */
+  language?: Locale;
   /** Семейство шрифта интерфейса */
   uiFont?: UiFontId | string;
   /** Положение отображения времени воспроизведения видео */
@@ -83,13 +94,7 @@ export interface SettingsPresetData {
   /** Пользовательская сохранённая палитра цветов */
   customColors?: string[];
   /** Параметры подсветки полос (Ambient Light) */
-  ambient: {
-    mode: "off" | "blur" | "color";
-    blur_radius: number;
-    color: string;
-    brightness?: number;
-    saturation?: number;
-  };
+  ambient: AmbientPresetSettings;
   /** Конфигурация аудио-визуализатора */
   visualizer: VisualizerConfig;
   /** Сохранять извлечённые дорожки в папку с видео */
@@ -332,29 +337,15 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
 
   const customColors = getCustomColors();
 
-  let ambient: {
-    mode: "off" | "blur" | "color";
-    blur_radius: number;
-    color: string;
-    brightness?: number;
-    saturation?: number;
-  } = {
+  let ambient: AmbientPresetSettings = {
     mode: "off",
     blur_radius: 35,
     color: "#000000",
   };
   try {
-    const savedAmbient = await invoke<{
-      mode: "off" | "blur" | "color";
-      blur_radius: number;
-      color: string;
-      brightness?: number;
-      saturation?: number;
-    }>(
-      "get_ambient_settings"
-    );
+    const savedAmbient = await invoke<unknown>("get_ambient_settings");
     if (savedAmbient) {
-      ambient = savedAmbient;
+      ambient = normalizeAmbientSettings(savedAmbient);
     }
   } catch (e) {
     console.error("Ошибка получения настроек Ambient Light:", e);
@@ -376,8 +367,10 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
     createdAt: Date.now(),
     isBuiltIn: false,
     data: {
-      playerTheme,
-      uiFont,
+       playerTheme,
+       settingsStyle: getSavedUiSettingsStyle(),
+       language: getEffectiveLocale(),
+       uiFont,
       timePosition: getSavedTimePosition(),
       timeFormat: getSavedTimeFormat(),
       controlBarStyle: getSavedControlBarStyle(),
@@ -405,6 +398,12 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
  */
 export async function applySettingsPreset(preset: SettingsPreset): Promise<void> {
   const { data } = preset;
+
+  if (data.ambient) {
+    const ambient = normalizeAmbientSettings(data.ambient);
+    await invoke("set_ambient_settings", { settings: ambient });
+    window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: ambient }));
+  }
 
   // 0. Тема оформления плеера (расцветка фона и поверхностей)
   if (data.playerTheme) {
@@ -472,10 +471,18 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
     saveControlBarStyle(data.controlBarStyle);
   }
 
-  // 4. Плавные анимации
+  if (data.settingsStyle === "modal" || data.settingsStyle === "sidebar") {
+    saveUiSettingsStyle(data.settingsStyle);
+  }
+
+  // 3.7 Язык интерфейса
+  if (data.language === "ru" || data.language === "en") {
+    saveLocale(data.language);
+  }
+
+  // 4. Плавные анимации — через единый сеттер (localStorage + класс + data-атрибут)
   if (typeof data.animationsEnabled === "boolean") {
-    localStorage.setItem("l-mpv-animations-enabled", data.animationsEnabled ? "true" : "false");
-    document.documentElement.setAttribute("data-animations", data.animationsEnabled ? "on" : "off");
+    setAnimationsEnabled(data.animationsEnabled);
   }
 
   // 5. Названия дорожек
@@ -491,17 +498,6 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   // 7. Пользовательские цвета
   if (data.customColors && Array.isArray(data.customColors)) {
     saveCustomColors(data.customColors);
-  }
-
-  // 8. Подсветка полос (Ambient Light)
-  if (data.ambient) {
-    try {
-      await invoke("set_ambient_settings", { settings: data.ambient });
-      await invoke("apply_ambient_preview", { settings: data.ambient }).catch(() => {});
-      window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: data.ambient }));
-    } catch (e) {
-      console.error("Ошибка применения Ambient Light:", e);
-    }
   }
 
   // 9. Аудио-визуализатор
@@ -547,7 +543,10 @@ export async function loadUserPresets(): Promise<SettingsPreset[]> {
         createdAt: typeof item.createdAt === "number" ? item.createdAt : Date.now(),
         updatedAt: typeof item.updatedAt === "number" ? item.updatedAt : undefined,
         isBuiltIn: false,
-        data: item.data || {},
+        data: {
+          ...(item.data || {}),
+          ambient: normalizeAmbientSettings(item.data?.ambient),
+        },
       }));
   };
 
@@ -595,11 +594,7 @@ export async function saveUserPresets(presets: SettingsPreset[]): Promise<void> 
     console.error("Ошибка записи пресетов в localStorage:", e);
   }
 
-  try {
-    await invoke("save_settings_presets", { presetsJson: jsonStr });
-  } catch (e) {
-    console.error("Ошибка сохранения пресетов в config/presets.json:", e);
-  }
+  await invoke("save_settings_presets", { presetsJson: jsonStr });
 
   window.dispatchEvent(new CustomEvent("l-mpv-presets-updated"));
 }
@@ -739,7 +734,9 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
           createdAt: Date.now(),
           isBuiltIn: false,
           data: {
-            playerTheme: item.data.playerTheme || "graphite",
+             playerTheme: item.data.playerTheme || "graphite",
+             settingsStyle: item.data.settingsStyle === "modal" || item.data.settingsStyle === "sidebar" ? item.data.settingsStyle : undefined,
+             language: item.data.language === "ru" || item.data.language === "en" ? item.data.language : undefined,
             accentColor: item.data.accentColor || "#7fc7ff",
             glowIntensity: item.data.glowIntensity || "medium",
             uiOpacity: typeof item.data.uiOpacity === "number" ? item.data.uiOpacity : 0.88,
@@ -749,7 +746,7 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
             showTrackNames: item.data.showTrackNames !== false,
             visibleButtons: item.data.visibleButtons || {},
             customColors: item.data.customColors || [],
-            ambient: item.data.ambient || { mode: "off", blur_radius: 35, color: "#000000" },
+            ambient: normalizeAmbientSettings(item.data.ambient),
             visualizer: item.data.visualizer || {
               enabled: false,
               placement: "off",
@@ -818,6 +815,14 @@ export function isSettingsMatchingPreset(
   const preFont = preset.uiFont || "inter";
   if (curFont !== preFont) return false;
 
+  if (preset.settingsStyle) {
+    if (getSavedUiSettingsStyle() !== preset.settingsStyle) return false;
+  }
+
+  if (preset.language) {
+    if (getEffectiveLocale() !== preset.language) return false;
+  }
+
   // 3. Акцентный цвет
   const curAccent = (current.accentColor || "#7fc7ff").toLowerCase();
   const preAccent = (preset.accentColor || "#7fc7ff").toLowerCase();
@@ -871,13 +876,29 @@ export function isSettingsMatchingPreset(
 
   // 11. Ambient Light
   if (current.ambient && preset.ambient) {
-    if (current.ambient.mode !== preset.ambient.mode) return false;
-    if (current.ambient.mode !== "off") {
-      if (current.ambient.blur_radius !== preset.ambient.blur_radius) return false;
-      if (current.ambient.mode === "color" && current.ambient.color.toLowerCase() !== preset.ambient.color.toLowerCase()) return false;
-      // Яркость/насыщенность сравниваем только если пресет их задаёт
-      if (preset.ambient.brightness !== undefined && (current.ambient.brightness ?? 100) !== preset.ambient.brightness) return false;
-      if (preset.ambient.saturation !== undefined && (current.ambient.saturation ?? 100) !== preset.ambient.saturation) return false;
+    const currentAmbient = normalizeAmbientSettings(current.ambient);
+    const presetAmbient = normalizeAmbientSettings(preset.ambient);
+    if (currentAmbient.mode !== presetAmbient.mode) return false;
+    if (currentAmbient.mode === "blur") {
+      if (currentAmbient.blur_radius !== presetAmbient.blur_radius) return false;
+    }
+    if (currentAmbient.mode === "color") {
+      if (currentAmbient.color.toLowerCase() !== presetAmbient.color.toLowerCase()) return false;
+      if (currentAmbient.brightness !== presetAmbient.brightness) return false;
+      if (currentAmbient.saturation !== presetAmbient.saturation) return false;
+    }
+    if (currentAmbient.mode === "ambilight") {
+      if (currentAmbient.brightness !== presetAmbient.brightness) return false;
+      if (currentAmbient.saturation !== presetAmbient.saturation) return false;
+      if (currentAmbient.segment_count !== presetAmbient.segment_count) return false;
+      if (currentAmbient.sample_interval_ms !== presetAmbient.sample_interval_ms) return false;
+      if (currentAmbient.smoothing_attack_ms !== presetAmbient.smoothing_attack_ms) return false;
+      if (currentAmbient.smoothing_release_ms !== presetAmbient.smoothing_release_ms) return false;
+      if (Math.abs(currentAmbient.segment_spread - presetAmbient.segment_spread) > 0.01) return false;
+      if (Math.abs(currentAmbient.segment_gap - presetAmbient.segment_gap) > 0.01) return false;
+      for (const edge of ["top", "right", "bottom", "left"] as const) {
+        if (currentAmbient.sample_widths[edge] !== presetAmbient.sample_widths[edge]) return false;
+      }
     }
   }
 
