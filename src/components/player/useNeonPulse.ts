@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 export interface PulseOrigin {
   /** Позиция волны в % ширины шкалы (0-100). */
@@ -22,9 +22,33 @@ export interface UseNeonPulse {
  */
 export function useNeonPulse(): UseNeonPulse {
   const [pulse, setPulse] = useState<PulseOrigin | null>(null);
-  const firePulse = useCallback((pct: number) => {
-    setPulse({ pct, key: Date.now() });
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
   }, []);
-  const dismissPulse = useCallback(() => setPulse(null), []);
+
+  const firePulse = useCallback(
+    (pct: number) => {
+      clearTimer();
+      setPulse({ pct, key: Date.now() });
+      // Страховка: без CSS-анимации onAnimationEnd не выстрелит и кольцо залипнет.
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        setPulse(null);
+      }, 600);
+    },
+    [clearTimer]
+  );
+
+  const dismissPulse = useCallback(() => {
+    clearTimer();
+    setPulse(null);
+  }, [clearTimer]);
+
+  useEffect(() => clearTimer, [clearTimer]);
   return { pulse, firePulse, dismissPulse };
 }

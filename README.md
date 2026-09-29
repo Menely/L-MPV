@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.5.5-blueviolet?style=for-the-badge" alt="Version 2.5.5">
+  <img src="https://img.shields.io/badge/Version-2.5.6-blueviolet?style=for-the-badge" alt="Version 2.5.6">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -312,9 +312,11 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>✨ Interactive Timeline: Neon Pulse Wave & Live Scrubbing</b></summary>
 
-- **Kinematic Neon Pulse Wave:** Dynamic glowing neon sine wave expanding from the cursor hover point along the progress track, styled to match the active player accent theme.
+- **Kinematic Neon Pulse Wave:** Compact glowing neon ring expanding from the click point along the progress track, styled to match the active player accent theme. Automatically suppressed when animations are disabled, so the ring can never linger over the control buttons.
 - **Unthrottled Live Scrubbing:** Ultra-responsive `pointermove` handling delivering silky smooth scrubbing without micro-stutters, fully optimized for high refresh rate (144Hz+) gaming monitors.
-- **Artifact-Free Instant Seeking (Anti-Flicker):** Timeline seeking employs `absolute+exact` positioning, completely eliminating keyframe jumps and double-frame flicker on timeline clicks.
+- **Artifact-Free Instant Seeking (Anti-Flicker):** While dragging, the timeline uses lightweight `absolute+keyframes` preview seeks that skip intermediate frame decoding; a single precise `absolute+exact` seek lands on the exact frame once you release. This removes decoder overload, torn frames and UI desync on slower hardware.
+- **Pixel-Accurate Release Geometry:** The final seek position is computed from a freshly measured track rectangle (invalidated on window resize), so auto window resizing can no longer misplace the playhead.
+- **No Stray Focus Ring:** Clicking the timeline no longer leaves a green `:focus-visible` outline floating over the video; keyboard focus indication is preserved via the progress track growing from 5px to 8px.
 
 </details>
 
@@ -479,7 +481,7 @@ L-MPV/
 │   │   ├── player/                       # Player shell: Titlebar, PlayerControls, Timeline,
 │   │   │                                # TimeDisplay, ContextMenu, PlaylistDrawer, AudioVisualizer,
 │   │   │                                # AmbilightCanvas + ambilightRender (illumination geometry & rasterization; temporarily disabled)
-│   │   ├── modals/                       # Windows: SettingsModal, MediaInfoModal (compact info overlay with bitrate Sparkline, color space & bit depth),
+│   │   ├── modals/                       # Windows: SettingsModal, MediaInfoModal (compact info overlay with bitrate Sparkline, color space & true source bit depth),
 │   │   │                                # StandaloneMediaInfoWindow (655x685), ChaptersModal, UpdateModal, ColorPickerModal;
 │   │   │                                # mediainfo/ module (MediaInfoTabsBar, MediaInfoSectionList, useMediaInfoDragDrop)
 │   │   ├── common/                       # Reusable components: MarkdownRenderer
@@ -668,7 +670,7 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 | | Toggle Letterbox Illumination | `B` (cycles: Off → Blur → Color; Ambilight mode is temporarily disabled) |
 | | Copy Current Frame to Clipboard | `Ctrl + C` |
 | | Save Lossless Screenshot (PNG) | `S` |
-| | Show Compact Video Info | `I` (bitrate with live Sparkline graph, color space, bit depth) |
+| | Show Compact Video Info | `I` (bitrate with live Sparkline graph, color space, true source bit depth) — closes only via `X`, `Escape` or `I` |
 | | Inspect MediaInfo Properties | `Shift + F10` |
 | | Open Context Menu | Right Click on video |
 | **Playlist & Files** | Toggle Playlist Drawer | `L` |

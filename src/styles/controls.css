@@ -150,6 +150,14 @@
   height: 8px;
 }
 
+/* Глобальный focus-visible (components.css) рисует 2px рамку вокруг всего
+   таймлайна: клик мышью по tabIndex-элементу в Chromium считается
+   :focus-visible, и рамка залипала поверх видео. Индикатор фокуса уже
+   продублирован ростом дорожки (.timeline__track) выше. */
+.timeline:focus-visible {
+  outline: none !important;
+}
+
 .timeline__segment-bg {
   position: absolute;
   top: 0;
@@ -211,19 +219,18 @@
 
 /* ─── Neon Pulse Wave: радиальная волна от точки клика ─── */
 /*
- * Анимирует только transform + opacity — оба свойства обрабатываются
- * GPU compositor без layout/paint, что даёт 60 fps без reflow.
- * Фиксированный размер 72px, начальный scale(0.14) ≈ 10px зрительно.
+ * Только transform + opacity — обрабатываются GPU compositor без reflow (60 fps).
+ * Фиксированный размер 36px, начальный scale(0.28) ≈ 10px зрительно.
  */
 .timeline__pulse {
   position: absolute;
   top: 50%;
-  width: 72px;
-  height: 72px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: transparent;
   border: 1.5px solid var(--accent);
-  box-shadow: 0 0 10px var(--accent-glow, var(--accent));
+  box-shadow: 0 0 6px var(--accent-glow, var(--accent));
   pointer-events: none;
   z-index: 5;
   will-change: transform, opacity;
@@ -232,7 +239,7 @@
 
 @keyframes timeline-pulse {
   from {
-    transform: translate(-50%, -50%) scale(0.14);
+    transform: translate(-50%, -50%) scale(0.28);
     opacity: 0.85;
   }
   to {
@@ -243,6 +250,12 @@
 
 /* Отключаем волну при data-glow="off" */
 html[data-glow="off"] .timeline__pulse {
+  display: none;
+}
+
+/* Без анимаций onAnimationEnd не выстрелит — волну не показываем,
+   иначе кольцо залипает поверх кнопок. */
+html.no-animations .timeline__pulse {
   display: none;
 }
 
@@ -587,6 +600,13 @@ html[data-glow="off"] .timeline__pulse {
 .volume-slider__input {
   min-width: 0;
   padding: 0;
+}
+
+/* Глобальный focus-visible перебивает `outline: none` у .ui-premium-slider
+   (у него в modals.css он без !important) — вокруг слайдера громкости
+   появлялась зелёная рамка. Ползунок и так индицируется наведением. */
+.volume-slider__input:focus-visible {
+  outline: none !important;
 }
 
 /* ─── Полное отключение свечения при режиме Off ── */

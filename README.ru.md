@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.5.5-blueviolet?style=for-the-badge" alt="Version 2.5.5">
+  <img src="https://img.shields.io/badge/Version-2.5.6-blueviolet?style=for-the-badge" alt="Version 2.5.6">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -312,9 +312,11 @@
 <details>
 <summary><b>✨ Интерактивный Таймлайн: Neon Pulse Wave и Live Scrubbing</b></summary>
 
-- **Кинематическая волна Neon Pulse Wave:** динамическая волна неонового свечения при наведении и перемещении курсора по полосе таймлайна с адаптацией под активный акцентный цвет плеера.
+- **Кинематическая волна Neon Pulse Wave:** компактное кольцо неонового свечения (36px), расходящееся от точки клика по полосе таймлайна с адаптацией под активный акцентный цвет плеера. При отключенных анимациях волна не создаётся вовсе, поэтому кольцо не может «залипнуть» поверх кнопок панели управления.
 - **Мгновенный Live Scrubbing без задержек:** оптимизированная обработка событий `pointermove` без троттлинга для безупречной плавности даже на мониторах с частотой 144+ Гц.
-- **Высокоточная перемотка без артефактов (Anti-Flicker):** мгновенный точный переход `absolute+exact`, исключающий скачки и эффект «двойного кадра» при клике на шкалу времени.
+- **Высокоточная перемотка без артефактов (Anti-Flicker):** во время перетаскивания используются лёгкие превью-переходы `absolute+keyframes` без декодирования промежуточных кадров, а точный `absolute+exact` выполняется ровно один раз при отпускании ползунка. Устранена перегрузка аппаратного декодера, рваные кадры и рассинхрон интерфейса на слабом железе.
+- **Точная геометрия при отпускании:** позиция финального перехода считается по свеже измеренному прямоугольнику шкалы (кэш сбрасывается при ресайзе окна), поэтому автоподгонка окна под пропорции видео больше не сбивает позицию.
+- **Никаких лишних рамок фокуса:** клик мышью по таймлайну больше не оставляет зелёную рамку `:focus-visible` поверх видео; индикатор клавиатурного фокуса сохранён через рост полосы прогресса с 5px до 8px.
 
 </details>
 
@@ -479,7 +481,7 @@ L-MPV/
 │   │   ├── player/                       # Оболочка плеера: Titlebar, PlayerControls, Timeline,
 │   │   │                                # TimeDisplay, ContextMenu, PlaylistDrawer, AudioVisualizer,
 │   │   │                                # AmbilightCanvas + ambilightRender (геометрия и растеризация подсветки; временно эта функция отключена)
-│   │   ├── modals/                       # Окна: SettingsModal, MediaInfoModal (инфо-оверлей со Sparkline битрейта, цветом и разрядностью),
+│   │   ├── modals/                       # Окна: SettingsModal, MediaInfoModal (инфо-оверлей со Sparkline битрейта, цветом и реальной разрядностью исходника),
 │   │   │                                # StandaloneMediaInfoWindow (655x685), ChaptersModal, UpdateModal, ColorPickerModal;
 │   │   │                                # модуль mediainfo/ (MediaInfoTabsBar, MediaInfoSectionList, useMediaInfoDragDrop)
 │   │   ├── common/                       # Переиспользуемое: MarkdownRenderer
@@ -668,7 +670,7 @@ L-MPV/
 | | Подсветка полос (Ambient Light) | `B` (циклически: Off → Blur → Color; режим Ambilight временно отключен) |
 | | Копировать кадр в буфер обмена | `Ctrl + C` |
 | | Сохранить кадр (Скриншот PNG) | `S` |
-| | Информация о видео (Компактная) | `I` (битрейт со Sparkline-графиком, цветовое пространство, разрядность) |
+| | Информация о видео (Компактная) | `I` (битрейт со Sparkline-графиком, цветовое пространство, реальная разрядность исходника) — закрывается только `X`, `Escape` или `I` |
 | | Свойства MediaInfo (MPC) | `Shift + F10` |
 | | Открыть контекстное меню | Клик ПКМ по видео |
 | **Плейлист и Файлы** | Боковая панель плейлиста | `L` |

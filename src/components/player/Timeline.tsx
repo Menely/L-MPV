@@ -4,6 +4,7 @@ import { formatTime } from "../../utils/timeUtils";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { useLiveScrubbing } from "./useLiveScrubbing";
 import { useNeonPulse } from "./useNeonPulse";
+import { isMotionAllowed } from "../../utils/animationUtils";
 
 export interface TimelineSegmentData {
   start: number;
@@ -160,7 +161,6 @@ export const Timeline = React.memo(() => {
   const [mousePosition, setMousePosition] = useState<number | null>(null);
   const [isDraggingState, setIsDraggingState] = useState(false);
   const isDragging = useRef(false);
-  const timelineRef = useRef<HTMLDivElement>(null);
   const cachedRectRef = useRef<DOMRect | null>(null);
 
   // ─── Производные значения ────────────────────────────────────
@@ -201,8 +201,15 @@ export const Timeline = React.memo(() => {
     }
   }, []);
 
+  // Сброс rAF/флагов при размонтировании + инвалидация кэша геометрии
+  // при ресайзе (иначе stale-rect даёт сик мимо цели).
   useEffect(() => {
+    const invalidateRect = () => {
+      cachedRectRef.current = null;
+    };
+    window.addEventListener("resize", invalidateRect);
     return () => {
+      window.removeEventListener("resize", invalidateRect);
       if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
       cachedRectRef.current = null;
       isDragging.current = false;
@@ -214,6 +221,11 @@ export const Timeline = React.memo(() => {
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || safeDuration <= 0) return;
     tryCapture(e.currentTarget, e.pointerId);
+    // Снимаем фокус мышью: иначе он залипает после клика и Chromium рисует
+    // вокруг шкалы зелёную рамку глобального focus-visible (дефект UI).
+    if (document.activeElement === e.currentTarget) {
+      e.currentTarget.blur();
+    }
 
     const rect = e.currentTarget.getBoundingClientRect();
     cachedRectRef.current = rect;
@@ -223,7 +235,11 @@ export const Timeline = React.memo(() => {
     const ratio = clientXToRatio(e.clientX, rect);
     const time = ratio * safeDuration;
 
-    firePulse(ratio * 100);
+    // При выключенных анимациях волну не запускаем: без animationEnd
+    // страховка всё равно уберёт её через 600мс, но лучше не создавать DOM.
+    if (isMotionAllowed()) {
+      firePulse(ratio * 100);
+    }
     setMousePosition(time);
     setHoverInfo({ ratio, time });
   }, [safeDuration, firePulse]);
@@ -246,15 +262,22 @@ export const Timeline = React.memo(() => {
     setIsDraggingState(false);
 
     if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
+    pendingClientX.current = null;
     cancelScrub();
     tryRelease(e.currentTarget, e.pointerId);
 
-    const rect = cachedRectRef.current ?? e.currentTarget.getBoundingClientRect();
+    // Свежая геометрия на отпускании: кэш мог устареть при ресайзе окна.
+    const rect = e.currentTarget.getBoundingClientRect();
     cachedRectRef.current = null;
 
     if (commit) {
+      if (rect.width <= 0 || safeDuration <= 0) {
+        setMousePosition(null);
+        return;
+      }
       const finalPos = clientXToSeconds(e.clientX, rect, safeDuration);
       setMousePosition(null);
+      // Единственный точный сик за жест; превью драга — лёгкие keyframes.
       seekTo(finalPos);
 
       // Скрыть подсказку если отпускание произошло вне шкалы
@@ -309,7 +332,6 @@ export const Timeline = React.memo(() => {
   return (
     <div
       className={`timeline ${isDraggingState ? "timeline--dragging" : ""}`}
-      ref={timelineRef}
       role="slider"
       tabIndex={0}
       aria-label="Шкала времени воспроизведения"

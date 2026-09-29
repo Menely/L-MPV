@@ -113,7 +113,6 @@ export function MediaInfoModal({
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const isClosingRef = useRef<boolean>(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
 
   const handleClose = useCallback(() => {
     if (isClosingRef.current) return;
@@ -142,22 +141,8 @@ export function MediaInfoModal({
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [handleClose]);
 
-  // Закрытие по клику вне оверлея
-  useEffect(() => {
-    const handlePointerDown = (e: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-        handleClose();
-      }
-    };
-    const timer = setTimeout(() => {
-      window.addEventListener("mousedown", handlePointerDown);
-    }, 50);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("mousedown", handlePointerDown);
-    };
-  }, [handleClose]);
-
+  // Оверлей закрывается только через X / Escape / хоткей I —
+  // клики по плееру, панели управления и видео его не трогают.
   useEffect(() => {
     return () => {
       if (closeTimerRef.current) {
@@ -169,7 +154,6 @@ export function MediaInfoModal({
 
   return (
     <div
-      ref={modalRef}
       className={`media-info-overlay ${isClosing ? "media-info-overlay--closing" : ""}`}
       onClick={(e) => e.stopPropagation()}
     >

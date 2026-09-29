@@ -238,12 +238,16 @@ pub fn seek_absolute(
     invalidate_ambient_result(&state, result)
 }
 
-/// Быстрый предпросмотр кадра во время скреббинга (режим keyframes).
-/// Менее точен, чем seek_absolute, но значительно быстрее — используется
-/// Точный предпросмотр кадра во время скреббинга.
-/// Использует точную перемотку с аппаратным декодированием и пропуском
-/// промежуточных кадров (hr-seek-framedrop), исключая расхождение и скачки
-/// между ключевыми и целевыми кадрами.
+/// Быстрый предпросмотр кадра во время перетаскивания ползунка.
+///
+/// Во время драга намеренно используется `absolute+keyframes`: прыжок
+/// к ближайшему ключевому кадру без декодирования всех промежуточных
+/// кадров — в ~5-10 раз дешевле `absolute+exact` и не перегружает
+/// аппаратный декодер (D3D11VA) серией тяжёлых точных сиков.
+/// Именно лавина `exact`-сиков каждые ~120 мс давала у части пользователей
+/// рваный кадр/артефакты и рассинхрон UI таймлайна (см. скриншот).
+/// Точное позиционирование (`absolute+exact`) выполняется один раз
+/// при отпускании ползунка через `seek_absolute`.
 #[tauri::command]
 pub fn seek_preview(
     state: State<'_, PlayerState>,
@@ -254,7 +258,7 @@ pub fn seek_preview(
     }
     let safe_seconds = seconds.max(0.0);
     let result = state.mpv.command(&format!(
-        "seek {} absolute+exact",
+        "seek {} absolute+keyframes",
         safe_seconds
     ));
     invalidate_ambient_result(&state, result)
@@ -537,20 +541,85 @@ pub(crate) fn resolve_color_space(primaries: &str, colormatrix: &str) -> String 
     }
 }
 
-/// Определение разрядности цвета (бит на канал).
-pub(crate) fn resolve_bit_depth(plane_depth_str: &str, pixfmt: &str) -> String {
-    if !plane_depth_str.is_empty() && plane_depth_str != "0" {
-        format!("{plane_depth_str}-bit")
-    } else if pixfmt.contains("10") || pixfmt.contains("p010") {
-        "10-bit".to_string()
-    } else if pixfmt.contains("12") {
-        "12-bit".to_string()
-    } else if pixfmt.contains("16") {
-        "16-bit".to_string()
-    } else if !pixfmt.is_empty() {
-        "8-bit".to_string()
+/// Глубина цвета из имени пиксельного формата (`yuv420p10le`/`p010` -> 10).
+/// 0 — неизвестно, 8 — обычный 8-битный формат.
+pub(crate) fn parse_pixfmt_depth(pixfmt: &str) -> u32 {
+    let p = pixfmt.to_ascii_lowercase();
+    if p.is_empty() {
+        return 0;
+    }
+    // Старшие глубины первыми. Матчим именно суффиксы глубины (`p10`,
+    // `010`), а не голые цифры: иначе `yuv410p` (8 бит) ложно дал бы 10.
+    if p.contains("p16") || p.contains("016") {
+        16
+    } else if p.contains("p14") || p.contains("014") {
+        14
+    } else if p.contains("p12") || p.contains("012") {
+        12
+    } else if p.contains("p10") || p.contains("010") {
+        10
+    } else if p.contains("p9") || p.contains("009") {
+        9
     } else {
-        "—".to_string()
+        8
+    }
+}
+
+/// Короткое имя видеокодека для оверлея (`H265/HEVC`, `H264/AVC`).
+///
+/// mpv в `video-codec` отдаёт длинную строку с расшифровкой
+/// (напр. `hevc - H.265 / HEVC ...`), а в оверлее нужен только кодек.
+/// Размеры (`1920x1080`) в скобках дорисовывает фронтенд — их не трогаем.
+pub(crate) fn normalize_video_codec(raw: &str) -> String {
+    let short = raw
+        .split(" - ")
+        .next()
+        .unwrap_or("")
+        .split(['[', '('])
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    match short.as_str() {
+        "" => String::new(),
+        "hevc" | "h265" | "h.265" => "H265/HEVC".to_string(),
+        "h264" | "h.264" | "avc" | "avc1" => "H264/AVC".to_string(),
+        "av1" | "av01" => "AV1".to_string(),
+        "vp9" => "VP9".to_string(),
+        "vp8" => "VP8".to_string(),
+        "mpeg4" | "mp4v" => "MPEG-4".to_string(),
+        "mpeg2video" | "mpeg2" => "MPEG-2".to_string(),
+        "mpeg1video" | "mpeg1" => "MPEG-1".to_string(),
+        "vc1" | "vc-1" => "VC-1".to_string(),
+        "theora" => "Theora".to_string(),
+        "prores" | "prores_aw" | "prores_ks" | "prores_lt" | "prores_hq" => {
+            "ProRes".to_string()
+        }
+        "dnxhd" => "DNxHD".to_string(),
+        "mjpeg" => "MJPEG".to_string(),
+        "ffv1" => "FFV1".to_string(),
+        other => other.to_ascii_uppercase(),
+    }
+}
+
+/// Разрядность цвета (бит на канал).
+///
+/// `plane-depth` иногда отражает глубину *выхода* VO (8 после дитеринга),
+/// а исходник — 10-битный. Берём максимум plane-depth и глубины из
+/// пиксельных форматов — чинит кейс «пишет 8, а по факту 10».
+pub(crate) fn resolve_bit_depth(
+    plane_depth_str: &str,
+    pixfmts: &[&str],
+) -> String {
+    let plane = plane_depth_str.trim().parse::<u32>().unwrap_or(0);
+    let fmt = pixfmts
+        .iter()
+        .map(|f| parse_pixfmt_depth(f))
+        .max()
+        .unwrap_or(0);
+    match plane.max(fmt) {
+        0 => "—".to_string(),
+        depth => format!("{depth}-bit"),
     }
 }
 
@@ -588,10 +657,17 @@ pub fn get_media_info(
     let pixel_format = mpv
         .get_property_string("video-params/pixelformat")
         .unwrap_or_default();
+    // При аппаратном декодировании (d3d11va/hwdec) настоящий формат исходника
+    // часто лежит в hw-pixelformat (напр. `p010`), а `pixelformat`/`plane-depth`
+    // уже отражают программный фолбэк или выход VO (8 бит после дитеринга).
+    let hw_pixel_format = mpv
+        .get_property_string("video-params/hw-pixelformat")
+        .unwrap_or_default();
 
     let hdr_info = resolve_hdr_info(&gamma, &colormatrix);
     let color_space = resolve_color_space(&primaries, &colormatrix);
-    let bit_depth = resolve_bit_depth(&plane_depth_str, &pixel_format);
+    let bit_depth =
+        resolve_bit_depth(&plane_depth_str, &[&pixel_format, &hw_pixel_format]);
 
     Ok(MediaInfo {
         path: current_path,
@@ -613,9 +689,9 @@ pub fn get_media_info(
         video_track: output_status.video_track,
         has_video: output_status.has_video,
         video_ready: output_status.ready,
-        video_codec: mpv
-            .get_property_string("video-codec")
-            .unwrap_or_default(),
+        video_codec: normalize_video_codec(
+            &mpv.get_property_string("video-codec").unwrap_or_default(),
+        ),
         audio_codec: mpv
             .get_property_string("audio-codec-name")
             .unwrap_or_default(),
@@ -723,14 +799,46 @@ mod tests {
     }
 
     #[test]
+    fn test_normalize_video_codec() {
+        assert_eq!(
+            normalize_video_codec("hevc - H.265 / HEVC"),
+            "H265/HEVC"
+        );
+        assert_eq!(
+            normalize_video_codec("h264 - H.264 / AVC / MPEG-4 AVC"),
+            "H264/AVC"
+        );
+        assert_eq!(normalize_video_codec("av1"), "AV1");
+        assert_eq!(normalize_video_codec("vp9"), "VP9");
+        assert_eq!(normalize_video_codec("mpeg4"), "MPEG-4");
+        assert_eq!(normalize_video_codec("mpeg2video"), "MPEG-2");
+        assert_eq!(normalize_video_codec(""), "");
+        // Неизвестный кодек — верхний регистр короткого имени без расшифровки.
+        assert_eq!(
+            normalize_video_codec("svq3 - Sorenson Vector Quantizer 3"),
+            "SVQ3"
+        );
+    }
+
+    #[test]
     fn test_resolve_bit_depth() {
-        assert_eq!(resolve_bit_depth("10", "yuv420p"), "10-bit");
-        assert_eq!(resolve_bit_depth("8", "yuv420p"), "8-bit");
-        assert_eq!(resolve_bit_depth("0", "yuv420p10le"), "10-bit");
-        assert_eq!(resolve_bit_depth("", "p010"), "10-bit");
-        assert_eq!(resolve_bit_depth("", "yuv420p12le"), "12-bit");
-        assert_eq!(resolve_bit_depth("", "yuv420p16le"), "16-bit");
-        assert_eq!(resolve_bit_depth("", "yuv420p"), "8-bit");
-        assert_eq!(resolve_bit_depth("", ""), "—");
+        let r = |plane: &str, fmts: &[&str]| resolve_bit_depth(plane, fmts);
+        assert_eq!(r("10", &["yuv420p"]), "10-bit");
+        assert_eq!(r("8", &["yuv420p"]), "8-bit");
+        assert_eq!(r("0", &["yuv420p10le"]), "10-bit");
+        assert_eq!(r("", &["p010"]), "10-bit");
+        assert_eq!(r("", &["yuv420p12le"]), "12-bit");
+        assert_eq!(r("", &["yuv420p16le"]), "16-bit");
+        assert_eq!(r("", &["yuv420p"]), "8-bit");
+        assert_eq!(r("", &["", ""]), "—");
+        // Баг «пишет 8, а по факту 10»: plane-depth — выход VO после
+        // дитеринга, исходник — 10-битный. Берём максимум.
+        assert_eq!(r("8", &["yuv420p10le"]), "10-bit");
+        assert_eq!(r("8", &["yuv420p12le"]), "12-bit");
+        assert_eq!(r("8", &["yuv420p", "p010"]), "10-bit");
+        assert_eq!(r("0", &["yuv420p", "p010"]), "10-bit");
+        // `yuv410p`/`yuv411p` — 8-битные, цифры в имени не глубина.
+        assert_eq!(r("", &["yuv410p"]), "8-bit");
+        assert_eq!(r("", &["yuv411p"]), "8-bit");
     }
 }
