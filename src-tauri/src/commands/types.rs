@@ -163,6 +163,28 @@ pub struct AppSettings {
     /// `None` = включён по умолчанию.
     #[serde(default)]
     pub audio_latency_fix: Option<bool>,
+
+    // ─── Деинтерлейсинг, декодирование, нормализация, буфер ───
+
+    /// Режим деинтерлейсинга: `"no"` (выкл) / `"auto"` / `"yadif"` / `"yadif2x"`.
+    /// `None` = дефолт mpv (`"auto"`).
+    #[serde(default)]
+    pub deinterlace_mode: Option<String>,
+
+    /// Аппаратное декодирование: `"auto-safe"` / `"auto-copy"` / `"no"`.
+    /// `None` = `"auto-safe"`.
+    #[serde(default)]
+    pub hwdec_mode: Option<String>,
+
+    /// Нормализация громкости: `"no"` / `"dynaudnorm"` / `"loudnorm"`.
+    /// `None` = `"no"`.
+    #[serde(default)]
+    pub audio_normalize: Option<String>,
+
+    /// Размер буфера демаксера: `"50"` / `"150"` / `"500"` / `"1024"` (МБ).
+    /// `None` = `"64"` (текущий захардкоженный дефолт).
+    #[serde(default)]
+    pub demuxer_cache_mb: Option<String>,
 }
 
 impl Default for AppSettings {
@@ -187,6 +209,10 @@ impl Default for AppSettings {
             deband_enabled: None,
             deband_preset: None,
             audio_latency_fix: None,
+            deinterlace_mode: None,
+            hwdec_mode: None,
+            audio_normalize: None,
+            demuxer_cache_mb: None,
         }
     }
 }

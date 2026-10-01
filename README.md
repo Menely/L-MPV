@@ -309,7 +309,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **True Display Scaling:** Panel width is computed from actual window dimensions factoring in `UI Scale`, ensuring perfect proportions on 2K/4K high-DPI displays.
 - **Exclusive Single-Accordion Mode:** Expanding any settings category automatically and smoothly collapses sibling categories, maintaining a clean and focused workspace in both Sidebar and Modal layouts.
 - **Adaptive Settings Grids:** Blocks dynamically collapse from three columns to single-column layouts on compact windows without label truncation or slider clipping.
-- **Video & Audio Settings Section:** Dedicated accordion in the General tab for switching video rendering profiles (`fast`, `balanced`, `high-quality`), hardware decoding modes (`auto-safe`, `auto-copy`, `no`), target color gamma TRC (`auto`, `bt.1886`, `srgb`, `linear`), deinterlacing, exclusive WASAPI audio output, audio normalization modes (`dynaudnorm`, `loudnorm`), demuxer prefetch cache buffer (50–1024 MB), HDR tone mapping curves, dither depth, debanding shader, and peak audio limiter.
+- **Video & Audio Settings Section:** Dedicated accordion in the General tab, laid out as four compact tiles in a two-column grid. *Frame Processing* (deinterlacing `no`/`auto`/`yadif`/`yadif2x`, hardware decoding `auto-safe`/`auto-copy`/`no`), *Audio Path* (peak limiter, volume normalization `dynaudnorm`/`loudnorm`, device latency fix), *Color and Artifacts* (HDR tone mapping, contrast recovery, dither depth, debanding with strength presets), and *Data Buffer* (50–1024 MB). The icon lives on the tile only, and every segment block has a reset-to-default button plus a hover tooltip.
 
 </details>
 
@@ -335,13 +335,13 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 </details>
 
 <details>
-<summary><b>🖥️ Smart Fullscreen, PiP & Window Management</b></summary>
+<summary><b>🖥️ Smart Fullscreen & Window Management</b></summary>
 
 - **True Fullscreen Mode:** Reliable Windows taskbar suppression via Win32 `HWND_TOPMOST` and DWM Cloaking without frame-offset stutter (0, 0).
 - **Dynamic Z-Order Management (`handle_window_focus`):** When switching tasks (`Alt+Tab`), the player releases Topmost status so other applications open smoothly over it, and restores it immediately upon regaining focus.
-- **Picture-in-Picture (PiP / Always on Top):** Pin the compact player window over other apps with hotkey `T` or the titlebar pin icon.
+- **Always on Top:** Keep the player window over other apps with hotkey `T` or the titlebar pin icon.
 - **Clean Process Lifecycle:** Zero dangling background processes — `l-mpv.exe` terminates cleanly and immediately from Windows Task Manager on exit.
-- **Aspect Ratios & Rotation:** Change aspect ratio (Original, 16:9, 21:9 CinemaScope, 4:3) and rotate video by 0°, 90°, 180°, or 270°.
+- **Video Frame Scaling & Rotation:** Scale the frame in the window three ways — *Stretch to window size* (fills the window ignoring proportions), *Fit inside window* (whole frame visible, letterbox/pillarbox bars), *Fill screen and crop frame* (fills the window, edges cropped) — plus rotation by 0°, 90°, 180°, or 270°. The active mode is read back from mpv and marked in the context menu.
 
 </details>
 
@@ -360,7 +360,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Auto-Playlist with Natural Sort:** Opening a file automatically populates the playlist with all sibling media in the directory, ordered by natural human numerical sorting.
 - **Slide-out Playlist Drawer (`L` / `P`):** Instant search, file filtering, active track highlighting, and one-click playback switching.
 - **Drag & Drop:** Drop local media files or streaming URLs directly into the player window.
-- **Loop Modes & Shuffle:** Loop current file, loop entire playlist, or play in random order.
+- **Loop Modes & Shuffle:** Loop current file, loop entire playlist, or play in random order. The toolbar button and the *Repeat Mode* submenu share a single `set_repeat_mode` command that always sets both loop properties together; the submenu marks the active mode immediately and confirms the change with an OSD toast.
 - **Chapter Navigation:** Interactive chapters modal with timestamps and jump-to-chapter shortcuts.
 - **Resume Playback:** Robust playback resume saving progress for **up to 300 files** in local `config/history.json`. Seamless start strictly from the saved timestamp, audio/video synchronization without premature audio desync (`hr-seek-framedrop=no`), rapid-exit safety, and preservation of actual watch progress even if interrupted before previous records.
 - **Windows Taskbar Progress:** Displays playback progress bars directly over the player's icon in the Windows taskbar.
@@ -508,6 +508,7 @@ L-MPV/
 │   │   │   │   ├── ControlButtonsPreviewCard.tsx # Live preview of toolbar control buttons
 │   │   │   │   ├── VisualizerPreviewCard.tsx # Interactive visualizer preview card (Canvas + FFT rhythm generator)
 │   │   │   │   ├── ContextMenuEntryCard.tsx  # Draggable menu item card
+│   │   │   │   ├── OptionTile.tsx           # Reusable settings tiles: OptionCard, OptionBlock (segment grid + reset), OptionToggleRow
 │   │   │   │   └── optionCardStyles.ts       # Shared styling definitions for option cards
 │   │   │   ├── appearance/                # Appearance tab primitives:
 │   │   │   │   └── ambientPrimitives.tsx     # VerticalSlider, AmbientTuneRow, getAmbientPreviewColor (extracted from AppearanceSettingsTab)
@@ -663,7 +664,7 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 | **Playback Speed** | Decrease / Increase Speed (±0.25x) | `[` / `]` |
 | | Reset Speed to Normal (1.0x) | `Backspace` |
 | **Interface & Window** | Toggle Fullscreen | `F`, `F11` or Double Left Click |
-| | Always on Top (PiP) | `T` |
+| | Always on Top | `T` |
 | | Open Settings | `F2` |
 | | Chapters Navigation | `C` |
 | | Toggle Audio Visualizer | `W` |
@@ -685,13 +686,14 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 
 ## ⚡ IPC Architecture (Rust ↔ React)
 
-Communication between the React user interface and the MPV engine, neural upscaling subsystem, and Windows system modules is facilitated through **115 native IPC commands**, delivering sub-millisecond response times with zero overhead:
+Communication between the React user interface and the MPV engine, neural upscaling subsystem, and Windows system modules is facilitated through **131 native IPC commands**, delivering sub-millisecond response times with zero overhead:
 
 - **AI Upscaling & Neural Models (11 commands):** `get_upscale_status`, `get_system_gpu_info`, `scan_onnx_models`, `open_models_folder`, `open_inference_folder`, `apply_upscale_settings`, `download_inference_engine`, `delete_inference_engine`, `switch_upscale_network_hotkey`, `precompile_model_engine_1080p`, `save_models_order`.
-- **Playback & Playlist (17 commands):** `open_file`, `toggle_pause`, `set_pause`, `seek`, `seek_absolute`, `frame_step`, `frame_back_step`, `playlist_prev`, `playlist_next`, `get_playlist`, `play_playlist_item`, `reload_folder_playlist`, `set_loop_file`, `set_loop_playlist`, `toggle_shuffle`, `get_play_next_on_end`, `set_play_next_on_end`.
+- **Playback & Playlist (20 commands):** `open_file`, `toggle_pause`, `set_pause`, `seek`, `seek_absolute`, `seek_preview`, `frame_step`, `frame_back_step`, `playlist_prev`, `playlist_next`, `get_playlist`, `play_playlist_item`, `reload_folder_playlist`, `set_loop_file`, `set_loop_playlist`, `set_repeat_mode`, `get_repeat_mode`, `toggle_shuffle`, `get_play_next_on_end`, `set_play_next_on_end`.
 - **Volume & Speed (2 commands):** `set_volume`, `set_speed`.
+- **Video & Audio Settings (12 commands):** `get_video_audio_settings`, `set_hdr_tone_mapping_setting`, `set_hdr_contrast_recovery_setting`, `set_dither_depth_setting`, `set_deband_setting`, `set_deband_preset_setting`, `set_audio_limiter_setting`, `set_audio_latency_fix_setting`, `set_deinterlace_mode_setting`, `set_hwdec_mode_setting`, `set_audio_normalize_setting`, `set_demuxer_cache_setting`.
 - **Tracks, Subtitles & FFmpeg (18 commands):** `get_tracks`, `set_audio_track`, `set_subtitle_track`, `disable_subtitles`, `set_sub_delay`, `get_sub_delay`, `load_subtitle_file`, `load_audio_file`, `set_video_track`, `extract_track`, `get_auto_load_tracks`, `set_auto_load_tracks`, `get_auto_select_external_audio`, `set_auto_select_external_audio`, `load_external_tracks_for_file`, `get_subtitles_avoid_ui`, `set_subtitles_avoid_ui_setting`, `update_subtitles_avoid_ui`.
-- **Viewport, Zoom & Windowing (6 commands):** `set_aspect_ratio`, `set_rotation`, `set_video_zoom_and_pan`, `get_video_zoom`, `get_video_dimensions`, `toggle_fullscreen`.
+- **Viewport, Zoom & Windowing (7 commands):** `set_frame_mode`, `get_frame_mode`, `set_rotation`, `set_video_zoom_and_pan`, `get_video_zoom`, `get_video_dimensions`, `toggle_fullscreen`.
 - **MediaInfo Analysis (5 commands):** `get_detailed_media_info`, `is_standalone_mode`, `get_standalone_mediainfo_path`, `open_mediainfo_window`, `toggle_mediainfo_window`.
 - **Screenshots & Clipboard (4 commands):** `take_screenshot`, `copy_frame_to_clipboard`, `get_screenshot_dir`, `set_screenshot_dir`.
 - **Chapters (2 commands):** `get_chapters`, `seek_chapter`.

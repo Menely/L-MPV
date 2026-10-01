@@ -1,15 +1,72 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles,
   MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles, Globe,
-  Volume2, Tv2, AlertTriangle
+  Volume2, Tv2, HardDrive
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { AccordionSection } from "../components/AccordionSection";
 import { ContextMenuSettingsTab } from "./ContextMenuSettingsTab";
 import { SectionHeader } from "../components/SettingBlocks";
+import {
+  OptionCard,
+  OptionBlock,
+  OptionToggleRow,
+} from "../components/OptionTile";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import type { Locale } from "../../../i18n/types";
+
+/* ── Допустимые значения настроек видео/аудио ───────────────
+   Держатся здесь, а не внутри разметки: и кнопки, и сравнение
+   со значением по умолчанию, и подсказки берутся из одного места. */
+const DEINTERLACE_OPTIONS = ["no", "auto", "yadif", "yadif2x"] as const;
+const DEINTERLACE_LABELS: Record<(typeof DEINTERLACE_OPTIONS)[number], string> = {
+  no: "Выкл",
+  auto: "Авто",
+  yadif: "Yadif",
+  yadif2x: "2x",
+};
+
+const HWDEC_OPTIONS = ["auto-safe", "auto-copy", "no"] as const;
+const HWDEC_LABELS: Record<(typeof HWDEC_OPTIONS)[number], string> = {
+  "auto-safe": "Auto Safe",
+  "auto-copy": "Auto Copy",
+  no: "Прог.",
+};
+
+const AUDIO_NORMALIZE_OPTIONS = ["no", "dynaudnorm", "loudnorm"] as const;
+const AUDIO_NORMALIZE_LABELS: Record<(typeof AUDIO_NORMALIZE_OPTIONS)[number], string> = {
+  no: "Выкл",
+  dynaudnorm: "Динамич.",
+  loudnorm: "EBU R128",
+};
+const TONE_MAPPING_OPTIONS = ["auto", "bt.2446a", "spline", "bt.2390"] as const;
+const TONE_MAPPING_LABELS: Record<(typeof TONE_MAPPING_OPTIONS)[number], string> = {
+  auto: "Авто",
+  "bt.2446a": "2446a",
+  spline: "Спл.",
+  "bt.2390": "2390",
+};
+
+const HDR_RECOVERY_OPTIONS = [0, 0.3, 0.5] as const;
+const HDR_RECOVERY_LABELS: Record<number, string> = { 0: "Выкл", 0.3: "0.3", 0.5: "0.5" };
+
+const DITHER_OPTIONS = ["auto", "8", "10", "0"] as const;
+const DITHER_LABELS: Record<(typeof DITHER_OPTIONS)[number], string> = {
+  auto: "Авто",
+  8: "8 бит",
+  10: "10 бит",
+  0: "Выкл",
+};
+
+const DEBAND_PRESET_OPTIONS = ["light", "balanced", "strong"] as const;
+const DEBAND_PRESET_LABELS: Record<(typeof DEBAND_PRESET_OPTIONS)[number], string> = {
+  light: "Лёгкий",
+  balanced: "Сбаланс.",
+  strong: "Сильный",
+};
+
+const DEMUXER_CACHE_OPTIONS = [50, 150, 500, 1024] as const;
 
 interface GeneralSettingsTabProps {
   multiInstance: boolean;
@@ -63,6 +120,10 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   const [debandEnabled, setDebandEnabled] = useState(false);
   const [debandPreset, setDebandPreset] = useState("balanced");
   const [audioLatencyFix, setAudioLatencyFix] = useState(true);
+  const [deinterlaceMode, setDeinterlaceMode] = useState("auto");
+  const [hwdecMode, setHwdecMode] = useState("auto-safe");
+  const [audioNormalize, setAudioNormalize] = useState("no");
+  const [demuxerCacheMb, setDemuxerCacheMb] = useState(64);
 
   // Загрузка сохранённых настроек при открытии панели
   useEffect(() => {
@@ -74,6 +135,10 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
       deband_enabled: boolean;
       deband_preset: string;
       audio_latency_fix: boolean;
+      deinterlace_mode: string;
+      hwdec_mode: string;
+      audio_normalize: string;
+      demuxer_cache_mb: string;
     }>("get_video_audio_settings")
       .then((s) => {
         setAudioLimiter(s.audio_limiter_enabled);
@@ -86,11 +151,132 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         setDebandEnabled(s.deband_enabled);
         setDebandPreset(s.deband_preset);
         setAudioLatencyFix(s.audio_latency_fix);
+        setDeinterlaceMode(s.deinterlace_mode);
+        setHwdecMode(s.hwdec_mode);
+        setAudioNormalize(s.audio_normalize);
+        // settings.json хранит буфер строкой; нечисловое значение игнорируем.
+        const parsed = Number.parseInt(s.demuxer_cache_mb, 10);
+        setDemuxerCacheMb(Number.isFinite(parsed) && parsed > 0 ? parsed : 64);
       })
       .catch(() => {
         // Бэкенд недоступен — оставляем дефолты
       });
   }, []);
+
+  // ── Применение настроек видео/аудио с откатом состояния ──
+  // Общий помощник: оптимистично обновляем локальное состояние, при
+  // ошибке IPC возвращаем прежнее значение — иначе переключатель
+  // расходился бы с реальным состоянием mpv.
+  const runSetting = useCallback(
+    async (label: string, apply: () => Promise<unknown>, revert: () => void) => {
+      try {
+        await apply();
+      } catch (err) {
+        revert();
+        console.error(`Ошибка применения настройки «${label}»:`, err);
+      }
+    },
+    [],
+  );
+
+  const selectDeinterlace = useCallback(
+    (mode: string) => {
+      const prev = deinterlaceMode;
+      setDeinterlaceMode(mode);
+      void runSetting("деинтерлейсинг", () => invoke("set_deinterlace_mode_setting", { mode }), () => setDeinterlaceMode(prev));
+    },
+    [deinterlaceMode, runSetting],
+  );
+
+  const selectHwdec = useCallback(
+    (mode: string) => {
+      const prev = hwdecMode;
+      setHwdecMode(mode);
+      void runSetting("hwdec", () => invoke("set_hwdec_mode_setting", { mode }), () => setHwdecMode(prev));
+    },
+    [hwdecMode, runSetting],
+  );
+
+  const selectAudioNormalize = useCallback(
+    (mode: string) => {
+      const prev = audioNormalize;
+      setAudioNormalize(mode);
+      void runSetting("нормализация звука", () => invoke("set_audio_normalize_setting", { mode }), () => setAudioNormalize(prev));
+    },
+    [audioNormalize, runSetting],
+  );
+
+  const selectToneMapping = useCallback(
+    (algorithm: string) => {
+      const prev = toneMapping;
+      setToneMapping(algorithm);
+      void runSetting("тонемаппинг", () => invoke("set_hdr_tone_mapping_setting", { algorithm }), () => setToneMapping(prev));
+    },
+    [toneMapping, runSetting],
+  );
+
+  const selectHdrRecovery = useCallback(
+    (strength: number) => {
+      const prev = hdrRecovery;
+      setHdrRecovery(strength);
+      void runSetting("контраст HDR", () => invoke("set_hdr_contrast_recovery_setting", { strength }), () => setHdrRecovery(prev));
+    },
+    [hdrRecovery, runSetting],
+  );
+
+  const selectDitherDepth = useCallback(
+    (depth: string) => {
+      const prev = ditherDepth;
+      setDitherDepth(depth);
+      void runSetting("дизеринг", () => invoke("set_dither_depth_setting", { depth }), () => setDitherDepth(prev));
+    },
+    [ditherDepth, runSetting],
+  );
+
+  const selectDebandPreset = useCallback(
+    (preset: string) => {
+      const prev = debandPreset;
+      setDebandPreset(preset);
+      void runSetting("пресет дебандинга", () => invoke("set_deband_preset_setting", { preset }), () => setDebandPreset(prev));
+    },
+    [debandPreset, runSetting],
+  );
+
+  const selectDemuxerCache = useCallback(
+    (megabytes: number) => {
+      const prev = demuxerCacheMb;
+      setDemuxerCacheMb(megabytes);
+      void runSetting("буфер демаксера", () => invoke("set_demuxer_cache_setting", { megabytes }), () => setDemuxerCacheMb(prev));
+    },
+    [demuxerCacheMb, runSetting],
+  );
+
+  const setAudioLimiterSafe = useCallback(
+    (enabled: boolean) => {
+      const prev = audioLimiter;
+      setAudioLimiter(enabled);
+      void runSetting("лимитер аудио", () => invoke("set_audio_limiter_setting", { enabled }), () => setAudioLimiter(prev));
+    },
+    [audioLimiter, runSetting],
+  );
+
+  const setDebandEnabledSafe = useCallback(
+    (enabled: boolean) => {
+      const prev = debandEnabled;
+      setDebandEnabled(enabled);
+      void runSetting("дебандинг", () => invoke("set_deband_setting", { enabled }), () => setDebandEnabled(prev));
+    },
+    [debandEnabled, runSetting],
+  );
+
+  const setAudioLatencyFixSafe = useCallback(
+    (enabled: boolean) => {
+      const prev = audioLatencyFix;
+      setAudioLatencyFix(enabled);
+      void runSetting("фикс задержки", () => invoke("set_audio_latency_fix_setting", { enabled }), () => setAudioLatencyFix(prev));
+    },
+    [audioLatencyFix, runSetting],
+  );
 
   // Стиль карточки подблока с парящей тенью и полупрозрачным фоном темы
   const cardStyle: React.CSSProperties = {
@@ -651,280 +837,194 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         icon={<Sparkles size={16} />}
         title={dict.settings.general.videoAudioSection}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+        <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 10, lineHeight: 1.35 }}>
+          {dict.settings.general.videoAudioDesc}
+        </div>
 
-          {/* 4.1 Лимитер аудио */}
-          <div style={cardStyle}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
-              <input
-                type="checkbox"
-                className="ui-checkbox"
-                style={{ marginTop: 2 }}
-                checked={audioLimiter}
-                onChange={async (e) => {
-                  const val = e.target.checked;
-                  setAudioLimiter(val);
-                  try {
-                    await invoke("set_audio_limiter_setting", { enabled: val });
-                  } catch (err) {
-                    setAudioLimiter(!val);
-                    console.error("Ошибка установки audio limiter:", err);
-                  }
-                }}
-              />
-              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <Volume2 size={14} style={{ color: "var(--accent)" }} />
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                    {dict.settings.general.audioLimiterTitle}
-                  </span>
-                </div>
-                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-                  {dict.settings.general.audioLimiterDesc}
-                </span>
-              </div>
-            </label>
-          </div>
+        <div className="option-tiles-grid">
+          {/* 4.1 Обработка кадра */}
+          <OptionCard
+            icon={<Tv2 size={15} />}
+            title={dict.settings.general.tileFrameTitle}
+            titleHint={dict.settings.general.tileFrameDesc}
+          >
+            <OptionBlock
+              title={dict.settings.general.deinterlaceTitle}
+              value={deinterlaceMode}
+              columns="1fr 1fr 1fr 1fr"
+              resetValue="auto"
+              resetTitle={dict.settings.general.resetDeinterlace}
+              onReset={() => selectDeinterlace("auto")}
+              onSelect={(v) => selectDeinterlace(String(v))}
+              options={DEINTERLACE_OPTIONS.map((v) => ({
+                value: v,
+                label: DEINTERLACE_LABELS[v],
+                title: dict.settings.general.DEINTERLACE_TIPS[v],
+              }))}
+            />
 
-          {/* 4.2 Тонемаппинг HDR */}
-          <div style={cardStyle}>
-            <SectionHeader
-              icon={<Tv2 size={14} />}
+            <OptionBlock
+              title={dict.settings.general.hwdecTitle}
+              value={hwdecMode}
+              columns="1fr 1fr 1fr"
+              resetValue="auto-safe"
+              resetTitle={dict.settings.general.resetHwdec}
+              onReset={() => selectHwdec("auto-safe")}
+              onSelect={(v) => selectHwdec(String(v))}
+              options={HWDEC_OPTIONS.map((v) => ({
+                value: v,
+                label: HWDEC_LABELS[v],
+                title: dict.settings.general.HWDEC_TIPS[v],
+              }))}
+            />
+          </OptionCard>
+
+          {/* 4.2 Аудиотракт */}
+          <OptionCard
+            icon={<Volume2 size={15} />}
+            title={dict.settings.general.tileAudioTitle}
+            titleHint={dict.settings.general.tileAudioDesc}
+          >
+            <OptionToggleRow
+              checked={audioLimiter}
+              resetValue
+              resetTitle={dict.settings.general.audioLimiterTitle}
+              onReset={() => setAudioLimiterSafe(true)}
+              onChange={(v) => setAudioLimiterSafe(v)}
+              label={dict.settings.general.audioLimiterTitle}
+              title={dict.settings.general.audioLimiterDesc}
+            />
+
+            <OptionBlock
+              title={dict.settings.general.audioNormalizeTitle}
+              value={audioNormalize}
+              columns="1fr 1fr 1fr"
+              disabled={!audioLimiter}
+              resetValue="no"
+              resetTitle={dict.settings.general.resetAudioNormalize}
+              onReset={() => selectAudioNormalize("no")}
+              onSelect={(v) => selectAudioNormalize(String(v))}
+              hint={
+                audioLimiter
+                  ? dict.settings.general.audioNormalizeShort
+                  : dict.settings.general.audioNormalizeNeedsLimiter
+              }
+              options={AUDIO_NORMALIZE_OPTIONS.map((v) => ({
+                value: v,
+                label: AUDIO_NORMALIZE_LABELS[v],
+                title: dict.settings.general.AUDIO_NORMALIZE_TIPS[v],
+              }))}
+            />
+
+            <OptionToggleRow
+              checked={audioLatencyFix}
+              resetValue
+              resetTitle={dict.settings.general.audioLatencyFixTitle}
+              onReset={() => setAudioLatencyFixSafe(true)}
+              onChange={(v) => setAudioLatencyFixSafe(v)}
+              label={dict.settings.general.audioLatencyFixTitle}
+              title={dict.settings.general.audioLatencyFixDesc}
+            />
+          </OptionCard>
+
+          {/* 4.3 HDR, дизеринг и бандинг */}
+          <OptionCard
+            icon={<Sparkles size={15} />}
+            title={dict.settings.general.tileHdrTitle}
+            titleHint={dict.settings.general.tileHdrDesc}
+          >
+            <OptionBlock
               title={dict.settings.general.hdrToneMappingTitle}
-              desc={dict.settings.general.hdrToneMappingDesc}
+              value={toneMapping}
+              columns="1fr 1fr 1fr 1fr"
+              resetValue="auto"
+              resetTitle={dict.settings.general.resetToneMapping}
+              onReset={() => selectToneMapping("auto")}
+              onSelect={(v) => selectToneMapping(String(v))}
+              options={TONE_MAPPING_OPTIONS.map((v) => ({
+                value: v,
+                label: TONE_MAPPING_LABELS[v],
+                title: dict.settings.general.TONE_MAPPING_TIPS[v],
+              }))}
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginTop: 4 }}>
-              {(["auto", "bt.2446a", "spline", "bt.2390"] as const).map((alg) => {
-                const labels: Record<string, string> = {
-                  "auto": dict.settings.general.toneMappingAuto,
-                  "bt.2446a": dict.settings.general.toneMappingBt2446a,
-                  "spline": dict.settings.general.toneMappingSpline,
-                  "bt.2390": dict.settings.general.toneMappingBt2390,
-                };
-                return (
-                  <button
-                    key={alg}
-                    type="button"
-                    className={`compact-segment-btn ${toneMapping === alg ? "compact-segment-btn--active" : ""}`}
-                    style={{ height: 34, padding: "0 8px", fontSize: "0.76rem", fontWeight: 600 }}
-                    onClick={async () => {
-                      const prev = toneMapping;
-                      setToneMapping(alg);
-                      try {
-                        await invoke("set_hdr_tone_mapping_setting", { algorithm: alg });
-                      } catch (err) {
-                        setToneMapping(prev);
-                        console.error("Ошибка тонемаппинга:", err);
-                      }
-                    }}
-                  >
-                    {labels[alg]}
-                  </button>
-                );
-              })}
-            </div>
 
-            {/* Восстановление контраста */}
-            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--border)" }}>
-              <SectionHeader
-                icon={<Tv2 size={13} />}
-                title={dict.settings.general.hdrContrastRecoveryTitle}
-                desc={dict.settings.general.hdrContrastRecoveryDesc}
-              />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 6 }}>
-                {([
-                  { val: 0.0, label: dict.settings.general.hdrContrastRecoveryOff },
-                  { val: 0.3, label: dict.settings.general.hdrContrastRecovery30 },
-                  { val: 0.5, label: dict.settings.general.hdrContrastRecovery50 },
-                ] as { val: number; label: string }[]).map(({ val, label }) => (
-                  <button
-                    key={val}
-                    type="button"
-                    className={`compact-segment-btn ${hdrRecovery === val ? "compact-segment-btn--active" : ""}`}
-                    style={{ height: 34, padding: "0 8px", fontSize: "0.76rem", fontWeight: 600 }}
-                    onClick={async () => {
-                      const prev = hdrRecovery;
-                      setHdrRecovery(val);
-                      try {
-                        await invoke("set_hdr_contrast_recovery_setting", { strength: val });
-                      } catch (err) {
-                        setHdrRecovery(prev);
-                        console.error("Ошибка hdr contrast recovery:", err);
-                      }
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+            <OptionBlock
+              title={dict.settings.general.hdrContrastRecoveryTitle}
+              value={hdrRecovery}
+              columns="1fr 1fr 1fr"
+              resetValue={0}
+              resetTitle={dict.settings.general.resetHdrRecovery}
+              onReset={() => selectHdrRecovery(0)}
+              onSelect={(v) => selectHdrRecovery(Number(v))}
+              options={HDR_RECOVERY_OPTIONS.map((val) => ({
+                value: val,
+                label: HDR_RECOVERY_LABELS[val],
+                title: dict.settings.general.HDR_RECOVERY_TIPS[val],
+              }))}
+            />
 
-          {/* 4.3 Дизеринг */}
-          <div style={cardStyle}>
-            <SectionHeader
-              icon={<Tv2 size={14} />}
+            <OptionBlock
               title={dict.settings.general.ditherDepthTitle}
-              desc={dict.settings.general.ditherDepthDesc}
+              value={ditherDepth}
+              columns="1fr 1fr 1fr 1fr"
+              resetValue="auto"
+              resetTitle={dict.settings.general.resetDither}
+              onReset={() => selectDitherDepth("auto")}
+              onSelect={(v) => selectDitherDepth(String(v))}
+              options={DITHER_OPTIONS.map((v) => ({
+                value: v,
+                label: DITHER_LABELS[v],
+                title: dict.settings.general.DITHER_TIPS[v],
+              }))}
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginTop: 4 }}>
-              {([
-                { val: "auto", label: dict.settings.general.ditherAuto },
-                { val: "8", label: dict.settings.general.dither8bit },
-                { val: "10", label: dict.settings.general.dither10bit },
-                { val: "0", label: dict.settings.general.ditherOff },
-              ] as { val: string; label: string }[]).map(({ val, label }) => (
-                <button
-                  key={val}
-                  type="button"
-                  className={`compact-segment-btn ${ditherDepth === val ? "compact-segment-btn--active" : ""}`}
-                  style={{ height: 34, padding: "0 8px", fontSize: "0.76rem", fontWeight: 600 }}
-                  onClick={async () => {
-                    const prev = ditherDepth;
-                    setDitherDepth(val);
-                    try {
-                      await invoke("set_dither_depth_setting", { depth: val });
-                    } catch (err) {
-                      setDitherDepth(prev);
-                      console.error("Ошибка dither depth:", err);
-                    }
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
 
-          {/* 4.4 Бандинг */}
-          <div style={cardStyle}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
-              <input
-                type="checkbox"
-                className="ui-checkbox"
-                style={{ marginTop: 2 }}
-                checked={debandEnabled}
-                onChange={async (e) => {
-                  const val = e.target.checked;
-                  setDebandEnabled(val);
-                  try {
-                    await invoke("set_deband_setting", { enabled: val });
-                  } catch (err) {
-                    setDebandEnabled(!val);
-                    console.error("Ошибка deband:", err);
-                  }
-                }}
-              />
-              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <Sparkles size={14} style={{ color: "var(--accent)" }} />
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                    {dict.settings.general.debandTitle}
-                  </span>
-                </div>
-                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-                  {dict.settings.general.debandDesc}
-                </span>
-              </div>
-            </label>
+            <OptionToggleRow
+              checked={debandEnabled}
+              resetValue={false}
+              resetTitle={dict.settings.general.debandTitle}
+              onReset={() => setDebandEnabledSafe(false)}
+              onChange={(v) => setDebandEnabledSafe(v)}
+              label={dict.settings.general.debandTitle}
+              title={dict.settings.general.debandWarning}
+            />
 
-            {/* Предупреждение и пресет — только при включённом бандинге */}
             {debandEnabled && (
-              <div
-                style={{
-                  marginTop: 6,
-                  marginLeft: 26,
-                  paddingLeft: 12,
-                  borderLeft: "2px solid var(--accent)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                }}
-              >
-                {/* Предупреждение */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 6,
-                    padding: "8px 10px",
-                    background: "rgba(255, 180, 0, 0.07)",
-                    border: "1px solid rgba(255, 180, 0, 0.22)",
-                    borderRadius: "var(--radius-sm)",
-                  }}
-                >
-                  <AlertTriangle size={13} style={{ color: "#f59e0b", flexShrink: 0, marginTop: 1 }} />
-                  <span style={{ fontSize: "0.73rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
-                    {dict.settings.general.debandWarning}
-                  </span>
-                </div>
-
-                {/* Пресет */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-                  {([
-                    { val: "light", label: dict.settings.general.debandPresetLight },
-                    { val: "balanced", label: dict.settings.general.debandPresetBalanced },
-                    { val: "strong", label: dict.settings.general.debandPresetStrong },
-                  ] as { val: string; label: string }[]).map(({ val, label }) => (
-                    <button
-                      key={val}
-                      type="button"
-                      className={`compact-segment-btn ${debandPreset === val ? "compact-segment-btn--active" : ""}`}
-                      style={{ height: 34, padding: "0 6px", fontSize: "0.74rem", fontWeight: 600 }}
-                      onClick={async () => {
-                        const prev = debandPreset;
-                        setDebandPreset(val);
-                        try {
-                          await invoke("set_deband_preset_setting", { preset: val });
-                        } catch (err) {
-                          setDebandPreset(prev);
-                          console.error("Ошибка deband preset:", err);
-                        }
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* 4.5 Фикс задержки аудиоустройства */}
-          <div style={cardStyle}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
-              <input
-                type="checkbox"
-                className="ui-checkbox"
-                style={{ marginTop: 2 }}
-                checked={audioLatencyFix}
-                onChange={async (e) => {
-                  const val = e.target.checked;
-                  setAudioLatencyFix(val);
-                  try {
-                    await invoke("set_audio_latency_fix_setting", {
-                      enabled: val,
-                    });
-                  } catch (err) {
-                    setAudioLatencyFix(!val);
-                    console.error("Ошибка фикса задержки звука:", err);
-                  }
-                }}
+              <OptionBlock
+                title={dict.settings.general.debandPresetTitle}
+                value={debandPreset}
+                columns="1fr 1fr 1fr"
+                resetValue="balanced"
+                resetTitle={dict.settings.general.resetDebandPreset}
+                onReset={() => selectDebandPreset("balanced")}
+                onSelect={(v) => selectDebandPreset(String(v))}
+                options={DEBAND_PRESET_OPTIONS.map((v) => ({
+                  value: v,
+                  label: DEBAND_PRESET_LABELS[v],
+                }))}
               />
-              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <AudioLines size={14} style={{ color: "var(--accent)" }} />
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                    {dict.settings.general.audioLatencyFixTitle}
-                  </span>
-                </div>
-                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
-                  {dict.settings.general.audioLatencyFixDesc}
-                </span>
-              </div>
-            </label>
-          </div>
+            )}
+          </OptionCard>
 
+          {/* 4.4 Буфер демаксера */}
+          <OptionCard
+            icon={<HardDrive size={15} />}
+            title={dict.settings.general.tileBufferTitle}
+            titleHint={dict.settings.general.tileBufferDesc}
+          >
+            <OptionBlock
+              value={demuxerCacheMb}
+              columns="1fr 1fr 1fr 1fr"
+              resetValue={64}
+              resetTitle={dict.settings.general.resetDemuxerCache}
+              onReset={() => selectDemuxerCache(64)}
+              onSelect={(v) => selectDemuxerCache(Number(v))}
+              options={DEMUXER_CACHE_OPTIONS.map((val) => ({
+                value: val,
+                label: `${val} МБ`,
+                title: dict.settings.general.DEMUXER_CACHE_TIPS[val],
+              }))}
+            />
+          </OptionCard>
         </div>
       </AccordionSection>
 

@@ -145,37 +145,6 @@ html, body, #root {
   cursor: none;
 }
 
-/* ─── Режим Mini Player (PiP) ─── */
-.app-container--mini .titlebar {
-  opacity: 0;
-  transform: translateY(-10px);
-  pointer-events: none;
-}
-
-.app-container--mini .player-controls-wrapper {
-  opacity: 0;
-  transform: translateY(14px);
-  pointer-events: none;
-}
-
-.app-container--mini:hover .player-controls-wrapper {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-.app-container--mini .player-controls {
-  padding: 4px 10px;
-  border-radius: 12px;
-}
-.app-container--mini .controls-row__left .control-btn,
-.app-container--mini .controls-row__right .control-btn {
-  display: none; /* Скрываем второстепенные кнопки в мини-плеере */
-}
-.app-container--mini .controls-row__right #btn-speed,
-.app-container--mini .controls-row__right #btn-always-on-top {
-  display: flex; /* Оставляем только важные кнопки */
-}
-
 /* OSD отображения кадров и статистики в левом верхнем углу */
 .frame-osd {
   position: fixed;

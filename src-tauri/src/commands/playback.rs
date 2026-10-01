@@ -303,18 +303,71 @@ pub fn set_speed(
     state.mpv.set_property_double("speed", speed)
 }
 
-// ─── Вид: пропорции, поворот, зум ───────────────────────
+// ─── Вид: масштаб кадра, поворот, зум ───────────────────
 
-/// Установка соотношения сторон видео.
+/// Режим масштабирования видеокадра относительно окна.
+///
+/// Три режима повторяют поведение MPC-HC:
+/// - `stretch` — «Растянуть до размера окна»: кадр растягивается на всё
+///   окно без сохранения пропорций (`keepaspect=no`);
+/// - `fit` — «Вписать в окно»: кадр вписывается целиком, лишнее место
+///   занимают чёрные полосы (`keepaspect=yes`, `panscan=0`);
+/// - `fill` — «Заполнить экран и обрезать кадр»: кадр масштабируется по
+///   правилу большего отношения, лишнее обрезается за краями окна
+///   (`keepaspect=yes`, `panscan=1`).
 #[tauri::command]
-pub fn set_aspect_ratio(
+pub fn set_frame_mode(
     state: State<'_, PlayerState>,
-    ratio: String,
+    mode: String,
 ) -> Result<(), String> {
-    // Значение "no" сбрасывает к оригинальному
+    // Окно плеера принадлежит Tauri: mpv не должен запрашивать у WM
+    // подгонку размера окна под пропорции видео. Ставим до смены режима,
+    // иначе первая смена проходит ещё с keepaspect-window=yes.
     state
         .mpv
-        .set_property_string("video-aspect-override", &ratio)
+        .set_property_string("keepaspect-window", "no")?;
+
+    match mode.as_str() {
+        // Растянуть: пропорции игнорируются, обрезки нет.
+        "stretch" => {
+            state.mpv.set_property_string("keepaspect", "no")?;
+            let _ = state.mpv.set_property_double("panscan", 0.0);
+        }
+        // Вписать: кадр целиком, лишнее место — чёрные полосы.
+        "fit" => {
+            state.mpv.set_property_string("keepaspect", "yes")?;
+            state.mpv.set_property_double("panscan", 0.0)?;
+        }
+        // Заполнить и обрезать: масштаб по большему отношению, края за окном.
+        "fill" => {
+            state.mpv.set_property_string("keepaspect", "yes")?;
+            state.mpv.set_property_double("panscan", 1.0)?;
+        }
+        other => {
+            return Err(format!("Неизвестный режим видеокадра: {other}"));
+        }
+    }
+    // Геометрия полос letterbox/pillarbox меняется вместе с режимом.
+    state.ambient_controller.invalidate();
+    Ok(())
+}
+
+/// Текущий режим масштабирования видеокадра (`stretch` / `fit` / `fill`).
+#[tauri::command]
+pub fn get_frame_mode(state: State<'_, PlayerState>) -> String {
+    let keepaspect = state
+        .mpv
+        .get_property_string("keepaspect")
+        .unwrap_or_default();
+    let panscan = state.mpv.get_property_double("panscan").unwrap_or(0.0);
+
+    if keepaspect == "no" {
+        "stretch".to_string()
+    } else if panscan > 0.999 {
+        "fill".to_string()
+    } else {
+        "fit".to_string()
+    }
 }
 
 /// Поворот видео (0, 90, 180, 270 градусов).
@@ -384,6 +437,61 @@ pub fn set_loop_playlist(
     state
         .mpv
         .set_property_string("loop-playlist", &loop_playlist)
+}
+
+/// Единый переключатель режима повтора.
+///
+/// Раньше контекстное меню вызывало `set_repeat_mode`, которой в бэкенде
+/// не было, и три пункта подменю «Режим повтора» молча падали в
+/// `console.error`. Логика режимов всегда была продублирована на фронте
+/// (`PlayerControls.handleToggleRepeat`) двумя вызовами `set_loop_file` +
+/// `set_loop_playlist`, поэтому она собрана здесь в одном месте: оба
+/// свойства выставляются всегда, иначе переключение «повтор файла» после
+/// «повтор плейлиста» оставляло бы включённым оба режима сразу.
+///
+/// * `0` — без повтора
+/// * `1` — повтор текущего файла
+/// * `2` — повтор всего плейлиста
+#[tauri::command]
+pub fn set_repeat_mode(
+    state: State<'_, PlayerState>,
+    mode: i64,
+) -> Result<(), String> {
+    let (loop_file, loop_playlist) = match mode {
+        0 => ("no", "no"),
+        1 => ("inf", "no"),
+        2 => ("no", "inf"),
+        other => {
+            return Err(format!("Неизвестный режим повтора: {other}"));
+        }
+    };
+    state
+        .mpv
+        .set_property_string("loop-file", loop_file)?;
+    state
+        .mpv
+        .set_property_string("loop-playlist", loop_playlist)
+}
+
+/// Чтение текущего режима повтора (`0` / `1` / `2`) из свойств mpv.
+#[tauri::command]
+pub fn get_repeat_mode(state: State<'_, PlayerState>) -> i64 {
+    let loop_playlist = state
+        .mpv
+        .get_property_string("loop-playlist")
+        .unwrap_or_default();
+    if loop_playlist == "inf" {
+        return 2;
+    }
+    let loop_file = state
+        .mpv
+        .get_property_string("loop-file")
+        .unwrap_or_default();
+    if loop_file == "inf" {
+        1
+    } else {
+        0
+    }
 }
 
 #[tauri::command]

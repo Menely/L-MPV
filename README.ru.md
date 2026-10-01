@@ -309,7 +309,7 @@
 - **Эксклюзивный Single-Accordion:** автоматическое сворачивание соседних категорий при раскрытии активной, обеспечивающее чистоту экрана и порядок как в боковой панели, так и в модальном окне.
 - **Корректный масштаб интерфейса:** ширина панели рассчитывается от реальной ширины окна с учётом `UI Scale`, поэтому элементы не «разъезжаются» при масштабировании на 2K/4K мониторах.
 - **Адаптивные сетки настроек:** блоки перестраиваются из трёх колонок в одну на узких панелях, подписи не переносятся, а вертикальные ползунки не выдавливают соседние блоки.
-- **Секция «Настройки видео и звука»:** централизованный аккордеон во вкладке «Общие» для переключения профилей видео (`fast`, `balanced`, `high-quality`), режимов аппаратного декодирования (`auto-safe`, `auto-copy`, `no`), гаммы вывода цвета (`auto`, `bt.1886`, `srgb`, `linear`), деинтерлейсинга, эксклюзивного вывода звука WASAPI, режимов нормализации звука (`dynaudnorm`, `loudnorm`), буфера предзагрузки демуксера (50–1024 МБ), кривой тонемаппинга HDR, дизеринга, дебандинга и пикового лимитера звука.
+- **Секция «Настройки видео и звука»:** централизованный аккордеон во вкладке «Общие», собранный на компактных тайлах в две колонки. Четыре карточки: «Обработка кадра» (деинтерлейсинг `no`/`auto`/`yadif`/`yadif2x`, аппаратное декодирование `auto-safe`/`auto-copy`/`no`), «Аудиотракт» (пиковый лимитер, нормализация громкости `dynaudnorm`/`loudnorm`, фикс задержки устройства), «Цвет и артефакты» (тонемаппинг HDR, восстановление контраста, дизеринг, дебандинг с выбором силы) и «Буфер данных» (50–1024 МБ). Иконка только у карточки, у каждого сегментного блока — кнопка сброса к дефолту и подсказка по наведению.
 
 </details>
 
@@ -335,13 +335,13 @@
 </details>
 
 <details>
-<summary><b>🖥️ Smart Fullscreen, PiP и Оконный Режим</b></summary>
+<summary><b>🖥️ Полноэкранный режим и управление окном</b></summary>
 
 - **Настоящий полноэкранный режим:** гарантированное скрытие панели задач Windows через Win32 флаг `HWND_TOPMOST` и DWM Cloaking без смещения кадра в угол (0, 0).
 - **Динамический Z-порядок (`handle_window_focus`):** при переключении на другое приложение (`Alt+Tab`) плеер автоматически снимает статус Topmost, позволяя окнам свободно открываться поверх плеера, и мгновенно восстанавливает его при возврате фокуса.
-- **Режим PiP (Поверх всех окон):** фиксация компактного окна плеера поверх остальных окон клавишей `T` или кнопкой-булавкой.
+- **Поверх всех окон:** удержание окна плеера над другими приложениями клавишей `T` или кнопкой-булавкой.
 - **Чистый жизненный цикл процесса:** гарантированное моментальное закрытие фонового процесса `L-MPV.exe` в диспетчере задач Windows при выходе из приложения.
-- **Пропорции и поворот:** изменение соотношения сторон (Оригинальное, 16:9, 21:9 CinemaScope, 4:3) и поворот видеокадра на 0°, 90°, 180°, 270°.
+- **Масштаб видеокадра и поворот:** три режима вписывания кадра в окно — *Растянуть до размера окна* (заполняет окно без сохранения пропорций), *Вписать в окно* (весь кадр виден, чёрные полосы), *Заполнить экран и обрезать кадр* (заполняет окно, края обрезаются), — и поворот на 0°, 90°, 180°, 270°. Активный режим считывается из mpv и отмечается в контекстном меню.
 
 </details>
 
@@ -360,7 +360,7 @@
 - **Автоматический плейлист с Natural Sort:** при открытии файла плеер находит все видео в директории и выстраивает плейлист в естественном порядке нумерации файлов.
 - **Выдвижная панель Playlist Drawer (`L` / `P`):** мгновенный поиск, фильтрация, подсветка активного трека и переключение в один клик.
 - **Drag & Drop:** поддержка перетаскивания файлов и сетевых URL напрямую в окно плеера.
-- **Режимы повтора и Shuffle:** циклическое воспроизведение текущего файла, всего плейлиста или случайный порядок.
+- **Режимы повтора и Shuffle:** циклическое воспроизведение текущего файла, всего плейлиста или случайный порядок. Кнопка на панели и подменю «Режим повтора» в ПКМ-меню используют одну команду `set_repeat_mode`, которая всегда выставляет оба свойства повтора вместе; подменю сразу отмечает активный режим, смена подтверждается OSD.
 - **Главы (Chapters):** модальное окно навигации по встроенным главам файла с интерактивными таймкодами.
 - **Возобновление просмотра (Resume Playback):** надёжное автосохранение последней позиции для **до 300 файлов** в локальной истории `config/history.json`. Бесшовный старт строго с сохранённого таймкода, синхронизация видео и звука без опережения аудио (`hr-seek-framedrop=no`), защита от случайного сброса при быстром закрытии и сохранение актуальной позиции даже при прерывании просмотра раньше предыдущего рекорда.
 - **Интеграция с Windows Taskbar:** отображение индикатора прогресса воспроизведения прямо на иконке плеера в панели задач Windows.
@@ -508,6 +508,7 @@ L-MPV/
 │   │   │   │   ├── ControlButtonsPreviewCard.tsx # Живое превью кнопок панели управления
 │   │   │   │   ├── VisualizerPreviewCard.tsx # Интерактивная карточка предпросмотра аудио-визуализатора (Canvas + FFT-ритм)
 │   │   │   │   ├── ContextMenuEntryCard.tsx  # Карточка пункта DnD-редактора меню
+│   │   │   │   ├── OptionTile.tsx           # Переиспользуемые тайлы настроек: OptionCard, OptionBlock (сетка сегментов + сброс), OptionToggleRow
 │   │   │   │   └── optionCardStyles.ts       # Общие стили карточек опций
 │   │   │   ├── appearance/                # Примитивы вкладки «Внешний вид»:
 │   │   │   │   └── ambientPrimitives.tsx     # VerticalSlider, AmbientTuneRow, getAmbientPreviewColor (вынесены из AppearanceSettingsTab)
@@ -663,7 +664,7 @@ L-MPV/
 | **Скорость** | Замедлить / Ускорить (±0.25x) | `[` / `]` |
 | | Сброс скорости к нормальной (1.0x) | `Backspace` |
 | **Интерфейс и Окно** | Полноэкранный режим (Fullscreen) | `F`, `F11` или Двойной клик ЛКМ |
-| | Поверх всех окон (PiP) | `T` |
+| | Поверх всех окон | `T` |
 | | Настройки плеера | `F2` |
 | | Главы видео (Chapters) | `C` |
 | | Аудио-визуалайзер (Вкл/Выкл) | `W` |
@@ -685,13 +686,14 @@ L-MPV/
 
 ## ⚡ IPC-Архитектура (Rust ↔ React)
 
-Связь интерфейса React с движком MPV, подсистемой апскейлинга и системными модулями осуществляется через **115 нативных IPC-команд**, гарантирующие мгновенный отклик и отсутствие задержек:
+Связь интерфейса React с движком MPV, подсистемой апскейлинга и системными модулями осуществляется через **131 нативную IPC-команду**, гарантирующую мгновенный отклик и отсутствие задержек:
 
 - **Апскейлинг и AI Модели (11 команд):** `get_upscale_status`, `get_system_gpu_info`, `scan_onnx_models`, `open_models_folder`, `open_inference_folder`, `apply_upscale_settings`, `download_inference_engine`, `delete_inference_engine`, `switch_upscale_network_hotkey`, `precompile_model_engine_1080p`, `save_models_order`.
-- **Воспроизведение и Плейлист (17 команд):** `open_file`, `toggle_pause`, `set_pause`, `seek`, `seek_absolute`, `frame_step`, `frame_back_step`, `playlist_prev`, `playlist_next`, `get_playlist`, `play_playlist_item`, `reload_folder_playlist`, `set_loop_file`, `set_loop_playlist`, `toggle_shuffle`, `get_play_next_on_end`, `set_play_next_on_end`.
+- **Воспроизведение и Плейлист (20 команд):** `open_file`, `toggle_pause`, `set_pause`, `seek`, `seek_absolute`, `seek_preview`, `frame_step`, `frame_back_step`, `playlist_prev`, `playlist_next`, `get_playlist`, `play_playlist_item`, `reload_folder_playlist`, `set_loop_file`, `set_loop_playlist`, `set_repeat_mode`, `get_repeat_mode`, `toggle_shuffle`, `get_play_next_on_end`, `set_play_next_on_end`.
 - **Громкость и Скорость (2 команды):** `set_volume`, `set_speed`.
+- **Настройки Видео и Звука (12 команд):** `get_video_audio_settings`, `set_hdr_tone_mapping_setting`, `set_hdr_contrast_recovery_setting`, `set_dither_depth_setting`, `set_deband_setting`, `set_deband_preset_setting`, `set_audio_limiter_setting`, `set_audio_latency_fix_setting`, `set_deinterlace_mode_setting`, `set_hwdec_mode_setting`, `set_audio_normalize_setting`, `set_demuxer_cache_setting`.
 - **Дорожки, Субтитры и FFmpeg (18 команд):** `get_tracks`, `set_audio_track`, `set_subtitle_track`, `disable_subtitles`, `set_sub_delay`, `get_sub_delay`, `load_subtitle_file`, `load_audio_file`, `set_video_track`, `extract_track`, `get_auto_load_tracks`, `set_auto_load_tracks`, `get_auto_select_external_audio`, `set_auto_select_external_audio`, `load_external_tracks_for_file`, `get_subtitles_avoid_ui`, `set_subtitles_avoid_ui_setting`, `update_subtitles_avoid_ui`.
-- **Вид, Зумирование и Окно (6 команд):** `set_aspect_ratio`, `set_rotation`, `set_video_zoom_and_pan`, `get_video_zoom`, `get_video_dimensions`, `toggle_fullscreen`.
+- **Вид, Зумирование и Окно (7 команд):** `set_frame_mode`, `get_frame_mode`, `set_rotation`, `set_video_zoom_and_pan`, `get_video_zoom`, `get_video_dimensions`, `toggle_fullscreen`.
 - **Анализ MediaInfo (5 команд):** `get_detailed_media_info`, `is_standalone_mode`, `get_standalone_mediainfo_path`, `open_mediainfo_window`, `toggle_mediainfo_window`.
 - **Скриншоты и Буфер Обмена (4 команды):** `take_screenshot`, `copy_frame_to_clipboard`, `get_screenshot_dir`, `set_screenshot_dir`.
 - **Главы (2 команды):** `get_chapters`, `seek_chapter`.

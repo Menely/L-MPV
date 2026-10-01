@@ -187,6 +187,8 @@ export function ContextMenu({
   } = usePlayerState();
 
   const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
+  const [frameMode, setFrameMode] = useState<"stretch" | "fit" | "fill">("fit");
+  const [repeatMode, setRepeatMode] = useState<0 | 1 | 2>(0);
   const [ambientMode, setAmbientMode] = useState<AmbientMode>("off");
   const [currentTimePos, setCurrentTimePos] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
@@ -381,6 +383,28 @@ export function ContextMenu({
     }
   }, [mediaInfo?.speed]);
 
+  // Активный режим масштабирования кадра в окне (растянуть / вписать / заполнить)
+  useEffect(() => {
+    invoke<string>("get_frame_mode")
+      .then((mode) => {
+        if (mode === "stretch" || mode === "fit" || mode === "fill") {
+          setFrameMode(mode);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  // Активный режим повтора, чтобы подменю сразу показывало отметку
+  useEffect(() => {
+    invoke<number>("get_repeat_mode")
+      .then((mode) => {
+        if (mode === 0 || mode === 1 || mode === 2) {
+          setRepeatMode(mode);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   const [isClosing, setIsClosing] = useState(false);
   const closingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -480,14 +504,26 @@ export function ContextMenu({
     handleClose();
   }, [handleClose]);
 
-  const handleSetAspect = useCallback(async (ratio: string) => {
+  const handleSetFrameMode = useCallback(async (mode: "stretch" | "fit" | "fill") => {
     try {
-      await invoke("set_aspect_ratio", { ratio });
+      await invoke("set_frame_mode", { mode });
+      setFrameMode(mode);
+      const labels = {
+        stretch: dict.settings.cmenuUI.frameStretch,
+        fit: dict.settings.cmenuUI.frameFit,
+        fill: dict.settings.cmenuUI.frameFill,
+      };
+      window.dispatchEvent(new CustomEvent("show-osd", {
+        detail: dict.settings.cmenuUI.osdFrame(labels[mode]),
+      }));
     } catch (e) {
-      console.error("Ошибка установки соотношения сторон:", e);
+      console.error("Ошибка смены режима видеокадра:", e);
+      window.dispatchEvent(new CustomEvent("show-osd", {
+        detail: dict.settings.cmenuUI.errFrame(String(e)),
+      }));
     }
     handleClose();
-  }, [handleClose]);
+  }, [dict.settings.cmenuUI, handleClose]);
 
   const handleSetRotation = useCallback(async (degrees: number) => {
     try {
@@ -541,10 +577,26 @@ export function ContextMenu({
     handleClose();
   }, [handleClose]);
 
-  const handleSetRepeatMode = useCallback((mode: number) => {
-    invoke("set_repeat_mode", { mode }).catch(console.error);
+  const handleSetRepeatMode = useCallback(async (mode: 0 | 1 | 2) => {
+    try {
+      await invoke("set_repeat_mode", { mode });
+      setRepeatMode(mode);
+      const labels = {
+        0: dict.settings.cmenuUI.repeatOff,
+        1: dict.settings.cmenuUI.repeatOne,
+        2: dict.settings.cmenuUI.repeatAll,
+      } as const;
+      window.dispatchEvent(new CustomEvent("show-osd", {
+        detail: dict.settings.cmenuUI.osdRepeat(labels[mode]),
+      }));
+    } catch (e) {
+      console.error("Ошибка установки режима повтора:", e);
+      window.dispatchEvent(new CustomEvent("show-osd", {
+        detail: dict.settings.cmenuUI.errRepeat(String(e)),
+      }));
+    }
     handleClose();
-  }, [handleClose]);
+  }, [dict.settings.cmenuUI, handleClose]);
 
   const handleToggleShuffle = useCallback(() => {
     invoke("toggle_shuffle").catch(console.error);
@@ -702,10 +754,9 @@ export function ContextMenu({
       aspect_ratio: () => ({
         type: "submenu", icon: STATIC_ICONS.aspectRatio, label: dict.settings.cmenuUI.aspect,
         children: [
-          { type: "item", label: dict.settings.cmenuUI.aspectOrig, action: () => handleSetAspect("no") },
-          { type: "item", label: "16:9", action: () => handleSetAspect("16:9") },
-          { type: "item", label: "21:9 (CinemaScope)", action: () => handleSetAspect("21:9") },
-          { type: "item", label: "4:3", action: () => handleSetAspect("4:3") },
+          { type: "item", label: dict.settings.cmenuUI.frameStretch, active: frameMode === "stretch", action: () => handleSetFrameMode("stretch") },
+          { type: "item", label: dict.settings.cmenuUI.frameFit, active: frameMode === "fit", action: () => handleSetFrameMode("fit") },
+          { type: "item", label: dict.settings.cmenuUI.frameFill, active: frameMode === "fill", action: () => handleSetFrameMode("fill") },
         ],
       }),
       rotation: () => ({
@@ -760,9 +811,9 @@ export function ContextMenu({
       repeat_mode: () => ({
         type: "submenu", icon: STATIC_ICONS.repeatMode, label: dict.settings.cmenuUI.repeatMode,
         children: [
-          { type: "item", label: dict.settings.cmenuUI.repeatOff, action: () => handleSetRepeatMode(0) },
-          { type: "item", label: dict.settings.cmenuUI.repeatOne, action: () => handleSetRepeatMode(1) },
-          { type: "item", label: dict.settings.cmenuUI.repeatAll, action: () => handleSetRepeatMode(2) },
+          { type: "item", label: dict.settings.cmenuUI.repeatOff, active: repeatMode === 0, action: () => handleSetRepeatMode(0) },
+          { type: "item", label: dict.settings.cmenuUI.repeatOne, active: repeatMode === 1, action: () => handleSetRepeatMode(1) },
+          { type: "item", label: dict.settings.cmenuUI.repeatAll, active: repeatMode === 2, action: () => handleSetRepeatMode(2) },
         ],
       }),
       shuffle: () => ({ type: "item", icon: STATIC_ICONS.shuffle, label: dict.settings.cmenuUI.shuffle, action: handleToggleShuffle }),
@@ -926,14 +977,14 @@ export function ContextMenu({
     return normalized;
   }, [
     menuLayout, recentFiles, audioTracks, subTracks,
-    downloadingTrackKey, ambientMode, currentSpeed,
+    downloadingTrackKey, ambientMode, currentSpeed, frameMode, repeatMode,
     currentTimePos, timeFormat, controlBarStyle,
     userPresets, activePresetId, upscaleModels, upscaleMode,
     selectedModel, selectedSlot, visibleButtons,
     onOpenFile, onShowChapters, onShowSubtitlesSearch, onShowMediaInfo,
     onShowDetailedMediaInfo, onShowSettings, handleClose,
     handleSelectAudio, handleSelectSub, handleDisableSubs,
-    handleLoadSubFile, handleSetSpeed, handleSetAspect,
+    handleLoadSubFile, handleSetSpeed, handleSetFrameMode,
     handleSetRotation, handleSetAmbientMode, handleDownloadTrack,
     handleToggleAlwaysOnTop, handleTakeScreenshot, handleSetRepeatMode,
     handleToggleShuffle, handleClearRecent, handleApplyPreset,

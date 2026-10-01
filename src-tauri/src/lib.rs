@@ -235,7 +235,8 @@ pub fn run() {
             commands::set_video_track,
             commands::get_tracks,
             // Вид
-            commands::set_aspect_ratio,
+            commands::set_frame_mode,
+            commands::get_frame_mode,
             commands::set_rotation,
             commands::set_video_zoom_and_pan,
             commands::get_video_zoom,
@@ -275,6 +276,8 @@ pub fn run() {
             // Новые команды
             commands::set_loop_file,
             commands::set_loop_playlist,
+            commands::set_repeat_mode,
+            commands::get_repeat_mode,
             commands::toggle_shuffle,
             commands::copy_frame_to_clipboard,
             commands::get_last_position,
@@ -314,6 +317,10 @@ pub fn run() {
             commands::set_deband_setting,
             commands::set_deband_preset_setting,
             commands::set_audio_latency_fix_setting,
+            commands::set_deinterlace_mode_setting,
+            commands::set_hwdec_mode_setting,
+            commands::set_audio_normalize_setting,
+            commands::set_demuxer_cache_setting,
             // Автообновление
             updater::check_launch_and_update,
             updater::check_for_updates,

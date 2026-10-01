@@ -209,6 +209,97 @@ export const en: TranslationDict = {
       audioLatencyFixTitle: "Audio Device Latency Fix",
       audioLatencyFixDesc:
         "Prevents the first milliseconds of audio being swallowed by Bluetooth speakers or sleeping DACs (audio-stream-silence + audio-wait-open).",
+      // Block 6: Deinterlacing
+      deinterlaceTitle: "Deinterlacing",
+      deinterlaceDesc:
+        "Removes combing from old SD footage and DVDs. Plain Yadif keeps fields stable on progressive sources, Yadif 2x doubles the frame count.",
+      deinterlaceOff: "Off",
+      deinterlaceAuto: "Auto",
+      deinterlaceYadif: "Yadif",
+      deinterlaceYadif2x: "Yadif 2x",
+      // Block 7: Hardware decoding
+      hwdecTitle: "Hardware Decoding",
+      hwdecDesc:
+        "Offloads video decoding to the GPU. Auto Copy widens codec support at the cost of copying frames back to system memory.",
+      hwdecAutoSafe: "Auto Safe",
+      hwdecAutoCopy: "Auto Copy",
+      hwdecOff: "Software",
+      // Block 8: Volume normalization
+      audioNormalizeTitle: "Volume Normalization",
+      audioNormalizeDesc:
+        "Evens out quiet and loud passages in a track. It is inserted before the peak limiter, so the limiter must be enabled.",
+      audioNormalizeOff: "Off",
+      audioNormalizeDyn: "Dynamic",
+      audioNormalizeLoud: "EBU R128",
+      audioNormalizeNeedsLimiter: "Enable the audio peak limiter first",
+      audioNormalizeLimiterWarning:
+        "Normalization does not work with the peak limiter disabled: both settings share the same audio filter chain (af).",
+      // Block 9: Video & audio section tile layout
+      videoAudioDesc:
+        "Rendering, color, audio, and mpv data buffer. Applied live and saved.",
+      tileFrameTitle: "Frame Processing",
+      tileFrameDesc:
+        "What to do with the source signal before it reaches the screen. Deinterlacing removes combing from old SD recordings and DVDs by detecting interlaced frames from their flags. Plain Yadif does not jitter even fields on progressive video, which makes it safe by default; Yadif 2x doubles the frame count for the smoothest result at the cost of extra work. Hardware decoding offloads decompression to the GPU instead of the CPU: Auto Safe enables it only where the result is guaranteed to match software; Auto Copy widens codec support (useful for 10-bit HEVC and AV1) at the cost of copying frames back to system memory; Software returns to CPU decoding — higher CPU load but maximum predictability. Note: when AI upscaling is on, the decoding mode is set automatically for the selected backend.",
+      tileAudioTitle: "Audio Path",
+      tileAudioDesc:
+        "How audio is processed before output. The peak limiter (alimiter, limit=0.98) is transparent at 100% volume but compresses peaks at 101–150%, protecting against clipping and overload. Volume normalization evens out loudness spread inside a track: Dynamic (dynaudnorm) reacts on the fly and is audible in quiet scenes, EBU R128 brings average level to the broadcast standard of -16 LUFS. Normalization is always inserted BEFORE the peak limiter — otherwise the limiter would cut everything it raised; that is why its buttons are disabled when the limiter is off (both settings share one af chain). Audio device latency fix (audio-stream-silence + audio-wait-open) stops the first fraction of a second from being swallowed by sleeping DACs and Bluetooth speakers, without touching audio-buffer so seeking does not get sluggish again.",
+      tileHdrTitle: "Color and Artifacts",
+      tileHdrDesc:
+        "Tone mapping HDR down to SDR and fighting banding — stripes in dark gradients. Tone mapping picks the transfer curve: Auto follows mpv's smoothest spline, BT.2446a is recommended for carefully graded sources, BT.2390 is the technical standard for cinema mastering. Contrast recovery pulls detail out of shadows after tone mapping: 0.3 is mild, 0.5 is strong and can raise noise along with detail. Dithering removes stripes that appear when deep color is output at 8 bit: pick 10 bit for a 10-bit panel, Off only if you see no banding. Debanding (deband) is a shader that smooths transitions between close shades; it runs AFTER scaling in vo=gpu-next, so it saves no performance and is recommended only for 8-bit SDR panels with visible banding. Strength (Light / Balanced / Strong) sets the pass count and trigger threshold.",
+      tileBufferTitle: "Data Buffer",
+      tileBufferDesc:
+        "How much data mpv reads ahead from the stream (demuxer-max-bytes). A short buffer gives minimal input latency, which matters for local files; a large one survives brief network stalls and bitrate drops on 4K-BD and remuxes, but input becomes noticeably less responsive. The value applies to the current file immediately and is saved to config/settings.json.",
+      debandPresetTitle: "Banding Strength",
+      audioNormalizeShort: "Inserted before the peak limiter",
+      // Block 11: Reset button tooltips
+      resetDeinterlace: "Reset deinterlacing to Auto",
+      resetHwdec: "Reset decoding to Auto Safe",
+      resetAudioNormalize: "Turn volume normalization off",
+      resetToneMapping: "Reset tone mapping to Auto",
+      resetHdrRecovery: "Turn HDR contrast recovery off",
+      resetDither: "Reset dithering to Auto",
+      resetDebandPreset: "Reset banding strength to Balanced",
+      resetDemuxerCache: "Reset the buffer to 64 MB",
+      // Block 12: Segment tooltips
+      DEINTERLACE_TIPS: {
+        no: "Deinterlacing off: combing on SD footage stays visible.",
+        auto: "Interpolate only on interlaced frames (the mpv default).",
+        yadif: "Plain Yadif: removes combing without field jitter on progressive video.",
+        yadif2x: "Yadif 2x: doubles the frame count, smoothest for old recordings.",
+      },
+      HWDEC_TIPS: {
+        "auto-safe": "Hardware decoding only where the result is guaranteed to match software.",
+        "auto-copy": "Wider codec support at the cost of copying frames back to system memory.",
+        no: "Software decoding: best compatibility, higher CPU load.",
+      },
+      AUDIO_NORMALIZE_TIPS: {
+        no: "No normalization: track volume stays as recorded.",
+        dynaudnorm: "Dynamic normalization: levels out loudness on the fly, audible in quiet scenes.",
+        loudnorm: "EBU R128: television standard normalization targeting -16 LUFS.",
+      },
+      TONE_MAPPING_TIPS: {
+        auto: "mpv picks the algorithm (its smooth default).",
+        "bt.2446a": "BT.2446a: recommended for carefully graded sources.",
+        spline: "Spline: soft and smooth HDR-to-SDR transition.",
+        "bt.2390": "BT.2390: technical standard for cinema mastering.",
+      },
+      DITHER_TIPS: {
+        auto: "Dither depth is chosen automatically from the output bit depth.",
+        8: "Dither to 8 bit: for panels without HDR.",
+        10: "Dither to 10 bit: removes banding on 10-bit output.",
+        0: "Dithering off: gradients may show banding.",
+      },
+      HDR_RECOVERY_TIPS: {
+        0: "No contrast correction: shadows stay as in the source.",
+        0.3: "Mild recovery: lifts shadows slightly without losing detail.",
+        0.5: "Strong recovery: pulls up dark scenes, may amplify noise.",
+      },
+      DEMUXER_CACHE_TIPS: {
+        50: "50 MB: enough for local files, minimal input latency.",
+        150: "150 MB: compromise for mid-quality network streams.",
+        500: "500 MB: reliably survives network stalls at high bitrates.",
+        1024: "1 GB: maximum resilience, noticeable input latency.",
+      },
     },
 
     appearance: {
@@ -760,8 +851,8 @@ export const en: TranslationDict = {
       subTrackDesc: "Select subtitles or load an external subtitle file",
       chapters: "Chapters",
       chaptersDesc: "Open file chapters navigation panel",
-      aspect: "Aspect ratio",
-      aspectDesc: "Force video aspect ratio (16:9, 4:3, …)",
+      aspect: "Video frame",
+      aspectDesc: "Frame scaling in the window: stretch, fit inside, or fill with crop",
       rotation: "Video rotation",
       rotationDesc: "Rotate video to 0°, 90°, 180° or 270°",
       ambient: "Ambient Light",
@@ -809,7 +900,7 @@ export const en: TranslationDict = {
       skipOpening: "Skip Opening",
       errSubLoad: (err) => `External subtitles load error: ${err}`,
       errSpeed: (err) => `Playback speed set error: ${err}`,
-      errAspect: (err) => `Aspect ratio set error: ${err}`,
+      
       errRotation: (err) => `Video rotation set error: ${err}`,
       ambientOff: "Off",
       ambientBlur: "Ambient",
@@ -846,8 +937,12 @@ export const en: TranslationDict = {
       searchSub: "Search for subtitles...",
       loadSub: "Load subtitles...",
       chapters: "Chapters",
-      aspect: "Aspect Ratio",
-      aspectOrig: "Original",
+      aspect: "Video Frame",
+      frameStretch: "Stretch to window size",
+      frameFit: "Fit inside window",
+      frameFill: "Fill screen and crop frame",
+      osdFrame: (mode) => `Video frame: ${mode}`,
+      errFrame: (err) => `Failed to change video frame mode: ${err}`,
       rotation: "Video Rotation",
       rot0: "0° (original)",
       rot90: "90° clockwise",
@@ -867,6 +962,8 @@ export const en: TranslationDict = {
       repeatOff: "No repeat",
       repeatOne: "Repeat one file",
       repeatAll: "Repeat entire playlist",
+      osdRepeat: (mode: string) => `Repeat: ${mode}`,
+      errRepeat: (err: string) => `Failed to change repeat mode: ${err}`,
       saveFrame: "Save frame",
       presets: "Presets",
       noPresets: "No user presets",

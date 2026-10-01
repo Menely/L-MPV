@@ -846,6 +846,86 @@
   gap: 4px;
 }
 
+/* ─── Тайлы настроек видео/аудио (OptionTile) ──────────── */
+
+/* Внешняя сетка тайлов: две колонки на широкой форме, одна на узкой.
+   auto-fit вместо контейнерного запроса — секция живёт в двух формах
+   (модалка и sidebar), у модалки нет контейнера settings-shell.
+   Карточки в строке выравниваются по высоте (stretch), иначе нижние
+   края рвутся зигзагом. */
+.option-tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.option-card {
+  min-width: 0;
+}
+
+.option-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Внутренняя сетка сегментов внутри одного блока. */
+.option-tile-grid {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.option-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 20px;
+  min-width: 0;
+}
+
+.option-toggle-row__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.option-toggle-row__label:has(.ui-checkbox:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.option-toggle-row__label .ui-checkbox {
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.option-toggle-row__text {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.compact-segment-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.compact-segment-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
 .compact-segment-btn {
   height: 30px;
   padding: 0 4px;

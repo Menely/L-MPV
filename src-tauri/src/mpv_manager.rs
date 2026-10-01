@@ -615,6 +615,44 @@ impl MpvManager {
                 Self::set_option(&api, handle, "audio-stream-silence", "yes");
                 Self::set_option(&api, handle, "audio-wait-open", "0.25");
             }
+            // Деинтерлейсинг
+            if let Some(ref mode) = saved_settings.deinterlace_mode {
+                if matches!(mode.as_str(), "no" | "auto" | "yadif" | "yadif2x") {
+                    Self::set_option(&api, handle, "deinterlace", mode);
+                }
+            }
+            // Аппаратное декодирование
+            if let Some(ref mode) = saved_settings.hwdec_mode {
+                if matches!(mode.as_str(), "auto-safe" | "auto-copy" | "no") {
+                    Self::set_option(&api, handle, "hwdec", mode);
+                }
+            }
+            // Нормализация громкости: добавляется в цепочку `af` с лимитером
+            let limiter_on = saved_settings.audio_limiter_enabled.unwrap_or(true);
+            let normalize = saved_settings
+                .audio_normalize
+                .as_deref()
+                .unwrap_or("no");
+            if limiter_on {
+                let chain = match normalize {
+                    "dynaudnorm" => "lavfi=[dynaudnorm=f=150:g=15:p=0.95,alimiter=limit=0.98]",
+                    "loudnorm" => "lavfi=[loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=0.98]",
+                    _ => "lavfi=[alimiter=limit=0.98]",
+                };
+                Self::set_option(&api, handle, "af", chain);
+            }
+            // Буфер демаксера: пользовательское значение затирает дефолт 64MiB
+            if let Some(ref mb) = saved_settings.demuxer_cache_mb {
+                if let Ok(parsed) = mb.parse::<u32>() {
+                    if (16..=4096).contains(&parsed) {
+                        Self::set_option(
+                            &api, handle,
+                            "demuxer-max-bytes",
+                            &format!("{parsed}MiB"),
+                        );
+                    }
+                }
+            }
 
             // Отключаем встроенный OSC и обработку ввода (мы используем свой UI)
             Self::set_option(&api, handle, "osc", "no");
@@ -659,18 +697,14 @@ impl MpvManager {
 
     /// Динамически включает или выключает пиковый лимитер аудио (lavfi alimiter).
     ///
-    /// При включении устанавливает `af=lavfi=[alimiter=limit=0.98]`;
-    /// при выключении сбрасывает `af` в пустую строку.
+    /// Служебный метод: собирает цепочку только из лимитера. Для смены
+    /// лимитера вместе с нормализацией используйте `set_audio_normalize`,
+    /// который пересобирает `af` целиком и не затирает выбранный режим.
     pub fn set_audio_limiter_enabled(
         &self,
         enabled: bool,
     ) -> Result<(), String> {
-        let value = if enabled {
-            "lavfi=[alimiter=limit=0.98]"
-        } else {
-            ""
-        };
-        self.set_property_string("af", value)
+        self.set_audio_normalize("no", enabled)
     }
 
     /// Динамически устанавливает алгоритм тонемаппинга HDR.
@@ -753,6 +787,80 @@ impl MpvManager {
         let _ = self.set_property_string("audio-stream-silence", silence);
         let _ = self.set_property_string("audio-wait-open", wait_open);
         Ok(())
+    }
+
+    /// Динамически применяет режим деинтерлейсинга.
+    ///
+    /// Допустимые значения: `"no"`, `"auto"`, `"yadif"`, `"yadif2x"`.
+    /// Префикс `yadif` без суффикса `2x` убирает дёрганость полей на
+    /// прогрессивном источнике, `yadif2x` удваивает число кадров.
+    pub fn set_deinterlace_mode(
+        &self,
+        mode: &str,
+    ) -> Result<(), String> {
+        if !matches!(mode, "no" | "auto" | "yadif" | "yadif2x") {
+            return Err(format!("Неизвестный режим деинтерлейсинга: {mode}"));
+        }
+        self.set_property_string("deinterlace", mode)
+    }
+
+    /// Динамически применяет режим аппаратного декодирования.
+    ///
+    /// Допустимые значения: `"auto-safe"`, `"auto-copy"`, `"no"`.
+    /// `auto-copy` расширяет список аппаратных декодеров ценой
+    /// промежуточного копирования кадра в системную память.
+    pub fn set_hwdec_mode(
+        &self,
+        mode: &str,
+    ) -> Result<(), String> {
+        if !matches!(mode, "auto-safe" | "auto-copy" | "no") {
+            return Err(format!("Неизвестный режим декодирования: {mode}"));
+        }
+        self.set_property_string("hwdec", mode)
+    }
+
+    /// Пересобирает цепочку `af` с учётом нормализации громкости.
+    ///
+    /// Нормализация ставится **перед** пиковым лимитером: иначе
+    /// `alimiter` срезает всё, что подняла нормализация. При выключенной
+    /// нормализации цепочка не меняется, чтобы лимитер остался как был.
+    pub fn set_audio_normalize(
+        &self,
+        mode: &str,
+        limiter_enabled: bool,
+    ) -> Result<(), String> {
+        if !matches!(mode, "no" | "dynaudnorm" | "loudnorm") {
+            return Err(format!("Неизвестный режим нормализации: {mode}"));
+        }
+        if !limiter_enabled {
+            // Лимитер выключен — цепочку не трогаем, оставляя пустой `af`.
+            let _ = self.set_property_string("af", "");
+            return Ok(());
+        }
+        let chain = match mode {
+            "dynaudnorm" => {
+                "lavfi=[dynaudnorm=f=150:g=15:p=0.95,alimiter=limit=0.98]"
+            }
+            "loudnorm" => {
+                "lavfi=[loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=0.98]"
+            }
+            _ => "lavfi=[alimiter=limit=0.98]",
+        };
+        self.set_property_string("af", chain)
+    }
+
+    /// Динамически применяет размер буфера демаксера (в мегабайтах).
+    ///
+    /// Влияет на устойчивость к сетевым потокам: больший буфер переживает
+    /// кратковременные обрывы сети ценой задержки ввода.
+    pub fn set_demuxer_cache_mb(
+        &self,
+        mb: u32,
+    ) -> Result<(), String> {
+        if !(16..=4096).contains(&mb) {
+            return Err(format!("Недопустимый размер буфера: {mb} МБ"));
+        }
+        self.set_property_string("demuxer-max-bytes", &format!("{mb}MiB"))
     }
 
     /// Внутренний метод для безопасного доступа к handle

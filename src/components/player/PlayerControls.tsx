@@ -77,8 +77,6 @@ export function PlayerControls({
   showChapters?: boolean;
   onCloseChapters?: () => void;
   onOpenSubtitlesSearch?: () => void;
-  isMiniPlayer?: boolean;
-  onToggleMiniPlayer?: () => Promise<void>;
 }) {
   const { mediaInfo, isPlaylistOpen, setIsPlaylistOpen } = usePlayerState();
   const { dict } = useTranslation();
@@ -478,20 +476,31 @@ export function PlayerControls({
     const nextMode = (repeatMode + 1) % 3 as 0 | 1 | 2;
     setRepeatMode(nextMode);
     try {
-      if (nextMode === 0) {
-        await invoke("set_loop_file", { loopFile: "no" });
-        await invoke("set_loop_playlist", { loopPlaylist: "no" });
-      } else if (nextMode === 1) {
-        await invoke("set_loop_file", { loopFile: "inf" });
-        await invoke("set_loop_playlist", { loopPlaylist: "no" });
-      } else {
-        await invoke("set_loop_file", { loopFile: "no" });
-        await invoke("set_loop_playlist", { loopPlaylist: "inf" });
-      }
+      // Единая команда: оба свойства выставляются вместе, иначе после
+      // «повтор плейлиста» переход в «повтор файла» оставил бы оба режима.
+      await invoke("set_repeat_mode", { mode: nextMode });
     } catch (e) {
       console.error(e);
+      // Откат локального состояния: иначе иконка расходится с mpv.
+      setRepeatMode(repeatMode);
     }
   }, [repeatMode]);
+
+  // Синхронизация режима повтора с mpv при старте (значение могло прийти
+  // из ПКМ-меню или дефолта mpv до монтирования панели).
+  useEffect(() => {
+    let cancelled = false;
+    invoke<number>("get_repeat_mode")
+      .then((mode) => {
+        if (!cancelled && (mode === 0 || mode === 1 || mode === 2)) {
+          setRepeatMode(mode);
+        }
+      })
+      .catch(console.error);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const handleAction = async (e: Event) => {

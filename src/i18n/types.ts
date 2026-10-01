@@ -195,6 +195,50 @@ export interface TranslationDict {
       // Блок 5: Задержка аудио
       audioLatencyFixTitle: string;
       audioLatencyFixDesc: string;
+      deinterlaceTitle: string;
+      deinterlaceDesc: string;
+      deinterlaceOff: string;
+      deinterlaceAuto: string;
+      deinterlaceYadif: string;
+      deinterlaceYadif2x: string;
+      hwdecTitle: string;
+      hwdecDesc: string;
+      hwdecAutoSafe: string;
+      hwdecAutoCopy: string;
+      hwdecOff: string;
+      audioNormalizeTitle: string;
+      audioNormalizeDesc: string;
+      audioNormalizeOff: string;
+      audioNormalizeDyn: string;
+      audioNormalizeLoud: string;
+      audioNormalizeNeedsLimiter: string;
+      audioNormalizeLimiterWarning: string;
+      videoAudioDesc: string;
+      tileFrameTitle: string;
+      tileFrameDesc: string;
+      tileAudioTitle: string;
+      tileAudioDesc: string;
+      tileHdrTitle: string;
+      tileHdrDesc: string;
+      tileBufferTitle: string;
+      tileBufferDesc: string;
+      debandPresetTitle: string;
+      audioNormalizeShort: string;
+      resetDeinterlace: string;
+      resetHwdec: string;
+      resetAudioNormalize: string;
+      resetToneMapping: string;
+      resetHdrRecovery: string;
+      resetDither: string;
+      resetDebandPreset: string;
+      resetDemuxerCache: string;
+      DEINTERLACE_TIPS: Record<string, string>;
+      HWDEC_TIPS: Record<string, string>;
+      AUDIO_NORMALIZE_TIPS: Record<string, string>;
+      TONE_MAPPING_TIPS: Record<string, string>;
+      DITHER_TIPS: Record<string, string>;
+      HDR_RECOVERY_TIPS: Record<string, string>;
+      DEMUXER_CACHE_TIPS: Record<string, string>;
     };
     /** Строки футера и обновлений в SettingsModal. */
 
@@ -681,7 +725,7 @@ export interface TranslationDict {
       skipOpening: string;
       errSubLoad: (err: string) => string;
       errSpeed: (err: string) => string;
-      errAspect: (err: string) => string;
+      
       errRotation: (err: string) => string;
       ambientOff: string;
       ambientBlur: string;
@@ -719,7 +763,11 @@ export interface TranslationDict {
       loadSub: string;
       chapters: string;
       aspect: string;
-      aspectOrig: string;
+      frameStretch: string;
+      frameFit: string;
+      frameFill: string;
+      osdFrame: (mode: string) => string;
+      errFrame: (err: string) => string;
       rotation: string;
       rot0: string;
       rot90: string;
@@ -739,6 +787,8 @@ export interface TranslationDict {
       repeatOff: string;
       repeatOne: string;
       repeatAll: string;
+      osdRepeat: (mode: string) => string;
+      errRepeat: (err: string) => string;
       saveFrame: string;
       presets: string;
       noPresets: string;

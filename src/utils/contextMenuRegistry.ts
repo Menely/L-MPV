@@ -47,7 +47,7 @@ export const MENU_ITEM_REGISTRY: MenuItemDescriptor[] = [
   { id: "audio_track", label: "Аудиодорожка", iconName: "AudioLines", hasSubmenu: true, description: "Выбор активной аудиодорожки из доступных в файле" },
   { id: "subtitle_track", label: "Субтитры", iconName: "Subtitles", hasSubmenu: true, description: "Выбор субтитров или загрузка внешнего файла субтитров" },
   { id: "chapters", label: "Главы", iconName: "BookOpen", hasSubmenu: false, description: "Открыть панель навигации по главам файла" },
-  { id: "aspect_ratio", label: "Соотношение сторон", iconName: "Monitor", hasSubmenu: true, description: "Принудительное задание пропорций видеокадра (16:9, 4:3, …)" },
+  { id: "aspect_ratio", label: "Видеокадр", iconName: "Monitor", hasSubmenu: true, description: "Масштаб кадра в окне: растянуть, вписать или заполнить с обрезкой" },
   { id: "rotation", label: "Поворот видео", iconName: "RotateCw", hasSubmenu: true, description: "Поворот видео на 0°, 90°, 180° или 270°" },
   { id: "ambient", label: "Подсветка полос", iconName: "Sparkles", hasSubmenu: true, description: "Режим Ambient Light: выкл / размытие / цветной фон" },
   { id: "speed", label: "Скорость воспроизведения", iconName: "Zap", hasSubmenu: true, description: "Скорость воспроизведения: 0.25× – 2×" },
