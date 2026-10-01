@@ -126,6 +126,43 @@ pub struct AppSettings {
     /// Визуальные настройки интерфейса (шрифт, тема, масштабирование, цвета и т.д.).
     #[serde(default)]
     pub ui: UiSettings,
+
+    // ─── Настройки оптимизации видео- и аудиотракта ───
+
+    /// Пиковый лимитер аудио (lavfi alimiter) — защита от перегруза при громкости 101–150%.
+    /// `None` = включён по умолчанию.
+    #[serde(default)]
+    pub audio_limiter_enabled: Option<bool>,
+
+    /// Алгоритм тонемаппинга HDR: `"auto"` / `"bt.2446a"` / `"spline"` / `"bt.2390"`.
+    /// `None` = дефолт mpv (`"auto"`).
+    #[serde(default)]
+    pub tone_mapping: Option<String>,
+
+    /// Сила восстановления контраста HDR (0.0 = выкл, 1.0 = 100%, 0.5 = 50%).
+    /// `None` = дефолт mpv (0.0 = отключено).
+    #[serde(default)]
+    pub hdr_contrast_recovery: Option<f64>,
+
+    /// Глубина дизеринга: `"auto"` / `"8"` / `"10"` / `"0"` (выкл).
+    /// `None` = дефолт mpv (`"auto"`).
+    #[serde(default)]
+    pub dither_depth: Option<String>,
+
+    /// Включён ли GPU-шейдер дебандинга (opt-in, по умолчанию выкл).
+    /// `None` = выключён.
+    #[serde(default)]
+    pub deband_enabled: Option<bool>,
+
+    /// Пресет дебандинга: `"light"` / `"balanced"` / `"strong"`.
+    /// `None` = `"balanced"` (сбалансированный).
+    #[serde(default)]
+    pub deband_preset: Option<String>,
+
+    /// Фикс проглатывания звука (связка audio-stream-silence + audio-wait-open).
+    /// `None` = включён по умолчанию.
+    #[serde(default)]
+    pub audio_latency_fix: Option<bool>,
 }
 
 impl Default for AppSettings {
@@ -142,6 +179,14 @@ impl Default for AppSettings {
             postponed_until_launch: 0,
             last_version: String::new(),
             ui: UiSettings::default(),
+            // Новые поля оптимизации — None гарантирует чтение старых settings.json без ошибок.
+            audio_limiter_enabled: None,
+            tone_mapping: None,
+            hdr_contrast_recovery: None,
+            dither_depth: None,
+            deband_enabled: None,
+            deband_preset: None,
+            audio_latency_fix: None,
         }
     }
 }
@@ -953,5 +998,63 @@ mod settings_tests {
         let loaded = AppSettings::load_result(root.as_ref()).unwrap();
         assert_eq!(loaded.launch_count, 200);
         let _ = std::fs::remove_dir_all(root.as_ref());
+    }
+
+    #[test]
+    fn test_video_audio_settings_backward_compatibility() {
+        // Проверяем, что старый settings.json без новых полей читается без ошибок,
+        // а новые поля инициализируются как None.
+        let root = test_dir("settings-legacy-audio-video");
+        let config = root.join("config");
+        std::fs::create_dir_all(&config).unwrap();
+        std::fs::write(
+            config.join("settings.json"),
+            r##"{
+                "screenshot_directory": "shots",
+                "ui": {
+                    "accent_color": "#7fc7ff"
+                }
+            }"##,
+        )
+        .unwrap();
+
+        let loaded = AppSettings::load_result(&root).unwrap();
+        assert_eq!(loaded.audio_limiter_enabled, None);
+        assert_eq!(loaded.tone_mapping, None);
+        assert_eq!(loaded.hdr_contrast_recovery, None);
+        assert_eq!(loaded.dither_depth, None);
+        assert_eq!(loaded.deband_enabled, None);
+        assert_eq!(loaded.deband_preset, None);
+        assert_eq!(loaded.audio_latency_fix, None);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn test_video_audio_settings_round_trip() {
+        // Проверяем сохранение и чтение всех новых полей оптимизации.
+        let root = test_dir("settings-audio-video-roundtrip");
+        let config = root.join("config");
+        std::fs::create_dir_all(&config).unwrap();
+
+        AppSettings::update(&root, |s| {
+            s.audio_limiter_enabled = Some(false);
+            s.tone_mapping = Some("bt.2446a".to_string());
+            s.hdr_contrast_recovery = Some(0.3);
+            s.dither_depth = Some("10".to_string());
+            s.deband_enabled = Some(true);
+            s.deband_preset = Some("strong".to_string());
+            s.audio_latency_fix = Some(true);
+        })
+        .unwrap();
+
+        let loaded = AppSettings::load_result(&root).unwrap();
+        assert_eq!(loaded.audio_limiter_enabled, Some(false));
+        assert_eq!(loaded.tone_mapping.as_deref(), Some("bt.2446a"));
+        assert_eq!(loaded.hdr_contrast_recovery, Some(0.3));
+        assert_eq!(loaded.dither_depth.as_deref(), Some("10"));
+        assert_eq!(loaded.deband_enabled, Some(true));
+        assert_eq!(loaded.deband_preset.as_deref(), Some("strong"));
+        assert_eq!(loaded.audio_latency_fix, Some(true));
+        let _ = std::fs::remove_dir_all(root);
     }
 }

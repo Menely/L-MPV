@@ -305,6 +305,15 @@ pub fn run() {
             commands::save_ui_settings,
             commands::load_external_tracks_for_file,
             commands::get_app_version,
+            // Оптимизация видео- и аудиотракта
+            commands::get_video_audio_settings,
+            commands::set_audio_limiter_setting,
+            commands::set_hdr_tone_mapping_setting,
+            commands::set_hdr_contrast_recovery_setting,
+            commands::set_dither_depth_setting,
+            commands::set_deband_setting,
+            commands::set_deband_preset_setting,
+            commands::set_audio_latency_fix_setting,
             // Автообновление
             updater::check_launch_and_update,
             updater::check_for_updates,

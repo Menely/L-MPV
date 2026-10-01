@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles,
-  MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles, Globe
+  MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles, Globe,
+  Volume2, Tv2, AlertTriangle
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { AccordionSection } from "../components/AccordionSection";
@@ -52,6 +53,44 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   } = props;
 
   const { dict, locale, setLocale } = useTranslation();
+
+  // ── Состояние настроек оптимизации видео/аудио ──
+  const [audioLimiter, setAudioLimiter] = useState(true);
+  const [toneMapping, setToneMapping] = useState("auto");
+  // hdrRecovery хранится как число для точного сравнения (0.0, 0.3, 0.5)
+  const [hdrRecovery, setHdrRecovery] = useState(0.0);
+  const [ditherDepth, setDitherDepth] = useState("auto");
+  const [debandEnabled, setDebandEnabled] = useState(false);
+  const [debandPreset, setDebandPreset] = useState("balanced");
+  const [audioLatencyFix, setAudioLatencyFix] = useState(true);
+
+  // Загрузка сохранённых настроек при открытии панели
+  useEffect(() => {
+    invoke<{
+      audio_limiter_enabled: boolean;
+      tone_mapping: string;
+      hdr_contrast_recovery: number;
+      dither_depth: string;
+      deband_enabled: boolean;
+      deband_preset: string;
+      audio_latency_fix: boolean;
+    }>("get_video_audio_settings")
+      .then((s) => {
+        setAudioLimiter(s.audio_limiter_enabled);
+        setToneMapping(s.tone_mapping);
+        // Нормализуем до 1 знака после запятой для корректного совпадения с кнопками (0, 0.3, 0.5)
+        setHdrRecovery(
+          Math.round(s.hdr_contrast_recovery * 10) / 10
+        );
+        setDitherDepth(s.dither_depth);
+        setDebandEnabled(s.deband_enabled);
+        setDebandPreset(s.deband_preset);
+        setAudioLatencyFix(s.audio_latency_fix);
+      })
+      .catch(() => {
+        // Бэкенд недоступен — оставляем дефолты
+      });
+  }, []);
 
   // Стиль карточки подблока с парящей тенью и полупрозрачным фоном темы
   const cardStyle: React.CSSProperties = {
@@ -605,7 +644,291 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         </div>
       </AccordionSection>
 
-      {/* ── 4. Настройка контекстного меню (PКМ) ── */}
+      {/* ── 4. Настройки видео и звука ── */}
+      <AccordionSection
+        isOpen={openSections["gen_video_audio"] === true}
+        onToggle={() => toggleSection("gen_video_audio")}
+        icon={<Sparkles size={16} />}
+        title={dict.settings.general.videoAudioSection}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+
+          {/* 4.1 Лимитер аудио */}
+          <div style={cardStyle}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                style={{ marginTop: 2 }}
+                checked={audioLimiter}
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setAudioLimiter(val);
+                  try {
+                    await invoke("set_audio_limiter_setting", { enabled: val });
+                  } catch (err) {
+                    setAudioLimiter(!val);
+                    console.error("Ошибка установки audio limiter:", err);
+                  }
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Volume2 size={14} style={{ color: "var(--accent)" }} />
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                    {dict.settings.general.audioLimiterTitle}
+                  </span>
+                </div>
+                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                  {dict.settings.general.audioLimiterDesc}
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* 4.2 Тонемаппинг HDR */}
+          <div style={cardStyle}>
+            <SectionHeader
+              icon={<Tv2 size={14} />}
+              title={dict.settings.general.hdrToneMappingTitle}
+              desc={dict.settings.general.hdrToneMappingDesc}
+            />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginTop: 4 }}>
+              {(["auto", "bt.2446a", "spline", "bt.2390"] as const).map((alg) => {
+                const labels: Record<string, string> = {
+                  "auto": dict.settings.general.toneMappingAuto,
+                  "bt.2446a": dict.settings.general.toneMappingBt2446a,
+                  "spline": dict.settings.general.toneMappingSpline,
+                  "bt.2390": dict.settings.general.toneMappingBt2390,
+                };
+                return (
+                  <button
+                    key={alg}
+                    type="button"
+                    className={`compact-segment-btn ${toneMapping === alg ? "compact-segment-btn--active" : ""}`}
+                    style={{ height: 34, padding: "0 8px", fontSize: "0.76rem", fontWeight: 600 }}
+                    onClick={async () => {
+                      const prev = toneMapping;
+                      setToneMapping(alg);
+                      try {
+                        await invoke("set_hdr_tone_mapping_setting", { algorithm: alg });
+                      } catch (err) {
+                        setToneMapping(prev);
+                        console.error("Ошибка тонемаппинга:", err);
+                      }
+                    }}
+                  >
+                    {labels[alg]}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Восстановление контраста */}
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--border)" }}>
+              <SectionHeader
+                icon={<Tv2 size={13} />}
+                title={dict.settings.general.hdrContrastRecoveryTitle}
+                desc={dict.settings.general.hdrContrastRecoveryDesc}
+              />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 6 }}>
+                {([
+                  { val: 0.0, label: dict.settings.general.hdrContrastRecoveryOff },
+                  { val: 0.3, label: dict.settings.general.hdrContrastRecovery30 },
+                  { val: 0.5, label: dict.settings.general.hdrContrastRecovery50 },
+                ] as { val: number; label: string }[]).map(({ val, label }) => (
+                  <button
+                    key={val}
+                    type="button"
+                    className={`compact-segment-btn ${hdrRecovery === val ? "compact-segment-btn--active" : ""}`}
+                    style={{ height: 34, padding: "0 8px", fontSize: "0.76rem", fontWeight: 600 }}
+                    onClick={async () => {
+                      const prev = hdrRecovery;
+                      setHdrRecovery(val);
+                      try {
+                        await invoke("set_hdr_contrast_recovery_setting", { strength: val });
+                      } catch (err) {
+                        setHdrRecovery(prev);
+                        console.error("Ошибка hdr contrast recovery:", err);
+                      }
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 4.3 Дизеринг */}
+          <div style={cardStyle}>
+            <SectionHeader
+              icon={<Tv2 size={14} />}
+              title={dict.settings.general.ditherDepthTitle}
+              desc={dict.settings.general.ditherDepthDesc}
+            />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginTop: 4 }}>
+              {([
+                { val: "auto", label: dict.settings.general.ditherAuto },
+                { val: "8", label: dict.settings.general.dither8bit },
+                { val: "10", label: dict.settings.general.dither10bit },
+                { val: "0", label: dict.settings.general.ditherOff },
+              ] as { val: string; label: string }[]).map(({ val, label }) => (
+                <button
+                  key={val}
+                  type="button"
+                  className={`compact-segment-btn ${ditherDepth === val ? "compact-segment-btn--active" : ""}`}
+                  style={{ height: 34, padding: "0 8px", fontSize: "0.76rem", fontWeight: 600 }}
+                  onClick={async () => {
+                    const prev = ditherDepth;
+                    setDitherDepth(val);
+                    try {
+                      await invoke("set_dither_depth_setting", { depth: val });
+                    } catch (err) {
+                      setDitherDepth(prev);
+                      console.error("Ошибка dither depth:", err);
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 4.4 Бандинг */}
+          <div style={cardStyle}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                style={{ marginTop: 2 }}
+                checked={debandEnabled}
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setDebandEnabled(val);
+                  try {
+                    await invoke("set_deband_setting", { enabled: val });
+                  } catch (err) {
+                    setDebandEnabled(!val);
+                    console.error("Ошибка deband:", err);
+                  }
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Sparkles size={14} style={{ color: "var(--accent)" }} />
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                    {dict.settings.general.debandTitle}
+                  </span>
+                </div>
+                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                  {dict.settings.general.debandDesc}
+                </span>
+              </div>
+            </label>
+
+            {/* Предупреждение и пресет — только при включённом бандинге */}
+            {debandEnabled && (
+              <div
+                style={{
+                  marginTop: 6,
+                  marginLeft: 26,
+                  paddingLeft: 12,
+                  borderLeft: "2px solid var(--accent)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                {/* Предупреждение */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 6,
+                    padding: "8px 10px",
+                    background: "rgba(255, 180, 0, 0.07)",
+                    border: "1px solid rgba(255, 180, 0, 0.22)",
+                    borderRadius: "var(--radius-sm)",
+                  }}
+                >
+                  <AlertTriangle size={13} style={{ color: "#f59e0b", flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: "0.73rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                    {dict.settings.general.debandWarning}
+                  </span>
+                </div>
+
+                {/* Пресет */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                  {([
+                    { val: "light", label: dict.settings.general.debandPresetLight },
+                    { val: "balanced", label: dict.settings.general.debandPresetBalanced },
+                    { val: "strong", label: dict.settings.general.debandPresetStrong },
+                  ] as { val: string; label: string }[]).map(({ val, label }) => (
+                    <button
+                      key={val}
+                      type="button"
+                      className={`compact-segment-btn ${debandPreset === val ? "compact-segment-btn--active" : ""}`}
+                      style={{ height: 34, padding: "0 6px", fontSize: "0.74rem", fontWeight: 600 }}
+                      onClick={async () => {
+                        const prev = debandPreset;
+                        setDebandPreset(val);
+                        try {
+                          await invoke("set_deband_preset_setting", { preset: val });
+                        } catch (err) {
+                          setDebandPreset(prev);
+                          console.error("Ошибка deband preset:", err);
+                        }
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 4.5 Фикс задержки аудиоустройства */}
+          <div style={cardStyle}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                style={{ marginTop: 2 }}
+                checked={audioLatencyFix}
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setAudioLatencyFix(val);
+                  try {
+                    await invoke("set_audio_latency_fix_setting", {
+                      enabled: val,
+                    });
+                  } catch (err) {
+                    setAudioLatencyFix(!val);
+                    console.error("Ошибка фикса задержки звука:", err);
+                  }
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <AudioLines size={14} style={{ color: "var(--accent)" }} />
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                    {dict.settings.general.audioLatencyFixTitle}
+                  </span>
+                </div>
+                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                  {dict.settings.general.audioLatencyFixDesc}
+                </span>
+              </div>
+            </label>
+          </div>
+
+        </div>
+      </AccordionSection>
+
+      {/* ── 5. Настройка контекстного меню (ПКМ) ── */}
       <AccordionSection
         isOpen={openSections["gen_context_menu"] === true}
         onToggle={() => toggleSection("gen_context_menu")}

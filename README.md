@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.5.6-blueviolet?style=for-the-badge" alt="Version 2.5.6">
+  <img src="https://img.shields.io/badge/Version-2.5.7-blueviolet?style=for-the-badge" alt="Version 2.5.7">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -165,9 +165,10 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>⚡ Next-Gen Video Rendering (<code>vo=gpu-next</code>) & Adaptive Window Geometry</b></summary>
 
-- **GPU-HQ Pipeline:** Powered by `profile=gpu-hq`, native Direct3D 11 (`gpu-api=d3d11`), and hardware decoding (`hwdec=auto-safe`).
+- **High-Quality Pipeline:** Powered by `vo=gpu-next`, native Direct3D 11 (`gpu-api=d3d11`), hardware decoding (`hwdec=auto-safe`), and perceptual gamut mapping (`gamut-mapping-mode=perceptual`).
 - **High-Precision Scaling:** Reference `scale=spline36` and `cscale=spline36` interpolation algorithms delivering razor-sharp detail and pristine color transitions.
-- **Intelligent HDR:** Automatic display metadata passthrough (`target-colorspace-hint=yes`), dynamic peak brightness calculation (`hdr-compute-peak=yes`), and adaptive tone mapping.
+- **Intelligent HDR & Tone Mapping:** Automatic display metadata passthrough (`target-colorspace-hint=yes`), dynamic peak brightness calculation (`hdr-compute-peak=yes`), configurable tone mapping curves (`Auto`/`Spline`, `BT.2446a`, `BT.2390`), and adjustable shadow contrast recovery (`hdr-contrast-recovery` 0% / 30% / 50%).
+- **Precision Dithering & Debanding:** Configurable dither bit-depth (`Auto`, `8-bit`, `10-bit`, `Off`) and optional GPU deband shader (`deband`) with balanced presets for 8-bit SDR displays.
 - **Letterbox Prevention (Zero Black Bars):** Automatic calculation of physical even pixel dimensions adhering strictly to the stream Display Aspect Ratio (DAR) with monitor DPI scaling. Window is automatically centered using `appWindow.center()` without unwanted black bars.
 - **Automatic Zoom & Pan Reset:** Guarantees `video-zoom` and `video-pan` reset to 0.0 upon opening every new media file.
 - **Zero-Flicker Lifecycle & Lightning Launch (< 1-2s):** The window initializes hidden, instantly reads container geometry from the demuxer, calculates true Display Aspect Ratio, centers itself, and reveals smoothly (`window.show()`) with zero stutter or flicker.
@@ -213,6 +214,8 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <summary><b>🎧 Studio Audiophile Sound & 150% Volume Boost (Audiophile Profile)</b></summary>
 
 - **Ultra-Low Latency Output:** Native Windows WASAPI driver (`ao=wasapi`) with a fine-tuned 0.2s buffer.
+- **Audio Overload Peak Limiter (Zero Clipping):** Transparent `af=lavfi=[alimiter=limit=0.98]` filter prevents clipping and harsh distortions when boosting volume to 101–150%, while remaining bit-perfect transparent at 100% volume.
+- **Audio Device Latency Fix:** `audio-stream-silence=yes` and `audio-wait-open=0.25` prevents sleeping DACs and Bluetooth speakers from clipping initial milliseconds without adding seek latency (`audio-buffer=0.2`).
 - **Software Volume Boost (Up to 150%):** Amplify quiet dialogue and low-gain audio tracks up to 150% without clipping or harmonic distortion (`volume-max=150.0`).
 - **Studio 32-Tap Sinc Resampling:** High-fidelity sinc filter (`audio-resample-filter-size=32`), 16,384 phase shifts (`audio-resample-phase-shift=14`), and linear inter-sample interpolation (`audio-resample-linear=yes`).
 - **Normalized Downmix:** Safe multichannel 5.1/7.1 to stereo downmixing (`audio-normalize-downmix=yes`) with automatic headroom protection against digital clipping.
@@ -306,6 +309,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **True Display Scaling:** Panel width is computed from actual window dimensions factoring in `UI Scale`, ensuring perfect proportions on 2K/4K high-DPI displays.
 - **Exclusive Single-Accordion Mode:** Expanding any settings category automatically and smoothly collapses sibling categories, maintaining a clean and focused workspace in both Sidebar and Modal layouts.
 - **Adaptive Settings Grids:** Blocks dynamically collapse from three columns to single-column layouts on compact windows without label truncation or slider clipping.
+- **Video & Audio Settings Section:** Dedicated accordion in the General tab for switching video rendering profiles (`fast`, `balanced`, `high-quality`), hardware decoding modes (`auto-safe`, `auto-copy`, `no`), target color gamma TRC (`auto`, `bt.1886`, `srgb`, `linear`), deinterlacing, exclusive WASAPI audio output, audio normalization modes (`dynaudnorm`, `loudnorm`), demuxer prefetch cache buffer (50–1024 MB), HDR tone mapping curves, dither depth, debanding shader, and peak audio limiter.
 
 </details>
 

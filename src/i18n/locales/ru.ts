@@ -171,6 +171,47 @@ export const ru: TranslationDict = {
       languageEn: "English",
       // Контекстное меню
       contextMenuSection: "Контекстное меню",
+      // Настройки видео и аудио
+      videoAudioSection: "Настройки видео и звука",
+      // Блок 1: Лимитер
+      audioLimiterTitle: "Защита от перегруза звука",
+      audioLimiterDesc:
+        "Пиковый лимитер (lavfi alimiter) предотвращает клиппинг при громкости выше 100%. На 100% звук прозрачен.",
+      // Блок 2: Тонемаппинг HDR
+      hdrToneMappingTitle: "Кривая тонемаппинга HDR",
+      hdrToneMappingDesc:
+        "Алгоритм преобразования HDR → SDR. \"Авто\" соответствует spline — плавная кривая mpv. \"BT.2446a\" рекомендована для хорошо мастерированного контента.",
+      toneMappingAuto: "Авто",
+      toneMappingBt2446a: "BT.2446a",
+      toneMappingSpline: "Spline",
+      toneMappingBt2390: "BT.2390",
+      hdrContrastRecoveryTitle: "Восстановление контраста HDR",
+      hdrContrastRecoveryDesc:
+        "Вытягивает детали из теней после тонемаппинга. 0% — выключено, 30% — умеренно, 50% — заметно.",
+      hdrContrastRecoveryOff: "Выкл",
+      hdrContrastRecovery30: "30%",
+      hdrContrastRecovery50: "50%",
+      // Блок 3: Дизеринг
+      ditherDepthTitle: "Глубина дизеринга",
+      ditherDepthDesc:
+        "Снижает постеризацию при конвертации цвета. \"Авто\" определяет глубину дисплея автоматически.",
+      ditherAuto: "Авто",
+      dither8bit: "8 бит",
+      dither10bit: "10 бит",
+      ditherOff: "Выкл",
+      // Блок 4: Бандинг
+      debandTitle: "Устранение бандинга",
+      debandDesc:
+        "GPU-шейдер сглаживания полос (deband). Выключен по умолчанию.",
+      debandWarning:
+        "На vo=gpu-next бандинг применяется после масштабирования и может ухудшить чёткость. Рекомендуется для 8-битных SDR-панелей; на 4K при AI-апскейлинге лучше оставить выключенным.",
+      debandPresetLight: "Лёгкий",
+      debandPresetBalanced: "Сбаланс.",
+      debandPresetStrong: "Сильный",
+      // Блок 5: Задержка аудио
+      audioLatencyFixTitle: "Фикс задержки аудиоустройства",
+      audioLatencyFixDesc:
+        "Устраняет проглатывание первых миллисекунд звука на Bluetooth-колонках и засыпающих ЦАП (audio-stream-silence + audio-wait-open).",
     },
 
     appearance: {

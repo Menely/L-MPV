@@ -244,3 +244,134 @@ pub fn save_ui_settings(
 pub fn get_app_version() -> Result<String, String> {
     Ok(env!("CARGO_PKG_VERSION").to_string())
 }
+
+// ─── IPC-команды оптимизации видео- и аудиотракта ─────────
+
+/// Получить текущие настройки оптимизации видео/аудио из config/settings.json.
+#[tauri::command]
+pub fn get_video_audio_settings() -> Result<serde_json::Value, String> {
+    let s = AppSettings::load_portable_result()?;
+    Ok(serde_json::json!({
+        "audio_limiter_enabled": s.audio_limiter_enabled.unwrap_or(true),
+        "tone_mapping": s.tone_mapping.unwrap_or_else(|| "auto".to_string()),
+        "hdr_contrast_recovery": s.hdr_contrast_recovery.unwrap_or(0.0),
+        "dither_depth": s.dither_depth.unwrap_or_else(|| "auto".to_string()),
+        "deband_enabled": s.deband_enabled.unwrap_or(false),
+        "deband_preset": s.deband_preset.unwrap_or_else(|| "balanced".to_string()),
+        "audio_latency_fix": s.audio_latency_fix.unwrap_or(true),
+    }))
+}
+
+/// Включить / выключить пиковый лимитер аудио (lavfi alimiter).
+///
+/// При включении устанавливает `af=lavfi=[alimiter=limit=0.98]`,
+/// при выключении сбрасывает `af` в пустую строку.
+#[tauri::command]
+pub fn set_audio_limiter_setting(
+    state: State<'_, PlayerState>,
+    enabled: bool,
+) -> Result<(), String> {
+    state.mpv.set_audio_limiter_enabled(enabled)?;
+    AppSettings::update_portable(|settings| {
+        settings.audio_limiter_enabled = Some(enabled);
+    })
+    .map(|_| ())
+}
+
+/// Установить алгоритм тонемаппинга HDR.
+///
+/// Допустимые значения: `"auto"`, `"bt.2446a"`, `"spline"`, `"bt.2390"`.
+#[tauri::command]
+pub fn set_hdr_tone_mapping_setting(
+    state: State<'_, PlayerState>,
+    algorithm: String,
+) -> Result<(), String> {
+    state.mpv.set_hdr_tone_mapping(&algorithm)?;
+    AppSettings::update_portable(|settings| {
+        settings.tone_mapping = Some(algorithm);
+    })
+    .map(|_| ())
+}
+
+/// Установить силу восстановления контраста HDR.
+///
+/// Диапазон `0.0..2.0`: `0.0` — выключено, `0.3` — умеренно, `0.5` — заметно.
+#[tauri::command]
+pub fn set_hdr_contrast_recovery_setting(
+    state: State<'_, PlayerState>,
+    strength: f64,
+) -> Result<(), String> {
+    let clamped = strength.clamp(0.0, 2.0);
+    state.mpv.set_hdr_contrast_recovery(clamped)?;
+    AppSettings::update_portable(|settings| {
+        settings.hdr_contrast_recovery = Some(clamped);
+    })
+    .map(|_| ())
+}
+
+/// Установить глубину дизеринга.
+///
+/// Допустимые значения: `"auto"`, `"8"`, `"10"`, `"0"` (выключить).
+#[tauri::command]
+pub fn set_dither_depth_setting(
+    state: State<'_, PlayerState>,
+    depth: String,
+) -> Result<(), String> {
+    state.mpv.set_dither_depth(&depth)?;
+    AppSettings::update_portable(|settings| {
+        settings.dither_depth = Some(depth);
+    })
+    .map(|_| ())
+}
+
+/// Включить / выключить GPU-шейдер дебандинга.
+///
+/// Дебандинг в `vo=gpu-next` применяется после масштабирования —
+/// рекомендуется только для 8-битных SDR-панелей с выраженным бандингом.
+#[tauri::command]
+pub fn set_deband_setting(
+    state: State<'_, PlayerState>,
+    enabled: bool,
+) -> Result<(), String> {
+    state.mpv.set_deband_enabled(enabled)?;
+    if enabled {
+        let preset = AppSettings::load_portable()
+            .deband_preset
+            .unwrap_or_else(|| "balanced".to_string());
+        let _ = state.mpv.set_deband_preset(&preset);
+    }
+    AppSettings::update_portable(|settings| {
+        settings.deband_enabled = Some(enabled);
+    })
+    .map(|_| ())
+}
+
+/// Установить пресет параметров дебандинга.
+///
+/// Допустимые значения: `"light"`, `"balanced"`, `"strong"`.
+#[tauri::command]
+pub fn set_deband_preset_setting(
+    state: State<'_, PlayerState>,
+    preset: String,
+) -> Result<(), String> {
+    state.mpv.set_deband_preset(&preset)?;
+    AppSettings::update_portable(|settings| {
+        settings.deband_preset = Some(preset);
+    })
+    .map(|_| ())
+}
+
+/// Включить / выключить устранение задержки аудиоустройства.
+///
+/// Связка параметров mpv: `audio-stream-silence` и `audio-wait-open`.
+#[tauri::command]
+pub fn set_audio_latency_fix_setting(
+    state: State<'_, PlayerState>,
+    enabled: bool,
+) -> Result<(), String> {
+    let _ = state.mpv.set_audio_latency_fix(enabled);
+    AppSettings::update_portable(|settings| {
+        settings.audio_latency_fix = Some(enabled);
+    })
+    .map(|_| ())
+}

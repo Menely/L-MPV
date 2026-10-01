@@ -161,6 +161,40 @@ export interface TranslationDict {
       languageEn: string;
       // Контекстное меню
       contextMenuSection: string;
+      // Качество видео и аудио
+      videoAudioSection: string;
+      // Блок 1: Лимитер
+      audioLimiterTitle: string;
+      audioLimiterDesc: string;
+      // Блок 2: Тонемаппинг HDR
+      hdrToneMappingTitle: string;
+      hdrToneMappingDesc: string;
+      toneMappingAuto: string;
+      toneMappingBt2446a: string;
+      toneMappingSpline: string;
+      toneMappingBt2390: string;
+      hdrContrastRecoveryTitle: string;
+      hdrContrastRecoveryDesc: string;
+      hdrContrastRecoveryOff: string;
+      hdrContrastRecovery30: string;
+      hdrContrastRecovery50: string;
+      // Блок 3: Дизеринг
+      ditherDepthTitle: string;
+      ditherDepthDesc: string;
+      ditherAuto: string;
+      dither8bit: string;
+      dither10bit: string;
+      ditherOff: string;
+      // Блок 4: Бандинг
+      debandTitle: string;
+      debandDesc: string;
+      debandWarning: string;
+      debandPresetLight: string;
+      debandPresetBalanced: string;
+      debandPresetStrong: string;
+      // Блок 5: Задержка аудио
+      audioLatencyFixTitle: string;
+      audioLatencyFixDesc: string;
     };
     /** Строки футера и обновлений в SettingsModal. */
 

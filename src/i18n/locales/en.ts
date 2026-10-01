@@ -168,6 +168,47 @@ export const en: TranslationDict = {
       languageEn: "English",
       // Context menu
       contextMenuSection: "Context Menu (RMB)",
+      // Video & Audio Settings
+      videoAudioSection: "Video & Audio Settings",
+      // Block 1: Limiter
+      audioLimiterTitle: "Audio Overload Protection",
+      audioLimiterDesc:
+        "Peak limiter (lavfi alimiter) prevents clipping at volumes above 100%. Fully transparent at 100%.",
+      // Block 2: HDR Tone Mapping
+      hdrToneMappingTitle: "HDR Tone Mapping Curve",
+      hdrToneMappingDesc:
+        'Algorithm for HDR → SDR conversion. "Auto" equals spline — mpv\'s smooth default. "BT.2446a" is recommended for well-mastered content.',
+      toneMappingAuto: "Auto",
+      toneMappingBt2446a: "BT.2446a",
+      toneMappingSpline: "Spline",
+      toneMappingBt2390: "BT.2390",
+      hdrContrastRecoveryTitle: "HDR Contrast Recovery",
+      hdrContrastRecoveryDesc:
+        "Pulls shadow detail back after tone mapping. 0% = off, 30% = moderate, 50% = noticeable.",
+      hdrContrastRecoveryOff: "Off",
+      hdrContrastRecovery30: "30%",
+      hdrContrastRecovery50: "50%",
+      // Block 3: Dithering
+      ditherDepthTitle: "Dithering Depth",
+      ditherDepthDesc:
+        'Reduces posterisation during colour conversion. "Auto" detects the display depth automatically.',
+      ditherAuto: "Auto",
+      dither8bit: "8-bit",
+      dither10bit: "10-bit",
+      ditherOff: "Off",
+      // Block 4: Deband
+      debandTitle: "Banding Removal",
+      debandDesc:
+        "GPU deband shader smooths colour-banding artefacts. Disabled by default.",
+      debandWarning:
+        "On vo=gpu-next deband runs after upscaling and may reduce sharpness. Recommended for 8-bit SDR panels; leave off for 4K or AI upscaling.",
+      debandPresetLight: "Light",
+      debandPresetBalanced: "Balanced",
+      debandPresetStrong: "Strong",
+      // Block 5: Audio latency
+      audioLatencyFixTitle: "Audio Device Latency Fix",
+      audioLatencyFixDesc:
+        "Prevents the first milliseconds of audio being swallowed by Bluetooth speakers or sleeping DACs (audio-stream-silence + audio-wait-open).",
     },
 
     appearance: {

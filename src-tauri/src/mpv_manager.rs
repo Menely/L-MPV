@@ -497,20 +497,21 @@ impl MpvManager {
             Self::set_option(&api, handle, "log-file", &log_file);
             Self::set_option(&api, handle, "msg-level", "all=error");
 
-            // Путь к скриншотам (с восстановлением из config/settings.json)
+            // Путь к скриншотам (восстановление из config/settings.json)
             let saved_settings = crate::commands::AppSettings::load_portable();
-            let screenshots_dir = saved_settings.screenshot_directory.unwrap_or_else(|| {
-                portable_dir
-                    .join("screenshots")
-                    .to_string_lossy()
-                    .replace("\\", "/")
-            });
+            let screenshots_dir = saved_settings
+                .screenshot_directory
+                .clone()
+                .unwrap_or_else(|| {
+                    portable_dir
+                        .join("screenshots")
+                        .to_string_lossy()
+                        .replace("\\", "/")
+                });
             Self::set_option(&api, handle, "screenshot-directory", &screenshots_dir);
             Self::set_option(&api, handle, "screenshot-format", "png");
 
 
-
-            // ─── Оптимизированный рендеринг: Direct3D 11 (нативный для Windows / DWM) ───
             Self::set_option(&api, handle, "vo", "gpu-next");
             Self::set_option(&api, handle, "gpu-api", "d3d11,auto");
             Self::set_option(&api, handle, "hwdec", "auto-safe");
@@ -523,6 +524,7 @@ impl MpvManager {
             Self::set_option(&api, handle, "target-colorspace-hint", "yes");
             Self::set_option(&api, handle, "tone-mapping", "auto");
             Self::set_option(&api, handle, "hdr-compute-peak", "yes");
+            Self::set_option(&api, handle, "gamut-mapping-mode", "perceptual");
 
             // ─── Оптимизация фона и буфера ────────────────
             Self::set_option(&api, handle, "background-color", "#000000");
@@ -541,6 +543,12 @@ impl MpvManager {
             Self::set_option(&api, handle, "audio-pitch-correction", "yes"); // Сохранение тональности при изменении скорости
             Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от клиппинга при даунмиксе
             Self::set_option(&api, handle, "volume-max", "150.0"); // Максимальная громкость с софтверным усилением (до 150%)
+
+            // ─── Студийный sinc-ресемплинг (32 taps) ───
+            Self::set_option(&api, handle, "audio-resample-filter-size", "32");
+            Self::set_option(&api, handle, "audio-resample-phase-shift", "14");
+            Self::set_option(&api, handle, "audio-resample-linear", "yes");
+
 
             // ─── Гарантированная A/V-синхронизация при старте ───
             // Явно фиксируем дефолты, чтобы пользовательский mpv.conf не смог
@@ -567,6 +575,47 @@ impl MpvManager {
             Self::set_option(&api, handle, "linear-downscaling", "yes");
             Self::set_option(&api, handle, "deband", "no"); // Отключаем дебандинг для 0% просадок FPS при обычном воспроизведении
 
+            // ─── Переопределение пользовательскими настройками поверх дефолтов ───
+            // Блок должен стоять последним, чтобы затирать любой дефолт выше.
+
+            // Тонемаппинг HDR
+            if let Some(ref mapping) = saved_settings.tone_mapping {
+                Self::set_option(&api, handle, "tone-mapping", mapping);
+            }
+            // Восстановление контраста HDR
+            if let Some(recovery) = saved_settings.hdr_contrast_recovery {
+                Self::set_option(
+                    &api, handle,
+                    "hdr-contrast-recovery",
+                    &format!("{:.2}", recovery),
+                );
+            }
+            // Глубина дизеринга (дефолт auto выставлен mpv автоматически)
+            if let Some(ref depth) = saved_settings.dither_depth {
+                Self::set_option(&api, handle, "dither-depth", depth);
+            }
+            // Бандинг: настраиваем параметры пресета и включаем только при opt-in
+            let preset = saved_settings.deband_preset.as_deref().unwrap_or("balanced");
+            let (iters, thresh, range, grain) = Self::deband_preset_values(preset);
+            Self::set_option(&api, handle, "deband-iterations", &iters.to_string());
+            Self::set_option(&api, handle, "deband-threshold", &thresh.to_string());
+            Self::set_option(&api, handle, "deband-range", &range.to_string());
+            Self::set_option(&api, handle, "deband-grain", &grain.to_string());
+            if saved_settings.deband_enabled.unwrap_or(false) {
+                Self::set_option(&api, handle, "deband", "yes");
+            }
+            // Пиковый лимитер аудио
+            if saved_settings.audio_limiter_enabled.unwrap_or(true) {
+                Self::set_option(&api, handle, "af", "lavfi=[alimiter=limit=0.98]");
+            }
+            // Фикс проглатывания звука:
+            // связка audio-stream-silence + audio-wait-open требуется мануалом mpv,
+            // audio-buffer=0.2 не меняем (§0 плана).
+            if saved_settings.audio_latency_fix.unwrap_or(true) {
+                Self::set_option(&api, handle, "audio-stream-silence", "yes");
+                Self::set_option(&api, handle, "audio-wait-open", "0.25");
+            }
+
             // Отключаем встроенный OSC и обработку ввода (мы используем свой UI)
             Self::set_option(&api, handle, "osc", "no");
             Self::set_option(&api, handle, "osd-level", "0");
@@ -592,6 +641,118 @@ impl MpvManager {
         let c_name = CString::new(name).unwrap();
         let c_value = CString::new(value).unwrap();
         (api.set_option_string)(handle, c_name.as_ptr(), c_value.as_ptr());
+    }
+
+    /// Вспомогательная функция: возвращает параметры дебандинга по имени пресета.
+    ///
+    /// Пресеты: `"light"` — лёгкий (для сцен с мягким бандингом),
+    /// `"balanced"` — сбалансированный (дефолт opt-in),
+    /// `"strong"` — максимальный (только для сильного бандинга, возможна потеря деталей).
+    fn deband_preset_values(preset: &str) -> (u8, u16, u8, u16) {
+        // Возвращает (iterations, threshold, range, grain)
+        match preset {
+            "light" => (1, 32, 12, 16),
+            "strong" => (2, 64, 16, 32),
+            _ => (1, 48, 16, 32), // "balanced" — дефолт
+        }
+    }
+
+    /// Динамически включает или выключает пиковый лимитер аудио (lavfi alimiter).
+    ///
+    /// При включении устанавливает `af=lavfi=[alimiter=limit=0.98]`;
+    /// при выключении сбрасывает `af` в пустую строку.
+    pub fn set_audio_limiter_enabled(
+        &self,
+        enabled: bool,
+    ) -> Result<(), String> {
+        let value = if enabled {
+            "lavfi=[alimiter=limit=0.98]"
+        } else {
+            ""
+        };
+        self.set_property_string("af", value)
+    }
+
+    /// Динамически устанавливает алгоритм тонемаппинга HDR.
+    ///
+    /// Допустимые значения: `"auto"`, `"bt.2446a"`, `"spline"`, `"bt.2390"`.
+    pub fn set_hdr_tone_mapping(
+        &self,
+        algorithm: &str,
+    ) -> Result<(), String> {
+        self.set_property_string("tone-mapping", algorithm)
+    }
+
+    /// Динамически устанавливает силу восстановления контраста HDR.
+    ///
+    /// Диапазон `0.0..2.0`: `0.0` — выкл, `1.0` — 100% силы.
+    pub fn set_hdr_contrast_recovery(
+        &self,
+        strength: f64,
+    ) -> Result<(), String> {
+        self.set_property_double("hdr-contrast-recovery", strength)
+    }
+
+    /// Динамически устанавливает глубину дизеринга.
+    ///
+    /// Допустимые значения: `"auto"`, `"8"`, `"10"`, `"0"` (выкл).
+    pub fn set_dither_depth(
+        &self,
+        depth: &str,
+    ) -> Result<(), String> {
+        self.set_property_string("dither-depth", depth)
+    }
+
+    /// Динамически включает или выключает GPU-шейдер дебандинга.
+    ///
+    /// Деба́нд в `vo=gpu-next` применяется **после** масштабирования —
+    /// см. §2.3 плана; рекомендуется только для 8-битных SDR-панелей.
+    pub fn set_deband_enabled(
+        &self,
+        enabled: bool,
+    ) -> Result<(), String> {
+        self.set_property_string("deband", if enabled { "yes" } else { "no" })
+    }
+
+    /// Динамически применяет пресет параметров дебандинга.
+    ///
+    /// Пресеты: `"light"`, `"balanced"`, `"strong"`.
+    pub fn set_deband_preset(
+        &self,
+        preset: &str,
+    ) -> Result<(), String> {
+        let (iterations, threshold, range, grain) =
+            Self::deband_preset_values(preset);
+        self.set_property_string(
+            "deband-iterations",
+            &iterations.to_string(),
+        )?;
+        self.set_property_string(
+            "deband-threshold",
+            &threshold.to_string(),
+        )?;
+        self.set_property_string(
+            "deband-range",
+            &range.to_string(),
+        )?;
+        self.set_property_string(
+            "deband-grain",
+            &grain.to_string(),
+        )
+    }
+
+    /// Динамически переключает связку устранения задержки аудиоустройства.
+    ///
+    /// Включает или отключает `audio-stream-silence` и `audio-wait-open`.
+    pub fn set_audio_latency_fix(
+        &self,
+        enabled: bool,
+    ) -> Result<(), String> {
+        let silence = if enabled { "yes" } else { "no" };
+        let wait_open = if enabled { "0.25" } else { "0" };
+        let _ = self.set_property_string("audio-stream-silence", silence);
+        let _ = self.set_property_string("audio-wait-open", wait_open);
+        Ok(())
     }
 
     /// Внутренний метод для безопасного доступа к handle
