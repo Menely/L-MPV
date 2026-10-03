@@ -381,6 +381,13 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             mediaInfoRef.current = fullInfo;
             setMediaInfo(fullInfo);
             setHasMedia(true);
+            if (hasVideoDimensions) {
+              invoke("set_window_aspect_ratio", {
+                ratio: effectiveWidth / effectiveHeight,
+              }).catch(() => {});
+            } else {
+              invoke("reset_window_aspect_ratio").catch(() => {});
+            }
             // Внешние дорожки загружает фоновый поток lmpv-open-bg (playback.rs).
             // Повторный вызов здесь создавал дублирование дорожек и лишний I/O.
             // Список дорожек будет обновлён через событие playlist-updated.
@@ -422,6 +429,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
               seeking: false,
               seekTarget: null,
             });
+            invoke("reset_window_aspect_ratio").catch(() => {});
           }
         } else {
           // Отслеживаем изменения дорожек через поллинг (смена audio/sub/video,

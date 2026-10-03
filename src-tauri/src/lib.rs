@@ -16,6 +16,7 @@ pub mod logging;
 pub use logging::log_error;
 mod system_integration;
 mod updater;
+pub mod window_aspect_ratio;
 
 use commands::PlayerState;
 use mpv_manager::MpvManager;
@@ -340,6 +341,10 @@ pub fn run() {
             fonts_bundle::open_fonts_folder,
             fonts_bundle::get_custom_fonts,
             fonts_bundle::load_font_data,
+            // Пропорциональное масштабирование окна (Aspect Ratio Lock)
+            window_aspect_ratio::set_window_aspect_ratio,
+            window_aspect_ratio::reset_window_aspect_ratio,
+            window_aspect_ratio::get_window_aspect_ratio,
         ])
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -400,6 +405,13 @@ pub fn run() {
                         // Отключаем нативный WM_DROPFILES, так как libmpv его перехватывает и игнорирует input-drag-and-drop=no
                         // Tauri WebView2 имеет свой собственный OLE IDropTarget, поэтому Drag & Drop в React продолжит работать.
                         DragAcceptFiles(HWND(hwnd.0 as _), false);
+                    }
+
+                    // Устанавливаем Win32 Subclassing для пропорционального изменения размера (Aspect Ratio Lock)
+                    if window_aspect_ratio::install_aspect_ratio_subclass(hwnd_value) {
+                        println!("[L-MPV] Win32 сабкласс пропорционального масштабирования успешно установлен");
+                    } else {
+                        eprintln!("[L-MPV] Не удалось установить сабкласс пропорционального масштабирования");
                     }
                 }
 

@@ -741,6 +741,13 @@ pub fn get_media_info(
     // Размеры окна можно использовать только после того, как проверяемые
     // свойства относятся к тому же файлу, что и текущий путь.
     let output_status = mpv.video_output_status_for(&current_path);
+    if output_status.width > 0 && output_status.height > 0 {
+        crate::window_aspect_ratio::set_current_aspect_ratio(
+            output_status.width as f64 / output_status.height as f64,
+        );
+    } else if current_path.is_empty() {
+        crate::window_aspect_ratio::reset_aspect_ratio();
+    }
 
     let duration = mpv.get_property_double("duration").unwrap_or(0.0);
     let file_size = mpv.get_property_double("file-size").unwrap_or(0.0);
@@ -875,6 +882,13 @@ pub fn get_video_dimensions(
     let current_path =
         mpv.get_property_string("path").unwrap_or_default();
     let status = mpv.video_output_status_for(&current_path);
+    if status.width > 0 && status.height > 0 {
+        crate::window_aspect_ratio::set_current_aspect_ratio(
+            status.width as f64 / status.height as f64,
+        );
+    } else if current_path.is_empty() {
+        crate::window_aspect_ratio::reset_aspect_ratio();
+    }
     Ok((status.width, status.height))
 }
 
