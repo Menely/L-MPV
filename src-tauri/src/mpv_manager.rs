@@ -11,6 +11,8 @@ use std::os::raw::{c_char, c_double, c_int, c_void};
 use std::path::Path;
 use std::sync::Mutex;
 
+use crate::audio_filter::{AudioFilterChainBuilder, AudioNormalizeMode};
+
 // ─── Определения FFI для libmpv C API ───────────────────
 
 #[repr(C)]
@@ -613,17 +615,6 @@ impl MpvManager {
             if saved_settings.deband_enabled.unwrap_or(false) {
                 Self::set_option(&api, handle, "deband", "yes");
             }
-            // Пиковый лимитер аудио
-            if saved_settings.audio_limiter_enabled.unwrap_or(true) {
-                Self::set_option(&api, handle, "af", "lavfi=[alimiter=limit=0.98]");
-            }
-            // Фикс проглатывания звука:
-            // связка audio-stream-silence + audio-wait-open требуется мануалом mpv,
-            // audio-buffer=0.2 не меняем (§0 плана).
-            if saved_settings.audio_latency_fix.unwrap_or(true) {
-                Self::set_option(&api, handle, "audio-stream-silence", "yes");
-                Self::set_option(&api, handle, "audio-wait-open", "0.25");
-            }
             // Деинтерлейсинг
             if let Some(ref mode) = saved_settings.deinterlace_mode {
                 if matches!(mode.as_str(), "no" | "auto" | "yadif" | "yadif2x") {
@@ -636,19 +627,16 @@ impl MpvManager {
                     Self::set_option(&api, handle, "hwdec", mode);
                 }
             }
-            // Нормализация громкости: добавляется в цепочку `af` с лимитером
+            // Нормализация громкости и защита от перегруза звука (пиковый лимитер)
             let limiter_on = saved_settings.audio_limiter_enabled.unwrap_or(true);
-            let normalize = saved_settings
+            let normalize_raw = saved_settings
                 .audio_normalize
                 .as_deref()
                 .unwrap_or("no");
-            if limiter_on {
-                let chain = match normalize {
-                    "dynaudnorm" => "lavfi=[dynaudnorm=f=150:g=15:p=0.95,alimiter=limit=0.98]",
-                    "loudnorm" => "lavfi=[loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=0.98]",
-                    _ => "lavfi=[alimiter=limit=0.98]",
-                };
-                Self::set_option(&api, handle, "af", chain);
+            let normalize_mode = AudioNormalizeMode::from_str_or_default(normalize_raw);
+            let chain = AudioFilterChainBuilder::build(normalize_mode, limiter_on);
+            if !chain.is_empty() {
+                Self::set_option(&api, handle, "af", &chain);
             }
             // Буфер демаксера: пользовательское значение затирает дефолт 64MiB
             if let Some(ref mb) = saved_settings.demuxer_cache_mb {
@@ -706,14 +694,13 @@ impl MpvManager {
 
     /// Динамически включает или выключает пиковый лимитер аудио (lavfi alimiter).
     ///
-    /// Служебный метод: собирает цепочку только из лимитера. Для смены
-    /// лимитера вместе с нормализацией используйте `set_audio_normalize`,
-    /// который пересобирает `af` целиком и не затирает выбранный режим.
+    /// Применяет новое состояние лимитера, сохраняя текущий активный режим нормализации.
     pub fn set_audio_limiter_enabled(
         &self,
+        mode: AudioNormalizeMode,
         enabled: bool,
     ) -> Result<(), String> {
-        self.set_audio_normalize("no", enabled)
+        self.set_audio_normalize(mode, enabled)
     }
 
     /// Динамически устанавливает алгоритм тонемаппинга HDR.
@@ -828,34 +815,24 @@ impl MpvManager {
         self.set_property_string("hwdec", mode)
     }
 
-    /// Пересобирает цепочку `af` с учётом нормализации громкости.
+    /// Пересобирает цепочку `af` с учётом режима нормализации и состояния лимитера.
     ///
-    /// Нормализация ставится **перед** пиковым лимитером: иначе
-    /// `alimiter` срезает всё, что подняла нормализация. При выключенной
-    /// нормализации цепочка не меняется, чтобы лимитер остался как был.
+    /// Делегирует сборку фильтров модулю `AudioFilterChainBuilder` и применяет
+    /// результат в свойство `af` движка mpv с обязательным логированием.
     pub fn set_audio_normalize(
         &self,
-        mode: &str,
+        mode: AudioNormalizeMode,
         limiter_enabled: bool,
     ) -> Result<(), String> {
-        if !matches!(mode, "no" | "dynaudnorm" | "loudnorm") {
-            return Err(format!("Неизвестный режим нормализации: {mode}"));
+        let chain = AudioFilterChainBuilder::build(mode, limiter_enabled);
+        let res = self.set_property_string("af", &chain);
+        if let Err(ref err) = res {
+            crate::log_error(
+                "MpvManager::set_audio_normalize",
+                &format!("Ошибка применения цепочки af='{chain}': {err}"),
+            );
         }
-        if !limiter_enabled {
-            // Лимитер выключен — цепочку не трогаем, оставляя пустой `af`.
-            let _ = self.set_property_string("af", "");
-            return Ok(());
-        }
-        let chain = match mode {
-            "dynaudnorm" => {
-                "lavfi=[dynaudnorm=f=150:g=15:p=0.95,alimiter=limit=0.98]"
-            }
-            "loudnorm" => {
-                "lavfi=[loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=0.98]"
-            }
-            _ => "lavfi=[alimiter=limit=0.98]",
-        };
-        self.set_property_string("af", chain)
+        res
     }
 
     /// Динамически применяет размер буфера демаксера (в мегабайтах).

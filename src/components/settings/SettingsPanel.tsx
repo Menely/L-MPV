@@ -194,7 +194,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.6.0");
+  const [appVersion, setAppVersion] = useState<string>("2.6.1");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');

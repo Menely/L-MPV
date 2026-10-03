@@ -7,6 +7,7 @@ pub mod ambient_sampler;
 mod ambient;
 pub mod upscale;
 mod audio_capture;
+pub mod audio_filter;
 mod commands;
 mod fonts_bundle;
 mod mediainfo;

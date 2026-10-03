@@ -35,11 +35,11 @@ const HWDEC_LABELS: Record<(typeof HWDEC_OPTIONS)[number], string> = {
 };
 
 const AUDIO_NORMALIZE_OPTIONS = ["no", "dynaudnorm", "loudnorm"] as const;
-const AUDIO_NORMALIZE_LABELS: Record<(typeof AUDIO_NORMALIZE_OPTIONS)[number], string> = {
-  no: "Выкл",
-  dynaudnorm: "Динамич.",
-  loudnorm: "EBU R128",
-};
+const AUDIO_NORMALIZE_KEY_MAP = {
+  no: "audioNormalizeOff",
+  dynaudnorm: "audioNormalizeDyn",
+  loudnorm: "audioNormalizeLoud",
+} as const;
 const TONE_MAPPING_OPTIONS = ["auto", "bt.2446a", "spline", "bt.2390"] as const;
 const TONE_MAPPING_LABELS: Record<(typeof TONE_MAPPING_OPTIONS)[number], string> = {
   auto: "Авто",
@@ -899,19 +899,14 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
               title={dict.settings.general.audioNormalizeTitle}
               value={audioNormalize}
               columns="1fr 1fr 1fr"
-              disabled={!audioLimiter}
               resetValue="no"
               resetTitle={dict.settings.general.resetAudioNormalize}
               onReset={() => selectAudioNormalize("no")}
               onSelect={(v) => selectAudioNormalize(String(v))}
-              hint={
-                audioLimiter
-                  ? dict.settings.general.audioNormalizeShort
-                  : dict.settings.general.audioNormalizeNeedsLimiter
-              }
+              hint={dict.settings.general.audioNormalizeShort}
               options={AUDIO_NORMALIZE_OPTIONS.map((v) => ({
                 value: v,
-                label: AUDIO_NORMALIZE_LABELS[v],
+                label: dict.settings.general[AUDIO_NORMALIZE_KEY_MAP[v]],
                 title: dict.settings.general.AUDIO_NORMALIZE_TIPS[v],
               }))}
             />

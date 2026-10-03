@@ -109,8 +109,6 @@ jobs:
           Write-Host "Загрузка артефактов в релиз $tag..."
           gh release upload $tag $portableZip --clobber
           gh release upload $tag "src-tauri/target/release/l-mpv.exe#l-mpv.exe" --clobber
-          gh release upload $tag "src-tauri/binaries/libmpv-2.dll#libmpv-2.dll" --clobber
-          gh release upload $tag "src-tauri/binaries/mediainfo.dll#mediainfo.dll" --clobber
           gh release upload $tag "checksums.json#checksums.json" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -227,10 +227,10 @@ export const en: TranslationDict = {
       // Block 8: Volume normalization
       audioNormalizeTitle: "Volume Normalization",
       audioNormalizeDesc:
-        "Evens out quiet and loud passages in a track. It is inserted before the peak limiter, so the limiter must be enabled.",
+        "Evens out quiet and loud passages in a track: adaptive dynamic normalization or soft night mode.",
       audioNormalizeOff: "Off",
       audioNormalizeDyn: "Dynamic",
-      audioNormalizeLoud: "EBU R128",
+      audioNormalizeLoud: "Night",
       audioNormalizeNeedsLimiter: "Enable the audio peak limiter first",
       audioNormalizeLimiterWarning:
         "Normalization does not work with the peak limiter disabled: both settings share the same audio filter chain (af).",
@@ -242,7 +242,7 @@ export const en: TranslationDict = {
         "What to do with the source signal before it reaches the screen. Deinterlacing removes combing from old SD recordings and DVDs by detecting interlaced frames from their flags. Plain Yadif does not jitter even fields on progressive video, which makes it safe by default; Yadif 2x doubles the frame count for the smoothest result at the cost of extra work. Hardware decoding offloads decompression to the GPU instead of the CPU: Auto Safe enables it only where the result is guaranteed to match software; Auto Copy widens codec support (useful for 10-bit HEVC and AV1) at the cost of copying frames back to system memory; Software returns to CPU decoding — higher CPU load but maximum predictability. Note: when AI upscaling is on, the decoding mode is set automatically for the selected backend.",
       tileAudioTitle: "Audio Path",
       tileAudioDesc:
-        "How audio is processed before output. The peak limiter (alimiter, limit=0.98) is transparent at 100% volume but compresses peaks at 101–150%, protecting against clipping and overload. Volume normalization evens out loudness spread inside a track: Dynamic (dynaudnorm) reacts on the fly and is audible in quiet scenes, EBU R128 brings average level to the broadcast standard of -16 LUFS. Normalization is always inserted BEFORE the peak limiter — otherwise the limiter would cut everything it raised; that is why its buttons are disabled when the limiter is off (both settings share one af chain). Audio device latency fix (audio-stream-silence + audio-wait-open) stops the first fraction of a second from being swallowed by sleeping DACs and Bluetooth speakers, without touching audio-buffer so seeking does not get sluggish again.",
+        "How audio is processed before output. Audio overload protection (peak limiter, limit=0.98) prevents speaker clipping at 101–150% volume, remaining transparent without compression at 100%. Volume normalization smooths the loudness spread inside a track: Dynamic (dynaudnorm) gently balances quiet and loud scenes, Night mode (acompressor) softly tames loud explosions and gunshots without affecting speech volume. Normalization and overload protection work independently. Audio device latency fix (audio-stream-silence + audio-wait-open) stops the first fraction of a second from being swallowed by sleeping DACs and Bluetooth speakers.",
       tileHdrTitle: "Color and Artifacts",
       tileHdrDesc:
         "Tone mapping HDR down to SDR and fighting banding — stripes in dark gradients. Tone mapping picks the transfer curve: Auto follows mpv's smoothest spline, BT.2446a is recommended for carefully graded sources, BT.2390 is the technical standard for cinema mastering. Contrast recovery pulls detail out of shadows after tone mapping: 0.3 is mild, 0.5 is strong and can raise noise along with detail. Dithering removes stripes that appear when deep color is output at 8 bit: pick 10 bit for a 10-bit panel, Off only if you see no banding. Debanding (deband) is a shader that smooths transitions between close shades; it runs AFTER scaling in vo=gpu-next, so it saves no performance and is recommended only for 8-bit SDR panels with visible banding. Strength (Light / Balanced / Strong) sets the pass count and trigger threshold.",
@@ -250,7 +250,7 @@ export const en: TranslationDict = {
       tileBufferDesc:
         "How much data mpv reads ahead from the stream (demuxer-max-bytes). A short buffer gives minimal input latency, which matters for local files; a large one survives brief network stalls and bitrate drops on 4K-BD and remuxes, but input becomes noticeably less responsive. The value applies to the current file immediately and is saved to config/settings.json.",
       debandPresetTitle: "Banding Strength",
-      audioNormalizeShort: "Inserted before the peak limiter",
+      audioNormalizeShort: "Placed before the peak limiter",
       // Block 11: Reset button tooltips
       resetDeinterlace: "Reset deinterlacing to Auto",
       resetHwdec: "Reset decoding to Auto Safe",
@@ -273,9 +273,9 @@ export const en: TranslationDict = {
         no: "Software decoding: best compatibility, higher CPU load.",
       },
       AUDIO_NORMALIZE_TIPS: {
-        no: "No normalization: track volume stays as recorded.",
-        dynaudnorm: "Dynamic normalization: levels out loudness on the fly, audible in quiet scenes.",
-        loudnorm: "EBU R128: television standard normalization targeting -16 LUFS.",
+        no: "No normalization: track volume stays original as recorded.",
+        dynaudnorm: "Dynamic normalization: smoothly balances volume (7.5s window), lifts quiet whispers and prevents speech dips after explosions.",
+        loudnorm: "Night mode: peak compressor gently tames loud explosions and gunshots (~5 dB reduction) without affecting dialogue volume.",
       },
       TONE_MAPPING_TIPS: {
         auto: "mpv picks the algorithm (its smooth default).",

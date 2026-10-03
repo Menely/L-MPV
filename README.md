@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.6.0-blueviolet?style=for-the-badge" alt="Version 2.6.0">
+  <img src="https://img.shields.io/badge/Version-2.6.1-blueviolet?style=for-the-badge" alt="Version 2.6.1">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -444,6 +444,27 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Historical BLAKE3 checksums are embedded in `updater.rs`, enabling seamless and secure rollback to older releases without modifying historical GitHub releases.
 - **Renamed Executable Support:**
   - If the user renames the player executable (e.g. `L-MPV.exe`), the updater automatically syncs the binary name before replacing it, ensuring smooth in-place upgrades.
+
+</details>
+
+<details>
+<summary><b>🎛️ Modular Audio Processing Pipeline, Dynamic Normalization & Night Mode</b></summary>
+
+- **Dedicated Isolated Module `audio_filter.rs`:**
+  - Lavfi audio filter construction and validation logic has been completely decoupled from the low-level `mpv_manager.rs` into a pure, clean Rust module.
+  - Strongly typed `AudioNormalizeMode` (`Off`, `Dynamic`, `Night`) with automatic string parsing, guaranteeing zero risk of UI state desynchronization.
+  - High-performance `AudioFilterChainBuilder`: filter chain assembly compiles to pure `&'static str` with zero heap allocations (Zero-Heap Allocation).
+- **Cinematic Night Mode (Night DRC Mode):**
+  - Powered by an optimized fast RMS compressor: `acompressor=threshold=0.25:ratio=3:attack=10:release=450:makeup=1:knee=2:link=maximum:detection=rms`.
+  - The compression threshold `threshold=0.25` (-12 dBFS) and soft knee `knee=2` sit strictly above the speech frequency spectrum (-27..-18 dBFS). **Dialogue retains 100% of its original loudness and clarity (0.0 dB alteration)**.
+  - Sudden loud explosions and gunshots are gently compressed by ~5 dB at a 3:1 ratio, while a 450 ms release time prevents noticeable pumping.
+- **Dynamic Audio Normalization:**
+  - Balanced Gaussian filter: `dynaudnorm=framelen=500:gausssize=15:maxgain=3.5:peak=0.90:compress=8:threshold=0.008:overlap=0.5`.
+  - The 7.5s Gaussian smoothing window prevents modulation between individual words and completely eliminates dialogue dips after explosions — normal speech volume recovers smoothly within 2–3 seconds.
+  - Noise cutoff threshold `threshold=0.008` (-42 dBFS) boosts even quiet whispers without amplifying digital silence noise, while `maxgain=3.5` (+10.9 dB ceiling) improves intelligibility without distortion.
+- **Full Audio Pipeline Decoupling (6-State Matrix):**
+  - Normalization modes and audio overload protection (True Peak Limiter `alimiter`) operate completely independently: disabling the limiter no longer disables or locks the normalization buttons in the UI.
+  - When both switches are disabled, the `af` property is cleared (`af=""`), ensuring a pure bit-perfect bypass audio path.
 
 </details>
 

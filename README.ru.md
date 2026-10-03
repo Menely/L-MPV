@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.6.0-blueviolet?style=for-the-badge" alt="Version 2.6.0">
+  <img src="https://img.shields.io/badge/Version-2.6.1-blueviolet?style=for-the-badge" alt="Version 2.6.1">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -445,6 +445,27 @@
   - Для всех архивных версий контрольные суммы жестко вшиты непосредственно в код `updater.rs`. Это обеспечивает моментальный и безопасный откат на любую старую версию без необходимости модификации старых релизов на GitHub.
 - **Синхронизация при переименовании:**
   - Если пользователь переименовал исполняемый файл (например, в `L-MPV.exe` или `плеер.exe`), установщик обновлений автоматически подгоняет имя файла и перезаписывает именно рабочий бинарник.
+
+</details>
+
+<details>
+<summary><b>🎛️ Модульный Аудиотракт, Динамическая Нормализация и Ночной Режим Звука</b></summary>
+
+- **Выделенный изолированный модуль `audio_filter.rs`:**
+  - Логика сборки и валидации фильтров lavfi полностью вынесена из инфраструктурного `mpv_manager.rs` в независимый модуль.
+  - Строгий перечислимый тип `AudioNormalizeMode` (`Off`, `Dynamic`, `Night`) с автоматическим парсингом строк, гарантирующий нулевой риск рассинхронизации настроек с UI.
+  - Высокопроизводительный паттерн `AudioFilterChainBuilder`: сборка параметров цепочки скомпилирована в чистый `&'static str` с нулевыми аллокациями в куче (Zero-Heap Allocation).
+- **Кинематографический Ночной режим (Night DRC Mode):**
+  - Калибровка на базе быстрого RMS-компрессора: `acompressor=threshold=0.25:ratio=3:attack=10:release=450:makeup=1:knee=2:link=maximum:detection=rms`.
+  - Порог компрессии `threshold=0.25` (-12 dBFS) и сглаживающее колено `knee=2` расположены строго выше спектра человеческой речи (-27..-18 dBFS). **Диалоги сохраняют 100% оригинальной громкости и естественности (0.0 dB изменений)**.
+  - Внезапные громкие взрывы и выстрелы мягко приглушаются ровно на ~5 dB при соотношении 3:1, а время восстановления 450 мс исключает эффект прерывистого «дыхания» (pumping).
+- **Динамическая нормализация звука (Dynamic Audio Normalization):**
+  - Сбалансированный фильтр `dynaudnorm=framelen=500:gausssize=15:maxgain=3.5:peak=0.90:compress=8:threshold=0.008:overlap=0.5`.
+  - Окно Гаусса 7.5 секунд предотвращает модуляцию громкости между отдельными словами и полностью решает проблему провала речи после взрывов — комфортная громкость диалогов восстанавливается за 2–3 секунды.
+  - Порог отсечения `threshold=0.008` (-42 dBFS) подтягивает даже тихий шёпот без усиления шума цифровых пауз, а потолок `maxgain=3.5` (+10.9 dB) делает звук разборчивым без искажения звуковой картины.
+- **Полная независимость аудиотракта (Матрица 6 состояний):**
+  - Режимы нормализации и защита от перегруза звука (True Peak Limiter `alimiter`) отвязаны друг от друга: выключение лимитера больше не блокирует переключение режимов нормализации в меню плеера.
+  - При выключении обоих тумблеров цепочка `af` полностью очищается (`af=""`), обеспечивая прямой прозрачный тракт (Bit-Perfect Bypass).
 
 </details>
 
