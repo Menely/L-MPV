@@ -185,6 +185,11 @@ pub struct AppSettings {
     /// `None` = `"64"` (текущий захардкоженный дефолт).
     #[serde(default)]
     pub demuxer_cache_mb: Option<String>,
+
+    /// Приоритет процесса для Windows: `"normal"` / `"abovenormal"` / `"high"`.
+    /// `None` = `"abovenormal"` (повышенный для предотвращения микрофризов и дропов кадров).
+    #[serde(default)]
+    pub process_priority: Option<String>,
 }
 
 impl Default for AppSettings {
@@ -213,6 +218,7 @@ impl Default for AppSettings {
             hwdec_mode: None,
             audio_normalize: None,
             demuxer_cache_mb: None,
+            process_priority: None,
         }
     }
 }
@@ -375,48 +381,6 @@ impl AppSettings {
         Self::default()
     }
 
-    fn replace_file(temp_path: &Path, target_path: &Path) -> Result<(), String> {
-        #[cfg(windows)]
-        {
-            use std::os::windows::ffi::OsStrExt;
-            use windows::core::PCWSTR;
-            use windows::Win32::Storage::FileSystem::{
-                MoveFileExW, MOVEFILE_REPLACE_EXISTING,
-                MOVEFILE_WRITE_THROUGH,
-            };
-
-            let temp_wide = temp_path
-                .as_os_str()
-                .encode_wide()
-                .chain(std::iter::once(0))
-                .collect::<Vec<_>>();
-            let target_wide = target_path
-                .as_os_str()
-                .encode_wide()
-                .chain(std::iter::once(0))
-                .collect::<Vec<_>>();
-            unsafe {
-                MoveFileExW(
-                    PCWSTR(temp_wide.as_ptr()),
-                    PCWSTR(target_wide.as_ptr()),
-                    MOVEFILE_REPLACE_EXISTING
-                        | MOVEFILE_WRITE_THROUGH,
-                )
-            }
-            .map_err(|error| {
-                format!(
-                    "Не удалось атомарно заменить settings.json: {}",
-                    error
-                )
-            })
-        }
-        #[cfg(not(windows))]
-        {
-            std::fs::rename(temp_path, target_path)
-                .map_err(|error| error.to_string())
-        }
-    }
-
     fn save_unlocked(
         &self,
         config_dir: &Path,
@@ -429,30 +393,9 @@ impl AppSettings {
         std::fs::create_dir_all(&target_dir)
             .map_err(|error| error.to_string())?;
         let settings_path = target_dir.join("settings.json");
-        let temp_path = target_dir.join(format!(
-            ".settings.{}.tmp",
-            std::process::id()
-        ));
         let json = serde_json::to_string_pretty(self)
             .map_err(|error| error.to_string())?;
-
-        let write_result = (|| {
-            let mut file = std::fs::OpenOptions::new()
-                .create(true)
-                .truncate(true)
-                .write(true)
-                .open(&temp_path)
-                .map_err(|error| error.to_string())?;
-            file.write_all(json.as_bytes())
-                .map_err(|error| error.to_string())?;
-            file.sync_all()
-                .map_err(|error| error.to_string())?;
-            Self::replace_file(&temp_path, &settings_path)
-        })();
-        if write_result.is_err() {
-            let _ = std::fs::remove_file(&temp_path);
-        }
-        write_result
+        write_atomic(&settings_path, json.as_bytes(), true)
     }
 
     fn load_result(config_dir: &Path) -> Result<Self, String> {
@@ -493,6 +436,181 @@ impl AppSettings {
     pub fn load_portable() -> Self {
         Self::load_portable_result().unwrap_or_default()
     }
+}
+
+/// Ограничивает количество резервных копий одного файла до `limit`.
+fn prune_backups(backups_dir: &Path, file_name: &str, limit: usize) {
+    if let Ok(entries) = std::fs::read_dir(backups_dir) {
+        let prefix = format!("{}.", file_name);
+        let mut matching: Vec<std::path::PathBuf> = entries
+            .flatten()
+            .filter_map(|e| {
+                let p = e.path();
+                if p.is_file() {
+                    let name = p.file_name()?.to_str()?;
+                    if name.starts_with(&prefix) && name.ends_with(".bak") {
+                        return Some(p);
+                    }
+                }
+                None
+            })
+            .collect();
+        if matching.len() > limit {
+            matching.sort_by_key(|p| {
+                p.metadata()
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+            });
+            for old in matching.iter().take(matching.len() - limit) {
+                let _ = std::fs::remove_file(old);
+            }
+        }
+    }
+}
+
+/// Очищает устаревшие временные файлы атомарной записи (.tmp) в указанном каталоге.
+pub fn clean_stale_temp_files(dir: &Path) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.starts_with('.') && name.ends_with(".tmp") {
+                        let _ = std::fs::remove_file(path);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Атомарная замена файла через системные вызовы Windows (MoveFileExW) или rename.
+pub fn replace_file_atomic(temp_path: &Path, target_path: &Path) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows::core::PCWSTR;
+        use windows::Win32::Storage::FileSystem::{
+            MoveFileExW, MOVEFILE_REPLACE_EXISTING,
+            MOVEFILE_WRITE_THROUGH,
+        };
+
+        let temp_wide = temp_path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect::<Vec<_>>();
+        let target_wide = target_path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect::<Vec<_>>();
+        let mut last_err = None;
+        for attempt in 0..3 {
+            let res = unsafe {
+                MoveFileExW(
+                    PCWSTR(temp_wide.as_ptr()),
+                    PCWSTR(target_wide.as_ptr()),
+                    MOVEFILE_REPLACE_EXISTING
+                        | MOVEFILE_WRITE_THROUGH,
+                )
+            };
+            if res.is_ok() {
+                return Ok(());
+            }
+            last_err = Some(res);
+            if attempt < 2 {
+                std::thread::sleep(std::time::Duration::from_millis(15));
+            }
+        }
+        last_err
+            .unwrap_or(Ok(()))
+            .map_err(|error| {
+                format!(
+                    "Не удалось атомарно заменить файл {}: {}",
+                    target_path.display(),
+                    error
+                )
+            })
+    }
+    #[cfg(not(windows))]
+    {
+        std::fs::rename(temp_path, target_path)
+            .map_err(|error| error.to_string())
+    }
+}
+
+static ATOMIC_TEMP_COUNTER: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
+/// Атомарная запись данных в файл с предварительной записью во временный файл
+/// в том же каталоге и атомарной заменой (MoveFileExW на Windows / rename на Unix).
+///
+/// Предотвращает повреждение JSON и порчу пользовательских файлов настроек
+/// и пресетов при сбое питания или падении процесса.
+///
+/// Если `create_backup` равен true и целевой файл существует, создаётся
+/// резервная копия в `config/backups/<имя_файла>.<метка_времени>.bak` (хранятся до 10 последних копий).
+pub fn write_atomic(target_path: &Path, data: &[u8], create_backup: bool) -> Result<(), String> {
+    let parent = target_path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+
+    std::fs::create_dir_all(parent)
+        .map_err(|e| format!("Не удалось создать каталог {}: {}", parent.display(), e))?;
+
+    // Создание резервной копии перед перезаписью
+    if create_backup && target_path.exists() {
+        if let Ok(app_dir) = get_app_dir() {
+            let backups_dir = app_dir.join("config").join("backups");
+            if std::fs::create_dir_all(&backups_dir).is_ok() {
+                let file_name = target_path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("file");
+                let timestamp = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0);
+                let backup_path = backups_dir.join(format!("{}.{}.bak", file_name, timestamp));
+                let _ = std::fs::copy(target_path, backup_path);
+
+                // Ограничиваем количество резервных копий до 10 для каждого имени файла
+                prune_backups(&backups_dir, file_name, 10);
+            }
+        }
+    }
+
+    let file_stem = target_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("tmp");
+    let counter = ATOMIC_TEMP_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let temp_path = parent.join(format!(".{}.{}.{}.tmp", file_stem, std::process::id(), counter));
+
+    let write_res = (|| {
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(&temp_path)
+            .map_err(|e| format!("Не удалось открыть временный файл {}: {}", temp_path.display(), e))?;
+        file.write_all(data)
+            .map_err(|e| format!("Ошибка записи во временный файл {}: {}", temp_path.display(), e))?;
+        file.sync_all()
+            .map_err(|e| format!("Ошибка синхронизации временного файла {}: {}", temp_path.display(), e))?;
+        // Закрываем дескриптор файла до системного вызова MoveFileExW,
+        // чтобы избежать ошибок совместного доступа к файлу в Windows.
+        drop(file);
+        replace_file_atomic(&temp_path, target_path)
+    })();
+
+    if write_res.is_err() {
+        let _ = std::fs::remove_file(&temp_path);
+    }
+
+    write_res
 }
 
 // ─── Состояние плеера ─────────────────────────────────────

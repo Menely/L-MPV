@@ -198,8 +198,33 @@ fn run_trtexec_build(
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: предотвращает моргание консольного окна
     }
 
-    cmd.status()
-        .map_err(|e| format!("Ошибка запуска процесса trtexec: {}", e))
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Ошибка запуска процесса trtexec: {}", e))?;
+
+    let start = std::time::Instant::now();
+    let timeout = std::time::Duration::from_secs(15 * 60); // 15 минут максимальный бюджет времени
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok(status),
+            Ok(None) => {
+                if start.elapsed() > timeout {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(
+                        "Компиляция TensorRT движка превысила лимит 15 минут и была принудительно остановлена."
+                            .to_string(),
+                    );
+                }
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!("Ошибка ожидания процесса trtexec: {}", e));
+            }
+        }
+    }
 }
 
 /// Фоновый мониторинг этапов сборки движка по лог-файлу в реальном времени
@@ -293,12 +318,38 @@ fn spawn_build_monitor(
     })
 }
 
+static COMPILATION_ACTIVE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+struct CompilationGuard;
+impl Drop for CompilationGuard {
+    fn drop(&mut self) {
+        COMPILATION_ACTIVE.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
 /// Фоновая предварительная компиляция TensorRT .engine для конкретной модели под разрешение 1080p
 pub async fn precompile_model_engine_1080p_impl(
     app: tauri::AppHandle,
     slot: u32,
     filename: String,
 ) -> Result<String, String> {
+    if COMPILATION_ACTIVE
+        .compare_exchange(
+            false,
+            true,
+            std::sync::atomic::Ordering::SeqCst,
+            std::sync::atomic::Ordering::SeqCst,
+        )
+        .is_err()
+    {
+        return Err(
+            "Компиляция TensorRT (.engine) уже выполняется в другом потоке. Дождитесь завершения текущей сборки."
+                .to_string(),
+        );
+    }
+    let _comp_guard = CompilationGuard;
+
     let gpu = detect_system_gpu();
     if !gpu.supports_tensorrt {
         return Err("Предварительная компиляция TensorRT (.engine) доступна только для видеокарт NVIDIA RTX/GTX.".to_string());

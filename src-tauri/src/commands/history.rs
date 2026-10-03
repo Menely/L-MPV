@@ -92,16 +92,7 @@ pub fn save_history_to_disk() {
     if let Some(json) = json {
         if let Ok(config_dir) = get_config_dir() {
             let history_path = config_dir.join("history.json");
-            let tmp_path = config_dir.join("history.json.tmp");
-            // Атомарная запись через временный файл для защиты от повреждения при закрытии
-            if std::fs::write(&tmp_path, &json).is_ok() {
-                let _ = std::fs::remove_file(&history_path);
-                if std::fs::rename(&tmp_path, &history_path).is_err() {
-                    let _ = std::fs::write(&history_path, &json);
-                }
-            } else {
-                let _ = std::fs::write(&history_path, &json);
-            }
+            let _ = super::types::write_atomic(&history_path, json.as_bytes(), true);
         }
     }
 }

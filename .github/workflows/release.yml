@@ -75,7 +75,7 @@ jobs:
           releaseDraft: false
           prerelease: false
 
-      - name: Публикация портативного архива и автономного l-mpv.exe в релиз
+      - name: Публикация портативного архива, автономного l-mpv.exe и манифеста целостности
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
@@ -96,6 +96,12 @@ jobs:
           Copy-Item "src-tauri/binaries/ffmpeg.exe" -Destination "Portable-L-MPV/ffmpeg.exe" -Force
           Copy-Item "src-tauri/binaries/mediainfo.dll" -Destination "Portable-L-MPV/mediainfo.dll" -Force
           
+          Write-Host "Генерация манифеста целостности checksums.json..."
+          Push-Location src-tauri
+          cargo run --release -q --example gen_checksums -- -o ../checksums.json ../Portable-L-MPV
+          Pop-Location
+          Copy-Item "checksums.json" -Destination "Portable-L-MPV/checksums.json" -Force
+
           $portableZip = "L-MPV-$tag-portable.zip"
           Write-Host "Создание архива $portableZip..."
           Compress-Archive -Path "Portable-L-MPV/*" -DestinationPath $portableZip -Force
@@ -103,5 +109,9 @@ jobs:
           Write-Host "Загрузка артефактов в релиз $tag..."
           gh release upload $tag $portableZip --clobber
           gh release upload $tag "src-tauri/target/release/l-mpv.exe#l-mpv.exe" --clobber
+          gh release upload $tag "src-tauri/binaries/libmpv-2.dll#libmpv-2.dll" --clobber
+          gh release upload $tag "src-tauri/binaries/mediainfo.dll#mediainfo.dll" --clobber
+          gh release upload $tag "checksums.json#checksums.json" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

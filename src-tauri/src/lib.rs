@@ -11,6 +11,8 @@ mod commands;
 mod fonts_bundle;
 mod mediainfo;
 mod mpv_manager;
+pub mod logging;
+pub use logging::log_error;
 mod system_integration;
 mod updater;
 
@@ -100,6 +102,12 @@ pub fn run() {
     std::fs::create_dir_all(&logs_dir).ok();
     std::fs::create_dir_all(&webview_dir).ok();
 
+    // Очистка устаревших временных файлов от аварийных завершений
+    commands::clean_stale_temp_files(&config_dir);
+
+    // Ротация и очистка устаревших логов сессий и компиляций
+    logging::cleanup_logs_on_startup(&logs_dir);
+
     // Автоматическая распаковка и поддержание актуальности локальных шрифтов в папке fonts/
     fonts_bundle::ensure_fonts_installed(&exe_dir);
 
@@ -115,34 +123,7 @@ pub fn run() {
     }
 
     // Установка глобального обработчика паник для записи аварийных вылетов в logs/error.log
-    let error_log_path = logs_dir.join("error.log");
-    std::panic::set_hook(Box::new(move |panic_info| {
-        use std::io::Write;
-        let mut file = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&error_log_path)
-            .unwrap_or_else(|_| std::fs::File::create("fallback_error.log").unwrap());
-        
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-            
-        let payload = panic_info
-            .payload()
-            .downcast_ref::<&str>()
-            .cloned()
-            .or_else(|| panic_info.payload().downcast_ref::<String>().map(|s| s.as_str()))
-            .unwrap_or("Критический сбой выполнения (Box<dyn Any>)");
-            
-        let location = panic_info
-            .location()
-            .map(|l| format!("{}:{}", l.file(), l.line()))
-            .unwrap_or_else(|| "неизвестный модуль".to_string());
-        
-        let _ = writeln!(file, "[{}] [CRASH/PANIC] Локация: {}, Ошибка: {}", timestamp, location, payload);
-    }));
+    logging::setup_panic_hook(&logs_dir);
 
     println!("[L-MPV] Создание MpvManager (Основной плеер)...");
     let mpv = match MpvManager::new(&exe_dir) {
@@ -465,26 +446,4 @@ pub fn run() {
         });
 }
 
-/// Запись системных ошибок бэкенда в файл `logs/error.log`
-pub fn log_error(context: &str, error_details: &str) {
-    use std::io::Write;
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_else(|| std::path::PathBuf::from("."));
-    let logs_dir = exe_dir.join("logs");
-    let _ = std::fs::create_dir_all(&logs_dir);
-    let error_log_path = logs_dir.join("error.log");
 
-    if let Ok(mut file) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&error_log_path)
-    {
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-        let _ = writeln!(file, "[{}] [ERROR] [{}] {}", timestamp, context, error_details);
-    }
-}

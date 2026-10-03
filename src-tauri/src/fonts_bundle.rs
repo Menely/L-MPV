@@ -172,14 +172,14 @@ pub fn get_custom_fonts() -> Result<Vec<CustomFontItem>, String> {
                     ),
                     _ => (
                         format!("custom:{}", file_name),
-                        stem.replace('-', " ").replace('_', " "),
+                        stem.replace(['-', '_'], " "),
                         sanitize_font_family(&stem),
                     ),
                 }
             } else {
                 (
                     format!("custom:{}", file_name),
-                    stem.replace('-', " ").replace('_', " "),
+                    stem.replace(['-', '_'], " "),
                     sanitize_font_family(&stem),
                 )
             };
@@ -196,7 +196,7 @@ pub fn get_custom_fonts() -> Result<Vec<CustomFontItem>, String> {
     }
 
     // Пользовательские шрифты сортируем по алфавиту имени
-    fonts.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    fonts.sort_by_key(|a| a.name.to_lowercase());
 
     Ok(fonts)
 }

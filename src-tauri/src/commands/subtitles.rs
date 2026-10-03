@@ -172,19 +172,9 @@ pub(crate) fn parse_ass_color(s: &str) -> Option<String> {
         return None;
     }
     let val = u32::from_str_radix(clean, 16).ok()?;
-    let (b, g, r) = if clean.len() > 6 {
-        (
-            ((val >> 16) & 0xFF) as u8,
-            ((val >> 8) & 0xFF) as u8,
-            (val & 0xFF) as u8,
-        )
-    } else {
-        (
-            ((val >> 16) & 0xFF) as u8,
-            ((val >> 8) & 0xFF) as u8,
-            (val & 0xFF) as u8,
-        )
-    };
+    let b = ((val >> 16) & 0xFF) as u8;
+    let g = ((val >> 8) & 0xFF) as u8;
+    let r = (val & 0xFF) as u8;
     Some(format!("#{:02X}{:02X}{:02X}", r, g, b))
 }
 
@@ -210,13 +200,13 @@ pub(crate) fn extract_ass_tags(
             let inside = &text[open_idx + 1..close_idx];
             for tag in inside.split('\\') {
                 let trimmed = tag.trim();
-                if trimmed.starts_with("fn") {
-                    let f = trimmed[2..].trim();
+                if let Some(f) = trimmed.strip_prefix("fn") {
+                    let f = f.trim();
                     if !f.is_empty() {
                         font = Some(f.to_string());
                     }
-                } else if trimmed.starts_with("fs") {
-                    let num_str: String = trimmed[2..]
+                } else if let Some(fs) = trimmed.strip_prefix("fs") {
+                    let num_str: String = fs
                         .chars()
                         .take_while(|c| c.is_ascii_digit() || *c == '.')
                         .collect();
@@ -224,10 +214,12 @@ pub(crate) fn extract_ass_tags(
                         size = Some(sz);
                     }
                 } else if trimmed.starts_with("1c") || trimmed.starts_with('c') {
-                    let col_str = if trimmed.starts_with("1c") {
-                        &trimmed[2..]
+                    let col_str = if let Some(stripped) = trimmed.strip_prefix("1c") {
+                        stripped
+                    } else if let Some(stripped) = trimmed.strip_prefix('c') {
+                        stripped
                     } else {
-                        &trimmed[1..]
+                        trimmed
                     };
                     if let Some(c) = parse_ass_color(col_str) {
                         color = Some(c);
@@ -582,7 +574,7 @@ pub fn write_subtitles_cache(
     }
     let file_path = cache_dir.join(format!("{}.json", cache_key));
     if let Ok(json) = serde_json::to_string(lines) {
-        if std::fs::write(&file_path, json).is_ok() {
+        if super::types::write_atomic(&file_path, json.as_bytes(), false).is_ok() {
             prune_subtitles_cache(cache_dir, MAX_SUBTITLE_CACHE_FILES);
         }
     }

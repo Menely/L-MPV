@@ -336,7 +336,7 @@ pub async fn extract_track(
                         .ends_with(".m4a")
                 {
                     let mut cmd =
-                        std::process::Command::new(
+                        tokio::process::Command::new(
                             &ffmpeg_path,
                         );
                     cmd.args([
@@ -347,34 +347,31 @@ pub async fn extract_track(
                         "copy",
                         &effective_target_path,
                     ]);
+                    cmd.kill_on_drop(true);
                     #[cfg(target_os = "windows")]
                     {
-                        use std::os::windows::process::CommandExt;
                         const CREATE_NO_WINDOW: u32 =
                             0x08000000;
                         cmd.creation_flags(
                             CREATE_NO_WINDOW,
                         );
                     }
-                    let out =
-                        tokio::task::spawn_blocking(
-                            move || cmd.output(),
+                    let out = tokio::time::timeout(
+                        std::time::Duration::from_secs(60),
+                        cmd.output(),
+                    )
+                    .await
+                    .map_err(|_| {
+                        "Таймаут упаковки AAC в M4A через FFmpeg (60 сек). Процесс остановлен."
+                            .to_string()
+                    })?
+                    .map_err(|e| {
+                        format!(
+                            "Не удалось запустить \
+                             FFmpeg: {}",
+                            e
                         )
-                        .await
-                        .map_err(|e| {
-                            format!(
-                                "Сбой задачи упаковки \
-                                 AAC в M4A: {}",
-                                e
-                            )
-                        })?
-                        .map_err(|e| {
-                            format!(
-                                "Не удалось запустить \
-                                 FFmpeg: {}",
-                                e
-                            )
-                        })?;
+                    })?;
                     if out.status.success() {
                         return Ok(
                             effective_target_path,
@@ -424,8 +421,7 @@ pub async fn extract_track(
     };
 
     // Попытка 1: Прямое копирование потока (-c copy)
-    let mut cmd =
-        std::process::Command::new(&ffmpeg_path);
+    let mut cmd = tokio::process::Command::new(&ffmpeg_path);
     cmd.args([
         "-y",
         "-i",
@@ -436,35 +432,25 @@ pub async fn extract_track(
         "copy",
         &effective_target_path,
     ]);
+    cmd.kill_on_drop(true);
 
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
 
-    let mut output =
-        tokio::task::spawn_blocking(move || cmd.output())
-            .await
-            .map_err(|e| {
-                format!(
-                    "Сбой задачи извлечения дорожки: {}",
-                    e
-                )
-            })?
-            .map_err(|e| {
-                format!(
-                    "Не удалось запустить FFmpeg: {}",
-                    e
-                )
-            })?;
+    let mut output = match tokio::time::timeout(std::time::Duration::from_secs(60), cmd.output()).await {
+        Ok(res) => res.map_err(|e| format!("Не удалось запустить FFmpeg: {}", e))?,
+        Err(_) => {
+            return Err("Время извлечения дорожки через FFmpeg истекло (таймаут 60 сек). Процесс остановлен.".to_string());
+        }
+    };
 
     // Попытка 2 (Fallback): Если прямое копирование потока завершилось ошибкой,
     // пробуем извлечь с автоматической конвертацией FFmpeg
     if !output.status.success() {
-        let mut retry_cmd =
-            std::process::Command::new(&ffmpeg_path);
+        let mut retry_cmd = tokio::process::Command::new(&ffmpeg_path);
         retry_cmd.args([
             "-y",
             "-i",
@@ -475,21 +461,22 @@ pub async fn extract_track(
             "0",
             &effective_target_path,
         ]);
+        retry_cmd.kill_on_drop(true);
         #[cfg(target_os = "windows")]
         {
-            use std::os::windows::process::CommandExt;
             const CREATE_NO_WINDOW: u32 = 0x08000000;
             retry_cmd.creation_flags(CREATE_NO_WINDOW);
         }
 
-        if let Ok(Ok(retry_output)) =
-            tokio::task::spawn_blocking(move || {
-                retry_cmd.output()
-            })
-            .await
-        {
-            if retry_output.status.success() {
+        match tokio::time::timeout(std::time::Duration::from_secs(120), retry_cmd.output()).await {
+            Ok(Ok(retry_output)) => {
                 output = retry_output;
+            }
+            Ok(Err(e)) => {
+                eprintln!("[L-MPV] Не удалось запустить повторную конвертацию FFmpeg: {}", e);
+            }
+            Err(_) => {
+                return Err("Время перекодирования дорожки через FFmpeg истекло (таймаут 120 сек).".to_string());
             }
         }
     }
@@ -768,8 +755,6 @@ fn is_track_matching_video(
     }
 }
 
-/// Сканирование родительской директории видео (уровень 0) и прямых дочерних папок (уровень 1).
-/// Не спускается глубже 1 уровня вложенности («дальше в подпапку лезть не надо»).
 // ─── Кэш сканирования внешних дорожек ────────────────
 
 /// Закэшированный результат скана одного каталога.
@@ -1295,8 +1280,8 @@ pub async fn analyze_subtitle_track(
             let target_ffmpeg = ffmpeg_path.clone();
             let target_spec = stream_specifier.clone();
 
-            let extract_result = tokio::task::spawn_blocking(move || {
-                let mut cmd = std::process::Command::new(&target_ffmpeg);
+            let extract_result = {
+                let mut cmd = tokio::process::Command::new(&target_ffmpeg);
                 cmd.args([
                     "-y",
                     "-loglevel", "error",
@@ -1305,14 +1290,14 @@ pub async fn analyze_subtitle_track(
                     "-f", fmt,
                     "-"
                 ]);
+                cmd.kill_on_drop(true);
                 #[cfg(target_os = "windows")]
                 {
-                    use std::os::windows::process::CommandExt;
                     const CREATE_NO_WINDOW: u32 = 0x08000000;
                     cmd.creation_flags(CREATE_NO_WINDOW);
                 }
-                cmd.output()
-            }).await;
+                tokio::time::timeout(std::time::Duration::from_secs(30), cmd.output()).await
+            };
 
             if let Ok(Ok(output)) = extract_result {
                 if output.status.success() && !output.stdout.is_empty() {

@@ -883,7 +883,7 @@ pub fn sample_bgr0_segments(
 }
 
 pub fn sample_bgr_samples(samples: &[u8], segment_count: usize) -> Result<Vec<Oklab>, String> {
-    if segment_count < MIN_SEGMENT_COUNT || segment_count > MAX_SEGMENT_COUNT {
+    if !(MIN_SEGMENT_COUNT..=MAX_SEGMENT_COUNT).contains(&segment_count) {
         return Err("Некорректное количество Ambient сегментов".to_string());
     }
     let samples_per_segment = SAMPLES_PER_SEGMENT;

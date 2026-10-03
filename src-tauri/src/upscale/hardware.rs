@@ -88,6 +88,37 @@ pub fn determine_nvidia_sm_major(name: &str, sm_arch: &str) -> String {
     "sm6".to_string()
 }
 
+/// Запуск внешней команды с таймаутом и принудительным уничтожением при зависании
+fn run_command_with_timeout(
+    mut cmd: std::process::Command,
+    timeout: std::time::Duration,
+) -> Result<std::process::Output, String> {
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+    let mut child = cmd.spawn().map_err(|e| format!("Ошибка запуска процесса: {}", e))?;
+    let start = std::time::Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => {
+                return child.wait_with_output().map_err(|e| format!("Ошибка чтения вывода: {}", e));
+            }
+            Ok(None) => {
+                if start.elapsed() > timeout {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(format!("Таймаут выполнения процесса ({} сек)", timeout.as_secs()));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(40));
+            }
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!("Ошибка ожидания процесса: {}", e));
+            }
+        }
+    }
+}
+
 /// Определение архитектуры шейдерных блоков NVIDIA (Streaming Multiprocessors)
 pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
     // 1. Запрос точной compute capability через nvidia-smi с сопоставлением видеокарты
@@ -97,7 +128,7 @@ pub fn determine_nvidia_sm(name: &str, _device_id: u32) -> String {
         let mut cmd = std::process::Command::new("nvidia-smi");
         cmd.args(["--query-gpu=name,compute_cap", "--format=csv,noheader"]);
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        if let Ok(output) = cmd.output() {
+        if let Ok(output) = run_command_with_timeout(cmd, std::time::Duration::from_secs(4)) {
             if output.status.success() {
                 let out = String::from_utf8_lossy(&output.stdout);
                 let mut matched_cap: Option<String> = None;
@@ -187,7 +218,7 @@ pub fn get_cuda_gpu_name() -> Option<String> {
         let mut cmd = std::process::Command::new("nvidia-smi");
         cmd.args(["--query-gpu=name", "--format=csv,noheader"]);
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: скрывает консольное окно
-        if let Ok(output) = cmd.output() {
+        if let Ok(output) = run_command_with_timeout(cmd, std::time::Duration::from_secs(4)) {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 if let Some(first_line) = stdout.lines().next() {

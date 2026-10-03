@@ -1,6 +1,6 @@
 [package]
 name = "l-mpv"
-version = "2.5.7"
+version = "2.6.0"
 description = "L-MPV — портативный медиаплеер на базе libmpv"
 authors = ["Leo DiSanche"]
 license = "GPL-3.0-or-later"
@@ -24,9 +24,10 @@ base64 = "0.23"
 tauri-plugin-single-instance = "2"
 arboard = "3"
 image = "0.25"
-tokio = { version = "1", features = ["time", "fs", "io-util"] }
+tokio = { version = "1", features = ["time", "fs", "io-util", "process"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 zip = "2"
+blake3 = "1.8.7"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"

@@ -516,9 +516,8 @@ impl MpvManager {
             Self::set_option(&api, handle, "gpu-api", "d3d11,auto");
             Self::set_option(&api, handle, "hwdec", "auto-safe");
 
-            // Отключаем лог-файл и снижаем уровень логирования для исключения дискового I/O
+            // Отключаем консольный терминал для исключения паразитного ввода-вывода
             Self::set_option(&api, handle, "terminal", "no");
-            Self::set_option(&api, handle, "msg-level", "all=warn");
 
             // ─── HDR поддержка ──────────────────────────
             Self::set_option(&api, handle, "target-colorspace-hint", "yes");
@@ -549,6 +548,16 @@ impl MpvManager {
             Self::set_option(&api, handle, "audio-resample-phase-shift", "14");
             Self::set_option(&api, handle, "audio-resample-linear", "yes");
 
+
+            // ─── Приоритет процесса и мультимедиа-планировщик Windows (MMCSS) ───
+            // Защита от микрофризов и дропов кадров из-за фоновых задач ОС (Defender, индексация и т.д.)
+            let priority = saved_settings
+                .process_priority
+                .as_deref()
+                .filter(|p| matches!(*p, "normal" | "abovenormal" | "high"))
+                .unwrap_or("abovenormal");
+            Self::set_option(&api, handle, "priority", priority);
+            Self::set_option(&api, handle, "vo-mmcss-profile", "Playback");
 
             // ─── Гарантированная A/V-синхронизация при старте ───
             // Явно фиксируем дефолты, чтобы пользовательский mpv.conf не смог

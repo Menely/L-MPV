@@ -24,10 +24,40 @@ pub fn extract_7z_archive(archive_path: &Path, dest_dir: &Path) -> Result<(), St
     ]);
     #[cfg(windows)]
     cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: предотвращает мерцание консольного окна
+    cmd.stdout(std::process::Stdio::null());
+    cmd.stderr(std::process::Stdio::piped());
 
-    let output = cmd
-        .output()
+    let mut child = cmd
+        .spawn()
         .map_err(|e| format!("Не удалось запустить tar.exe: {}", e))?;
+
+    let start = std::time::Instant::now();
+    let timeout = std::time::Duration::from_secs(120);
+    let output = loop {
+        match child.try_wait() {
+            Ok(Some(_)) => {
+                break child
+                    .wait_with_output()
+                    .map_err(|e| format!("Ошибка чтения вывода tar.exe: {}", e))?;
+            }
+            Ok(None) => {
+                if start.elapsed() > timeout {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(
+                        "Распаковка архива tar.exe превысила лимит времени (120 сек) и была принудительно остановлена."
+                            .to_string(),
+                    );
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!("Ошибка ожидания процесса tar.exe: {}", e));
+            }
+        }
+    };
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

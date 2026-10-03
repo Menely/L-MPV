@@ -83,7 +83,7 @@ fn migrate_legacy_presets_if_needed(
                                     if let Ok(
                                         item_str,
                                     ) = serde_json::to_string_pretty(item) {
-                                        let _ = std::fs::write(&file_path, item_str);
+                                        let _ = super::types::write_atomic(&file_path, item_str.as_bytes(), false);
                                     }
                                 }
                             }
@@ -190,7 +190,7 @@ pub fn save_settings_presets(
         let item_json =
             serde_json::to_string_pretty(item)
                 .map_err(|e| e.to_string())?;
-        std::fs::write(&file_path, item_json)
+        super::types::write_atomic(&file_path, item_json.as_bytes(), false)
             .map_err(|e| {
                 format!(
                     "Не удалось сохранить пресет {}: {}",
@@ -242,7 +242,7 @@ pub fn save_single_preset(
     let target_path =
         presets_dir.join(format!("{safe_name}.json"));
 
-    std::fs::write(&target_path, preset_json).map_err(
+    super::types::write_atomic(&target_path, preset_json.as_bytes(), false).map_err(
         |e| {
             format!(
                 "Ошибка записи файла пресета {:?}: {e}",
@@ -333,10 +333,7 @@ pub fn write_text_file(
     content: String,
 ) -> Result<(), String> {
     let p = std::path::Path::new(&path);
-    if let Some(parent) = p.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    std::fs::write(p, content).map_err(|e| {
+    super::types::write_atomic(p, content.as_bytes(), false).map_err(|e| {
         format!(
             "Ошибка записи файла по пути {path}: {e}"
         )
@@ -386,7 +383,7 @@ pub fn save_context_menu_layout(
     let config_dir = get_config_dir()?;
     let layout_file =
         config_dir.join("context_menu.json");
-    std::fs::write(&layout_file, layout_json).map_err(
+    super::types::write_atomic(&layout_file, layout_json.as_bytes(), true).map_err(
         |e| {
             format!(
                 "Ошибка сохранения \

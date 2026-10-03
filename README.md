@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.5.7-blueviolet?style=for-the-badge" alt="Version 2.5.7">
+  <img src="https://img.shields.io/badge/Version-2.6.0-blueviolet?style=for-the-badge" alt="Version 2.6.0">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -412,6 +412,38 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - *"Control Bar Buttons"*: 10 individual visibility toggles for bottom toolbar icons.
 - **Menu Dividers (`divider`):** Insert clean separator lines anywhere to organize your menu items.
 - **Portable Storage (`config/context_menu.json`):** Custom menu layouts are stored locally in the player directory. A one-click "Reset" button restores default factory ordering at any time.
+
+</details>
+
+<details>
+<summary><b>🛡️ Architectural Reliability: Atomic Writes, Anti-Stuttering & Process Ownership (v2.6.0)</b></summary>
+
+- **Thread Prioritization & Anti-Stuttering (Windows MMCSS):**
+  - Option `vo-mmcss-profile=Playback` registers the video rendering thread with the Windows Multimedia Class Scheduler Service (MMCSS), ensuring prioritized CPU quantum allocation and eliminating video frame drops under background OS load (Defender, browser, indexing).
+  - Raised process priority (`priority=abovenormal`) over standard background applications.
+- **Two-Phase Atomic Commit (`write_atomic`):**
+  - Zero config corruption: configuration files are written to a temporary `.{stem}.{pid}.{counter}.tmp` file, flushed to physical disk via `File::sync_all()`, and atomically replaced via WinAPI `MoveFileExW` (`MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`).
+  - Covers settings (`settings.json`), playback history (`history.json`), presets (`presets/*.json`), context menu layout (`context_menu.json`), and subtitles cache.
+- **Automatic Backup Rotation (`prune_backups`):**
+  - Before modifying configuration files, a timestamped snapshot is archived to `config/backups/<filename>.<timestamp_ms>.bak`. Retains up to **10 recent backups** automatically, safely pruning older copies.
+- **Subprocess Ownership & Strict Timeouts:**
+  - Zero zombie processes: all FFmpeg tasks employ `kill_on_drop(true)` — closing the player cleanly terminates background extraction workers.
+  - Hard timeouts on external CLI utilities: `nvidia-smi` (4s), `tar.exe` archive extraction (120s), and TensorRT engine builds (15 min).
+  - VRAM safety guard: atomic `COMPILATION_ACTIVE` flag prevents concurrent compilation of multiple TensorRT engines.
+
+</details>
+
+<details>
+<summary><b>🔄 Update Integrity Verification & Seamless Rollback (BLAKE3 & Checksums) (v2.6.0)</b></summary>
+
+- **Cryptographic Integrity Verification (BLAKE3):**
+  - Automatically verifies hashes of downloaded binaries and libraries (`l-mpv.exe`, `libmpv-2.dll`, `mediainfo.dll`) on the fly, rejecting corrupted or partially downloaded assets before installation.
+- **User-Facing `checksums.json` Manifest:**
+  - Validated manifests are copied directly into the user's portable player directory upon update (`b3sum --check checksums.json`), as well as pre-packaged inside `L-MPV-v*-portable.zip`.
+- **Built-in Legacy Hashes for Instant Rollback (v2.0.0 – v2.5.6):**
+  - Historical BLAKE3 checksums are embedded in `updater.rs`, enabling seamless and secure rollback to older releases without modifying historical GitHub releases.
+- **Renamed Executable Support:**
+  - If the user renames the player executable (e.g. `L-MPV.exe`), the updater automatically syncs the binary name before replacing it, ensuring smooth in-place upgrades.
 
 </details>
 
