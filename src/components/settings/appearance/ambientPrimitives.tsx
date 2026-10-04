@@ -267,8 +267,3 @@ export const AmbientTuneRow = memo(function AmbientTuneRow({
     </div>
   );
 });
-
-export function getAmbientPreviewColor(side: number, index: number, count: number): string {
-  const hue = (190 + side * 67 + (index / Math.max(1, count - 1)) * 80) % 360;
-  return `hsl(${hue}, 74%, 56%)`;
-}

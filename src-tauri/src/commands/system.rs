@@ -5,7 +5,7 @@ use super::types::{
     escape_mpv_path, get_data_dir, AppSettings,
     PlayerState,
 };
-use crate::ambient::{AmbientController, AmbientPalette, AmbientSettings};
+use crate::ambient::{AmbientController, AmbientSettings};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -114,12 +114,6 @@ pub fn get_ambient_settings(
     Ok(state.ambient_controller.get_settings())
 }
 
-#[tauri::command]
-pub fn get_ambient_palette(
-    state: State<'_, PlayerState>,
-) -> Option<AmbientPalette> {
-    state.ambient_controller.get_palette()
-}
 
 /// Мгновенное применение настроек подсветки полос (Ambient Light) на GPU без записи на диск.
 /// Обеспечивает плавный 60fps отклик при перетаскивании ползунков в интерфейсе.

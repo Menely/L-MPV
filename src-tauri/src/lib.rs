@@ -3,7 +3,6 @@
 //! Инициализирует Tauri-приложение, менеджер libmpv
 //! и регистрирует все IPC-команды для фронтенда.
 
-pub mod ambient_sampler;
 mod ambient;
 pub mod upscale;
 mod audio_capture;
@@ -273,7 +272,6 @@ pub fn run() {
             commands::analyze_subtitle_track,
             // Подсветка полос (Ambient Light)
             commands::get_ambient_settings,
-            commands::get_ambient_palette,
             commands::apply_ambient_preview,
             commands::set_ambient_settings,
             commands::toggle_ambient_mode,
@@ -380,9 +378,7 @@ pub fn run() {
                 width: 1280.0,
                 height: 720.0,
             }));
-            let state = app.state::<PlayerState>();
-            state.ambient_controller.attach_app(app.handle().clone());
-            state.ambient_controller.start_worker();
+
 
             #[cfg(target_os = "windows")]
             {
@@ -452,7 +448,6 @@ pub fn run() {
         .run(|app_handle, event| {
             if let tauri::RunEvent::ExitRequested { .. } = event {
                 let state = app_handle.state::<PlayerState>();
-                state.ambient_controller.stop_worker();
                 commands::save_current_playback_position(&state);
                 commands::save_history_to_disk();
             }

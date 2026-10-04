@@ -544,7 +544,6 @@ export function ContextMenu({
         off: dict.settings.cmenuUI.ambientOff,
         blur: dict.settings.cmenuUI.ambientBlur,
         color: dict.settings.cmenuUI.ambientColor,
-        ambilight: dict.settings.cmenuUI.ambientAmbilight,
       };
       window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdAmbient(labels[updated.mode] || updated.mode) }));
       window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: updated }));

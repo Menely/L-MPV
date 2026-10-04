@@ -22,7 +22,6 @@ import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
 import { UpdateInfo } from "./components/modals/UpdateModal";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
-import { AmbilightCanvas } from "./components/player/AmbilightCanvas";
 import { applyAccentColor } from "./utils/colorUtils";
 import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
 import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
@@ -849,7 +848,6 @@ function App() {
             off: dict.settings.cmenuUI.ambientOff,
             blur: dict.settings.cmenuUI.ambientBlur,
             color: dict.settings.cmenuUI.ambientColor,
-            ambilight: dict.settings.cmenuUI.ambientAmbilight,
           };
           triggerOsd(dict.osd.ambientMode(labels[res.mode] || res.mode), 2000);
           window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: res }));
@@ -1328,7 +1326,6 @@ function App() {
           }
         }}
       >
-        <AmbilightCanvas />
         {!hasMedia && (
           <div className="video-area__placeholder">
             <div className="video-area__placeholder-icon">

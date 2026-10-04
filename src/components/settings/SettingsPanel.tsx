@@ -720,10 +720,6 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     const updated = normalizeAmbientSettings({
       ...ambientSettingsRef.current,
       ...newSettings,
-      sample_widths: {
-        ...ambientSettingsRef.current.sample_widths,
-        ...newSettings.sample_widths,
-      },
     });
     const revision = ++ambientSaveRevisionRef.current;
     ambientSettingsRef.current = updated;

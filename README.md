@@ -193,20 +193,12 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <summary><b>🌌 Hardware Letterbox Illumination (Ambient Light / GPU Blur)</b></summary>
 
 - **Black Bar Elimination:** When video and monitor aspect ratios differ (e.g., 21:9 on 16:9, 4:3, ultra-wide), video borders are projected and blurred across letterbox and pillarbox zones using `libplacebo` shaders with zero CPU load.
-- **4 Operating Modes:**
+- **3 Operating Modes:**
   - `Off` — Classic black letterbox bars;
   - `Blur` — Real-time hardware shader blur with smooth radius adjustment (10px to 150px);
-  - `Color` — Soft fill using the player accent color (including Windows System Accent) or any custom HEX shade;
-  - `Ambilight` — Per-frame dynamic edge-color illumination inspired by Philips Ambilight (temporarily disabled).
-- **Ambilight Mode (Philips Ambilight-Inspired; temporarily disabled):**
-  - Edge colors are sampled frame-by-frame in perceptual **Oklab** color space and smoothed in two stages: a spatial kernel between adjacent segments (eliminates color banding/stepping) and temporal exponential attack/release (eliminates flicker).
-  - Accurate **5×4 patch** averaging per segment instead of single-pixel sampling, dark-scene noise suppression, and automatic vibrance boosting for desaturated colors.
-  - Rendered **strictly outside the active frame** — an analytic falloff curve tapers to zero at both the video boundary and the window edge, ensuring light never bleeds over the image or leaves harsh lines.
-  - Banding-free: Colors are interpolated in linear light with Bayer dithering applied over the 8-bit gradient.
-  - Scene-adaptive response: Sudden cuts trigger fast-attack smoothing, while static frames suspend redundant capture passes.
-  - Extensive customizability: 3–16 segments per edge, sampling depth, sampling interval, attack/release timing, segment spread/gap, brightness, and saturation.
-- **60 FPS Performance:** Instant GPU preview (`apply_ambient_preview`) without blocking disk I/O, coupled with a 400ms debounced disk save. Ambilight rendering compiles into a compact ≤ 960×540 buffer executed in a single GPU pass (~2.5–3.3 ms per frame; temporarily disabled).
-- **Quick Access:** Toggle on the fly via hotkey `B`, context menu (Right-Click), or the Settings panel.
+  - `Color` — Soft fill using the player accent color (including Windows System Accent) or any custom HEX shade.
+- **60 FPS Performance:** Instant GPU preview (`apply_ambient_preview`) without blocking disk I/O, coupled with a 400ms debounced disk save.
+- **Quick Access:** Toggle on the fly via hotkey `B` (`Off → Blur → Color → Off`), context menu (Right-Click), or the Settings panel.
 
 </details>
 
@@ -536,8 +528,7 @@ L-MPV/
 │   ├── assets/                           # Local fonts (Inter, JetBrainsMono, Manrope, Outfit, PlusJakartaSans)
 │   ├── components/                       # UI components (feature folders with barrel index.ts)
 │   │   ├── player/                       # Player shell: Titlebar, PlayerControls, Timeline,
-│   │   │                                # TimeDisplay, ContextMenu, PlaylistDrawer, AudioVisualizer,
-│   │   │                                # AmbilightCanvas + ambilightRender (illumination geometry & rasterization; temporarily disabled)
+│   │   │                                # TimeDisplay, ContextMenu, PlaylistDrawer, AudioVisualizer
 │   │   ├── modals/                       # Windows: SettingsModal, MediaInfoModal (compact info overlay with bitrate Sparkline, color space & true source bit depth),
 │   │   │                                # StandaloneMediaInfoWindow (655x685), ChaptersModal, UpdateModal, ColorPickerModal;
 │   │   │                                # mediainfo/ module (MediaInfoTabsBar, MediaInfoSectionList, useMediaInfoDragDrop)
@@ -650,8 +641,7 @@ L-MPV/
 │   │   │   ├── downloader.rs             # Asynchronous streaming downloader for DirectML/TensorRT, archive extraction
 │   │   │   ├── engine_builder.rs         # TensorRT (.engine) compiler, automatic FP32 to FP16 conversion, aji_harness & trtexec
 │   │   │   └── controller.rs             # libmpv filter management, background TensorRT engine compilation, hotkey actions
-│   │   ├── ambient.rs                    # Letterbox illumination controller (Blur / Color / Off) + Ambilight worker (temporarily disabled)
-│   │   ├── ambient_sampler.rs            # Ambilight sampler (temporarily disabled): letterbox geometry, Oklab space, patch sampling, spatial & temporal smoothing
+│   │   ├── ambient.rs                    # Letterbox illumination controller (Blur / Color / Off)
 │   │   ├── audio_capture.rs              # Low-latency WASAPI Loopback audio capture, fast Radix-2 FFT, 32 frequency bands
 │   │   ├── fonts_bundle.rs               # Self-extracting font installer, Win32 GDI registration, font enumeration IPC
 │   │   ├── mediainfo.rs                  # Dynamic FFI integration with mediainfo.dll and standalone inspection window
@@ -725,7 +715,7 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 | | Rotate Video 90° | `Alt + R` |
 | | Zoom & Pan Video | `Ctrl` + Mouse Wheel |
 | | Reset Zoom to 100% | `0` |
-| | Toggle Letterbox Illumination | `B` (cycles: Off → Blur → Color; Ambilight mode is temporarily disabled) |
+| | Toggle Letterbox Illumination | `B` (cycles: Off → Blur → Color) |
 | | Copy Current Frame to Clipboard | `Ctrl + C` |
 | | Save Lossless Screenshot (PNG) | `S` |
 | | Show Compact Video Info | `I` (bitrate with live Sparkline graph, color space, true source bit depth) — closes only via `X`, `Escape` or `I` |

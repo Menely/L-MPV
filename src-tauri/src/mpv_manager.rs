@@ -71,15 +71,6 @@ pub struct MpvRawFrame {
     pub data: Vec<u8>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct MpvOsdDimensions {
-    pub width: f64,
-    pub height: f64,
-    pub margin_top: f64,
-    pub margin_right: f64,
-    pub margin_bottom: f64,
-    pub margin_left: f64,
-}
 /// Статус сконфигурированного видеовыхода.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VideoOutputStatus {
@@ -203,78 +194,6 @@ pub fn copy_bgr0_frame(
     Ok(result)
 }
 
-pub fn copy_bgr0_samples(
-    data: &[u8],
-    width: usize,
-    height: usize,
-    stride: isize,
-    points: &[(usize, usize)],
-) -> Result<Vec<u8>, String> {
-    if width == 0 || height == 0 {
-        return Err("screenshot-raw вернул пустой кадр".to_string());
-    }
-    if stride < 0 {
-        return Err("screenshot-raw вернул отрицательный stride".to_string());
-    }
-    let source_row_bytes = width
-        .checked_mul(4)
-        .ok_or_else(|| "Переполнение размера строки screenshot-raw".to_string())?;
-    let stride_abs = stride
-        .checked_abs()
-        .ok_or_else(|| "Некорректный stride screenshot-raw".to_string())?
-        as usize;
-    if stride_abs < source_row_bytes {
-        return Err(format!(
-            "stride {} меньше BGR0 строки {}",
-            stride, source_row_bytes
-        ));
-    }
-    let required = if height == 1 {
-        source_row_bytes
-    } else {
-        (height - 1)
-            .checked_mul(stride_abs)
-            .and_then(|value| value.checked_add(source_row_bytes))
-            .ok_or_else(|| "Переполнение границ screenshot-raw".to_string())?
-    };
-    if data.len() < required {
-        return Err(format!(
-            "screenshot-raw data: {} байт, требуется {}",
-            data.len(),
-            required
-        ));
-    }
-    let capacity = points
-        .len()
-        .checked_mul(3)
-        .ok_or_else(|| "Переполнение размера BGR0 samples".to_string())?;
-    let mut result = Vec::new();
-    result
-        .try_reserve(capacity)
-        .map_err(|_| "Недостаточно памяти для BGR0 samples".to_string())?;
-    for &(x, y) in points {
-        if x >= width || y >= height {
-            return Err("Точка BGR0 sample вне границ".to_string());
-        }
-        let row_start = y
-            .checked_mul(stride_abs)
-            .ok_or_else(|| "Переполнение смещения screenshot-raw".to_string())?;
-        let source = row_start
-            .checked_add(
-                x.checked_mul(4)
-                    .ok_or_else(|| "Переполнение адреса BGR0 sample".to_string())?,
-            )
-            .ok_or_else(|| "Переполнение адреса BGR0 sample".to_string())?;
-        let end = source
-            .checked_add(3)
-            .ok_or_else(|| "Переполнение границы BGR0 sample".to_string())?;
-        if end > data.len() {
-            return Err("screenshot-raw sample вышел за границы data".to_string());
-        }
-        result.extend_from_slice(&data[source..end]);
-    }
-    Ok(result)
-}
 
 #[repr(C)]
 struct MpvHandle {
@@ -883,16 +802,6 @@ impl MpvManager {
         }
     }
 
-    unsafe fn node_number(node: &MpvNode) -> Option<f64> {
-        match node.format {
-            MpvFormat::Int64 => Some(node.u.int64 as f64),
-            MpvFormat::Double => {
-                let value = node.u.double_;
-                value.is_finite().then_some(value)
-            }
-            _ => None,
-        }
-    }
 
     unsafe fn node_string(node: &MpvNode) -> Option<String> {
         if node.format == MpvFormat::String && !node.u.string.is_null() {
@@ -1073,92 +982,6 @@ impl MpvManager {
         })
     }
 
-    pub fn screenshot_raw_samples<F>(&self, plan: F) -> Result<Vec<u8>, String>
-    where
-        F: FnOnce(usize, usize) -> Result<Vec<(usize, usize)>, String>,
-    {
-        self.with_screenshot_raw(|bytes, width, height, stride| {
-            let points = plan(width, height)?;
-            copy_bgr0_samples(bytes, width, height, stride, &points)
-        })
-    }
-
-    pub fn get_osd_dimensions(&self) -> Result<Option<MpvOsdDimensions>, String> {
-        self.with_handle(|handle| unsafe {
-            let name = CString::new("osd-dimensions")
-                .map_err(|error| format!("Ошибка CString: {}", error))?;
-            let mut root = std::mem::zeroed::<MpvNode>();
-            let error = (self.api.get_property)(
-                handle,
-                name.as_ptr(),
-                MpvFormat::Node,
-                &mut root as *mut MpvNode as *mut c_void,
-            );
-            if error < 0 {
-                return Ok(None);
-            }
-            let guard = MpvNodeResultGuard {
-                api: &self.api,
-                node: &mut root,
-            };
-            if root.format != MpvFormat::NodeMap || root.u.list.is_null() {
-                return Ok(None);
-            }
-            let list = &*root.u.list;
-            if list.num < 0 || list.num > 1_000_000 || list.keys.is_null() || list.values.is_null()
-            {
-                return Ok(None);
-            }
-            let mut width = None;
-            let mut height = None;
-            let mut margin_top = None;
-            let mut margin_right = None;
-            let mut margin_bottom = None;
-            let mut margin_left = None;
-            for index in 0..list.num as usize {
-                let key_ptr = *list.keys.add(index);
-                let value = &*list.values.add(index);
-                if key_ptr.is_null() {
-                    continue;
-                }
-                let key = CStr::from_ptr(key_ptr).to_bytes();
-                match key {
-                    b"w" | b"width" => width = Self::node_number(value),
-                    b"h" | b"height" => height = Self::node_number(value),
-                    b"mt" => margin_top = Self::node_number(value),
-                    b"mr" => margin_right = Self::node_number(value),
-                    b"mb" => margin_bottom = Self::node_number(value),
-                    b"ml" => margin_left = Self::node_number(value),
-                    _ => {}
-                }
-            }
-            let result = match (margin_top, margin_right, margin_bottom, margin_left) {
-                (Some(margin_top), Some(margin_right), Some(margin_bottom), Some(margin_left))
-                    if [margin_top, margin_right, margin_bottom, margin_left]
-                        .iter()
-                        .all(|value| value.is_finite())
-                        && width
-                            .map(|value| value.is_finite() && value > 0.0)
-                            .unwrap_or(true)
-                        && height
-                            .map(|value| value.is_finite() && value > 0.0)
-                            .unwrap_or(true) =>
-                {
-                    Some(MpvOsdDimensions {
-                        width: width.unwrap_or(0.0),
-                        height: height.unwrap_or(0.0),
-                        margin_top,
-                        margin_right,
-                        margin_bottom,
-                        margin_left,
-                    })
-                }
-                _ => None,
-            };
-            drop(guard);
-            Ok(result)
-        })
-    }
 
     pub fn video_output_status_for(
         &self,
@@ -1196,92 +1019,6 @@ impl MpvManager {
         })
     }
 
-    pub fn get_ambient_geometry(
-        &self,
-    ) -> Result<Option<crate::ambient_sampler::AmbientGeometry>, String> {
-        let osd_dimensions = self.get_osd_dimensions().unwrap_or(None);
-        let mut osd_width = osd_dimensions.map(|value| value.width).unwrap_or(0.0);
-        let mut osd_height = osd_dimensions.map(|value| value.height).unwrap_or(0.0);
-        if osd_width <= 0.0 || !osd_width.is_finite() {
-            osd_width = self.get_property_double("osd-width").unwrap_or(0.0);
-        }
-        if osd_height <= 0.0 || !osd_height.is_finite() {
-            osd_height = self.get_property_double("osd-height").unwrap_or(0.0);
-        }
-        let video_width = self
-            .get_property_double("video-out-params/dw")
-            .ok()
-            .filter(|value| value.is_finite() && *value > 0.0)
-            .or_else(|| {
-                self.get_property_double("video-params/dw")
-                    .ok()
-                    .filter(|value| value.is_finite() && *value > 0.0)
-            })
-            .or_else(|| {
-                self.get_property_double("width")
-                    .ok()
-                    .filter(|value| value.is_finite() && *value > 0.0)
-            })
-            .unwrap_or(0.0);
-        let video_height = self
-            .get_property_double("video-out-params/dh")
-            .ok()
-            .filter(|value| value.is_finite() && *value > 0.0)
-            .or_else(|| {
-                self.get_property_double("video-params/dh")
-                    .ok()
-                    .filter(|value| value.is_finite() && *value > 0.0)
-            })
-            .or_else(|| {
-                self.get_property_double("height")
-                    .ok()
-                    .filter(|value| value.is_finite() && *value > 0.0)
-            })
-            .unwrap_or(0.0);
-        if video_width <= 0.0 || video_height <= 0.0 {
-            return Ok(None);
-        }
-        if osd_width <= 0.0 || !osd_width.is_finite() {
-            osd_width = video_width;
-        }
-        if osd_height <= 0.0 || !osd_height.is_finite() {
-            osd_height = video_height;
-        }
-        let mut rect = None;
-        if let Some(dimensions) = osd_dimensions {
-            let x = dimensions.margin_left;
-            let y = dimensions.margin_top;
-            let width = osd_width - x - dimensions.margin_right;
-            let height = osd_height - y - dimensions.margin_bottom;
-            if width > 0.0 && height > 0.0 {
-                rect = crate::ambient_sampler::RectF::new(
-                    x as f32,
-                    y as f32,
-                    width as f32,
-                    height as f32,
-                );
-            }
-        }
-        if rect.is_none() {
-            let scale = (osd_width / video_width).min(osd_height / video_height);
-            let width = video_width * scale;
-            let height = video_height * scale;
-            rect = crate::ambient_sampler::RectF::new(
-                ((osd_width - width) * 0.5) as f32,
-                ((osd_height - height) * 0.5) as f32,
-                width as f32,
-                height as f32,
-            );
-        }
-        let Some(video_rect) = rect else {
-            return Ok(None);
-        };
-        Ok(crate::ambient_sampler::AmbientGeometry::new(
-            osd_width as f32,
-            osd_height as f32,
-            video_rect,
-        ))
-    }
 
     pub fn command(&self, cmd: &str) -> Result<(), String> {
         self.with_handle(|handle| {
@@ -2104,17 +1841,6 @@ mod tests {
             9, 10, 11, 12, 13, 14, 15, 16, 90, 91, 1, 2, 3, 4, 5, 6, 7, 8, 92, 93,
         ];
         assert!(copy_bgr0_frame(&data, 2, 2, -10).is_err());
-        assert!(copy_bgr0_samples(&data, 2, 2, -10, &[(0, 0)]).is_err());
-    }
-
-    #[test]
-    fn copy_bgr0_samples_reads_only_requested_pixels() {
-        let data = vec![
-            1, 2, 3, 4, 5, 6, 7, 8, 90, 91, 9, 10, 11, 12, 13, 14, 15, 16, 92, 93,
-        ];
-        let result = copy_bgr0_samples(&data, 2, 2, 10, &[(1, 1), (0, 0)]).unwrap();
-        assert_eq!(result, vec![13, 14, 15, 1, 2, 3]);
-        assert!(copy_bgr0_samples(&data, 2, 2, 10, &[(2, 0)]).is_err());
     }
 
     #[test]

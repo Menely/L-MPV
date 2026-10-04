@@ -193,13 +193,9 @@ pub fn set_video_track(
     state: State<'_, PlayerState>,
     track_id: i64,
 ) -> Result<(), String> {
-    let result = state
+    state
         .mpv
-        .set_property_string("vid", &track_id.to_string());
-    if result.is_ok() {
-        state.ambient_controller.invalidate();
-    }
-    result
+        .set_property_string("vid", &track_id.to_string())
 }
 
 /// Получение списка всех доступных дорожек (аудио, субтитры, видео).

@@ -887,19 +887,6 @@ export function isSettingsMatchingPreset(
       if (currentAmbient.brightness !== presetAmbient.brightness) return false;
       if (currentAmbient.saturation !== presetAmbient.saturation) return false;
     }
-    if (currentAmbient.mode === "ambilight") {
-      if (currentAmbient.brightness !== presetAmbient.brightness) return false;
-      if (currentAmbient.saturation !== presetAmbient.saturation) return false;
-      if (currentAmbient.segment_count !== presetAmbient.segment_count) return false;
-      if (currentAmbient.sample_interval_ms !== presetAmbient.sample_interval_ms) return false;
-      if (currentAmbient.smoothing_attack_ms !== presetAmbient.smoothing_attack_ms) return false;
-      if (currentAmbient.smoothing_release_ms !== presetAmbient.smoothing_release_ms) return false;
-      if (Math.abs(currentAmbient.segment_spread - presetAmbient.segment_spread) > 0.01) return false;
-      if (Math.abs(currentAmbient.segment_gap - presetAmbient.segment_gap) > 0.01) return false;
-      for (const edge of ["top", "right", "bottom", "left"] as const) {
-        if (currentAmbient.sample_widths[edge] !== presetAmbient.sample_widths[edge]) return false;
-      }
-    }
   }
 
   // 12. Аудио-визуализатор
