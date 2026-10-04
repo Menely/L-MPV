@@ -21,6 +21,10 @@ fn default_debanding() -> u32 {
     40
 }
 
+fn default_50() -> u32 {
+    50
+}
+
 fn default_true() -> bool {
     true
 }
@@ -41,6 +45,8 @@ pub struct AmbientSettings {
     pub fade: u32,
     #[serde(default = "default_debanding")]
     pub debanding: u32,
+    #[serde(default = "default_50")]
+    pub softness: u32,
     #[serde(default = "default_true")]
     pub direction_top: bool,
     #[serde(default = "default_true")]
@@ -64,6 +70,7 @@ impl Default for AmbientSettings {
             spread: 100,
             fade: 100,
             debanding: 40,
+            softness: 50,
             direction_top: true,
             direction_bottom: true,
             direction_left: true,
@@ -86,6 +93,7 @@ impl AmbientSettings {
         value.spread = value.spread.clamp(10, 100);
         value.fade = value.fade.clamp(0, 100);
         value.debanding = value.debanding.clamp(0, 100);
+        value.softness = value.softness.clamp(0, 100);
         value
     }
 

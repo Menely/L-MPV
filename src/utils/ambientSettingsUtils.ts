@@ -9,6 +9,7 @@ export interface AmbientSettings {
   spread: number;
   fade: number;
   debanding: number;
+  softness: number;
   direction_top: boolean;
   direction_bottom: boolean;
   direction_left: boolean;
@@ -35,6 +36,7 @@ export interface AmbientPresetSettings {
   spread?: number;
   fade?: number;
   debanding?: number;
+  softness?: number;
   direction_top?: boolean;
   direction_bottom?: boolean;
   direction_left?: boolean;
@@ -51,6 +53,7 @@ export const DEFAULT_AMBIENT_SETTINGS: AmbientSettings = {
   spread: 100,
   fade: 100,
   debanding: 40,
+  softness: 50,
   direction_top: true,
   direction_bottom: true,
   direction_left: true,
@@ -102,6 +105,7 @@ export function normalizeAmbientSettings(value: unknown): AmbientSettings {
     spread: Math.round(clamp(readNumber(source.spread, DEFAULT_AMBIENT_SETTINGS.spread), 10, 100, DEFAULT_AMBIENT_SETTINGS.spread)),
     fade: Math.round(clamp(readNumber(source.fade, DEFAULT_AMBIENT_SETTINGS.fade), 0, 100, DEFAULT_AMBIENT_SETTINGS.fade)),
     debanding: Math.round(clamp(readNumber(source.debanding, DEFAULT_AMBIENT_SETTINGS.debanding), 0, 100, DEFAULT_AMBIENT_SETTINGS.debanding)),
+    softness: Math.round(clamp(readNumber(source.softness, DEFAULT_AMBIENT_SETTINGS.softness), 0, 100, DEFAULT_AMBIENT_SETTINGS.softness)),
     direction_top: readBoolean(source.direction_top, DEFAULT_AMBIENT_SETTINGS.direction_top),
     direction_bottom: readBoolean(source.direction_bottom, DEFAULT_AMBIENT_SETTINGS.direction_bottom),
     direction_left: readBoolean(source.direction_left, DEFAULT_AMBIENT_SETTINGS.direction_left),

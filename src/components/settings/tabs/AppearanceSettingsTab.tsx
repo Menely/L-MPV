@@ -1213,7 +1213,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                         onChange={(v) => updateAmbient({ debanding: v }, false)}
                         onReset={() => updateAmbient({ debanding: 40 }, true)}
                       />
-
                       {/* Активные направления подсветки полос */}
                       <div style={{ ...optionCardStyle, flexDirection: "column", gap: 8, padding: "10px 14px" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

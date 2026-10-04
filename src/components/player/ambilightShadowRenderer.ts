@@ -96,7 +96,7 @@ export function renderAmbilightShadowMask(
   const fadeCurve = Math.max(5, (settings.fade / 100) * 35);
   const easing = 16 / (fadeCurve * 0.64);
   const spreadRatio = Math.max(0.1, Math.min(1.0, settings.spread / 100));
-  const steps = 48; // Оптимальное число шагов: идеально гладко и <0.05мс на кадр
+  const steps = 24;
 
   // 3. Первый проход: вертикальный градиент (ось Y)
   // Строго монотонные возрастающие смещения от y=0 до y=size
@@ -257,4 +257,5 @@ export function renderAmbilightShadowMask(
   // 6. Гарантированная прозрачность зоны видеокадра
   // Полностью исключает возникновение каких-либо теней или затемнений на самом видео
   ctx.clearRect(vx1, vy1, vw, vh);
+
 }

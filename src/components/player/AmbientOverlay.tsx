@@ -148,13 +148,15 @@ export const AmbientOverlay = memo(function AmbientOverlay({
 
   // Вычисляем CSS clip-path, исключающий видеокадр из слоя дизеринга:
   // Шум накладывается ИСКЛЮЧИТЕЛЬНО на черные полосы с размытием,
-  // а область самого видеокадра остаётся 100% чистой без шума
+  // а область самого видеокадра остаётся 100% чистой без шума.
+  // Область расширена на 3% для захвата мягкой границы.
   let debandingClipPath: string | undefined = undefined;
   if (layout && layout.w > 0 && layout.h > 0) {
-    const x1 = Math.max(0, Math.min(49.9, (layout.ml / layout.w) * 100));
-    const x2 = Math.max(50.1, Math.min(100, ((layout.w - layout.mr) / layout.w) * 100));
-    const y1 = Math.max(0, Math.min(49.9, (layout.mt / layout.h) * 100));
-    const y2 = Math.max(50.1, Math.min(100, ((layout.h - layout.mb) / layout.h) * 100));
+    const expand = 3;
+    const x1 = Math.max(0, Math.min(49.9, (layout.ml / layout.w) * 100 - expand));
+    const x2 = Math.max(50.1, Math.min(100, ((layout.w - layout.mr) / layout.w) * 100 + expand));
+    const y1 = Math.max(0, Math.min(49.9, (layout.mt / layout.h) * 100 - expand));
+    const y2 = Math.max(50.1, Math.min(100, ((layout.h - layout.mb) / layout.h) * 100 + expand));
 
     if (x1 > 0.05 || y1 > 0.05 || x2 < 99.95 || y2 < 99.95) {
       debandingClipPath = `polygon(evenodd, 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, ${x1}% ${y1}%, ${x2}% ${y1}%, ${x2}% ${y2}%, ${x1}% ${y2}%, ${x1}% ${y1}%)`;
