@@ -106,6 +106,37 @@ pub async fn copy_frame_to_clipboard(
 
 // ─── Подсветка полос (Ambient Light / GPU Blur) ─────────
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AmbientLayout {
+    pub w: f64,
+    pub h: f64,
+    pub mt: f64,
+    pub mb: f64,
+    pub ml: f64,
+    pub mr: f64,
+    pub is_hdr: bool,
+}
+
+#[tauri::command]
+pub fn get_ambient_layout(state: State<'_, PlayerState>) -> Result<AmbientLayout, String> {
+    let w = state.mpv.get_property_double("osd-dimensions/w").unwrap_or(0.0);
+    let h = state.mpv.get_property_double("osd-dimensions/h").unwrap_or(0.0);
+    let mt = state.mpv.get_property_double("osd-dimensions/mt").unwrap_or(0.0);
+    let mb = state.mpv.get_property_double("osd-dimensions/mb").unwrap_or(0.0);
+    let ml = state.mpv.get_property_double("osd-dimensions/ml").unwrap_or(0.0);
+    let mr = state.mpv.get_property_double("osd-dimensions/mr").unwrap_or(0.0);
+    
+    // Определение HDR: проверка гаммы pq/hlg или цветового пространства bt.2020
+    let gamma = state.mpv.get_property_string("video-params/gamma").unwrap_or_default();
+    let is_hdr = gamma.eq_ignore_ascii_case("pq") || gamma.eq_ignore_ascii_case("hlg") || 
+                 state.mpv.get_property_string("target-colorspace-hint").unwrap_or_default() == "yes";
+                 
+    Ok(AmbientLayout {
+        w, h, mt, mb, ml, mr, is_hdr
+    })
+}
+
 /// Получение текущих настроек подсветки полос (Ambient Light) из оперативной памяти без дискового I/O.
 #[tauri::command]
 pub fn get_ambient_settings(

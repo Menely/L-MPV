@@ -407,6 +407,8 @@ export interface TranslationDict {
       ambientOffDesc: string;
       ambientBlur: string;
       ambientBlurDesc: string;
+      ambientAmbilight: string;
+      ambientAmbilightDesc: string;
       ambientColor: string;
       ambientColorDesc: string;
       ambientRadius: string;
@@ -422,6 +424,22 @@ export interface TranslationDict {
       ambientColorUseAccent: string;
       ambientColorAsTheme: (theme: string) => string;
       ambientColorCustom: string;
+
+      ambientSpread: string;
+      ambientSpreadAria: string;
+      ambientFade: string;
+      ambientFadeAria: string;
+      ambientDebanding: string;
+      ambientDebandingAria: string;
+      reset0pct: string;
+      reset40pct: string;
+      ambientDirections: string;
+      ambientDirTop: string;
+      ambientDirBottom: string;
+      ambientDirLeft: string;
+      ambientDirRight: string;
+      ambientHdrDim: string;
+      ambientHdrDimDesc: string;
     };
     presets: {
       presetsSection: string;
@@ -707,6 +725,7 @@ export interface TranslationDict {
       errRotation: (err: string) => string;
       ambientOff: string;
       ambientBlur: string;
+      ambientAmbilight: string;
       ambientColor: string;
       osdAmbient: (mode: string) => string;
       errAmbient: (err: string) => string;
@@ -752,6 +771,7 @@ export interface TranslationDict {
       ambient: string;
       ambOff: string;
       ambBlur: string;
+      ambAmbilight: string;
       ambColor: string;
       speed: string;
       speedNormal: string;

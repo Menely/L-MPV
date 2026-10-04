@@ -31,6 +31,7 @@ import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUt
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
 import { SettingsModal } from "./components/modals/SettingsModal";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
+import { AmbientOverlay } from "./components/player/AmbientOverlay";
 
 // Тяжёлые модалки грузятся лениво: в стартовый бандл не попадают,
 // парсятся только при первом открытии (dnd-kit едет вместе с настройками).
@@ -847,6 +848,7 @@ function App() {
           const labels: Record<string, string> = {
             off: dict.settings.cmenuUI.ambientOff,
             blur: dict.settings.cmenuUI.ambientBlur,
+            ambilight: dict.settings.cmenuUI.ambientAmbilight,
             color: dict.settings.cmenuUI.ambientColor,
           };
           triggerOsd(dict.osd.ambientMode(labels[res.mode] || res.mode), 2000);
@@ -1326,6 +1328,12 @@ function App() {
           }
         }}
       >
+        <AmbientOverlay
+          hasMedia={hasMedia}
+          isFullscreen={isFullscreen}
+          mediaPath={mediaInfo?.path}
+        />
+
         {!hasMedia && (
           <div className="video-area__placeholder">
             <div className="video-area__placeholder-icon">

@@ -6,10 +6,23 @@ use std::sync::{Arc, Mutex};
 #[serde(rename_all = "snake_case")]
 pub enum AmbientMode {
     Blur,
+    Ambilight,
     Color,
     #[default]
     #[serde(other)]
     Off,
+}
+
+fn default_100() -> u32 {
+    100
+}
+
+fn default_debanding() -> u32 {
+    40
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -22,10 +35,22 @@ pub struct AmbientSettings {
     pub brightness: u32,
     #[serde(default = "default_100")]
     pub saturation: u32,
-}
-
-fn default_100() -> u32 {
-    100
+    #[serde(default = "default_100")]
+    pub spread: u32,
+    #[serde(default = "default_100")]
+    pub fade: u32,
+    #[serde(default = "default_debanding")]
+    pub debanding: u32,
+    #[serde(default = "default_true")]
+    pub direction_top: bool,
+    #[serde(default = "default_true")]
+    pub direction_bottom: bool,
+    #[serde(default = "default_true")]
+    pub direction_left: bool,
+    #[serde(default = "default_true")]
+    pub direction_right: bool,
+    #[serde(default = "default_true")]
+    pub hdr_dim: bool,
 }
 
 impl Default for AmbientSettings {
@@ -36,6 +61,14 @@ impl Default for AmbientSettings {
             color: "#7fc7ff".to_string(),
             brightness: 100,
             saturation: 100,
+            spread: 100,
+            fade: 100,
+            debanding: 40,
+            direction_top: true,
+            direction_bottom: true,
+            direction_left: true,
+            direction_right: true,
+            hdr_dim: true,
         }
     }
 }
@@ -50,6 +83,9 @@ impl AmbientSettings {
             value.brightness.clamp(20, 150)
         };
         value.saturation = value.saturation.clamp(0, 150);
+        value.spread = value.spread.clamp(10, 100);
+        value.fade = value.fade.clamp(0, 100);
+        value.debanding = value.debanding.clamp(0, 100);
         value
     }
 
@@ -140,23 +176,9 @@ impl AmbientController {
             .clone()
     }
 
-    fn has_bars(mpv: &MpvManager) -> bool {
-        let video_width = mpv.get_property_double("video-params/dw").unwrap_or(0.0);
-        let video_height = mpv.get_property_double("video-params/dh").unwrap_or(0.0);
-        let osd_width = mpv.get_property_double("osd-width").unwrap_or(0.0);
-        let osd_height = mpv.get_property_double("osd-height").unwrap_or(0.0);
-        if video_width <= 0.0 || video_height <= 0.0 || osd_width <= 0.0 || osd_height <= 0.0 {
-            return true;
-        }
-        ((video_width / video_height) - (osd_width / osd_height)).abs() > 0.02
-    }
-
     pub fn apply(&self, settings: &AmbientSettings) -> Result<(), String> {
         let normalized = settings.normalized();
-        let mut effective = normalized.clone();
-        if effective.mode != AmbientMode::Off && !Self::has_bars(&self.mpv) {
-            effective.mode = AmbientMode::Off;
-        }
+        let effective = normalized.clone();
 
         let mut last_guard = self
             .last_applied
@@ -176,13 +198,18 @@ impl AmbientController {
                         .set_property_string("background-color", "#000000")?;
                 }
             }
-            AmbientMode::Blur => {
-                if mode_changed {
+            AmbientMode::Blur | AmbientMode::Ambilight => {
+                let was_blur = previous
+                    .as_ref()
+                    .map(|value| matches!(value.mode, AmbientMode::Blur | AmbientMode::Ambilight))
+                    .unwrap_or(false);
+
+                if !was_blur {
                     self.mpv.set_property_string("border-background", "blur")?;
                 }
                 let radius_changed = previous
                     .as_ref()
-                    .map(|value| mode_changed || value.blur_radius != effective.blur_radius)
+                    .map(|value| !was_blur || value.blur_radius != effective.blur_radius)
                     .unwrap_or(true);
                 if radius_changed {
                     self.mpv.set_property_string(
@@ -230,7 +257,8 @@ impl AmbientController {
     pub fn cycle_mode(current: &AmbientMode) -> AmbientMode {
         match current {
             AmbientMode::Off => AmbientMode::Blur,
-            AmbientMode::Blur => AmbientMode::Color,
+            AmbientMode::Blur => AmbientMode::Ambilight,
+            AmbientMode::Ambilight => AmbientMode::Color,
             AmbientMode::Color => AmbientMode::Off,
         }
     }
@@ -256,6 +284,10 @@ mod tests {
         );
         assert_eq!(
             AmbientController::cycle_mode(&AmbientMode::Blur),
+            AmbientMode::Ambilight
+        );
+        assert_eq!(
+            AmbientController::cycle_mode(&AmbientMode::Ambilight),
             AmbientMode::Color
         );
         assert_eq!(
@@ -270,11 +302,13 @@ mod tests {
             blur_radius: 999,
             brightness: 500,
             saturation: 500,
+            debanding: 999,
             ..AmbientSettings::default()
         }
         .normalized();
         assert_eq!(settings.blur_radius, 150);
         assert_eq!(settings.brightness, 150);
         assert_eq!(settings.saturation, 150);
+        assert_eq!(settings.debanding, 100);
     }
 }

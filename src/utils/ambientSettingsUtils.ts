@@ -1,4 +1,4 @@
-export type AmbientMode = "off" | "blur" | "color";
+export type AmbientMode = "off" | "blur" | "ambilight" | "color";
 
 export interface AmbientSettings {
   mode: AmbientMode;
@@ -6,6 +6,24 @@ export interface AmbientSettings {
   color: string;
   brightness: number;
   saturation: number;
+  spread: number;
+  fade: number;
+  debanding: number;
+  direction_top: boolean;
+  direction_bottom: boolean;
+  direction_left: boolean;
+  direction_right: boolean;
+  hdr_dim: boolean;
+}
+
+export interface AmbientLayout {
+  w: number;
+  h: number;
+  mt: number;
+  mb: number;
+  ml: number;
+  mr: number;
+  isHdr: boolean;
 }
 
 export interface AmbientPresetSettings {
@@ -14,6 +32,14 @@ export interface AmbientPresetSettings {
   color: string;
   brightness?: number;
   saturation?: number;
+  spread?: number;
+  fade?: number;
+  debanding?: number;
+  direction_top?: boolean;
+  direction_bottom?: boolean;
+  direction_left?: boolean;
+  direction_right?: boolean;
+  hdr_dim?: boolean;
 }
 
 export const DEFAULT_AMBIENT_SETTINGS: AmbientSettings = {
@@ -22,6 +48,14 @@ export const DEFAULT_AMBIENT_SETTINGS: AmbientSettings = {
   color: "#7fc7ff",
   brightness: 100,
   saturation: 100,
+  spread: 100,
+  fade: 100,
+  debanding: 40,
+  direction_top: true,
+  direction_bottom: true,
+  direction_left: true,
+  direction_right: true,
+  hdr_dim: true,
 };
 
 function clamp(value: number, min: number, max: number, fallback: number): number {
@@ -32,8 +66,14 @@ function readNumber(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function readBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
 function readMode(value: unknown): AmbientMode {
-  return value === "blur" || value === "color" ? value : "off";
+  return value === "blur" || value === "ambilight" || value === "color"
+    ? value
+    : "off";
 }
 
 function readColor(value: unknown): string {
@@ -59,5 +99,13 @@ export function normalizeAmbientSettings(value: unknown): AmbientSettings {
     color: readColor(source.color),
     brightness: brightness === 0 ? DEFAULT_AMBIENT_SETTINGS.brightness : Math.round(clamp(brightness, 20, 150, DEFAULT_AMBIENT_SETTINGS.brightness)),
     saturation: Math.round(clamp(readNumber(source.saturation, DEFAULT_AMBIENT_SETTINGS.saturation), 0, 150, DEFAULT_AMBIENT_SETTINGS.saturation)),
+    spread: Math.round(clamp(readNumber(source.spread, DEFAULT_AMBIENT_SETTINGS.spread), 10, 100, DEFAULT_AMBIENT_SETTINGS.spread)),
+    fade: Math.round(clamp(readNumber(source.fade, DEFAULT_AMBIENT_SETTINGS.fade), 0, 100, DEFAULT_AMBIENT_SETTINGS.fade)),
+    debanding: Math.round(clamp(readNumber(source.debanding, DEFAULT_AMBIENT_SETTINGS.debanding), 0, 100, DEFAULT_AMBIENT_SETTINGS.debanding)),
+    direction_top: readBoolean(source.direction_top, DEFAULT_AMBIENT_SETTINGS.direction_top),
+    direction_bottom: readBoolean(source.direction_bottom, DEFAULT_AMBIENT_SETTINGS.direction_bottom),
+    direction_left: readBoolean(source.direction_left, DEFAULT_AMBIENT_SETTINGS.direction_left),
+    direction_right: readBoolean(source.direction_right, DEFAULT_AMBIENT_SETTINGS.direction_right),
+    hdr_dim: readBoolean(source.hdr_dim, DEFAULT_AMBIENT_SETTINGS.hdr_dim),
   };
 }

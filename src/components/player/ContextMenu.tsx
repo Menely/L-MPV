@@ -543,6 +543,7 @@ export function ContextMenu({
       const labels: Record<AmbientMode, string> = {
         off: dict.settings.cmenuUI.ambientOff,
         blur: dict.settings.cmenuUI.ambientBlur,
+        ambilight: dict.settings.cmenuUI.ambientAmbilight,
         color: dict.settings.cmenuUI.ambientColor,
       };
       window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdAmbient(labels[updated.mode] || updated.mode) }));
@@ -772,9 +773,9 @@ export function ContextMenu({
         children: [
           { type: "item", label: dict.settings.cmenuUI.ambOff, active: ambientMode === "off", action: () => handleSetAmbientMode("off") },
           { type: "item", label: dict.settings.cmenuUI.ambBlur, active: ambientMode === "blur", action: () => handleSetAmbientMode("blur") },
+          { type: "item", label: dict.settings.cmenuUI.ambAmbilight, active: ambientMode === "ambilight", action: () => handleSetAmbientMode("ambilight") },
           { type: "item", label: dict.settings.cmenuUI.ambColor, active: ambientMode === "color", action: () => handleSetAmbientMode("color") },
         ],
-
       }),
       speed: () => ({
         type: "submenu", icon: STATIC_ICONS.speed, label: dict.settings.cmenuUI.speed,

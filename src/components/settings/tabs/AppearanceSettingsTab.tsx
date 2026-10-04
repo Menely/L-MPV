@@ -1064,11 +1064,11 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 title={dict.settings.appearance.ambientSection}
               >
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-                  {/* Переключатель режимов */}
+                  {/* Переключатель режимов: Выкл, Ambient, AmbiLight, Цветной фон */}
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
                       gap: 8,
                       padding: 4,
                       background: "rgba(255, 255, 255, 0.03)",
@@ -1079,6 +1079,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     {[
                       { id: "off", label: dict.settings.appearance.ambientOff },
                       { id: "blur", label: dict.settings.appearance.ambientBlur },
+                      { id: "ambilight", label: dict.settings.appearance.ambientAmbilight },
                       { id: "color", label: dict.settings.appearance.ambientColor },
                     ].map((item) => {
                       const isSel = ambientSettings.mode === item.id;
@@ -1092,7 +1093,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             alignItems: "center",
                             justifyContent: "center",
                             gap: 3,
-                            padding: "10px 6px",
+                            padding: "10px 4px",
                             borderRadius: "var(--radius-sm)",
                             border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                             cursor: "pointer",
@@ -1104,14 +1105,14 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                           }}
                         >
-                          <span style={{ fontSize: "0.82rem", fontWeight: 600 }}>{item.label}</span>
+                          <span style={{ fontSize: "0.80rem", fontWeight: 600 }}>{item.label}</span>
                         </button>
                       );
                     })}
                   </div>
 
-                  {/* Настройка радиуса размытия (только для режима blur) */}
-                  {ambientSettings.mode === "blur" && (() => {
+                  {/* Настройка радиуса размытия (для классического Ambient и прокачанного AmbiLight) */}
+                  {(ambientSettings.mode === "blur" || ambientSettings.mode === "ambilight") && (() => {
                     const bMin = 5;
                     const bMax = 150;
                     const bDef = 100;
@@ -1166,6 +1167,117 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                       </div>
                     );
                   })()}
+
+                  {/* Дополнительные кинематографичные параметры AmbiLight (Spread, Fade, Edge Shadow, Directions, HDR) */}
+                  {ambientSettings.mode === "ambilight" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <AmbientTuneRow
+                        icon={<SlidersHorizontal size={15} />}
+                        label={dict.settings.appearance.ambientSpread}
+                        value={ambientSettings.spread ?? 100}
+                        min={10}
+                        max={100}
+                        step={5}
+                        def={100}
+                        unit="%"
+                        resetTitle={dict.settings.appearance.reset100pct}
+                        ariaLabel={dict.settings.appearance.ambientSpreadAria}
+                        onChange={(v) => updateAmbient({ spread: v }, false)}
+                        onReset={() => updateAmbient({ spread: 100 }, true)}
+                      />
+                      <AmbientTuneRow
+                        icon={<Sparkles size={15} />}
+                        label={dict.settings.appearance.ambientFade}
+                        value={ambientSettings.fade ?? 100}
+                        min={0}
+                        max={100}
+                        step={5}
+                        def={100}
+                        unit="%"
+                        resetTitle={dict.settings.appearance.reset100pct}
+                        ariaLabel={dict.settings.appearance.ambientFadeAria}
+                        onChange={(v) => updateAmbient({ fade: v }, false)}
+                        onReset={() => updateAmbient({ fade: 100 }, true)}
+                      />
+                      <AmbientTuneRow
+                        icon={<Sparkles size={15} />}
+                        label={dict.settings.appearance.ambientDebanding}
+                        value={ambientSettings.debanding ?? 40}
+                        min={0}
+                        max={100}
+                        step={5}
+                        def={40}
+                        unit="%"
+                        resetTitle={dict.settings.appearance.reset40pct}
+                        ariaLabel={dict.settings.appearance.ambientDebandingAria}
+                        onChange={(v) => updateAmbient({ debanding: v }, false)}
+                        onReset={() => updateAmbient({ debanding: 40 }, true)}
+                      />
+
+                      {/* Активные направления подсветки полос */}
+                      <div style={{ ...optionCardStyle, flexDirection: "column", gap: 8, padding: "10px 14px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                            {dict.settings.appearance.ambientDirections}
+                          </span>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+                          {[
+                            { key: "direction_top", label: dict.settings.appearance.ambientDirTop, val: ambientSettings.direction_top },
+                            { key: "direction_bottom", label: dict.settings.appearance.ambientDirBottom, val: ambientSettings.direction_bottom },
+                            { key: "direction_left", label: dict.settings.appearance.ambientDirLeft, val: ambientSettings.direction_left },
+                            { key: "direction_right", label: dict.settings.appearance.ambientDirRight, val: ambientSettings.direction_right },
+                          ].map((dir) => (
+                            <button
+                              key={dir.key}
+                              type="button"
+                              onClick={() => updateAmbient({ [dir.key]: !dir.val }, true)}
+                              style={{
+                                padding: "6px 10px",
+                                borderRadius: "var(--radius-sm)",
+                                fontSize: "0.78rem",
+                                fontWeight: 600,
+                                border: dir.val ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.08)",
+                                background: dir.val ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "transparent",
+                                color: dir.val ? "var(--text-primary)" : "var(--text-muted)",
+                                cursor: "pointer",
+                                transition: "all var(--t-fast) var(--ease-smooth)",
+                              }}
+                            >
+                              {dir.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Комфортный режим для HDR */}
+                      <label
+                        style={{
+                          ...optionCardStyle,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 14px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                            {dict.settings.appearance.ambientHdrDim}
+                          </span>
+                          <span style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
+                            {dict.settings.appearance.ambientHdrDimDesc}
+                          </span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={ambientSettings.hdr_dim}
+                          onChange={(e) => updateAmbient({ hdr_dim: e.target.checked }, true)}
+                          style={{ cursor: "pointer", width: 16, height: 16, accentColor: "var(--accent)" }}
+                        />
+                      </label>
+                    </div>
+                  )}
 
                   {/* Яркость/насыщенность (режим color) */}
                   {ambientSettings.mode === "color" && (

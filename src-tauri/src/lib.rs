@@ -271,6 +271,7 @@ pub fn run() {
             commands::get_active_subtitle_lines,
             commands::analyze_subtitle_track,
             // Подсветка полос (Ambient Light)
+            commands::get_ambient_layout,
             commands::get_ambient_settings,
             commands::apply_ambient_preview,
             commands::set_ambient_settings,
