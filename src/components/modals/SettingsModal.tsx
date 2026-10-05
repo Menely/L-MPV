@@ -70,6 +70,7 @@ import {
   normalizeAmbientSettings,
 } from "../../utils/ambientSettingsUtils";
 import type { AmbientSettings } from "../../utils/ambientSettingsUtils";
+import { getSavedSeekStepSeconds } from "../../utils/seekUtils";
 import { UpdateInfo } from "./UpdateModal";
 import { getEffectiveAccentColor } from "../../utils/colorUtils";
 import { PresetsSection } from "../settings/sections/PresetsSection";
@@ -156,6 +157,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [appVersion, setAppVersion] = useState<string>("2.6.1");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
+  const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => localStorage.getItem('l-mpv-hide-controls-upper-half') === 'true');
     const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
@@ -307,7 +309,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     if (typeof data.saveTracksToVideoDir === "boolean") setSaveTracksToVideoDir(data.saveTracksToVideoDir);
     if (typeof data.hotloadEnabled === "boolean") setHotloadEnabled(data.hotloadEnabled);
     if (typeof data.skipOpeningSeconds === "number") setSkipOpeningSeconds(data.skipOpeningSeconds);
-      }, []);
+    if (typeof data.seekStepSeconds === "number") setSeekStepSeconds(data.seekStepSeconds);
+  }, []);
 
           
   const [ambientSettings, setAmbientSettings] = useState<AmbientSettings>(() =>
@@ -358,6 +361,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       setTimeFormat(getSavedTimeFormat());
       setControlBarStyle(getSavedControlBarStyle());
       setSubtitlesAvoidUi(localStorage.getItem('l-mpv-subtitles-avoid-ui') === 'true');
+      setSeekStepSeconds(getSavedSeekStepSeconds());
     };
     window.addEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
     window.addEventListener("l-mpv-ui-scale-changed", handleScaleChanged);
@@ -823,6 +827,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               ambientSettings={ambientSettings} updateAmbient={updateAmbient}
               visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons}
               skipOpeningSeconds={skipOpeningSeconds} setSkipOpeningSeconds={setSkipOpeningSeconds}
+              seekStepSeconds={seekStepSeconds} setSeekStepSeconds={setSeekStepSeconds}
               animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
               openSections={openSections} onToggleSection={toggleSection}
               getEffectiveAccentColor={getEffectiveAccentColor}

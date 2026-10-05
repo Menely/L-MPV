@@ -14,6 +14,7 @@ import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESE
 import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
 import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
 import { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
+import { saveSeekStepSeconds } from "../../../utils/seekUtils";
 import type { AmbientMode } from "../../../utils/ambientSettingsUtils";
 import type { AmbientSettings } from "../../modals/SettingsModal";
 
@@ -47,6 +48,8 @@ interface AppearanceSettingsTabProps {
   setVisibleButtons: (v: Record<string, boolean>) => void;
   skipOpeningSeconds: number;
   setSkipOpeningSeconds: (v: number) => void;
+  seekStepSeconds: number;
+  setSeekStepSeconds: (v: number) => void;
   animationsEnabled: boolean;
   setAnimationsEnabled: (v: boolean) => void;
   openSections: Record<string, boolean>;
@@ -70,6 +73,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
     ambientSettings, updateAmbient,
     visibleButtons, setVisibleButtons,
     skipOpeningSeconds, setSkipOpeningSeconds,
+    seekStepSeconds, setSeekStepSeconds,
     animationsEnabled, setAnimationsEnabled,
     openSections, onToggleSection: toggleSection,
     getEffectiveAccentColor
@@ -952,10 +956,14 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                   <ControlButtonsPreviewCard
                     visibleButtons={visibleButtons}
                     skipOpeningSeconds={skipOpeningSeconds}
+                    seekStepSeconds={seekStepSeconds}
                   />
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", columnGap: 20, rowGap: 8, marginTop: 12 }}>
+
+                {/* Единая аккуратная адаптивная сетка кнопок управления */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", columnGap: 16, rowGap: 10, marginTop: 12 }}>
                   {[
+                    { id: 'seekButtons', label: dict.settings.appearance.visSeekButtons, defaultChecked: true },
                     { id: 'repeat', label: dict.settings.appearance.visRepeat, defaultChecked: true },
                     { id: 'shuffle', label: dict.settings.appearance.visShuffle, defaultChecked: true },
                     { id: 'alwaysOnTop', label: dict.settings.appearance.visAlwaysOnTop, defaultChecked: true },
@@ -970,23 +978,19 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     const isChecked = visibleButtons[btn.id] !== undefined 
                       ? visibleButtons[btn.id]
                       : btn.defaultChecked;
-                    const isWideSkipRow = btn.id === "skipOpening" && isChecked;
                     return (
                       <label
                         key={btn.id}
                         style={{
-                          display: "flex",
+                          display: "inline-flex",
                           alignItems: "center",
                           gap: 8,
                           minHeight: 24,
                           height: "auto",
                           minWidth: 0,
-                          flexWrap: "wrap",
-                          rowGap: 4,
                           cursor: "pointer",
                           userSelect: "none",
                           boxSizing: "border-box",
-                          ...(isWideSkipRow ? { gridColumn: "1 / -1" } : {}),
                         }}
                       >
                         <input
@@ -1001,19 +1005,84 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             window.dispatchEvent(new Event('l-mpv-settings-changed'));
                           }}
                         />
-                        <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500, lineHeight: 1.2, minWidth: 0, whiteSpace: "normal" }}>
+                        <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", fontWeight: 500, lineHeight: 1.2, minWidth: 0, whiteSpace: "nowrap" }}>
                           {btn.label}
                         </span>
-                        {btn.id === 'skipOpening' && isChecked && (
+                        {btn.id === 'seekButtons' && (
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 4, height: 20, flexShrink: 0, whiteSpace: "nowrap" }}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              marginLeft: 2,
+                              height: 20,
+                              flexShrink: 0,
+                              whiteSpace: "nowrap",
+                              opacity: isChecked ? 1 : 0.4,
+                              transition: "opacity var(--t-fast) var(--ease-smooth)",
+                            }}
+                          >
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              className="no-spin-input"
+                              value={seekStepSeconds}
+                              disabled={!isChecked}
+                              onChange={(e) => {
+                                const rawVal = e.target.value.replace(/\D/g, "");
+                                const num = rawVal === "" ? 0 : Number(rawVal);
+                                const val = num > 300 ? 300 : num;
+                                setSeekStepSeconds(val);
+                                if (val > 0) saveSeekStepSeconds(val);
+                              }}
+                              onBlur={() => {
+                                if (seekStepSeconds <= 0) {
+                                  setSeekStepSeconds(10);
+                                  saveSeekStepSeconds(10);
+                                }
+                              }}
+                              style={{
+                                width: 38,
+                                height: 20,
+                                padding: "0 2px",
+                                background: "rgba(0, 0, 0, 0.4)",
+                                border: "1px solid var(--border)",
+                                borderRadius: "var(--radius-sm)",
+                                color: "var(--text-primary)",
+                                fontSize: "0.78rem",
+                                textAlign: "center",
+                                fontWeight: 600,
+                                boxSizing: "border-box",
+                                outline: "none",
+                              }}
+                            />
+                            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1, whiteSpace: "nowrap" }}>
+                              {dict.settings.appearance.secSuffix}
+                            </span>
+                          </div>
+                        )}
+                        {btn.id === 'skipOpening' && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              marginLeft: 2,
+                              height: 20,
+                              flexShrink: 0,
+                              whiteSpace: "nowrap",
+                              opacity: isChecked ? 1 : 0.4,
+                              transition: "opacity var(--t-fast) var(--ease-smooth)",
+                            }}
                           >
                             <input
                               type="text"
                               inputMode="numeric"
                               className="no-spin-input"
                               value={skipOpeningSeconds}
+                              disabled={!isChecked}
                               onChange={(e) => {
                                 const rawVal = e.target.value.replace(/\D/g, "");
                                 const num = rawVal === "" ? 0 : Number(rawVal);
@@ -1032,7 +1101,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 }
                               }}
                               style={{
-                                width: 44,
+                                width: 38,
                                 height: 20,
                                 padding: "0 2px",
                                 background: "rgba(0, 0, 0, 0.4)",
@@ -1042,12 +1111,13 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 fontSize: "0.78rem",
                                 textAlign: "center",
                                 fontWeight: 600,
-                                 boxSizing: "border-box",
-                                 outline: "none",
-                                 flexShrink: 0
+                                boxSizing: "border-box",
+                                outline: "none",
                               }}
                             />
-                             <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1, flexShrink: 0, whiteSpace: "nowrap" }}>{dict.settings.appearance.secSuffix}</span>
+                            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1, whiteSpace: "nowrap" }}>
+                              {dict.settings.appearance.secSuffix}
+                            </span>
                           </div>
                         )}
                       </label>

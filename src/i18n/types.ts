@@ -267,6 +267,8 @@ export interface TranslationDict {
       };
       controlButtons: {
         openingSkip: (sec: number) => string;
+        seekBack: (sec: number) => string;
+        seekForward: (sec: number) => string;
         alwaysOnTop: string;
         fileInfo: string;
         mediaInfo: string;
@@ -390,6 +392,7 @@ export interface TranslationDict {
       animationsDesc1: string;
       animationsDesc2: string;
       visibilitySection: string;
+      visSeekButtons: string;
       visRepeat: string;
       visShuffle: string;
       visAlwaysOnTop: string;

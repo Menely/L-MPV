@@ -118,6 +118,7 @@ function getUiScale(): number {
 
 /** Список переключаемых кнопок нижней панели управления. */
 const CONTROL_BUTTON_ITEMS = [
+  { id: "seekButtons", defaultChecked: true },
   { id: "repeat", defaultChecked: true },
   { id: "shuffle", defaultChecked: true },
   { id: "alwaysOnTop", defaultChecked: true },
@@ -926,6 +927,7 @@ export function ContextMenu({
         label: dict.settings.cmenuUI.controlBtns,
         children: CONTROL_BUTTON_ITEMS.map((btn) => {
           const btnLabelMap: Record<string, string> = {
+            seekButtons: dict.settings.appearance.visSeekButtons,
             repeat: dict.settings.cmenuUI.repeat,
             shuffle: dict.settings.cmenuUI.shuffle,
             alwaysOnTop: dict.settings.cmenuUI.alwaysOnTop,

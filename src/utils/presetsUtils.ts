@@ -56,6 +56,7 @@ import {
 import type { AmbientPresetSettings } from "./ambientSettingsUtils";
 import { normalizeAmbientSettings } from "./ambientSettingsUtils";
 import { getEffectiveLocale, saveLocale, type Locale } from "../i18n/index";
+import { getSavedSeekStepSeconds, saveSeekStepSeconds } from "./seekUtils";
 
 export interface SettingsPresetData {
   /** Тема оформления плеера (расцветка фона и поверхностей) */
@@ -103,6 +104,8 @@ export interface SettingsPresetData {
   hotloadEnabled: boolean;
   /** Количество секунд пропуска опенинга */
   skipOpeningSeconds: number;
+  /** Количество секунд шага перемотки (стрелки / кнопки) */
+  seekStepSeconds?: number;
   /** Пользовательские горячие клавиши */
   customHotkeys?: Record<string, string[]>;
 }
@@ -155,6 +158,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         playlist: true,
         fullscreen: true,
         skipOpening: false,
+        seekButtons: true,
       },
       ambient: {
         mode: "blur",
@@ -171,6 +175,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       saveTracksToVideoDir: true,
       hotloadEnabled: false,
       skipOpeningSeconds: 90,
+      seekStepSeconds: 10,
     },
   },
   {
@@ -198,6 +203,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         playlist: true,
         fullscreen: true,
         skipOpening: true,
+        seekButtons: true,
       },
       ambient: {
         mode: "color",
@@ -214,6 +220,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       saveTracksToVideoDir: true,
       hotloadEnabled: true,
       skipOpeningSeconds: 90,
+      seekStepSeconds: 10,
     },
   },
   {
@@ -241,6 +248,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         playlist: true,
         fullscreen: true,
         skipOpening: false,
+        seekButtons: true,
       },
       ambient: {
         mode: "blur",
@@ -257,6 +265,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       saveTracksToVideoDir: false,
       hotloadEnabled: false,
       skipOpeningSeconds: 90,
+      seekStepSeconds: 10,
     },
   },
   {
@@ -284,6 +293,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         playlist: true,
         fullscreen: true,
         skipOpening: false,
+        seekButtons: true,
       },
       ambient: {
         mode: "off",
@@ -300,6 +310,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       saveTracksToVideoDir: true,
       hotloadEnabled: false,
       skipOpeningSeconds: 90,
+      seekStepSeconds: 10,
     },
   },
 ];
@@ -325,6 +336,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
     playlist: true,
     fullscreen: true,
     skipOpening: false,
+    seekButtons: true,
   };
   try {
     const rawBtns = localStorage.getItem("l-mpv-visible-buttons");
@@ -355,6 +367,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
   const saveTracksToVideoDir = localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false";
   const hotloadEnabled = localStorage.getItem("l-mpv-hotload-enabled") === "true";
   const skipOpeningSeconds = Number(localStorage.getItem("l-mpv-skip-opening-seconds") || 90);
+  const seekStepSeconds = getSavedSeekStepSeconds();
   const customHotkeys = getCustomHotkeys();
   const uiRadius = getSavedUiRadius();
   const uiScale = getSavedUiScale();
@@ -388,6 +401,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
       saveTracksToVideoDir,
       hotloadEnabled,
       skipOpeningSeconds,
+      seekStepSeconds,
       customHotkeys,
     },
   };
@@ -514,6 +528,9 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   }
   if (typeof data.skipOpeningSeconds === "number") {
     localStorage.setItem("l-mpv-skip-opening-seconds", data.skipOpeningSeconds.toString());
+  }
+  if (typeof data.seekStepSeconds === "number") {
+    saveSeekStepSeconds(data.seekStepSeconds);
   }
 
   // 11. Горячие клавиши (если сохранены в пресете)
@@ -757,6 +774,7 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
             saveTracksToVideoDir: item.data.saveTracksToVideoDir !== false,
             hotloadEnabled: item.data.hotloadEnabled === true,
             skipOpeningSeconds: typeof item.data.skipOpeningSeconds === "number" ? item.data.skipOpeningSeconds : 90,
+            seekStepSeconds: typeof item.data.seekStepSeconds === "number" ? item.data.seekStepSeconds : 10,
             customHotkeys: item.data.customHotkeys,
           },
         });
@@ -904,6 +922,7 @@ export function isSettingsMatchingPreset(
   if (Boolean(current.saveTracksToVideoDir) !== Boolean(preset.saveTracksToVideoDir)) return false;
   if (Boolean(current.hotloadEnabled) !== Boolean(preset.hotloadEnabled)) return false;
   if (Number(current.skipOpeningSeconds || 90) !== Number(preset.skipOpeningSeconds || 90)) return false;
+  if (Number(current.seekStepSeconds || 10) !== Number(preset.seekStepSeconds || 10)) return false;
 
   // 14. Горячие клавиши (если они определены в пресете)
   if (preset.customHotkeys && Object.keys(preset.customHotkeys).length > 0) {
