@@ -24,6 +24,7 @@ import {
 interface ControlButtonsPreviewCardProps {
   visibleButtons: Record<string, boolean>;
   skipOpeningSeconds: number;
+  seekStepSeconds?: number;
 }
 
 /**
@@ -33,6 +34,7 @@ interface ControlButtonsPreviewCardProps {
 export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps> = ({
   visibleButtons,
   skipOpeningSeconds,
+  seekStepSeconds = 10,
 }) => {
   const { dict } = useTranslation();
   const isBtnVisible = (id: string, def = true) => {
@@ -222,9 +224,14 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             <div title={dict.settings.appearance.controlButtons.prev} style={roundIconBtnStyle}>
               <SkipBack size={13} />
             </div>
-            <div title={dict.settings.appearance.controlButtons.minus10} style={roundIconBtnStyle}>
-              <Undo size={13} />
-            </div>
+            {isBtnVisible("seekButtons", true) && (
+              <div
+                title={dict.settings.appearance.controlButtons.seekBack?.(seekStepSeconds) || `-${seekStepSeconds}s`}
+                style={roundIconBtnStyle}
+              >
+                <Undo size={13} />
+              </div>
+            )}
 
             {/* Play/Pause */}
             <div
@@ -243,9 +250,14 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
               <Play size={16} fill="currentColor" />
             </div>
 
-            <div title={dict.settings.appearance.controlButtons.plus10} style={roundIconBtnStyle}>
-              <Redo size={13} />
-            </div>
+            {isBtnVisible("seekButtons", true) && (
+              <div
+                title={dict.settings.appearance.controlButtons.seekForward?.(seekStepSeconds) || `+${seekStepSeconds}s`}
+                style={roundIconBtnStyle}
+              >
+                <Redo size={13} />
+              </div>
+            )}
             <div title={dict.settings.appearance.controlButtons.next} style={roundIconBtnStyle}>
               <SkipForward size={13} />
             </div>

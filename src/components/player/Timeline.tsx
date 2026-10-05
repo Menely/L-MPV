@@ -5,6 +5,7 @@ import { AudioVisualizer } from "./AudioVisualizer";
 import { useLiveScrubbing } from "./useLiveScrubbing";
 import { useNeonPulse } from "./useNeonPulse";
 import { isMotionAllowed } from "../../utils/animationUtils";
+import { getSavedSeekStepSeconds, triggerSeekIndicator } from "../../utils/seekUtils";
 
 export interface TimelineSegmentData {
   start: number;
@@ -151,7 +152,14 @@ TimelinePreview.displayName = "TimelinePreview";
  * - WAI-ARIA slider + полная клавиатурная навигация.
  */
 export const Timeline = React.memo(() => {
-  const { mediaInfo, chapters, seekTo, seekBy } = usePlayerState();
+  const {
+    mediaInfo,
+    chapters,
+    seekTo,
+    seekBy,
+    togglePause,
+    prolongControlsIfActive,
+  } = usePlayerState();
   const { position, duration, seeking, seekTarget } = usePlayerProgress();
   const mediaPath = mediaInfo?.path || "";
 
@@ -289,6 +297,11 @@ export const Timeline = React.memo(() => {
       // cancel: откатываем без seek
       setMousePosition(null);
     }
+
+    // Снимаем фокус с таймлайна, чтобы он не перехватывал последующие клавиатурные команды
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
   }, [safeDuration, cancelScrub, seekTo]);
 
   const handlePointerUp = useCallback(
@@ -311,21 +324,51 @@ export const Timeline = React.memo(() => {
     if (safeDuration <= 0) return;
     e.preventDefault();
     e.stopPropagation();
+    prolongControlsIfActive();
     const step = e.shiftKey ? 1 : 5;
     seekBy(e.deltaY < 0 ? step : -step);
-  }, [safeDuration, seekBy]);
+  }, [safeDuration, seekBy, prolongControlsIfActive]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     if (safeDuration <= 0) return;
+
+    if (e.key === " " || e.key === "Spacebar") {
+      e.preventDefault();
+      e.stopPropagation();
+      prolongControlsIfActive();
+      togglePause();
+      return;
+    }
+
     const actions: Record<string, () => void> = {
-      ArrowLeft: () => seekBy(e.shiftKey ? -1 : -5),
-      ArrowRight: () => seekBy(e.shiftKey ? 1 : 5),
-      Home: () => seekTo(0),
-      End: () => seekTo(safeDuration),
+      ArrowLeft: () => {
+        prolongControlsIfActive();
+        const step = e.shiftKey ? 1 : getSavedSeekStepSeconds();
+        triggerSeekIndicator("left", step);
+        seekBy(-step);
+      },
+      ArrowRight: () => {
+        prolongControlsIfActive();
+        const step = e.shiftKey ? 1 : getSavedSeekStepSeconds();
+        triggerSeekIndicator("right", step);
+        seekBy(step);
+      },
+      Home: () => {
+        prolongControlsIfActive();
+        seekTo(0);
+      },
+      End: () => {
+        prolongControlsIfActive();
+        seekTo(safeDuration);
+      },
     };
     const action = actions[e.key];
-    if (action) { e.preventDefault(); e.stopPropagation(); action(); }
-  }, [safeDuration, seekBy, seekTo]);
+    if (action) {
+      e.preventDefault();
+      e.stopPropagation();
+      action();
+    }
+  }, [safeDuration, seekBy, seekTo, togglePause, prolongControlsIfActive]);
 
   // ─── Рендер ──────────────────────────────────────────────────
 

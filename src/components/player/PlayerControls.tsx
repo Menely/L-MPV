@@ -41,6 +41,7 @@ import {
   VisualizerConfig,
   VisualizerMode,
 } from "./AudioVisualizer";
+import { getSavedSeekStepSeconds, triggerSeekIndicator } from "../../utils/seekUtils";
 import { getCustomHotkeys } from "../../utils/hotkeyUtils";
 import {
   TimeDisplayPosition,
@@ -182,7 +183,8 @@ export function PlayerControls({
       screenshot: true,
       playlist: true,
       fullscreen: true,
-      skipOpening: false
+      skipOpening: false,
+      seekButtons: true,
     };
   });
 
@@ -191,6 +193,8 @@ export function PlayerControls({
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => {
     return Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90);
   });
+
+  const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
 
   const [hotkeys, setHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
@@ -218,6 +222,7 @@ export function PlayerControls({
       if (savedBtns) setVisibleButtons(JSON.parse(savedBtns));
       setVisualizerConfig(getVisualizerConfig());
       setSkipOpeningSeconds(Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
+      setSeekStepSeconds(getSavedSeekStepSeconds());
       setHotkeys(getCustomHotkeys());
       setTimePosition(getSavedTimePosition());
       setTimeFormat(getSavedTimeFormat());
@@ -836,13 +841,19 @@ export function PlayerControls({
               <SkipBack size={18} />
             </button>
 
-            <button
-              className="control-btn"
-              onClick={() => handleSeek(-10)}
-              id="btn-seek-back-10"
-            >
-              <Undo size={18} />
-            </button>
+            {visibleButtons.seekButtons !== false && (
+              <button
+                className="control-btn"
+                onClick={() => {
+                  handleSeek(-seekStepSeconds);
+                  triggerSeekIndicator("left", seekStepSeconds);
+                }}
+                id="btn-seek-back"
+                title={`-${seekStepSeconds}s`}
+              >
+                <Undo size={18} />
+              </button>
+            )}
 
             <button
               className="control-btn control-btn--play"
@@ -856,13 +867,19 @@ export function PlayerControls({
               )}
             </button>
 
-            <button
-              className="control-btn"
-              onClick={() => handleSeek(10)}
-              id="btn-seek-forward-10"
-            >
-              <Redo size={18} />
-            </button>
+            {visibleButtons.seekButtons !== false && (
+              <button
+                className="control-btn"
+                onClick={() => {
+                  handleSeek(seekStepSeconds);
+                  triggerSeekIndicator("right", seekStepSeconds);
+                }}
+                id="btn-seek-forward"
+                title={`+${seekStepSeconds}s`}
+              >
+                <Redo size={18} />
+              </button>
+            )}
 
             <button
               className="control-btn control-btn--priority-medium"

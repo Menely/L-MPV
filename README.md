@@ -313,6 +313,10 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Artifact-Free Instant Seeking (Anti-Flicker):** While dragging, the timeline uses lightweight `absolute+keyframes` preview seeks that skip intermediate frame decoding; a single precise `absolute+exact` seek lands on the exact frame once you release. This removes decoder overload, torn frames and UI desync on slower hardware.
 - **Pixel-Accurate Release Geometry:** The final seek position is computed from a freshly measured track rectangle (invalidated on window resize), so auto window resizing can no longer misplace the playhead.
 - **No Stray Focus Ring:** Clicking the timeline no longer leaves a green `:focus-visible` outline floating over the video; keyboard focus indication is preserved via the progress track growing from 5px to 8px.
+- **Synchronized & Customizable Seek Step:** Control bar buttons and keyboard arrow keys (`←` / `→`) share a unified seek step (default 10 seconds; customizable between 1–300 seconds in Settings).
+- **Minimalist Cinematic Seek Overlay (Seek Indicator):** Clean on-screen feedback without obtrusive bounding boxes — only bold tabular numbers (`+10 сек »` / `« -10 сек`) and vibrant accent chevrons with adaptive window edge padding and deep drop-shadows for high readability on bright and dark scenes alike.
+- **Reliable Navigation Ergonomics:** Clicking the timeline no longer steals spacebar focus (resuming/pausing video works immediately on first press), and seeking via arrow keys avoids unwanted popup of hidden controls.
+- **Pixel-Perfect Centered Floating Time:** In "Centered Over Timeline" mode, the timestamp is absolutely positioned and no longer inflates the height of the bottom control pill.
 
 </details>
 
@@ -334,6 +338,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Always on Top:** Keep the player window over other apps with hotkey `T` or the titlebar pin icon.
 - **Clean Process Lifecycle:** Zero dangling background processes — `l-mpv.exe` terminates cleanly and immediately from Windows Task Manager on exit.
 - **Video Frame Scaling & Rotation:** Scale the frame in the window three ways — *Stretch to window size* (fills the window ignoring proportions), *Fit inside window* (whole frame visible, letterbox/pillarbox bars), *Fill screen and crop frame* (fills the window, edges cropped) — plus rotation by 0°, 90°, 180°, or 270°. The active mode is read back from mpv and marked in the context menu.
+- **Hardware-Level Proportional Window Resizing (Aspect Ratio Lock):** Native interception of Win32 `WM_SIZING` messages via subclassing (`SetWindowSubclass`). The player window resizes smoothly and strictly proportionally when dragging from any of the 4 corners or 4 edges with zero stuttering or black bars. The aspect ratio automatically matches the media frame dimensions (16:9, 21:9, 4:3, 9:16 Shorts/Reels) and defaults to 16:9 when idle.
 
 </details>
 
@@ -401,7 +406,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Dynamic Smart Submenus:**
   - *"Style Presets"*: Browse user presets and pre-packaged styles with active indicators.
   - *"AI Upscaling"*: Quick toggle and instant model selector scanning `models/onnx/`.
-  - *"Control Bar Buttons"*: 10 individual visibility toggles for bottom toolbar icons.
+  - *"Control Bar Buttons"*: 11 individual visibility toggles for bottom toolbar icons (including seek buttons and anime opening skip with customizable duration in seconds).
 - **Menu Dividers (`divider`):** Insert clean separator lines anywhere to organize your menu items.
 - **Portable Storage (`config/context_menu.json`):** Custom menu layouts are stored locally in the player directory. A one-click "Reset" button restores default factory ordering at any time.
 
@@ -528,7 +533,7 @@ L-MPV/
 │   ├── assets/                           # Local fonts (Inter, JetBrainsMono, Manrope, Outfit, PlusJakartaSans)
 │   ├── components/                       # UI components (feature folders with barrel index.ts)
 │   │   ├── player/                       # Player shell: Titlebar, PlayerControls, Timeline,
-│   │   │                                # TimeDisplay, ContextMenu, PlaylistDrawer, AudioVisualizer
+│   │   │                                # TimeDisplay, ContextMenu, PlaylistDrawer, AudioVisualizer, SeekIndicator
 │   │   ├── modals/                       # Windows: SettingsModal, MediaInfoModal (compact info overlay with bitrate Sparkline, color space & true source bit depth),
 │   │   │                                # StandaloneMediaInfoWindow (655x685), ChaptersModal, UpdateModal, ColorPickerModal;
 │   │   │                                # mediainfo/ module (MediaInfoTabsBar, MediaInfoSectionList, useMediaInfoDragDrop)
@@ -603,6 +608,7 @@ L-MPV/
 │   │   │   ├── timePositionUtils.ts          # 6 time placement strategies (timeline, toolbar, floating pill, Titlebar)
 │   │   │   ├── timeFormatUtils.ts            # 4 time display formats (elapsed/total, remaining, end time, milliseconds)
 │   │   │   ├── controlBarStyleUtils.ts       # Control bar styling options ("Floating Island" and "Docked Bar")
+│   │   │   ├── seekUtils.ts                  # Customizable seek step management and SeekIndicator event bus
 │   │   │   ├── uiThemeUtils.ts               # Corner radius, scale (UI Scale), opacity (--ui-opacity/--bg-glass), and typography
 │   │   │   ├── uiSettingsSync.ts             # DOM synchronization for system CSS variables, palettes, and themes
 │   │   │   ├── colorUtils.ts                 # Color themes, gradient generators, and HSL/RGB conversion utilities
@@ -643,11 +649,14 @@ L-MPV/
 │   │   │   └── controller.rs             # libmpv filter management, background TensorRT engine compilation, hotkey actions
 │   │   ├── ambient.rs                    # Letterbox illumination controller (Blur / Color / Off)
 │   │   ├── audio_capture.rs              # Low-latency WASAPI Loopback audio capture, fast Radix-2 FFT, 32 frequency bands
+│   │   ├── audio_filter.rs               # Modular lavfi audio filter builder and validator, normalization matrix & Night DRC
 │   │   ├── fonts_bundle.rs               # Self-extracting font installer, Win32 GDI registration, font enumeration IPC
+│   │   ├── logging.rs                    # Centralized logging: local timestamps, 2 MB rotation, TensorRT log pruning
 │   │   ├── mediainfo.rs                  # Dynamic FFI integration with mediainfo.dll and standalone inspection window
 │   │   ├── mpv_manager.rs                # libmpv FFI wrapper (vo=gpu-next, WASAPI, D3D11, vf_animejanai, sinc filtering)
 │   │   ├── system_integration.rs         # Windows Explorer integration (context menu, file type associations)
-│   │   └── updater.rs                    # Background and manual self-update module
+│   │   ├── updater.rs                    # Background and manual self-update module (BLAKE3 integrity verification)
+│   │   └── window_aspect_ratio.rs        # Hardware Aspect Ratio Lock: Win32 WM_SIZING interception, 8-direction math
 │   ├── capabilities/default.json         # Tauri v2 security and permission manifest
 │   ├── icons/                            # Application icons
 │   ├── nsis/                             # NSIS installer configuration and hooks
@@ -694,8 +703,8 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 | **Playback** | Play / Pause | `Space` or Left Click on video |
 | | Repeat Mode (Loop) | `R` |
 | | Shuffle Mode | Bottom bar shuffle button |
-| **Seeking** | Seek backward / forward (5 sec) | `←` / `→` |
-| | Seek backward / forward (10 sec) | `-10` / `+10` buttons on bottom bar |
+| **Seeking** | Seek backward / forward (10 sec, customizable) | `←` / `→` |
+| | Seek buttons backward / forward (customizable) | `-10` / `+10` buttons on bottom bar |
 | | Frame step backward / forward | `,` / `.` |
 | **Audio** | Volume ±5% | `↑` / `↓` or Mouse Wheel over video |
 | | Mute / Unmute | `M` |

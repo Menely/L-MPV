@@ -20,6 +20,7 @@ import { Titlebar } from "./components/player/Titlebar";
 import { PlayerControls } from "./components/player/PlayerControls";
 import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
+import { SeekIndicator } from "./components/player/SeekIndicator";
 import { UpdateInfo } from "./components/modals/UpdateModal";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
 import { applyAccentColor } from "./utils/colorUtils";
@@ -28,6 +29,7 @@ import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
 import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
+import { getSavedSeekStepSeconds, triggerSeekIndicator } from "./utils/seekUtils";
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
 import { SettingsModal } from "./components/modals/SettingsModal";
 import { SettingsPanel } from "./components/settings/SettingsPanel";
@@ -68,6 +70,7 @@ function App() {
     cycleAudioTrack,
     cycleSubTrack,
     loadTracks,
+    prolongControlsIfActive,
   } = usePlayerState();
   
   const [contextMenu, setContextMenu] = useState<{
@@ -556,6 +559,7 @@ function App() {
     setIsPlaylistOpen,
     showSettings,
     hotkeys,
+    prolongControlsIfActive,
   });
 
   latestRef.current = {
@@ -573,6 +577,7 @@ function App() {
     setIsPlaylistOpen,
     showSettings,
     hotkeys,
+    prolongControlsIfActive,
   };
 
   const handleOpenFile = useCallback(async (filePath?: string) => {
@@ -618,6 +623,7 @@ function App() {
       isPlaylistOpen: curIsPlaylistOpen,
       setIsPlaylistOpen: curSetIsPlaylistOpen,
       showSettings: curShowSettings,
+      prolongControlsIfActive: curProlongControlsIfActive,
     } = latestRef.current;
 
     const curLocale = getEffectiveLocale();
@@ -625,6 +631,7 @@ function App() {
 
     switch (actionId) {
       case "togglePause":
+        curProlongControlsIfActive();
         if (curHasMedia) {
           try {
             await curTogglePause();
@@ -633,28 +640,45 @@ function App() {
           }
         }
         break;
-      case "seekBack":
-        await curSeekBy(-5);
+      case "seekBack": {
+        curProlongControlsIfActive();
+        const step = getSavedSeekStepSeconds();
+        triggerSeekIndicator("left", step);
+        await curSeekBy(-step);
         break;
-      case "seekForward":
-        await curSeekBy(5);
+      }
+      case "seekForward": {
+        curProlongControlsIfActive();
+        const step = getSavedSeekStepSeconds();
+        triggerSeekIndicator("right", step);
+        await curSeekBy(step);
         break;
-      case "seekBack10":
+      }
+      case "seekBack10": {
+        curProlongControlsIfActive();
+        triggerSeekIndicator("left", 10);
         await curSeekBy(-10);
         break;
-      case "seekForward10":
+      }
+      case "seekForward10": {
+        curProlongControlsIfActive();
+        triggerSeekIndicator("right", 10);
         await curSeekBy(10);
         break;
+      }
       case "skipOpening": {
+        curProlongControlsIfActive();
         const raw = localStorage.getItem('l-mpv-skip-opening-seconds');
         const seconds = Number(raw || 90);
         await curSeekBy(seconds);
         break;
       }
       case "volumeUp":
+        curProlongControlsIfActive();
         if (curMediaInfo) curSetVolume(Math.min(150, (curMediaInfo.volume ?? 100) + 5));
         break;
       case "volumeDown":
+        curProlongControlsIfActive();
         if (curMediaInfo) curSetVolume(Math.max(0, (curMediaInfo.volume ?? 100) - 5));
         break;
       case "toggleMute":
@@ -1104,11 +1128,12 @@ function App() {
       const target = e.target instanceof HTMLElement ? e.target : null;
       if (target?.closest(".color-picker-modal")) return;
 
+      const isSlider = target?.getAttribute("role") === "slider" && !target?.closest(".timeline");
       const isEditing = target instanceof HTMLInputElement
         || target instanceof HTMLTextAreaElement
         || target instanceof HTMLSelectElement
         || target?.isContentEditable
-        || target?.getAttribute("role") === "slider";
+        || isSlider;
       if (isEditing) return;
 
       const inSettings = latestRef.current.showSettings
@@ -1379,6 +1404,9 @@ function App() {
           }}
         />
       )}
+
+      {/* Всплывающий оверлей быстрой перемотки в стиле YouTube */}
+      <SeekIndicator />
 
       {contextMenu && (
         <ContextMenu

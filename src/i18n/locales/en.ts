@@ -327,6 +327,8 @@ export const en: TranslationDict = {
       },
       controlButtons: {
         openingSkip: (sec: number) => `Skip opening (+${sec}s)`,
+        seekBack: (sec: number) => `Seek backward (-${sec}s)`,
+        seekForward: (sec: number) => `Seek forward (+${sec}s)`,
         alwaysOnTop: 'Always on top',
         fileInfo: 'File information',
         mediaInfo: 'MediaInfo properties (Shift+F10)',
@@ -488,6 +490,7 @@ export const en: TranslationDict = {
       animationsDesc1: "Enable smooth spring micro-animations for switching, opening menus, and physical feedback",
       animationsDesc2: "Elastic transitions for Play/Pause, Mute, volume slider, playlist drawer, track menus, and windows. If disabled, the interface reacts instantly.",
       visibilitySection: "Control Bar Buttons Visibility",
+      visSeekButtons: "Seek buttons",
       visRepeat: "Repeat",
       visShuffle: "Shuffle",
       visAlwaysOnTop: "Always on Top",

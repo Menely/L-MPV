@@ -148,6 +148,11 @@ interface PlayerStateContextType {
   refreshPlaylist: () => Promise<void>;
   /** Локальное/оптимистичное обновление плейлиста. */
   setPlaylist: React.Dispatch<React.SetStateAction<PlaylistItem[]>>;
+  /**
+   * Продлевает таймер скрытия интерфейса, если он уже виден прямо сейчас.
+   * Если интерфейс скрыт (isIdle), не будит его.
+   */
+  prolongControlsIfActive: () => void;
 }
 
 const PlayerStateContext = createContext<PlayerStateContextType>({
@@ -179,6 +184,7 @@ const PlayerStateContext = createContext<PlayerStateContextType>({
   playlist: [],
   refreshPlaylist: async () => {},
   setPlaylist: () => {},
+  prolongControlsIfActive: () => {},
 });
 
 export function PlayerStateProvider({ children }: { children: ReactNode }) {
@@ -281,6 +287,34 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
   // Обработка idle (бездействия мыши)
   const lastActivityTimeRef = useRef<number>(0);
+  const isIdleRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    isIdleRef.current = isIdle;
+  }, [isIdle]);
+
+  /**
+   * Продлевает показ интерфейса только в том случае, если он уже виден прямо сейчас.
+   * Если интерфейс скрыт (isIdle === true), ничего не делает (не будит контролы).
+   * Применяется при интерактивной перемотке стрелками клавиатуры.
+   */
+  const prolongControlsIfActive = useCallback(() => {
+    if (isIdleRef.current) {
+      return;
+    }
+
+    if (idleTimer.current) window.clearTimeout(idleTimer.current);
+
+    idleTimer.current = window.setTimeout(() => {
+      const currentUIOpen = !!document.querySelector(
+        ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+      );
+      if (!currentUIOpen) {
+        isIdleRef.current = true;
+        setIsIdle(true);
+      }
+    }, 3000);
+  }, []);
 
   useEffect(() => {
     const handleActivity = (e?: Event) => {
@@ -290,6 +324,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       }
       lastActivityTimeRef.current = now;
 
+      isIdleRef.current = false;
       setIsIdle(false);
       if (idleTimer.current) window.clearTimeout(idleTimer.current);
 
@@ -314,6 +349,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
         );
         if (!currentUIOpen) {
+          isIdleRef.current = true;
           setIsIdle(true);
         }
       }, 3000);
@@ -322,13 +358,11 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     window.addEventListener("mousemove", handleActivity);
     window.addEventListener("mousedown", handleActivity);
     window.addEventListener("wheel", handleActivity);
-    window.addEventListener("keydown", handleActivity);
 
     return () => {
       window.removeEventListener("mousemove", handleActivity);
       window.removeEventListener("mousedown", handleActivity);
       window.removeEventListener("wheel", handleActivity);
-      window.removeEventListener("keydown", handleActivity);
       if (idleTimer.current) window.clearTimeout(idleTimer.current);
     };
   }, []);
@@ -1135,6 +1169,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     playlist,
     refreshPlaylist,
     setPlaylist,
+    prolongControlsIfActive,
   }), [
     mediaInfo,
     hasMedia,
@@ -1163,6 +1198,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     playlist,
     refreshPlaylist,
     setPlaylist,
+    prolongControlsIfActive,
   ]);
 
   return (

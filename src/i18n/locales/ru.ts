@@ -330,6 +330,8 @@ export const ru: TranslationDict = {
       },
       controlButtons: {
         openingSkip: (sec: number) => `Перемотка опенинга (+${sec}с)`,
+        seekBack: (sec: number) => `Перемотка назад (-${sec}с)`,
+        seekForward: (sec: number) => `Перемотка вперед (+${sec}с)`,
         alwaysOnTop: 'Поверх всех окон',
         fileInfo: 'Информация о файле',
         mediaInfo: 'Свойства MediaInfo (Shift+F10)',
@@ -491,6 +493,7 @@ export const ru: TranslationDict = {
       animationsDesc1: "Включить плавные spring-микроанимации переключения, раскрытия меню и физического отклика",
       animationsDesc2: "Эластичные переходы кнопок Play/Pause, Mute, слайдера громкости, боковой панели плейлиста, меню дорожек и окон. При отключении интерфейс реагирует мгновенно.",
       visibilitySection: "Видимость кнопок панели управления",
+      visSeekButtons: "Кнопки перемотки",
       visRepeat: "Повтор",
       visShuffle: "Случайный порядок",
       visAlwaysOnTop: "Поверх всех окон",
