@@ -33,13 +33,12 @@ export function useSubtitlesAnalysis() {
   /** Сдвиг таймингов субтитров в секундах (свойство mpv sub-delay). */
   const [subDelay, setSubDelayState] = useState(0);
 
-  const initialAnalyzedRef = useRef(false);
   // Монотонный счётчик запросов анализа: отбрасываем устаревшие ответы FFmpeg,
   // если пользователь быстро переключает дорожки (гонка асинхронных invoke).
   const analyzeSeqRef = useRef(0);
-  // Предыдущий id активной дорожки — для отличия внешнего переключения
-  // (хоткей/контекстное меню при открытом окне) от ручного выбора в пикере.
-  const prevActiveIdRef = useRef<number | undefined>(undefined);
+  // Ключ последней отправленной на анализ дорожки `${mediaPath}:${trackId}`
+  // для предотвращения повторных избыточных вызовов при ререндерах.
+  const lastAnalyzedTargetRef = useRef<string | null>(null);
 
   // Список всех дорожек субтитров
   const subTracks = useMemo(() => tracks.filter((t) => t.type === "sub"), [tracks]);
@@ -75,6 +74,7 @@ export function useSubtitlesAnalysis() {
         const cached = globalSubtitlesCache.get(cacheKey)!;
         setAnalyzeError(null);
         setLines(cached);
+        setIsAnalyzing(false);
         const trk = subTracks.find((t) => t.id === trackId);
         setAnalyzedTrackTitle(trk ? trk.title || dict.subtitlesSearch.defaultTrackName(trk.id) : "");
         return;
@@ -114,55 +114,64 @@ export function useSubtitlesAnalysis() {
     [selectedTrackId, activeTrack?.id, subTracks, mediaPath, dict]
   );
 
-  // Первичный авто-анализ активной дорожки при открытии модального окна
-  useEffect(() => {
-    if (initialAnalyzedRef.current) return;
-    if (subTracks.length > 0) {
-      initialAnalyzedRef.current = true;
-      const initialId = activeTrack?.id || subTracks[0].id;
-      setSelectedTrackId(initialId);
-      handleAnalyzeTrack(initialId);
-    }
-  }, [subTracks, activeTrack?.id, handleAnalyzeTrack]);
-
-  // Подхват внешнего переключения дорожки (хоткей V, контекстное меню),
-  // пока окно открыто: модалка должна показывать активную в плеере дорожку.
-  // Ручной выбор в пикере не затираем: в момент пика activeTrack ещё старый
-  // (mpv переключается асинхронно), а когда подтверждение приходит —
-  // id уже совпадает с выбранным и эффект пропускается.
-  useEffect(() => {
-    const cur = activeTrack?.id;
-    const prev = prevActiveIdRef.current;
-    if (
-      initialAnalyzedRef.current &&
-      cur !== undefined &&
-      prev !== undefined &&
-      cur !== prev &&
-      cur !== selectedTrackId
-    ) {
-      setSelectedTrackId(cur);
-      handleAnalyzeTrack(cur);
-    }
-    prevActiveIdRef.current = cur;
-  }, [activeTrack?.id, selectedTrackId, handleAnalyzeTrack]);
-
-  // Сброс кэша и перезапуск при смене медиафайла.
-  // Эффект выполняется и при монтировании, поэтому отдельного
-  // `loadTracks()` на mount не нужно (был двойной вызов get_tracks).
+  // 1. Сброс кэша и состояния при смене медиафайла.
+  // Запускается и при первом монтировании, загружая свежий список дорожек.
   useEffect(() => {
     if (mediaPath !== lastMediaFilePath) {
       globalSubtitlesCache.clear();
       lastMediaFilePath = mediaPath || null;
-      // Не показываем субтитры от прошлого файла, пока идёт анализ нового.
       analyzeSeqRef.current++;
       setLines([]);
       setAnalyzeError(null);
       setSelectedTrackId(null);
       setAnalyzedTrackTitle("");
+      setIsAnalyzing(false);
+      lastAnalyzedTargetRef.current = null;
     }
-    initialAnalyzedRef.current = false;
     loadTracks();
   }, [mediaPath, loadTracks]);
+
+  // 2. Подхват внешнего переключения дорожки (хоткей V, контекстное меню),
+  // пока окно открыто: модалка синхронизируется с активной в плеере дорожкой.
+  const prevActiveTrackIdRef = useRef<number | undefined>(activeTrack?.id);
+  useEffect(() => {
+    const curActiveId = activeTrack?.id;
+    const prevActiveId = prevActiveTrackIdRef.current;
+    prevActiveTrackIdRef.current = curActiveId;
+
+    if (
+      curActiveId !== undefined &&
+      prevActiveId !== undefined &&
+      curActiveId !== prevActiveId
+    ) {
+      setSelectedTrackId(curActiveId);
+    }
+  }, [activeTrack?.id]);
+
+  // 3. Автоматический анализ целевой дорожки (при открытии окна, поступлении дорожек или переключении)
+  useEffect(() => {
+    if (!mediaPath || subTracks.length === 0) return;
+
+    const targetId =
+      selectedTrackId !== null && subTracks.some((t) => t.id === selectedTrackId)
+        ? selectedTrackId
+        : (activeTrack?.id ?? subTracks[0].id);
+
+    const targetKey = `${mediaPath}:${targetId}`;
+    if (lastAnalyzedTargetRef.current === targetKey) return;
+
+    lastAnalyzedTargetRef.current = targetKey;
+    if (selectedTrackId !== targetId) {
+      setSelectedTrackId(targetId);
+    }
+    handleAnalyzeTrack(targetId);
+  }, [
+    mediaPath,
+    subTracks,
+    activeTrack?.id,
+    selectedTrackId,
+    handleAnalyzeTrack,
+  ]);
 
   /**
    * Выбор дорожки пользователем в меню: переключаем в плеере и автоматически анализируем.
@@ -171,9 +180,12 @@ export function useSubtitlesAnalysis() {
     (trackId: number) => {
       setSelectedTrackId(trackId);
       selectSubTrack(trackId);
+      if (mediaPath) {
+        lastAnalyzedTargetRef.current = `${mediaPath}:${trackId}`;
+      }
       handleAnalyzeTrack(trackId);
     },
-    [selectSubTrack, handleAnalyzeTrack]
+    [selectSubTrack, handleAnalyzeTrack, mediaPath]
   );
 
   /** Отключение субтитров в плеере. */
@@ -183,14 +195,19 @@ export function useSubtitlesAnalysis() {
 
   /** Принудительный повторный анализ выбранной дорожки. */
   const handleReanalyze = useCallback(() => {
-    if (isAnalyzing) return;
-    const targetId = selectedTrackId ?? activeTrack?.id;
+    const targetId =
+      selectedTrackId ??
+      activeTrack?.id ??
+      (subTracks.length > 0 ? subTracks[0].id : null);
     if (targetId !== null && targetId !== undefined) {
       const cacheKey = `${mediaPath || ""}:${targetId}`;
       globalSubtitlesCache.delete(cacheKey);
+      if (mediaPath) {
+        lastAnalyzedTargetRef.current = `${mediaPath}:${targetId}`;
+      }
       handleAnalyzeTrack(targetId);
     }
-  }, [isAnalyzing, selectedTrackId, activeTrack, handleAnalyzeTrack, mediaPath]);
+  }, [selectedTrackId, activeTrack, subTracks, handleAnalyzeTrack, mediaPath]);
 
   // Подтягиваем текущий сдвиг таймингов при открытии окна.
   useEffect(() => {

@@ -403,7 +403,7 @@ pub async fn extract_track(
 
     // Спецификатор потока для FFmpeg: используем точный ff_index (если доступен), иначе тип:индекс
     let stream_specifier = if let Some(ffi) = ff_index {
-        if ffi >= 0 {
+        if ffi > 0 || (ffi == 0 && track_type != "sub") {
             format!("0:{}", ffi)
         } else if track_type == "audio" {
             format!("0:a:{}", track_index.max(0))
@@ -1192,7 +1192,10 @@ pub async fn analyze_subtitle_track(
     // 4. Если дорожка внешняя — читаем файл напрямую с диска.
     // Путь от mpv может быть относительным: ищем рядом с видеофайлом.
     // Декодируем с учётом кодировки (UTF-8/UTF-16/windows-1251).
-    if target.external && !target.external_filename.is_empty() {
+    if target.external {
+        if target.external_filename.is_empty() {
+            return Err("Файл внешних субтитров не указан".to_string());
+        }
         let ext_path_opt = resolve_external_subtitle_path(
             &target.external_filename,
             &video_path_str,
@@ -1206,33 +1209,38 @@ pub async fn analyze_subtitle_track(
             ));
         }
         if let Some(ext_path) = ext_path_opt {
-            if let Ok(bytes) = std::fs::read(&ext_path) {
-                let content = decode_subtitle_bytes(&bytes);
-                let ext = ext_path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("")
-                    .to_lowercase();
-                let parsed = if ext == "ass" || ext == "ssa" {
-                    parse_ass(&content)
-                } else {
-                    parse_srt_or_vtt(&content)
-                };
-                if !parsed.is_empty() {
-                    if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
-                        write_subtitles_cache(cache_dir, key, &parsed);
-                    }
-                    return Ok(parsed);
-                }
-                if is_bitmap_subtitle(&target.codec, &ext) {
-                    return Err(
-                        "Графические субтитры (PGS/VobSub/SUP): \
-                         в них нет текстового слоя, распознавание \
-                         (OCR) не поддерживается"
-                            .to_string(),
-                    );
+            let bytes = std::fs::read(&ext_path).map_err(|e| {
+                format!(
+                    "Ошибка чтения файла внешних субтитров {}: {}",
+                    ext_path.display(),
+                    e
+                )
+            })?;
+            let ext = ext_path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            if is_bitmap_subtitle(&target.codec, &ext) {
+                return Err(
+                    "Графические субтитры (PGS/VobSub/SUP): \
+                     в них нет текстового слоя, распознавание \
+                     (OCR) не поддерживается"
+                        .to_string(),
+                );
+            }
+            let content = decode_subtitle_bytes(&bytes);
+            let parsed = if ext == "ass" || ext == "ssa" {
+                parse_ass(&content)
+            } else {
+                parse_srt_or_vtt(&content)
+            };
+            if !parsed.is_empty() {
+                if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
+                    write_subtitles_cache(cache_dir, key, &parsed);
                 }
             }
+            return Ok(parsed);
         }
     }
 
@@ -1243,11 +1251,13 @@ pub async fn analyze_subtitle_track(
 
     // 5. Если дорожка встроенная в локальный видеофайл — извлекаем все реплики через FFmpeg
     let vpath = std::path::Path::new(&video_path_str);
-    if !embedded_bitmap && vpath.exists() && vpath.is_file() {
+    if !target.external && !embedded_bitmap && vpath.exists() && vpath.is_file() {
         let exe_dir = get_app_dir()?;
         let mut ffmpeg_path = exe_dir.join("ffmpeg.exe");
         if !ffmpeg_path.exists() {
-            if std::path::Path::new("ffmpeg.exe").exists() {
+            if exe_dir.join("binaries").join("ffmpeg.exe").exists() {
+                ffmpeg_path = exe_dir.join("binaries").join("ffmpeg.exe");
+            } else if std::path::Path::new("ffmpeg.exe").exists() {
                 ffmpeg_path = std::path::PathBuf::from("ffmpeg.exe");
             } else if std::path::Path::new("src-tauri/binaries/ffmpeg.exe").exists() {
                 ffmpeg_path = std::path::PathBuf::from("src-tauri/binaries/ffmpeg.exe");
@@ -1258,62 +1268,82 @@ pub async fn analyze_subtitle_track(
             }
         }
 
-        let sub_index = sub_tracks.iter().position(|t| t.id == target.id).unwrap_or(0);
-        let stream_specifier = if target.ff_index >= 0 {
-            format!("0:{}", target.ff_index)
-        } else {
-            format!("0:s:{}", sub_index)
-        };
+        // Индекс среди встроенных субтитров видеофайла для спецификатора FFmpeg
+        let embedded_subs: Vec<&TrackInfo> =
+            sub_tracks.iter().filter(|t| !t.external).collect();
+        let embedded_sub_index = embedded_subs
+            .iter()
+            .position(|t| t.id == target.id)
+            .unwrap_or(0);
 
-        let prefers_ass = target.codec.to_lowercase().contains("ass")
-            || target.codec.to_lowercase().contains("ssa")
-            || video_path_str.to_lowercase().ends_with(".mkv")
-            || target.codec.is_empty();
+        // Список спецификаторов: первичный 0:s:{embedded_sub_index} (строго субтитры),
+        // вторичный 0:{ff_index} (если ff_index > 0 и не совпадает).
+        let mut stream_specifiers = vec![format!("0:s:{}", embedded_sub_index)];
+        if target.ff_index > 0 && target.ff_index != embedded_sub_index as i64 {
+            stream_specifiers.push(format!("0:{}", target.ff_index));
+        }
+
+        let is_srt = target.codec.to_lowercase().contains("srt")
+            || target.codec.to_lowercase().contains("subrip");
+        let prefers_ass = !is_srt
+            && (target.codec.to_lowercase().contains("ass")
+                || target.codec.to_lowercase().contains("ssa")
+                || video_path_str.to_lowercase().ends_with(".mkv")
+                || target.codec.is_empty());
 
         let formats = if prefers_ass { ["ass", "srt"] } else { ["srt", "ass"] };
-        for fmt in formats {
-            let target_video_path = video_path_str.clone();
-            let target_ffmpeg = ffmpeg_path.clone();
-            let target_spec = stream_specifier.clone();
+        for target_spec in &stream_specifiers {
+            for fmt in formats {
+                let target_video_path = video_path_str.clone();
+                let target_ffmpeg = ffmpeg_path.clone();
 
-            let extract_result = {
-                let mut cmd = tokio::process::Command::new(&target_ffmpeg);
-                cmd.args([
-                    "-y",
-                    "-loglevel", "error",
-                    "-i", &target_video_path,
-                    "-map", &target_spec,
-                    "-f", fmt,
-                    "-"
-                ]);
-                cmd.kill_on_drop(true);
-                #[cfg(target_os = "windows")]
-                {
-                    const CREATE_NO_WINDOW: u32 = 0x08000000;
-                    cmd.creation_flags(CREATE_NO_WINDOW);
-                }
-                tokio::time::timeout(std::time::Duration::from_secs(30), cmd.output()).await
-            };
+                let extract_result = {
+                    let mut cmd = tokio::process::Command::new(&target_ffmpeg);
+                    cmd.args([
+                        "-y",
+                        "-loglevel", "error",
+                        "-i", &target_video_path,
+                        "-map", target_spec,
+                        "-f", fmt,
+                        "-"
+                    ]);
+                    cmd.kill_on_drop(true);
+                    #[cfg(target_os = "windows")]
+                    {
+                        const CREATE_NO_WINDOW: u32 = 0x08000000;
+                        cmd.creation_flags(CREATE_NO_WINDOW);
+                    }
+                    tokio::time::timeout(std::time::Duration::from_secs(30), cmd.output()).await
+                };
 
-            if let Ok(Ok(output)) = extract_result {
-                if output.status.success() && !output.stdout.is_empty() {
-                    if output.stdout.len() > MAX_SUBTITLE_STDOUT_BYTES {
-                        eprintln!(
-                            "[L-MPV] Поток субтитров превышает лимит {} байт для формата {}",
-                            MAX_SUBTITLE_STDOUT_BYTES, fmt
-                        );
-                    } else {
-                        let text = decode_subtitle_bytes(&output.stdout);
-                        let lines = if fmt == "ass" {
-                            parse_ass(&text)
+                if let Ok(Ok(output)) = extract_result {
+                    if output.status.success() && !output.stdout.is_empty() {
+                        if output.stdout.len() > MAX_SUBTITLE_STDOUT_BYTES {
+                            eprintln!(
+                                "[L-MPV] Поток субтитров превышает лимит {} байт для формата {}",
+                                MAX_SUBTITLE_STDOUT_BYTES, fmt
+                            );
                         } else {
-                            parse_srt_or_vtt(&text)
-                        };
-                        if !lines.is_empty() {
-                            if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
-                                write_subtitles_cache(cache_dir, key, &lines);
+                            let text = decode_subtitle_bytes(&output.stdout);
+                            let lines = if fmt == "ass" {
+                                parse_ass(&text)
+                            } else {
+                                parse_srt_or_vtt(&text)
+                            };
+                            if !lines.is_empty() {
+                                if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
+                                    write_subtitles_cache(cache_dir, key, &lines);
+                                }
+                                return Ok(lines);
                             }
-                            return Ok(lines);
+                        }
+                    } else if !output.status.success() {
+                        let err_msg = String::from_utf8_lossy(&output.stderr);
+                        if !err_msg.trim().is_empty() {
+                            eprintln!(
+                                "[L-MPV] FFmpeg вернул ошибку при извлечении субтитров ({}, spec {}): {}",
+                                fmt, target_spec, err_msg.trim()
+                            );
                         }
                     }
                 }

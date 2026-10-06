@@ -555,7 +555,7 @@ impl MpvManager {
             let normalize_mode = AudioNormalizeMode::from_str_or_default(normalize_raw);
             let chain = AudioFilterChainBuilder::build(normalize_mode, limiter_on);
             if !chain.is_empty() {
-                Self::set_option(&api, handle, "af", &chain);
+                Self::set_option(&api, handle, "af", chain);
             }
             // Буфер демаксера: пользовательское значение затирает дефолт 64MiB
             if let Some(ref mb) = saved_settings.demuxer_cache_mb {
@@ -744,7 +744,7 @@ impl MpvManager {
         limiter_enabled: bool,
     ) -> Result<(), String> {
         let chain = AudioFilterChainBuilder::build(mode, limiter_enabled);
-        let res = self.set_property_string("af", &chain);
+        let res = self.set_property_string("af", chain);
         if let Err(ref err) = res {
             crate::log_error(
                 "MpvManager::set_audio_normalize",
@@ -1140,6 +1140,23 @@ impl MpvManager {
         }
     }
 
+    /// Считывает целочисленное свойство libmpv (Int64), возвращая Option::None при ошибке.
+    #[inline]
+    unsafe fn get_int_opt_raw(api: &MpvApi, handle: *mut MpvHandle, name: &CStr) -> Option<i64> {
+        let mut value: i64 = 0;
+        let err = (api.get_property)(
+            handle,
+            name.as_ptr(),
+            MpvFormat::Int64,
+            &mut value as *mut i64 as *mut c_void,
+        );
+        if err >= 0 {
+            Some(value)
+        } else {
+            None
+        }
+    }
+
     /// Определение фактических геометрических размеров видеовыхода.
     ///
     /// Приоритет строго ориентирован на видеовыход (VO):
@@ -1463,9 +1480,9 @@ impl MpvManager {
                     let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
                     let _ = write!(cur, "track-list/{i}/id\0");
                     if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
-                        Self::get_double_raw(&self.api, handle, c_name) as i64
+                        Self::get_int_opt_raw(&self.api, handle, c_name).unwrap_or(i + 1)
                     } else {
-                        0
+                        i + 1
                     }
                 };
 
@@ -1583,12 +1600,7 @@ impl MpvManager {
                     let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
                     let _ = write!(cur, "track-list/{i}/ff-index\0");
                     if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
-                        let f = Self::get_double_raw(&self.api, handle, c_name);
-                        if f >= 0.0 {
-                            f as i64
-                        } else {
-                            -1
-                        }
+                        Self::get_int_opt_raw(&self.api, handle, c_name).unwrap_or(-1)
                     } else {
                         -1
                     }
@@ -1724,6 +1736,11 @@ impl MpvManager {
                     return Ok(Vec::new());
                 }
 
+                let _guard = MpvNodeResultGuard {
+                    api: &self.api,
+                    node: &mut root_node,
+                };
+
                 let mut lines = Vec::new();
                 if root_node.format == MpvFormat::NodeArray {
                     let list_ptr = root_node.u.list;
@@ -1794,7 +1811,6 @@ impl MpvManager {
                     }
                 }
 
-                (self.api.free_node_contents)(&mut root_node);
                 Ok(lines)
             }
         })

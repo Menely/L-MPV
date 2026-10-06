@@ -1137,7 +1137,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const typeTracks = tracks.filter((t) => t.type === track.type);
+      const typeTracks = tracks.filter((t) => t.type === track.type && !t.external);
       const trackIdx = typeTracks.findIndex((t) => t.id === track.id);
       const streamIndex = trackIdx >= 0 ? trackIdx : Math.max(0, track.id - 1);
 
