@@ -351,13 +351,23 @@ export function PlayerControls({
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const activeTrackItemRef = useRef<HTMLButtonElement | null>(null);
+  const hasScrolledPopoverRef = useRef<string | null>(null);
 
   // ─── Автоскролл к активной дорожке при открытии поповера ──
   useEffect(() => {
-    if (!activePopover) return;
+    if (!activePopover) {
+      hasScrolledPopoverRef.current = null;
+      return;
+    }
+    // Скроллим к активной дорожке строго один раз при открытии конкретного меню,
+    // чтобы ручное листание пользователем не сбрасывалось наверх
+    if (hasScrolledPopoverRef.current === activePopover) {
+      return;
+    }
     const rafId = requestAnimationFrame(() => {
       if (activeTrackItemRef.current) {
         activeTrackItemRef.current.scrollIntoView({ block: "nearest", behavior: "auto" });
+        hasScrolledPopoverRef.current = activePopover;
       }
     });
     return () => cancelAnimationFrame(rafId);

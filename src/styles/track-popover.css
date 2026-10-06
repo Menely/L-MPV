@@ -73,6 +73,7 @@
   gap: 4px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  overflow-anchor: none;
   /* Ограничение высоты ровно под 7 дорожек (38px * 7 + 4px * 6 = 290px) */
   max-height: min(290px, calc(100vh - 160px));
   /* Полное скрытие полосы прокрутки */

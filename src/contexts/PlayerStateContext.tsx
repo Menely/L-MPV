@@ -205,6 +205,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const [seeking, setSeeking] = useState(false);
   const [seekTarget, setSeekTarget] = useState<number | null>(null);
   const [tracks, setTracks] = useState<TrackInfo[]>([]);
+  const tracksRef = useRef<TrackInfo[]>([]);
   const seekingRef = useRef(false);
   const seekTargetRef = useRef<number | null>(null);
   const seekTimestampRef = useRef<number>(0);
@@ -220,7 +221,21 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const loadTracks = useCallback(async () => {
     try {
       const t = await invoke<TrackInfo[]>("get_tracks");
-      setTracks(t);
+      const prev = tracksRef.current;
+      const isSame =
+        prev.length === t.length &&
+        prev.every(
+          (p, i) =>
+            p.id === t[i].id &&
+            p.selected === t[i].selected &&
+            p.type === t[i].type &&
+            p.title === t[i].title &&
+            p.lang === t[i].lang
+        );
+      if (!isSame) {
+        tracksRef.current = t;
+        setTracks(t);
+      }
     } catch (e) {
       console.error("Ошибка загрузки дорожек", e);
     }
@@ -276,6 +291,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       loadTracks();
       refreshPlaylist();
     } else {
+      tracksRef.current = [];
       setTracks([]);
       setPlaylist([]);
       currentAidRef.current = "";
@@ -477,7 +493,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           const countChanged =
             dynState.track_count !== trackCountRef.current;
           const tracksMissing =
-            tracks.length === 0 && dynState.track_count > 0;
+            tracksRef.current.length === 0 && dynState.track_count > 0;
 
           if (
             aidChanged ||
@@ -875,9 +891,13 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
   const selectAudioTrack = useCallback(async (trackId: number) => {
     try {
-      setTracks(prev => prev.map(t => t.type === "audio" ? { ...t, selected: t.id === trackId } : t));
+      setTracks(prev => {
+        const next = prev.map(t => t.type === "audio" ? { ...t, selected: t.id === trackId } : t);
+        tracksRef.current = next;
+        return next;
+      });
       await invoke("set_audio_track", { trackId });
-      const t = tracks.find(x => x.type === "audio" && x.id === trackId);
+      const t = tracksRef.current.find(x => x.type === "audio" && x.id === trackId);
       if (t) {
          invoke("show_osd", { text: `Аудио: ${t.title || t.lang || ('Дорожка ' + t.id)}` }).catch(() => {});
       }
@@ -885,13 +905,17 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error("Ошибка при выборе аудиодорожки", e);
     }
-  }, [tracks, loadTracks]);
+  }, [loadTracks]);
   
   const selectSubTrack = useCallback(async (trackId: number) => {
     try {
-      setTracks(prev => prev.map(t => t.type === "sub" ? { ...t, selected: t.id === trackId } : t));
+      setTracks(prev => {
+        const next = prev.map(t => t.type === "sub" ? { ...t, selected: t.id === trackId } : t);
+        tracksRef.current = next;
+        return next;
+      });
       await invoke("set_subtitle_track", { trackId });
-      const t = tracks.find(x => x.type === "sub" && x.id === trackId);
+      const t = tracksRef.current.find(x => x.type === "sub" && x.id === trackId);
       if (t) {
          invoke("show_osd", { text: `Субтитры: ${t.title || t.lang || ('Дорожка ' + t.id)}` }).catch(() => {});
       }
@@ -899,11 +923,15 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error("Ошибка при выборе дорожки субтитров", e);
     }
-  }, [tracks, loadTracks]);
+  }, [loadTracks]);
   
   const disableSubtitles = useCallback(async () => {
     try {
-      setTracks(prev => prev.map(t => t.type === "sub" ? { ...t, selected: false } : t));
+      setTracks(prev => {
+        const next = prev.map(t => t.type === "sub" ? { ...t, selected: false } : t);
+        tracksRef.current = next;
+        return next;
+      });
       await invoke("disable_subtitles");
       invoke("show_osd", { text: "Субтитры: Выкл" }).catch(() => {});
       await loadTracks();
