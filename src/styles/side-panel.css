@@ -6,14 +6,16 @@
   bottom: 0;
   width: 280px;
   background: var(--bg-glass);
-  backdrop-filter: var(--ui-backdrop);
-  -webkit-backdrop-filter: var(--ui-backdrop);
   border-left: 1px solid var(--border);
+  box-shadow: -12px 0 36px rgba(0, 0, 0, 0.55);
   z-index: 900;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   animation: slidePanelIn 160ms var(--ease-out);
+  transition: border-color var(--t-fast) var(--ease-smooth);
 }
+
 
 @keyframes slidePanelIn {
   0% {

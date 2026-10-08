@@ -236,8 +236,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
           className="settings-preview-card__mini-player"
           style={{
             background: "var(--bg-pill)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
             border: "1px solid var(--border-pill)",
             borderRadius: "var(--radius-controls, 16px)",
             padding: "6px 14px 8px",

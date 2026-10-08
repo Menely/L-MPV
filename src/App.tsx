@@ -10,7 +10,7 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { usePlayerState } from "./contexts/PlayerStateContext";
-import { useOsd } from "./hooks/useOsd";
+import { useOsd, showOsd } from "./hooks/useOsd";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -76,6 +76,9 @@ function App() {
     x: number;
     y: number;
   } | null>(null);
+  const contextMenuRef = useRef(contextMenu);
+  contextMenuRef.current = contextMenu;
+  const lastContextMenuCloseTimeRef = useRef<number>(0);
 
   const [showMediaInfo, setShowMediaInfo] = useState(false);
   const [isMediaInfoOpen, setIsMediaInfoOpen] = useState(false);
@@ -85,7 +88,7 @@ function App() {
   const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showUpdateToast, setShowUpdateToast] = useState(false);
-  const { osdText, isOsdClosing, triggerOsd, clearOsd, getOsdText } = useOsd();
+  const { osdText, isOsdClosing, isOsdError, triggerOsd, clearOsd, getOsdText } = useOsd();
   const [isCursorInUpperHalf, setIsCursorInUpperHalf] = useState(false);
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => {
     try {
@@ -351,7 +354,11 @@ function App() {
       .catch(console.error);
 
     const unlistenFile = listen<string>('open-file-cli', (event) => {
-      invoke("open_file", { path: event.payload }).catch(console.error);
+      invoke("open_file", { path: event.payload }).catch((err) => {
+        console.error("Ошибка открытия файла из CLI:", err);
+        const dict = getDict(getEffectiveLocale());
+        triggerOsd(dict.osd.openFileErr, 3200, true);
+      });
     });
 
     const unlistenMediaInfo = listen<string>('open-mediainfo-cli', (event) => {
@@ -538,6 +545,7 @@ function App() {
   }, [triggerOsd]);
 
   const closeContextMenu = useCallback(() => {
+    lastContextMenuCloseTimeRef.current = Date.now();
     setContextMenu(null);
   }, []);
 
@@ -606,8 +614,10 @@ function App() {
       }
     } catch (err) {
       console.error("Ошибка открытия файла:", err);
+      const dict = getDict(getEffectiveLocale());
+      triggerOsd(dict.osd.openFileErr, 3200, true);
     }
-  }, []);
+  }, [triggerOsd]);
 
   const executeAction = useCallback(async (actionId: string, coords?: { x: number; y: number }) => {
     const {
@@ -812,7 +822,9 @@ function App() {
         curSetIsPlaylistOpen(!curIsPlaylistOpen);
         break;
       case "openContextMenu":
-        if (coords) {
+        if (contextMenuRef.current || (Date.now() - lastContextMenuCloseTimeRef.current < 250)) {
+          closeContextMenu();
+        } else if (coords) {
           setContextMenu({ x: coords.x, y: coords.y });
         } else {
           setContextMenu({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
@@ -1069,6 +1081,13 @@ function App() {
         return;
       }
 
+      // Если контекстное меню уже открыто или только что закрыто,
+      // повторное нажатие ПКМ должно закрыть меню и не открывать его заново.
+      if (contextMenuRef.current || (Date.now() - lastContextMenuCloseTimeRef.current < 250)) {
+        closeContextMenu();
+        return;
+      }
+
       const curHotkeys = latestRef.current.hotkeys;
       let action: string | null = null;
       const allowedContextMenuActions = ["openContextMenu", "fileInfo", "togglePause", "fullscreen"];
@@ -1087,7 +1106,7 @@ function App() {
         setContextMenu(coords);
       }
     },
-    [executeAction]
+    [closeContextMenu, executeAction]
   );
 
   const handleVideoAuxClick = useCallback(
@@ -1196,16 +1215,14 @@ function App() {
             const file = event.payload.paths[0];
             const curHasMedia = latestRef.current.hasMedia;
             const hotloadEnabled = localStorage.getItem('l-mpv-hotload-enabled') === 'true';
+            const d = getDict(getEffectiveLocale());
 
             if (hotloadEnabled && curHasMedia && isAudioFile(file)) {
               try {
                 await invoke("load_audio_file", { path: file });
                 await latestRef.current.loadTracks();
                 const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-                const d = getDict(getEffectiveLocale());
-                window.dispatchEvent(
-                  new CustomEvent("show-osd", { detail: d.osd.audioLoaded(fileName) })
-                );
+                showOsd(d.osd.audioLoaded(fileName));
               } catch (err) {
                 console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
               }
@@ -1214,18 +1231,17 @@ function App() {
                 await invoke("load_subtitle_file", { path: file });
                 await latestRef.current.loadTracks();
                 const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-                const d = getDict(getEffectiveLocale());
-                window.dispatchEvent(
-                  new CustomEvent("show-osd", { detail: d.osd.subsLoaded(fileName) })
-                );
+                showOsd(d.osd.subsLoaded(fileName));
               } catch (err) {
                 console.error("Ошибка подключения субтитров (Хотлоад):", err);
+                showOsd(d.osd.subtitlesLoadErr, { isError: true });
               }
             } else {
               try {
                 await invoke("open_file", { path: file });
               } catch (err) {
                 console.error("Ошибка открытия файла:", err);
+                showOsd(d.osd.openFileErr, { isError: true });
               }
             }
           }
@@ -1277,8 +1293,8 @@ function App() {
       {osdText && (
         <div
           className={`frame-osd ${osdText.includes("\n") ? "frame-osd--multiline" : ""} ${
-            isOsdClosing ? "frame-osd--closing" : ""
-          }`}
+            isOsdError ? "frame-osd--error" : ""
+          } ${isOsdClosing ? "frame-osd--closing" : ""}`}
         >
           {osdText}
         </div>

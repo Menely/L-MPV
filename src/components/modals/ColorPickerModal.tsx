@@ -249,7 +249,6 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
       style={{
         zIndex: 11000,
         background: "rgba(0, 0, 0, 0.65)",
-        backdropFilter: "blur(10px)",
       }}
       onClick={(event) => {
         event.stopPropagation();

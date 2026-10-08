@@ -7,6 +7,7 @@
 :root {
   /* Палитра на базе #7fc7ff */
   --accent:          #7fc7ff;
+  --accent-rgb:      127, 199, 255;
   --accent-gradient: linear-gradient(90deg, #7fc7ff, #7fc7ff);
   --accent-hover:    #99d4ff;
   --accent-dim:      #5ba8e6;
@@ -14,12 +15,8 @@
   --accent-glow:     rgba(127, 199, 255, 0.30);
   --accent-glass:    rgba(127, 199, 255, 0.08);
 
-  /* Фоны (блюр заведомо умеренный: крупные радиусы + saturate
-     убивают FPS на слабых iGPU, визуально неотличимо от 24px) */
+  /* Фоны (Glassmorphism) */
   --ui-opacity: 0.88;
-  --ui-blur: 16px;
-  --ui-backdrop: blur(16px);
-  --ui-backdrop-heavy: blur(18px);
   --bg-primary:     #0b0d12;
   --bg-surface:     #13161d;
   --bg-modal-solid: #11141c;
@@ -41,9 +38,9 @@
   --border-default: rgba(255, 255, 255, 0.09);
   --border-hover:   rgba(255, 255, 255, 0.16);
   --border-pill:    rgba(127, 199, 255, 0.12);
-  --surface-level-2:       rgba(255, 255, 255, 0.03);
-  --surface-level-3:       rgba(255, 255, 255, 0.045);
-  --surface-level-3-hover: rgba(255, 255, 255, 0.085);
+  --surface-level-2:       rgba(255, 255, 255, 0.025);
+  --surface-level-3:       rgba(255, 255, 255, 0.04);
+  --surface-level-3-hover: rgba(255, 255, 255, 0.075);
 
   /* Тени и Неоновое свечение */
   --shadow-sm:   0 2px 8px rgba(0, 0, 0, 0.35);
@@ -53,7 +50,6 @@
   --thumb-glow:      0 0 6px rgba(127, 199, 255, 0.45), 0 0 13px rgba(127, 199, 255, 0.22), 0 0 22px rgba(127, 199, 255, 0.08);
   --btn-glow:        0 0 5px rgba(127, 199, 255, 0.35), 0 0 12px rgba(127, 199, 255, 0.18), 0 0 20px rgba(127, 199, 255, 0.07);
   --play-btn-glow:   0 0 7px rgba(127, 199, 255, 0.45), 0 0 15px rgba(127, 199, 255, 0.24), 0 0 26px rgba(127, 199, 255, 0.10);
-  --active-btn-glow: 0 0 6px rgba(127, 199, 255, 0.40), 0 0 14px rgba(127, 199, 255, 0.20), 0 0 24px rgba(127, 199, 255, 0.08);
   --shadow-pill: 0 4px 30px rgba(0, 0, 0, 0.50),
                  0 0 1px rgba(127, 199, 255, 0.15);
 
@@ -69,21 +65,51 @@
   /* Адаптивный отступ снизу для всплывающих окон над панелью управления */
   --bottom-overlays-bottom: 94px;
 
-  /* Анимации и Физические Кривые (Spring Physics, GPU-Optimized) */
-  --ease-out:            cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-smooth:         cubic-bezier(0.4, 0, 0.2, 1);
+  /* ─── Кинетическая система анимаций (Motion Design System) ───
+     5 уровней скорости + 4 физических кривых. Каждый уровень соответствует
+     категории UI-объектов по визуальному «весу» и частоте использования.
+     Правило закрытия: exit = ~70% от entry (не задерживаем — быстрее уступаем экран).
+     Зеркало констант — src/utils/animationUtils.ts — менять синхронно. */
+
+  /* Entry durations (появление / вход на экран) */
+  --t-instant:           100ms; /* Тактильный отклик: :active, checkbox-toggle, flash-badge */
+  --t-fast:              160ms; /* Микро-переходы: hover-кнопки, тултипы, badge-цвета       */
+  --t-pop:               220ms; /* Локальные оверлеи: поповеры дорожек, контекстное меню    */
+  --t-panel:             280ms; /* Структурные панели: плейлист, idle-hide, drawer           */
+  --t-modal:             320ms; /* Тяжёлые слои: настройки, MediaInfo, backdrop              */
+
+  /* Exit durations (закрытие / уход с экрана, ~70% от entry) */
+  --t-close-fast:        120ms; /* Быстрые закрытия (ховер-состояния)                       */
+  --t-close-pop:         155ms; /* Поповеры и контекстное меню                              */
+  --t-close-panel:       200ms; /* Плейлист, боковые панели                                 */
+  --t-close-modal:       230ms; /* Модальные окна                                            */
+
+  /* Обратная совместимость: старые имена оставляем как псевдонимы */
+  --t-base:              var(--t-pop);
+  --t-slow:              var(--t-panel);
+  --t-spring:            260ms; /* Анимации с упругостью (spring-bounce, play/pause pop)    */
+  --t-idle-hide:         var(--t-panel);
+  --t-close-base:        var(--t-close-pop);
+
+  /* ─── Физические кривые Безье ───────────────────────────────────
+     Подобраны по модели Material Design 3 Motion + Apple HIG.
+     Используй кривую по ЦЕЛИ перехода, не по вкусу. */
+
+  /* Появление (Decelerate): стремительный вход → мягкое торможение */
+  --ease-decelerate:     cubic-bezier(0.05, 0.7, 0.1, 1.0);
+  /* Исчезновение (Accelerate): плавный набор скорости → быстрый уход */
+  --ease-accelerate:     cubic-bezier(0.3, 0.0, 0.8, 0.15);
+  /* Упругость (Spring): лёгкий овершут 3-5% для тактильных элементов */
+  --ease-spring:         cubic-bezier(0.18, 1.25, 0.35, 1.0);
+  /* Стандарт (Standard): плавные трансформации, ресайз, слайдеры */
+  --ease-standard:       cubic-bezier(0.4, 0.0, 0.2, 1.0);
+
+  /* Обратная совместимость: старые кривые — псевдонимы новых */
+  --ease-out:            var(--ease-decelerate);
+  --ease-smooth:         var(--ease-standard);
   --ease-spring-bounce:  cubic-bezier(0.34, 1.4, 0.64, 1);
-  --ease-spring-smooth:  cubic-bezier(0.2, 1.15, 0.3, 1);
+  --ease-spring-smooth:  var(--ease-spring);
   --ease-elastic:        cubic-bezier(0.68, -0.6, 0.32, 1.6);
-  --t-fast:              120ms;
-  --t-base:              200ms;
-  --t-slow:              300ms;
-  --t-spring:            260ms;
-  --t-idle-hide:         340ms;
-  /* Единые длительности закрытия (JS-таймеры = CSS + ~50ms запас на пропуск кадра).
-     Зеркало в src/utils/animationUtils.ts (CLOSE_FAST/BASE/OSD_MS) — менять вместе. */
-  --t-close-fast:        120ms;
-  --t-close-base:        140ms;
 
   /* Типографика и Шрифтовые гарнитуры */
   --font-system:  -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -113,3 +139,5 @@
 @media (min-width: 3840px) { /* 4K */
   :root { --ui-scale: 1.35; }
 }
+
+

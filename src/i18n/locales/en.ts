@@ -1095,7 +1095,10 @@ export const en: TranslationDict = {
     subsExtractErr: "Track extraction error",
     noVideoExtract: "No active video to extract",
     clipboardEmpty: "Clipboard is empty or contains an invalid path",
-    subtitleDelay: (val: string) => `Subtitle delay: ${val}s`
+    subtitleDelay: (val: string) => `Subtitle delay: ${val}s`,
+    openFileErr: "Failed to open video file",
+    subtitlesLoadErr: "Failed to load external subtitles",
+    playlistPlayErr: "Failed to play file from playlist"
   },
   updateModal: {
     titleUpgrade: "Update Available",

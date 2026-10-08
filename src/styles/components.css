@@ -5,13 +5,15 @@
 
 /* Level 1: Главные парящие панели, окна, выпадающие меню */
 .glass-panel {
+  position: relative;
   background: var(--bg-glass);
-  backdrop-filter: var(--ui-backdrop-heavy);
-  -webkit-backdrop-filter: var(--ui-backdrop-heavy);
   border: 1px solid var(--border-default, rgba(255, 255, 255, 0.08));
   border-radius: var(--radius-controls, 16px);
   box-shadow: var(--shadow-lg), 0 0 30px rgba(127, 199, 255, 0.05);
-  transition: border-radius var(--t-spring) var(--ease-spring-smooth);
+  overflow: hidden;
+  transition: border-radius var(--t-spring) var(--ease-spring-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
 
 /* Level 2: Контейнеры секций и родительские карточки */

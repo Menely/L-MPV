@@ -164,8 +164,6 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
         className="settings-preview-card__mini-player"
         style={{
           background: "var(--bg-pill)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
           border: "1px solid var(--border-pill)",
           borderRadius: "var(--radius-controls, 16px)",
           padding: "0 24px",

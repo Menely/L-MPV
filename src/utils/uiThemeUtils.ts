@@ -349,6 +349,9 @@ export function saveUiOpacity(opacity: number): void {
   window.dispatchEvent(new Event("l-mpv-settings-changed"));
 }
 
+
+
+
 // ─── Шрифтовая экосистема интерфейса (UI Font) ───────────────────────────────
 
 import { invoke } from "@tauri-apps/api/core";

@@ -121,8 +121,6 @@ export function TrackPicker({
             right: 0,
             zIndex: 30,
             background: "var(--bg-glass)",
-            backdropFilter: "var(--ui-backdrop-heavy)",
-            WebkitBackdropFilter: "var(--ui-backdrop-heavy)",
             border: "1px solid var(--border-pill)",
             borderRadius: "var(--radius-sm)",
             boxShadow: "var(--shadow-lg)",

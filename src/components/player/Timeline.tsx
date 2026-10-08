@@ -85,33 +85,33 @@ interface TimelineSegmentProps {
   flexBasis: number;
   segProgress: number;
   segGhostProgress: number;
+  isHovered?: boolean;
 }
 
-const TimelineSegment = React.memo<TimelineSegmentProps>(({ flexBasis, segProgress, segGhostProgress }) => (
-  <div
-    style={{
-      flexBasis: `${flexBasis}%`,
-      position: "relative",
-      height: "100%",
-      borderRadius: "var(--radius-xs, 4px)",
-      overflow: "hidden",
-    }}
-  >
-    <div className="timeline__segment-bg" />
-    {segGhostProgress > 0 && (
-      <div
-        className="timeline__segment-ghost"
-        style={{ width: `${segGhostProgress}%`, borderRadius: "var(--radius-xs, 4px)" }}
-      />
-    )}
-    {segProgress > 0 && (
-      <div
-        className="timeline__segment-progress"
-        style={{ width: `${segProgress}%`, borderRadius: "var(--radius-xs, 4px)" }}
-      />
-    )}
-  </div>
-));
+const TimelineSegment = React.memo<TimelineSegmentProps>(
+  ({ flexBasis, segProgress, segGhostProgress, isHovered = false }) => (
+    <div
+      className={`timeline__segment ${isHovered ? "timeline__segment--hovered" : ""}`}
+      style={{
+        flexBasis: `${flexBasis}%`,
+      }}
+    >
+      <div className="timeline__segment-bg" />
+      {segGhostProgress > 0 && (
+        <div
+          className="timeline__segment-ghost"
+          style={{ width: `${segGhostProgress}%` }}
+        />
+      )}
+      {segProgress > 0 && (
+        <div
+          className="timeline__segment-progress"
+          style={{ width: `${segProgress}%` }}
+        />
+      )}
+    </div>
+  )
+);
 TimelineSegment.displayName = "TimelineSegment";
 
 interface TimelinePreviewProps {
@@ -182,10 +182,22 @@ export const Timeline = React.memo(() => {
     [chapters, safeDuration, mediaPath]
   );
 
+  const hasChapters = segments.length > 1;
+
   // ─── Hover rAF-батчер ────────────────────────────────────────
   const [hoverInfo, setHoverInfo] = useState<{ ratio: number; time: number } | null>(null);
   const rafId = useRef<number | null>(null);
   const pendingClientX = useRef<{ x: number; rect: DOMRect; drag: boolean } | null>(null);
+
+  const hoveredSegIndex = useMemo(() => {
+    if (!hoverInfo || !hasChapters) return -1;
+    const t = hoverInfo.time;
+    const idx = segments.findIndex((s) => t >= s.start && t <= s.end);
+    if (idx !== -1) return idx;
+    if (t >= segments[segments.length - 1].start) return segments.length - 1;
+    if (t <= segments[0].end) return 0;
+    return -1;
+  }, [hoverInfo, hasChapters, segments]);
 
   // applyHover вызывается только из rAF — всегда имеет актуальный safeDuration
   const applyHoverRef = useRef(() => {});
@@ -374,7 +386,9 @@ export const Timeline = React.memo(() => {
 
   return (
     <div
-      className={`timeline ${isDraggingState ? "timeline--dragging" : ""}`}
+      className={`timeline ${isDraggingState ? "timeline--dragging" : ""} ${
+        hasChapters ? "timeline--has-chapters" : ""
+      }`}
       role="slider"
       tabIndex={0}
       aria-label="Шкала времени воспроизведения"
@@ -407,11 +421,9 @@ export const Timeline = React.memo(() => {
 
       <div className="timeline__track">
         <div
+          className="timeline__segments"
           style={{
-            display: "flex",
-            width: "100%",
-            height: "100%",
-            gap: segments.length > 1 ? "3px" : "0px",
+            gap: hasChapters ? "3px" : "0px",
           }}
         >
           {segments.map((seg, i) => {
@@ -421,6 +433,7 @@ export const Timeline = React.memo(() => {
             const segGhost = hoverInfo && segDur > 0
               ? calcSegPercent(hoverInfo.time, seg.start, seg.end)
               : 0;
+            const isHovered = hasChapters && i === hoveredSegIndex;
 
             return (
               <TimelineSegment
@@ -428,6 +441,7 @@ export const Timeline = React.memo(() => {
                 flexBasis={flexBasis}
                 segProgress={segProgress}
                 segGhostProgress={segGhost}
+                isHovered={isHovered}
               />
             );
           })}

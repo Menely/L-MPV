@@ -23,10 +23,10 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   openFile: ["Ctrl+KeyO", "KeyO"],
   resetZoom: ["Digit0"],
   openContextMenu: ["MouseRight"],
-  cycleAudioTrack: ["KeyA", "MouseLeft"],
-  toggleAudioMenu: ["MouseRight"],
-  cycleSubTrack: ["KeyV", "MouseLeft"],
-  toggleSubMenu: ["MouseRight"],
+  cycleAudioTrack: ["KeyA"],
+  toggleAudioMenu: ["MouseLeft", "MouseRight"],
+  cycleSubTrack: ["KeyV"],
+  toggleSubMenu: ["MouseLeft", "MouseRight"],
   searchSubtitles: ["Ctrl+KeyF"],
   playlistPrev: ["PageUp"],
   playlistNext: ["PageDown"],
@@ -154,18 +154,24 @@ export function getCustomHotkeys(): Record<string, string[]> {
         migrated["openFile"] = ["Ctrl+KeyO", "KeyO"];
       }
 
-      // Инициализация мышиных биндов для аудио и субтитров, если они были пустыми
+      // Инициализация мышиных биндов для аудио и субтитров
       if (!migrated["toggleAudioMenu"] || migrated["toggleAudioMenu"].length === 0) {
-        migrated["toggleAudioMenu"] = ["MouseRight"];
+        migrated["toggleAudioMenu"] = ["MouseLeft", "MouseRight"];
+      } else if (!migrated["toggleAudioMenu"].includes("MouseLeft")) {
+        migrated["toggleAudioMenu"] = ["MouseLeft", ...migrated["toggleAudioMenu"]];
       }
       if (!migrated["toggleSubMenu"] || migrated["toggleSubMenu"].length === 0) {
-        migrated["toggleSubMenu"] = ["MouseRight"];
+        migrated["toggleSubMenu"] = ["MouseLeft", "MouseRight"];
+      } else if (!migrated["toggleSubMenu"].includes("MouseLeft")) {
+        migrated["toggleSubMenu"] = ["MouseLeft", ...migrated["toggleSubMenu"]];
       }
-      if (migrated["cycleAudioTrack"] && !migrated["cycleAudioTrack"].includes("MouseLeft")) {
-        migrated["cycleAudioTrack"] = [...migrated["cycleAudioTrack"], "MouseLeft"];
+      if (migrated["cycleAudioTrack"]) {
+        migrated["cycleAudioTrack"] = migrated["cycleAudioTrack"].filter(k => k !== "MouseLeft");
+        if (migrated["cycleAudioTrack"].length === 0) migrated["cycleAudioTrack"] = ["KeyA"];
       }
-      if (migrated["cycleSubTrack"] && !migrated["cycleSubTrack"].includes("MouseLeft")) {
-        migrated["cycleSubTrack"] = [...migrated["cycleSubTrack"], "MouseLeft"];
+      if (migrated["cycleSubTrack"]) {
+        migrated["cycleSubTrack"] = migrated["cycleSubTrack"].filter(k => k !== "MouseLeft");
+        if (migrated["cycleSubTrack"].length === 0) migrated["cycleSubTrack"] = ["KeyV"];
       }
 
       // Гарантируем наличие базовых мышиных действий, если конфиг был сохранен

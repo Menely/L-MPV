@@ -17,6 +17,11 @@ use tauri::State;
 pub struct WatchHistoryItem {
     pub position: f64,
     pub timestamp: u64,
+    /// Общая длительность файла в секундах.
+    /// Поле опциональное (default = 0.0) для обратной совместимости
+    /// с записями, сохранёнными до добавления этого поля.
+    #[serde(default)]
+    pub duration: f64,
 }
 
 // ─── Глобальное состояние ───────────────────────────────
@@ -141,11 +146,18 @@ pub fn update_history_position(
             }
         }
 
+        let duration_to_store = if duration > 0.0 {
+            duration
+        } else {
+            map.get(&key).map(|e| e.duration).unwrap_or(0.0)
+        };
+
         map.insert(
             key,
             WatchHistoryItem {
                 position: target_pos,
                 timestamp: now,
+                duration: duration_to_store,
             },
         );
 
@@ -353,4 +365,50 @@ pub fn save_current_position(
     save_current_playback_position(&state);
     save_history_to_disk();
     Ok(())
+}
+
+/// Пакетный запрос истории просмотра для набора файлов плейлиста.
+///
+/// Возвращает `HashMap<normalized_path, WatchProgressInfo>` за один IPC-вызов,
+/// что значительно эффективнее N отдельных вызовов `get_last_position`.
+/// Используется компонентом `PlaylistDrawer` при открытии панели плейлиста.
+#[tauri::command]
+pub fn get_watch_history_batch(
+    paths: Vec<String>,
+) -> Result<HashMap<String, WatchProgressInfo>, String> {
+    let map = get_history_map()
+        .lock()
+        .map_err(|_| "Ошибка блокировки мьютекса истории".to_string())?;
+
+    let result = paths
+        .into_iter()
+        .filter_map(|raw_path| {
+            let item = map.get(&normalize_history_path(&raw_path))?;
+            let progress_percent = if item.duration > 3.0 && item.position > 0.0 {
+                ((item.position / item.duration) * 100.0).clamp(0.0, 100.0)
+            } else {
+                0.0
+            };
+            Some((
+                raw_path,
+                WatchProgressInfo {
+                    position: item.position,
+                    duration: item.duration,
+                    progress_percent,
+                },
+            ))
+        })
+        .collect();
+
+    Ok(result)
+}
+
+/// Данные прогресса просмотра для одного файла плейлиста.
+#[derive(Serialize, Clone)]
+pub struct WatchProgressInfo {
+    pub position: f64,
+    pub duration: f64,
+    /// Процент просмотренного от 0.0 до 100.0.
+    /// 0.0 означает: файл новый или данные отсутствуют.
+    pub progress_percent: f64,
 }

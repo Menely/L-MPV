@@ -148,16 +148,16 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       animationsEnabled: true,
       showTrackNames: true,
       visibleButtons: {
-        repeat: true,
-        shuffle: true,
+        repeat: false,
+        shuffle: false,
         alwaysOnTop: true,
-        info: true,
-        mediaInfo: true,
-        visualizer: true,
+        info: false,
+        mediaInfo: false,
+        visualizer: false,
         screenshot: true,
         playlist: true,
         fullscreen: true,
-        skipOpening: false,
+        skipOpening: true,
         seekButtons: true,
       },
       ambient: {
@@ -326,16 +326,16 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
   const showTrackNames = localStorage.getItem("l-mpv-show-track-names") !== "false";
 
   let visibleButtons: Record<string, boolean> = {
-    repeat: true,
-    shuffle: true,
+    repeat: false,
+    shuffle: false,
     alwaysOnTop: true,
-    info: true,
-    mediaInfo: true,
-    visualizer: true,
+    info: false,
+    mediaInfo: false,
+    visualizer: false,
     screenshot: true,
     playlist: true,
     fullscreen: true,
-    skipOpening: false,
+    skipOpening: true,
     seekButtons: true,
   };
   try {
@@ -450,6 +450,7 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   if (typeof data.uiOpacity === "number") {
     saveUiOpacity(data.uiOpacity);
   }
+
 
   // 3.1 Скругление интерфейса
   if (data.uiRadius) {

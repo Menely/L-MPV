@@ -1442,6 +1442,121 @@ impl MpvManager {
 
     /// Пакетный сбор всех доступных медиадорожек плеера за один захват
     /// мьютекса с прямыми FFI-вызовами libmpv без повторных блокировок.
+    /// Проверяет, является ли название обработчика потока MP4/MOV технической заглушкой по умолчанию.
+    #[inline]
+    fn is_generic_handler_name(name: &str) -> bool {
+        let lower = name.trim().to_ascii_lowercase();
+        matches!(
+            lower.as_str(),
+            "" | "soundhandler"
+                | "videohandler"
+                | "subtitlehandler"
+                | "soundmediahandler"
+                | "videomediahandler"
+                | "textmediahandler"
+                | "subtitlemediahandler"
+                | "core media audio"
+                | "core media video"
+                | "core media subtitle"
+                | "gpac iso audio handler"
+                | "gpac iso video handler"
+                | "gpac subtitle handler"
+                | "mainconcept mp4 sound media handler"
+                | "mainconcept mp4 video media handler"
+                | "iso media file produced by google, inc."
+        )
+    }
+
+    /// Считывает строковое свойство дорожки (`track-list/{index}/{suffix}`) без аллокаций имени.
+    #[inline]
+    unsafe fn get_track_prop_string_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        index: i64,
+        suffix: &str,
+        buf: &mut [u8; 64],
+    ) -> String {
+        let mut cur = std::io::Cursor::new(&mut buf[..]);
+        if write!(cur, "track-list/{index}/{suffix}\0").is_ok() {
+            if let Ok(c_name) = CStr::from_bytes_until_nul(buf) {
+                return Self::get_string_raw(api, handle, c_name);
+            }
+        }
+        String::new()
+    }
+
+    /// Считывает целочисленное свойство дорожки (`track-list/{index}/{suffix}`) без аллокаций имени.
+    #[inline]
+    unsafe fn get_track_prop_int_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        index: i64,
+        suffix: &str,
+        buf: &mut [u8; 64],
+    ) -> Option<i64> {
+        let mut cur = std::io::Cursor::new(&mut buf[..]);
+        if write!(cur, "track-list/{index}/{suffix}\0").is_ok() {
+            if let Ok(c_name) = CStr::from_bytes_until_nul(buf) {
+                return Self::get_int_opt_raw(api, handle, c_name);
+            }
+        }
+        None
+    }
+
+    /// Проверяет равенство строкового свойства дорожки с байтовым срезом без аллокаций памяти.
+    #[inline]
+    unsafe fn track_prop_equals_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        index: i64,
+        suffix: &str,
+        expected: &[u8],
+        buf: &mut [u8; 64],
+    ) -> bool {
+        let mut cur = std::io::Cursor::new(&mut buf[..]);
+        if write!(cur, "track-list/{index}/{suffix}\0").is_ok() {
+            if let Ok(c_name) = CStr::from_bytes_until_nul(buf) {
+                return Self::property_string_equals_raw(api, handle, c_name, expected);
+            }
+        }
+        false
+    }
+
+    /// Каскадное извлечение названия дорожки для MKV, MP4, MOV и WebM.
+    ///
+    /// 1. `track-list/{i}/title` — прямое свойство заголовка (MKV и потоки со стандартным тегом title).
+    /// 2. `track-list/{i}/metadata/name` — QuickTime/MP4 атом `udta/name` (FFmpeg stream metadata "name").
+    /// 3. `track-list/{i}/metadata/title` — пользовательский тег "title" во вложенных метаданных.
+    /// 4. `track-list/{i}/metadata/handler_name` — дескриптор дорожки hdlr (MP4Box, HandBrake), исключая системные дефолты.
+    unsafe fn resolve_track_title_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        index: i64,
+        buf: &mut [u8; 64],
+    ) -> String {
+        let direct_title = Self::get_track_prop_string_raw(api, handle, index, "title", buf);
+        if !direct_title.trim().is_empty() {
+            return direct_title;
+        }
+
+        let meta_name = Self::get_track_prop_string_raw(api, handle, index, "metadata/name", buf);
+        if !meta_name.trim().is_empty() {
+            return meta_name;
+        }
+
+        let meta_title = Self::get_track_prop_string_raw(api, handle, index, "metadata/title", buf);
+        if !meta_title.trim().is_empty() {
+            return meta_title;
+        }
+
+        let handler_name = Self::get_track_prop_string_raw(api, handle, index, "metadata/handler_name", buf);
+        if !Self::is_generic_handler_name(&handler_name) {
+            return handler_name;
+        }
+
+        String::new()
+    }
+
     pub fn get_tracks_snapshot(
         &self,
     ) -> Result<Vec<crate::commands::TrackInfo>, String> {
@@ -1460,69 +1575,26 @@ impl MpvManager {
                 0
             };
             let mut tracks = Vec::with_capacity(count as usize);
-
-            let mut prop_buf = [0u8; 48];
+            let mut prop_buf = [0u8; 64];
 
             for i in 0..count {
-                // track-list/{i}/type
-                let track_type = {
-                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
-                    let _ = write!(cur, "track-list/{i}/type\0");
-                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
-                        Self::get_string_raw(&self.api, handle, c_name)
-                    } else {
-                        String::new()
-                    }
-                };
+                let track_type = Self::get_track_prop_string_raw(
+                    &self.api, handle, i, "type", &mut prop_buf,
+                );
+                let id = Self::get_track_prop_int_raw(
+                    &self.api, handle, i, "id", &mut prop_buf,
+                )
+                .unwrap_or(i + 1);
 
-                // track-list/{i}/id
-                let id = {
-                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
-                    let _ = write!(cur, "track-list/{i}/id\0");
-                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
-                        Self::get_int_opt_raw(&self.api, handle, c_name).unwrap_or(i + 1)
-                    } else {
-                        i + 1
-                    }
-                };
-
-                // track-list/{i}/title
-                let title = {
-                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
-                    let _ = write!(cur, "track-list/{i}/title\0");
-                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
-                        Self::get_string_raw(&self.api, handle, c_name)
-                    } else {
-                        String::new()
-                    }
-                };
-
-                // track-list/{i}/lang
-                let lang = {
-                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
-                    let _ = write!(cur, "track-list/{i}/lang\0");
-                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
-                        Self::get_string_raw(&self.api, handle, c_name)
-                    } else {
-                        String::new()
-                    }
-                };
-
-                // track-list/{i}/selected
-                let is_selected_by_list = {
-                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
-                    let _ = write!(cur, "track-list/{i}/selected\0");
-                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
-                        Self::property_string_equals_raw(
-                            &self.api,
-                            handle,
-                            c_name,
-                            b"yes",
-                        )
-                    } else {
-                        false
-                    }
-                };
+                let title = Self::resolve_track_title_raw(
+                    &self.api, handle, i, &mut prop_buf,
+                );
+                let lang = Self::get_track_prop_string_raw(
+                    &self.api, handle, i, "lang", &mut prop_buf,
+                );
+                let is_selected_by_list = Self::track_prop_equals_raw(
+                    &self.api, handle, i, "selected", b"yes", &mut prop_buf,
+                );
 
                 let selected = match track_type.as_str() {
                     "audio" => {
@@ -1555,56 +1627,23 @@ impl MpvManager {
                     _ => is_selected_by_list,
                 };
 
-                // track-list/{i}/codec
-                let codec = {
-                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
-                    let _ = write!(cur, "track-list/{i}/codec\0");
-                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
-                        Self::get_string_raw(&self.api, handle, c_name)
-                    } else {
-                        String::new()
-                    }
-                };
-
-                // track-list/{i}/external
-                let external = {
-                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
-                    let _ = write!(cur, "track-list/{i}/external\0");
-                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
-                        Self::property_string_equals_raw(
-                            &self.api,
-                            handle,
-                            c_name,
-                            b"yes",
-                        )
-                    } else {
-                        false
-                    }
-                };
-
-                // track-list/{i}/external-filename
+                let codec = Self::get_track_prop_string_raw(
+                    &self.api, handle, i, "codec", &mut prop_buf,
+                );
+                let external = Self::track_prop_equals_raw(
+                    &self.api, handle, i, "external", b"yes", &mut prop_buf,
+                );
                 let external_filename = if external {
-                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
-                    let _ = write!(cur, "track-list/{i}/external-filename\0");
-                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
-                        Self::get_string_raw(&self.api, handle, c_name)
-                    } else {
-                        String::new()
-                    }
+                    Self::get_track_prop_string_raw(
+                        &self.api, handle, i, "external-filename", &mut prop_buf,
+                    )
                 } else {
                     String::new()
                 };
-
-                // track-list/{i}/ff-index
-                let ff_index = {
-                    let mut cur = std::io::Cursor::new(&mut prop_buf[..]);
-                    let _ = write!(cur, "track-list/{i}/ff-index\0");
-                    if let Ok(c_name) = CStr::from_bytes_until_nul(&prop_buf) {
-                        Self::get_int_opt_raw(&self.api, handle, c_name).unwrap_or(-1)
-                    } else {
-                        -1
-                    }
-                };
+                let ff_index = Self::get_track_prop_int_raw(
+                    &self.api, handle, i, "ff-index", &mut prop_buf,
+                )
+                .unwrap_or(-1);
 
                 tracks.push(crate::commands::TrackInfo {
                     id,

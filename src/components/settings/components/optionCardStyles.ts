@@ -12,6 +12,7 @@ export const optionCardStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   minWidth: 0,
+  position: "relative",
   gap: 8,
   padding: "10px 12px",
   background: "rgba(255, 255, 255, 0.025)",

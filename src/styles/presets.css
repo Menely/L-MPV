@@ -26,7 +26,6 @@
   flex-direction: column;
   gap: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(8px);
 }
 
 .presets-creator__header {
@@ -413,7 +412,6 @@
   font-size: 0.88rem;
   font-weight: 500;
   z-index: 100000;
-  backdrop-filter: blur(12px);
   animation: toastSlideUp 0.25s var(--ease-out);
 }
 

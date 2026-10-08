@@ -248,7 +248,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
         alignItems: "center",
         justifyContent: "center",
         background: "rgba(0, 0, 0, 0.65)",
-        backdropFilter: "blur(10px)",
       }}
     >
       <div

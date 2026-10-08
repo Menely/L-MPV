@@ -1,33 +1,53 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import React, {
+  useEffect, useState, useRef, useCallback, useMemo,
+} from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState, PlaylistItem } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { showOsd } from "../../hooks/useOsd";
 import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { getActiveUiScale } from "../../utils/uiThemeUtils";
-import { X, Search, Play, Clapperboard, RotateCw } from "lucide-react";
+import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2 } from "lucide-react";
 import { EmptyState } from "../settings/components/SettingBlocks";
+
+/** Данные прогресса просмотра для одного файла плейлиста. */
+interface WatchProgressInfo {
+  position: number;
+  duration: number;
+  progress_percent: number;
+}
 
 interface PlaylistItemRowProps {
   item: PlaylistItem;
   isCurrent: boolean;
   onPlay: (index: number) => void;
   itemRef?: (el: HTMLButtonElement | null) => void;
+  /** Процент просмотра от 0 до 100. 0 = неизвестно или не смотрелся. */
+  watchProgress?: number;
 }
 
 /**
- * Мемоизированный компонент строки элемента плейлиста для быстрого рендеринга
- * больших списков без лишних перерисовок соседних элементов.
+ * Мемоизированный компонент строки элемента плейлиста с индикатором просмотра.
+ * Тонкая полоска Watch Progress Bar в стиле Netflix/YouTube отображается
+ * в низу карточки, если файл был просмотрен от 2% до 90%.
+ * При досмотре ≥ 90% показывается значок «Просмотрено».
  */
 const PlaylistItemRow = React.memo(function PlaylistItemRow({
   item,
   isCurrent,
   onPlay,
   itemRef,
+  watchProgress = 0,
 }: PlaylistItemRowProps) {
+  const isWatched = watchProgress >= 90;
+  const showProgress = watchProgress >= 2;
+
   return (
     <button
       ref={itemRef}
-      className={`playlist-item ${isCurrent ? "playlist-item--current" : ""}`}
+      className={`playlist-item ${
+        isCurrent ? "playlist-item--current" : ""
+      } ${isWatched ? "playlist-item--watched" : ""}`}
       onClick={() => onPlay(item.index)}
       title={item.filename}
     >
@@ -35,11 +55,24 @@ const PlaylistItemRow = React.memo(function PlaylistItemRow({
       <div className="playlist-item__icon">
         {isCurrent ? (
           <Play size={14} fill="currentColor" />
+        ) : isWatched ? (
+          <CheckCircle2 size={14} className="playlist-item__watched-icon" />
         ) : (
           <Clapperboard size={14} />
         )}
       </div>
       <div className="playlist-item__title">{item.title}</div>
+      {/* Watch Progress Bar: полоска прогресса в стиле Netflix */}
+      {showProgress && (
+        <div className="playlist-item__progress-track">
+          <div
+            className={`playlist-item__progress-fill ${
+              isWatched ? "playlist-item__progress-fill--watched" : ""
+            }`}
+            style={{ width: `${isWatched ? 100 : Math.min(100, watchProgress)}%` }}
+          />
+        </div>
+      )}
     </button>
   );
 });
@@ -97,6 +130,32 @@ export function PlaylistDrawer() {
       document.body.style.userSelect = "";
     };
   }, []);
+
+  // Пакетная загрузка данных прогресса просмотра через IPC при открытии плейлиста.
+  // Один вызов вместо N вызовов для каждого файла.
+  const [watchProgressMap, setWatchProgressMap] = useState<
+    Record<string, WatchProgressInfo>
+  >({});
+
+  useEffect(() => {
+    if (!isPlaylistOpen || playlist.length === 0) return;
+
+    let isMounted = true;
+    const paths = playlist.map((item) => item.filename);
+    invoke<Record<string, WatchProgressInfo>>("get_watch_history_batch", {
+      paths,
+    })
+      .then((result) => {
+        if (isMounted) setWatchProgressMap(result);
+      })
+      .catch((err) =>
+        console.error("Ошибка загрузки данных просмотра:", err)
+      );
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isPlaylistOpen, playlist]);
 
   // Синхронизация и гарантированный сброс состояния закрытия при изменении видимости
   useEffect(() => {
@@ -309,9 +368,10 @@ export function PlaylistDrawer() {
       } catch (e) {
         console.error("Ошибка воспроизведения файла из плейлиста", e);
         refreshPlaylist();
+        showOsd(dict.osd.playlistPlayErr, { isError: true });
       }
     },
-    [playlist, setPlaylist, refreshPlaylist]
+    [playlist, setPlaylist, refreshPlaylist, dict]
   );
 
   // Мемоизированная фильтрация для производительности на больших плейлистах
@@ -432,6 +492,9 @@ export function PlaylistDrawer() {
               isCurrent={item.current}
               onPlay={handlePlayItem}
               itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
+              watchProgress={
+                watchProgressMap[item.filename]?.progress_percent ?? 0
+              }
             />
           ))
         )}

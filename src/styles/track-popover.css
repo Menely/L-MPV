@@ -7,19 +7,21 @@
   max-width: min(400px, 90vw);
   width: max-content;
   background: var(--bg-pill);
-  backdrop-filter: var(--ui-backdrop-heavy);
-  -webkit-backdrop-filter: var(--ui-backdrop-heavy);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
   padding: 8px;
   box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
   z-index: 1000;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  animation: popoverFadeIn var(--t-fast) var(--ease-out);
+  animation: popoverFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: bottom center;
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
+
 
 .track-popover--speed {
   min-width: 140px;
@@ -33,14 +35,16 @@
 @keyframes popoverFadeIn {
   0% {
     transform: translateY(8px);
+    opacity: 0;
   }
   100% {
     transform: translateY(0);
+    opacity: 1;
   }
 }
 
 .track-popover--closing {
-  animation: popoverFadeOut 120ms var(--ease-out) forwards !important;
+  animation: popoverFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 

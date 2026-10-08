@@ -128,8 +128,6 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
         style={{
           width: "100%",
           background: "var(--bg-pill, rgba(13, 17, 23, 0.88))",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
           border: "1px solid var(--border-pill)",
           borderRadius: "var(--radius-controls, 16px)",
           padding: "6px 12px 8px",
