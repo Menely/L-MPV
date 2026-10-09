@@ -2411,7 +2411,7 @@ dependencies = [
 
 [[package]]
 name = "l-mpv"
-version = "2.6.1"
+version = "2.6.2"
 dependencies = [
  "arboard",
  "base64 0.23.1",
