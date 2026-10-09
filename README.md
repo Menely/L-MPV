@@ -426,7 +426,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 </details>
 
 <details>
-<summary><b>🛡️ Architectural Reliability: Atomic Writes, Anti-Stuttering & Process Ownership (v2.6.0)</b></summary>
+<summary><b>🛡️ Architectural Reliability: Atomic Writes, Anti-Stuttering & Process Ownership</b></summary>
 
 - **Thread Prioritization & Anti-Stuttering (Windows MMCSS):**
   - Option `vo-mmcss-profile=Playback` registers the video rendering thread with the Windows Multimedia Class Scheduler Service (MMCSS), ensuring prioritized CPU quantum allocation and eliminating video frame drops under background OS load (Defender, browser, indexing).
@@ -444,7 +444,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 </details>
 
 <details>
-<summary><b>🔄 Update Integrity Verification & Seamless Rollback (BLAKE3 & Checksums) (v2.6.0)</b></summary>
+<summary><b>🔄 Update Integrity Verification & Seamless Rollback (BLAKE3 & Checksums)</b></summary>
 
 - **Cryptographic Integrity Verification (BLAKE3):**
   - Automatically verifies hashes of downloaded binaries and libraries (`l-mpv.exe`, `libmpv-2.dll`, `mediainfo.dll`) on the fly, rejecting corrupted or partially downloaded assets before installation.
