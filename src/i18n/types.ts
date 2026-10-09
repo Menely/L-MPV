@@ -947,6 +947,9 @@ export interface TranslationDict {
     noVideoExtract: string;
     clipboardEmpty: string;
     subtitleDelay: (val: string) => string;
+    openFileErr: string;
+    subtitlesLoadErr: string;
+    playlistPlayErr: string;
   };
 
   // ─── Окно обновлений и версий (UpdateModal / UpdateToast) ────────

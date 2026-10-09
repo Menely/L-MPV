@@ -4,6 +4,7 @@ import { usePlayerState, usePlayerProgress, useLiveState } from "../../contexts/
 import { formatTime } from "../../utils/timeUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { useVideoBitrate } from "../../hooks/useVideoBitrate";
 import { BitrateSparkline } from "./BitrateSparkline";
 
 interface MediaInfoModalProps {
@@ -38,70 +39,11 @@ export function MediaInfoModal({
   // Выборка имени файла
   const filename = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() : "—";
 
-  const [instantBitrate, setInstantBitrate] = useState<number>(0);
-  const [bitrateHistory, setBitrateHistory] = useState<number[]>([]);
-  // Храним историю позиций для скользящего среднего (окно ~3 секунды)
-  const historyRef = useRef<{ time: number; pos: number }[]>([]);
-  const lastUiUpdateRef = useRef<number>(0);
-
-  // Сброс мгновенного битрейта при смене файла
-  useEffect(() => {
-    setInstantBitrate(0);
-    setBitrateHistory([]);
-    historyRef.current = [];
-  }, [mediaInfo?.path]);
-
-  // Расчет битрейта на основе централизованных данных контекста (без дублирования поллинга)
-  useEffect(() => {
-    // При паузе сохраняем последнее рассчитанное значение битрейта и сбрасываем историю точек
-    if (liveState?.paused) {
-      historyRef.current = [];
-      return;
-    }
-
-    if (!liveState?.stream_pos) return;
-    const now = performance.now();
-    const history = historyRef.current;
-    
-    // При перемотке сбрасываем историю для мгновенного чистого расчета от новой позиции
-    if (history.length > 0) {
-      const prev = history[history.length - 1];
-      if (liveState.stream_pos < prev.pos || (liveState.stream_pos - prev.pos) > 50 * 1024 * 1024) {
-        historyRef.current = [{ time: now, pos: liveState.stream_pos }];
-        return;
-      }
-    }
-
-    // Добавляем текущую точку
-    history.push({ time: now, pos: liveState.stream_pos });
-    
-    // Удаляем точки старше 3 секунд
-    while (history.length > 0 && now - history[0].time > 3000) {
-      history.shift();
-    }
-    
-    // Обновляем UI каждые 250 мс для плавности
-    if (now - lastUiUpdateRef.current >= 250) {
-      if (history.length >= 2) {
-        const oldest = history[0];
-        const newest = history[history.length - 1];
-        const deltaT = (newest.time - oldest.time) / 1000;
-        const deltaBytes = newest.pos - oldest.pos;
-        
-        if (deltaT > 0 && deltaBytes >= 0) {
-          const calculated = (deltaBytes * 8) / deltaT;
-          if (Number.isFinite(calculated) && calculated > 0) {
-            setInstantBitrate(calculated);
-            setBitrateHistory((prev) => {
-              const next = [...prev, calculated];
-              return next.length > 20 ? next.slice(next.length - 20) : next;
-            });
-          }
-        }
-      }
-      lastUiUpdateRef.current = now;
-    }
-  }, [liveState?.stream_pos, liveState?.paused]);
+  // Вычисление актуального битрейта видеопотока и плавной истории замеров для Sparkline
+  const { bitrate: currentVideoBitrate, history: bitrateHistory } = useVideoBitrate({
+    liveState,
+    mediaInfo,
+  });
 
   // Итоговые значения
   const currentPos = position || mediaInfo?.position || 0;
@@ -224,7 +166,9 @@ export function MediaInfoModal({
           <div className="media-info__bitrate-wrap">
             <BitrateSparkline data={bitrateHistory} />
             <span className="media-info__value">
-              {instantBitrate > 0 ? `${Math.round(instantBitrate / 1000)} ${dict.mediaInfoModal.kbps}` : "—"}
+              {currentVideoBitrate > 0
+                ? `${Math.round(currentVideoBitrate / 1000)} ${dict.mediaInfoModal.kbps}`
+                : "—"}
             </span>
           </div>
         </div>

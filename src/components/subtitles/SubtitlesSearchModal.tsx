@@ -431,8 +431,6 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
           maxHeight: "100%",
           overflow: "hidden",
           background: isOpaque ? "#0b0f15" : "var(--bg-pill)",
-          backdropFilter: isOpaque ? "none" : "var(--ui-backdrop)",
-          WebkitBackdropFilter: isOpaque ? "none" : "var(--ui-backdrop)",
           border: isOpaque
             ? "1px solid rgba(255, 255, 255, 0.15)"
             : "1px solid var(--border-pill)",

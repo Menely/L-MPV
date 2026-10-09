@@ -288,7 +288,7 @@ export function applyAllVisualSettings(): void {
   const curScale = getSavedUiScale();
   applyUiScale(curScale.mode, curScale.value);
 
-  // Прозрачность
+  // Прозрачность (Glassmorphism)
   applyUiOpacity(getSavedUiOpacity());
 
   // Шрифт

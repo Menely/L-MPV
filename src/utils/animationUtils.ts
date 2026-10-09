@@ -2,28 +2,53 @@
  * Единый центр управления анимациями L-MPV.
  *
  * Проблема которую решает модуль:
- * - раньше проверка `document.documentElement.classList.contains("no-animations")`
- *   была скопирована в 10+ мест, а длительности закрытия (120/140/200мс)
- *   хардкодились в каждом `setTimeout` отдельно от CSS-переменных
- *   `--t-close-fast/base` — рассинхрон давал обрезанные или залипающие анимации;
- * - флаг хранился в двух местах: класс `no-animations` и атрибут
- *   `data-animations`, которые могли разъехаться.
+ * - раньше длительности закрытия (120/140/200мс) хардкодились в каждом
+ *   `setTimeout` отдельно от CSS-переменных `--t-close-*`
+ *   — рассинхрон давал обрезанные или залипающие анимации.
  *
  * Теперь: один источник правды. CSS-переменные в `variables.css` — эталон,
- * константы ниже — их зеркало. При смене длительностей менять в двух местах.
+ * константы ниже — их JS-зеркало. При смене длительностей менять синхронно.
+ *
+ * Кинетическая модель (5 уровней):
+ *   instant → fast → pop → panel → modal
+ * Правило закрытия: exit ≈ 70% от entry (быстрее освобождаем экран).
  */
 
-export const CLOSE_FAST_MS = 120; // = --t-close-fast
-export const CLOSE_BASE_MS = 140; // = --t-close-base (+ modalOverlayFadeOut/modalFadeOut)
-export const CLOSE_OSD_MS = 200; // = osdFadeOut 200ms в base.css
-export const CLOSE_BUFFER_MS = 50; // запас на пропуск кадра / rAF-джиттер
+/* ─── Entry durations (мс) — зеркало CSS --t-* ──────── */
+export const T_INSTANT_MS = 100;  // = --t-instant  (тактильный отклик)
+export const T_FAST_MS    = 160;  // = --t-fast     (ховеры, тултипы)
+export const T_POP_MS     = 220;  // = --t-pop      (поповеры, меню)
+export const T_PANEL_MS   = 280;  // = --t-panel    (плейлист, drawer)
+export const T_MODAL_MS   = 320;  // = --t-modal    (настройки, MediaInfo)
 
-export type CloseKind = "fast" | "base" | "osd";
+/* ─── Exit durations (мс) — зеркало CSS --t-close-* ─── */
+export const CLOSE_FAST_MS  = 120;  // = --t-close-fast  (ховер-состояния)
+export const CLOSE_POP_MS   = 155;  // = --t-close-pop   (поповеры, контекстное меню)
+export const CLOSE_PANEL_MS = 200;  // = --t-close-panel (плейлист, боковые панели)
+export const CLOSE_MODAL_MS = 230;  // = --t-close-modal (модальные окна)
+
+/** Запас на пропуск кадра / rAF-джиттер (добавляется к CSS-длительности в setTimeout). */
+export const CLOSE_BUFFER_MS = 40;
+
+/* Обратная совместимость: старые экспорты → псевдонимы */
+/** @deprecated Используй CLOSE_POP_MS */
+export const CLOSE_BASE_MS = CLOSE_POP_MS;
+/** @deprecated Используй T_POP_MS */
+export const CLOSE_OSD_MS  = T_POP_MS;
+
+export type CloseKind = "fast" | "pop" | "panel" | "modal" | "base" | "osd";
 
 export function getCloseCssMs(kind: CloseKind): number {
-  if (kind === "fast") return CLOSE_FAST_MS;
-  if (kind === "osd") return CLOSE_OSD_MS;
-  return CLOSE_BASE_MS;
+  switch (kind) {
+    case "fast":  return CLOSE_FAST_MS;
+    case "pop":   return CLOSE_POP_MS;
+    case "panel": return CLOSE_PANEL_MS;
+    case "modal": return CLOSE_MODAL_MS;
+    /* обратная совместимость */
+    case "base":  return CLOSE_POP_MS;
+    case "osd":   return CLOSE_PANEL_MS;
+    default:      return CLOSE_POP_MS;
+  }
 }
 
 /** Полный таймаут для JS (CSS + запас). Использовать везде вместо магических чисел. */

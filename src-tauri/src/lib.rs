@@ -265,6 +265,7 @@ pub fn run() {
             commands::get_last_position,
             commands::save_position,
             commands::save_current_position,
+            commands::get_watch_history_batch,
             commands::update_taskbar_progress,
             commands::toggle_fullscreen,
             commands::extract_track,

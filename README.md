@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.6.1-blueviolet?style=for-the-badge" alt="Version 2.6.1">
+  <img src="https://img.shields.io/badge/Version-2.6.2-blueviolet?style=for-the-badge" alt="Version 2.6.2">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -219,6 +219,8 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <summary><b>🎧 Track Management & 1-Click Export (Track Popover & FFmpeg)</b></summary>
 
 - **Ergonomic Track Popover:** Streamlined popover menu for audio and subtitles on the bottom control bar, sized to display 7 tracks cleanly, with smooth vertical scrolling and automatic scrolling to the active stream on open.
+- **Full Track Title Parity (MP4 / MOV ↔ MKV):** Intelligent cascade metadata probing (`title` → QuickTime/MP4 `metadata/name` from `udta/name` atom → `metadata/title` → `metadata/handler_name`). Track titles (e.g., "Dubbing", "Original Atmos") display consistently and accurately in MP4 and MOV files just like in MKV.
+- **Ergonomic Track Menu Invocation (Left & Right Click):** Both left and right clicks on the audio and subtitle buttons now cleanly toggle the track selection menu, eliminating accidental track cycling on stray clicks.
 - **1-Click Audio & Subtitle Export:** Integrated download buttons within the bottom bar popover and context menu (Right-Click).
 - **Direct Stream Copy (`-c copy`):** Instant track extraction without re-encoding, preserving 100% of original quality in just seconds.
 - **Smart Multi-Threaded Fallback (`-threads 0`):** Automatic transcoding for incompatible container formats (e.g., `mov_text` subtitle streams convert seamlessly into `.srt`).
@@ -252,9 +254,13 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>🎨 Premium Glassmorphic UX/UI, Design System & Custom Fonts</b></summary>
 
+- **Crisp Translucent Design & High Performance:**
+  - **Interface Opacity (10..100%):** Precise opacity control for control bars, dialogs, and popovers while preserving pristine text contrast and legibility.
+  - **Clean Borders & Card Elevation (v2.5.3 Architecture):** Sleek, consistent borders and deep natural shadows for option cards and accordions, completely eliminating artifacts or glare across translucent backgrounds.
+  - **Zero Overhead:** Completely avoids heavy backdrop blur passes over video streams, providing zero GPU overhead and maximum responsiveness during 4K and HDR playback.
 - **11 Cinematic UI Themes:** *Dark Graphite*, *Discord Gray*, *Deep OLED*, *Sapphire Midnight*, *Nordic Frost*, *Lavender Indigo*, *Dark Emerald*, *Forest Sage*, *Mint Jade*, *Amethyst*, and *Sunset Coral* with interactive pill badges and harmonious palettes across backgrounds, text, surfaces, and accent glows.
 - **Unified Elevation Surfaces System:**
-  - *Level 1 (`.glass-panel`)*: Main floating bars, dropdown menus, and modal dialogs (`blur(28px)`).
+  - *Level 1 (`.glass-panel`)*: Main floating bars, dropdown menus, and modal dialogs.
   - *Level 2 (`.glass-section`)*: Grouping sections and functional settings containers.
   - *Level 3 (`.glass-tile`)*: Interactive option cards and neural network tiles featuring tactile hover feedback and neon active borders (`.glass-tile--active`).
 - **Self-Contained Font Ecosystem & Custom Fonts (UI Font):**
@@ -272,7 +278,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
     - *Right of Timeline* — Standard placement after the seek bar.
     - *Right of Volume Slider* — Grouped in the left toolbar next to the audio visualizer.
     - *Right Toolbar Cluster* — Placed in the right button group before utility icons (expands timeline to 100% width).
-    - *Centered Over Timeline* — Floating neon pill with glass blur (`backdrop-filter: blur(12px)`) centered above the seek bar (expands timeline to 100% width).
+    - *Centered Over Timeline* — Floating neon pill centered above the seek bar (expands timeline to 100% width).
     - *Window Titlebar* — Interactive time badge inside the top window header to the left of window controls; leaves the bottom control bar uncluttered.
   - Selecting any off-timeline position automatically expands the seek bar to span 100% of the bar width (`.timeline-row--full`).
 - **4 Interactive Time Formats with 1-Click Toggle:**
@@ -282,11 +288,13 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Switch between an airy floating capsule offset from window borders and a monolithic docked bar spanning the full window width.
   - Detailed `148×64px` mini-previews in Settings with neon active selection outlines.
 - **Ergonomic "Appearance" Tab Redesign:**
-  - Top horizontal interface opacity slider (20% to 100%).
+  - Global UI Opacity slider (10–100%) with seamless real-time reactivity across `--ui-opacity` and `--bg-glass` design tokens.
   - Responsive 3-column grid (collapses to 1 column on widths ≤ 480px): Corner Radius (2x2 cards + compact slider) | UI Scaling (2x2 cards + slider + "A" auto-scale toggle) | Typography (6 font options + custom user fonts with folder button).
   - Bottom section: Control bar style with visual mini-previews (left) + compact grids for Time Position (3x2) and Time Format (2x2) (right).
-- **Dynamic Corner Radius System (UI Corner Radius):** 4 rounding levels (*Square 0px*, *Subtle 8px*, *Rounded 14px*, *Pill 20px*) applied instantly across all windows, buttons, and glass tiles.
-- **Floating Quick-Control Pill:** Minimalist bottom toolbar with accent lighting, quick-access audio, subtitles, chapters, screenshots, speed controls, and playlist drawer.
+- **Floating Quick-Control Pill & Default Button Suite:** Minimalist bottom toolbar with accent lighting and a rich out-of-the-box button set: audio tracks, subtitles, volume, previous/next file, seek backward/forward, play/pause, anime opening skip, always-on-top, screenshot, playlist drawer, and fullscreen.
+- **Tabular Numbers & Anti-Jitter System:** Monospaced numerical font alignment (`tabular-nums`, `font-feature-settings: "tnum"`) across timelines, bitrates, frame rates, and playlist counters, completely eliminating visual digit jitter during active playback.
+- **Unified Kinetic Motion Tokens:** Standardized 5-tier duration system (`--t-instant`, `--t-fast`, `--t-base`, `--t-pop`, `--t-drawer`) and 4 curated cubic-bezier curves (`--ease-smooth`, `--ease-decelerate`, `--ease-accelerate`, `--ease-spring-smooth`), synchronized seamlessly between CSS and TypeScript runtime.
+- **Informative User-Facing Error OSD:** High-contrast coral-amber error notifications (`.frame-osd--error`) with a dedicated global API `showOsd(message, { isError: true })` for instant in-player diagnostics.
 - **Subtle Vector Contour Glow (Vector Drop-Shadow):** Precise light diffusion wrapping vector SVG icons with smooth gradient falloff, avoiding muddy circular halos.
 - **Container Query Responsiveness:** Multi-stage intelligent compression hiding verbose track labels and scaling down the audio visualizer and secondary controls on narrow windows.
 - **Smart Fullscreen Auto-Hide:** Option to immediately conceal all UI elements when moving the cursor near the top edge of the display.
@@ -308,6 +316,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>✨ Interactive Timeline: Neon Pulse Wave & Live Scrubbing</b></summary>
 
+- **Segmented Chapter Hover Adaptation:** when hovering over a video with chapters, only the segment of the chapter under the cursor smoothly expands in height (from 5px to 8px) with vertical centering, while neighboring segments maintain their sleek default thickness. For single-chapter or non-chapter videos, the entire timeline expands uniformly as before.
 - **Kinematic Neon Pulse Wave:** Compact glowing neon ring expanding from the click point along the progress track, styled to match the active player accent theme. Automatically suppressed when animations are disabled, so the ring can never linger over the control buttons.
 - **Unthrottled Live Scrubbing:** Ultra-responsive `pointermove` handling delivering silky smooth scrubbing without micro-stutters, fully optimized for high refresh rate (144Hz+) gaming monitors.
 - **Artifact-Free Instant Seeking (Anti-Flicker):** While dragging, the timeline uses lightweight `absolute+keyframes` preview seeks that skip intermediate frame decoding; a single precise `absolute+exact` seek lands on the exact frame once you release. This removes decoder overload, torn frames and UI desync on slower hardware.
@@ -358,6 +367,8 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Slide-out Playlist Drawer (`L` / `P`):** Instant search, file filtering, active track highlighting, and one-click playback switching.
 - **Drag & Drop:** Drop local media files or streaming URLs directly into the player window.
 - **Loop Modes & Shuffle:** Loop current file, loop entire playlist, or play in random order. The toolbar button and the *Repeat Mode* submenu share a single `set_repeat_mode` command that always sets both loop properties together; the submenu marks the active mode immediately and confirms the change with an OSD toast.
+- **Watch Progress Bar (Netflix / YouTube Style):** Elegant bottom accent line under every playlist card reflecting saved SQLite playback progress (`get_watch_history_batch`). Fully watched episodes (≥ 90%) display a crisp green `CheckCircle2` badge and a completed progress line.
+- **Resilient Compact Geometry & Non-Compressing Items:** Playlist items strictly preserve vertical layout (`flex-shrink: 0; min-height: 38px`), providing smooth native vertical scrolling without vertical crushing or element collisions even in ultra-compact player windows.
 - **Chapter Navigation:** Interactive chapters modal with timestamps and jump-to-chapter shortcuts.
 - **Resume Playback:** Robust playback resume saving progress for **up to 300 files** in local `config/history.json`. Seamless start strictly from the saved timestamp, audio/video synchronization without premature audio desync (`hr-seek-framedrop=no`), rapid-exit safety, and preservation of actual watch progress even if interrupted before previous records.
 - **Windows Taskbar Progress:** Displays playback progress bars directly over the player's icon in the Windows taskbar.
@@ -407,13 +418,15 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - *"Style Presets"*: Browse user presets and pre-packaged styles with active indicators.
   - *"AI Upscaling"*: Quick toggle and instant model selector scanning `models/onnx/`.
   - *"Control Bar Buttons"*: 11 individual visibility toggles for bottom toolbar icons (including seek buttons and anime opening skip with customizable duration in seconds).
+- **Reactive UI Opacity & Backdrop Blur:** The context menu and submenus strictly inherit the global `--bg-glass` token and `--ui-opacity` setting, smoothly adapting their translucency to match the player's interface opacity slider.
+- **Intelligent RMB Toggle Behavior:** Right-clicking while the context menu is open cleanly closes it without awkward reposition flashes or redundant reopening.
 - **Menu Dividers (`divider`):** Insert clean separator lines anywhere to organize your menu items.
 - **Portable Storage (`config/context_menu.json`):** Custom menu layouts are stored locally in the player directory. A one-click "Reset" button restores default factory ordering at any time.
 
 </details>
 
 <details>
-<summary><b>🛡️ Architectural Reliability: Atomic Writes, Anti-Stuttering & Process Ownership (v2.6.0)</b></summary>
+<summary><b>🛡️ Architectural Reliability: Atomic Writes, Anti-Stuttering & Process Ownership</b></summary>
 
 - **Thread Prioritization & Anti-Stuttering (Windows MMCSS):**
   - Option `vo-mmcss-profile=Playback` registers the video rendering thread with the Windows Multimedia Class Scheduler Service (MMCSS), ensuring prioritized CPU quantum allocation and eliminating video frame drops under background OS load (Defender, browser, indexing).
@@ -431,7 +444,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 </details>
 
 <details>
-<summary><b>🔄 Update Integrity Verification & Seamless Rollback (BLAKE3 & Checksums) (v2.6.0)</b></summary>
+<summary><b>🔄 Update Integrity Verification & Seamless Rollback (BLAKE3 & Checksums)</b></summary>
 
 - **Cryptographic Integrity Verification (BLAKE3):**
   - Automatically verifies hashes of downloaded binaries and libraries (`l-mpv.exe`, `libmpv-2.dll`, `mediainfo.dll`) on the fly, rejecting corrupted or partially downloaded assets before installation.

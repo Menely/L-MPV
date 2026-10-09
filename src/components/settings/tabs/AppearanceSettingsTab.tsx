@@ -10,7 +10,20 @@ import { VisualizerSettingsSection } from "../sections/VisualizerSettingsSection
 import { ControlButtonsPreviewCard } from "../components/ControlButtonsPreviewCard";
 import { optionCardStyle, optionResetBtnStyle, optionBtnStyle } from "../components/optionCardStyles";
 import { VerticalSlider, AmbientTuneRow } from "../appearance/ambientPrimitives";
-import { UiRadiusLevel, UiScaleMode, UiFontId, UI_RADIUS_PRESETS, UI_SCALE_PRESETS, UI_FONT_PRESETS, CustomFontItem, registerCustomFont, getSavedUiSettingsStyle, saveUiSettingsStyle, type UiSettingsStyle } from "../../../utils/uiThemeUtils";
+import {
+  UiRadiusLevel,
+  UiScaleMode,
+  UiFontId,
+  UI_RADIUS_PRESETS,
+  UI_SCALE_PRESETS,
+  UI_FONT_PRESETS,
+  CustomFontItem,
+  registerCustomFont,
+  getSavedUiSettingsStyle,
+  saveUiSettingsStyle,
+  type UiSettingsStyle,
+  DEFAULT_UI_OPACITY,
+} from "../../../utils/uiThemeUtils";
 import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
 import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
 import { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
@@ -168,114 +181,151 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     <>
                       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 10 }}>
                         
-                        {/* ── Прозрачность интерфейса (Горизонтально сверху) ── */}
+                        {/* ── Секция стекломорфизма: Прозрачность и Преломление ── */}
                         {(() => {
-                          const opacityPct = Math.round(((uiOpacity - 0.10) / (1.00 - 0.10)) * 100);
+                          const renderSliderRow = (
+                            icon: React.ReactNode,
+                            label: string,
+                            value: number,
+                            min: number,
+                            max: number,
+                            step: number,
+                            displayStr: string,
+                            defaultValue: number,
+                            ariaLabel: string,
+                            resetTitle: string,
+                            onChange: (val: number) => void,
+                            onReset: () => void,
+                          ) => {
+                            const pct = Math.max(0, Math.min(100, Math.round(((value - min) / (max - min)) * 100)));
+                            const isChanged = Math.abs(value - defaultValue) > (step < 0.05 ? 0.005 : 0.5);
+
+                            return (
+                              <div
+                                className="option-card settings-opacity-row"
+                                style={{
+                                  ...cardStyle,
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  padding: "9px 14px",
+                                  gap: 14,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 7,
+                                    flexShrink: 0,
+                                    lineHeight: 1,
+                                    minWidth: 175,
+                                  }}
+                                >
+                                  {icon}
+                                  <span
+                                    style={{
+                                      fontSize: "0.82rem",
+                                      fontWeight: 600,
+                                      color: "var(--text-primary)",
+                                      lineHeight: 1,
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {label}
+                                  </span>
+                                </div>
+
+                                <div
+                                  style={{
+                                    flex: 1,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    minWidth: 0,
+                                    height: 20,
+                                  }}
+                                >
+                                  <input
+                                    type="range"
+                                    min={min}
+                                    max={max}
+                                    step={step}
+                                    value={value}
+                                    onChange={(e) => onChange(parseFloat(e.target.value))}
+                                    className="ui-premium-slider"
+                                    style={{
+                                      "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, rgba(255, 255, 255, 0.12) ${pct}%, rgba(255, 255, 255, 0.12) 100%)`,
+                                    } as React.CSSProperties}
+                                    aria-label={ariaLabel}
+                                  />
+                                </div>
+
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    flexShrink: 0,
+                                    lineHeight: 1,
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: "0.80rem",
+                                      fontWeight: 700,
+                                      color: "var(--accent)",
+                                      minWidth: 42,
+                                      textAlign: "right",
+                                      fontVariantNumeric: "tabular-nums",
+                                      lineHeight: 1,
+                                    }}
+                                  >
+                                    {displayStr}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={onReset}
+                                    className="btn btn--secondary btn--sm"
+                                    style={{
+                                      ...resetBtnStyle,
+                                      opacity: isChanged ? 1 : 0,
+                                      visibility: isChanged ? "visible" : "hidden",
+                                      pointerEvents: isChanged ? "auto" : "none",
+                                      transform: isChanged ? "scale(1)" : "scale(0.85)",
+                                      transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                                    }}
+                                    title={resetTitle}
+                                    tabIndex={isChanged ? 0 : -1}
+                                  >
+                                    <RotateCcw size={11} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          };
+
                           return (
-                            <div
-                              className="settings-opacity-row"
-                              style={{
-                                ...cardStyle,
-                                flexDirection: "row",
-                                alignItems: "center",
-                                padding: "10px 14px",
-                                gap: 14,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 7,
-                                  flexShrink: 0,
-                                  lineHeight: 1,
-                                }}
-                              >
-                                <SlidersHorizontal size={15} style={{ color: "var(--accent)" }} />
-                                <span
-                                  style={{
-                                    fontSize: "0.82rem",
-                                    fontWeight: 600,
-                                    color: "var(--text-primary)",
-                                    lineHeight: 1,
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {dict.settings.appearance.opacityLabel}
-                                </span>
-                              </div>
-
-                              <div
-                                style={{
-                                  flex: 1,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  minWidth: 0,
-                                  height: 20,
-                                }}
-                              >
-                                <input
-                                  type="range"
-                                  min="0.10"
-                                  max="1.00"
-                                  step="0.01"
-                                  value={uiOpacity}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value);
-                                    setUiOpacity(val);
-                                    saveUiOpacity(val);
-                                  }}
-                                  className="ui-premium-slider"
-                                  style={{
-                                    "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${opacityPct}%, rgba(255, 255, 255, 0.12) ${opacityPct}%, rgba(255, 255, 255, 0.12) 100%)`,
-                                  } as React.CSSProperties}
-                                  aria-label={dict.settings.appearance.opacityAria}
-                                />
-                              </div>
-
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 8,
-                                  flexShrink: 0,
-                                  lineHeight: 1,
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    fontSize: "0.80rem",
-                                    fontWeight: 700,
-                                    color: "var(--accent)",
-                                    minWidth: 36,
-                                    textAlign: "left",
-                                    fontVariantNumeric: "tabular-nums",
-                                    lineHeight: 1,
-                                  }}
-                                >
-                                  {Math.round(uiOpacity * 100)}%
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setUiOpacity(0.88);
-                                    saveUiOpacity(0.88);
-                                  }}
-                                  className="btn btn--secondary btn--sm"
-                                  style={{
-                                    ...resetBtnStyle,
-                                    opacity: Math.abs(uiOpacity - 0.88) > 0.005 ? 1 : 0,
-                                    visibility: Math.abs(uiOpacity - 0.88) > 0.005 ? "visible" : "hidden",
-                                    pointerEvents: Math.abs(uiOpacity - 0.88) > 0.005 ? "auto" : "none",
-                                    transform: Math.abs(uiOpacity - 0.88) > 0.005 ? "scale(1)" : "scale(0.85)",
-                                    transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                                  }}
-                                  title={dict.settings.appearance.reset88}
-                                  tabIndex={Math.abs(uiOpacity - 0.88) > 0.005 ? 0 : -1}
-                                >
-                                  <RotateCcw size={11} />
-                                </button>
-                              </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                              {/* 1. Слайдер прозрачности */}
+                              {renderSliderRow(
+                                <SlidersHorizontal size={15} style={{ color: "var(--accent)" }} />,
+                                dict.settings.appearance.opacityLabel,
+                                uiOpacity,
+                                0.10,
+                                1.00,
+                                0.01,
+                                `${Math.round(uiOpacity * 100)}%`,
+                                DEFAULT_UI_OPACITY,
+                                dict.settings.appearance.opacityAria,
+                                dict.settings.appearance.reset88,
+                                (val) => {
+                                  setUiOpacity(val);
+                                  saveUiOpacity(val);
+                                },
+                                () => {
+                                  setUiOpacity(DEFAULT_UI_OPACITY);
+                                  saveUiOpacity(DEFAULT_UI_OPACITY);
+                                }
+                              )}
                             </div>
                           );
                         })()}
@@ -284,7 +334,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                         <div className="ui-ergonomics-grid">
 
                           {/* Колонка 1: Скругление */}
-                          <div className="ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                          <div className="option-card ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Square size={14} style={{ color: "var(--accent)" }} />
@@ -392,7 +442,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           </div>
 
                           {/* Колонка 2: Масштаб */}
-                          <div className="ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                          <div className="option-card ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Maximize2 size={14} style={{ color: "var(--accent)" }} />
@@ -509,7 +559,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           </div>
 
                           {/* Колонка 3: Шрифты */}
-                          <div className="ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                          <div className="option-card ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div style={{ height: 22, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <Type size={14} style={{ color: "var(--accent)" }} />

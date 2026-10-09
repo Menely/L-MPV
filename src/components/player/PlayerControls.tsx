@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
 import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { showOsd } from "../../hooks/useOsd";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   Undo,
@@ -174,16 +175,16 @@ export function PlayerControls({
     const saved = localStorage.getItem('l-mpv-visible-buttons');
     if (saved) return JSON.parse(saved);
     return {
-      repeat: true,
-      shuffle: true,
+      repeat: false,
+      shuffle: false,
       alwaysOnTop: true,
-      info: true,
-      mediaInfo: true,
-      visualizer: true,
+      info: false,
+      mediaInfo: false,
+      visualizer: false,
       screenshot: true,
       playlist: true,
       fullscreen: true,
-      skipOpening: false,
+      skipOpening: true,
       seekButtons: true,
     };
   });
@@ -206,11 +207,7 @@ export function PlayerControls({
     setTimeFormat(nextFormat);
     saveTimeFormat(nextFormat);
     const option = TIME_FORMAT_OPTIONS.find((opt) => opt.id === nextFormat);
-    window.dispatchEvent(
-      new CustomEvent("show-osd", {
-        detail: dict.osd.timeFormat(option?.label || nextFormat),
-      })
-    );
+    showOsd(dict.osd.timeFormat(option?.label || nextFormat));
   }, [timeFormat, dict]);
 
   // Синхронизация локальных настроек плеера (не зависит от активных поповеров)
@@ -351,13 +348,23 @@ export function PlayerControls({
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const activeTrackItemRef = useRef<HTMLButtonElement | null>(null);
+  const hasScrolledPopoverRef = useRef<string | null>(null);
 
   // ─── Автоскролл к активной дорожке при открытии поповера ──
   useEffect(() => {
-    if (!activePopover) return;
+    if (!activePopover) {
+      hasScrolledPopoverRef.current = null;
+      return;
+    }
+    // Скроллим к активной дорожке строго один раз при открытии конкретного меню,
+    // чтобы ручное листание пользователем не сбрасывалось наверх
+    if (hasScrolledPopoverRef.current === activePopover) {
+      return;
+    }
     const rafId = requestAnimationFrame(() => {
       if (activeTrackItemRef.current) {
         activeTrackItemRef.current.scrollIntoView({ block: "nearest", behavior: "auto" });
+        hasScrolledPopoverRef.current = activePopover;
       }
     });
     return () => cancelAnimationFrame(rafId);
@@ -392,9 +399,10 @@ export function PlayerControls({
 
   const handleAudioButtonClick = useCallback((mouseBtn: "MouseLeft" | "MouseRight") => {
     const cycleBinds = hotkeys["cycleAudioTrack"] || [];
-    const menuBinds = hotkeys["toggleAudioMenu"] || [];
+    const menuBinds = hotkeys["toggleAudioMenu"] || ["MouseLeft", "MouseRight"];
 
-    if (menuBinds.includes(mouseBtn)) {
+    // По умолчанию и по настройкам ЛКМ и ПКМ переключают видимость всплывающего меню дорожек
+    if (menuBinds.includes(mouseBtn) || mouseBtn === "MouseLeft") {
       if (activePopover === "audio") {
         closePopover();
       } else {
@@ -410,9 +418,10 @@ export function PlayerControls({
 
   const handleSubButtonClick = useCallback((mouseBtn: "MouseLeft" | "MouseRight") => {
     const cycleBinds = hotkeys["cycleSubTrack"] || [];
-    const menuBinds = hotkeys["toggleSubMenu"] || [];
+    const menuBinds = hotkeys["toggleSubMenu"] || ["MouseLeft", "MouseRight"];
 
-    if (menuBinds.includes(mouseBtn)) {
+    // По умолчанию и по настройкам ЛКМ и ПКМ переключают видимость всплывающего меню субтитров
+    if (menuBinds.includes(mouseBtn) || mouseBtn === "MouseLeft") {
       if (activePopover === "sub") {
         closePopover();
       } else {
@@ -470,10 +479,9 @@ export function PlayerControls({
   const handleTakeScreenshot = useCallback(async () => {
     try {
       await invoke("take_screenshot");
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.osd.frameSaved }));
-    } catch (e) {
-      console.error("Ошибка при создании скриншота:", e);
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.osd.frameError }));
+      showOsd(dict.osd.frameSaved);
+    } catch {
+      showOsd(dict.osd.frameError, { isError: true });
     }
   }, [dict]);
 
@@ -910,7 +918,7 @@ export function PlayerControls({
               />
             )}
 
-            {visibleButtons.skipOpening === true && (
+            {visibleButtons.skipOpening !== false && (
               <button
                 className="control-btn control-btn--with-label control-btn--priority-low"
                 onClick={() => handleSeek(skipOpeningSeconds)}

@@ -4,29 +4,32 @@
   min-width: 200px;
   max-width: calc(100vw - 16px);
   background: var(--bg-glass);
-  backdrop-filter: var(--ui-backdrop);
-  -webkit-backdrop-filter: var(--ui-backdrop);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 5px;
   box-shadow: var(--shadow-lg);
   z-index: 9999;
-  animation: contextMenuFadeIn var(--t-fast) var(--ease-out);
+  animation: contextMenuFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: top left;
   contain: layout style;
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
+
 
 @keyframes contextMenuFadeIn {
   0% {
     transform: translateY(-4px);
+    opacity: 0;
   }
   100% {
     transform: translateY(0);
+    opacity: 1;
   }
 }
 
 .context-menu--closing {
-  animation: contextMenuFadeOut 120ms var(--ease-out) forwards !important;
+  animation: contextMenuFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 

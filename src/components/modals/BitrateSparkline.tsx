@@ -19,11 +19,12 @@ export const BitrateSparkline = memo(function BitrateSparkline({
 
   if (!data || data.length < 2) return null;
 
-  const validData = data.filter((v) => Number.isFinite(v) && v >= 0);
+  const validData = data.filter((v) => Number.isFinite(v) && v > 0);
   if (validData.length < 2) return null;
 
   const min = Math.min(...validData) * 0.95;
   const max = Math.max(...validData) * 1.05;
+  if (!Number.isFinite(max) || max <= 0) return null;
   const range = max - min || 1;
 
   const points = validData.map((val, idx) => {

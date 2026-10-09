@@ -1125,7 +1125,10 @@ export const ru: TranslationDict = {
     subsExtractErr: "Ошибка извлечения дорожки",
     noVideoExtract: "Нет активного видео для извлечения",
     clipboardEmpty: "Буфер обмена пуст или содержит недопустимый путь",
-    subtitleDelay: (val: string) => `Задержка субтитров: ${val}с`
+    subtitleDelay: (val: string) => `Задержка субтитров: ${val}с`,
+    openFileErr: "Не удалось открыть видеофайл",
+    subtitlesLoadErr: "Не удалось загрузить внешние субтитры",
+    playlistPlayErr: "Ошибка воспроизведения файла из плейлиста"
   },
   updateModal: {
     titleUpgrade: "Доступно обновление",

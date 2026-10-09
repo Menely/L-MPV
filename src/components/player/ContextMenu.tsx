@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useCallback, useRef, useState, useMemo } from "react";
 import { usePlayerState, type TrackInfo } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { showOsd } from "../../hooks/useOsd";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getSavedLayout, LAYOUT_CHANGED_EVENT, type LayoutEntry } from "../../utils/contextMenuLayout";
@@ -491,9 +492,10 @@ export function ContextMenu({
       }
     } catch (e) {
       console.error("Ошибка загрузки внешних субтитров:", e);
+      showOsd(dict.osd.subtitlesLoadErr, { isError: true });
     }
     handleClose();
-  }, [handleClose]);
+  }, [dict.osd.subtitlesLoadErr, handleClose]);
 
   const handleSetSpeed = useCallback(async (speed: number) => {
     try {
@@ -514,14 +516,10 @@ export function ContextMenu({
         fit: dict.settings.cmenuUI.frameFit,
         fill: dict.settings.cmenuUI.frameFill,
       };
-      window.dispatchEvent(new CustomEvent("show-osd", {
-        detail: dict.settings.cmenuUI.osdFrame(labels[mode]),
-      }));
+      showOsd(dict.settings.cmenuUI.osdFrame(labels[mode]));
     } catch (e) {
       console.error("Ошибка смены режима видеокадра:", e);
-      window.dispatchEvent(new CustomEvent("show-osd", {
-        detail: dict.settings.cmenuUI.errFrame(String(e)),
-      }));
+      showOsd(dict.settings.cmenuUI.errFrame(String(e)), { isError: true });
     }
     handleClose();
   }, [dict.settings.cmenuUI, handleClose]);
@@ -547,7 +545,7 @@ export function ContextMenu({
         ambilight: dict.settings.cmenuUI.ambientAmbilight,
         color: dict.settings.cmenuUI.ambientColor,
       };
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdAmbient(labels[updated.mode] || updated.mode) }));
+      showOsd(dict.settings.cmenuUI.osdAmbient(labels[updated.mode] || updated.mode));
       window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: updated }));
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
@@ -570,13 +568,13 @@ export function ContextMenu({
   const handleTakeScreenshot = useCallback(async () => {
     try {
       await invoke("take_screenshot");
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdScreenshot }));
+      showOsd(dict.settings.cmenuUI.osdScreenshot);
     } catch (e) {
       console.error("Ошибка при сохранении кадра:", e);
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdScreenshotErr }));
+      showOsd(dict.settings.cmenuUI.osdScreenshotErr, { isError: true });
     }
     handleClose();
-  }, [handleClose]);
+  }, [handleClose, dict.settings.cmenuUI]);
 
   const handleSetRepeatMode = useCallback(async (mode: 0 | 1 | 2) => {
     try {
@@ -587,14 +585,10 @@ export function ContextMenu({
         1: dict.settings.cmenuUI.repeatOne,
         2: dict.settings.cmenuUI.repeatAll,
       } as const;
-      window.dispatchEvent(new CustomEvent("show-osd", {
-        detail: dict.settings.cmenuUI.osdRepeat(labels[mode]),
-      }));
+      showOsd(dict.settings.cmenuUI.osdRepeat(labels[mode]));
     } catch (e) {
       console.error("Ошибка установки режима повтора:", e);
-      window.dispatchEvent(new CustomEvent("show-osd", {
-        detail: dict.settings.cmenuUI.errRepeat(String(e)),
-      }));
+      showOsd(dict.settings.cmenuUI.errRepeat(String(e)), { isError: true });
     }
     handleClose();
   }, [dict.settings.cmenuUI, handleClose]);
@@ -614,13 +608,13 @@ export function ContextMenu({
     try {
       await applySettingsPreset(preset);
       setActivePresetId(preset.id);
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdPreset(preset.name) }));
+      showOsd(dict.settings.cmenuUI.osdPreset(preset.name));
     } catch (e) {
       console.error("Ошибка применения пресета:", e);
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdPresetErr }));
+      showOsd(dict.settings.cmenuUI.osdPresetErr, { isError: true });
     }
     handleClose();
-  }, [handleClose]);
+  }, [handleClose, dict.settings.cmenuUI]);
 
   // ── Обработчики апскейлинга ────────────────────────
   const handleSetUpscaleOff = useCallback(async () => {
@@ -634,13 +628,13 @@ export function ContextMenu({
       await invoke("apply_upscale_settings", { settings: updated });
       setUpscaleMode("off");
       localStorage.setItem("l-mpv-upscale-mode", "off");
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdUpscaleOff }));
+      showOsd(dict.settings.cmenuUI.osdUpscaleOff);
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
       console.error("Ошибка выключения апскейлинга:", e);
     }
     handleClose();
-  }, [selectedSlot, upscaleBackend, selectedModel, handleClose]);
+  }, [selectedSlot, upscaleBackend, selectedModel, handleClose, dict.settings.cmenuUI]);
 
   const handleSelectUpscaleModel = useCallback(async (model: ModelFileItem) => {
     const updated: UpscaleSettings = {
@@ -657,16 +651,14 @@ export function ContextMenu({
       localStorage.setItem("l-mpv-upscale-mode", "ai");
       localStorage.setItem("l-mpv-upscale-selected-model", model.filename);
       localStorage.setItem("l-mpv-upscale-slot", String(model.slot));
-      window.dispatchEvent(new CustomEvent("show-osd", {
-        detail: dict.settings.cmenuUI.osdUpscaleModel(model.display_name || model.filename),
-      }));
+      showOsd(dict.settings.cmenuUI.osdUpscaleModel(model.display_name || model.filename));
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
       console.error("Ошибка включения модели апскейлинга:", e);
-      window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdUpscaleModelErr }));
+      showOsd(dict.settings.cmenuUI.osdUpscaleModelErr, { isError: true });
     }
     handleClose();
-  }, [upscaleBackend, handleClose]);
+  }, [upscaleBackend, handleClose, dict.settings.cmenuUI]);
 
   // ── Обработчик переключения видимости кнопки панели ─
   const handleToggleControlButton = useCallback((buttonId: string, label: string, currentVal: boolean) => {
@@ -675,11 +667,9 @@ export function ContextMenu({
     setVisibleButtons(updated);
     localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(updated));
     window.dispatchEvent(new Event("l-mpv-settings-changed"));
-    window.dispatchEvent(new CustomEvent("show-osd", {
-      detail: dict.settings.cmenuUI.osdBtn(label, nextVal),
-    }));
+    showOsd(dict.settings.cmenuUI.osdBtn(label, nextVal));
     handleClose();
-  }, [visibleButtons, handleClose]);
+  }, [visibleButtons, handleClose, dict.settings.cmenuUI]);
 
   const audioTracks = useMemo(() => tracks.filter((t) => t.type === "audio"), [tracks]);
   const subTracks = useMemo(() => tracks.filter((t) => t.type === "sub"), [tracks]);
@@ -874,7 +864,7 @@ export function ContextMenu({
             action: () => {
               saveTimePosition(posOption.id);
               setCurrentTimePos(posOption.id);
-              window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdTime(posLabel) }));
+              showOsd(dict.settings.cmenuUI.osdTime(posLabel));
               handleClose();
             },
           };
@@ -897,7 +887,7 @@ export function ContextMenu({
             action: () => {
               saveTimeFormat(fmtOption.id);
               setTimeFormat(fmtOption.id);
-              window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdTimeFmt(fmtLabel) }));
+              showOsd(dict.settings.cmenuUI.osdTimeFmt(fmtLabel));
               handleClose();
             },
           };
@@ -916,7 +906,7 @@ export function ContextMenu({
             action: () => {
               saveControlBarStyle(barOption.id);
               setControlBarStyle(barOption.id);
-              window.dispatchEvent(new CustomEvent("show-osd", { detail: dict.settings.cmenuUI.osdBarStyle(barLabel) }));
+              showOsd(dict.settings.cmenuUI.osdBarStyle(barLabel));
               handleClose();
             },
           };

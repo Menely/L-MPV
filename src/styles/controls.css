@@ -10,22 +10,21 @@
   container-type: inline-size;
   container-name: controls;
   transform: translateY(0);
-  transition: opacity var(--t-base) var(--ease-smooth),
-              transform var(--t-base) var(--ease-out);
+  transition: opacity var(--t-panel) var(--ease-standard),
+              transform var(--t-panel) var(--ease-decelerate);
 }
 
 /* ─── Таблетка управления ─────────────────────────────── */
 .player-controls {
   position: relative;
   background: var(--bg-pill);
-  backdrop-filter: var(--ui-backdrop);
-  -webkit-backdrop-filter: var(--ui-backdrop);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-controls, 16px);
   padding: 5px 16px 8px;
   box-shadow: var(--shadow-pill);
-  transition: transform var(--t-base) var(--ease-smooth),
-              box-shadow var(--t-base) var(--ease-smooth),
+  transition: transform var(--t-pop) var(--ease-standard),
+              box-shadow var(--t-pop) var(--ease-standard),
+              border-color var(--t-fast) var(--ease-smooth),
               border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
@@ -102,8 +101,6 @@
 .time-display--floating-center {
   pointer-events: auto;
   background: rgba(14, 20, 30, 0.78);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   padding: 2px 11px;
@@ -148,9 +145,10 @@
   transition: height var(--t-fast) var(--ease-smooth);
 }
 
-.timeline:hover .timeline__track,
-.timeline--dragging .timeline__track,
-.timeline:focus-visible .timeline__track {
+/* При отсутствии глав увеличивается вся дорожка таймлайна целиком */
+.timeline:not(.timeline--has-chapters):hover .timeline__track,
+.timeline:not(.timeline--has-chapters).timeline--dragging .timeline__track,
+.timeline:not(.timeline--has-chapters):focus-visible .timeline__track {
   height: 8px;
 }
 
@@ -160,6 +158,31 @@
    продублирован ростом дорожки (.timeline__track) выше. */
 .timeline:focus-visible {
   outline: none !important;
+}
+
+.timeline__segments {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+}
+
+.timeline__segment {
+  position: relative;
+  height: 100%;
+  border-radius: var(--radius-xs, 4px);
+  overflow: hidden;
+  transition: height var(--t-fast) var(--ease-smooth);
+}
+
+/* При наличии глав увеличивается только сегмент активной главы под курсором */
+.timeline--has-chapters .timeline__segment {
+  height: 5px;
+}
+
+.timeline--has-chapters .timeline__segment--hovered,
+.timeline--has-chapters .timeline__segment:hover {
+  height: 8px;
 }
 
 .timeline__segment-bg {
@@ -496,6 +519,7 @@ html.no-animations .timeline__pulse {
   color: var(--accent);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
   white-space: nowrap;
   padding: 2px 6px;
   border-radius: var(--radius-xs, 4px);
@@ -505,9 +529,10 @@ html.no-animations .timeline__pulse {
   line-height: 1;
   cursor: pointer;
   user-select: none;
-  transition: background var(--t-fast) var(--ease-smooth),
-              color var(--t-fast) var(--ease-smooth),
-              transform var(--t-fast) var(--ease-smooth);
+  /* Стандартная типографика без искусственных теней */
+  transition: background var(--t-fast) var(--ease-standard),
+              color var(--t-fast) var(--ease-standard),
+              transform var(--t-fast) var(--ease-standard);
 }
 
 .time-display:hover {
@@ -541,6 +566,7 @@ html.no-animations .timeline__pulse {
   font-size: var(--fs-xs);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
   white-space: nowrap;
   padding: 0 2px;
 }

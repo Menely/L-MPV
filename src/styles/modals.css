@@ -6,9 +6,7 @@
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  background: rgba(0, 0, 0, 0.60);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.50);
   animation: fadeIn 200ms var(--ease-smooth);
 }
 
@@ -28,7 +26,7 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-modal-solid, #11141c);
+  background: var(--bg-glass, rgba(var(--bg-glass-rgb, 16, 19, 28), var(--ui-opacity, 0.88)));
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg), 0 0 30px rgba(127, 199, 255, 0.05);
@@ -36,10 +34,11 @@
   animation: modalSlideIn var(--t-base) var(--ease-out);
   transform-origin: center center;
   transition: background 0.25s var(--ease-smooth),
-              border-color 0.25s var(--ease-smooth),
               box-shadow 0.25s var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
               border-radius var(--t-spring) var(--ease-spring-smooth);
 }
+
 
 @media (max-width: 800px) {
   .modal--settings {
@@ -140,7 +139,7 @@
 }
 
 .modal__body {
-  background: var(--bg-modal-solid, #11141c);
+  background: transparent;
   padding: 14px 18px;
   overflow-y: auto;
   scrollbar-gutter: stable;
@@ -625,7 +624,7 @@
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.20);
   transition: border-color var(--t-fast) var(--ease-smooth);
 }
 
@@ -1145,8 +1144,6 @@
   max-height: 260px;
   overflow-y: auto;
   background: rgba(20, 22, 28, 0.97);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-md, 8px);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 25px rgba(0, 0, 0, 0.5);
@@ -1267,14 +1264,12 @@
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.015);
   border: none;
-  border-bottom: 1px solid transparent;
   cursor: pointer;
   user-select: none;
   color: var(--text-primary);
   text-align: left;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   transition: background var(--t-fast) var(--ease-smooth),
-              border-color var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth);
 }
 
@@ -1284,7 +1279,7 @@
 
 .settings-accordion--open .settings-accordion__header {
   background: rgba(255, 255, 255, 0.028);
-  border-bottom-color: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
 }
 

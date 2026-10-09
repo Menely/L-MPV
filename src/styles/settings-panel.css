@@ -34,18 +34,28 @@
   min-height: 0;
   overflow: hidden;
   pointer-events: auto;
-  background: var(--bg-glass, var(--bg-modal-solid, #11141c));
-  backdrop-filter: var(--ui-backdrop, blur(16px));
-  -webkit-backdrop-filter: var(--ui-backdrop, blur(16px));
-  border: 1px solid var(--border);
-  border-right-color: var(--border-pill);
+  background: var(--bg-glass, rgba(var(--bg-glass-rgb, 16, 19, 28), var(--ui-opacity, 0.88)));
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.02);
+  box-shadow: var(--shadow-lg), 0 0 30px rgba(127, 199, 255, 0.05);
   animation: settingsPanelIn 220ms var(--ease-out);
   transform-origin: left center;
   container-type: inline-size;
   container-name: settings-shell;
+  transition: background 0.25s var(--ease-smooth),
+              box-shadow 0.25s var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
 }
+
+/* ─── Карточки опций в панели настроек ─── */
+.option-card {
+  position: relative;
+  border: 1px solid var(--border);
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
 
 @keyframes settingsPanelIn {
   from { transform: translateX(-100%); }
@@ -205,25 +215,6 @@
   display: flow-root;
   min-width: 0;
   padding-top: 12px;
-}
-
-.settings-section-content::before {
-  content: "";
-  position: absolute;
-  inset: 0 -10px -12px;
-  z-index: 0;
-  pointer-events: none;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.012);
-  box-shadow:
-    0 14px 34px rgba(0, 0, 0, 0.28),
-    0 3px 10px rgba(0, 0, 0, 0.16);
-}
-
-.settings-section-content > * {
-  position: relative;
-  z-index: 1;
 }
 
 .settings-section-content > *:last-child,

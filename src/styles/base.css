@@ -152,8 +152,6 @@ html, body, #root {
   left: 24px;
   z-index: 1000;
   background: rgba(10, 12, 18, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-md);
   padding: 8px 18px;
@@ -164,11 +162,11 @@ html, body, #root {
   font-variant-numeric: tabular-nums;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
   pointer-events: none;
-  animation: fadeIn 150ms var(--ease-out);
+  animation: fadeIn var(--t-fast) var(--ease-decelerate);
 }
 
 .frame-osd--closing {
-  animation: osdFadeOut 200ms var(--ease-out) forwards !important;
+  animation: osdFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 
@@ -193,14 +191,21 @@ html, body, #root {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 16px var(--accent-glass);
 }
 
+/* Состояние ошибки (User-Facing error notification) */
+.frame-osd--error {
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-left: 4px solid #ef4444;
+  background: rgba(28, 10, 14, 0.94);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75), 0 0 20px rgba(239, 68, 68, 0.3);
+  color: #fef2f2;
+}
+
 /* ─── Всплывающая плашка времени на таймлайне ─── */
 .timeline-preview-card {
   position: absolute;
   bottom: calc(100% + 10px);
   transform: translateX(-50%);
   background: rgba(10, 12, 18, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-sm);
   padding: 4px 10px;
@@ -223,6 +228,7 @@ html, body, #root {
   font-weight: 600;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
   letter-spacing: 0.4px;
 }
 

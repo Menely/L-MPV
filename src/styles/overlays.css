@@ -7,7 +7,6 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(6px);
   animation: fadeIn 150ms var(--ease-smooth);
 }
 
@@ -36,8 +35,6 @@
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--bg-pill);
-  backdrop-filter: var(--ui-backdrop);
-  -webkit-backdrop-filter: var(--ui-backdrop);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
   padding: 12px 14px;
@@ -107,8 +104,6 @@
   max-height: 100%;
   overflow: hidden;
   background: var(--bg-pill);
-  backdrop-filter: var(--ui-backdrop);
-  -webkit-backdrop-filter: var(--ui-backdrop);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
   padding: 16px;
@@ -198,6 +193,7 @@
 .chapter-item__time {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
   color: var(--text-secondary);
   font-size: var(--fs-xs, 0.75rem);
 }
@@ -436,7 +432,9 @@
   word-break: break-word;
   line-height: 1.35;
   font-variant-numeric: tabular-nums;
-  transition: color var(--t-fast) var(--ease-smooth), text-shadow var(--t-fast) var(--ease-smooth);
+  font-feature-settings: "tnum";
+  transition: color var(--t-fast) var(--ease-standard),
+              text-shadow var(--t-fast) var(--ease-standard);
 }
 
 .media-info__value--filename {
@@ -480,8 +478,6 @@
   max-width: calc(100% - 28px);
   width: 360px;
   background: var(--bg-pill);
-  backdrop-filter: var(--ui-backdrop);
-  -webkit-backdrop-filter: var(--ui-backdrop);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
@@ -489,10 +485,10 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: playlistFadeIn 140ms var(--ease-out);
+  animation: playlistFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: bottom right;
-  transition: bottom var(--t-base) var(--ease-smooth),
-              max-height var(--t-base) var(--ease-smooth);
+  transition: bottom var(--t-pop) var(--ease-standard),
+              max-height var(--t-pop) var(--ease-standard);
 }
 
 .playlist-drawer--resizing {
@@ -751,6 +747,8 @@
 }
 
 .playlist-item {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -758,13 +756,16 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   color: #ffffff;
-  transition: background-color var(--t-fast) var(--ease-smooth),
-              border-color var(--t-fast) var(--ease-smooth),
-              transform var(--t-fast) var(--ease-out);
+  transition: background-color var(--t-fast) var(--ease-standard),
+              border-color var(--t-fast) var(--ease-standard),
+              transform var(--t-fast) var(--ease-decelerate);
   background: transparent;
   border: 1px solid transparent;
   text-align: left;
   width: 100%;
+  flex-shrink: 0;
+  min-height: 38px;
+  box-sizing: border-box;
 }
 
 .playlist-item:hover {
@@ -785,6 +786,14 @@
   background: var(--bg-active);
 }
 
+.playlist-item--watched {
+  opacity: 0.82;
+}
+
+.playlist-item--watched:hover {
+  opacity: 1;
+}
+
 .playlist-item__num {
   font-size: var(--fs-xs);
   font-weight: 600;
@@ -793,6 +802,7 @@
   text-align: left;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 .playlist-item--current .playlist-item__num {
@@ -806,7 +816,7 @@
   justify-content: center;
   color: var(--text-secondary);
   transform: scale(1);
-  transition: transform var(--t-fast) var(--ease-smooth);
+  transition: transform var(--t-fast) var(--ease-standard);
 }
 
 .playlist-item:hover .playlist-item__icon {
@@ -817,6 +827,10 @@
   color: var(--accent);
 }
 
+.playlist-item__watched-icon {
+  color: #4ade80;
+}
+
 .playlist-item__title {
   font-size: var(--fs-sm);
   font-weight: 500;
@@ -825,11 +839,38 @@
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
+  padding-bottom: 2px;
 }
 
 .playlist-item--current .playlist-item__title {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* ─── Watch Progress Bar (Netflix/YouTube стиль) ─── */
+.playlist-item__progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  pointer-events: none;
+}
+
+.playlist-item__progress-fill {
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glass, rgba(127, 199, 255, 0.5));
+  border-radius: 0 1.5px 1.5px 0;
+  transition: width var(--t-fast) var(--ease-standard);
+}
+
+.playlist-item__progress-fill--watched {
+  background: #4ade80;
+  box-shadow: 0 0 4px rgba(74, 222, 128, 0.4);
 }
 
 /* ─── Модальное окно автообновления (UpdateModal) ── */
@@ -897,8 +938,6 @@
   width: 320px;
   max-width: calc(100vw - 36px);
   background: var(--bg-pill, rgba(16, 19, 28, 0.92));
-  backdrop-filter: var(--ui-backdrop, blur(16px));
-  -webkit-backdrop-filter: var(--ui-backdrop, blur(16px));
   border: 1px solid var(--border-pill, rgba(127, 199, 255, 0.15));
   border-radius: var(--radius-lg, 14px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glass, rgba(127, 199, 255, 0.1));
