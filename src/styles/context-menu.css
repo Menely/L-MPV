@@ -9,7 +9,6 @@
   padding: 5px;
   box-shadow: var(--shadow-lg);
   z-index: 9999;
-  overflow: hidden;
   animation: contextMenuFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: top left;
   contain: layout style;
