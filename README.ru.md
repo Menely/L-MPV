@@ -633,7 +633,6 @@ L-MPV/
 │   │   ├── recentFilesUtils.ts           # Управление списком недавних файлов и синхронизация с локальной историей
 │   │   └── timeUtils.ts                  # Высокоточное форматирование временных меток
 │   ├── hooks/                            # Локальные хуки
-│   │   ├── useVideoMargin.ts             # Отключение video-margin (резерв)
 │   │   └── useOsd.ts                     # Централизованный хук экранных уведомлений (OSD)
 │   ├── App.tsx                           # Главный контейнер (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, модалки; использует useOsd); SettingsModal и SettingsPanel подключены статически
 │   ├── index.css                         # Единый импорт модулей стилей

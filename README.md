@@ -418,7 +418,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - *"Style Presets"*: Browse user presets and pre-packaged styles with active indicators.
   - *"AI Upscaling"*: Quick toggle and instant model selector scanning `models/onnx/`.
   - *"Control Bar Buttons"*: 11 individual visibility toggles for bottom toolbar icons (including seek buttons and anime opening skip with customizable duration in seconds).
-- **Reactive UI Opacity & Backdrop Blur:** The context menu and submenus strictly inherit the global `--bg-glass` token and `--ui-opacity` setting, smoothly adapting their translucency to match the player's interface opacity slider.
+- **Reactive UI Opacity:** The context menu and submenus strictly inherit the global `--bg-glass` token and `--ui-opacity` setting, smoothly adapting their translucency to match the player's interface opacity slider.
 - **Intelligent RMB Toggle Behavior:** Right-clicking while the context menu is open cleanly closes it without awkward reposition flashes or redundant reopening.
 - **Menu Dividers (`divider`):** Insert clean separator lines anywhere to organize your menu items.
 - **Portable Storage (`config/context_menu.json`):** Custom menu layouts are stored locally in the player directory. A one-click "Reset" button restores default factory ordering at any time.
@@ -632,7 +632,6 @@ L-MPV/
 │   │   │   ├── recentFilesUtils.ts           # Recent files tracking and local history synchronization
 │   │   │   └── timeUtils.ts                  # High-precision timestamp formatting utilities
 │   │   ├── hooks/                            # Custom React hooks
-│   │   │   ├── useVideoMargin.ts             # Video viewport margin calculation hook (reserved)
 │   │   │   └── useOsd.ts                     # Centralized On-Screen Display (OSD) notification hook
 │   │   ├── App.tsx                           # Main container (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, modals; uses useOsd); statically loads settings
 │   │   ├── index.css                         # Central stylesheet import hub
