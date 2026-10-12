@@ -38,21 +38,21 @@ import { SettingsPanel } from "./components/settings/SettingsPanel";
 // парсятся только при первом открытии (dnd-kit едет вместе с настройками).
 const MediaInfoModal = lazy(() =>
   import("./components/modals/MediaInfoModal").then((m) => ({ default: m.MediaInfoModal }))
-);
+  );
 const ChaptersModal = lazy(() =>
   import("./components/modals/ChaptersModal").then((m) => ({ default: m.ChaptersModal }))
-);
+  );
 
 
 const UpdateModal = lazy(() =>
   import("./components/modals/UpdateModal").then((m) => ({ default: m.UpdateModal }))
-);
+  );
 const UpdateToast = lazy(() =>
   import("./components/modals/UpdateModal").then((m) => ({ default: m.UpdateToast }))
-);
+  );
 const SubtitlesSearchModal = lazy(() =>
   import("./components/subtitles/SubtitlesSearchModal").then((m) => ({ default: m.SubtitlesSearchModal }))
-);
+  );
 
 function App() {
   const {
@@ -266,7 +266,7 @@ function App() {
       // Расширенная буферная зона (320px от правого края), чтобы интерфейс не исчезал при подведении мыши левее кнопок
       const target = e.target as HTMLElement | null;
       const isOverWindowControls = Boolean(target?.closest(".titlebar__controls"));
-      const isWindowControlsArea = e.clientX >= window.innerWidth - 320;
+      const isWindowControlsArea = e.clientX>= window.innerWidth - 320;
 
       // Если курсор находится над крестиком, кнопками окна или на подходе к ним — ни в коем случае не скрываем интерфейс
       if (isOverWindowControls || isWindowControlsArea) {
@@ -322,7 +322,7 @@ function App() {
       }).catch(console.error);
     };
 
-    const heightChanged = Math.abs(window.innerHeight - lastWindowHeightRef.current) > 2;
+    const heightChanged = Math.abs(window.innerHeight - lastWindowHeightRef.current)> 2;
     if (lastAppliedAvoidControlsRef.current !== targetVisible || isNewMedia || (targetVisible && heightChanged)) {
       lastAppliedAvoidControlsRef.current = targetVisible;
       applySubtitlePosition();
@@ -331,7 +331,7 @@ function App() {
     // При изменении размера окна или переключении fullscreen пересчитываем позицию
     const handleResize = () => {
       if (subtitlesAvoidUi && isControlsVisible) {
-        if (Math.abs(window.innerHeight - lastWindowHeightRef.current) > 2) {
+        if (Math.abs(window.innerHeight - lastWindowHeightRef.current)> 2) {
           applySubtitlePosition();
         }
       }
@@ -399,7 +399,7 @@ function App() {
   const resizeWindowForVideo = useCallback(async (w: number, h: number) => {
     try {
       const appWindow = getCurrentWindow();
-      if (w > 0 && h > 0) {
+      if (w> 0 && h> 0) {
         const isFs = await appWindow.isFullscreen();
         const isMax = await appWindow.isMaximized();
         if (!isFs && !isMax) {
@@ -417,7 +417,7 @@ function App() {
           const maxWidth = Math.min(window.screen.availWidth * 0.85, MAX_COMFORTABLE_WIDTH);
           const maxHeight = Math.min(window.screen.availHeight * 0.85, MAX_COMFORTABLE_HEIGHT);
           
-          if (targetWidth > maxWidth || targetHeight > maxHeight) {
+          if (targetWidth> maxWidth || targetHeight> maxHeight) {
             const ratio = Math.min(maxWidth / targetWidth, maxHeight / targetHeight);
             targetWidth = targetWidth * ratio;
             targetHeight = targetHeight * ratio;
@@ -461,12 +461,12 @@ function App() {
   } | null>(null);
 
   useEffect(() => {
-    if (mediaInfo?.path && mediaInfo.width > 0 && mediaInfo.height > 0) {
+    if (mediaInfo?.path && mediaInfo.width> 0 && mediaInfo.height> 0) {
       const prev = lastSizedVideoRef.current;
       const isNewFile = !prev || prev.path !== mediaInfo.path;
-      const prevAspect = prev && prev.height > 0 ? prev.width / prev.height : 0;
+      const prevAspect = prev && prev.height> 0 ? prev.width / prev.height : 0;
       const curAspect = mediaInfo.width / mediaInfo.height;
-      const isAspectChanged = Math.abs(prevAspect - curAspect) > 0.01;
+      const isAspectChanged = Math.abs(prevAspect - curAspect)> 0.01;
 
       if (isNewFile || isAspectChanged) {
         if (isNewFile) {
@@ -970,10 +970,7 @@ function App() {
       case "upscaleNet6":
       case "upscaleNet7":
       case "upscaleNet8":
-      case "upscaleNet9":
-      case "upscaleNet10":
-      case "upscaleNet11":
-      case "upscaleNet12": {
+      case "upscaleNet9": {
         try {
           const index = parseInt(actionId.replace("upscaleNet", ""), 10) - 1;
           const models = await invoke<Array<{ slot: number; display_name: string; filename: string }>>("scan_onnx_models").catch(() => []);
@@ -1210,7 +1207,7 @@ function App() {
         async (event) => {
           if (
             event.payload.type === "drop" &&
-            event.payload.paths.length > 0
+            event.payload.paths.length> 0
           ) {
             const file = event.payload.paths[0];
             const curHasMedia = latestRef.current.hasMedia;
@@ -1286,7 +1283,7 @@ function App() {
       } ${isPlaylistOpen ? "app-container--playlist-open" : ""}`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
-    >
+      >
       <Titlebar title="L-MPV" mediaTitle={mediaTitle} />
 
       {/* OSD подписи текущего кадра и статистики */}
@@ -1295,7 +1292,7 @@ function App() {
           className={`frame-osd ${osdText.includes("\n") ? "frame-osd--multiline" : ""} ${
             isOsdError ? "frame-osd--error" : ""
           } ${isOsdClosing ? "frame-osd--closing" : ""}`}
-        >
+          >
           {osdText}
         </div>
       )}
@@ -1366,7 +1363,7 @@ function App() {
             }
           }
         }}
-      >
+        >
         {!hasMedia && (
           <div className="video-area__placeholder">
             <div className="video-area__placeholder-icon">

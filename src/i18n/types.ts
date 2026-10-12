@@ -445,6 +445,10 @@ export interface TranslationDict {
       errUpdate: string;
       toastUpdateFail: string;
       confirmDelete: (name: string) => string;
+      confirmDeleteTitle: string;
+      confirmDeleteWarning: string;
+      btnDeleteConfirm: string;
+      btnDeleteCancel: string;
       toastDeleted: (name: string) => string;
       toastRenamed: (name: string) => string;
       toastImported: (count: number) => string;

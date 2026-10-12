@@ -21,7 +21,7 @@ function formatBytes(bytes: number): string {
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   if (i < 0) return "0 B";
-  if (i >= sizes.length) return parseFloat((bytes / Math.pow(k, sizes.length - 1)).toFixed(2)) + " " + sizes[sizes.length - 1];
+  if (i>= sizes.length) return parseFloat((bytes / Math.pow(k, sizes.length - 1)).toFixed(2)) + " " + sizes[sizes.length - 1];
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
@@ -98,7 +98,7 @@ export function MediaInfoModal({
     <div
       className={`media-info-overlay ${isClosing ? "media-info-overlay--closing" : ""}`}
       onClick={(e) => e.stopPropagation()}
-    >
+      >
       {/* Шапка оверлея с заголовком и кнопкой закрытия */}
       <div className="media-info__header">
         <span className="media-info__title">{dict.mediaInfo.title}</span>
@@ -107,7 +107,7 @@ export function MediaInfoModal({
           onClick={handleClose}
           title={dict.mediaInfo.close}
           aria-label={dict.mediaInfo.close}
-        >
+          >
           <X size={15} />
         </button>
       </div>
@@ -119,7 +119,7 @@ export function MediaInfoModal({
           <span
             className="media-info__value media-info__value--filename"
             title={filename}
-          >
+            >
             {filename}
           </span>
         </div>
@@ -166,7 +166,7 @@ export function MediaInfoModal({
           <div className="media-info__bitrate-wrap">
             <BitrateSparkline data={bitrateHistory} />
             <span className="media-info__value">
-              {currentVideoBitrate > 0
+              {currentVideoBitrate> 0
                 ? `${Math.round(currentVideoBitrate / 1000)} ${dict.mediaInfoModal.kbps}`
                 : "—"}
             </span>
@@ -195,7 +195,7 @@ export function MediaInfoModal({
         <div className="media-info__row">
           <span className="media-info__label">{dict.mediaInfoModal.bitrate}</span>
           <span className="media-info__value">
-            {audioBitrate > 0 ? `${Math.round(audioBitrate / 1000)} ${dict.mediaInfoModal.kbps}` : "—"}
+            {audioBitrate> 0 ? `${Math.round(audioBitrate / 1000)} ${dict.mediaInfoModal.kbps}` : "—"}
           </span>
         </div>
         <div className="media-info__row">

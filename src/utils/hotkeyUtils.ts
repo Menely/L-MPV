@@ -18,15 +18,15 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   copyFrame: ["Ctrl+KeyC"],
   fileInfo: ["KeyI"],
   detailedMediaInfo: ["Shift+F10"],
-  playlist: ["KeyL"],
+  playlist: ["KeyL", "KeyP"],
   fullscreen: ["KeyF", "F11", "MouseLeftDoubleClick"],
   openFile: ["Ctrl+KeyO", "KeyO"],
   resetZoom: ["Digit0"],
   openContextMenu: ["MouseRight"],
-  cycleAudioTrack: ["KeyA"],
-  toggleAudioMenu: ["MouseLeft", "MouseRight"],
-  cycleSubTrack: ["KeyV"],
-  toggleSubMenu: ["MouseLeft", "MouseRight"],
+  cycleAudioTrack: ["KeyA", "MouseLeft"],
+  toggleAudioMenu: ["MouseRight"],
+  cycleSubTrack: ["KeyV", "MouseLeft"],
+  toggleSubMenu: ["MouseRight"],
   searchSubtitles: ["Ctrl+KeyF"],
   playlistPrev: ["PageUp"],
   playlistNext: ["PageDown"],
@@ -54,6 +54,9 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   upscaleNet4: ["Shift+Digit5"],
   upscaleNet5: ["Shift+Digit6"],
   upscaleNet6: ["Shift+Digit7"],
+  upscaleNet7: ["Shift+Digit8"],
+  upscaleNet8: ["Shift+Digit9"],
+  upscaleNet9: ["Shift+Digit0"],
 };
 
 export const HOTKEY_ACTIONS: HotkeyAction[] = [
@@ -111,7 +114,7 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "playlistNext", label: "Следующий файл в плейлисте", defaultKeys: DEFAULT_HOTKEYS["playlistNext"], category: "playlist" },
   { id: "openFile", label: "Открыть файл", defaultKeys: DEFAULT_HOTKEYS["openFile"], category: "playlist" },
 
-  // Апскейлинг 4K
+  // Апскейлинг 4K (до 9 моделей)
   { id: "upscaleStats", label: "Статус и статистика 4K AI", defaultKeys: DEFAULT_HOTKEYS["upscaleStats"], category: "upscaling" },
   { id: "upscaleOff", label: "Апскейлинг: Выключить", defaultKeys: DEFAULT_HOTKEYS["upscaleOff"], category: "upscaling" },
   { id: "upscaleNet1", label: "Апскейлинг: Нейросеть #1", defaultKeys: DEFAULT_HOTKEYS["upscaleNet1"], category: "upscaling" },
@@ -120,6 +123,9 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "upscaleNet4", label: "Апскейлинг: Нейросеть #4", defaultKeys: DEFAULT_HOTKEYS["upscaleNet4"], category: "upscaling" },
   { id: "upscaleNet5", label: "Апскейлинг: Нейросеть #5", defaultKeys: DEFAULT_HOTKEYS["upscaleNet5"], category: "upscaling" },
   { id: "upscaleNet6", label: "Апскейлинг: Нейросеть #6", defaultKeys: DEFAULT_HOTKEYS["upscaleNet6"], category: "upscaling" },
+  { id: "upscaleNet7", label: "Апскейлинг: Нейросеть #7", defaultKeys: DEFAULT_HOTKEYS["upscaleNet7"], category: "upscaling" },
+  { id: "upscaleNet8", label: "Апскейлинг: Нейросеть #8", defaultKeys: DEFAULT_HOTKEYS["upscaleNet8"], category: "upscaling" },
+  { id: "upscaleNet9", label: "Апскейлинг: Нейросеть #9", defaultKeys: DEFAULT_HOTKEYS["upscaleNet9"], category: "upscaling" },
 ];
 
 export function getCustomHotkeys(): Record<string, string[]> {
@@ -144,6 +150,11 @@ export function getCustomHotkeys(): Record<string, string[]> {
         }
       }
 
+      // Миграция бинда playlist: добавление KeyP при наличии только KeyL
+      if (migrated["playlist"] && !migrated["playlist"].includes("KeyP")) {
+        migrated["playlist"] = [...migrated["playlist"], "KeyP"];
+      }
+
       // Миграция устаревшего бинда KeyC на Ctrl+KeyC для copyFrame
       if (migrated["copyFrame"]?.length === 1 && migrated["copyFrame"][0] === "KeyC") {
         migrated["copyFrame"] = ["Ctrl+KeyC"];
@@ -154,24 +165,33 @@ export function getCustomHotkeys(): Record<string, string[]> {
         migrated["openFile"] = ["Ctrl+KeyO", "KeyO"];
       }
 
-      // Инициализация мышиных биндов для аудио и субтитров
-      if (!migrated["toggleAudioMenu"] || migrated["toggleAudioMenu"].length === 0) {
-        migrated["toggleAudioMenu"] = ["MouseLeft", "MouseRight"];
-      } else if (!migrated["toggleAudioMenu"].includes("MouseLeft")) {
-        migrated["toggleAudioMenu"] = ["MouseLeft", ...migrated["toggleAudioMenu"]];
+      // Нормализация привязок мыши: ЛКМ — смена дорожки, ПКМ — вызов меню
+      for (const menuKey of ["toggleAudioMenu", "toggleSubMenu"]) {
+        migrated[menuKey] = (migrated[menuKey] || ["MouseRight"]).filter(
+          (k) => k !== "MouseLeft"
+        );
+        if (!migrated[menuKey].length) migrated[menuKey] = ["MouseRight"];
       }
-      if (!migrated["toggleSubMenu"] || migrated["toggleSubMenu"].length === 0) {
-        migrated["toggleSubMenu"] = ["MouseLeft", "MouseRight"];
-      } else if (!migrated["toggleSubMenu"].includes("MouseLeft")) {
-        migrated["toggleSubMenu"] = ["MouseLeft", ...migrated["toggleSubMenu"]];
+      for (const [cycleKey, defKey] of [
+        ["cycleAudioTrack", "KeyA"],
+        ["cycleSubTrack", "KeyV"],
+      ]) {
+        const list = migrated[cycleKey] || [defKey];
+        migrated[cycleKey] = list.includes("MouseLeft")
+          ? list
+          : [...list, "MouseLeft"];
       }
-      if (migrated["cycleAudioTrack"]) {
-        migrated["cycleAudioTrack"] = migrated["cycleAudioTrack"].filter(k => k !== "MouseLeft");
-        if (migrated["cycleAudioTrack"].length === 0) migrated["cycleAudioTrack"] = ["KeyA"];
-      }
-      if (migrated["cycleSubTrack"]) {
-        migrated["cycleSubTrack"] = migrated["cycleSubTrack"].filter(k => k !== "MouseLeft");
-        if (migrated["cycleSubTrack"].length === 0) migrated["cycleSubTrack"] = ["KeyV"];
+
+      // Сохраняем актуализированный конфиг обратно в localStorage
+      if (JSON.stringify(migrated) !== saved) {
+        try {
+          localStorage.setItem(
+            "l-mpv-custom-hotkeys",
+            JSON.stringify(migrated)
+          );
+        } catch {
+          // Игнорируем ограничения доступа к хранилищу
+        }
       }
 
       // Гарантируем наличие базовых мышиных действий, если конфиг был сохранен

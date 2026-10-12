@@ -150,12 +150,12 @@ html, body, #root {
   position: fixed;
   top: 48px;
   left: 24px;
-  z-index: 1000;
+  z-index: var(--z-float);
   background: rgba(10, 12, 18, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-md);
-  padding: 8px 18px;
-  font-size: 1.2rem;
+  padding: var(--space-4) 18px;
+  font-size: var(--fs-xl);
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: 0.5px;
@@ -184,9 +184,9 @@ html, body, #root {
 .frame-osd--multiline {
   white-space: pre-line;
   line-height: 1.5;
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 500;
-  padding: 12px 20px;
+  padding: var(--space-6) 20px;
   border-left: 3.5px solid var(--accent);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 16px var(--accent-glass);
 }
@@ -208,10 +208,10 @@ html, body, #root {
   background: rgba(10, 12, 18, 0.92);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-sm);
-  padding: 4px 10px;
+  padding: var(--space-2) 10px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
   pointer-events: none;
-  z-index: 1000;
+  z-index: var(--z-float);
   white-space: nowrap;
   /* БЕЗ entrance-анимации: элемент пересоздаётся на каждый rAF-кадр ховера,
      любая анимация рестартовала бы 60 раз/сек и давала мерцание.
@@ -233,10 +233,10 @@ html, body, #root {
 }
 
 .timeline-preview-card__chapter {
-  font-size: 0.65rem;
+  font-size: var(--fs-3xs);
   font-weight: 500;
   color: var(--text-secondary);
-  margin-top: 2px;
+  margin-top: var(--space-1);
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;

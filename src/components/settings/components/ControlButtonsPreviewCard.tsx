@@ -54,15 +54,15 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             padding: "0 4px",
             display: "flex",
             alignItems: "center",
-            gap: 1,
+            gap: "var(--space-0)",
             color: "var(--accent)",
             background: "rgba(255, 255, 255, 0.06)",
             borderRadius: "var(--radius-xs, 4px)",
-            fontSize: "0.62rem",
+            fontSize: "var(--fs-3xs)",
             fontWeight: 600,
             transition: "all 0.15s ease",
           }}
-        >
+          >
           <FastForward size={10} />
           <span>+{skipOpeningSeconds}s</span>
         </div>
@@ -94,31 +94,31 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
         display: "flex",
         flexDirection: "column",
         padding: "14px 16px",
-        marginBottom: 12,
+        marginBottom: "var(--space-6)",
         background: "rgba(0, 0, 0, 0.35)",
         borderRadius: "var(--radius-md)",
         border: "1px solid var(--border)",
-        gap: 10,
+        gap: "var(--space-5)",
         boxSizing: "border-box",
       }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: "0.84rem", fontWeight: 600, color: "var(--text-primary)" }}>
+      >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "var(--space-4)" }}>
+        <div className="row-center row-gap-4">
+          <span className="t-label">
             {dict.settings.appearance.controlButtons.preview}
           </span>
           <span
             style={{
-              fontSize: "0.80rem",
+              fontSize: "var(--fs-sm)",
               fontWeight: 700,
               color: "var(--accent)",
               textShadow: "0 0 10px var(--accent-glow)",
             }}
-          >
+            >
             {dict.settings.appearance.controlButtons.liveView}
           </span>
         </div>
-        <span style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
+        <span className="t-hint">
           {dict.settings.appearance.controlButtons.onPlayback}
         </span>
       </div>
@@ -135,19 +135,19 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
           boxSizing: "border-box",
           display: "flex",
           flexDirection: "column",
-          gap: 6,
+          gap: "var(--space-3)",
           transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
         }}
-      >
+        >
         {/* Имитация таймлайна со временем воспроизведения справа */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 8,
+            gap: "var(--space-4)",
             width: "100%",
           }}
-        >
+          >
           <div
             style={{
               position: "relative",
@@ -157,7 +157,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
               borderRadius: "var(--radius-xs, 3px)",
               overflow: "hidden",
             }}
-          >
+            >
             <div
               style={{
                 position: "absolute",
@@ -173,14 +173,14 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
           </div>
           <span
             style={{
-              fontSize: "0.64rem",
+              fontSize: "var(--fs-3xs)",
               color: "var(--text-secondary)",
               fontFamily: "monospace",
               letterSpacing: "0.02em",
               flexShrink: 0,
               fontWeight: 500,
             }}
-          >
+            >
             01:42
           </span>
         </div>
@@ -193,11 +193,11 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             justifyContent: "space-between",
             width: "100%",
             minHeight: 32,
-            gap: 4,
+            gap: "var(--space-2)",
           }}
-        >
+          >
           {/* Левая группа (дорожки, звук без громоздкого ползунка) */}
-          <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", flexShrink: 0 }}>
             <div title={dict.settings.appearance.controlButtons.track} style={roundIconBtnStyle}>
               <AudioLines size={13} />
             </div>
@@ -210,12 +210,12 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
           </div>
 
           {/* Центральная группа (основная навигация и плей/пауза) */}
-          <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", flexShrink: 0 }}>
             {isBtnVisible("repeat", true) && (
               <div
                 title={dict.settings.appearance.controlButtons.repeat}
                 style={{ ...roundIconBtnStyle, color: "var(--accent)" }}
-              >
+                >
                 <Repeat size={12} />
               </div>
             )}
@@ -226,7 +226,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
               <div
                 title={dict.settings.appearance.controlButtons.seekBack?.(seekStepSeconds) || `-${seekStepSeconds}s`}
                 style={roundIconBtnStyle}
-              >
+                >
                 <Undo size={13} />
               </div>
             )}
@@ -244,7 +244,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
                 filter: "drop-shadow(0 0 6px var(--accent-glow))",
                 borderRadius: "50%",
               }}
-            >
+              >
               <Play size={16} fill="currentColor" />
             </div>
 
@@ -252,7 +252,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
               <div
                 title={dict.settings.appearance.controlButtons.seekForward?.(seekStepSeconds) || `+${seekStepSeconds}s`}
                 style={roundIconBtnStyle}
-              >
+                >
                 <Redo size={13} />
               </div>
             )}
@@ -264,14 +264,14 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
               <div
                 title={dict.settings.appearance.controlButtons.shuffle}
                 style={{ ...roundIconBtnStyle, color: "var(--text-secondary)" }}
-              >
+                >
                 <Shuffle size={12} />
               </div>
             )}
           </div>
 
           {/* Правая группа (настраиваемые опциональные кнопки) */}
-          <div style={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-0)", flexShrink: 0 }}>
             {rightButtons.map((btn) => {
               if (!isBtnVisible(btn.id, btn.defaultVisible ?? true)) {
                 return null;

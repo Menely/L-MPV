@@ -9,13 +9,13 @@
   background: var(--bg-pill);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
-  padding: 8px;
+  padding: var(--space-4);
   box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
-  z-index: 1000;
+  z-index: var(--z-float);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-2);
   animation: popoverFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: bottom center;
   transition: border-color var(--t-fast) var(--ease-smooth),
@@ -65,16 +65,16 @@
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  padding: 6px 10px 8px;
+  padding: var(--space-3) 10px 8px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-2);
 }
 
 /* ─── Скролл-контейнер списка дорожек ───────────────── */
 .track-popover__list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-2);
   overflow-y: auto;
   overscroll-behavior: contain;
   overflow-anchor: none;
@@ -83,7 +83,7 @@
   /* Полное скрытие полосы прокрутки */
   scrollbar-width: none;
   -ms-overflow-style: none;
-  padding: 2px 4px 2px 2px;
+  padding: var(--space-1) 4px 2px 2px;
 }
 
 .track-popover__list::-webkit-scrollbar {
@@ -95,7 +95,7 @@
 .track-popover__row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-3);
   width: 100%;
 }
 
@@ -103,8 +103,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: var(--space-5);
+  padding: var(--space-4) 12px;
   flex: 1;
   min-width: 0;
   border: 1.5px solid transparent;
@@ -138,10 +138,10 @@
 }
 
 .track-popover__item--active {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  background: rgba(var(--accent-rgb), 0.16) !important;
   color: var(--text-primary) !important;
   border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35), inset 0 0 0 1.5px var(--accent) !important;
 }
 
 .track-popover__item--active svg,
@@ -151,7 +151,7 @@
 }
 
 .track-popover__item--active:hover {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.22) !important;
+  background: rgba(var(--accent-rgb), 0.22) !important;
 }
 
 [data-glow="off"] .track-popover__item--active svg,

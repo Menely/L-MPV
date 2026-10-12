@@ -21,8 +21,8 @@
   background: var(--surface-level-2, rgba(255, 255, 255, 0.025));
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
   border-radius: var(--radius-lg, 12px);
-  padding: 16px 18px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.28);
+  padding: var(--space-7) 18px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.42);
   transition: border-color var(--t-base) var(--ease-smooth),
               background var(--t-base) var(--ease-smooth),
               box-shadow var(--t-base) var(--ease-smooth),
@@ -30,8 +30,8 @@
 }
 
 .glass-section--compact {
-  padding: 10px 12px;
-  gap: 8px;
+  padding: var(--space-5) 12px;
+  gap: var(--space-4);
 }
 
 .glass-section--compact .btn--icon {
@@ -43,13 +43,13 @@
 .backend-selector-content {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 8px;
+  gap: var(--space-5);
+  padding-top: var(--space-4);
 }
 
 .glass-section:hover {
   border-color: var(--border-default, rgba(255, 255, 255, 0.10));
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.48), 0 2px 5px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.48), 0 2px 5px rgba(0, 0, 0, 0.48);
 }
 
 /* Level 3: Интерактивные плитки, подблоки, карточки моделей/опций */
@@ -57,7 +57,7 @@
   background: var(--surface-level-3, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
   border-radius: var(--radius-md, 10px);
-  padding: 12px 14px;
+  padding: var(--space-6) 14px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.24);
   font-weight: 450;
   transition: background var(--t-fast) var(--ease-smooth),
@@ -84,16 +84,16 @@
 /* Активная выбранная плитка (Selected). Ширина рамки НЕ меняется (1px как
    в базе) — иначе контент сжимается; акцент несёт цвет + inset-кольцо. */
 .glass-tile--active {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  background: var(--surface-accent-subtle, rgba(var(--accent-rgb), 0.16)) !important;
   border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.35)), inset 0 0 0 1.5px var(--accent) !important;
   color: var(--text-primary);
 }
 
 .glass-tile--active:hover {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.20) !important;
+  background: var(--surface-accent-hover, rgba(var(--accent-rgb), 0.20)) !important;
   border-color: var(--accent-hover, var(--accent)) !important;
-  box-shadow: 0 0 12px rgba(var(--accent-rgb, 127, 199, 255), 0.45), inset 0 0 0 1.5px var(--accent) !important;
+  box-shadow: 0 0 12px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.45)), inset 0 0 0 1.5px var(--accent) !important;
 }
 
 /* ─── 2. Стандартизированная система кнопок (Buttons) ───────────────── */
@@ -102,7 +102,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-3);
   border-radius: var(--radius-sm, 8px);
   font-family: inherit;
   font-size: var(--fs-sm, 0.82rem);
@@ -143,14 +143,14 @@
 
 /* Размеры кнопок */
 .btn--sm {
-  padding: 6px 10px;
-  font-size: 0.76rem;
+  padding: var(--space-3) 10px;
+  font-size: var(--fs-xs);
   border-radius: var(--radius-sm, 6px);
 }
 
 .btn--md {
-  padding: 8px 14px;
-  font-size: 0.82rem;
+  padding: var(--space-4) 14px;
+  font-size: var(--fs-sm);
   min-height: 34px;
 }
 
@@ -226,11 +226,11 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   height: 22px;
   padding: 0 8px;
   border-radius: var(--radius-sm, 6px);
-  font-size: 0.73rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -260,9 +260,9 @@
 }
 
 .badge--accent {
-  background: var(--accent-glass, rgba(127, 199, 255, 0.12));
+  background: var(--surface-accent-subtle, var(--accent-glass, rgba(127, 199, 255, 0.12)));
   color: var(--accent);
-  border: 1px solid var(--border-pill, rgba(127, 199, 255, 0.25));
+  border: 1px solid var(--surface-accent-border, var(--border-pill, rgba(127, 199, 255, 0.25)));
 }
 
 .badge--neutral {
@@ -281,7 +281,7 @@
   height: 22px;
   padding: 0 6px;
   font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  font-size: 0.70rem;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.07);
@@ -293,10 +293,10 @@
 }
 
 .kbd-chip--recording {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  background: rgba(var(--accent-rgb), 0.16) !important;
   border-color: var(--accent) !important;
   color: var(--text-primary) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35), inset 0 0 0 1.5px var(--accent) !important;
 }
 
 /* ─── 5. Унифицированные Чекбоксы (UI Checkboxes) ─────────────────── */
@@ -330,7 +330,7 @@
 
 .ui-checkbox:hover {
   border-color: var(--accent);
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.10);
+  background: rgba(var(--accent-rgb), 0.10);
 }
 
 .ui-checkbox:checked {
@@ -346,11 +346,20 @@
   border: solid #05070a;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
-  margin-bottom: 2px;
+  margin-bottom: var(--space-1);
 }
 
 :where(button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--accent) !important;
   outline-offset: 2px !important;
+}
+
+/* ─── 6. Типографика и балансировка строк (Text Balancing) ────────── */
+
+.text-balance,
+.settings-section-title,
+.option-card__title,
+.option-block__title {
+  text-wrap: balance;
 }
 

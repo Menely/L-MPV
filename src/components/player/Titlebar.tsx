@@ -103,7 +103,7 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
           <span
             className="titlebar__filename"
             data-tauri-drag-region={dragAttr}
-          >
+            >
             {mediaTitle}
           </span>
         </div>
@@ -124,21 +124,21 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
             className="titlebar__btn"
             onClick={handleMinimize}
             id="titlebar-minimize"
-          >
+            >
             <Minus size={14} strokeWidth={1.5} />
           </button>
           <button
             className="titlebar__btn"
             onClick={handleMaximize}
             id="titlebar-maximize"
-          >
+            >
             <Square size={12} strokeWidth={1.5} />
           </button>
           <button
             className="titlebar__btn titlebar__btn--close"
             onClick={handleClose}
             id="titlebar-close"
-          >
+            >
             <X size={14} strokeWidth={1.5} />
           </button>
         </div>

@@ -92,15 +92,15 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
         visualizerConfig.enabled ? (
           <span
             style={{
-              fontSize: "0.72rem",
+              fontSize: "var(--fs-xs)",
               padding: "2px 8px",
               borderRadius: "var(--radius-sm)",
               background: "var(--accent-glow, rgba(127, 199, 255, 0.2))",
               color: "var(--accent, #7fc7ff)",
               fontWeight: 600,
-              marginLeft: 8,
+              marginLeft: "var(--space-4)",
             }}
-          >
+            >
             {visualizerConfig.placement === "above_timeline"
               ? dict.settings.appearance.visualizer.aboveTimeline
               : visualizerConfig.placement === "inside_timeline"
@@ -110,21 +110,21 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
         ) : (
           <span
             style={{
-              fontSize: "0.72rem",
+              fontSize: "var(--fs-xs)",
               padding: "2px 8px",
               borderRadius: "var(--radius-sm)",
               background: "rgba(255, 255, 255, 0.06)",
               color: "var(--text-muted)",
               fontWeight: 500,
-              marginLeft: 8,
+              marginLeft: "var(--space-4)",
             }}
-          >
+            >
             {dict.settings.appearance.visualizer.off}
           </span>
         )
       }
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      >
+      <div className="col col-gap-5">
         <span style={optionSectionDescStyle}>
           {dict.settings.appearance.visualizer.desc}
         </span>
@@ -139,20 +139,20 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
             {/* Верхний ряд: палитра (широкая) + карточка включения */}
             <div className="viz-grid-top">
               <div
-                style={{ ...optionCardStyle, padding: "8px 12px", gap: 6, ...lockedStyle }}
+                style={{ ...optionCardStyle, padding: "8px 12px", gap: "var(--space-3)", ...lockedStyle }}
                 inert={controlsLocked}
                 aria-disabled={controlsLocked}
-              >
-                <div style={{ ...optionBlockHeaderStyle, marginBottom: 4 }}>
+                >
+                <div style={{ ...optionBlockHeaderStyle, marginBottom: "var(--space-2)" }}>
                   <div style={optionBlockTitleStyle}>
-                    <Palette size={14} style={{ color: "var(--accent)" }} />
+                    <Palette size={14} className="t-accent" />
                     <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.palette}</span>
                   </div>
                   <span style={optionValueBadgeStyle}>
                     {dict.settings.appearance.visualizer.themes[visualizerConfig.theme]?.desc || ""}
                   </span>
                 </div>
-                <div className="player-themes-selector" style={{ padding: "2px" }}>
+                <div className="player-themes-selector" style={{ padding: "var(--space-1)" }}>
                   {THEME_ITEMS.map((item) => {
                     const isSel = visualizerConfig.theme === item.id;
                     const itemLabel = dict.settings.appearance.visualizer.themes[item.id]?.label || item.label;
@@ -177,7 +177,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                             ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
                             : "none",
                         }}
-                      >
+                        >
                         <span
                           style={{
                             width: 20,
@@ -209,8 +209,8 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                               "max-width 0.25s cubic-bezier(0.2, 1.15, 0.3, 1), opacity 0.2s ease, transform 0.25s cubic-bezier(0.2, 1.15, 0.3, 1), margin-left 0.25s cubic-bezier(0.2, 1.15, 0.3, 1)",
                             pointerEvents: isSel ? "auto" : "none",
                           }}
-                        >
-                          <span style={{ fontSize: "0.76rem", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
+                          >
+                          <span style={{ fontSize: "var(--fs-xs)", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
                             {itemLabel}
                           </span>
                         </span>
@@ -233,7 +233,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                     color: visualizerConfig.enabled ? "var(--accent)" : "var(--text-muted)",
                     transition: "color var(--t-fast) var(--ease-smooth)",
                   }}
-                >
+                  >
                   <Power size={20} />
                 </button>
               </div>
@@ -245,15 +245,15 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
               style={lockedStyle}
               inert={controlsLocked}
               aria-disabled={controlsLocked}
-            >
+              >
               <div style={{ ...optionCardStyle, height: "100%", boxSizing: "border-box" }}>
                 <div style={optionBlockHeaderStyle}>
                   <div style={optionBlockTitleStyle}>
-                    <Monitor size={14} style={{ color: "var(--accent)" }} />
+                    <Monitor size={14} className="t-accent" />
                     <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.placement}</span>
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateRows: "repeat(3, 1fr)", gap: 8, flex: 1 }}>
+                <div style={{ display: "grid", gridTemplateRows: "repeat(3, 1fr)", gap: "var(--space-4)", flex: 1 }}>
                   {PLACEMENT_ITEMS.map((item) => {
                     const isSel = visualizerConfig.placement === item.id;
                     const itemLabel = dict.settings.appearance.visualizer.placements[item.id]?.label || item.label;
@@ -265,8 +265,8 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         onClick={() => updateVisualizer({ placement: item.id })}
                         style={{ ...optionBtnStyle(isSel, "6px 8px"), height: "100%", minHeight: 38, boxSizing: "border-box" }}
                         title={itemDesc}
-                      >
-                        <span style={{ fontSize: "0.80rem", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        >
+                        <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                           {itemLabel}
                         </span>
                       </button>
@@ -278,14 +278,14 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
               <div style={{ ...optionCardStyle, height: "100%", boxSizing: "border-box" }}>
                 <div style={optionBlockHeaderStyle}>
                   <div style={optionBlockTitleStyle}>
-                    <Layers size={14} style={{ color: "var(--accent)" }} />
+                    <Layers size={14} className="t-accent" />
                     <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.style}</span>
                   </div>
                   <span style={optionValueBadgeStyle}>
                     {dict.settings.appearance.visualizer.modes[visualizerConfig.mode]?.label || visualizerConfig.mode}
                   </span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gridAutoRows: "1fr", gap: 8, flex: 1 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gridAutoRows: "1fr", gap: "var(--space-4)", flex: 1 }}>
                   {MODE_ITEMS.map((item) => {
                     const isSel = visualizerConfig.mode === item.id;
                     const itemLabel = dict.settings.appearance.visualizer.modes[item.id]?.label || item.label;
@@ -297,8 +297,8 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         onClick={() => updateVisualizer({ mode: item.id })}
                         style={{ ...optionBtnStyle(isSel, "6px 6px"), height: "100%", minHeight: 38, boxSizing: "border-box" }}
                         title={itemDesc}
-                      >
-                        <span style={{ fontSize: "0.78rem", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                        >
+                        <span style={{ fontSize: "var(--fs-xs)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
                           {itemLabel}
                         </span>
                       </button>
@@ -333,10 +333,10 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                   }}
                   inert={!heightActive}
                   aria-disabled={!heightActive}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0, lineHeight: 1 }}>
-                    <Ruler size={15} style={{ color: "var(--accent)" }} />
-                    <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
+                  >
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0, lineHeight: 1 }}>
+                    <Ruler size={15} className="t-accent" />
+                    <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
                       {dict.settings.appearance.visualizer.height}
                     </span>
                   </div>
@@ -355,8 +355,8 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                       aria-label={dict.settings.appearance.visualizer.heightAboveTimelineAria}
                     />
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, lineHeight: 1 }}>
-                    <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexShrink: 0, lineHeight: 1 }}>
+                    <span style={{ fontSize: "var(--fs-sm)", fontWeight: 700, color: "var(--accent)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
                       {hVal} px
                     </span>
                     <button
@@ -373,7 +373,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                       }}
                       title={dict.settings.appearance.visualizer.reset22}
                       tabIndex={isDefault ? -1 : 0}
-                    >
+                      >
                       <RotateCcw size={11} />
                     </button>
                   </div>

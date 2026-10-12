@@ -232,7 +232,7 @@ export function ContextMenuSettingsTab() {
       bounds.push({ id: container.id, top, bottom, centerY });
 
       // Прямое попадание по вертикали курсора внутрь карточки
-      if (pointerY >= top && pointerY <= bottom) {
+      if (pointerY>= top && pointerY <= bottom) {
         exactMatchId = container.id;
       }
 
@@ -248,7 +248,7 @@ export function ContextMenuSettingsTab() {
       return [{ id: exactMatchId }];
     }
 
-    if (bounds.length > 0) {
+    if (bounds.length> 0) {
       // Сортируем по реальной вертикальной координате на экране
       bounds.sort((a, b) => a.top - b.top);
 
@@ -259,7 +259,7 @@ export function ContextMenuSettingsTab() {
       }
 
       // 3. Если курсор ниже нижней границы самого последнего элемента списка
-      if (pointerY > bounds[bounds.length - 1].bottom) {
+      if (pointerY> bounds[bounds.length - 1].bottom) {
         return [{ id: bounds[bounds.length - 1].id }];
       }
     }
@@ -295,7 +295,7 @@ export function ContextMenuSettingsTab() {
     const initialRect = event.active.rect.current.initial;
     const width = initialRect?.width || 0;
     const height = initialRect?.height || 0;
-    setActiveOverlaySize(width > 0 && height > 0 ? { width, height } : null);
+    setActiveOverlaySize(width> 0 && height> 0 ? { width, height } : null);
     setActiveId(event.active.id);
   }, []);
 
@@ -313,7 +313,7 @@ export function ContextMenuSettingsTab() {
     const current = entriesRef.current;
     const oldIndex = current.findIndex((entry) => String(entry.key) === String(active.id));
     const newIndex = current.findIndex((entry) => String(entry.key) === String(over.id));
-    if (oldIndex >= 0 && newIndex >= 0) {
+    if (oldIndex>= 0 && newIndex>= 0) {
       commitEntries(arrayMove(current, oldIndex, newIndex));
     }
   }, [commitEntries]);
@@ -387,7 +387,7 @@ export function ContextMenuSettingsTab() {
       {/* ── Шапка с кнопками управления ── */}
       <div className="cmenu-editor__header">
         <span className="cmenu-editor__title">
-          <MousePointerClick size={14} style={{ color: "var(--accent)" }} />
+          <MousePointerClick size={14} className="t-accent" />
           {dict.settings.contextMenuConfig.cmenuConfigTitle}
         </span>
         <div className="cmenu-editor__actions">
@@ -396,7 +396,7 @@ export function ContextMenuSettingsTab() {
             className="btn btn--secondary btn--sm"
             onClick={handleReset}
             title={dict.settings.contextMenuConfig.btnResetTitle}
-          >
+            >
             <RotateCcw size={13} /> {dict.settings.contextMenuConfig.btnReset}
           </button>
           <button
@@ -404,7 +404,7 @@ export function ContextMenuSettingsTab() {
             className={`btn btn--sm ${saved ? "btn--secondary" : "btn--accent"}`}
             onClick={handleSave}
             title={dict.settings.contextMenuConfig.btnSaveTitle}
-          >
+            >
             <Check size={13} /> {dict.settings.contextMenuConfig.btnSaved}
           </button>
         </div>
@@ -415,7 +415,7 @@ export function ContextMenuSettingsTab() {
         {/* Левая колонка — текущее меню */}
         <div className="cmenu-editor__current">
           <div className="cmenu-editor__col-header">
-            <SlidersHorizontal size={14} style={{ color: "var(--accent)" }} />
+            <SlidersHorizontal size={14} className="t-accent" />
             <span>{dict.settings.contextMenuConfig.colCurrent}</span>
             <span className="cmenu-editor__count">{entries.length}</span>
           </div>
@@ -440,7 +440,7 @@ export function ContextMenuSettingsTab() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
-          >
+            >
             <ScrollSync
               containerRef={scrollContainerRef}
               isDragging={activeId !== null}
@@ -448,7 +448,7 @@ export function ContextMenuSettingsTab() {
             <SortableContext
               items={itemKeys}
               strategy={verticalListSortingStrategy}
-            >
+              >
               <div className="cmenu-editor__list" ref={scrollContainerRef}>
                 {entries.length === 0 ? (
                   <div className="cmenu-editor__empty">
@@ -487,7 +487,7 @@ export function ContextMenuSettingsTab() {
                     maxWidth: activeOverlaySize.width,
                     boxSizing: "border-box",
                   }}
-                >
+                  >
                   <OverlayCard entry={activeEntry.entry} descriptor={activeDescriptor} />
                 </div>
               ) : null}
@@ -499,7 +499,7 @@ export function ContextMenuSettingsTab() {
             type="button"
             className="cmenu-editor__add-divider-btn"
             onClick={addDividerAtEnd}
-          >
+            >
             <Plus size={12} /> {dict.settings.contextMenuConfig.btnAddDivider}
           </button>
         </div>
@@ -507,14 +507,14 @@ export function ContextMenuSettingsTab() {
         {/* Правая колонка — доступные пункты */}
         <div className="cmenu-editor__available">
           <div className="cmenu-editor__col-header">
-            <FolderOpen size={14} style={{ color: "var(--accent)" }} />
+            <FolderOpen size={14} className="t-accent" />
             <span>{dict.settings.contextMenuConfig.colAvailable}</span>
             <span className="cmenu-editor__count">{availableItems.length}</span>
           </div>
           <div className="cmenu-editor__available-list">
             {availableItems.length === 0 ? (
               <div className="cmenu-editor__empty">
-                <Check size={16} style={{ color: "var(--accent)" }} />
+                <Check size={16} className="t-accent" />
                 <span>{dict.settings.contextMenuConfig.emptyAvailable}</span>
               </div>
             ) : (
@@ -536,7 +536,7 @@ export function ContextMenuSettingsTab() {
                       className="cmenu-available-item__add"
                       onClick={() => addItem(descriptor)}
                       title={dict.settings.contextMenuConfig.btnAddItem(itemInfo.label)}
-                    >
+                      >
                       <Plus size={13} />
                     </button>
                   </div>

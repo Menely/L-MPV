@@ -15,7 +15,7 @@ interface MarkdownRendererProps {
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = "" }) => {
   if (!content || !content.trim()) {
     return (
-      <div style={{ color: "var(--text-muted, #9ca3af)", fontStyle: "italic", fontSize: "0.85rem" }}>
+      <div style={{ color: "var(--text-muted, #9ca3af)", fontStyle: "italic", fontSize: "var(--fs-base)" }}>
         Описание изменений отсутствует.
       </div>
     );
@@ -28,10 +28,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
       className={`markdown-content ${className}`}
       style={{
         color: "var(--text, #e5e7eb)",
-        fontSize: "0.85rem",
+        fontSize: "var(--fs-base)",
         lineHeight: 1.6,
       }}
-    >
+      >
       {blocks.map((block, idx) => (
         <RenderBlock key={idx} block={block} />
       ))}
@@ -283,7 +283,7 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
         const itemLine = lines[i];
         const itemMatch = itemLine.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/);
         if (!itemMatch) {
-          if (itemLine.trim() && (itemLine.startsWith("  ") || itemLine.startsWith("\t")) && items.length > 0) {
+          if (itemLine.trim() && (itemLine.startsWith("  ") || itemLine.startsWith("\t")) && items.length> 0) {
             items[items.length - 1].text += "\n" + itemLine.trim();
             i++;
             continue;
@@ -332,7 +332,7 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
       i++;
     }
 
-    if (paragraphLines.length > 0) {
+    if (paragraphLines.length> 0) {
       blocks.push({
         type: "paragraph",
         text: paragraphLines.join("\n"),
@@ -364,7 +364,7 @@ const MarkdownDetails: React.FC<MarkdownDetailsProps> = ({ summary, innerBlocks,
         overflow: "hidden",
         transition: "border-color 0.15s ease, background 0.15s ease",
       }}
-    >
+      >
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -372,20 +372,20 @@ const MarkdownDetails: React.FC<MarkdownDetailsProps> = ({ summary, innerBlocks,
           width: "100%",
           display: "flex",
           alignItems: "center",
-          gap: 8,
+          gap: "var(--space-4)",
           padding: "8px 12px",
           background: isOpen ? "rgba(255, 255, 255, 0.05)" : "transparent",
           border: "none",
           borderBottom: isOpen ? "1px solid rgba(255, 255, 255, 0.08)" : "none",
           color: "var(--text, #ffffff)",
-          fontSize: "0.85rem",
+          fontSize: "var(--fs-base)",
           fontWeight: 600,
           cursor: "pointer",
           textAlign: "left",
           transition: "background 0.15s ease",
         }}
         className="hover-bright"
-      >
+        >
         <ChevronRight
           size={16}
           style={{
@@ -395,13 +395,13 @@ const MarkdownDetails: React.FC<MarkdownDetailsProps> = ({ summary, innerBlocks,
             flexShrink: 0,
           }}
         />
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="grow">
           <InlineContent text={summary} />
         </div>
       </button>
 
       {isOpen && (
-        <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
           {innerBlocks.map((b, idx) => (
             <RenderBlock key={idx} block={b} />
           ))}
@@ -439,9 +439,9 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
             display: "flex",
             alignItems: "center",
             flexWrap: "wrap",
-            gap: 6,
+            gap: "var(--space-3)",
           }}
-        >
+          >
           <InlineContent text={block.text} />
         </div>
       );
@@ -458,27 +458,27 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
             padding: "10px 12px",
             overflowX: "auto",
             fontFamily: "Consolas, 'Courier New', monospace",
-            fontSize: "0.8rem",
+            fontSize: "var(--fs-sm)",
             lineHeight: 1.45,
             color: "#e2e8f0",
           }}
           className="custom-scrollbar"
-        >
+          >
           {block.language && (
             <div
               style={{
-                fontSize: "0.7rem",
+                fontSize: "var(--fs-2xs)",
                 color: "var(--text-muted, #9ca3af)",
-                marginBottom: 6,
+                marginBottom: "var(--space-3)",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
                 fontWeight: 600,
               }}
-            >
+              >
               {block.language}
             </div>
           )}
-          <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{block.code}</pre>
+          <pre style={{ margin: "var(--space-0)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{block.code}</pre>
         </div>
       );
 
@@ -494,7 +494,7 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
             color: "var(--text-secondary, #d1d5db)",
             fontStyle: "italic",
           }}
-        >
+          >
           <InlineContent text={block.text} />
         </blockquote>
       );
@@ -517,11 +517,11 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
             style={{
               width: "100%",
               borderCollapse: "collapse",
-              fontSize: "0.82rem",
+              fontSize: "var(--fs-sm)",
               border: "1px solid rgba(255, 255, 255, 0.1)",
               borderRadius: "var(--radius-sm)",
             }}
-          >
+            >
             <thead>
               <tr style={{ background: "rgba(255, 255, 255, 0.06)" }}>
                 {block.headers.map((h, hIdx) => (
@@ -534,7 +534,7 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
                       color: "var(--text, #ffffff)",
                       borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
                     }}
-                  >
+                    >
                     <InlineContent text={h} />
                   </th>
                 ))}
@@ -548,7 +548,7 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
                     background: rIdx % 2 === 1 ? "rgba(255, 255, 255, 0.02)" : "transparent",
                     borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
                   }}
-                >
+                  >
                   {row.map((cell, cIdx) => (
                     <td key={cIdx} style={{ padding: "6px 10px", color: "var(--text-secondary, #d1d5db)" }}>
                       <InlineContent text={cell} />
@@ -569,29 +569,29 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
         <ul
           style={{
             margin: "6px 0 10px",
-            paddingLeft: 0,
+            paddingLeft: "var(--space-0)",
             listStyle: "none",
             display: "flex",
             flexDirection: "column",
-            gap: 4,
+            gap: "var(--space-2)",
           }}
-        >
+          >
           {block.items.map((item, idx) => {
-            const indentPadding = item.indent > 0 ? Math.min(item.indent * 8, 32) : 0;
+            const indentPadding = item.indent> 0 ? Math.min(item.indent * 8, 32) : 0;
             return (
               <li
                 key={idx}
                 style={{
                   display: "flex",
                   alignItems: "flex-start",
-                  gap: 8,
+                  gap: "var(--space-4)",
                   paddingLeft: indentPadding,
-                  fontSize: "0.85rem",
+                  fontSize: "var(--fs-base)",
                   lineHeight: 1.5,
                 }}
-              >
+                >
                 {item.checked !== null ? (
-                  <span style={{ display: "inline-flex", marginTop: 2, flexShrink: 0 }}>
+                  <span style={{ display: "inline-flex", marginTop: "var(--space-1)", flexShrink: 0 }}>
                     {item.checked ? (
                       <CheckSquare size={14} color="var(--accent, #60a5fa)" />
                     ) : (
@@ -606,7 +606,7 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
                       minWidth: "16px",
                       flexShrink: 0,
                     }}
-                  >
+                    >
                     {idx + 1}.
                   </span>
                 ) : (
@@ -616,7 +616,7 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
                       height: 5,
                       borderRadius: "50%",
                       background: "var(--accent, #60a5fa)",
-                      marginTop: 8,
+                      marginTop: "var(--space-4)",
                       flexShrink: 0,
                       boxShadow: "0 0 4px var(--accent, #60a5fa)",
                     }}
@@ -641,7 +641,7 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
             wordBreak: "break-word",
             whiteSpace: "pre-line",
           }}
-        >
+          >
           <InlineContent text={block.text} />
         </p>
       );
@@ -676,13 +676,13 @@ const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = 
           borderRadius: "var(--radius-sm)",
           display: "inline-flex",
           alignItems: "center",
-          gap: 8,
+          gap: "var(--space-4)",
           color: "var(--text-secondary, #9ca3af)",
-          fontSize: "0.8rem",
+          fontSize: "var(--fs-sm)",
           cursor: "pointer",
         }}
         title="Нажмите, чтобы открыть изображение в браузере"
-      >
+        >
         <ImageIcon size={16} color="var(--accent, #60a5fa)" />
         <span>Изображение: {alt || "Посмотреть в браузере"}</span>
         <ExternalLink size={12} style={{ opacity: 0.7 }} />
@@ -722,13 +722,13 @@ const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = 
       {alt && (
         <div
           style={{
-            fontSize: "0.72rem",
+            fontSize: "var(--fs-xs)",
             color: "var(--text-muted, #9ca3af)",
-            marginTop: 4,
+            marginTop: "var(--space-2)",
             textAlign: "center",
             fontStyle: "italic",
           }}
-        >
+          >
           {alt}
         </div>
       )}
@@ -797,16 +797,16 @@ const renderLink = (url: string, label: string | React.ReactNode, key: string, h
       fontWeight: 500,
       display: "inline-flex",
       alignItems: "center",
-      gap: 3,
+      gap: "var(--space-1)",
       wordBreak: "break-all",
     }}
     className="hover-bright"
     title={`Перейти: ${url}`}
-  >
+    >
     <span>{label}</span>
     {hasIcon && <ExternalLink size={11} style={{ opacity: 0.8 }} />}
   </a>
-);
+  );
 
 /**
  * Рендерит инлайн форматирование (картинки, ссылки, автоссылки, жирный, курсив, kbd, код, зачеркивание).
@@ -838,7 +838,7 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
     const matchIndex = match.index;
 
     // Обычный текст перед найденным элементом
-    if (matchIndex > lastIndex) {
+    if (matchIndex> lastIndex) {
       elements.push(text.substring(lastIndex, matchIndex));
     }
 
@@ -908,7 +908,7 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
             color: "#e2e8f0",
             border: "1px solid rgba(255, 255, 255, 0.06)",
           }}
-        >
+          >
           {codeText}
         </code>
       );
@@ -926,7 +926,7 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
             fontFamily: "inherit",
             color: "var(--text, #ffffff)",
           }}
-        >
+          >
           {kbdText}
         </kbd>
       );

@@ -43,7 +43,7 @@ import {
   VisualizerMode,
 } from "./AudioVisualizer";
 import { getSavedSeekStepSeconds, triggerSeekIndicator } from "../../utils/seekUtils";
-import { getCustomHotkeys } from "../../utils/hotkeyUtils";
+import { getCustomHotkeys, getKeyDisplay } from "../../utils/hotkeyUtils";
 import {
   TimeDisplayPosition,
   getSavedTimePosition,
@@ -280,36 +280,32 @@ export function PlayerControls({
     };
   }, [controlBarStyle]);
 
+  // Универсальное переключение всплывающего окна дорожек
+  const toggleTrackPopover = useCallback(
+    (type: "audio" | "sub") => {
+      if (activePopover === type) {
+        closePopover();
+      } else {
+        if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
+        if (onCloseChapters) onCloseChapters();
+        loadTracks();
+        openPopover(type);
+      }
+    },
+    [activePopover, closePopover, showMediaInfo, onToggleMediaInfo, onCloseChapters, loadTracks, openPopover]
+  );
+
   // Обработка внешних событий переключения поповеров дорожек
   useEffect(() => {
     const handleTogglePopover = (e: Event) => {
       const type = (e as CustomEvent).detail?.type;
-      if (type === "audio") {
-        if (activePopover === "audio") {
-          closePopover();
-        } else {
-          openPopover("audio");
-          loadTracks();
-          if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
-          if (onCloseChapters) onCloseChapters();
-        }
-      } else if (type === "sub") {
-        if (activePopover === "sub") {
-          closePopover();
-        } else {
-          openPopover("sub");
-          loadTracks();
-          if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
-          if (onCloseChapters) onCloseChapters();
-        }
+      if (type === "audio" || type === "sub") {
+        toggleTrackPopover(type);
       }
     };
-    window.addEventListener('l-mpv-toggle-popover', handleTogglePopover);
-
-    return () => {
-      window.removeEventListener('l-mpv-toggle-popover', handleTogglePopover);
-    };
-  }, [loadTracks, showMediaInfo, onToggleMediaInfo, onCloseChapters, activePopover, closePopover, openPopover]);
+    window.addEventListener("l-mpv-toggle-popover", handleTogglePopover);
+    return () => window.removeEventListener("l-mpv-toggle-popover", handleTogglePopover);
+  }, [toggleTrackPopover]);
 
   const activeAudioTrack = useMemo(() => tracks.find(t => t.type === "audio" && t.selected), [tracks]);
   const activeSubTrack = useMemo(() => tracks.find(t => t.type === "sub" && t.selected), [tracks]);
@@ -318,7 +314,7 @@ export function PlayerControls({
     const audioTracksList = tracks.filter(t => t.type === "audio");
     if (audioTracksList.length === 0) return null;
     if (!activeAudioTrack) return "AUD";
-    if (activeAudioTrack.title && activeAudioTrack.title.trim().length > 0) {
+    if (activeAudioTrack.title && activeAudioTrack.title.trim().length> 0) {
       return activeAudioTrack.title;
     }
     if (activeAudioTrack.lang) return activeAudioTrack.lang.toUpperCase();
@@ -329,7 +325,7 @@ export function PlayerControls({
     const subTracksList = tracks.filter(t => t.type === "sub");
     if (subTracksList.length === 0) return null;
     if (!activeSubTrack) return dict.controls.subOff;
-    if (activeSubTrack.title && activeSubTrack.title.trim().length > 0) {
+    if (activeSubTrack.title && activeSubTrack.title.trim().length> 0) {
       return activeSubTrack.title;
     }
     if (activeSubTrack.lang) return activeSubTrack.lang.toUpperCase();
@@ -397,43 +393,25 @@ export function PlayerControls({
   }, [showMediaInfo, showChapters, closePopover]);
 
 
-  const handleAudioButtonClick = useCallback((mouseBtn: "MouseLeft" | "MouseRight") => {
-    const cycleBinds = hotkeys["cycleAudioTrack"] || [];
-    const menuBinds = hotkeys["toggleAudioMenu"] || ["MouseLeft", "MouseRight"];
+  // Обработка кликов по иконкам аудио и субтитров: ЛКМ — смена дорожки, ПКМ — меню
+  const handleTrackButtonClick = useCallback(
+    (type: "audio" | "sub", mouseBtn: "MouseLeft" | "MouseRight") => {
+      const isAudio = type === "audio";
+      const menuAction = isAudio ? "toggleAudioMenu" : "toggleSubMenu";
+      const cycleAction = isAudio ? "cycleAudioTrack" : "cycleSubTrack";
+      const openMenu =
+        mouseBtn === "MouseRight"
+          ? !hotkeys[cycleAction]?.includes("MouseRight")
+          : (hotkeys[menuAction] || []).includes("MouseLeft");
 
-    // По умолчанию и по настройкам ЛКМ и ПКМ переключают видимость всплывающего меню дорожек
-    if (menuBinds.includes(mouseBtn) || mouseBtn === "MouseLeft") {
-      if (activePopover === "audio") {
-        closePopover();
+      if (openMenu) {
+        toggleTrackPopover(type);
       } else {
-        if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
-        if (onCloseChapters) onCloseChapters();
-        loadTracks();
-        openPopover("audio");
+        isAudio ? cycleAudioTrack() : cycleSubTrack();
       }
-    } else if (cycleBinds.includes(mouseBtn)) {
-      cycleAudioTrack();
-    }
-  }, [hotkeys, activePopover, showMediaInfo, onToggleMediaInfo, onCloseChapters, loadTracks, cycleAudioTrack, closePopover, openPopover]);
-
-  const handleSubButtonClick = useCallback((mouseBtn: "MouseLeft" | "MouseRight") => {
-    const cycleBinds = hotkeys["cycleSubTrack"] || [];
-    const menuBinds = hotkeys["toggleSubMenu"] || ["MouseLeft", "MouseRight"];
-
-    // По умолчанию и по настройкам ЛКМ и ПКМ переключают видимость всплывающего меню субтитров
-    if (menuBinds.includes(mouseBtn) || mouseBtn === "MouseLeft") {
-      if (activePopover === "sub") {
-        closePopover();
-      } else {
-        if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
-        if (onCloseChapters) onCloseChapters();
-        loadTracks();
-        openPopover("sub");
-      }
-    } else if (cycleBinds.includes(mouseBtn)) {
-      cycleSubTrack();
-    }
-  }, [hotkeys, activePopover, showMediaInfo, onToggleMediaInfo, onCloseChapters, loadTracks, cycleSubTrack, closePopover, openPopover]);
+    },
+    [hotkeys, toggleTrackPopover, cycleAudioTrack, cycleSubTrack]
+  );
 
   const handleTogglePause = useCallback(async () => {
     try {
@@ -549,19 +527,19 @@ export function PlayerControls({
       className={`player-controls-wrapper ${
         controlBarStyle === "docked" ? "player-controls-wrapper--docked" : ""
       }`}
-    >
+      >
       <div ref={controlsPillRef} className="player-controls">
         {/* Всплывающее меню дорожек */}
         {(displayedPopover === "audio" || displayedPopover === "sub") && (
           <div
             className={`track-popover ${isPopoverClosing ? "track-popover--closing" : ""}`}
             ref={popoverRef}
-          >
+            >
             <div className="track-popover__title">
             {displayedPopover === "audio" ? dict.controls.audioTracks : dict.controls.subtitles}
             </div>
             {displayedPopover === "audio" &&
-              (audioTracks.length > 0 ? (
+              (audioTracks.length> 0 ? (
                 <div className="track-popover__list">
                   {audioTracks.map((t) => (
                     <div key={t.id} className="track-popover__row">
@@ -573,7 +551,7 @@ export function PlayerControls({
                           selectAudioTrack(t.id);
                           closePopover();
                         }}
-                      >
+                        >
                         <span className="track-popover__item-title">
                           {t.title || dict.controls.trackLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
                         </span>
@@ -590,7 +568,7 @@ export function PlayerControls({
                           e.stopPropagation();
                           handleDownloadTrack(t);
                         }}
-                      >
+                        >
                         {downloadingTrackKey === `audio-${t.id}` ? (
                           <Loader2 size={14} className="spin-animation" />
                         ) : (
@@ -608,19 +586,21 @@ export function PlayerControls({
 
             {displayedPopover === "sub" && (
               <>
-                <div className="track-popover__row" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: 6, marginBottom: 2 }}>
+                <div className="track-popover__row" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "var(--space-3)", marginBottom: "var(--space-1)" }}>
                   <button
                     type="button"
                     className="track-popover__item"
-                    style={{ width: "100%", gap: 8, color: "var(--accent)" }}
+                    style={{ width: "100%", gap: "var(--space-4)", color: "var(--accent)" }}
                     onClick={() => {
                       closePopover();
                       onOpenSubtitlesSearch?.();
                     }}
-                  >
+                    >
                     <Search size={14} />
                     <span className="track-popover__item-title" style={{ fontWeight: 600 }}>{dict.controls.searchSubtitles}</span>
-                    <span style={{ fontSize: "0.72rem", opacity: 0.7, marginLeft: "auto" }}>Ctrl+F</span>
+                    <span style={{ fontSize: "var(--fs-xs)", opacity: 0.7, marginLeft: "auto" }}>
+                      {getKeyDisplay(hotkeys.searchSubtitles?.[0] || "Ctrl+KeyF")}
+                    </span>
                   </button>
                 </div>
                 <div className="track-popover__list">
@@ -638,7 +618,7 @@ export function PlayerControls({
                         disableSubtitles();
                         closePopover();
                       }}
-                    >
+                      >
                       <span className="track-popover__item-title">{dict.controls.disableSubtitles}</span>
                       <span className="track-popover__item-check">
                         {!subTracks.some((t) => t.selected) && <Check size={15} />}
@@ -655,7 +635,7 @@ export function PlayerControls({
                           selectSubTrack(t.id);
                           closePopover();
                         }}
-                      >
+                        >
                         <span className="track-popover__item-title">
                           {t.title || dict.controls.subtitleLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
                         </span>
@@ -672,7 +652,7 @@ export function PlayerControls({
                           e.stopPropagation();
                           handleDownloadTrack(t);
                         }}
-                      >
+                        >
                         {downloadingTrackKey === `sub-${t.id}` ? (
                           <Loader2 size={14} className="spin-animation" />
                         ) : (
@@ -729,10 +709,10 @@ export function PlayerControls({
               className={`control-btn ${activePopover === "audio" ? "control-btn--active" : ""} ${
                 (showTrackNames && audioLabel) || isAudioDownloading ? "control-btn--with-label" : ""
               }`}
-              onClick={() => handleAudioButtonClick("MouseLeft")}
+              onClick={() => handleTrackButtonClick("audio", "MouseLeft")}
               onContextMenu={(e) => {
                 e.preventDefault();
-                handleAudioButtonClick("MouseRight");
+                handleTrackButtonClick("audio", "MouseRight");
               }}
               id="btn-audio-tracks"
               title={isAudioDownloading ? dict.controls.downloadingAudio : undefined}
@@ -750,10 +730,10 @@ export function PlayerControls({
               className={`control-btn ${activePopover === "sub" ? "control-btn--active" : ""} ${
                 (showTrackNames && subLabel) || isSubDownloading ? "control-btn--with-label" : ""
               }`}
-              onClick={() => handleSubButtonClick("MouseLeft")}
+              onClick={() => handleTrackButtonClick("sub", "MouseLeft")}
               onContextMenu={(e) => {
                 e.preventDefault();
-                handleSubButtonClick("MouseRight");
+                handleTrackButtonClick("sub", "MouseRight");
               }}
               id="btn-sub-tracks"
               title={isSubDownloading ? dict.controls.downloadingSubtitle : undefined}
@@ -774,12 +754,12 @@ export function PlayerControls({
                 const newVol = Math.max(0, Math.min(150, volume + delta));
                 handleVolumeChange(newVol, true);
               }}
-            >
+              >
               <button
                 className="control-btn"
-                onClick={() => handleVolumeChange(volume > 0 ? 0 : 100)}
+                onClick={() => handleVolumeChange(volume> 0 ? 0 : 100)}
                 id="btn-volume"
-              >
+                >
                 {volume === 0 ? (
                   <VolumeX key="vol-x" size={18} />
                 ) : volume < 50 ? (
@@ -836,7 +816,7 @@ export function PlayerControls({
               <button
                 className={`control-btn control-btn--priority-low ${repeatMode !== 0 ? "control-btn--active" : ""}`}
                 onClick={handleToggleRepeat}
-              >
+                >
                 {repeatMode === 1 ? <Repeat1 size={16} /> : <Repeat size={16} />}
               </button>
             )}
@@ -845,7 +825,7 @@ export function PlayerControls({
               className="control-btn control-btn--priority-medium"
               onClick={handlePlaylistPrev}
               id="btn-playlist-prev"
-            >
+              >
               <SkipBack size={18} />
             </button>
 
@@ -858,7 +838,7 @@ export function PlayerControls({
                 }}
                 id="btn-seek-back"
                 title={`-${seekStepSeconds}s`}
-              >
+                >
                 <Undo size={18} />
               </button>
             )}
@@ -867,7 +847,7 @@ export function PlayerControls({
               className="control-btn control-btn--play"
               onClick={handleTogglePause}
               id="btn-play-pause"
-            >
+              >
               {paused ? (
                 <Play key="play-icon" size={22} fill="currentColor" />
               ) : (
@@ -884,7 +864,7 @@ export function PlayerControls({
                 }}
                 id="btn-seek-forward"
                 title={`+${seekStepSeconds}s`}
-              >
+                >
                 <Redo size={18} />
               </button>
             )}
@@ -893,7 +873,7 @@ export function PlayerControls({
               className="control-btn control-btn--priority-medium"
               onClick={handlePlaylistNext}
               id="btn-playlist-next"
-            >
+              >
               <SkipForward size={18} />
             </button>
 
@@ -901,7 +881,7 @@ export function PlayerControls({
               <button
                 className="control-btn control-btn--priority-low"
                 onClick={handleShuffle}
-              >
+                >
                 <Shuffle size={16} />
               </button>
             )}
@@ -924,10 +904,10 @@ export function PlayerControls({
                 onClick={() => handleSeek(skipOpeningSeconds)}
                 id="btn-skip-opening"
                 title={dict.controls.skipOpening(skipOpeningSeconds)}
-                style={{ padding: "0 8px", gap: 3 }}
-              >
+                style={{ padding: "0 8px", gap: "var(--space-1)" }}
+                >
                 <FastForward size={16} />
-                <span className="control-btn__label" style={{ fontSize: "0.75rem", fontWeight: 600 }}>
+                <span className="control-btn__label t-sub">
                   {dict.controls.skipOpeningShortLabel(skipOpeningSeconds)}
                 </span>
               </button>
@@ -945,7 +925,7 @@ export function PlayerControls({
                     setIsAlwaysOnTop(!current);
                   } catch (e) { console.error(e); }
                 }}
-              >
+                >
                 <Pin size={18} />
               </button>
             )}
@@ -963,7 +943,7 @@ export function PlayerControls({
                     onShowMediaInfo();
                   }
                 }}
-              >
+                >
                 <Info size={18} />
               </button>
             )}
@@ -980,7 +960,7 @@ export function PlayerControls({
                     onToggleDetailedMediaInfo();
                   }
                 }}
-              >
+                >
                 <FileText size={18} />
               </button>
             )}
@@ -1014,7 +994,7 @@ export function PlayerControls({
                   setVisualizerConfig(updated);
                   saveVisualizerConfig(updated);
                 }}
-              >
+                >
                 <AudioWaveform size={18} />
               </button>
             )}
@@ -1027,7 +1007,7 @@ export function PlayerControls({
                   setIsPlaylistOpen(!isPlaylistOpen);
                 }}
                 id="btn-playlist-drawer"
-              >
+                >
                 <ListVideo size={18} />
               </button>
             )}
@@ -1037,7 +1017,7 @@ export function PlayerControls({
                 className="control-btn control-btn--priority-low"
                 onClick={handleTakeScreenshot}
                 id="btn-screenshot"
-              >
+                >
                 <Camera size={18} />
               </button>
             )}
@@ -1047,7 +1027,7 @@ export function PlayerControls({
                 className="control-btn"
                 onClick={toggleFullscreen}
                 id="btn-fullscreen"
-              >
+                >
                 {isFullscreen ? (
                   <MinimizeIcon size={18} />
                 ) : (

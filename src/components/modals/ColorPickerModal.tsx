@@ -254,7 +254,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
         event.stopPropagation();
         handleClose();
       }}
-    >
+      >
       <div
         ref={dialogRef}
         className={`modal color-picker-modal ${isClosing ? "modal--closing" : ""}`}
@@ -273,17 +273,17 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
            overflowX: "hidden",
         }}
         onClick={(e) => e.stopPropagation()}
-      >
+        >
         {/* Шапка модалки */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 16,
+            marginBottom: "var(--space-7)",
           }}
-        >
-          <span style={{ fontSize: "0.96rem", fontWeight: 700, color: "var(--text-primary)" }}>
+          >
+          <span style={{ fontSize: "var(--fs-md)", fontWeight: 700, color: "var(--text-primary)" }}>
             {dict.settings.appearance.colorScheme.colorPickerTitle}
           </span>
           <button
@@ -293,7 +293,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             className="modal__close"
             title={dict.settings.appearance.colorScheme.colorPickerClose}
             aria-label={dict.settings.appearance.colorScheme.colorPickerClose}
-          >
+            >
             <X size={16} />
           </button>
         </div>
@@ -307,7 +307,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             margin: "0 auto 16px auto",
             userSelect: "none",
           }}
-        >
+          >
           <canvas
             ref={wheelCanvasRef}
             width={180}
@@ -345,16 +345,16 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
         </div>
 
         {/* Слайдер яркости (Lightness) */}
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: "var(--space-7)" }}>
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
-              fontSize: "0.78rem",
+              fontSize: "var(--fs-xs)",
               color: "var(--text-secondary)",
-              marginBottom: 6,
+              marginBottom: "var(--space-3)",
             }}
-          >
+            >
             <span>Яркость</span>
             <span style={{ fontWeight: 600 }}>{lightness}%</span>
           </div>
@@ -385,12 +385,12 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             padding: "10px 12px",
             display: "flex",
             flexDirection: "column",
-            gap: 8,
-            marginBottom: 16,
+            gap: "var(--space-4)",
+            marginBottom: "var(--space-7)",
           }}
-        >
+          >
           {/* Превью + HEX */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="row-center row-gap-5">
             <div
               style={{
                 width: 34,
@@ -402,8 +402,8 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
                 flexShrink: 0,
               }}
             />
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", fontWeight: 600 }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+              <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", fontWeight: 600 }}>
                 HEX:
               </span>
               <input
@@ -418,7 +418,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
                   border: "1px solid var(--border)",
                   borderRadius: "6px",
                   color: "#ffffff",
-                  fontSize: "0.84rem",
+                  fontSize: "var(--fs-sm)",
                   fontFamily: "monospace",
                   fontWeight: 600,
                   outline: "none",
@@ -428,16 +428,16 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
           </div>
 
           {/* RGB Поля */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", fontWeight: 600, width: 28 }}>
+          <div className="row-center row-gap-3">
+            <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", fontWeight: 600, width: 28 }}>
               RGB:
             </span>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, flex: 1 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-3)", flex: 1 }}>
               {(["R", "G", "B"] as const).map((ch, idx) => {
                 const val = idx === 0 ? rInput : idx === 1 ? gInput : bInput;
                 return (
-                  <div key={ch} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>{ch}</span>
+                  <div key={ch} className="row-center row-gap-2">
+                    <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)" }}>{ch}</span>
                     <input
                       type="number"
                       min={0}
@@ -456,7 +456,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
                         border: "1px solid var(--border)",
                         borderRadius: "6px",
                         color: "#ffffff",
-                        fontSize: "0.78rem",
+                        fontSize: "var(--fs-xs)",
                         fontFamily: "monospace",
                         textAlign: "center",
                         outline: "none",
@@ -470,12 +470,12 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
         </div>
 
         {/* Кнопки действий */}
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", gap: "var(--space-5)", justifyContent: "flex-end" }}>
           <button
             onClick={handleClose}
             className="settings-action-btn settings-action-btn--secondary"
-            style={{ height: 32, padding: "0 14px", fontSize: "0.82rem" }}
-          >
+            style={{ height: 32, padding: "0 14px", fontSize: "var(--fs-sm)" }}
+            >
             {dict.settings.appearance.colorScheme.cancel}
           </button>
           <button
@@ -484,8 +484,8 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
               handleClose();
             }}
             className="settings-action-btn settings-action-btn--primary"
-            style={{ height: 32, padding: "0 16px", fontSize: "0.82rem", gap: 6 }}
-          >
+            style={{ height: 32, padding: "0 16px", fontSize: "var(--fs-sm)", gap: "var(--space-3)" }}
+            >
             <Plus size={15} /> {dict.settings.appearance.colorScheme.add}
           </button>
         </div>

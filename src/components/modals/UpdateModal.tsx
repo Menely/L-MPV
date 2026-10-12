@@ -34,13 +34,13 @@ export const AppLogoIcon: React.FC<{ size?: number; color?: string; className?: 
     xmlns="http://www.w3.org/2000/svg"
     className={className}
     style={{ display: "block", flexShrink: 0 }}
-  >
+    >
     <path
       fill={color}
       d="M312.05,483.83l-79.01,48.13c-15.89,9.68-35.66,7.45-49.17-4.87-7.8-7.11-12.32-16.08-13.67-26.52s1.69-20.76,8.11-29.6c9.45-13.01,18.42-25.73,26.35-39.87,26.01-46.35,39.83-98.85,41.09-151.99.33-13.82,1.34-26.38,4.02-39.89,5.74-28.98,18.55-55.91,38.04-78.06,16.61-18.88,37.76-31.53,62.13-37.35,16.9-4.03,33.51-4.12,50.21.47,10.08,2.77,19.55,6.44,28.66,11.98l35.03,21.31,39.94,24.79,4.5,2.71,52.66,32.53c18.42,11.38,28.7,36.28,27.89,57.94-.63,16.77-5.82,33-16.69,45.75-5.55,6.51-12.06,11.43-19.48,15.96l-125.56,76.6-115.04,69.98ZM271.03,454.76l113.08-69.04,110.96-67.3,37.06-22.88c4.56-2.81,7.85-6.9,9.74-11.52,4.55-11.13-.07-23.93-10.32-30.21l-89.02-54.47-34.96-21.52c-9.59-5.91-19.93-10.02-31.47-10.46-13.96-.53-28.34,2.97-39.66,11.3-17.77,13.09-29.65,31.32-36.93,52.01-4.16,11.82-6.92,23.69-7.25,36.43-.77,29.08-3.18,57.43-9.2,85.76l-8.01,30.11c-8.82,28.21-20.62,54.66-35.49,80.17l-10.36,16.62,41.83-25.01ZM164.38,399.98c11.1-20.17,18.43-41.73,23.81-64.08,10.94-45.48,7.99-93.73-5.7-138.33-7.28-23.71-17.88-45.55-31.55-66.21-7.45-11.26-14.87-21.8-24.29-31.44-4.86-4.98-12.04-7.99-18.98-7.19-9.39,1.09-17.64,7.8-20.73,16.8-2.76,8.03-.63,17.35,5.12,23.59,32.25,35.04,53.32,82.77,56.57,130.39,2.79,40.79-6.12,80.43-26.01,115.88-8.63,15.37-18.54,29.24-30.5,42.02-5.9,6.3-6.91,14.68-4.13,22.34s8.8,13.52,16.4,15.35,16.04-.04,22.17-6.41c15.32-15.93,27.25-33.48,37.83-52.7ZM226.99,69.6l15.41,8.37,42.8,25.46,7.95,4.84c16.54-11.2,34.41-17.93,53.87-22.07l-6.85-3.93-70.46-42.87-34.1-20.94c-18.79-11.54-38.33-8.86-53.87,6.9-15.52,15.75-16.82,39.8-3.08,57.18,7.24,9.16,12.72,18.96,18.94,29.01,14.07,22.72,24.62,46.3,33.18,72.36,8.64-18.39,18.52-33.94,31.45-48.45l-35.25-65.83ZM59.59,381.21c13.35-14.95,24.07-31.81,30.19-51.01,6.96-21.81,10.15-43.68,8.03-66.42-1.89-20.25-7.27-39.28-16.09-57.73-7.66-16.02-18.06-30.06-30.56-42.57-4.84-4.84-11.47-7.61-18.36-6.89-11.05,1.16-20.06,10.23-21.32,21.18-.95,8.22,2.79,15.41,8.38,21.18,14.05,14.5,23.67,31.36,28.75,51.03,5.77,22.31,5.13,45.41-3.22,67.02-5.59,14.47-14.67,26.38-25.18,37.47-2.95,3.11-5.6,6.5-7.22,10.48-3.56,8.75-.47,19.1,6.33,25.16,6.96,6.2,17.24,7.97,25.98,3.29,5.9-3.16,10.06-7.46,14.29-12.2Z"
     />
   </svg>
-);
+  );
 
 /**
  * Данные об обновлении, возвращаемые из Tauri IPC.
@@ -71,7 +71,7 @@ interface UpdateModalProps {
 }
 
 /**
- * Сравнение двух semver-строк: возвращает 1 если v1 > v2, -1 если v1 < v2, 0 если равны.
+ * Сравнение двух semver-строк: возвращает 1 если v1> v2, -1 если v1 < v2, 0 если равны.
  */
 function compareVersions(v1: string, v2: string): number {
   const parse = (s: string) =>
@@ -82,7 +82,7 @@ function compareVersions(v1: string, v2: string): number {
   for (let i = 0; i < max; i++) {
     const a = p1[i] || 0;
     const b = p2[i] || 0;
-    if (a > b) return 1;
+    if (a> b) return 1;
     if (a < b) return -1;
   }
   return 0;
@@ -128,7 +128,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     setIsLoadingReleases(true);
     invoke<UpdateInfo[]>("get_available_releases")
       .then((list) => {
-        if (isMounted && Array.isArray(list) && list.length > 0) {
+        if (isMounted && Array.isArray(list) && list.length> 0) {
           setReleases(list);
         }
       })
@@ -159,7 +159,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
   const currentVersion = updateInfo.current_version.replace(/^[vV]/, "");
   const targetVersion = selectedRelease.latest_version.replace(/^[vV]/, "");
   const versionDiff = compareVersions(targetVersion, currentVersion);
-  const isUpgrade = versionDiff > 0;
+  const isUpgrade = versionDiff> 0;
   const isDowngrade = versionDiff < 0;
 
   const releasePageUrl =
@@ -243,13 +243,13 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
       className={`modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`}
       onClick={handleClose}
       style={{
-        zIndex: 10000,
+        zIndex: "var(--z-modal)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         background: "rgba(0, 0, 0, 0.65)",
       }}
-    >
+      >
       <div
         className={`modal-container update-modal-card ${isClosing ? "update-modal-card--closing" : ""}`}
         onClick={(e) => e.stopPropagation()}
@@ -271,7 +271,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
           animation: "updateModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
           transition: "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
         }}
-      >
+        >
         {/* Шапка модального окна */}
         <div
           onDoubleClick={() => setIsExpanded((prev) => !prev)}
@@ -285,7 +285,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             userSelect: "none",
             flexShrink: 0,
           }}
-        >
+          >
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div
               style={{
@@ -300,18 +300,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 flexShrink: 0,
                 transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
-            >
+              >
               <AppLogoIcon size={24} color="#ffffff" />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, letterSpacing: "-0.01em" }}>
+              <h3 style={{ margin: "var(--space-0)", fontSize: "var(--fs-xl)", fontWeight: 700, letterSpacing: "-0.01em" }}>
                 {isUpgrade
                   ? dict.updateModal.titleUpgrade
                   : isDowngrade
                   ? dict.updateModal.titleDowngrade
                   : dict.updateModal.titleInfo}
               </h3>
-              <p style={{ margin: "3px 0 0", fontSize: "0.84rem", color: "var(--text-muted, #9ca3af)" }}>
+              <p style={{ margin: "3px 0 0", fontSize: "var(--fs-sm)", color: "var(--text-muted, #9ca3af)" }}>
                 {isUpgrade
                   ? dict.updateModal.subtitleUpgrade(targetVersion)
                   : isDowngrade
@@ -321,12 +321,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div className="row-center row-gap-3">
             <button
               onClick={() => setIsExpanded((prev) => !prev)}
               className="modal__close"
               aria-label={isExpanded ? dict.updateModal.ariaRestore : dict.updateModal.ariaMaximize}
-            >
+              >
               {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
 
@@ -335,7 +335,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 onClick={handleClose}
                 className="modal__close"
                 aria-label={dict.updateModal.ariaClose}
-              >
+                >
                 <X size={18} />
               </button>
             )}
@@ -353,7 +353,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             flexDirection: "column",
             transition: "padding 0.3s ease",
           }}
-        >
+          >
           {/* Список изменений / Описание релиза */}
           <div
             style={{
@@ -363,26 +363,26 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               flex: 1,
               minHeight: 0,
             }}
-          >
+            >
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                gap: 8,
-                marginBottom: 8,
+                gap: "var(--space-4)",
+                marginBottom: "var(--space-4)",
                 flexShrink: 0,
               }}
-            >
+              >
               <div
                 style={{
-                  fontSize: "0.8rem",
+                  fontSize: "var(--fs-sm)",
                   fontWeight: 600,
                   color: "var(--text-secondary, #d1d5db)",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
                 }}
-              >
+                >
                 {isUpgrade
                   ? dict.updateModal.changelogUpgrade
                   : isDowngrade
@@ -395,18 +395,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 5,
+                  gap: "var(--space-2)",
                   background: "rgba(255, 255, 255, 0.05)",
                   border: "1px solid rgba(255, 255, 255, 0.1)",
                   borderRadius: "var(--radius-xs)",
                   padding: "4px 9px",
-                  fontSize: "0.75rem",
+                  fontSize: "var(--fs-xs)",
                   color: "var(--accent, #60a5fa)",
                   cursor: "pointer",
                   transition: "all 0.15s ease",
                 }}
                 className="hover-bright"
-              >
+                >
                 <ExternalLink size={12} />
                 <span>{dict.updateModal.openGithub}</span>
               </button>
@@ -423,7 +423,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 padding: isExpanded ? "14px 18px" : "12px 14px",
                 transition: "padding 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
-            >
+              >
               <MarkdownRenderer content={selectedRelease.release_notes} />
             </div>
           </div>
@@ -434,38 +434,38 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 10,
+                gap: "var(--space-5)",
                 padding: "10px 14px",
                 background: "rgba(239, 68, 68, 0.15)",
                 border: "1px solid rgba(239, 68, 68, 0.3)",
                 borderRadius: "var(--radius-sm)",
                 color: "#fca5a5",
-                fontSize: "0.82rem",
-                marginBottom: 16,
+                fontSize: "var(--fs-sm)",
+                marginBottom: "var(--space-7)",
                 transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
-            >
-              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              >
+              <AlertCircle size={18} className="no-shrink" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {/* Прогресс скачивания */}
           {isDownloading && (
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: "var(--space-7)" }}>
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  fontSize: "0.82rem",
+                  fontSize: "var(--fs-sm)",
                   color: "var(--text-secondary, #d1d5db)",
-                  marginBottom: 8,
+                  marginBottom: "var(--space-4)",
                 }}
-              >
+                >
                 <span>
                   {isDone ? dict.updateModal.installerStarting : dict.updateModal.downloadProgress(progress)}
                 </span>
-                {totalBytes > 0 && (
+                {totalBytes> 0 && (
                   <span style={{ color: "var(--text-muted, #9ca3af)" }}>
                     {formatBytes(downloadedBytes, locale)} / {formatBytes(totalBytes, locale)}
                   </span>
@@ -482,7 +482,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                   position: "relative",
                   transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
                 }}
-              >
+                >
                 <div
                   style={{
                     width: `${progress}%`,
@@ -497,13 +497,13 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
 
               <p
                 style={{
-                  fontSize: "0.75rem",
+                  fontSize: "var(--fs-xs)",
                   color: "var(--text-muted, #9ca3af)",
-                  marginTop: 8,
-                  marginBottom: 0,
+                  marginTop: "var(--space-4)",
+                  marginBottom: "var(--space-0)",
                   textAlign: "center",
                 }}
-              >
+                >
                 {dict.updateModal.restartHint}
               </p>
             </div>
@@ -523,14 +523,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             flexShrink: 0,
             position: "relative",
           }}
-        >
+          >
           {/* Селектор версии слева */}
           <div className="version-picker-wrap" ref={pickerRef}>
             <button
               type="button"
               onClick={() => setIsPickerOpen((prev) => !prev)}
               className={`version-picker-trigger ${isDowngrade ? "version-picker-trigger--downgrade" : ""}`}
-            >
+              >
               {isDowngrade || isUpgrade ? (
                 <>
                   <span>{currentVersion}</span>
@@ -559,7 +559,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                     : dict.updateModal.availableReleases(releases.length)}
                 </div>
                 {releases.length === 0 && !isLoadingReleases ? (
-                  <div style={{ padding: "8px 10px", fontSize: "0.78rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                  <div style={{ padding: "8px 10px", fontSize: "var(--fs-xs)", color: "var(--text-muted)", fontStyle: "italic" }}>
                     {dict.updateModal.releasesUnavailable}
                   </div>
                 ) : (
@@ -575,8 +575,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                           setIsPickerOpen(false);
                         }}
                         className={`version-picker-item ${isRelSelected ? "version-picker-item--active" : ""}`}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        >
+                        <div className="row-center row-gap-3">
                           <span className="version-picker-item__tag">v{cleanRelVer}</span>
                           {isRelCurrent && (
                             <span className="version-picker-badge version-picker-badge--current">
@@ -599,7 +599,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
           </div>
 
           {/* Кнопки действий справа */}
-          <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexShrink: 0 }}>
             {isUpgrade ? (
               <>
                 {!isDownloading && (
@@ -613,7 +613,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                       background: "rgba(255, 255, 255, 0.06)",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
                       color: "var(--text-secondary, #d1d5db)",
-                      fontSize: "0.83rem",
+                      fontSize: "var(--fs-sm)",
                       fontWeight: 500,
                       cursor: "pointer",
                       display: "inline-flex",
@@ -624,7 +624,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                       flexShrink: 0,
                     }}
                     className="hover-bright"
-                  >
+                    >
                     {dict.updateModal.remindLater}
                   </button>
                 )}
@@ -643,13 +643,13 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                     border: "none",
                     outline: "none",
                     color: "#ffffff",
-                    fontSize: "0.83rem",
+                    fontSize: "var(--fs-sm)",
                     fontWeight: 600,
                     cursor: isDownloading ? "default" : "pointer",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 7,
+                    gap: "var(--space-3)",
                     boxShadow: isDownloading
                       ? "none"
                       : "0 4px 12px var(--accent-glow, rgba(59, 130, 246, 0.35))",
@@ -658,18 +658,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                     flexShrink: 0,
                   }}
                   className={!isDownloading ? "hover-scale" : ""}
-                >
+                  >
                   {isDownloading ? (
                     <>
                       <Loader2 size={14} className="animate-spin" />
-                      <span style={{ whiteSpace: "nowrap" }}>
+                      <span className="nowrap">
                         {isDone ? dict.updateModal.installStarting : dict.updateModal.downloading}
                       </span>
                     </>
                   ) : (
                     <>
                       <Download size={14} />
-                      <span style={{ whiteSpace: "nowrap" }}>
+                      <span className="nowrap">
                         {dict.updateModal.updateTo(targetVersion)}
                       </span>
                     </>
@@ -689,7 +689,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                       background: "rgba(255, 255, 255, 0.06)",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
                       color: "var(--text-secondary, #d1d5db)",
-                      fontSize: "0.83rem",
+                      fontSize: "var(--fs-sm)",
                       fontWeight: 500,
                       cursor: "pointer",
                       display: "inline-flex",
@@ -700,7 +700,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                       flexShrink: 0,
                     }}
                     className="hover-bright"
-                  >
+                    >
                     {dict.updateModal.cancel}
                   </button>
                 )}
@@ -719,13 +719,13 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                     border: "none",
                     outline: "none",
                     color: "#ffffff",
-                    fontSize: "0.83rem",
+                    fontSize: "var(--fs-sm)",
                     fontWeight: 600,
                     cursor: isDownloading ? "default" : "pointer",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 7,
+                    gap: "var(--space-3)",
                     boxShadow: isDownloading
                       ? "none"
                       : "0 4px 12px rgba(245, 158, 11, 0.35)",
@@ -734,18 +734,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                     flexShrink: 0,
                   }}
                   className={!isDownloading ? "hover-scale" : ""}
-                >
+                  >
                   {isDownloading ? (
                     <>
                       <Loader2 size={14} className="animate-spin" />
-                      <span style={{ whiteSpace: "nowrap" }}>
+                      <span className="nowrap">
                         {isDone ? dict.updateModal.rollbackStarting : dict.updateModal.downloading}
                       </span>
                     </>
                   ) : (
                     <>
                       <Download size={14} />
-                      <span style={{ whiteSpace: "nowrap" }}>
+                      <span className="nowrap">
                         {dict.updateModal.rollbackTo(targetVersion)}
                       </span>
                     </>
@@ -765,21 +765,21 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                   border: "none",
                   outline: "none",
                   color: "#ffffff",
-                  fontSize: "0.83rem",
+                  fontSize: "var(--fs-sm)",
                   fontWeight: 600,
                   cursor: "pointer",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 6,
+                  gap: "var(--space-3)",
                   boxShadow: "0 4px 12px var(--accent-glow, rgba(59, 130, 246, 0.35))",
                   transition: "all 0.15s ease",
                   whiteSpace: "nowrap",
                   flexShrink: 0,
                 }}
                 className="hover-scale"
-              >
-                <span style={{ whiteSpace: "nowrap" }}>{dict.updateModal.gotIt}</span>
+                >
+                <span className="nowrap">{dict.updateModal.gotIt}</span>
               </button>
             )}
           </div>
@@ -850,7 +850,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
           onClick={handleClose}
           title={dict.updateModal.toastClose}
           aria-label={dict.updateModal.toastClose}
-        >
+          >
           <X size={16} />
         </button>
       </div>
@@ -859,13 +859,13 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
         <button
           className="update-toast__btn update-toast__btn--secondary"
           onClick={handlePostpone}
-        >
+          >
           {dict.updateModal.toastPostpone}
         </button>
         <button
           className="update-toast__btn update-toast__btn--primary"
           onClick={onOpenModal}
-        >
+          >
           {dict.updateModal.toastUpdate}
         </button>
       </div>

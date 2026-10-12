@@ -379,8 +379,6 @@ export const STANDARD_PRESETS = [
   "#10B981", // Pure Mint Emerald
 ];
 
-export const VIBRANT_PRESETS = STANDARD_PRESETS;
-
 export const MAX_CUSTOM_COLORS = 15;
 const CUSTOM_COLORS_STORAGE_KEY = "l-mpv-custom-accent-colors";
 

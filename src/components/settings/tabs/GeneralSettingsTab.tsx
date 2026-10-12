@@ -156,7 +156,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         setAudioNormalize(s.audio_normalize);
         // settings.json хранит буфер строкой; нечисловое значение игнорируем.
         const parsed = Number.parseInt(s.demuxer_cache_mb, 10);
-        setDemuxerCacheMb(Number.isFinite(parsed) && parsed > 0 ? parsed : 64);
+        setDemuxerCacheMb(Number.isFinite(parsed) && parsed> 0 ? parsed : 64);
       })
       .catch(() => {
         // Бэкенд недоступен — оставляем дефолты
@@ -292,7 +292,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   };
 
   return (
-    <div className="modal__section" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div className="modal__section col col-gap-5">
 
       {/* ── 0. Язык интерфейса ── */}
       <AccordionSection
@@ -300,15 +300,15 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         onToggle={() => toggleSection("gen_language")}
         icon={<Globe size={16} />}
         title={dict.settings.general.languageSection}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", marginTop: "var(--space-4)" }}>
           <div style={cardStyle}>
             <SectionHeader
               icon={<Globe size={14} />}
               title={dict.settings.general.languageTitle}
               desc={dict.settings.general.languageDesc}
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)", marginTop: "var(--space-2)" }}>
               <button
                 type="button"
                 className={`compact-segment-btn ${locale === "ru" ? "compact-segment-btn--active" : ""}`}
@@ -318,13 +318,13 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "flex-start",
-                  gap: 8,
+                  gap: "var(--space-4)",
                 }}
                 onClick={() => setLocale("ru" as Locale)}
-              >
+                >
                 <span
                   style={{
-                    fontSize: "0.68rem",
+                    fontSize: "var(--fs-2xs)",
                     fontWeight: 700,
                     letterSpacing: "0.5px",
                     padding: "2px 5px",
@@ -333,16 +333,16 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                     color: locale === "ru" ? "#000" : "var(--text-muted)",
                     lineHeight: 1,
                   }}
-                >
+                  >
                   RU
                 </span>
                 <span
                   style={{
-                    fontSize: "0.82rem",
+                    fontSize: "var(--fs-sm)",
                     fontWeight: 600,
                     color: locale === "ru" ? "var(--text-primary)" : "var(--text-secondary)",
                   }}
-                >
+                  >
                   {dict.settings.general.languageRu}
                 </span>
               </button>
@@ -355,13 +355,13 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "flex-start",
-                  gap: 8,
+                  gap: "var(--space-4)",
                 }}
                 onClick={() => setLocale("en" as Locale)}
-              >
+                >
                 <span
                   style={{
-                    fontSize: "0.68rem",
+                    fontSize: "var(--fs-2xs)",
                     fontWeight: 700,
                     letterSpacing: "0.5px",
                     padding: "2px 5px",
@@ -370,16 +370,16 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                     color: locale === "en" ? "#000" : "var(--text-muted)",
                     lineHeight: 1,
                   }}
-                >
+                  >
                   EN
                 </span>
                 <span
                   style={{
-                    fontSize: "0.82rem",
+                    fontSize: "var(--fs-sm)",
                     fontWeight: 600,
                     color: locale === "en" ? "var(--text-primary)" : "var(--text-secondary)",
                   }}
-                >
+                  >
                   {dict.settings.general.languageEn}
                 </span>
               </button>
@@ -394,24 +394,24 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         onToggle={() => toggleSection("gen_screenshots")}
         icon={<Camera size={16} />}
         title={dict.settings.general.screenshotsSection}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", marginTop: "var(--space-4)" }}>
           <div style={cardStyle}>
             <SectionHeader
               icon={<Camera size={14} />}
               title={dict.settings.general.screenshotFolder}
               right={
-                <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                  {dict.settings.general.screenshotHotkey} <strong style={{ color: "var(--accent)" }}>S</strong> ({dict.settings.general.screenshotHotkeyNoSubs} <strong style={{ color: "var(--accent)" }}>Shift+S</strong>)
+                <span className="t-hint">
+                  {dict.settings.general.screenshotHotkey} <strong className="t-accent">S</strong>
                 </span>
               }
             />
             
-            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+            <span className="t-label-xs">
               {dict.settings.general.screenshotFolderDesc}
             </span>
 
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+            <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "center", marginTop: "var(--space-2)" }}>
               <input
                 type="text"
                 readOnly
@@ -423,7 +423,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   border: "1px solid var(--border)",
                   borderRadius: "var(--radius-sm)",
                   color: "var(--text-primary)",
-                  fontSize: "0.80rem",
+                  fontSize: "var(--fs-sm)",
                   fontFamily: "var(--font-mono, monospace)",
                   outline: "none",
                   whiteSpace: "nowrap",
@@ -440,14 +440,14 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   height: 32,
                   padding: "0 12px",
                   borderRadius: "var(--radius-sm)",
-                  fontSize: "0.78rem",
+                  fontSize: "var(--fs-xs)",
                   fontWeight: 600,
-                  gap: 6,
+                  gap: "var(--space-3)",
                   display: "flex",
                   alignItems: "center",
                   flexShrink: 0,
                 }}
-              >
+                >
                 <FolderOpen size={14} /> {dict.settings.general.browse}
               </button>
               <button
@@ -464,7 +464,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   flexShrink: 0,
                 }}
                 title={dict.settings.general.resetDefaultTitle}
-              >
+                >
                 <RotateCcw size={13} />
               </button>
             </div>
@@ -478,8 +478,8 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         onToggle={() => toggleSection("gen_playback")}
         icon={<Play size={16} />}
         title={dict.settings.general.playbackSection}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", marginTop: "var(--space-4)" }}>
           
           {/* 1.1 Поведение по окончании видео (Сегментный селектор) */}
           <div style={cardStyle}>
@@ -489,11 +489,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
               desc={dict.settings.general.endOfVideoDesc}
             />
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)", marginTop: "var(--space-2)" }}>
               <button
                 type="button"
                 className={`compact-segment-btn ${playNextOnEnd ? "compact-segment-btn--active" : ""}`}
-                style={{ height: 42, padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: 2 }}
+                style={{ height: 42, padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: "var(--space-1)" }}
                 onClick={async () => {
                   setPlayNextOnEnd(true);
                   try {
@@ -503,11 +503,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                     console.error("Ошибка сохранения настройки play_next_on_end:", err);
                   }
                 }}
-              >
-                <span style={{ fontSize: "0.78rem", fontWeight: 600, color: playNextOnEnd ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                >
+                <span style={{ fontSize: "var(--fs-xs)", fontWeight: 600, color: playNextOnEnd ? "var(--text-primary)" : "var(--text-secondary)" }}>
                   {dict.settings.general.playNextOption}
                 </span>
-                <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 400 }}>
+                <span style={{ fontSize: "var(--fs-2xs)", color: "var(--text-muted)", fontWeight: 400 }}>
                   {dict.settings.general.playNextOptionDesc}
                 </span>
               </button>
@@ -515,7 +515,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
               <button
                 type="button"
                 className={`compact-segment-btn ${!playNextOnEnd ? "compact-segment-btn--active" : ""}`}
-                style={{ height: 42, padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: 2 }}
+                style={{ height: 42, padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: "var(--space-1)" }}
                 onClick={async () => {
                   setPlayNextOnEnd(false);
                   try {
@@ -525,11 +525,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                     console.error("Ошибка сохранения настройки play_next_on_end:", err);
                   }
                 }}
-              >
-                <span style={{ fontSize: "0.78rem", fontWeight: 600, color: !playNextOnEnd ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                >
+                <span style={{ fontSize: "var(--fs-xs)", fontWeight: 600, color: !playNextOnEnd ? "var(--text-primary)" : "var(--text-secondary)" }}>
                   {dict.settings.general.stopOption}
                 </span>
-                <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 400 }}>
+                <span style={{ fontSize: "var(--fs-2xs)", color: "var(--text-muted)", fontWeight: 400 }}>
                   {dict.settings.general.stopOptionDesc}
                 </span>
               </button>
@@ -538,11 +538,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
 
           {/* 1.2 Режим нескольких окон (Multi-instance) */}
           <div style={cardStyle}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+            <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox"
-                style={{ marginTop: 2 }}
+                className="ui-checkbox mt-1"
+                
                 checked={multiInstance}
                 onChange={async (e) => {
                   const val = e.target.checked;
@@ -555,16 +555,16 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   }
                 }}
               />
-              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <Monitor size={14} style={{ color: "var(--accent)" }} />
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <Monitor size={14} className="t-accent" />
+                  <span className="t-label">
                     {dict.settings.general.multiInstanceTitle}
                   </span>
                 </div>
-                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                <span className="t-label-xs">
                   {dict.settings.general.multiInstanceDesc}
-                  <span style={{ color: "var(--accent)", marginLeft: 4 }}>
+                  <span style={{ color: "var(--accent)", marginLeft: "var(--space-2)" }}>
                     {dict.settings.general.multiInstanceRestart}
                   </span>
                 </span>
@@ -574,11 +574,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
 
           {/* 1.3 Скрытие интерфейса в полноэкранном режиме */}
           <div style={cardStyle}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+            <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox"
-                style={{ marginTop: 2 }}
+                className="ui-checkbox mt-1"
+                
                 checked={hideControlsInUpperHalf}
                 onChange={(e) => {
                   const val = e.target.checked;
@@ -587,14 +587,14 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   window.dispatchEvent(new Event('l-mpv-settings-changed'));
                 }}
               />
-              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <MousePointer2 size={14} style={{ color: "var(--accent)" }} />
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <MousePointer2 size={14} className="t-accent" />
+                  <span className="t-label">
                     {dict.settings.general.hideControlsTitle}
                   </span>
                 </div>
-                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                <span className="t-label-xs">
                   {dict.settings.general.hideControlsDesc}
                 </span>
               </div>
@@ -610,16 +610,16 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         onToggle={() => toggleSection("gen_tracks")}
         icon={<AudioLines size={16} />}
         title={dict.settings.general.tracksSection}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", marginTop: "var(--space-4)" }}>
           
           {/* 2.1 Автоматический подхват внешних дорожек */}
           <div style={cardStyle}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+            <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox"
-                style={{ marginTop: 2 }}
+                className="ui-checkbox mt-1"
+                
                 checked={autoLoadTracks}
                 onChange={async (e) => {
                   const val = e.target.checked;
@@ -632,14 +632,14 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   }
                 }}
               />
-              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <AudioLines size={14} style={{ color: "var(--accent)" }} />
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <AudioLines size={14} className="t-accent" />
+                  <span className="t-label">
                     {dict.settings.general.autoLoadTracksTitle}
                   </span>
                 </div>
-                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                <span className="t-label-xs">
                   {dict.settings.general.autoLoadTracksDesc}
                 </span>
               </div>
@@ -649,20 +649,20 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             {autoLoadTracks && (
               <div
                 style={{
-                  marginTop: 6,
+                  marginTop: "var(--space-3)",
                   marginLeft: 26,
-                  paddingLeft: 12,
+                  paddingLeft: "var(--space-6)",
                   borderLeft: "2px solid var(--accent)",
                   display: "flex",
                   flexDirection: "column",
-                  gap: 4,
+                  gap: "var(--space-2)",
                 }}
-              >
-                <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", userSelect: "none" }}>
+                >
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-4)", cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
-                    className="ui-checkbox"
-                    style={{ marginTop: 2 }}
+                    className="ui-checkbox mt-1"
+                    
                     checked={autoSelectExternalAudio}
                     onChange={async (e) => {
                       const val = e.target.checked;
@@ -676,13 +676,13 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                     }}
                   />
                   <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <CornerDownRight size={13} style={{ color: "var(--accent)" }} />
-                      <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                    <div className="row-center row-gap-2">
+                      <CornerDownRight size={13} className="t-accent" />
+                      <span style={{ fontSize: "var(--fs-xs)", fontWeight: 600, color: "var(--text-primary)" }}>
                         {dict.settings.general.autoSelectExternalAudioTitle}
                       </span>
                     </div>
-                    <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: 2, lineHeight: 1.3 }}>
+                    <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", marginTop: "var(--space-1)", lineHeight: 1.3 }}>
                       {dict.settings.general.autoSelectExternalAudioDesc}
                     </span>
                   </div>
@@ -693,11 +693,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
 
           {/* 2.2 Хотлоад дорожек перетаскиванием (Drag & Drop) */}
           <div style={cardStyle}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+            <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox"
-                style={{ marginTop: 2 }}
+                className="ui-checkbox mt-1"
+                
                 checked={hotloadEnabled}
                 onChange={(e) => {
                   const val = e.target.checked;
@@ -706,14 +706,14 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   window.dispatchEvent(new Event('l-mpv-settings-changed'));
                 }}
               />
-              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <Sparkles size={14} style={{ color: "var(--accent)" }} />
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <Sparkles size={14} className="t-accent" />
+                  <span className="t-label">
                     {dict.settings.general.hotloadTitle}
                   </span>
                 </div>
-                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                <span className="t-label-xs">
                   {dict.settings.general.hotloadDesc}
                 </span>
               </div>
@@ -722,11 +722,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
 
           {/* 2.3 Названия дорожек на панели управления */}
           <div style={cardStyle}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+            <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox"
-                style={{ marginTop: 2 }}
+                className="ui-checkbox mt-1"
+                
                 checked={showTrackNames}
                 onChange={(e) => {
                   const val = e.target.checked;
@@ -735,14 +735,14 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   window.dispatchEvent(new Event('l-mpv-settings-changed'));
                 }}
               />
-              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <AudioLines size={14} style={{ color: "var(--accent)" }} />
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <AudioLines size={14} className="t-accent" />
+                  <span className="t-label">
                     {dict.settings.general.showTrackNamesTitle}
                   </span>
                 </div>
-                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                <span className="t-label-xs">
                   {dict.settings.general.showTrackNamesDesc}
                 </span>
               </div>
@@ -751,11 +751,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
 
           {/* 2.4 Привязка субтитров к интерфейсу */}
           <div style={cardStyle}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+            <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox"
-                style={{ marginTop: 2 }}
+                className="ui-checkbox mt-1"
+                
                 checked={subtitlesAvoidUi}
                 onChange={async (e) => {
                   const val = e.target.checked;
@@ -779,14 +779,14 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   window.dispatchEvent(new Event("l-mpv-settings-changed"));
                 }}
               />
-              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <Subtitles size={14} style={{ color: "var(--accent)" }} />
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <Subtitles size={14} className="t-accent" />
+                  <span className="t-label">
                     {dict.settings.general.subAvoidUiTitle}
                   </span>
                 </div>
-                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                <span className="t-label-xs">
                   {dict.settings.general.subAvoidUiDesc}
                 </span>
               </div>
@@ -795,11 +795,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
 
           {/* 2.5 Папка для извлечения аудио и субтитров */}
           <div style={cardStyle}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+            <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox"
-                style={{ marginTop: 2 }}
+                className="ui-checkbox mt-1"
+                
                 checked={saveTracksToVideoDir}
                 onChange={(e) => {
                   const val = e.target.checked;
@@ -813,14 +813,14 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   }
                 }}
               />
-              <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <Download size={14} style={{ color: "var(--accent)" }} />
-                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <Download size={14} className="t-accent" />
+                  <span className="t-label">
                     {dict.settings.general.saveTracksToDirTitle}
                   </span>
                 </div>
-                <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.35 }}>
+                <span className="t-label-xs">
                   {dict.settings.general.saveTracksToDirDesc}
                 </span>
               </div>
@@ -836,8 +836,8 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         onToggle={() => toggleSection("gen_video_audio")}
         icon={<Sparkles size={16} />}
         title={dict.settings.general.videoAudioSection}
-      >
-        <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 10, lineHeight: 1.35 }}>
+        >
+        <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", marginTop: "var(--space-4)", marginBottom: "var(--space-5)", lineHeight: 1.35 }}>
           {dict.settings.general.videoAudioDesc}
         </div>
 
@@ -847,7 +847,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             icon={<Tv2 size={15} />}
             title={dict.settings.general.tileFrameTitle}
             titleHint={dict.settings.general.tileFrameDesc}
-          >
+            >
             <OptionBlock
               title={dict.settings.general.deinterlaceTitle}
               value={deinterlaceMode}
@@ -884,7 +884,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             icon={<Volume2 size={15} />}
             title={dict.settings.general.tileAudioTitle}
             titleHint={dict.settings.general.tileAudioDesc}
-          >
+            >
             <OptionToggleRow
               checked={audioLimiter}
               resetValue
@@ -927,7 +927,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             icon={<Sparkles size={15} />}
             title={dict.settings.general.tileHdrTitle}
             titleHint={dict.settings.general.tileHdrDesc}
-          >
+            >
             <OptionBlock
               title={dict.settings.general.hdrToneMappingTitle}
               value={toneMapping}
@@ -1005,7 +1005,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             icon={<HardDrive size={15} />}
             title={dict.settings.general.tileBufferTitle}
             titleHint={dict.settings.general.tileBufferDesc}
-          >
+            >
             <OptionBlock
               value={demuxerCacheMb}
               columns="1fr 1fr 1fr 1fr"
@@ -1029,8 +1029,8 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         onToggle={() => toggleSection("gen_context_menu")}
         icon={<MousePointerClick size={16} />}
         title={dict.settings.general.contextMenuSection}
-      >
-        <div style={{ marginTop: 8 }}>
+        >
+        <div className="mt-4">
           <ContextMenuSettingsTab />
         </div>
       </AccordionSection>

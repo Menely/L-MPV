@@ -325,7 +325,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       const currentUIOpen = !!document.querySelector(
         ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
-      if (!currentUIOpen) {
+      const isDragging = !!document.querySelector(".timeline--dragging");
+      if (!currentUIOpen && !isDragging) {
         isIdleRef.current = true;
         setIsIdle(true);
       }
@@ -333,6 +334,21 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const startIdleTimer = (delayMs: number = 3000) => {
+      if (idleTimer.current) window.clearTimeout(idleTimer.current);
+
+      idleTimer.current = window.setTimeout(() => {
+        const currentUIOpen = !!document.querySelector(
+          ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+        );
+        const isDragging = !!document.querySelector(".timeline--dragging");
+        if (!currentUIOpen && !isDragging) {
+          isIdleRef.current = true;
+          setIsIdle(true);
+        }
+      }, delayMs);
+    };
+
     const handleActivity = (e?: Event) => {
       const now = Date.now();
       if (e?.type === "mousemove" && now - lastActivityTimeRef.current < 120) {
@@ -342,43 +358,52 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
       isIdleRef.current = false;
       setIsIdle(false);
-      if (idleTimer.current) window.clearTimeout(idleTimer.current);
-
-      // Проверяем, находится ли курсор над UI элементами
-      const target = (e instanceof MouseEvent ? e.target : null) as HTMLElement | null;
-      const isOverUI = target && !!target.closest(
-        ".player-controls-wrapper, .titlebar, .modal, .context-menu, .track-popover, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
-      );
 
       // Проверяем, открыты ли какие-либо модальные окна или всплывающие меню
       const isAnyUIOpen = !!document.querySelector(
         ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
 
-      // Если мышь над UI или открыты меню/модалки, не тушим интерфейс
-      if (isOverUI || isAnyUIOpen) {
+      // Если открыты меню или модалки, не запускаем таймер скрытия
+      if (isAnyUIOpen) {
+        if (idleTimer.current) window.clearTimeout(idleTimer.current);
         return;
       }
 
-      idleTimer.current = window.setTimeout(() => {
-        const currentUIOpen = !!document.querySelector(
-          ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
-        );
-        if (!currentUIOpen) {
-          isIdleRef.current = true;
-          setIsIdle(true);
+      // При клике по кнопке снимаем фокус асинхронно, чтобы не ломать событие click и убрать залипание
+      if (e?.type === "mousedown") {
+        const el = e.target as HTMLElement | null;
+        if (el?.tagName === "BUTTON" || el?.closest("button")) {
+          const btn = (el.closest("button") || el) as HTMLElement;
+          requestAnimationFrame(() => {
+            btn.blur();
+          });
         }
-      }, 3000);
+      }
+
+      startIdleTimer(3000);
+    };
+
+    const handleMouseLeave = () => {
+      const isAnyUIOpen = !!document.querySelector(
+        ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+      );
+      if (!isAnyUIOpen) {
+        // При уходе мыши за пределы окна в оконном режиме гасим контролы через 1.2 сек
+        startIdleTimer(1200);
+      }
     };
 
     window.addEventListener("mousemove", handleActivity);
     window.addEventListener("mousedown", handleActivity);
     window.addEventListener("wheel", handleActivity);
+    document.addEventListener("mouseleave", handleMouseLeave);
 
     return () => {
       window.removeEventListener("mousemove", handleActivity);
       window.removeEventListener("mousedown", handleActivity);
       window.removeEventListener("wheel", handleActivity);
+      document.removeEventListener("mouseleave", handleMouseLeave);
       if (idleTimer.current) window.clearTimeout(idleTimer.current);
     };
   }, []);
@@ -410,9 +435,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         if (!hasMediaInfoRef.current || dynState.path !== currentPathRef.current) {
           const fullInfo = await invoke<MediaInfo>("get_media_info");
           if (fullInfo.path !== "") {
-            const effectiveDuration = fullInfo.duration > 0
+            const effectiveDuration = fullInfo.duration> 0
               ? fullInfo.duration
-              : (dynState.duration > 0 ? dynState.duration : 0);
+              : (dynState.duration> 0 ? dynState.duration : 0);
             fullInfo.duration = effectiveDuration;
 
             currentPathRef.current = fullInfo.path;
@@ -420,10 +445,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             currentSidRef.current = "";
             currentVidRef.current = "";
             trackCountRef.current = 0;
-            hasMediaInfoRef.current = effectiveDuration > 0;
-            const effectiveWidth = fullInfo.width > 0 ? fullInfo.width : 0;
-            const effectiveHeight = fullInfo.height > 0 ? fullInfo.height : 0;
-            const hasVideoDimensions = effectiveWidth > 0 && effectiveHeight > 0;
+            hasMediaInfoRef.current = effectiveDuration> 0;
+            const effectiveWidth = fullInfo.width> 0 ? fullInfo.width : 0;
+            const effectiveHeight = fullInfo.height> 0 ? fullInfo.height : 0;
+            const hasVideoDimensions = effectiveWidth> 0 && effectiveHeight> 0;
 
             fullInfo.width = effectiveWidth;
             fullInfo.height = effectiveHeight;
@@ -493,7 +518,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           const countChanged =
             dynState.track_count !== trackCountRef.current;
           const tracksMissing =
-            tracksRef.current.length === 0 && dynState.track_count > 0;
+            tracksRef.current.length === 0 && dynState.track_count> 0;
 
           if (
             aidChanged ||
@@ -512,7 +537,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           // Проверяем, доехал ли mpv до цели seek или истек таймаут
           if (seekingRef.current && seekTargetRef.current !== null) {
             const isTargetReached = Math.abs(dynState.position - seekTargetRef.current) < 2.0;
-            const isTimedOut = Date.now() - seekTimestampRef.current > 1000;
+            const isTimedOut = Date.now() - seekTimestampRef.current> 1000;
             if (isTargetReached || isTimedOut) {
               if (seekTimeoutIdRef.current !== null) {
                 window.clearTimeout(seekTimeoutIdRef.current);
@@ -535,12 +560,12 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           eofReachedRef.current = !!dynState.eof_reached;
 
           // Актуальная длительность из динамического состояния или сохраненной информации
-          const curDur = dynState.duration > 0
+          const curDur = dynState.duration> 0
             ? dynState.duration
             : (mediaInfoRef.current?.duration || 0);
 
           // Если в mediaInfo длительность была 0, но в mpv контейнер дочитался (> 0):
-          if (dynState.duration > 0 && (!mediaInfoRef.current || mediaInfoRef.current.duration <= 0)) {
+          if (dynState.duration> 0 && (!mediaInfoRef.current || mediaInfoRef.current.duration <= 0)) {
             hasMediaInfoRef.current = true;
             if (mediaInfoRef.current) {
               const updatedMedia: MediaInfo = {
@@ -552,7 +577,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             }
             // Подгружаем главы, так как при первой инициализации контейнер мог быть не готов
             invoke<Chapter[]>("get_chapters").then(chaps => {
-              if (chaps && chaps.length > 0) setChapters(chaps);
+              if (chaps && chaps.length> 0) setChapters(chaps);
             }).catch(() => {});
           }
 
@@ -573,17 +598,17 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
             // Новые валидные размеры (защита от сброса в 0)
             const targetWidth =
-              dynState.video_width > 0
+              dynState.video_width> 0
                 ? dynState.video_width
                 : currentMedia.width;
             const targetHeight =
-              dynState.video_height > 0
+              dynState.video_height> 0
                 ? dynState.video_height
                 : currentMedia.height;
             const isSizeChanged =
-              (dynState.video_width > 0 &&
+              (dynState.video_width> 0 &&
                 dynState.video_width !== currentMedia.width) ||
-              (dynState.video_height > 0 &&
+              (dynState.video_height> 0 &&
                 dynState.video_height !== currentMedia.height);
 
             const nextVideoTrack =
@@ -614,7 +639,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
                 has_video: dynState.has_video,
                 video_ready: Boolean(
                   dynState.video_ready ||
-                  (currentMedia.video_ready && targetWidth > 0 && targetHeight > 0)
+                  (currentMedia.video_ready && targetWidth> 0 && targetHeight> 0)
                 ),
                 audio_bitrate: dynState.audio_bitrate,
                 video_bitrate: dynState.video_bitrate,
@@ -708,7 +733,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
     const dur = mediaInfoRef.current?.duration || 0;
     const cur = currentPositionRef.current;
-    const target = dur > 0
+    const target = dur> 0
       ? Math.max(0, Math.min(dur, cur + deltaSeconds))
       : Math.max(0, cur + deltaSeconds);
 
@@ -763,9 +788,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   // ─── Переключение паузы ───
   const togglePause = useCallback(async () => {
     const dur = mediaInfoRef.current?.duration || 0;
-    const isAtEnd = dur > 0 && (
+    const isAtEnd = dur> 0 && (
       eofReachedRef.current ||
-      currentPositionRef.current >= dur - 0.3
+      currentPositionRef.current>= dur - 0.3
     );
 
     // Мгновенно обновляем UI локально (оптимистично)
@@ -815,7 +840,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     const curPos = progress.position;
     const curDur = progress.duration;
     const isPaused = mediaInfo?.paused ?? true;
-    if (curDur > 0) {
+    if (curDur> 0) {
       const prog = curPos / curDur;
       const discrete = Math.round(prog * 500); // Дискретность 0.2%
       if (discrete !== lastTaskbarRef.current.discrete || isPaused !== lastTaskbarRef.current.paused) {
@@ -856,8 +881,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     // 3. Во время воспроизведения каждые 3 секунды или при смещении не менее 3 секунд
     const shouldSave =
       justPaused ||
-      (isPaused && posDiff >= 0.5) ||
-      (!isPaused && (posDiff >= 3.0 || (now - lastSaveTimeRef.current >= 3000 && posDiff >= 0.5)));
+      (isPaused && posDiff>= 0.5) ||
+      (!isPaused && (posDiff>= 3.0 || (now - lastSaveTimeRef.current>= 3000 && posDiff>= 0.5)));
 
     if (shouldSave) {
       lastSavedPositionRef.current = curPos;
@@ -871,9 +896,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     const handleBeforeUnload = () => {
       const curMedia = mediaInfoRef.current;
       const curPos = currentPositionRef.current;
-      if (curMedia && curMedia.path && curMedia.duration > 0 && !isResumingRef.current) {
+      if (curMedia && curMedia.path && curMedia.duration> 0 && !isResumingRef.current) {
         // Сохраняем только актуальную ненулевую позицию (не затираем историю нулём при выгрузке страницы)
-        if (curPos > 0) {
+        if (curPos> 0) {
           invoke("save_position", {
             path: curMedia.path,
             position: curPos,
@@ -1139,7 +1164,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
       const typeTracks = tracks.filter((t) => t.type === track.type && !t.external);
       const trackIdx = typeTracks.findIndex((t) => t.id === track.id);
-      const streamIndex = trackIdx >= 0 ? trackIdx : Math.max(0, track.id - 1);
+      const streamIndex = trackIdx>= 0 ? trackIdx : Math.max(0, track.id - 1);
 
       await invoke<string>("extract_track", {
         videoPath: videoFullPath,

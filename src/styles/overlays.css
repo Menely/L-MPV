@@ -2,7 +2,7 @@
 .drop-overlay {
   position: fixed;
   inset: 0;
-  z-index: 8000;
+  z-index: var(--z-drop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14,7 +14,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-6);
   padding: 40px 60px;
   border: 2px dashed var(--accent-dim);
   border-radius: var(--radius-xl);
@@ -37,12 +37,12 @@
   background: var(--bg-pill);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
-  padding: 12px 14px;
+  padding: var(--space-6) 14px;
   color: var(--text-primary);
-  z-index: 450;
+  z-index: var(--z-card);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-4);
   box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
   font-size: var(--fs-sm);
   min-width: min(280px, calc(100vw - 28px));
@@ -91,7 +91,7 @@
   max-height: calc(100% - var(--bottom-overlays-bottom, 94px) - 60px);
   width: min(350px, calc(100vw - 28px));
   pointer-events: none;
-  z-index: 450;
+  z-index: var(--z-card);
   display: flex;
   flex-direction: column;
   transition: bottom var(--t-base) var(--ease-smooth),
@@ -106,7 +106,7 @@
   background: var(--bg-pill);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: var(--space-7);
   box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
   animation: mediaInfoFadeIn var(--t-base) var(--ease-out);
@@ -140,8 +140,8 @@
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px;
+  gap: var(--space-2);
+  padding: var(--space-2);
   scrollbar-gutter: stable;
 }
 
@@ -149,8 +149,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: var(--space-6);
+  padding: var(--space-4) 12px;
   border-radius: var(--radius-sm, 8px);
   border: 1.5px solid transparent;
   background: transparent;
@@ -172,7 +172,7 @@
 .chapter-item--active {
   background: var(--bg-active, rgba(127, 199, 255, 0.16)) !important;
   border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35);
 }
 
 .chapter-item__title {
@@ -207,7 +207,7 @@
   color: var(--text-muted);
   font-size: var(--fs-sm, 0.82rem);
   text-align: center;
-  padding: 24px 0;
+  padding: var(--space-9) 0;
 }
 
 
@@ -234,7 +234,7 @@
   bottom: 0;
   width: 10px;
   cursor: ew-resize;
-  z-index: 25;
+  z-index: var(--z-in-handle-2);
   touch-action: none;
   user-select: none;
 }
@@ -282,8 +282,8 @@
 .sub-tech-tag {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 0.65rem;
+  gap: var(--space-1);
+  font-size: var(--fs-3xs);
   padding: 1px 6px;
   border-radius: var(--radius-xs, 4px);
   background: rgba(255, 255, 255, 0.05);
@@ -344,13 +344,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 6px;
+  padding-bottom: var(--space-3);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  margin-bottom: 2px;
+  margin-bottom: var(--space-1);
 }
 
 .media-info__title {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-primary, #ffffff);
   letter-spacing: 0.3px;
@@ -379,9 +379,9 @@
 .media-info__section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 7px;
+  padding-bottom: var(--space-3);
 }
 
 .media-info__section:last-child {
@@ -393,8 +393,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 10px;
-  padding: 2px 4px;
+  gap: var(--space-5);
+  padding: var(--space-1) 4px;
   border-radius: var(--radius-xs, 4px);
   margin: 0 -4px;
   transition: background var(--t-fast) var(--ease-smooth);
@@ -416,7 +416,7 @@
 .media-info__label {
   color: rgba(255, 255, 255, 0.65);
   font-weight: 400;
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   flex-shrink: 0;
   line-height: 1.35;
   transition: color var(--t-fast) var(--ease-smooth);
@@ -424,7 +424,7 @@
 
 .media-info__value {
   font-weight: 500;
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   color: #ffffff;
   text-align: right;
   min-width: 0;
@@ -454,7 +454,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-4);
   min-width: 0;
 }
 
@@ -481,7 +481,7 @@
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
-  z-index: 450;
+  z-index: var(--z-card);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -504,7 +504,7 @@
   bottom: 0;
   width: 10px;
   cursor: ew-resize;
-  z-index: 20;
+  z-index: var(--z-in-handle);
   touch-action: none;
   user-select: none;
   transition: background-color var(--t-fast) var(--ease-smooth);
@@ -561,14 +561,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: var(--space-6) 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .playlist-drawer__header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-5);
 }
 
 .playlist-drawer__title {
@@ -580,7 +580,7 @@
 .playlist-drawer__badge {
   font-size: var(--fs-xs);
   font-weight: 600;
-  padding: 2px 8px;
+  padding: var(--space-1) 8px;
   background: var(--bg-hover);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
@@ -592,7 +592,7 @@
 .playlist-drawer__header-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2);
 }
 
 .playlist-drawer__action-btn {
@@ -674,7 +674,7 @@
 }
 
 .playlist-drawer__search {
-  padding: 10px 16px;
+  padding: var(--space-5) 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   position: relative;
   display: flex;
@@ -693,7 +693,7 @@
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 8px 32px 8px 36px;
+  padding: var(--space-4) 32px 8px 36px;
   color: var(--text-primary);
   font-size: var(--fs-sm);
   transition: border-color var(--t-fast) var(--ease-smooth),
@@ -740,10 +740,10 @@
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
-  padding: 8px;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-2);
 }
 
 .playlist-item {
@@ -751,8 +751,8 @@
   overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: var(--space-4);
+  padding: var(--space-3) 8px;
   border-radius: var(--radius-md);
   cursor: pointer;
   color: #ffffff;
@@ -839,7 +839,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
-  padding-bottom: 2px;
+  padding-bottom: var(--space-1);
 }
 
 .playlist-item--current .playlist-item__title {
@@ -942,10 +942,10 @@
   border-radius: var(--radius-lg, 14px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glass, rgba(127, 199, 255, 0.1));
   padding: 14px 16px;
-  z-index: 9500;
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-6);
   animation: updateToastSpringIn var(--t-spring) var(--ease-out);
   transition: bottom var(--t-base) var(--ease-smooth);
 }
@@ -979,13 +979,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--space-5);
 }
 
 .update-toast__title-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-5);
 }
 
 .update-toast__icon {
@@ -1002,17 +1002,17 @@
 }
 
 .update-toast__title {
-  font-size: 0.88rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-primary, #ffffff);
   line-height: 1.2;
 }
 
 .update-toast__version {
-  font-size: 0.76rem;
+  font-size: var(--fs-xs);
   color: var(--accent, #7fc7ff);
   font-weight: 500;
-  margin-top: 2px;
+  margin-top: var(--space-1);
 }
 
 .update-toast__close {
@@ -1041,13 +1041,13 @@
 .update-toast__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-4);
 }
 
 .update-toast__btn {
-  padding: 6px 14px;
+  padding: var(--space-3) 14px;
   border-radius: var(--radius-sm, 6px);
-  font-size: 0.80rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
   transition: background-color var(--t-fast) var(--ease-smooth),

@@ -76,11 +76,11 @@ export const SeekIndicator: React.FC = () => {
     <div
       key={`seek-indicator-${direction}-${pulseCount}`}
       className={`seek-indicator seek-indicator--${direction} ${
-        pulseCount > 1 ? "seek-indicator--pulse" : ""
+        pulseCount> 1 ? "seek-indicator--pulse" : ""
       } ${isClosing ? "seek-indicator--closing" : ""}`}
       aria-live="polite"
       role="status"
-    >
+      >
       {isLeft ? (
         <>
           <span className="seek-indicator__icon" aria-hidden="true">

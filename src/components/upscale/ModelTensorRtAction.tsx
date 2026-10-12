@@ -49,20 +49,20 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
-          gap: 2,
+          gap: "var(--space-1)",
           width: 150,
           minWidth: 150,
           maxWidth: 150,
           height: 24,
           boxSizing: "border-box",
         }}
-      >
+        >
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            fontSize: "0.70rem",
+            fontSize: "var(--fs-2xs)",
             color: isCompileError
               ? "#e74c3c"
               : isCompileFinished
@@ -71,7 +71,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
             fontWeight: 600,
             lineHeight: 1,
           }}
-        >
+          >
           <span
             style={{
               overflow: "hidden",
@@ -79,7 +79,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
               whiteSpace: "nowrap",
               maxWidth: 105,
             }}
-          >
+            >
             {compileProgressItem?.stage || dict.settings.upscaling.compilingProgress}
           </span>
           <span style={{ fontVariantNumeric: "tabular-nums" }}>
@@ -99,7 +99,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
             borderRadius: 2,
             overflow: "hidden",
           }}
-        >
+          >
           <div
             style={{
               width: isCompileError
@@ -128,23 +128,23 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
   // 2. Модель уже скомпилирована под 1080p: бейдж статуса + кнопка повтора
   if (model.has_engine_1080p) {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <div className="row-center row-gap-2">
         <span
           className="badge badge--success"
           style={{
             height: 24,
             padding: "0 8px",
             borderRadius: "var(--radius-sm, 6px)",
-            fontSize: "0.76rem",
+            fontSize: "var(--fs-xs)",
             fontWeight: 600,
             display: "inline-flex",
             alignItems: "center",
-            gap: 5,
+            gap: "var(--space-2)",
             boxSizing: "border-box",
             lineHeight: 1,
           }}
           title={dict.settings.upscaling.trtReadyTitle}
-        >
+          >
           <CheckCircle2 size={13} />
           <span>{dict.settings.upscaling.trtReadyBadge}</span>
         </span>
@@ -159,7 +159,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
             width: 24,
             height: 24,
             minWidth: 24,
-            padding: 0,
+            padding: "var(--space-0)",
             borderRadius: "var(--radius-sm, 6px)",
             display: "inline-flex",
             alignItems: "center",
@@ -167,7 +167,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
             boxSizing: "border-box",
             cursor: "pointer",
           }}
-        >
+          >
           <RefreshCw size={12} />
         </button>
       </div>
@@ -186,16 +186,16 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
         height: 24,
         padding: "0 9px",
         borderRadius: "var(--radius-sm, 6px)",
-        fontSize: "0.76rem",
+        fontSize: "var(--fs-xs)",
         fontWeight: 600,
         display: "inline-flex",
         alignItems: "center",
-        gap: 5,
+        gap: "var(--space-2)",
         boxSizing: "border-box",
         lineHeight: 1,
         cursor: "pointer",
       }}
-    >
+      >
       <Zap size={12} color="var(--accent)" />
       <span>{dict.settings.upscaling.trtCompileBadge}</span>
     </button>

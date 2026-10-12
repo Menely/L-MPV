@@ -86,7 +86,7 @@ if (typeof document !== "undefined") {
 class GlobalErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
-> {
+  > {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -105,7 +105,7 @@ class GlobalErrorBoundary extends React.Component<
       return (
         <div
           style={{
-            padding: 24,
+            padding: "var(--space-9)",
             background: "#0f121a",
             color: "#f87171",
             fontFamily: "monospace",
@@ -113,7 +113,7 @@ class GlobalErrorBoundary extends React.Component<
             boxSizing: "border-box",
             overflow: "auto",
           }}
-        >
+          >
           <h2 style={{ margin: "0 0 12px 0", color: "#ef4444" }}>
             Ошибка отображения компонента
           </h2>
@@ -126,7 +126,7 @@ class GlobalErrorBoundary extends React.Component<
             type="button"
             onClick={() => window.location.reload()}
             style={{
-              marginTop: 16,
+              marginTop: "var(--space-7)",
               padding: "8px 16px",
               background: "rgba(255,255,255,0.1)",
               border: "1px solid rgba(255,255,255,0.2)",
@@ -134,7 +134,7 @@ class GlobalErrorBoundary extends React.Component<
               borderRadius: 6,
               cursor: "pointer",
             }}
-          >
+            >
             Перезагрузить
           </button>
         </div>
@@ -146,7 +146,7 @@ class GlobalErrorBoundary extends React.Component<
 
 ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
-).render(
+  ).render(
   <React.StrictMode>
     <GlobalErrorBoundary>
       {isMediaInfoWindow ? (
@@ -160,4 +160,4 @@ ReactDOM.createRoot(
       )}
     </GlobalErrorBoundary>
   </React.StrictMode>
-);
+  );

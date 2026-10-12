@@ -40,7 +40,7 @@ export function TrackPicker({
         flex: 1,
         minWidth: 0,
       }}
-    >
+      >
       <button
         type="button"
         onClick={onToggle}
@@ -54,34 +54,34 @@ export function TrackPicker({
           border: "1px solid var(--border-pill)",
           borderRadius: "var(--radius-xs)",
           color: "var(--text-primary)",
-          fontSize: "0.8rem",
+          fontSize: "var(--fs-sm)",
           cursor: "pointer",
           transition: "background 0.15s ease",
-          gap: 6,
+          gap: "var(--space-3)",
         }}
         className="hover-bright"
         title={dict.subtitlesSearch.selectTrack}
-      >
+        >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: "var(--space-3)",
             overflow: "hidden",
             minWidth: 0,
           }}
-        >
+          >
           <span
             style={{
               padding: "1px 6px",
               borderRadius: "3px",
               background: "rgba(59, 130, 246, 0.2)",
               color: "var(--accent)",
-              fontSize: "0.7rem",
+              fontSize: "var(--fs-2xs)",
               fontWeight: 700,
               flexShrink: 0,
             }}
-          >
+            >
             {dict.subtitlesSearch.tracksCount(subTracks.length)}
           </span>
           <span
@@ -89,9 +89,9 @@ export function TrackPicker({
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              fontSize: "0.8rem",
+              fontSize: "var(--fs-sm)",
             }}
-          >
+            >
             {currentDisplayedTrack
               ? `${currentDisplayedTrack.title || dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)} ${
                   currentDisplayedTrack.lang ? `(${currentDisplayedTrack.lang})` : ""
@@ -126,9 +126,9 @@ export function TrackPicker({
             boxShadow: "var(--shadow-lg)",
             maxHeight: "220px",
             overflowY: "auto",
-            padding: "4px",
+            padding: "var(--space-2)",
           }}
-        >
+          >
           <button
             type="button"
             onClick={onDisable}
@@ -142,13 +142,13 @@ export function TrackPicker({
               border: "none",
               borderRadius: "var(--radius-xs)",
               color: !activeTrack ? "var(--accent)" : "var(--text-secondary)",
-              fontSize: "0.8rem",
+              fontSize: "var(--fs-sm)",
               cursor: "pointer",
               textAlign: "left",
-              marginBottom: "3px",
+              marginBottom: "var(--space-1)",
             }}
             className="hover-bright"
-          >
+            >
             <span>{dict.subtitlesSearch.disableSubtitles}</span>
             {!activeTrack && <Check size={14} />}
           </button>
@@ -172,30 +172,30 @@ export function TrackPicker({
                   border: "none",
                   borderRadius: "var(--radius-xs)",
                   color: isSelected ? "var(--accent)" : "var(--text-primary)",
-                  fontSize: "0.8rem",
+                  fontSize: "var(--fs-sm)",
                   cursor: "pointer",
                   textAlign: "left",
-                  gap: 6,
+                  gap: "var(--space-3)",
                 }}
                 className="hover-bright"
-              >
+                >
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
+                    gap: "var(--space-3)",
                     overflow: "hidden",
                     minWidth: 0,
                   }}
-                >
+                  >
                   <span
                     style={{
-                      fontSize: "0.72rem",
+                      fontSize: "var(--fs-xs)",
                       fontWeight: 700,
                       opacity: 0.6,
                       flexShrink: 0,
                     }}
-                  >
+                    >
                     #{t.id}
                   </span>
                   <span
@@ -204,36 +204,36 @@ export function TrackPicker({
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
                     }}
-                  >
+                    >
                     {t.title || dict.subtitlesSearch.defaultTrackName(t.id)}
                   </span>
                   {t.lang && (
                     <span
                       style={{
-                        fontSize: "0.7rem",
+                        fontSize: "var(--fs-2xs)",
                         opacity: 0.7,
                         flexShrink: 0,
                       }}
-                    >
+                      >
                       [{t.lang}]
                     </span>
                   )}
                   {t.codec && (
                     <span
                       style={{
-                        fontSize: "0.65rem",
+                        fontSize: "var(--fs-3xs)",
                         padding: "1px 4px",
                         borderRadius: "2px",
                         background: "rgba(255, 255, 255, 0.08)",
                         color: "var(--text-muted)",
                         flexShrink: 0,
                       }}
-                    >
+                      >
                       {t.codec.toUpperCase()}
                     </span>
                   )}
                 </div>
-                {isSelected && <Check size={14} style={{ flexShrink: 0 }} />}
+                {isSelected && <Check size={14} className="no-shrink" />}
               </button>
             );
           })}

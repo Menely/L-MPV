@@ -547,6 +547,10 @@ export const ru: TranslationDict = {
       errUpdate: "Ошибка обновления пресета",
       toastUpdateFail: "Не удалось обновить пресет",
       confirmDelete: (name) => `Вы уверены, что хотите удалить пресет «${name}»?`,
+      confirmDeleteTitle: "Удаление пресета",
+      confirmDeleteWarning: "Действие нельзя отменить.",
+      btnDeleteConfirm: "Удалить",
+      btnDeleteCancel: "Отмена",
       toastDeleted: (name) => `Пресет «${name}» удалён`,
       toastRenamed: (name) => `Пресет переименован в «${name}»`,
       toastImported: (count) => `Импортировано пресетов: ${count}`,
@@ -776,6 +780,9 @@ export const ru: TranslationDict = {
         upscaleNet4: "Апскейлинг: Нейросеть #4",
         upscaleNet5: "Апскейлинг: Нейросеть #5",
         upscaleNet6: "Апскейлинг: Нейросеть #6",
+        upscaleNet7: "Апскейлинг: Нейросеть #7",
+        upscaleNet8: "Апскейлинг: Нейросеть #8",
+        upscaleNet9: "Апскейлинг: Нейросеть #9",
       },
       keys: {
         lmb: "ЛКМ",
@@ -1092,7 +1099,7 @@ export const ru: TranslationDict = {
     upscaleStatsAi: (slot: number, name: string, engine: string, stats: string) =>
       `✨ 4K AI Upscaling: Включен (Слот ${slot})\nМодель: ${name}\nДвижок: ${engine}${stats}`,
     upscaleStatsOff: (gpuHint: string) =>
-      `✨ 4K AI Upscaling: Выключен (Исходное видео)${gpuHint}\nБыстрое включение: Shift+1 (Выкл), Shift+2..7 (Модели)`,
+      `✨ 4K AI Upscaling: Выключен (Исходное видео)${gpuHint}\nБыстрое включение: Shift+1 (Выкл), Shift+2..0 (Модели 1–9)`,
     visualizerStatus: (enabled: boolean) => `Визуализатор: ${enabled ? "Включен" : "Выключен"}`,
     visualizerMode: (mode: string) => `Визуализатор: ${mode}`,
     rotation: (degrees: number) => `Поворот: ${degrees}°`,

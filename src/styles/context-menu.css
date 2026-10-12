@@ -6,9 +6,9 @@
   background: var(--bg-glass);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 5px;
+  padding: var(--space-2);
   box-shadow: var(--shadow-lg);
-  z-index: 9999;
+  z-index: var(--z-window);
   animation: contextMenuFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: top left;
   contain: layout style;
@@ -47,8 +47,8 @@
 .context-menu__item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
+  gap: var(--space-5);
+  padding: var(--space-3) 12px;
   /* Рамка всегда 1.5px: появление/вес при active не должны двигать подпись и шорткат. */
   border: 1.5px solid transparent;
   background: transparent;
@@ -85,7 +85,7 @@
   width: 24px;
   background: transparent;
   pointer-events: auto;
-  z-index: 2;
+  z-index: var(--z-in-raised);
 }
 
 .context-menu__item--submenu-open.context-menu__item--submenu-left::after {
@@ -101,9 +101,9 @@
 
 .context-menu__item--active {
   color: var(--text-primary) !important;
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  background: rgba(var(--accent-rgb), 0.16) !important;
   border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35), inset 0 0 0 1.5px var(--accent) !important;
 }
 
 .context-menu__item-icon {
@@ -137,18 +137,18 @@
 .context-menu__item-shortcut {
   font-size: var(--fs-xs);
   color: var(--text-muted);
-  margin-left: 16px;
+  margin-left: var(--space-7);
 }
 
 .context-menu__item-arrow {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--fs-3xs);
 }
 
 .context-menu__divider {
   height: 1px;
   background: var(--border);
-  margin: 3px 10px;
+  margin: var(--space-1) 10px;
 }
 
 /* Подменю: аккуратный зазор от родителя + безопасный переход */
@@ -161,7 +161,7 @@
   overflow-x: hidden;
   animation: contextMenuFadeIn var(--t-fast) var(--ease-out);
   transform-origin: top left;
-  z-index: 10001;
+  z-index: var(--z-popover);
 }
 
 .context-menu__submenu--left {
@@ -185,7 +185,7 @@
   width: 220px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .context-menu__submenu--recent {
@@ -193,7 +193,7 @@
   max-width: 320px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .context-menu__item--disabled {
@@ -211,7 +211,7 @@
 .context-menu__track-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2);
   width: 100%;
 }
 
@@ -219,8 +219,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: var(--space-3);
+  padding: var(--space-3) 8px;
   flex: 1;
   min-width: 0;
   border: 1.5px solid transparent;
@@ -248,10 +248,10 @@
 }
 
 .context-menu__track-btn--active {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  background: rgba(var(--accent-rgb), 0.16) !important;
   color: var(--text-primary) !important;
   border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35), inset 0 0 0 1.5px var(--accent) !important;
 }
 
 .context-menu__track-title {

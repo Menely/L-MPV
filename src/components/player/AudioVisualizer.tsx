@@ -236,7 +236,7 @@ export function renderVisualizerFrame(
     isPaused: boolean;
     speed?: number;
   }
-): void {
+  ): void {
   if (!w || !h || w <= 0 || h <= 0 || isNaN(w) || isNaN(h)) return;
 
   const { isAudible, isPaused, speed = 1.0 } = options;
@@ -249,7 +249,7 @@ export function renderVisualizerFrame(
   const targetAmp = !isAudible ? 0.0 : Math.min(1.0, totalAudioEnergy * 1.75 + 0.22);
   state.currentAmp += (targetAmp - state.currentAmp) * Math.min(1.0, dt * 14.0);
 
-  if (!isPaused && state.currentAmp > 0.005) {
+  if (!isPaused && state.currentAmp> 0.005) {
     state.phase += dt * (2.8 * Math.max(0.25, Math.min(3.0, speed)) + bassEnergy * 5.2);
   }
 
@@ -267,7 +267,7 @@ export function renderVisualizerFrame(
     const maxWaveHeight = (h / 2) * 0.92;
     const baseAmp = state.currentAmp * maxWaveHeight;
 
-    if (state.currentAmp > 0.04) {
+    if (state.currentAmp> 0.04) {
       ctx.beginPath();
       const segs = Math.max(24, Math.floor(w / 12));
       for (let i = 0; i <= segs; i++) {
@@ -322,11 +322,11 @@ export function renderVisualizerFrame(
       const val = spectrum[specIdx] || 0;
       const targetH = isAudible ? Math.min(maxHeight, Math.max(2, val * maxHeight * 1.2)) : 2;
 
-      const attackSpeed = targetH > (state.bars[i] || 2) ? 26.0 : 13.0;
+      const attackSpeed = targetH> (state.bars[i] || 2) ? 26.0 : 13.0;
       state.bars[i] = (state.bars[i] || 2) + (targetH - (state.bars[i] || 2)) * Math.min(1.0, dt * attackSpeed);
       const curH = state.bars[i];
 
-      if (curH >= (state.peaks[i] || 0)) {
+      if (curH>= (state.peaks[i] || 0)) {
         state.peaks[i] = curH;
         state.peakVels[i] = 0;
       } else {
@@ -350,7 +350,7 @@ export function renderVisualizerFrame(
         ctx.fillRect(x, y, barWidth, curH);
       }
 
-      if (!isPaused && state.peaks[i] > 3) {
+      if (!isPaused && state.peaks[i]> 3) {
         ctx.fillStyle = secondary;
         ctx.globalAlpha = 0.95;
         ctx.fillRect(x, Math.max(0, h - state.peaks[i] - 2.5), barWidth, 1.8);
@@ -376,10 +376,10 @@ export function renderVisualizerFrame(
       const targetHalfH = isAudible ? Math.min(maxHalfH, Math.max(2, val * maxHalfH * 1.2)) : 2;
 
       const prevHalfH =
-        typeof state.bars[i] === "number" && !isNaN(state.bars[i]) && state.bars[i] > 0
+        typeof state.bars[i] === "number" && !isNaN(state.bars[i]) && state.bars[i]> 0
           ? state.bars[i]
           : 2;
-      const attackSpeed = targetHalfH > prevHalfH ? 24.0 : 13.0;
+      const attackSpeed = targetHalfH> prevHalfH ? 24.0 : 13.0;
       state.bars[i] = Math.max(
         2,
         Math.min(maxHalfH, prevHalfH + (targetHalfH - prevHalfH) * Math.min(1.0, Math.max(0, safeDt * attackSpeed)))
@@ -423,7 +423,7 @@ export function renderVisualizerFrame(
       const val = spectrum[specIdx] || 0;
       const targetVal = isAudible ? Math.min(1.0, val * 1.25) : 0.05;
 
-      const attackSpeed = targetVal > (state.bars[i] || 0) ? 26.0 : 13.0;
+      const attackSpeed = targetVal> (state.bars[i] || 0) ? 26.0 : 13.0;
       state.bars[i] = (state.bars[i] || 0) + (targetVal - (state.bars[i] || 0)) * Math.min(1.0, dt * attackSpeed);
       const curVal = state.bars[i];
       const activeDots = Math.min(numDots, Math.max(0, Math.round(curVal * numDots)));
@@ -522,7 +522,7 @@ export function renderVisualizerFrame(
     if (isAudible && state.particles.length < 50 && Math.random() < (totalAudioEnergy * 1.8 + 0.3)) {
       const bandIdx = Math.floor(Math.random() * 32);
       const bandVal = spectrum[bandIdx] || 0;
-      const spawnCount = bandVal > 0.4 ? 2 : 1;
+      const spawnCount = bandVal> 0.4 ? 2 : 1;
       for (let k = 0; k < spawnCount; k++) {
         const x = (bandIdx / 32) * w + (Math.random() - 0.5) * (w / 32);
         state.particles.push({
@@ -534,15 +534,15 @@ export function renderVisualizerFrame(
           alpha: 1.0,
           life: 0,
           maxLife: Math.random() * 0.7 + 0.5,
-          color: Math.random() > 0.6 ? primary : (Math.random() > 0.5 ? secondary : tertiary),
+          color: Math.random()> 0.6 ? primary : (Math.random()> 0.5 ? secondary : tertiary),
         });
       }
     }
 
-    for (let i = state.particles.length - 1; i >= 0; i--) {
+    for (let i = state.particles.length - 1; i>= 0; i--) {
       const p = state.particles[i];
       p.life += dt;
-      if (p.life >= p.maxLife || p.y < 0) {
+      if (p.life>= p.maxLife || p.y < 0) {
         state.particles.splice(i, 1);
         continue;
       }
@@ -851,9 +851,9 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       ctx.clearRect(0, 0, w, h);
 
       const rawSpectrum = realSpectrumRef.current;
-      const isAudible = live.shouldBeActive && live.rawVolume > 0;
+      const isAudible = live.shouldBeActive && live.rawVolume> 0;
       const baseBoost = 1.6;
-      const volumeGain = live.rawVolume > 0 && live.rawVolume < 85 ? Math.min(5.5, (85.0 / Math.max(10.0, live.rawVolume)) * 1.6) : baseBoost;
+      const volumeGain = live.rawVolume> 0 && live.rawVolume < 85 ? Math.min(5.5, (85.0 / Math.max(10.0, live.rawVolume)) * 1.6) : baseBoost;
       const spectrum = rawSpectrum.map((v) => Math.min(1.0, Math.pow(v, 0.85) * volumeGain));
 
       renderVisualizerFrame(
@@ -898,7 +898,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       className={`audio-visualizer audio-visualizer--${placement} audio-visualizer--mode-${config.mode} ${className}`}
       style={placement === "inside_timeline" ? undefined : { height: `${height}px` }}
       onClick={placement === "toolbar" ? handleToggleStyle : undefined}
-    >
+      >
       <canvas ref={canvasRef} className="audio-visualizer__canvas" />
     </div>
   );

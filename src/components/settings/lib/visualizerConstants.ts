@@ -1,36 +1,4 @@
-import { VisualizerMode, VisualizerTheme } from "../../player/AudioVisualizer";
-
-export const MODE_LABELS: Record<VisualizerMode, string> = {
-  waveform: "Waveform",
-  spectrum: "Frequency Spectrum",
-  bars: "Rhythm Bars",
-  matrix: "LED Matrix",
-  ribbon: "Liquid Ribbon",
-  particles: "Star Dust",
-  circular: "Radial Radar",
-  blob: "Plasma Sphere",
-  strings: "String Resonance",
-};
-
-export const THEME_LABELS: Record<VisualizerTheme, string> = {
-  accent: "Player Theme",
-  pastel: "Pastel Aura",
-  neon: "Cyber Neon",
-  sunset: "Fiery Sunset",
-  aurora: "Northern Lights",
-  ocean: "Deep Ocean",
-  crimson: "Crimson",
-  mint: "Mint Wave",
-  violet: "Ultraviolet",
-  gold: "Golden Sand",
-};
-
-export const PLACEMENT_LABELS: Record<string, string> = {
-  above_timeline: "Above timeline",
-  inside_timeline: "Inside timeline",
-  toolbar: "In toolbar",
-  off: "Disabled",
-};
+import { VisualizerTheme } from "../../player/AudioVisualizer";
 
 export const PLACEMENT_ITEMS = [
   { id: "above_timeline" as const, label: "Above timeline", desc: "Panoramic wave" },

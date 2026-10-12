@@ -18,7 +18,7 @@
 /* ─── Вариант 1: Полоса над таймлайном ─────────────────────── */
 .audio-visualizer--above_timeline {
   width: 100%;
-  margin-bottom: 2px;
+  margin-bottom: var(--space-1);
   pointer-events: none; /* Прозрачен для кликов мыши, чтобы не блокировать таймлайн */
   border-radius: var(--radius-sm, 6px);
   opacity: 0.92;
@@ -37,7 +37,7 @@
   min-width: 64px;
   max-width: 100px;
   height: 24px;
-  padding: 2px 6px;
+  padding: var(--space-1) 6px;
   border-radius: var(--radius-sm, 6px);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -93,7 +93,7 @@
   height: 16px;
   transform: translateY(-50%);
   pointer-events: none;
-  z-index: 2;
+  z-index: var(--z-in-raised);
   opacity: 0.85;
   border-radius: var(--radius-sm, 4px);
   mix-blend-mode: screen;

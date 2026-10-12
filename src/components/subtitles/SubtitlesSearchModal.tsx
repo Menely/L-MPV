@@ -21,6 +21,7 @@ import { useActiveLineIndex } from "./hooks/useActiveLineIndex";
 import { useFollowPlayback } from "./hooks/useFollowPlayback";
 import { useSearchNavigation } from "./hooks/useSearchNavigation";
 import { usePersistentState } from "./hooks/usePersistentState";
+import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
 import {
   MIN_MODAL_WIDTH,
@@ -304,9 +305,14 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
         handleClose();
         return;
       }
+      const customHotkeys = getCustomHotkeys();
+      const searchKeys = customHotkeys.searchSubtitles || ["Ctrl+KeyF"];
+      const isSearchHotkey = searchKeys.some((k) => isKeyboardEventMatch(e, k));
+
       if (
-        (e.ctrlKey || e.metaKey) &&
-        (e.key === "f" || e.key === "F" || e.code === "KeyF")
+        isSearchHotkey ||
+        ((e.ctrlKey || e.metaKey) &&
+          (e.key === "f" || e.key === "F" || e.code === "KeyF"))
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -343,7 +349,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     const container = listContainerRef.current;
     if (!container) return;
     const currentTop = container.scrollTop;
-    if (Math.abs(currentTop - scrollOffsetRef.current) > 15) {
+    if (Math.abs(currentTop - scrollOffsetRef.current)> 15) {
       scrollOffsetRef.current = currentTop;
       setScrollOffset(currentTop);
     }
@@ -413,11 +419,11 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
           ? "width 0.22s cubic-bezier(0.16, 1, 0.3, 1), right 0.22s cubic-bezier(0.16, 1, 0.3, 1)"
           : "none",
         pointerEvents: "none",
-        zIndex: 500,
+        zIndex: "var(--z-controls)",
         display: "flex",
         flexDirection: "column",
       }}
-    >
+      >
       <div
         className={`media-info__section subtitles-search-card ${
           isClosing ? "subtitles-search-card--closing" : ""
@@ -435,14 +441,14 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
             ? "1px solid rgba(255, 255, 255, 0.15)"
             : "1px solid var(--border-pill)",
           borderRadius: "var(--radius-lg)",
-          padding: "16px",
+          padding: "var(--space-7)",
           boxShadow: isOpaque
             ? "0 10px 40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.08)"
             : "var(--shadow-lg), 0 0 35px rgba(0, 0, 0, 0.5)",
           pointerEvents: "auto",
         }}
         onClick={(e) => e.stopPropagation()}
-      >
+        >
         {/* Ручка изменения ширины слева */}
         <div
           className="subtitles-search-card__resize-handle"
@@ -465,16 +471,16 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
         />
 
         {/* Панель дорожек */}
-        {subTracks.length > 0 ? (
+        {subTracks.length> 0 ? (
           <div
             style={{
               display: "flex",
-              gap: "8px",
+              gap: "var(--space-4)",
               alignItems: "center",
-              marginBottom: "10px",
+              marginBottom: "var(--space-5)",
               flexShrink: 0,
             }}
-          >
+            >
             <TrackPicker
               subTracks={subTracks}
               activeTrack={activeTrack}
@@ -494,7 +500,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 6,
+                gap: "var(--space-3)",
                 padding: "7px 12px",
                 background: followPlayback
                   ? "rgba(var(--accent-rgb, 127, 199, 255), 0.20)"
@@ -507,7 +513,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                 color: followPlayback
                   ? "var(--accent)"
                   : "var(--text-secondary)",
-                fontSize: "0.8rem",
+                fontSize: "var(--fs-sm)",
                 fontWeight: 600,
                 cursor: "pointer",
                 flexShrink: 0,
@@ -515,7 +521,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
               }}
               className="hover-bright"
               title={dict.subtitlesSearch.followTooltip}
-            >
+              >
               <Radio
                 size={13}
                 className={followPlayback ? "pulse-subtle" : ""}
@@ -534,11 +540,11 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
               background: "rgba(255, 255, 255, 0.03)",
               borderRadius: "var(--radius-xs)",
               color: "var(--text-muted)",
-              fontSize: "0.8rem",
-              marginBottom: "10px",
+              fontSize: "var(--fs-sm)",
+              marginBottom: "var(--space-5)",
               textAlign: "center",
             }}
-          >
+            >
             {dict.subtitlesSearch.noTracks}
           </div>
         )}
@@ -579,7 +585,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
             if (
               followPlayback &&
               e.deltaY !== 0 &&
-              Math.abs(e.deltaY) > Math.abs(e.deltaX)
+              Math.abs(e.deltaY)> Math.abs(e.deltaX)
             ) {
               setFollowPlayback(false);
             }
@@ -591,10 +597,10 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
             overflowY: "auto",
             display: "flex",
             flexDirection: "column",
-            gap: "4px",
-            paddingRight: "4px",
+            gap: "var(--space-2)",
+            paddingRight: "var(--space-2)",
           }}
-        >
+          >
           {/* Пустые состояния */}
           {(isAnalyzing && lines.length === 0) ||
           lines.length === 0 ||
@@ -613,9 +619,9 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                 paddingBottom: `${paddingBottom}px`,
                 display: "flex",
                 flexDirection: "column",
-                gap: "4px",
+                gap: "var(--space-2)",
               }}
-            >
+              >
               {visibleLines.map((line) => {
                 const isActive = line.index === activeLineIndex;
                 return (
@@ -623,7 +629,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                     key={line.index}
                     ref={isActive ? activeLineElRef : null}
                     data-sub-idx={line.index}
-                  >
+                    >
                     <SubtitleLineRow
                       line={line}
                       isActive={isActive}

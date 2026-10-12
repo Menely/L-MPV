@@ -1,0 +1,62 @@
+/* ─── Утилиты оформления ────────────────────────────────────────────────
+   Вынесены из повторяющихся инлайн-объектов style={{...}}.
+   Файл подключается ПОСЛЕДНИМ в index.css, чтобы при равной
+   специфичности класс побеждал существующие правила — как раньше
+   побеждал инлайн-стиль.
+   Правило: класс описывает повторяющийся паттерн, а не единичку. */
+
+/* ── Текст ───────────────────────────────────────────────────────────── */
+.t-accent      { color: var(--accent); }
+.t-primary     { color: var(--text-primary); }
+.t-muted       { color: var(--text-muted); }
+
+.t-label       { font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary); }
+.t-label-xs    { font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.35; }
+.t-label-accent{ font-size: var(--fs-xs); font-weight: 700; color: var(--accent); }
+.t-sub        { font-size: var(--fs-xs); font-weight: 600; }
+.t-hint        { font-size: var(--fs-xs); color: var(--text-muted); }
+
+/* ── Раскладка ───────────────────────────────────────────────────────── */
+.row-center    { display: flex; align-items: center; }
+.col           { display: flex; flex-direction: column; }
+.row-gap-2     { gap: var(--space-2); }
+.row-gap-3     { gap: var(--space-3); }
+.row-gap-4     { gap: var(--space-4); }
+.row-gap-5     { gap: var(--space-5); }
+.col-gap-4     { gap: var(--space-4); }
+.col-gap-5     { gap: var(--space-5); }
+
+.block-head    {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+.option-row    {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-5);
+  cursor: pointer;
+  user-select: none;
+}
+.option-body   {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+/* ── Поведение ───────────────────────────────────────────────────────── */
+.no-shrink     { flex-shrink: 0; }
+.flex-1        { flex: 1; }
+.grow          { flex: 1; min-width: 0; }
+.nowrap        { white-space: nowrap; }
+.no-pointer    { pointer-events: none; }
+.block         { display: block; }
+
+/* ── Вертикальные отступы ────────────────────────────────────────────── */
+.mt-1 { margin-top: var(--space-1); }
+.mt-2 { margin-top: var(--space-2); }
+.mt-4 { margin-top: var(--space-4); }

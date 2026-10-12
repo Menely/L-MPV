@@ -103,7 +103,7 @@ export function OptionBlock({
               onClick={onReset}
               title={resetTitle}
               aria-label={resetTitle}
-            >
+              >
               <RotateCcw size={11} />
             </button>
           )}
@@ -122,7 +122,7 @@ export function OptionBlock({
               disabled={disabled}
               title={opt.title ?? opt.label}
               onClick={() => onSelect(opt.value)}
-            >
+              >
               {opt.label}
             </button>
           );
@@ -186,7 +186,7 @@ export function OptionToggleRow({
           onClick={onReset}
           title={resetTitle}
           aria-label={resetTitle}
-        >
+          >
           <RotateCcw size={11} />
         </button>
       )}

@@ -27,12 +27,21 @@ export function TimeDisplay({
   return (
     <span
       className={`time-display ${className}`}
+      role="button"
+      tabIndex={0}
       onClick={(e) => {
         e.stopPropagation();
         onCycleFormat();
       }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          onCycleFormat();
+        }
+      }}
       title="Нажмите для смены формата времени"
-    >
+      >
       <span className="time-display__full">
         {formatted.full}
       </span>

@@ -82,13 +82,6 @@ export function isMenuItemId(id: unknown): id is MenuItemId {
 }
 
 /** Вспомогательная функция быстрого поиска дескриптора по ID за O(1). */
-export function getMenuItemDescriptor(
-  id: MenuItemId,
-): MenuItemDescriptor | undefined {
-  return MENU_ITEM_MAP.get(id);
-}
-
-/** Возвращает локализованное название и описание пункта меню. */
 export function getLocalizedMenuItem(
   dict: TranslationDict,
   descriptor: MenuItemDescriptor,

@@ -597,9 +597,9 @@ L-MPV/
 │   │   │   ├── types.ts                      # Dictionary typings and translation keys
 │   │   │   ├── index.ts                      # Re-exports and helpers (getDict, getEffectiveLocale, saveLocale)
 │   │   │   └── locales/                      # Dictionaries: en.ts / ru.ts
-│   │   ├── styles/                           # Modular CSS architecture (17 Vanilla CSS modules)
+│   │   ├── styles/                           # Modular CSS architecture (18 Vanilla CSS modules)
 │   │   │   ├── fonts.css                     # Local @font-face declarations for bundled typography
-│   │   │   ├── variables.css                 # CSS variables, color palettes, UI Scale, glow metrics
+│   │   │   ├── variables.css                 # CSS variables, design scales (typography/spacing/z-index), glow metrics
 │   │   │   ├── components.css                # Design system (.glass-panel, .glass-section, .glass-tile, .btn, .badge)
 │   │   │   ├── base.css                      # Global resets, IDLE state, OSD notifications
 │   │   │   ├── titlebar.css                  # Window header and titlebar time badge
@@ -614,7 +614,8 @@ L-MPV/
 │   │   │   ├── track-popover.css             # Audio and subtitle track popovers
 │   │   │   ├── overlays.css                  # Overlay elements (Drag&Drop, Playlist Drawer, etc.)
 │   │   │   ├── settings-panel.css            # Sidebar settings layout: adaptive padding, control bar docking, header offset
-│   │   │   └── responsive.css                # Responsive layout rules and media queries
+│   │   │   ├── responsive.css                # Responsive layout rules and media queries
+│   │   │   └── utilities.css                 # Shared utility classes; imported LAST so they win specificity ties
 │   │   ├── utils/                            # Utility modules
 │   │   │   ├── contextMenuRegistry.ts        # Typed registry of 22 available menu actions
 │   │   │   ├── contextMenuLayout.ts          # Menu layout persistence and sync (config/context_menu.json)
@@ -710,9 +711,7 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 | Category | Action | Default Hotkey |
 | :--- | :--- | :--- |
 | **4K AI Upscaling** | Disable Upscaling | `Shift + 1` |
-| | Enable Neural Model #1 | `Shift + 2` |
-| | Enable Neural Model #2 | `Shift + 3` |
-| | Enable Neural Model #3 | `Shift + 4` |
+| | Enable Neural Model #1 .. #9 | `Shift + 2` .. `Shift + 0` (up to 9 models) |
 | **Playback** | Play / Pause | `Space` or Left Click on video |
 | | Repeat Mode (Loop) | `R` |
 | | Shuffle Mode | Bottom bar shuffle button |
@@ -743,7 +742,7 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 | | Show Compact Video Info | `I` (bitrate with live Sparkline graph, color space, true source bit depth) — closes only via `X`, `Escape` or `I` |
 | | Inspect MediaInfo Properties | `Shift + F10` |
 | | Open Context Menu | Right Click on video |
-| **Playlist & Files** | Toggle Playlist Drawer | `L` |
+| **Playlist & Files** | Toggle Playlist Drawer | `L` / `P` |
 | | Previous / Next File | `PageUp` / `PageDown` |
 | | Open File Dialog | `Ctrl + O` or `O` |
 

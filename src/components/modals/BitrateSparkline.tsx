@@ -19,7 +19,7 @@ export const BitrateSparkline = memo(function BitrateSparkline({
 
   if (!data || data.length < 2) return null;
 
-  const validData = data.filter((v) => Number.isFinite(v) && v > 0);
+  const validData = data.filter((v) => Number.isFinite(v) && v> 0);
   if (validData.length < 2) return null;
 
   const min = Math.min(...validData) * 0.95;
@@ -47,7 +47,7 @@ export const BitrateSparkline = memo(function BitrateSparkline({
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       className="media-info__sparkline"
       aria-hidden="true"
-    >
+      >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--accent, #6366f1)" stopOpacity="0.4" />

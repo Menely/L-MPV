@@ -114,9 +114,9 @@ export const SortableCard = memo(function SortableCard({
         className={`cmenu-entry cmenu-entry--divider ${isDragging ? "cmenu-entry--dragging" : ""}`}
         {...attributes}
         {...listeners}
-      >
+        >
         <span className="cmenu-entry__grip" title={dict.settings.contextMenuConfig.dragTooltip}>
-          <GripVertical size={14} style={{ pointerEvents: "none" }} />
+          <GripVertical size={14} className="no-pointer" />
         </span>
         <div className="cmenu-entry__divider-line">
           <span className="cmenu-entry__divider-label">{dict.settings.contextMenuConfig.dividerLabel}</span>
@@ -129,7 +129,7 @@ export const SortableCard = memo(function SortableCard({
           onTouchStart={(e) => e.stopPropagation()}
           onClick={handleRemove}
           title={dict.settings.contextMenuConfig.btnRemoveDivider}
-        >
+          >
           <X size={12} />
         </button>
       </div>
@@ -143,7 +143,7 @@ export const SortableCard = memo(function SortableCard({
       className={`cmenu-entry ${isDragging ? "cmenu-entry--dragging" : ""}`}
       {...attributes}
       {...listeners}
-    >
+      >
       <button
         type="button"
         className="cmenu-entry__add-divider"
@@ -152,19 +152,19 @@ export const SortableCard = memo(function SortableCard({
         onTouchStart={(e) => e.stopPropagation()}
         onClick={handleAddDivider}
         title={dict.settings.contextMenuConfig.btnAddDividerBefore}
-      >
+        >
         <Minus size={11} />
       </button>
       <span
         className="cmenu-entry__grip"
         title={dict.settings.contextMenuConfig.dragOrderTooltip}
-      >
-        <GripVertical size={14} style={{ pointerEvents: "none" }} />
+        >
+        <GripVertical size={14} className="no-pointer" />
       </span>
-      <span className="cmenu-entry__icon" style={{ pointerEvents: "none" }}>
+      <span className="cmenu-entry__icon no-pointer">
         {descriptor ? MENU_ICON_MAP[descriptor.iconName] : null}
       </span>
-      <div className="cmenu-entry__info" style={{ pointerEvents: "none" }}>
+      <div className="cmenu-entry__info no-pointer">
         <span className="cmenu-entry__label">
           {descriptor ? getLocalizedMenuItem(dict, descriptor).label : entry.id}
         </span>
@@ -180,7 +180,7 @@ export const SortableCard = memo(function SortableCard({
         onTouchStart={(e) => e.stopPropagation()}
         onClick={handleRemove}
         title={dict.settings.contextMenuConfig.btnRemoveItem}
-      >
+        >
         <X size={12} />
       </button>
     </div>

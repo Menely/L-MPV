@@ -66,8 +66,8 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
   // Определение активной главы с запасом 150мс на погрешность тайминга ключевых кадров
   let calculatedActiveIndex = -1;
   const posWithEpsilon = position + 0.15;
-  for (let i = chapters.length - 1; i >= 0; i--) {
-    if (posWithEpsilon >= chapters[i].time) {
+  for (let i = chapters.length - 1; i>= 0; i--) {
+    if (posWithEpsilon>= chapters[i].time) {
       calculatedActiveIndex = chapters[i].index;
       break;
     }
@@ -94,7 +94,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
       <div 
         className={`chapters-modal-card ${isClosing ? "chapters-modal-card--closing" : ""}`}
         onClick={(e) => e.stopPropagation()}
-      >
+        >
         <div className="chapters-modal-header">
           <div className="chapters-modal-title">
             {dict.chapters.title(chapters.length)}
@@ -104,13 +104,13 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
             onClick={handleClose}
             title={dict.chapters.close}
             aria-label={dict.chapters.close}
-          >
+            >
             <X size={18} />
           </button>
         </div>
 
         <div className="chapters-list">
-          {chapters.length > 0 ? (
+          {chapters.length> 0 ? (
             chapters.map((chapter) => (
               <button
                 key={chapter.index}
@@ -124,7 +124,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
                     console.error("Ошибка перехода к главе:", e);
                   }
                 }}
-              >
+                >
                 <span className="chapter-item__title">
                   {chapter.title}
                 </span>

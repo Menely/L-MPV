@@ -29,7 +29,7 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
   onMouseRecord,
 }) => {
   const { dict, locale } = useTranslation();
-  const displayBind = bindCodes.length > 0 ? getKeyDisplay(bindCodes[0], locale) : dict.settings.upscaling.hotkeyAssign;
+  const displayBind = bindCodes.length> 0 ? getKeyDisplay(bindCodes[0], locale) : dict.settings.upscaling.hotkeyAssign;
 
   return (
     <button
@@ -75,20 +75,20 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
           ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
           : "none",
         fontFamily: "var(--font-mono, monospace)",
-        fontSize: "0.76rem",
+        fontSize: "var(--fs-xs)",
         fontWeight: 600,
         color: isRecording ? "var(--text-primary)" : "var(--accent)",
         cursor: "pointer",
         outline: "none",
         display: "inline-flex",
         alignItems: "center",
-        gap: 5,
+        gap: "var(--space-2)",
         boxSizing: "border-box",
         lineHeight: 1,
         whiteSpace: "nowrap",
         transition: "all var(--t-fast, 0.15s) var(--ease-smooth)",
       }}
-    >
+      >
       <Keyboard size={13} />
       <span>{isRecording ? dict.settings.upscaling.hotkeyRecording : displayBind}</span>
     </button>

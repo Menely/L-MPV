@@ -41,15 +41,58 @@ function buildMouseCode(e: React.MouseEvent): string {
   return btnMap[e.button] || `MouseButton${e.button}`;
 }
 
+const VIDEO_MOUSE_ACTIONS = new Set([
+  "togglePause",
+  "fullscreen",
+  "openContextMenu",
+  "fileInfo",
+  "screenshot",
+  "resetZoom",
+  "copyFrame",
+  "toggleRepeat",
+  "playlist",
+]);
+
+const AUDIO_TRACK_MOUSE_ACTIONS = new Set(["cycleAudioTrack", "toggleAudioMenu"]);
+const SUB_TRACK_MOUSE_ACTIONS = new Set(["cycleSubTrack", "toggleSubMenu"]);
+
+/**
+ * Проверка совместимости контекстов мыши.
+ * Действия на полотне видео и на кнопках тулбара не мешают друг другу.
+ */
+function isMouseScopeCompatible(actionA: string, actionB: string): boolean {
+  if (VIDEO_MOUSE_ACTIONS.has(actionA) && VIDEO_MOUSE_ACTIONS.has(actionB)) {
+    return false; // Конфликт внутри контекста полотна видео
+  }
+  if (AUDIO_TRACK_MOUSE_ACTIONS.has(actionA) && AUDIO_TRACK_MOUSE_ACTIONS.has(actionB)) {
+    return false; // Конфликт внутри контекста кнопки аудио
+  }
+  if (SUB_TRACK_MOUSE_ACTIONS.has(actionA) && SUB_TRACK_MOUSE_ACTIONS.has(actionB)) {
+    return false; // Конфликт внутри контекста кнопки субтитров
+  }
+  return true;
+}
+
 /** Владелец комбинации среди ДРУГИХ действий (для диалога конфликта). */
 function findConflictOwner(
   code: string,
   hotkeys: Record<string, string[]>,
   excludeActionId: string
 ): { id: string; label: string } | null {
-  const owner = HOTKEY_ACTIONS.find(
-    (a) => a.id !== excludeActionId && (hotkeys[a.id] || []).includes(code)
-  );
+  const isMouse = code.startsWith("Mouse");
+
+  const owner = HOTKEY_ACTIONS.find((a) => {
+    if (a.id === excludeActionId) return false;
+    const hasCode = (hotkeys[a.id] || []).includes(code);
+    if (!hasCode) return false;
+
+    if (isMouse) {
+      return !isMouseScopeCompatible(excludeActionId, a.id);
+    }
+
+    return true;
+  });
+
   return owner ? { id: owner.id, label: owner.label } : null;
 }
 
@@ -93,8 +136,13 @@ export function HotkeysSettingsTab({
   // Конфликт: комбинация уже занята другим действием, ждём решения юзера
   const [conflict, setConflict] = useState<HotkeyConflict | null>(null);
   const ignoreClickUntilRef = useRef<number>(0);
+  const mouseClickTimerRef = useRef<number | null>(null);
 
   const cancelRecording = useCallback(() => {
+    if (mouseClickTimerRef.current) {
+      window.clearTimeout(mouseClickTimerRef.current);
+      mouseClickTimerRef.current = null;
+    }
     setRecordingAction(null);
     setConflict(null);
   }, []);
@@ -149,6 +197,34 @@ export function HotkeysSettingsTab({
     }
   };
 
+  const handleMouseRecord = (targetId: string, index: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    ignoreClickUntilRef.current = Date.now() + 400;
+    if (conflict) return;
+
+    const baseCode = buildMouseCode(e);
+
+    if (e.detail === 2) {
+      // Распознан двойной клик мыши
+      if (mouseClickTimerRef.current) {
+        window.clearTimeout(mouseClickTimerRef.current);
+        mouseClickTimerRef.current = null;
+      }
+      const dblCode = `${baseCode}DoubleClick`;
+      tryCommitBinding(targetId, index, dblCode, customHotkeys);
+    } else {
+      // Одиночный клик: ожидаем возможный второй клик для 2x LMB
+      if (mouseClickTimerRef.current) {
+        window.clearTimeout(mouseClickTimerRef.current);
+      }
+      mouseClickTimerRef.current = window.setTimeout(() => {
+        mouseClickTimerRef.current = null;
+        tryCommitBinding(targetId, index, baseCode, customHotkeys);
+      }, 250);
+    }
+  };
+
   useEffect(() => {
     if (onRecordingChange) {
       onRecordingChange(recordingAction !== null);
@@ -181,6 +257,10 @@ export function HotkeysSettingsTab({
   }, [cancelRecording, recordingAction]);
 
   useEffect(() => () => {
+    if (mouseClickTimerRef.current) {
+      window.clearTimeout(mouseClickTimerRef.current);
+      mouseClickTimerRef.current = null;
+    }
     onRecordingChange?.(false);
   }, [onRecordingChange]);
 
@@ -193,15 +273,15 @@ export function HotkeysSettingsTab({
           background: "var(--accent-glass)",
           border: "1px solid var(--border-pill)",
           color: "var(--accent)",
-          fontSize: "0.86rem",
+          fontSize: "var(--fs-base)",
           lineHeight: "1.4",
-          marginBottom: 16,
+          marginBottom: "var(--space-7)",
           fontWeight: 500,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}
-      >
+        >
         <span>{dict.settings.hotkeys.helpText}</span>
         <button
           onClick={() => {
@@ -214,26 +294,26 @@ export function HotkeysSettingsTab({
             color: "white",
             borderRadius: "var(--radius-sm)",
             padding: "4px 8px",
-            fontSize: "0.78rem",
+            fontSize: "var(--fs-xs)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
-            gap: 4,
+            gap: "var(--space-2)",
             flexShrink: 0,
           }}
-        >
+          >
           <RotateCcw size={12} /> {dict.settings.hotkeys.btnReset}
         </button>
       </div>
 
       <div
         className="modal__section-title"
-        style={{ fontSize: "0.92rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginBottom: 10 }}
-      >
+        style={{ fontSize: "var(--fs-md)", color: "var(--text-secondary)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginBottom: "var(--space-5)" }}
+        >
         {dict.settings.hotkeys.sectionTitle}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="col col-gap-4">
         {Object.entries(CATEGORIZED_HOTKEYS).map(([category, items]) => {
           const secKey = `hk_${category}`;
           const isOpen = !!openSections[secKey];
@@ -247,12 +327,12 @@ export function HotkeysSettingsTab({
               icon={<Keyboard size={16} />}
               title={categoryTitle}
               badge={
-                <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 500, marginLeft: 4 }}>
+                <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", fontWeight: 500, marginLeft: "var(--space-2)" }}>
                   ({items.length})
                 </span>
               }
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 12 }}>
+              >
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", paddingTop: "var(--space-6)" }}>
                 {items.map((item) => {
                   const currentCodes = customHotkeys[item.id] || [];
                   const itemConflict = conflict?.targetId === item.id ? conflict : null;
@@ -260,7 +340,7 @@ export function HotkeysSettingsTab({
 
                   return (
                     <React.Fragment key={item.id}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div className="row-center row-gap-4">
                       <div
                         className="modal__row"
                         style={{
@@ -273,13 +353,13 @@ export function HotkeysSettingsTab({
                           alignItems: "center",
                           justifyContent: "space-between",
                           flexWrap: "wrap",
-                          gap: 10,
+                          gap: "var(--space-5)",
                         }}
-                      >
-                        <span style={{ color: "var(--text-primary)", fontSize: "0.9rem", fontWeight: 500, flex: 1, minWidth: 200 }}>
+                        >
+                        <span style={{ color: "var(--text-primary)", fontSize: "var(--fs-base)", fontWeight: 500, flex: 1, minWidth: 200 }}>
                           {itemLabel}
                         </span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
                           {currentCodes.map((code, idx) => {
                             const isRecording = recordingAction?.id === item.id && recordingAction.index === idx;
                             const isConflicted =
@@ -319,11 +399,7 @@ export function HotkeysSettingsTab({
                                   }}
                                   onMouseDown={(e) => {
                                     if (isRecording) {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      ignoreClickUntilRef.current = Date.now() + 400;
-                                      if (conflict) return;
-                                      tryCommitBinding(item.id, idx, buildMouseCode(e), customHotkeys);
+                                      handleMouseRecord(item.id, idx, e);
                                     }
                                   }}
                                   onContextMenu={(e) => {
@@ -349,7 +425,7 @@ export function HotkeysSettingsTab({
                                       : "none",
                                     borderRadius: "var(--radius-sm)",
                                     fontFamily: "monospace",
-                                    fontSize: "0.84rem",
+                                    fontSize: "var(--fs-sm)",
                                     fontWeight: 600,
                                     color: isConflicted
                                       ? "#fca5a5"
@@ -362,7 +438,7 @@ export function HotkeysSettingsTab({
                                     borderBottomRightRadius: 0,
                                     transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth)",
                                   }}
-                                >
+                                  >
                                   {isRecording ? dict.settings.hotkeys.pressKey : getKeyDisplay(code, locale)}
                                 </button>
                                 <button
@@ -385,7 +461,7 @@ export function HotkeysSettingsTab({
                                     alignItems: "center",
                                     justifyContent: "center",
                                   }}
-                                >
+                                  >
                                   <Trash2 size={13} />
                                 </button>
                               </div>
@@ -413,11 +489,7 @@ export function HotkeysSettingsTab({
                                     tryCommitBinding(item.id, currentCodes.length, newCode, customHotkeys);
                                   }}
                                   onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    ignoreClickUntilRef.current = Date.now() + 400;
-                                    if (conflict) return;
-                                    tryCommitBinding(item.id, currentCodes.length, buildMouseCode(e), customHotkeys);
+                                    handleMouseRecord(item.id, currentCodes.length, e);
                                   }}
                                   onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                   style={{
@@ -427,13 +499,13 @@ export function HotkeysSettingsTab({
                                     boxShadow: "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)",
                                     borderRadius: "var(--radius-sm)",
                                     fontFamily: "monospace",
-                                    fontSize: "0.84rem",
+                                    fontSize: "var(--fs-sm)",
                                     fontWeight: 600,
                                     color: "var(--text-primary)",
                                     cursor: "pointer",
                                     outline: "none",
                                   }}
-                                >
+                                  >
                                   {dict.settings.hotkeys.pressKey}
                                 </button>
                               );
@@ -458,10 +530,10 @@ export function HotkeysSettingsTab({
                                   borderRadius: "var(--radius-sm)",
                                   color: "var(--text-secondary)",
                                   cursor: "pointer",
-                                  fontSize: "1rem",
+                                  fontSize: "var(--fs-lg)",
                                   lineHeight: 1,
                                 }}
-                              >
+                                >
                                 +
                               </button>
                             );
@@ -475,7 +547,7 @@ export function HotkeysSettingsTab({
                           setCustomHotkeys(updated);
                         }}
                         style={{
-                          padding: "10px",
+                          padding: "var(--space-5)",
                           background: "rgba(255, 255, 255, 0.03)",
                           border: "1px solid rgba(255, 255, 255, 0.04)",
                           borderRadius: "var(--radius-md)",
@@ -495,7 +567,7 @@ export function HotkeysSettingsTab({
                           e.currentTarget.style.color = "var(--text-muted)";
                           e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
                         }}
-                      >
+                        >
                         <RotateCcw size={16} />
                       </button>
                     </div>
@@ -508,17 +580,17 @@ export function HotkeysSettingsTab({
                           alignItems: "center",
                           justifyContent: "space-between",
                           flexWrap: "wrap",
-                          gap: 8,
-                          marginTop: 6,
-                          marginBottom: 2,
+                          gap: "var(--space-4)",
+                          marginTop: "var(--space-3)",
+                          marginBottom: "var(--space-1)",
                           padding: "8px 12px",
                           background: "rgba(244, 67, 54, 0.08)",
                           border: "1px solid rgba(244, 67, 54, 0.35)",
                           borderRadius: "var(--radius-md)",
                           boxShadow: "0 0 12px rgba(244, 67, 54, 0.15)",
                         }}
-                      >
-                        <span style={{ fontSize: "0.80rem", color: "var(--text-primary)", lineHeight: 1.4 }}>
+                        >
+                        <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-primary)", lineHeight: 1.4 }}>
                           {(() => {
                             const ownerTitle = dict.settings.hotkeys.actions[itemConflict.ownerId] || itemConflict.ownerLabel;
                             const keyName = getKeyDisplay(itemConflict.code, locale);
@@ -535,7 +607,7 @@ export function HotkeysSettingsTab({
                             );
                           })()}
                         </span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div className="row-center row-gap-4">
                           {!itemConflict.reserved && (
                             <button
                               type="button"
@@ -547,7 +619,7 @@ export function HotkeysSettingsTab({
                               )}
                               className="btn btn--danger btn--sm"
                               title={dict.settings.hotkeys.btnStealTitle}
-                            >
+                              >
                               {dict.settings.hotkeys.btnOverwrite}
                             </button>
                           )}
@@ -555,7 +627,7 @@ export function HotkeysSettingsTab({
                             type="button"
                             onClick={cancelRecording}
                             className="btn btn--secondary btn--sm"
-                          >
+                            >
                             {dict.settings.hotkeys.btnCancel}
                           </button>
                         </div>

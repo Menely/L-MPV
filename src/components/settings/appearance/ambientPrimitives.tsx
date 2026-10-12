@@ -24,7 +24,7 @@ export const VerticalSlider = memo(function VerticalSlider({
   const [isHovered, setIsHovered] = useState(false);
 
   const range = max - min;
-  const percent = range > 0 ? Math.min(1, Math.max(0, (value - min) / range)) : 0;
+  const percent = range> 0 ? Math.min(1, Math.max(0, (value - min) / range)) : 0;
   const decimals = (step.toString().split(".")[1] || "").length;
 
   const updateFromPointer = useCallback(
@@ -122,7 +122,7 @@ export const VerticalSlider = memo(function VerticalSlider({
         outline: "none",
         padding: "0 4px",
       }}
-    >
+      >
       {/* Background Track */}
       <div
         style={{
@@ -130,8 +130,8 @@ export const VerticalSlider = memo(function VerticalSlider({
           width: 4,
           left: "50%",
           transform: "translateX(-50%)",
-          top: 6,
-          bottom: 6,
+          top: "var(--space-3)",
+          bottom: "var(--space-3)",
           borderRadius: 999,
           background: isHovered || isDragging ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.12)",
           filter: isHovered || isDragging ? "brightness(1.2)" : "none",
@@ -145,7 +145,7 @@ export const VerticalSlider = memo(function VerticalSlider({
           width: 4,
           left: "50%",
           transform: "translateX(-50%)",
-          bottom: 6,
+          bottom: "var(--space-3)",
           height: `calc(${percent * 100}% - ${percent * 12}px)`,
           borderRadius: 999,
           background: "var(--accent)",
@@ -221,9 +221,9 @@ export const AmbientTuneRow = memo(function AmbientTuneRow({
   const isDefault = value === def;
   return (
     <div style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0, lineHeight: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0, lineHeight: 1 }}>
         <span style={{ display: "flex", color: "var(--accent)" }}>{icon}</span>
-        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
           {label}
         </span>
       </div>
@@ -242,8 +242,8 @@ export const AmbientTuneRow = memo(function AmbientTuneRow({
           aria-label={ariaLabel}
         />
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, lineHeight: 1 }}>
-        <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexShrink: 0, lineHeight: 1 }}>
+        <span style={{ fontSize: "var(--fs-sm)", fontWeight: 700, color: "var(--accent)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
           {value} {unit}
         </span>
         <button
@@ -260,7 +260,7 @@ export const AmbientTuneRow = memo(function AmbientTuneRow({
           }}
           title={resetTitle}
           tabIndex={isDefault ? -1 : 0}
-        >
+          >
           <RotateCcw size={11} />
         </button>
       </div>

@@ -574,15 +574,15 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   const isAiActive = settings.mode === "ai";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-7)" }}>
       {/* 1. Выбор основного режима работы */}
       <div className="glass-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <h3 style={{ fontSize: "1.05rem", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
+            <h3 style={{ fontSize: "var(--fs-lg)", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "var(--space-4)" }}>
               <Zap size={18} color="var(--accent)" /> {dict.settings.upscaling.modeTitle}
             </h3>
-            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: 2 }}>
+            <p style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)", marginTop: "var(--space-1)" }}>
               {dict.settings.upscaling.modeDesc}
             </p>
           </div>
@@ -593,8 +593,8 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
             className={`btn ${isAiActive ? "btn--primary" : "btn--secondary"}`}
             onClick={() => updateSettings({ mode: isAiActive ? "off" : "ai" })}
             title={isAiActive ? dict.settings.upscaling.toggleOff : dict.settings.upscaling.toggleOn}
-            style={{ borderRadius: "var(--radius-pill)", padding: "6px 14px", fontWeight: 600, fontSize: "0.84rem" }}
-          >
+            style={{ borderRadius: "var(--radius-pill)", padding: "6px 14px", fontWeight: 600, fontSize: "var(--fs-sm)" }}
+            >
             <span
               style={{
                 width: 8,
@@ -628,7 +628,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       />
 
       {/* 3. Универсальная библиотека ONNX-моделей (`models/onnx/`) с биндом клавиш */}
-      <div className="glass-section glass-section--compact" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="glass-section glass-section--compact col col-gap-4">
         <div
           role="button"
           tabIndex={0}
@@ -641,10 +641,10 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
             }
           }}
           style={{ cursor: "pointer" }}
-        >
+          >
           <SectionHeader
             icon={<Layers size={17} />}
-          title={dict.settings.upscaling.folderTitle}
+            title={dict.settings.upscaling.folderTitle}
           desc={dict.settings.upscaling.folderDesc(status?.models_count || 0)}
           right={
             <>
@@ -657,7 +657,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                 }}
                 aria-expanded={isModelsListOpen}
                 title={isModelsListOpen ? dict.settings.upscaling.btnCollapseModels : dict.settings.upscaling.btnExpandModels}
-              >
+                >
                 <ChevronDown
                   size={16}
                   style={{
@@ -675,7 +675,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   toggleHideModelNames();
                 }}
                 title={hideModelNames ? dict.settings.upscaling.btnShowNames : dict.settings.upscaling.btnHideNames}
-              >
+                >
                 {hideModelNames ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
 
@@ -684,7 +684,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                 className="btn btn--secondary btn--icon"
                 onClick={handleOpenModelsFolder}
                 title={dict.settings.upscaling.btnOpenFolderTitle}
-              >
+                >
                 <FolderOpen size={16} />
               </button>
             </>
@@ -702,25 +702,25 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   overflowY: "auto",
                   display: "flex",
                   flexDirection: "column",
-                  gap: 6,
+                  gap: "var(--space-3)",
                   padding: "5px 6px",
                   margin: "2px -6px 0",
                   boxSizing: "border-box",
                 }}
-              >
+                >
                 {loading && !status ? (
                   <EmptyState loading title={dict.settings.upscaling.loadingModels} />
-                ) : status?.models && status.models.length > 0 ? (
+                ) : status?.models && status.models.length> 0 ? (
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
                     onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext
-                      items={status.models.map((m) => m.filename)}
-                      strategy={verticalListSortingStrategy}
                     >
-                      {status.models.map((model, idx) => {
+                    <SortableContext
+                      items={status.models.slice(0, 9).map((m) => m.filename)}
+                      strategy={verticalListSortingStrategy}
+                      >
+                      {status.models.slice(0, 9).map((model, idx) => {
                         const actionId = `upscaleNet${idx + 1}`;
                         return (
                           <ModelListItem
@@ -757,7 +757,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   event.stopPropagation();
                   handleOpenModelsFolder();
                 }}
-                      >
+                >
                         <FolderOpen size={14} /> {dict.settings.upscaling.btnOpenFolder}
                       </button>
                     }

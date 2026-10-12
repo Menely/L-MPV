@@ -28,7 +28,7 @@ export function AccordionSection({
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls={contentId}
-      >
+        >
         <div className="settings-accordion__title">
           <span className="settings-accordion__icon">{icon}</span>
           <span>{title}</span>
@@ -41,7 +41,7 @@ export function AccordionSection({
         className="settings-accordion__collapse"
         aria-hidden={!isOpen}
         inert={!isOpen}
-      >
+        >
         <div className="settings-accordion__inner">
           <div className="settings-accordion__body">
             {children}

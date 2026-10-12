@@ -94,6 +94,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
+  const [pendingDelete, setPendingDelete] = useState<SettingsPreset | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   // Группы по умолчанию свёрнуты: высота вкладки стабильна с первого paint,
@@ -322,9 +323,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
   // Удаление пользовательского пресета
   const handleDelete = async (preset: SettingsPreset) => {
-    if (!window.confirm(dict.settings.presets.confirmDelete(preset.name))) {
-      return;
-    }
     const previous = userPresets;
     const updated = userPresets.filter((p) => p.id !== preset.id);
     try {
@@ -341,6 +339,35 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       showToast(dict.settings.presets.toastSaveFail);
     }
   };
+
+  // Кастомный диалог подтверждения вместо системного window.confirm
+  const requestDelete = useCallback((preset: SettingsPreset) => {
+    setPendingDelete(preset);
+  }, []);
+
+  const cancelDelete = useCallback(() => {
+    setPendingDelete(null);
+  }, []);
+
+  const confirmDelete = useCallback(() => {
+    const target = pendingDelete;
+    setPendingDelete(null);
+    if (target) void handleDelete(target);
+  }, [pendingDelete]);
+
+  // Escape закрывает диалог, не долетая до глобального хендлера настроек
+  useEffect(() => {
+    if (!pendingDelete) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelDelete();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [pendingDelete, cancelDelete]);
 
   // Сохранение нового имени пресета
   const handleSaveRename = async (presetId: string) => {
@@ -559,7 +586,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         )}
 
         {/* 9. Кастомные бинды (если есть) */}
-        {hotkeyCount > 0 && (
+        {hotkeyCount> 0 && (
           <div className="preset-tag" title={dict.settings.presets.hotkeysTitle}>
             <Keyboard size={11} />
             <span>{dict.settings.presets.hotkeysLabel(hotkeyCount)}</span>
@@ -624,7 +651,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             </div>
 
             {isBuiltIn && (preset.description || dict.settings.presets.builtinPresets[preset.id]?.description) && (
-              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+              <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)" }}>
                 {dict.settings.presets.builtinPresets[preset.id]?.description || preset.description}
               </span>
             )}
@@ -638,11 +665,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               className={`preset-action-btn ${isApplied ? "preset-action-btn--applied" : "preset-action-btn--apply"}`}
               onClick={() => handleApply(preset)}
               title={isBuiltIn ? dict.settings.presets.btnApplyBuiltinTitle : dict.settings.presets.btnApplyUserTitle}
-            >
+              >
               {isApplied ? (
-                <Check size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+                <Check size={14} strokeWidth={2.5} className="no-shrink" />
               ) : (
-                <Play size={13} style={{ flexShrink: 0 }} />
+                <Play size={13} className="no-shrink" />
               )}
               <span>{isApplied ? dict.settings.presets.btnActive : dict.settings.presets.btnApply}</span>
             </button>
@@ -654,7 +681,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   className="preset-action-btn preset-action-btn--icon"
                   onClick={() => handleOverwrite(preset)}
                   title={dict.settings.presets.btnUpdateTitle}
-                >
+                  >
                   <RotateCw size={13} />
                 </button>
 
@@ -666,7 +693,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                     setEditingName(preset.name);
                   }}
                   title={dict.settings.presets.btnRenameTitle}
-                >
+                  >
                   <Edit2 size={13} />
                 </button>
 
@@ -675,15 +702,17 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   className="preset-action-btn preset-action-btn--icon"
                   onClick={() => handleExportSingle(preset)}
                   title={dict.settings.presets.btnExportTitle}
-                >
+                  >
                   <Download size={13} />
                 </button>
 
                 <button
                   type="button"
                   className="preset-action-btn preset-action-btn--icon preset-action-btn--danger"
-                  onClick={() => handleDelete(preset)}
-                >
+                  onClick={() => requestDelete(preset)}
+                  title={dict.settings.presets.btnDeleteConfirm}
+                  aria-label={dict.settings.presets.btnDeleteConfirm}
+                  >
                   <Trash2 size={13} />
                 </button>
               </div>
@@ -693,7 +722,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                 className="preset-action-btn preset-action-btn--icon"
                 onClick={() => handleExportSingle(preset)}
                 title={dict.settings.presets.btnExportTitle}
-              >
+                >
                 <Download size={15} />
               </button>
             )}
@@ -717,7 +746,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             className="presets-btn-text"
             onClick={handleNativeImport}
             title={dict.settings.presets.importTitle}
-          >
+            >
             <Upload size={13} />
             <span>{dict.settings.presets.btnImport}</span>
           </button>
@@ -751,11 +780,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             background: "rgba(var(--accent-rgb, 127, 199, 255), 0.18)",
             border: "1px solid var(--accent)",
             color: "var(--text-primary)",
-            fontSize: "0.82rem",
+            fontSize: "var(--fs-sm)",
             fontWeight: 500,
             animation: "presetsFadeIn 0.2s ease",
           }}
-        >
+          >
           {toastMessage}
         </div>
       )}
@@ -771,7 +800,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               writeGroupOpen(PRESETS_USER_OPEN_KEY, next);
               return next;
             })}
-          >
+            >
             <ChevronDown
               size={15}
               className={`presets-section-heading__chevron ${
@@ -788,7 +817,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               className="presets-btn-text"
               onClick={handleReload}
               title={dict.settings.presets.refreshTitle}
-            >
+              >
               <RotateCw size={13} />
               <span>{dict.settings.presets.btnRefresh}</span>
             </button>
@@ -797,18 +826,18 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               className="presets-btn-text"
               onClick={handleNativeImport}
               title={dict.settings.presets.importTitle}
-            >
+              >
               <Upload size={13} />
               <span>{dict.settings.presets.btnImport}</span>
             </button>
-            {userPresets.length > 0 && (
+            {userPresets.length> 0 && (
               <>
                 <button
                   type="button"
                   className="presets-btn-text"
                   onClick={handleExportAll}
                   title={dict.settings.presets.exportAllTitle}
-                >
+                  >
                   <Download size={13} />
                   <span>{dict.settings.presets.btnExportAll}</span>
                 </button>
@@ -817,7 +846,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   className="presets-btn-text"
                   onClick={handleOpenFolder}
                   title={dict.settings.presets.folderTitle}
-                >
+                  >
                   <FolderOpen size={13} />
                   <span>{dict.settings.presets.btnFolder}</span>
                 </button>
@@ -832,7 +861,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         */}
         <div className={`collapse-fold ${isUserPresetsOpen ? "collapse-fold--open" : ""}`}>
           <div className="collapse-fold__inner">
-            <div className="collapse-fold__body" style={{ marginTop: 8 }}>
+            <div className="collapse-fold__body mt-4">
               {userPresets.length === 0 ? (
                 <EmptyState
                   icon={<Palette size={24} />}
@@ -860,7 +889,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               writeGroupOpen(PRESETS_BUILTIN_OPEN_KEY, next);
               return next;
             })}
-          >
+            >
             <ChevronDown
               size={15}
               className={`presets-section-heading__chevron ${
@@ -874,12 +903,58 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
         <div className={`collapse-fold ${isBuiltInPresetsOpen ? "collapse-fold--open" : ""}`}>
           <div className="collapse-fold__inner">
-            <div className="collapse-fold__body presets-list" style={{ marginTop: 8 }}>
+            <div className="collapse-fold__body presets-list mt-4">
               {BUILT_IN_PRESETS.map((preset) => renderPresetCard(preset))}
             </div>
           </div>
         </div>
       </div>
+
+      {pendingDelete && (
+        <div
+          className="confirm-overlay"
+          onClick={cancelDelete}
+          role="presentation"
+          >
+          <div
+            className="confirm-dialog"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-delete-title"
+            >
+            <h3 className="confirm-dialog__title" id="confirm-delete-title">
+              {dict.settings.presets.confirmDeleteTitle}
+            </h3>
+
+            <p className="confirm-dialog__message">
+              {dict.settings.presets.confirmDelete(pendingDelete.name)}
+            </p>
+
+            <p className="confirm-dialog__warning">
+              {dict.settings.presets.confirmDeleteWarning}
+            </p>
+
+            <div className="confirm-dialog__actions">
+              <button
+                type="button"
+                className="confirm-dialog__btn confirm-dialog__btn--cancel"
+                onClick={cancelDelete}
+                autoFocus
+                >
+                {dict.settings.presets.btnDeleteCancel}
+              </button>
+              <button
+                type="button"
+                className="confirm-dialog__btn confirm-dialog__btn--confirm confirm-dialog__btn--danger"
+                onClick={confirmDelete}
+                >
+                {dict.settings.presets.btnDeleteConfirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

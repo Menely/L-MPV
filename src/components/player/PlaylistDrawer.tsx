@@ -39,8 +39,8 @@ const PlaylistItemRow = React.memo(function PlaylistItemRow({
   itemRef,
   watchProgress = 0,
 }: PlaylistItemRowProps) {
-  const isWatched = watchProgress >= 90;
-  const showProgress = watchProgress >= 2;
+  const isWatched = watchProgress>= 90;
+  const showProgress = watchProgress>= 2;
 
   return (
     <button
@@ -50,7 +50,7 @@ const PlaylistItemRow = React.memo(function PlaylistItemRow({
       } ${isWatched ? "playlist-item--watched" : ""}`}
       onClick={() => onPlay(item.index)}
       title={item.filename}
-    >
+      >
       <div className="playlist-item__num">{item.index + 1}</div>
       <div className="playlist-item__icon">
         {isCurrent ? (
@@ -89,7 +89,7 @@ const getInitialPlaylistWidth = (): number => {
     const saved = localStorage.getItem(PLAYLIST_WIDTH_STORAGE_KEY);
     if (saved) {
       const parsed = parseInt(saved, 10);
-      if (!isNaN(parsed) && parsed >= DEFAULT_PLAYLIST_WIDTH) {
+      if (!isNaN(parsed) && parsed>= DEFAULT_PLAYLIST_WIDTH) {
         return parsed;
       }
     }
@@ -135,7 +135,7 @@ export function PlaylistDrawer() {
   // Один вызов вместо N вызовов для каждого файла.
   const [watchProgressMap, setWatchProgressMap] = useState<
     Record<string, WatchProgressInfo>
-  >({});
+    >({});
 
   useEffect(() => {
     if (!isPlaylistOpen || playlist.length === 0) return;
@@ -299,7 +299,7 @@ export function PlaylistDrawer() {
 
   // Мгновенный автоскролл к текущему воспроизводимому элементу при открытии панели или смене трека
   useEffect(() => {
-    if (isPlaylistOpen && currentItemIndex >= 0 && currentItemElRef.current) {
+    if (isPlaylistOpen && currentItemIndex>= 0 && currentItemElRef.current) {
       currentItemElRef.current.scrollIntoView({
         block: "nearest",
         behavior: "auto",
@@ -390,7 +390,7 @@ export function PlaylistDrawer() {
     const total = playlist.length;
     if (total === 0) return "";
     const curIdx = playlist.findIndex((item) => item.current);
-    return curIdx >= 0 ? `${curIdx + 1} / ${total}` : `${total}`;
+    return curIdx>= 0 ? `${curIdx + 1} / ${total}` : `${total}`;
   }, [playlist]);
 
   if (!isPlaylistOpen) return null;
@@ -406,7 +406,7 @@ export function PlaylistDrawer() {
         maxWidth: "calc(100% - 28px)",
         minWidth: `min(${DEFAULT_PLAYLIST_WIDTH}px, calc(100% - 28px))`,
       }}
-    >
+      >
       <div
         className="playlist-drawer__resize-handle"
         onMouseDown={handleResizeStart}
@@ -423,7 +423,7 @@ export function PlaylistDrawer() {
                 playlist.findIndex((i) => i.current) + 1,
                 playlist.length
               )}
-            >
+              >
               {countBadge}
             </span>
           )}
@@ -433,14 +433,14 @@ export function PlaylistDrawer() {
             className={`playlist-drawer__action-btn ${isRefreshing ? "playlist-drawer__action-btn--spinning" : ""}`}
             onClick={handleRefresh}
             title={dict.playlist.refresh}
-          >
+            >
             <RotateCw size={15} />
           </button>
           <button
             className="playlist-drawer__close"
             onClick={handleClose}
             title={dict.playlist.close}
-          >
+            >
             <X size={18} />
           </button>
         </div>
@@ -467,7 +467,7 @@ export function PlaylistDrawer() {
             className="playlist-drawer__search-clear"
             onClick={() => setSearchQuery("")}
             title={dict.playlist.clearSearch}
-          >
+            >
             <X size={14} />
           </button>
         )}
@@ -477,7 +477,7 @@ export function PlaylistDrawer() {
         {filteredPlaylist.length === 0 ? (
           <EmptyState
             icon={<Clapperboard size={24} />}
-          title={searchQuery ? dict.playlist.nothingFound : dict.playlist.empty}
+            title={searchQuery ? dict.playlist.nothingFound : dict.playlist.empty}
             desc={
               searchQuery
                 ? dict.playlist.nothingFoundDesc

@@ -21,36 +21,36 @@ export function buildTimelineSegments(
   chapters: Array<{ time: number; title: string }>,
   duration: number,
   fallbackTitle: string
-): TimelineSegmentData[] {
-  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
+  ): TimelineSegmentData[] {
+  const safeDuration = Number.isFinite(duration) && duration> 0 ? duration : 0;
   if (safeDuration <= 0) return [{ start: 0, end: 0, title: fallbackTitle }];
   if (!chapters || chapters.length === 0) return [{ start: 0, end: safeDuration, title: fallbackTitle }];
 
   const valid = chapters
-    .filter((ch) => Number.isFinite(ch.time) && ch.time >= 0 && ch.time < safeDuration)
+    .filter((ch) => Number.isFinite(ch.time) && ch.time>= 0 && ch.time < safeDuration)
     .sort((a, b) => a.time - b.time);
 
   if (valid.length === 0) return [{ start: 0, end: safeDuration, title: fallbackTitle }];
 
   const segs: TimelineSegmentData[] = [];
-  if (valid[0].time > 0.05) {
+  if (valid[0].time> 0.05) {
     segs.push({ start: 0, end: valid[0].time, title: fallbackTitle || "Начало" });
   }
 
   for (let i = 0; i < valid.length; i++) {
     const start = valid[i].time;
     const end = i + 1 < valid.length ? valid[i + 1].time : safeDuration;
-    if (end > start) {
+    if (end> start) {
       segs.push({ start, end, title: valid[i].title || `Глава ${i + 1}` });
     }
   }
 
-  return segs.length > 0 ? segs : [{ start: 0, end: safeDuration, title: fallbackTitle }];
+  return segs.length> 0 ? segs : [{ start: 0, end: safeDuration, title: fallbackTitle }];
 }
 
 /** Процент заполнения отрезка [segStart, segEnd] относительно позиции time. */
 function calcSegPercent(time: number, segStart: number, segEnd: number): number {
-  if (time >= segEnd) return 100;
+  if (time>= segEnd) return 100;
   if (time <= segStart) return 0;
   return ((time - segStart) / (segEnd - segStart)) * 100;
 }
@@ -70,13 +70,13 @@ function tryRelease(el: Element, pointerId: number): void {
 /** Конвертация clientX в позицию [0, duration] без layout thrashing. */
 function clientXToSeconds(clientX: number, rect: DOMRect, duration: number): number {
   const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-  return rect.width > 0 ? (x / rect.width) * duration : 0;
+  return rect.width> 0 ? (x / rect.width) * duration : 0;
 }
 
 /** Конвертация clientX в ratio [0, 1]. */
 function clientXToRatio(clientX: number, rect: DOMRect): number {
   const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-  return rect.width > 0 ? x / rect.width : 0;
+  return rect.width> 0 ? x / rect.width : 0;
 }
 
 // ─── Мемоизированные sub-компоненты ──────────────────────────────────────────
@@ -95,15 +95,15 @@ const TimelineSegment = React.memo<TimelineSegmentProps>(
       style={{
         flexBasis: `${flexBasis}%`,
       }}
-    >
+      >
       <div className="timeline__segment-bg" />
-      {segGhostProgress > 0 && (
+      {segGhostProgress> 0 && (
         <div
           className="timeline__segment-ghost"
           style={{ width: `${segGhostProgress}%` }}
         />
       )}
-      {segProgress > 0 && (
+      {segProgress> 0 && (
         <div
           className="timeline__segment-progress"
           style={{ width: `${segProgress}%` }}
@@ -111,7 +111,7 @@ const TimelineSegment = React.memo<TimelineSegmentProps>(
       )}
     </div>
   )
-);
+  );
 TimelineSegment.displayName = "TimelineSegment";
 
 interface TimelinePreviewProps {
@@ -122,7 +122,7 @@ interface TimelinePreviewProps {
 
 const TimelinePreview = React.memo<TimelinePreviewProps>(({ hoverInfo, segments, mediaPath }) => {
   const active =
-    segments.find((s) => hoverInfo.time >= s.start && hoverInfo.time <= s.end) ||
+    segments.find((s) => hoverInfo.time>= s.start && hoverInfo.time <= s.end) ||
     segments[segments.length - 1];
   const showChapter = Boolean(active?.title && active.title !== mediaPath);
 
@@ -130,7 +130,7 @@ const TimelinePreview = React.memo<TimelinePreviewProps>(({ hoverInfo, segments,
     <div
       className="timeline-preview-card"
       style={{ left: `clamp(48px, ${hoverInfo.ratio * 100}%, calc(100% - 48px))` }}
-    >
+      >
       <div className="timeline-preview-card__time">{formatTime(hoverInfo.time)}</div>
       {showChapter && <div className="timeline-preview-card__chapter">{active.title}</div>}
     </div>
@@ -172,17 +172,17 @@ export const Timeline = React.memo(() => {
   const cachedRectRef = useRef<DOMRect | null>(null);
 
   // ─── Производные значения ────────────────────────────────────
-  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
+  const safeDuration = Number.isFinite(duration) && duration> 0 ? duration : 0;
   const rawPos = mousePosition ?? (seeking && seekTarget !== null ? seekTarget : position);
   const displayPos = Number.isFinite(rawPos) ? Math.max(0, Math.min(safeDuration, rawPos)) : 0;
-  const thumbPct = safeDuration > 0 ? Math.max(0, Math.min(100, (displayPos / safeDuration) * 100)) : 0;
+  const thumbPct = safeDuration> 0 ? Math.max(0, Math.min(100, (displayPos / safeDuration) * 100)) : 0;
 
   const segments = useMemo(
     () => buildTimelineSegments(chapters, safeDuration, mediaPath),
     [chapters, safeDuration, mediaPath]
   );
 
-  const hasChapters = segments.length > 1;
+  const hasChapters = segments.length> 1;
 
   // ─── Hover rAF-батчер ────────────────────────────────────────
   const [hoverInfo, setHoverInfo] = useState<{ ratio: number; time: number } | null>(null);
@@ -192,9 +192,9 @@ export const Timeline = React.memo(() => {
   const hoveredSegIndex = useMemo(() => {
     if (!hoverInfo || !hasChapters) return -1;
     const t = hoverInfo.time;
-    const idx = segments.findIndex((s) => t >= s.start && t <= s.end);
+    const idx = segments.findIndex((s) => t>= s.start && t <= s.end);
     if (idx !== -1) return idx;
-    if (t >= segments[segments.length - 1].start) return segments.length - 1;
+    if (t>= segments[segments.length - 1].start) return segments.length - 1;
     if (t <= segments[0].end) return 0;
     return -1;
   }, [hoverInfo, hasChapters, segments]);
@@ -302,8 +302,8 @@ export const Timeline = React.memo(() => {
 
       // Скрыть подсказку если отпускание произошло вне шкалы
       const outside =
-        e.clientX < rect.left || e.clientX > rect.right ||
-        e.clientY < rect.top || e.clientY > rect.bottom;
+        e.clientX < rect.left || e.clientX> rect.right ||
+        e.clientY < rect.top || e.clientY> rect.bottom;
       if (outside) setHoverInfo(null);
     } else {
       // cancel: откатываем без seek
@@ -403,7 +403,7 @@ export const Timeline = React.memo(() => {
       onPointerLeave={handlePointerLeave}
       onWheel={handleWheel}
       onKeyDown={handleKeyDown}
-    >
+      >
       <AudioVisualizer placement="inside_timeline" />
 
       {hoverInfo && (
@@ -425,12 +425,12 @@ export const Timeline = React.memo(() => {
           style={{
             gap: hasChapters ? "3px" : "0px",
           }}
-        >
+          >
           {segments.map((seg, i) => {
             const segDur = seg.end - seg.start;
-            const flexBasis = safeDuration > 0 ? (segDur / safeDuration) * 100 : 100;
-            const segProgress = segDur > 0 ? calcSegPercent(displayPos, seg.start, seg.end) : 0;
-            const segGhost = hoverInfo && segDur > 0
+            const flexBasis = safeDuration> 0 ? (segDur / safeDuration) * 100 : 100;
+            const segProgress = segDur> 0 ? calcSegPercent(displayPos, seg.start, seg.end) : 0;
+            const segGhost = hoverInfo && segDur> 0
               ? calcSegPercent(hoverInfo.time, seg.start, seg.end)
               : 0;
             const isHovered = hasChapters && i === hoveredSegIndex;

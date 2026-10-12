@@ -203,26 +203,26 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
 
   return (
     <>
-      <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-secondary)", marginTop: 8, marginBottom: 12, lineHeight: 1.35 }}>
+      <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-secondary)", marginTop: "var(--space-4)", marginBottom: "var(--space-6)", lineHeight: 1.35 }}>
         {dict.settings.appearance.colorScheme.sectionDesc}
       </div>
 
       {/* Живой аутентичный предпросмотр цветовой темы и акцента */}
       <div className="settings-preview-card">
         <div className="settings-preview-card__info">
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
+            <span className="t-label">
               {dict.settings.appearance.colorScheme.preview}
             </span>
-            <span style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--accent)" }}>
+            <span className="t-label-accent">
               {dict.settings.appearance.colorScheme.playerThemes[playerTheme] || PLAYER_THEMES[playerTheme]?.name || "Dark Graphite"}
             </span>
-            <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)" }}>•</span>
-            <span style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--accent)" }}>
+            <span className="t-hint">•</span>
+            <span className="t-label-accent">
               {dict.settings.appearance.colorScheme.accent} {activeColor === "windows" ? "Windows" : activeColor}
             </span>
-            <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)" }}>•</span>
-            <span style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--accent)" }}>
+            <span className="t-hint">•</span>
+            <span className="t-label-accent">
               {dict.settings.appearance.colorScheme.glow} {GLOW_LABEL_MAP[glowIntensity] || "Medium"}
             </span>
           </div>
@@ -242,7 +242,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
             boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
             transition: "all var(--t-fast) var(--ease-smooth)",
           }}
-        >
+          >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
             <RotateCcw size={14} style={{ color: "var(--text-secondary)", opacity: 0.85, cursor: "default" }} />
             <div
@@ -255,7 +255,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 filter: "var(--play-icon-glow)",
                 transition: "filter var(--t-fast) var(--ease-smooth)",
               }}
-            >
+              >
               <Play size={20} fill="currentColor" />
             </div>
             <RotateCw size={14} style={{ color: "var(--text-secondary)", opacity: 0.85, cursor: "default" }} />
@@ -270,7 +270,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               borderRadius: 3,
               overflow: "visible",
             }}
-          >
+            >
             <div
               style={{
                 position: "absolute",
@@ -289,16 +289,16 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       </div>
 
       {/* ── Блок 1: Цвет самого плеера (Тема оформления) ── */}
-      <div style={{ ...cardStyle, marginBottom: 10 }}>
+      <div style={{ ...cardStyle, marginBottom: "var(--space-5)" }}>
         <div className="player-themes-header">
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Palette size={14} style={{ color: "var(--accent)" }} />
-            <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
+          <div className="row-center row-gap-3">
+            <Palette size={14} className="t-accent" />
+            <span className="t-label">
               {dict.settings.appearance.colorScheme.playerThemeTitle}
             </span>
           </div>
           <div className="player-themes-header__right">
-            <span style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--accent)" }}>
+            <span className="t-label-accent">
               {dict.settings.appearance.colorScheme.playerThemes[playerTheme] || PLAYER_THEMES[playerTheme]?.name || "Dark Graphite"}
             </span>
             <button
@@ -311,11 +311,11 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 borderRadius: "var(--radius-sm)",
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
+                gap: "var(--space-2)",
                 fontSize: "var(--fs-xs)",
                 cursor: "pointer",
               }}
-            >
+              >
               <RotateCcw size={11} />
               <span>{dict.settings.appearance.colorScheme.resetTheme}</span>
             </button>
@@ -347,7 +347,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                     ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
                     : "none",
                 }}
-              >
+                >
                 {/* Индикатор цвета фона темы */}
                 <div
                   style={{
@@ -381,7 +381,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                       "max-width 0.25s cubic-bezier(0.2, 1.15, 0.3, 1), opacity 0.2s ease, transform 0.25s cubic-bezier(0.2, 1.15, 0.3, 1), margin-left 0.25s cubic-bezier(0.2, 1.15, 0.3, 1)",
                     pointerEvents: isSel ? "auto" : "none",
                   }}
-                >
+                  >
                   <span
                     style={{
                       fontSize: "var(--fs-xs)",
@@ -389,7 +389,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                       color: "var(--text-primary)",
                       whiteSpace: "nowrap",
                     }}
-                  >
+                    >
                     {dict.settings.appearance.colorScheme.playerThemes[themeKey] || theme.name}
                   </span>
                 </div>
@@ -400,9 +400,9 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       </div>
 
       {/* ── Блок 2: Акцентный цвет ── */}
-      <div style={{ ...cardStyle, marginBottom: 10 }}>
+      <div style={{ ...cardStyle, marginBottom: "var(--space-5)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
+          <span className="t-label">
             {dict.settings.appearance.colorScheme.accentTitle}
           </span>
           <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)" }}>
@@ -410,7 +410,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
           </span>
         </div>
 
-        <div className="color-columns-grid" style={{ marginTop: 4 }}>
+        <div className="color-columns-grid mt-2">
           {/* Колонки 1 и 2: Пастельные и Стандартные цвета */}
           {[
             { title: dict.settings.appearance.colorScheme.pastel, presets: PASTEL_PRESETS },
@@ -435,13 +435,13 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                         boxShadow: activeColor === hex ? `0 0 14px ${hex}A0` : "none",
                         position: "relative",
                       }}
-                    >
+                      >
                       {isRec && activeColor !== hex && (
                         <span
                           style={{
                             position: "absolute",
-                            bottom: 2,
-                            right: 2,
+                            bottom: "var(--space-1)",
+                            right: "var(--space-1)",
                             width: 5,
                             height: 5,
                             borderRadius: "50%",
@@ -468,7 +468,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               <button
                 onClick={handleSelectWindowsColor}
                 className={`color-circle color-circle--windows ${activeColor === "windows" ? "color-circle--active" : ""}`}
-              >
+                >
                 <Monitor size={15} />
               </button>
 
@@ -482,14 +482,14 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                       backgroundColor: hex,
                       boxShadow: activeColor === hex ? `0 0 14px ${hex}A0` : "none",
                     }}
-                  >
+                    >
                     <span
                       className="color-circle__remove-btn"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRemoveCustomColor(idx);
                       }}
-                    >
+                      >
                       <X size={10} />
                     </span>
                   </button>
@@ -502,7 +502,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                   onClick={() => setShowColorPicker(true)}
                   className="color-circle color-circle--add"
                   title={dict.settings.appearance.colorScheme.addColor}
-                >
+                  >
                   <Plus size={16} />
                 </button>
               )}
@@ -521,9 +521,9 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       {/* ── Блок 3: Интенсивность неонового свечения (Glow Intensity) ── */}
       <div style={cardStyle}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Sparkles size={14} style={{ color: "var(--accent)" }} />
-            <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
+          <div className="row-center row-gap-3">
+            <Sparkles size={14} className="t-accent" />
+            <span className="t-label">
               {dict.settings.appearance.colorScheme.glowTitle}
             </span>
           </div>
@@ -542,7 +542,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 3,
+                  gap: "var(--space-1)",
                   padding: "6px 4px",
                   borderRadius: "var(--radius-sm)",
                   border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
@@ -552,8 +552,8 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                   boxShadow: isSel ? mode.selectedShadow : "none",
                   transition: "all var(--t-fast) var(--ease-smooth)",
                 }}
-              >
-                <span style={{ fontSize: "var(--fs-xs)", fontWeight: 600 }}>{mode.label}</span>
+                >
+                <span className="t-sub">{mode.label}</span>
                 <span style={{ fontSize: "var(--fs-xs)", color: isSel ? "var(--accent-hover)" : "var(--text-secondary)" }}>
                   {dict.settings.appearance.colorScheme.glowLevels[mode.id === "intense" ? "high" : mode.id] || mode.desc}
                 </span>

@@ -41,11 +41,6 @@ export function loadPreloadedUpscaleStatus(force = false): Promise<UpscaleStatus
   return request;
 }
 
-export function preloadSettingsTabs(): void {
-  void loadPreloadedUserPresets().catch(() => {});
-  void loadPreloadedUpscaleStatus().catch(() => {});
-}
-
 export function preloadPresetsSettings(): void {
   void loadPreloadedUserPresets().catch(() => {});
 }

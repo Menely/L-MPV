@@ -543,6 +543,10 @@ export const en: TranslationDict = {
       errUpdate: "Preset update error",
       toastUpdateFail: "Failed to update preset",
       confirmDelete: (name) => `Are you sure you want to delete the preset "${name}"?`,
+      confirmDeleteTitle: "Delete preset",
+      confirmDeleteWarning: "This action cannot be undone.",
+      btnDeleteConfirm: "Delete",
+      btnDeleteCancel: "Cancel",
       toastDeleted: (name) => `Preset "${name}" deleted`,
       toastRenamed: (name) => `Preset renamed to "${name}"`,
       toastImported: (count) => `Imported presets: ${count}`,
@@ -772,6 +776,9 @@ export const en: TranslationDict = {
         upscaleNet4: "Upscaling: Neural network #4",
         upscaleNet5: "Upscaling: Neural network #5",
         upscaleNet6: "Upscaling: Neural network #6",
+        upscaleNet7: "Upscaling: Neural network #7",
+        upscaleNet8: "Upscaling: Neural network #8",
+        upscaleNet9: "Upscaling: Neural network #9",
       },
       keys: {
         lmb: "LMB",
@@ -1082,7 +1089,7 @@ export const en: TranslationDict = {
     upscaleStatsAi: (slot: number, name: string, engine: string, stats: string) =>
       `✨ 4K AI Upscaling: Enabled (Slot ${slot})\nModel: ${name}\nEngine: ${engine}${stats}`,
     upscaleStatsOff: (gpuHint: string) =>
-      `✨ 4K AI Upscaling: Off (Original video)${gpuHint}\nQuick switch: Shift+1 (Off), Shift+2..7 (Models)`,
+      `✨ 4K AI Upscaling: Off (Original video)${gpuHint}\nQuick switch: Shift+1 (Off), Shift+2..0 (Models 1–9)`,
     visualizerStatus: (enabled: boolean) => `Visualizer: ${enabled ? "Enabled" : "Disabled"}`,
     visualizerMode: (mode: string) => `Visualizer: ${mode}`,
     rotation: (degrees: number) => `Rotation: ${degrees}°`,

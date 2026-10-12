@@ -41,18 +41,18 @@ export function SubtitleEmptyState({
           alignItems: "center",
           justifyContent: "center",
           height: "100%",
-          gap: 10,
+          gap: "var(--space-5)",
           color: "var(--text-muted)",
-          fontSize: "0.85rem",
+          fontSize: "var(--fs-base)",
         }}
-      >
+        >
         <Loader2
           size={26}
-          className="spin-animation"
-          style={{ color: "var(--accent)" }}
+          className="spin-animation t-accent"
+          
         />
         <span>{dict.subtitlesSearch.loadingTitle}</span>
-        <span style={{ fontSize: "0.75rem", opacity: 0.7 }}>
+        <span style={{ fontSize: "var(--fs-xs)", opacity: 0.7 }}>
           {dict.subtitlesSearch.loadingSubtitle}
         </span>
       </div>
@@ -67,11 +67,11 @@ export function SubtitleEmptyState({
       <div
         style={{
           color: "var(--text-muted)",
-          fontSize: "0.85rem",
+          fontSize: "var(--fs-base)",
           textAlign: "center",
           padding: "40px 16px",
         }}
-      >
+        >
         {dict.subtitlesSearch.noResults(searchQuery)}
       </div>
     );
@@ -81,20 +81,20 @@ export function SubtitleEmptyState({
     <div
       style={{
         color: "var(--text-muted)",
-        fontSize: "0.85rem",
+        fontSize: "var(--fs-base)",
         textAlign: "center",
         padding: "40px 16px",
         display: "flex",
         flexDirection: "column",
-        gap: "10px",
+        gap: "var(--space-5)",
         alignItems: "center",
       }}
-    >
+      >
       <Subtitles size={32} style={{ opacity: 0.4 }} />
       <div>
         {analyzeError || dict.subtitlesSearch.notFound}
       </div>
-      <div style={{ fontSize: "0.78rem", opacity: 0.8, maxWidth: "320px" }}>
+      <div style={{ fontSize: "var(--fs-xs)", opacity: 0.8, maxWidth: "320px" }}>
         {analyzeError
           ? dict.subtitlesSearch.tryOtherOrExternal
           : dict.subtitlesSearch.selectOtherTrack}
@@ -106,18 +106,18 @@ export function SubtitleEmptyState({
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 6,
+          gap: "var(--space-3)",
           padding: "6px 12px",
           background: "rgba(59, 130, 246, 0.15)",
           border: "1px solid var(--accent)",
           borderRadius: "var(--radius-xs)",
           color: "var(--accent)",
-          fontSize: "0.78rem",
+          fontSize: "var(--fs-xs)",
           fontWeight: 600,
           cursor: "pointer",
-          marginTop: 4,
+          marginTop: "var(--space-2)",
         }}
-      >
+        >
         <FolderOpen size={13} />
         <span>{dict.subtitlesSearch.loadExternalFile}</span>
       </button>

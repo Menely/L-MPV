@@ -39,15 +39,15 @@ export function IntegrationSettingsTab(): React.ReactElement {
     <div className="modal__section">
       <div
         className="modal__section-title"
-        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.95rem", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal" }}
-      >
+        style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", fontSize: "var(--fs-md)", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal" }}
+        >
         <Link size={16} /> {dict.settings.integrationFields.fileAssocTitle}
       </div>
-      <div style={{ fontSize: "0.86rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "var(--fs-base)", color: "var(--text-secondary)", marginTop: "var(--space-4)", marginBottom: "var(--space-7)", lineHeight: 1.5 }}>
         {dict.settings.integrationFields.fileAssocDesc}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", marginBottom: "var(--space-7)" }}>
         <button
           disabled={isRegistering || isUnregistering}
           onClick={async () => {
@@ -64,7 +64,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
           }}
           className="settings-action-btn settings-action-btn--primary"
           style={{ width: "100%" }}
-        >
+          >
           {isRegistering ? (
             <>
               <Loader2 size={16} className="spin-animation" />
@@ -78,7 +78,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
           )}
         </button>
 
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: "var(--space-5)" }}>
           <button
             onClick={async () => {
               try {
@@ -94,9 +94,9 @@ export function IntegrationSettingsTab(): React.ReactElement {
                 ]);
               }
             }}
-            className="settings-action-btn settings-action-btn--secondary"
-            style={{ flex: 1 }}
-          >
+            className="settings-action-btn settings-action-btn--secondary flex-1"
+            
+>
             <ExternalLink size={15} /> {dict.settings.integrationFields.btnWindowsSettings}
           </button>
 
@@ -114,9 +114,9 @@ export function IntegrationSettingsTab(): React.ReactElement {
                 setIsUnregistering(false);
               }
             }}
-            className="settings-action-btn settings-action-btn--danger"
-            style={{ flex: 1 }}
-          >
+            className="settings-action-btn settings-action-btn--danger flex-1"
+            
+>
             {isUnregistering ? (
               <>
                 <Loader2 size={15} className="spin-animation" />
@@ -132,43 +132,43 @@ export function IntegrationSettingsTab(): React.ReactElement {
       </div>
 
       {/* Контекстное меню Windows Explorer (MediaInfo) */}
-      <div style={{ marginTop: 24, marginBottom: 16 }}>
+      <div style={{ marginTop: "var(--space-9)", marginBottom: "var(--space-7)" }}>
         <div
           className="modal__section-title"
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            fontSize: "0.95rem",
+            fontSize: "var(--fs-md)",
             color: "var(--accent)",
             fontWeight: 600,
             textTransform: "none",
             letterSpacing: "normal",
           }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          >
+          <div className="row-center row-gap-4">
             <FileText size={16} /> {dict.settings.integrationFields.cmenuTitle}
           </div>
           {isContextMenuRegistered !== null && (
             <span
               style={{
-                fontSize: "0.75rem",
+                fontSize: "var(--fs-xs)",
                 padding: "2px 8px",
                 borderRadius: "var(--radius-sm)",
                 background: isContextMenuRegistered ? "rgba(34, 197, 94, 0.15)" : "rgba(148, 163, 184, 0.15)",
                 color: isContextMenuRegistered ? "#4ade80" : "var(--text-muted)",
                 fontWeight: 500,
               }}
-            >
+              >
               {isContextMenuRegistered ? dict.settings.integrationFields.cmenuActive : dict.settings.integrationFields.cmenuInactive}
             </span>
           )}
         </div>
-        <div style={{ fontSize: "0.86rem", color: "var(--text-secondary)", marginTop: 8, marginBottom: 16, lineHeight: 1.5 }}>
+        <div style={{ fontSize: "var(--fs-base)", color: "var(--text-secondary)", marginTop: "var(--space-4)", marginBottom: "var(--space-7)", lineHeight: 1.5 }}>
           {dict.settings.integrationFields.cmenuDesc}
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: "var(--space-5)" }}>
           <button
             disabled={isContextMenuLoading || isRegistering || isUnregistering}
             onClick={async () => {
@@ -183,9 +183,9 @@ export function IntegrationSettingsTab(): React.ReactElement {
                 setIsContextMenuLoading(false);
               }
             }}
-            className="settings-action-btn settings-action-btn--primary"
-            style={{ flex: 1 }}
-          >
+            className="settings-action-btn settings-action-btn--primary flex-1"
+            
+>
             {isContextMenuLoading ? (
               <>
                 <Loader2 size={15} className="spin-animation" />
@@ -213,9 +213,9 @@ export function IntegrationSettingsTab(): React.ReactElement {
                 setIsContextMenuLoading(false);
               }
             }}
-            className="settings-action-btn settings-action-btn--danger"
-            style={{ flex: 1 }}
-          >
+            className="settings-action-btn settings-action-btn--danger flex-1"
+            
+>
             <Trash2 size={15} />
             {dict.settings.integrationFields.btnRemoveCmenu}
           </button>
@@ -230,19 +230,19 @@ export function IntegrationSettingsTab(): React.ReactElement {
           background: "#0c0c0c",
           border: "1px solid var(--border)",
           borderRadius: "var(--radius-sm)",
-          padding: "12px",
+          padding: "var(--space-6)",
           height: "200px",
           overflowY: "auto",
           overflowX: "auto",
           overflowWrap: "anywhere",
           fontFamily: "monospace",
-          fontSize: "0.8rem",
+          fontSize: "var(--fs-sm)",
           color: "#d4d4d4",
           display: "flex",
           flexDirection: "column",
-          gap: 4,
+          gap: "var(--space-2)",
         }}
-      >
+        >
         {integrationLogs.length === 0 ? (
           <span style={{ color: "#808080" }}>{dict.settings.integrationFields.logPlaceholder}</span>
         ) : (

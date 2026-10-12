@@ -28,6 +28,7 @@ import {
   useMediaInfoDragDrop,
 } from "./mediainfo";
 import "../../styles/mediainfo-modal.css";
+import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils";
 
 interface DetailedMediaInfoResponse {
   text: string;
@@ -214,6 +215,10 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   // Обработка клавиатурных сокращений
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const customHotkeys = getCustomHotkeys();
+      const infoKeys = customHotkeys.detailedMediaInfo || ["Shift+F10"];
+      const isInfoHotkey = infoKeys.some((k) => isKeyboardEventMatch(e, k));
+
       if (e.key === "Escape") {
         e.stopPropagation();
         if (searchQuery) {
@@ -221,6 +226,10 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
         } else {
           handleClose();
         }
+      } else if (isInfoHotkey) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleClose();
       } else if (e.ctrlKey && (e.key === "f" || e.key === "F" || e.key === "а" || e.key === "А")) {
         e.preventDefault();
         searchInputRef.current?.focus();
@@ -349,7 +358,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     <div
       className={`mediainfo-standalone ${isDragOver ? "mediainfo-standalone--drag-over" : ""}`}
       {...dragHandlers}
-    >
+      >
       {isDragOver && (
         <div className="mediainfo-standalone__drag-overlay">
           <div className="mediainfo-standalone__drag-box">
@@ -371,11 +380,11 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
         className="mediainfo-standalone__titlebar" 
         data-tauri-drag-region
         onDoubleClick={handleToggleMaximize}
-      >
+        >
         <div 
           className="mediainfo-standalone__titlebar-left"
           data-tauri-drag-region
-        >
+          >
           <span className="mediainfo-standalone__icon" data-tauri-drag-region>
             <FileText size={15} />
           </span>
@@ -387,7 +396,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
               className="mediainfo-standalone__filename" 
               title={filePath}
               data-tauri-drag-region
-            >
+              >
               — {fileName}
             </span>
           )}
@@ -399,7 +408,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             className={`mediainfo-standalone__control-btn ${isAlwaysOnTop ? "mediainfo-standalone__control-btn--active" : ""}`}
             title={isAlwaysOnTop ? "Открепить от верха окон" : "Закрепить поверх всех окон"}
             onClick={handleToggleAlwaysOnTop}
-          >
+            >
             <Pin size={13} style={{ transform: isAlwaysOnTop ? "rotate(45deg)" : "none", color: isAlwaysOnTop ? "var(--accent)" : "inherit" }} />
           </button>
           <button
@@ -407,7 +416,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             className="mediainfo-standalone__control-btn"
             title="Свернуть"
             onClick={handleMinimize}
-          >
+            >
             <Minus size={13} />
           </button>
           <button
@@ -415,7 +424,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             className="mediainfo-standalone__control-btn"
             title={isMaximized ? "Восстановить" : "Развернуть"}
             onClick={handleToggleMaximize}
-          >
+            >
             <Square size={11} />
           </button>
           <button
@@ -423,7 +432,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             className="mediainfo-standalone__control-btn mediainfo-standalone__control-btn--close"
             title="Закрыть (Esc)"
             onClick={handleClose}
-          >
+            >
             <X size={14} />
           </button>
         </div>
@@ -451,7 +460,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
                 className="mediainfo-standalone__btn-icon"
                 title="Очистить поиск"
                 onClick={() => setSearchQuery("")}
-              >
+                >
                 <X size={12} />
               </button>
             </div>
@@ -464,7 +473,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             className={`mediainfo-standalone__action-btn ${useRussian ? "mediainfo-standalone__action-btn--active" : ""}`}
             title="Переключить язык (Русский / Английский)"
             onClick={() => setUseRussian(!useRussian)}
-          >
+            >
             <Languages size={13} />
             <span>{useRussian ? "RU" : "EN"}</span>
           </button>
@@ -475,7 +484,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             title="Копировать отчёт в буфер"
             onClick={handleCopy}
             disabled={!baseReport.rawText}
-          >
+            >
             {copied ? <Check size={13} color="#4ade80" /> : <Copy size={13} />}
             <span>{copied ? "Скопировано" : "Копировать"}</span>
           </button>
@@ -486,7 +495,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             title="Экспорт в .txt"
             onClick={handleExportTxt}
             disabled={!baseReport.rawText}
-          >
+            >
             <Download size={13} />
             <span>Экспорт</span>
           </button>
@@ -521,10 +530,10 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             {filePath && (
               <button
                 type="button"
-                className="mediainfo-standalone__action-btn"
-                style={{ marginTop: 8 }}
+                className="mediainfo-standalone__action-btn mt-4"
+                
                 onClick={() => loadMediaInfoForPath(filePath)}
-              >
+                >
                 <RefreshCw size={12} />
                 <span>Повторить анализ</span>
               </button>

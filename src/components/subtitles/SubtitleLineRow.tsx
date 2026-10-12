@@ -68,7 +68,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 6,
+        gap: "var(--space-3)",
         padding: isTech ? "8px 11px" : "7px 10px",
         background: isActive
           ? "var(--bg-active)"
@@ -93,38 +93,38 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
       className={`sub-line-row hover-bright ${
         isTech ? "sub-line-row--tech" : ""
       }`}
-    >
+      >
       <div
         style={{
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "space-between",
-          gap: 8,
+          gap: "var(--space-4)",
         }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
+        >
+        <div className="grow">
           {/* Строка таймингов + тех-бейджи */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              marginBottom: 3,
+              gap: "var(--space-3)",
+              marginBottom: "var(--space-1)",
               flexWrap: "wrap",
             }}
-          >
+            >
             {/* Таймкоды */}
             <span
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 4,
+                gap: "var(--space-2)",
                 fontSize: isTech ? "0.74rem" : "0.72rem",
                 fontWeight: 600,
                 color: isActive ? "var(--accent)" : "var(--text-muted)",
                 fontVariantNumeric: "tabular-nums",
               }}
-            >
+              >
               <Clock size={11} />
               <span>
                 {isTech
@@ -139,15 +139,15 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
               </span>
             </span>
 
-            {duration > 0 && (
+            {duration> 0 && (
               <span
                 style={{
-                  fontSize: "0.66rem",
+                  fontSize: "var(--fs-2xs)",
                   color: "var(--text-muted)",
                   opacity: 0.7,
                   fontVariantNumeric: "tabular-nums",
                 }}
-              >
+                >
                 ({duration.toFixed(isTech ? 2 : 1)}{dict.subtitlesSearch.secSuffix})
               </span>
             )}
@@ -155,7 +155,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
             {isNavTarget && !isActive && (
               <span
                 style={{
-                  fontSize: "0.65rem",
+                  fontSize: "var(--fs-3xs)",
                   fontWeight: 600,
                   padding: "1px 5px",
                   borderRadius: "var(--radius-xs)",
@@ -163,7 +163,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
                   color: "var(--accent)",
                   border: "1px solid var(--accent)",
                 }}
-              >
+                >
                 {dict.subtitlesSearch.matchBadge}
               </span>
             )}
@@ -184,7 +184,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
               wordBreak: "break-word",
               whiteSpace: "pre-line",
             }}
-          >
+            >
             <HighlightedText text={line.text} query={searchQuery} />
           </div>
         </div>
@@ -198,7 +198,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
             border: "none",
             color: isCopied ? "var(--accent)" : "var(--text-muted)",
             cursor: "pointer",
-            padding: 4,
+            padding: "var(--space-2)",
             borderRadius: "var(--radius-xs)",
             flexShrink: 0,
             opacity: 0.7,
@@ -206,7 +206,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
           }}
           className="hover-bright sub-line-copy-btn"
           title={dict.subtitlesSearch.copyLineText}
-        >
+          >
           {isCopied ? <Check size={13} /> : <Copy size={13} />}
         </button>
       </div>

@@ -36,6 +36,7 @@ import {
   Eye,
   Search,
 } from "lucide-react";
+import { getCustomHotkeys, getKeyDisplay } from "../../utils/hotkeyUtils";
 import {
   type TimeDisplayPosition,
   getSavedTimePosition,
@@ -227,6 +228,15 @@ export function ContextMenu({
     }
   });
 
+  // Стейт пользовательских горячих клавиш для динамических шорткатов
+  const [hotkeys, setHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
+
+  useEffect(() => {
+    const handleSettingsChanged = () => setHotkeys(getCustomHotkeys());
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    return () => window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+  }, []);
+
   useEffect(() => {
     let ambientRevision = 0;
     const requestRevision = ambientRevision;
@@ -346,8 +356,8 @@ export function ContextMenu({
     const estWidth = 220;
     const estHeight = 440;
 
-    const newX = cssX + estWidth > cssInnerWidth ? cssX - estWidth : cssX;
-    const newY = cssY + estHeight > cssInnerHeight ? cssY - estHeight : cssY;
+    const newX = cssX + estWidth> cssInnerWidth ? cssX - estWidth : cssX;
+    const newY = cssY + estHeight> cssInnerHeight ? cssY - estHeight : cssY;
 
     return {
       x: Math.max(0, newX),
@@ -366,8 +376,8 @@ export function ContextMenu({
       const cssInnerWidth = window.innerWidth / zoom;
       const cssInnerHeight = window.innerHeight / zoom;
 
-      const newX = cssX + cssWidth > cssInnerWidth ? cssX - cssWidth : cssX;
-      const newY = cssY + cssHeight > cssInnerHeight ? cssY - cssHeight : cssY;
+      const newX = cssX + cssWidth> cssInnerWidth ? cssX - cssWidth : cssX;
+      const newY = cssY + cssHeight> cssInnerHeight ? cssY - cssHeight : cssY;
 
       setAdjustedPos({
         x: Math.max(0, newX),
@@ -684,9 +694,9 @@ export function ContextMenu({
         action: () => { onOpenFile?.(); handleClose(); },
         submenuClassName: "context-menu__submenu--recent",
         children: [
-          { type: "item", icon: STATIC_ICONS.openFileSub, label: dict.settings.cmenuUI.openDisk, shortcut: "Ctrl+O", action: () => { onOpenFile?.(); handleClose(); } },
+          { type: "item", icon: STATIC_ICONS.openFileSub, label: dict.settings.cmenuUI.openDisk, shortcut: getKeyDisplay(hotkeys.openFile?.[0] || "Ctrl+KeyO"), action: () => { onOpenFile?.(); handleClose(); } },
           { type: "divider" },
-          ...(recentFiles.length > 0
+          ...(recentFiles.length> 0
             ? [
                 ...recentFiles.map((rf) => ({ type: "item" as const, icon: STATIC_ICONS.film, label: rf.title, action: () => { onOpenFile?.(rf.path); handleClose(); } })),
                 { type: "divider" as const },
@@ -698,7 +708,7 @@ export function ContextMenu({
       audio_track: () => ({
         type: "submenu", icon: STATIC_ICONS.audioTrack, label: dict.settings.cmenuUI.audioTrack,
         submenuClassName: "context-menu__submenu--tracks",
-        children: audioTracks.length > 0
+        children: audioTracks.length> 0
           ? audioTracks.map((t) => ({
               type: "track" as const,
               track: t,
@@ -731,7 +741,7 @@ export function ContextMenu({
             type: "item" as const,
             icon: STATIC_ICONS.search,
             label: dict.settings.cmenuUI.searchSub,
-            shortcut: "Ctrl+F",
+            shortcut: getKeyDisplay(hotkeys.searchSubtitles?.[0] || "Ctrl+KeyF"),
             action: () => {
               onShowSubtitlesSearch?.();
               handleClose();
@@ -788,7 +798,7 @@ export function ContextMenu({
             action: handleSetUpscaleOff,
           },
           { type: "divider" },
-          ...(upscaleModels.length > 0
+          ...(upscaleModels.length> 0
             ? upscaleModels.map((m) => ({
                 type: "item" as const,
                 label: m.display_name || m.filename,
@@ -812,17 +822,17 @@ export function ContextMenu({
         action: handleToggleAlwaysOnTop,
       }),
       screenshot: () => ({
-        type: "item", icon: STATIC_ICONS.screenshot, label: dict.settings.cmenuUI.saveFrame, shortcut: "S",
+        type: "item", icon: STATIC_ICONS.screenshot, label: dict.settings.cmenuUI.saveFrame, shortcut: getKeyDisplay(hotkeys.screenshot?.[0] || "KeyS"),
         action: handleTakeScreenshot,
       }),
-      media_info: () => ({ type: "item", icon: STATIC_ICONS.mediaInfo, label: dict.settings.cmenuUI.fileInfo, shortcut: "I", action: () => { onShowMediaInfo(); handleClose(); } }),
-      detailed_media_info: () => ({ type: "item", icon: STATIC_ICONS.detailedMediaInfo, label: dict.settings.cmenuUI.mediaInfo, shortcut: "Shift+F10", action: () => { onShowDetailedMediaInfo?.(); handleClose(); } }),
+      media_info: () => ({ type: "item", icon: STATIC_ICONS.mediaInfo, label: dict.settings.cmenuUI.fileInfo, shortcut: getKeyDisplay(hotkeys.fileInfo?.[0] || "KeyI"), action: () => { onShowMediaInfo(); handleClose(); } }),
+      detailed_media_info: () => ({ type: "item", icon: STATIC_ICONS.detailedMediaInfo, label: dict.settings.cmenuUI.mediaInfo, shortcut: getKeyDisplay(hotkeys.detailedMediaInfo?.[0] || "Shift+F10"), action: () => { onShowDetailedMediaInfo?.(); handleClose(); } }),
       presets: () => ({
         type: "submenu",
         icon: STATIC_ICONS.presets,
         label: dict.settings.cmenuUI.presets,
         children: [
-          ...(userPresets.length > 0
+          ...(userPresets.length> 0
             ? [
                 ...userPresets.map((p) => ({
                   type: "item" as const,
@@ -961,7 +971,7 @@ export function ContextMenu({
       }
       normalized.push(item);
     }
-    if (normalized.length > 0 && normalized[normalized.length - 1].type === "divider") {
+    if (normalized.length> 0 && normalized[normalized.length - 1].type === "divider") {
       normalized.pop();
     }
 
@@ -987,7 +997,7 @@ export function ContextMenu({
   const isRightScreenEdge = useMemo(() => {
     if (typeof window === "undefined") return false;
     const zoom = getUiScale();
-    return adjustedPos.x + menuWidth + 220 > (window.innerWidth / zoom);
+    return adjustedPos.x + menuWidth + 220> (window.innerWidth / zoom);
   }, [adjustedPos.x, menuWidth]);
 
   // Красивая точка роста меню: origin следует за реальным флипом по X/Y
@@ -1055,14 +1065,14 @@ export function ContextMenu({
                 closeTimerRef.current = null;
               }
             }}
-          >
+            >
             <button
               type="button"
               className={`context-menu__track-btn ${
                 item.active ? "context-menu__track-btn--active" : ""
               }`}
               onClick={item.action}
-            >
+              >
               <span className="context-menu__track-title">{item.label}</span>
               <span className="context-menu__track-check">
                 {item.active && <Check size={15} />}
@@ -1077,7 +1087,7 @@ export function ContextMenu({
                   e.stopPropagation();
                   item.onDownload?.();
                 }}
-              >
+                >
                 {item.isDownloading ? (
                   <Loader2 size={13} className="spin-animation" />
                 ) : (
@@ -1091,7 +1101,7 @@ export function ContextMenu({
 
       if (item.type === "submenu") {
         const submenuId = `submenu-${index}`;
-        const isBottomHalf = index > menuItems.length / 2;
+        const isBottomHalf = index> menuItems.length / 2;
         const isSubmenuOpen = activeSubmenu === submenuId;
         return (
           <div
@@ -1137,14 +1147,14 @@ export function ContextMenu({
                 closeTimerRef.current = null;
               }, 250);
             }}
-          >
+            >
             <button
               type="button"
               className={`context-menu__item ${isSubmenuOpen ? "context-menu__item--submenu-open" : ""} ${
                 isRightScreenEdge ? "context-menu__item--submenu-left" : ""
               }`}
               onClick={item.action}
-            >
+              >
               <span className="context-menu__item-icon">
                 {item.icon}
               </span>
@@ -1171,7 +1181,7 @@ export function ContextMenu({
                     openTimerRef.current = null;
                   }
                 }}
-              >
+                >
                 {item.children.map((child, ci) => renderItem(child, ci, true))}
               </div>
             )}
@@ -1206,7 +1216,7 @@ export function ContextMenu({
               closeTimerRef.current = null;
             }
           }}
-        >
+          >
           {item.icon && (
             <span className="context-menu__item-icon">
               {item.icon}
@@ -1215,7 +1225,7 @@ export function ContextMenu({
           <span className="context-menu__item-label context-menu__item-label--truncate">
             {item.label}
           </span>
-          {item.active && <Check size={15} style={{ marginLeft: 6 }} />}
+          {item.active && <Check size={15} style={{ marginLeft: "var(--space-3)" }} />}
           {item.shortcut && (
             <span className="context-menu__item-shortcut">
               {item.shortcut}
@@ -1237,7 +1247,7 @@ export function ContextMenu({
         transformOrigin: menuOrigin,
         visibility: positioned ? "visible" : "hidden",
       }}
-    >
+      >
       {menuItems.map((item, index) => renderItem(item, index, false))}
     </div>
   );

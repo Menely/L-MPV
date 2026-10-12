@@ -22,6 +22,7 @@ import {
   MediaInfoTabsBar,
   MediaInfoSectionList,
 } from "./mediainfo";
+import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils";
 
 interface DetailedMediaInfoModalProps {
   isOpen: boolean;
@@ -76,7 +77,7 @@ export function DetailedMediaInfoModal({
       .getPropertyValue("--ui-scale")
       .trim();
     const scale = parseFloat(zoomStr);
-    return Number.isFinite(scale) && scale > 0 ? scale : 1;
+    return Number.isFinite(scale) && scale> 0 ? scale : 1;
   }, []);
 
   // Позиционирование по центру окна при первом открытии
@@ -146,6 +147,10 @@ export function DetailedMediaInfoModal({
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      const customHotkeys = getCustomHotkeys();
+      const infoKeys = customHotkeys.detailedMediaInfo || ["Shift+F10"];
+      const isInfoHotkey = infoKeys.some((k) => isKeyboardEventMatch(e, k));
+
       if (e.key === "Escape") {
         e.stopPropagation();
         if (searchQuery) {
@@ -153,7 +158,7 @@ export function DetailedMediaInfoModal({
         } else {
           handleClose();
         }
-      } else if (e.shiftKey && e.key === "F10") {
+      } else if (isInfoHotkey || (e.shiftKey && e.key === "F10")) {
         e.preventDefault();
         handleClose();
       } else if (e.ctrlKey && (e.key === "f" || e.key === "F" || e.key === "а" || e.key === "А")) {
@@ -307,12 +312,12 @@ export function DetailedMediaInfoModal({
       }`}
       role="dialog"
       aria-label={dict.detailedMediaInfoModal.title}
-    >
+      >
       {/* Шапка окна с кнопками управления */}
       <div
         className="mediainfo-floating-window__header"
         title={dict.detailedMediaInfoModal.dragHeader}
-      >
+        >
         <div className="mediainfo-floating-window__header-left">
           <FileText size={16} className="mediainfo-floating-window__icon" />
           <span className="mediainfo-floating-window__title">
@@ -328,9 +333,9 @@ export function DetailedMediaInfoModal({
               useRussian ? "mediainfo-floating-window__btn--active" : ""
             }`}
             title={useRussian ? dict.detailedMediaInfoModal.langTooltipRu : dict.detailedMediaInfoModal.langTooltipEn}
-          >
+            >
             <Languages size={14} />
-            <span style={{ fontSize: "0.7rem", fontWeight: 600 }}>{useRussian ? "RU" : "EN"}</span>
+            <span style={{ fontSize: "var(--fs-2xs)", fontWeight: 600 }}>{useRussian ? "RU" : "EN"}</span>
           </button>
 
           {/* Копировать всё */}
@@ -339,7 +344,7 @@ export function DetailedMediaInfoModal({
             className="mediainfo-floating-window__btn"
             title={dict.detailedMediaInfoModal.copyReport}
             disabled={!baseReport.rawText}
-          >
+            >
             {copied ? <Check size={14} color="#4ade80" /> : <Copy size={14} />}
           </button>
 
@@ -349,7 +354,7 @@ export function DetailedMediaInfoModal({
             className="mediainfo-floating-window__btn"
             title={dict.detailedMediaInfoModal.exportTxt}
             disabled={!baseReport.rawText}
-          >
+            >
             <Download size={14} />
           </button>
 
@@ -359,7 +364,7 @@ export function DetailedMediaInfoModal({
             className="mediainfo-floating-window__btn mediainfo-floating-window__btn--close"
             title={dict.detailedMediaInfoModal.close}
             aria-label={dict.detailedMediaInfoModal.close}
-          >
+            >
             <X size={15} />
           </button>
         </div>
@@ -379,12 +384,12 @@ export function DetailedMediaInfoModal({
         {searchQuery && (
           <span
             style={{
-              fontSize: "0.7rem",
-              color: matchCount > 0 ? "var(--accent)" : "#f87171",
+              fontSize: "var(--fs-2xs)",
+              color: matchCount> 0 ? "var(--accent)" : "#f87171",
               padding: "0 4px",
               whiteSpace: "nowrap",
             }}
-          >
+            >
             {matchCount}
           </span>
         )}
@@ -394,7 +399,7 @@ export function DetailedMediaInfoModal({
             className="mediainfo-floating-window__search-clear"
             title={dict.detailedMediaInfoModal.clearSearch}
             aria-label={dict.detailedMediaInfoModal.clearSearch}
-          >
+            >
             <X size={12} />
           </button>
         )}
@@ -417,7 +422,7 @@ export function DetailedMediaInfoModal({
       <div className="mediainfo-floating-window__body" ref={bodyRef}>
         {loading && (
           <div className="mediainfo-floating-window__loading">
-            <Loader2 size={24} className="spin-animation" style={{ color: "var(--accent)" }} />
+            <Loader2 size={24} className="spin-animation t-accent"  />
             <span>{dict.detailedMediaInfoModal.loading}</span>
           </div>
         )}

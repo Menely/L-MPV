@@ -105,8 +105,8 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
       style={cardStyle}
       onClick={onSelect}
       className={`glass-tile glass-tile--clickable ${isSelected ? "glass-tile--active" : ""}`}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+      >
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flex: 1, minWidth: 0 }}>
         {/* Ручка захвата для перетаскивания мышкой */}
         <div
           {...attributes}
@@ -127,14 +127,14 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
             transition: "opacity 0.15s ease, color 0.15s ease",
           }}
           title={dict.settings.upscaling.dragReorderTip}
-        >
+          >
           <GripVertical size={16} />
         </div>
 
         {/* Порядковый номер модели в списке */}
         <span
           style={{
-            fontSize: "0.72rem",
+            fontSize: "var(--fs-xs)",
             fontWeight: 600,
             color: isSelected ? "var(--accent)" : "var(--text-muted)",
             background: isSelected
@@ -148,13 +148,13 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
             lineHeight: 1.4,
           }}
           title={dict.settings.upscaling.modelNumberTip(idx + 1)}
-        >
+          >
           #{idx + 1}
         </span>
 
         {/* Индикатор выбора */}
         {isSelected ? (
-          <CheckCircle2 size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
+          <CheckCircle2 size={18} color="var(--accent)" className="no-shrink" />
         ) : (
           <div
             style={{
@@ -171,7 +171,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
         <div style={{ minWidth: 0, flex: 1 }}>
           <div
             style={{
-              fontSize: "0.88rem",
+              fontSize: "var(--fs-base)",
               fontWeight: 500,
               color: hideModelNames ? "var(--text-muted)" : "var(--text-primary)",
               letterSpacing: hideModelNames ? "0.15em" : "normal",
@@ -180,22 +180,22 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
               textOverflow: "ellipsis",
               userSelect: hideModelNames ? "none" : "auto",
             }}
-          >
+            >
             {hideModelNames ? "••••••••••••••••" : model.display_name}
           </div>
           <div
             style={{
-              fontSize: "0.75rem",
+              fontSize: "var(--fs-xs)",
               color: "var(--text-muted)",
               fontFamily: "var(--font-mono)",
               letterSpacing: hideModelNames ? "0.15em" : "normal",
-              marginTop: 1,
+              marginTop: "var(--space-0)",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
               userSelect: hideModelNames ? "none" : "auto",
             }}
-          >
+            >
             {hideModelNames
               ? "••••••••••••••••••••"
               : `${model.filename} (${formatFileSize(model.size_bytes)})`}
@@ -208,11 +208,11 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 6,
+          gap: "var(--space-3)",
           flexShrink: 0,
         }}
         onClick={(e) => e.stopPropagation()}
-      >
+        >
         <ModelTensorRtAction
           model={model}
           supportsTensorrt={supportsTensorrt}

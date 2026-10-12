@@ -4,7 +4,7 @@
   bottom: 12px;
   left: 14px;
   right: 14px;
-  z-index: 500;
+  z-index: var(--z-controls);
   width: calc(100% - 28px);
   max-width: none;
   container-type: inline-size;
@@ -20,7 +20,7 @@
   background: var(--bg-pill);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-controls, 16px);
-  padding: 5px 16px 8px;
+  padding: var(--space-2) 16px 8px;
   box-shadow: var(--shadow-pill);
   transition: transform var(--t-pop) var(--ease-standard),
               box-shadow var(--t-pop) var(--ease-standard),
@@ -47,7 +47,7 @@
   border-right: none;
   border-bottom: none;
   border-top: 1px solid var(--border-pill);
-  padding: 6px 18px 9px;
+  padding: var(--space-3) 18px 9px;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
 }
 
@@ -64,9 +64,9 @@
 .timeline-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-6);
   width: 100%;
-  margin-bottom: 2px;
+  margin-bottom: var(--space-1);
 }
 
 .timeline-row--full {
@@ -95,7 +95,7 @@
   justify-content: center;
   align-items: center;
   pointer-events: none;
-  z-index: 10;
+  z-index: var(--z-in-thumb);
 }
 
 .time-display--floating-center {
@@ -103,8 +103,8 @@
   background: rgba(14, 20, 30, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
-  padding: 2px 11px;
-  font-size: 0.76rem;
+  padding: var(--space-1) 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-primary);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
@@ -121,7 +121,7 @@
   background: rgba(20, 30, 48, 0.92);
   border-color: var(--accent);
   color: #ffffff;
-  box-shadow: 0 0 12px rgba(var(--accent-rgb, 127, 199, 255), 0.4);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.4);
   transform: translateY(-1px);
 }
 
@@ -133,7 +133,7 @@
   display: flex;
   align-items: center;
   cursor: pointer;
-  margin-bottom: 2px;
+  margin-bottom: var(--space-1);
   outline: none;
   touch-action: none;
 }
@@ -232,7 +232,7 @@
   box-shadow: var(--thumb-glow, var(--shadow-glow));
   transition: transform var(--t-spring) var(--ease-spring-bounce),
               box-shadow var(--t-base) var(--ease-smooth);
-  z-index: 10;
+  z-index: var(--z-in-thumb);
   pointer-events: none;
   will-change: transform;
 }
@@ -259,7 +259,7 @@
   border: 1.5px solid var(--accent);
   box-shadow: 0 0 6px var(--accent-glow, var(--accent));
   pointer-events: none;
-  z-index: 5;
+  z-index: var(--z-in-pulse);
   will-change: transform, opacity;
   animation: timeline-pulse 500ms ease-out forwards;
 }
@@ -298,7 +298,7 @@ html.no-animations .timeline__pulse {
 .controls-row__left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-3);
   justify-self: start;
   min-width: 0;
 }
@@ -306,7 +306,7 @@ html.no-animations .timeline__pulse {
 .controls-row__center {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-6);
   justify-self: center;
   flex-shrink: 0;
 }
@@ -314,7 +314,7 @@ html.no-animations .timeline__pulse {
 .controls-row__right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-3);
   justify-self: end;
   min-width: 0;
 }
@@ -346,13 +346,13 @@ html.no-animations .timeline__pulse {
   min-width: 34px;
   padding: 0 8px;
   border-radius: var(--radius-md, 12px);
-  gap: 5px;
+  gap: var(--space-2);
   transform: none !important;
   will-change: auto;
 }
 
 .control-btn__label {
-  font-size: 0.73rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.3px;
   color: var(--text-primary);
@@ -521,7 +521,7 @@ html.no-animations .timeline__pulse {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
   white-space: nowrap;
-  padding: 2px 6px;
+  padding: var(--space-1) 6px;
   border-radius: var(--radius-xs, 4px);
   letter-spacing: 0.3px;
   display: inline-flex;
@@ -536,7 +536,7 @@ html.no-animations .timeline__pulse {
 }
 
 .time-display:hover {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.14);
+  background: rgba(var(--accent-rgb), 0.14);
   color: var(--accent-hover, var(--accent));
 }
 
@@ -556,7 +556,7 @@ html.no-animations .timeline__pulse {
 .time-display--toolbar {
   font-size: var(--fs-xs, 0.74rem);
   margin: 0 4px 0 2px;
-  padding: 2px 4px;
+  padding: var(--space-1) 4px;
   user-select: none;
   flex-shrink: 0;
   white-space: nowrap;
@@ -621,7 +621,7 @@ html.no-animations .timeline__pulse {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   user-select: none;
-  margin-left: 5px;
+  margin-left: var(--space-2);
   transition: color var(--t-fast) var(--ease-smooth);
 }
 
@@ -675,10 +675,10 @@ html[data-glow="off"] .timeline__thumb {
   }
   .controls-row__left,
   .controls-row__right {
-    gap: 4px;
+    gap: var(--space-2);
   }
   .controls-row__center {
-    gap: 8px;
+    gap: var(--space-4);
   }
 }
 
@@ -697,10 +697,10 @@ html[data-glow="off"] .timeline__thumb {
   }
   .controls-row__left,
   .controls-row__right {
-    gap: 3px;
+    gap: var(--space-1);
   }
   .controls-row__center {
-    gap: 6px;
+    gap: var(--space-3);
   }
 }
 
@@ -713,18 +713,18 @@ html[data-glow="off"] .timeline__thumb {
     display: none !important;
   }
   .controls-row__center {
-    gap: 6px;
+    gap: var(--space-3);
   }
   .controls-row__left,
   .controls-row__right {
-    gap: 2px;
+    gap: var(--space-1);
   }
 }
 
 /* 4. Скрытие среднеприоритетных кнопок и компактный слайдер при ширине <= 580px */
 @container controls (max-width: 580px) {
   .player-controls {
-    padding: 5px 10px 8px;
+    padding: var(--space-2) 10px 8px;
   }
   .volume-slider__value {
     display: none !important;
@@ -738,23 +738,23 @@ html[data-glow="off"] .timeline__thumb {
     display: none !important;
   }
   .controls-row__center {
-    gap: 4px;
+    gap: var(--space-2);
   }
   .controls-row__left,
   .controls-row__right {
-    gap: 2px;
+    gap: var(--space-1);
   }
 }
 
 /* 5. Мобильный / ультракомпактный режим при ширине <= 460px */
 @container controls (max-width: 460px) {
   .player-controls {
-    padding: 4px 8px 7px;
+    padding: var(--space-2) 8px 7px;
     border-radius: var(--radius-controls, 14px);
   }
   .controls-row {
     grid-template-columns: auto 1fr auto;
-    gap: 4px;
+    gap: var(--space-2);
   }
   .volume-slider {
     display: none !important;
@@ -764,10 +764,10 @@ html[data-glow="off"] .timeline__thumb {
   }
   .time-display__compact {
     display: inline !important;
-    font-size: 0.72rem;
+    font-size: var(--fs-xs);
   }
   .controls-row__center {
-    gap: 4px;
+    gap: var(--space-2);
     justify-self: center;
   }
   .control-btn {
@@ -806,7 +806,7 @@ html[data-glow="off"] .timeline__thumb {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: var(--space-5);
   background: transparent;
   border: none;
   box-shadow: none;
@@ -814,7 +814,7 @@ html[data-glow="off"] .timeline__thumb {
   color: #ffffff;
   pointer-events: none;
   user-select: none;
-  z-index: 650;
+  z-index: var(--z-widget);
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.95));
   transition: opacity 0.18s var(--ease-smooth),
               transform 0.18s var(--ease-smooth);
@@ -856,7 +856,7 @@ html[data-glow="off"] .timeline__thumb {
 }
 
 .seek-indicator__label {
-  font-size: 1.55rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;

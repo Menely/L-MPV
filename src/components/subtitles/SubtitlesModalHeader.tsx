@@ -51,20 +51,20 @@ export function SubtitlesModalHeader({
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: "12px",
+        marginBottom: "var(--space-6)",
         flexShrink: 0,
-        gap: 8,
+        gap: "var(--space-4)",
       }}
-    >
+      >
       {/* Иконка + заголовок */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "8px",
+          gap: "var(--space-4)",
           minWidth: 0,
         }}
-      >
+        >
         <div
           style={{
             width: 28,
@@ -78,7 +78,7 @@ export function SubtitlesModalHeader({
             color: "#fff",
             flexShrink: 0,
           }}
-        >
+          >
           <Subtitles size={16} />
         </div>
         <div
@@ -90,7 +90,7 @@ export function SubtitlesModalHeader({
             overflow: "hidden",
             textOverflow: "ellipsis",
           }}
-        >
+          >
           {dict.subtitlesSearch.title}
         </div>
       </div>
@@ -100,23 +100,23 @@ export function SubtitlesModalHeader({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "4px",
+          gap: "var(--space-2)",
           flexShrink: 0,
         }}
-      >
+        >
         {/* Переключатель режимов: Обычный / Инспектор с повышенным контрастом */}
         <div
           style={{
             display: "inline-flex",
             alignItems: "center",
-            padding: "2px",
+            padding: "var(--space-1)",
             background: "rgba(0, 0, 0, 0.55)",
             borderRadius: "var(--radius-xs)",
             border: "1px solid rgba(255, 255, 255, 0.16)",
-            marginRight: 4,
-            gap: 2,
+            marginRight: "var(--space-2)",
+            gap: "var(--space-1)",
           }}
-        >
+          >
           <button
             type="button"
             onClick={() => onToggleViewMode("normal")}
@@ -132,7 +132,7 @@ export function SubtitlesModalHeader({
                   : "1px solid transparent",
               borderRadius: "calc(var(--radius-xs) - 2px)",
               padding: "4px 9px",
-              fontSize: "0.75rem",
+              fontSize: "var(--fs-xs)",
               fontWeight: viewMode === "normal" ? 600 : 500,
               cursor: "pointer",
               transition:
@@ -145,7 +145,7 @@ export function SubtitlesModalHeader({
             }}
             className="hover-bright"
             title={dict.subtitlesSearch.modeNormalTooltip}
-          >
+            >
             {dict.subtitlesSearch.modeNormal}
           </button>
           <button
@@ -164,14 +164,14 @@ export function SubtitlesModalHeader({
                   : "1px solid transparent",
               borderRadius: "calc(var(--radius-xs) - 2px)",
               padding: "4px 9px",
-              fontSize: "0.75rem",
+              fontSize: "var(--fs-xs)",
               fontWeight: viewMode === "technical" ? 600 : 500,
               cursor: "pointer",
               transition:
                 "background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
               display: "inline-flex",
               alignItems: "center",
-              gap: 5,
+              gap: "var(--space-2)",
               lineHeight: 1.2,
               boxShadow:
                 viewMode === "technical"
@@ -180,7 +180,7 @@ export function SubtitlesModalHeader({
             }}
             className="hover-bright"
             title={dict.subtitlesSearch.modeTechTooltip}
-          >
+            >
             <SlidersHorizontal
               size={12}
               style={{
@@ -210,7 +210,7 @@ export function SubtitlesModalHeader({
             height: 28,
             color: isOpaque ? "var(--accent)" : "var(--text-secondary)",
           }}
-        >
+          >
           {isOpaque ? <EyeOff size={15} /> : <Eye size={15} />}
         </button>
 
@@ -221,7 +221,7 @@ export function SubtitlesModalHeader({
           title={dict.subtitlesSearch.rescanTrack}
           aria-label={dict.subtitlesSearch.rescanTrack}
           style={{ width: 28, height: 28 }}
-        >
+          >
           <RefreshCw
             size={14}
             className={isAnalyzing ? "spin-animation" : ""}
@@ -235,7 +235,7 @@ export function SubtitlesModalHeader({
           title={dict.subtitlesSearch.close}
           aria-label={dict.subtitlesSearch.close}
           style={{ width: 28, height: 28 }}
-        >
+          >
           <X size={16} />
         </button>
       </div>
