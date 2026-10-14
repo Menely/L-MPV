@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.6.2-blueviolet?style=for-the-badge" alt="Version 2.6.2">
+  <img src="https://img.shields.io/badge/Version-2.6.3-blueviolet?style=for-the-badge" alt="Version 2.6.3">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -166,8 +166,8 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 
 - **High-Quality Pipeline:** Powered by `vo=gpu-next`, native Direct3D 11 (`gpu-api=d3d11`), hardware decoding (`hwdec=auto-safe`), and perceptual gamut mapping (`gamut-mapping-mode=perceptual`).
 - **High-Precision Scaling:** Reference `scale=spline36` and `cscale=spline36` interpolation algorithms delivering razor-sharp detail and pristine color transitions.
-- **Intelligent HDR & Tone Mapping:** Automatic display metadata passthrough (`target-colorspace-hint=yes`), dynamic peak brightness calculation (`hdr-compute-peak=yes`), configurable tone mapping curves (`Auto`/`Spline`, `BT.2446a`, `BT.2390`), and adjustable shadow contrast recovery (`hdr-contrast-recovery` 0% / 30% / 50%).
-- **Precision Dithering & Debanding:** Configurable dither bit-depth (`Auto`, `8-bit`, `10-bit`, `Off`) and optional GPU deband shader (`deband`) with balanced presets for 8-bit SDR displays.
+- **Intelligent HDR & Tone Mapping:** Automatic display metadata passthrough (`target-colorspace-hint=yes`), dynamic peak brightness calculation (`hdr-compute-peak=yes`), high-precision adaptive spline dynamic range compression under the hood, and reference shadow contrast (`hdr-contrast-recovery=0.0`) to preserve the director's true vision.
+- **Precision Dithering & Debanding:** Adaptive spatial-temporal blue-noise dithering (`dither-depth=auto`) matched to your monitor bit-depth, and an optional GPU debanding shader (`deband`) with balanced strength presets to eliminate stepped gradient bands in anime and web rips.
 - **Letterbox Prevention (Zero Black Bars):** Automatic calculation of physical even pixel dimensions adhering strictly to the stream Display Aspect Ratio (DAR) with monitor DPI scaling. Window is automatically centered using `appWindow.center()` without unwanted black bars.
 - **Automatic Zoom & Pan Reset:** Guarantees `video-zoom` and `video-pan` reset to 0.0 upon opening every new media file.
 - **Zero-Flicker Lifecycle & Lightning Launch (< 1-2s):** The window initializes hidden, instantly reads container geometry from the demuxer, calculates true Display Aspect Ratio, centers itself, and reveals smoothly (`window.show()`) with zero stutter or flicker.
@@ -313,7 +313,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **True Display Scaling:** Panel width is computed from actual window dimensions factoring in `UI Scale`, ensuring perfect proportions on 2K/4K high-DPI displays.
 - **Exclusive Single-Accordion Mode:** Expanding any settings category automatically and smoothly collapses sibling categories, maintaining a clean and focused workspace in both Sidebar and Modal layouts.
 - **Adaptive Settings Grids:** Blocks dynamically collapse from three columns to single-column layouts on compact windows without label truncation or slider clipping.
-- **Video & Audio Settings Section:** Dedicated accordion in the General tab, laid out as four compact tiles in a two-column grid. *Frame Processing* (deinterlacing `no`/`auto`/`yadif`/`yadif2x`, hardware decoding `auto-safe`/`auto-copy`/`no`), *Audio Path* (peak limiter, volume normalization `dynaudnorm`/`loudnorm`, device latency fix), *Color and Artifacts* (HDR tone mapping, contrast recovery, dither depth, debanding with strength presets), and *Data Buffer* (50–1024 MB). The icon lives on the tile only, and every segment block has a reset-to-default button plus a hover tooltip.
+- **Video & Audio Settings Section:** Dedicated accordion in the General tab, laid out as four compact tiles in a two-column grid. *Frame Processing* (deinterlacing `no`/`auto`/`yadif`/`yadif2x`, hardware decoding `auto-safe`/`auto-copy`/`no`), *Audio Path* (peak limiter, volume normalization `dynaudnorm`/`loudnorm`, device latency fix), *Artifact Reduction* (debanding with strength presets: Light, Balanced, Strong), and *Data Buffer* (50–1024 MB). The icon lives on the tile only, and every segment block has a reset-to-default button plus a hover tooltip.
 
 </details>
 
