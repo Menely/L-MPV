@@ -23,17 +23,25 @@
   ; При тихой установке (/S) пропускаем диалоговые окна
   IfSilent skip_file_associations
 
-  ; Запрос у пользователя подтверждения ассоциаций видеофайлов
-  MessageBox MB_YESNO|MB_ICONQUESTION "Связать видеофайлы (.mp4, .mkv, .avi и др.) с L-MPV?" IDNO skip_file_associations
+  ; Запрос у пользователя подтверждения ассоциаций видеофайлов в зависимости от выбранного языка
+  ${If} $LANGUAGE == 1049
+    MessageBox MB_YESNO|MB_ICONQUESTION "Связать видеофайлы (.mp4, .mkv, .avi и др.) с L-MPV?" IDNO skip_file_associations
+    StrCpy $0 "Видеофайл L-MPV"
+    StrCpy $1 "Современный легковесный медиаплеер L-MPV"
+  ${Else}
+    MessageBox MB_YESNO|MB_ICONQUESTION "Associate video files (.mp4, .mkv, .avi, etc.) with L-MPV?" IDNO skip_file_associations
+    StrCpy $0 "L-MPV Video File"
+    StrCpy $1 "Modern Lightweight Media Player L-MPV"
+  ${EndIf}
 
   ; Регистрация ProgID для видеофайлов
-  WriteRegStr SHCTX "Software\Classes\L-MPV.Video" "" "Видеофайл L-MPV"
+  WriteRegStr SHCTX "Software\Classes\L-MPV.Video" "" $0
   WriteRegStr SHCTX "Software\Classes\L-MPV.Video\DefaultIcon" "" "$INSTDIR\L-MPV.exe,0"
   WriteRegStr SHCTX "Software\Classes\L-MPV.Video\shell\open\command" "" "$\"$INSTDIR\L-MPV.exe$\" $\"%1$\""
 
   ; Регистрация возможностей программы (Capabilities) для страницы "Приложения по умолчанию" Windows 10/11
   WriteRegStr SHCTX "Software\L-MPV\Capabilities" "ApplicationName" "L-MPV"
-  WriteRegStr SHCTX "Software\L-MPV\Capabilities" "ApplicationDescription" "Современный легковесный медиаплеер L-MPV"
+  WriteRegStr SHCTX "Software\L-MPV\Capabilities" "ApplicationDescription" $1
   WriteRegStr SHCTX "Software\RegisteredApplications" "L-MPV" "Software\L-MPV\Capabilities"
 
   ; Регистрация видеоформатов

@@ -126,6 +126,7 @@ export function TrackPicker({
             boxShadow: "var(--shadow-lg)",
             maxHeight: "220px",
             overflowY: "auto",
+            scrollbarGutter: "stable",
             padding: "var(--space-2)",
           }}
           >

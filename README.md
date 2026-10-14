@@ -142,13 +142,11 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Interactive drag-and-drop model reordering (`@dnd-kit/sortable`) via grab handles, automatically persisted in `config/models_order.json`.
   - Unified compact 24px action controls with hovering drop shadows across model cards.
   - Dedicated hotkey and mouse button assignments matching the hotkey settings tab styling with Esc cancel and click-outside dismissal.
-- **On-the-Fly Neural Network Switching via Hotkeys:**
+- **On-the-Fly Neural Network Switching via Hotkeys (up to 9 models):**
   - `Ctrl+J` — Informative OSD overlay displaying upscale status and statistics (active backend, selected model, slot index, video resolution -> 4K);
   - `Shift+1` — Disable upscaling;
-  - `Shift+2` — Enable Neural Network #1;
-  - `Shift+3` — Enable Neural Network #2;
-  - `Shift+4` — Enable Neural Network #3;
-  - Instant OSD notification showcasing the actual name of the activated model.
+  - `Shift+2` .. `Shift+0` — Enable Neural Network #1 .. #9 (supports up to 9 models in the library);
+  - Instant OSD notification showcasing the actual name of the activated model;
   - Forced frame redrawing on pause when switching models.
 
 </details>
@@ -158,7 +156,8 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 
 - **Dual language support out of the box:** The entire interface is localized in English and Russian.
 - **Instant live switching:** Changing the language in settings takes effect immediately without restarting the player.
-- **Smart auto-detection:** The player automatically detects and applies your Windows system language on first launch.
+- **Smart auto-detection:** The player automatically detects and applies your Windows system language on first launch (Russian for Russian-locale systems, English fallback for all others).
+- **Bilingual Windows Installer:** The NSIS setup wizard supports language selection (English / Russian) with automated system locale preselection and fully localized dialogs.
 
 </details>
 
@@ -248,6 +247,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Freeform Geometry & Positioning:** Resize window width by dragging edges, move the window anywhere via header Drag & Drop, auto-adapt width per mode, and remember layout preferences.
 - **Adjustable Opacity (Glass / Solid):** Toggle between a translucent Glassmorphic backdrop and a solid high-contrast dark theme for optimal readability over vibrant scenes.
 - **High-Performance DOM Virtualization:** Effortlessly scrolls through thousands of subtitle lines with silky-smooth frame rates and negligible CPU usage.
+- **Intelligent Speech Tokenizer & Tempo Metrics (Intl.Segmenter):** High-precision text segmentation with native support for spaceless CJK languages (Japanese, Chinese), automated ISO 639 to BCP-47 locale normalization, real-time speech rate analysis (WPM — words per minute, CPS — characters per second), and color-coded speech tempo badges in the ASS inspector (relaxed, brisk, rapid).
 
 </details>
 
@@ -298,6 +298,10 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Subtle Vector Contour Glow (Vector Drop-Shadow):** Precise light diffusion wrapping vector SVG icons with smooth gradient falloff, avoiding muddy circular halos.
 - **Container Query Responsiveness:** Multi-stage intelligent compression hiding verbose track labels and scaling down the audio visualizer and secondary controls on narrow windows.
 - **Smart Fullscreen Auto-Hide:** Option to immediately conceal all UI elements when moving the cursor near the top edge of the display.
+- **Cutting-Edge Chromium & Web Platform Standards:**
+  - `scrollbar-gutter: stable` (CSS): Guaranteed vertical scrollbar gutter reservation across all modal bodies, track selectors, and settings panels — completely eliminating horizontal layout shifting and content jitter during scrolling or filtering;
+  - Parent selector `:has()` (Chromium 105+): Dynamic styling of cards, toggles, checkboxes, and search containers responding to descendant states without superfluous React state or re-renders;
+  - Scroll-Driven Animations (`animation-timeline: scroll()`, Chromium 115+): Fluid adaptive header drop-shadows as content scrolls, executed directly on Chromium's GPU compositor without JavaScript scroll event listeners.
 
 </details>
 
@@ -586,9 +590,9 @@ L-MPV/
 │   │   │   ├── ModelListItem.tsx         # Neural model item card with drag handles (@dnd-kit/sortable), 24px height & React.memo
 │   │   │   ├── ModelTensorRtAction.tsx   # 1080p readiness status, compile micro-progressbar, 24px build/recompile buttons (React.memo)
 │   │   │   └── ModelHotkeyButton.tsx     # Compact hotkey assignment button matching hotkey settings design (React.memo)
-│   │   ├── subtitles/                    # Subtitle browser: SubtitlesSearchModal (root container),
-│   │   │                                # rows, header, search bar, badges, TrackPicker, hooks/ (6 custom hooks:
-│   │   │                                # useSubtitlesAnalysis, useModalGeometry, useActiveLineIndex,
+│   │   ├── subtitles/                    # Subtitle browser: SubtitlesSearchModal, subtitleTokenizer speech tokenizer
+│   │   │                                # (Intl.Segmenter, WPM/CPS), rows, header, search bar, badges, TrackPicker,
+│   │   │                                # hooks/ (useSubtitlesAnalysis, useModalGeometry, useActiveLineIndex,
 │   │   │                                # useFollowPlayback, useSearchNavigation, usePersistentState)
 │   │   ├── contexts/                         # Reactive application state contexts
 │   │   │   └── PlayerStateContext.tsx        # Tri-level context: PlayerStateContext + LiveStateContext + PlayerProgressContext

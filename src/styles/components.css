@@ -96,6 +96,29 @@
   box-shadow: 0 0 12px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.45)), inset 0 0 0 1.5px var(--accent) !important;
 }
 
+/* ─── Псевдокласс :has() (Chromium 105+): Реактивность родителей без React-стейта ─── */
+.glass-tile:has(:focus-visible),
+.glass-section:has(:focus-visible) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent), 0 4px 16px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.28)) !important;
+}
+
+.glass-tile:has(input[type="checkbox"]:checked),
+.glass-tile:has(input[type="radio"]:checked) {
+  background: var(--surface-accent-subtle, rgba(var(--accent-rgb), 0.12));
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.25)), inset 0 0 0 1px var(--accent);
+}
+
+.glass-tile:has(input:disabled) {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.glass-section:has(input:disabled:only-child) {
+  opacity: 0.62;
+}
+
 /* ─── 2. Стандартизированная система кнопок (Buttons) ───────────────── */
 
 .btn {

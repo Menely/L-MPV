@@ -160,6 +160,12 @@
   background: rgba(0, 0, 0, 0.35);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  transition: border-color var(--t-fast) var(--ease-smooth), background-color var(--t-fast) var(--ease-smooth);
+}
+
+.mediainfo-floating-window__search-bar:has(.mediainfo-floating-window__search-input:focus) {
+  border-bottom-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.05);
 }
 
 .mediainfo-floating-window__search-input {
@@ -179,6 +185,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: auto;
+  scrollbar-gutter: stable;
   padding: var(--space-4) 12px;
   font-family: 'Consolas', 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
   font-size: var(--fs-2xs);
@@ -584,6 +591,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: auto;
+  scrollbar-gutter: stable;
   padding: var(--space-6) 16px;
   font-family: Consolas, "Cascadia Code", "Courier New", monospace;
   font-size: var(--fs-xs);

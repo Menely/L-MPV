@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { ExternalLink, Image as ImageIcon, CheckSquare, Square, ChevronRight } from "lucide-react";
+import { getEffectiveLocale } from "../../i18n";
 
 interface MarkdownRendererProps {
   content: string;
@@ -13,10 +14,12 @@ interface MarkdownRendererProps {
  * Все внешние ссылки и изображения открываются в системном браузере через openUrl.
  */
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = "" }) => {
+  const isRu = getEffectiveLocale() === "ru";
+
   if (!content || !content.trim()) {
     return (
       <div style={{ color: "var(--text-muted, #9ca3af)", fontStyle: "italic", fontSize: "var(--fs-base)" }}>
-        Описание изменений отсутствует.
+        {isRu ? "Описание изменений отсутствует." : "No changelog description provided."}
       </div>
     );
   }
@@ -654,6 +657,7 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
 /* ─── Компонент картинки с поддержкой ссылок и безопасной загрузки ─── */
 
 const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = ({ src, alt, linkUrl }) => {
+  const isRu = getEffectiveLocale() === "ru";
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const normalizedSrc = normalizeImageUrl(src);
@@ -681,10 +685,10 @@ const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = 
           fontSize: "var(--fs-sm)",
           cursor: "pointer",
         }}
-        title="Нажмите, чтобы открыть изображение в браузере"
+        title={isRu ? "Нажмите, чтобы открыть изображение в браузере" : "Click to open image in browser"}
         >
         <ImageIcon size={16} color="var(--accent, #60a5fa)" />
-        <span>Изображение: {alt || "Посмотреть в браузере"}</span>
+        <span>{isRu ? "Изображение:" : "Image:"} {alt || (isRu ? "Посмотреть в браузере" : "View in browser")}</span>
         <ExternalLink size={12} style={{ opacity: 0.7 }} />
       </div>
     );
@@ -694,12 +698,12 @@ const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = 
     <div style={{ margin: "10px 0", position: "relative" }}>
       <img
         src={normalizedSrc}
-        alt={alt || "Изображение релиза"}
+        alt={alt || (isRu ? "Изображение релиза" : "Release image")}
         loading="lazy"
         onLoad={() => setIsLoading(false)}
         onError={() => setHasError(true)}
         onClick={handleClick}
-        title={linkUrl ? `Открыть ссылку: ${linkUrl}` : "Нажмите, чтобы открыть изображение в полном размере"}
+        title={linkUrl ? (isRu ? `Открыть ссылку: ${linkUrl}` : `Open link: ${linkUrl}`) : (isRu ? "Нажмите, чтобы открыть изображение в полном размере" : "Click to open image in full size")}
         style={{
           maxWidth: "100%",
           maxHeight: "360px",
@@ -801,7 +805,7 @@ const renderLink = (url: string, label: string | React.ReactNode, key: string, h
       wordBreak: "break-all",
     }}
     className="hover-bright"
-    title={`Перейти: ${url}`}
+    title={getEffectiveLocale() === "ru" ? `Перейти: ${url}` : `Open: ${url}`}
     >
     <span>{label}</span>
     {hasIcon && <ExternalLink size={11} style={{ opacity: 0.8 }} />}

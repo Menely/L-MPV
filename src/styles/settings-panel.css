@@ -181,6 +181,26 @@
   scroll-behavior: smooth;
 }
 
+/* ─── Scroll-Driven Animation: Плавная тень шапки навигации без JS (Chromium 115+) ─── */
+@supports (animation-timeline: scroll()) {
+  .settings-side-panel {
+    timeline-scope: --settings-scroll;
+  }
+
+  .settings-side-panel__scroll {
+    scroll-timeline-name: --settings-scroll;
+    scroll-timeline-axis: block;
+  }
+
+  .settings-side-panel__nav {
+    position: relative;
+    z-index: 2;
+    animation: headerScrollElevation linear both;
+    animation-timeline: --settings-scroll;
+    animation-range: 0px 32px;
+  }
+}
+
 .settings-section-block {
   position: relative;
   min-width: 0;

@@ -13,6 +13,7 @@ import { useTranslation } from "../../i18n/LanguageContext";
 interface SubtitleSearchBarProps {
   searchQuery: string;
   totalLines: number;
+  totalWords?: number;
   filteredCount: number;
   navAnchor: number | null;
   navPos: number;
@@ -31,6 +32,7 @@ interface SubtitleSearchBarProps {
 export function SubtitleSearchBar({
   searchQuery,
   totalLines,
+  totalWords,
   filteredCount,
   navAnchor,
   navPos,
@@ -50,6 +52,7 @@ export function SubtitleSearchBar({
 
   return (
     <div
+      className="subtitles-search-card__bar"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -60,6 +63,7 @@ export function SubtitleSearchBar({
       >
       {/* Строка ввода */}
       <div
+        className="sub-search-input-wrapper"
         style={{ position: "relative", display: "flex", alignItems: "center" }}
         >
         <Search
@@ -204,6 +208,7 @@ export function SubtitleSearchBar({
           ) : (
             <span>
               {dict.subtitlesSearch.totalCount(totalLines)}
+              {totalWords ? dict.subtitlesSearch.totalWordsSuffix(totalWords) : ""}
               {analyzedTrackTitle && (
                 <span style={{ opacity: 0.7, marginLeft: "var(--space-2)" }}>
                   ({analyzedTrackTitle})

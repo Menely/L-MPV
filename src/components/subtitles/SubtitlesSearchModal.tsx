@@ -39,6 +39,11 @@ import {
   type SubtitleViewMode,
   type SubtitlesSearchModalProps,
 } from "./subtitleTypes";
+import {
+  computeSubtitlesCorpusStats,
+  normalizeSubtitleLocale,
+  clearTokenizerCache,
+} from "./subtitleTokenizer";
 
 /**
  * Интерактивный браузер и поиск по субтитрам (Searchable Subtitles Browser).
@@ -52,7 +57,7 @@ import {
  * заглушки — `SubtitleEmptyState`, строка списка — `SubtitleLineRow`.
  */
 export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
-  const { dict } = useTranslation();
+  const { dict, locale: appLocale } = useTranslation();
   const { seekTo } = usePlayerState();
   const { position } = usePlayerProgress();
 
@@ -198,6 +203,21 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     const q = searchQuery.toLowerCase().trim();
     return lines.filter((l) => l.text.toLowerCase().includes(q));
   }, [lines, searchQuery]);
+
+  // ── Языковая локаль дорожки субтитров (ISO 639 -> BCP-47) ─────────────────
+  const activeSubLocale = useMemo(() => {
+    const trackLang = currentDisplayedTrack?.lang || activeTrack?.lang;
+    return normalizeSubtitleLocale(
+      trackLang,
+      appLocale === "ru" ? "ru-RU" : "en-US"
+    );
+  }, [currentDisplayedTrack?.lang, activeTrack?.lang, appLocale]);
+
+  // ── Статистика корпуса слов (Intl.Segmenter) ───────────────────────────────
+  const corpusStats = useMemo(() => {
+    clearTokenizerCache();
+    return computeSubtitlesCorpusStats(lines, activeSubLocale);
+  }, [lines, activeSubLocale]);
 
   // ── Активная реплика ───────────────────────────────────────────────────────
   const activeLineIndex = useActiveLineIndex({
@@ -553,6 +573,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
         <SubtitleSearchBar
           searchQuery={searchQuery}
           totalLines={lines.length}
+          totalWords={corpusStats.totalWords}
           filteredCount={filteredLines.length}
           navAnchor={navAnchor}
           navPos={navPos}
@@ -595,6 +616,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
             flex: 1,
             minHeight: 0,
             overflowY: "auto",
+            scrollbarGutter: "stable",
             display: "flex",
             flexDirection: "column",
             gap: "var(--space-2)",
@@ -638,6 +660,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                       isCopied={copiedIndex === line.index}
                       viewMode={viewMode}
                       rawFormat={rawFormat}
+                      locale={activeSubLocale}
                       onToggleRawFormat={setRawFormat}
                       onSeek={handleSeek}
                       onCopy={handleCopyText}

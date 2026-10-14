@@ -1,5 +1,6 @@
 import { formatTimeByMode, TimeFormatMode } from "../../utils/timeFormatUtils";
 import { usePlayerProgress } from "../../contexts/PlayerStateContext";
+import { useTranslation } from "../../i18n/LanguageContext";
 
 export interface TimeDisplayProps {
   /** Дополнительные CSS-классы оформления */
@@ -21,8 +22,9 @@ export function TimeDisplay({
   onCycleFormat,
   speed = 1.0,
 }: TimeDisplayProps) {
+  const { dict, locale } = useTranslation();
   const { position, duration } = usePlayerProgress();
-  const formatted = formatTimeByMode(position, duration, timeFormat, speed);
+  const formatted = formatTimeByMode(position, duration, timeFormat, speed, locale);
 
   return (
     <span
@@ -40,7 +42,7 @@ export function TimeDisplay({
           onCycleFormat();
         }
       }}
-      title="Нажмите для смены формата времени"
+      title={dict.controls.timeFormatHint}
       >
       <span className="time-display__full">
         {formatted.full}

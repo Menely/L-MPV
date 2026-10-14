@@ -34,6 +34,7 @@
   max-height: calc(100% - var(--bottom-overlays-bottom, 94px) - 60px);
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
   background: var(--bg-pill);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
@@ -268,6 +269,41 @@
 
 .subtitles-search-card__header--draggable:active {
   cursor: grabbing;
+}
+
+/* ─── Scroll-Driven Animation: Плавная тень шапки окна субтитров без JS (Chromium 115+) ─── */
+@supports (animation-timeline: scroll()) {
+  .subtitles-search-card {
+    timeline-scope: --subtitles-list-scroll;
+  }
+
+  .subtitles-search-card .custom-scrollbar {
+    scroll-timeline-name: --subtitles-list-scroll;
+    scroll-timeline-axis: block;
+  }
+
+  .subtitles-search-card__header,
+  .subtitles-search-card__bar {
+    position: relative;
+    z-index: 2;
+    animation: headerScrollElevation linear both;
+    animation-timeline: --subtitles-list-scroll;
+    animation-range: 0px 32px;
+  }
+}
+
+/* ─── Интерактивная строка поиска субтитров (:has) ─── */
+.sub-search-input-wrapper {
+  border-radius: var(--radius-sm);
+  transition: box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.sub-search-input-wrapper:has(input:focus-visible) {
+  box-shadow: 0 0 14px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.3));
+}
+
+.sub-search-input-wrapper:has(input:focus-visible) svg {
+  color: var(--accent) !important;
 }
 
 .sub-search-mark {
@@ -706,6 +742,15 @@
   border-color: var(--accent);
   background: rgba(0, 0, 0, 0.35);
   box-shadow: 0 0 12px var(--accent-glass);
+}
+
+.playlist-drawer__search:has(.playlist-drawer__search-input:focus) {
+  border-bottom-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.04);
+}
+
+.playlist-drawer__search:has(.playlist-drawer__search-input:focus) .playlist-drawer__search-icon {
+  color: var(--accent);
 }
 
 .playlist-drawer__search-input::placeholder {

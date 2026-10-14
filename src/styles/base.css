@@ -93,6 +93,32 @@ textarea {
   -webkit-appearance: none !important;
 }
 
+/* ─── Стабильный желоб скроллбара (ликвидация дёрганья интерфейса) ── */
+:where(
+  .modal__body,
+  .settings-panel__body,
+  .settings-panel__content,
+  .settings-side-panel__scroll,
+  .playlist-drawer__list,
+  .side-panel__content,
+  .side-panel__list,
+  .mediainfo-floating-window__content,
+  .mediainfo-floating-window__body,
+  .mediainfo-standalone__body,
+  .track-popover__list,
+  .cmenu-editor__column-list,
+  .cmenu-editor__list,
+  .cmenu-editor__available-list,
+  .media-info-overlay,
+  .version-picker-popover,
+  .context-menu__submenu,
+  .custom-scrollbar,
+  .scrollable-container,
+  [data-scrollable="true"]
+) {
+  scrollbar-gutter: stable;
+}
+
 html, body, #root {
   width: 100%;
   height: 100%;
@@ -333,6 +359,18 @@ html.no-animations .control-btn--play::before {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Scroll-Driven Animation: Динамическая тень шапки при скролле (Chromium 115+) ─── */
+@keyframes headerScrollElevation {
+  from {
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    border-bottom-color: var(--border, rgba(255, 255, 255, 0.08));
+  }
+  to {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.45);
+    border-bottom-color: rgba(255, 255, 255, 0.18);
   }
 }
 

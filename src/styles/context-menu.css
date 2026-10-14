@@ -159,6 +159,7 @@
   max-height: min(420px, calc(100vh - 40px));
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
   animation: contextMenuFadeIn var(--t-fast) var(--ease-out);
   transform-origin: top left;
   z-index: var(--z-popover);

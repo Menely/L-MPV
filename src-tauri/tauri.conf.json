@@ -48,7 +48,12 @@
     "targets": ["nsis"],
     "windows": {
       "nsis": {
-        "installerHooks": "nsis/installer_hooks.nsh"
+        "installerHooks": "nsis/installer_hooks.nsh",
+        "languages": [
+          "English",
+          "Russian"
+        ],
+        "displayLanguageSelector": true
       },
       "digestAlgorithm": "sha256",
       "timestampUrl": "http://timestamp.digicert.com"

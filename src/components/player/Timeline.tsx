@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
+import { useTranslation } from "../../i18n/LanguageContext";
 import { formatTime } from "../../utils/timeUtils";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { useLiveScrubbing } from "./useLiveScrubbing";
@@ -20,32 +21,34 @@ export interface TimelineSegmentData {
 export function buildTimelineSegments(
   chapters: Array<{ time: number; title: string }>,
   duration: number,
-  fallbackTitle: string
-  ): TimelineSegmentData[] {
-  const safeDuration = Number.isFinite(duration) && duration> 0 ? duration : 0;
+  fallbackTitle: string,
+  startLabel: string = "Начало",
+  chapterItemFn: (i: number) => string = (i) => `Глава ${i}`
+): TimelineSegmentData[] {
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
   if (safeDuration <= 0) return [{ start: 0, end: 0, title: fallbackTitle }];
   if (!chapters || chapters.length === 0) return [{ start: 0, end: safeDuration, title: fallbackTitle }];
 
   const valid = chapters
-    .filter((ch) => Number.isFinite(ch.time) && ch.time>= 0 && ch.time < safeDuration)
+    .filter((ch) => Number.isFinite(ch.time) && ch.time >= 0 && ch.time < safeDuration)
     .sort((a, b) => a.time - b.time);
 
   if (valid.length === 0) return [{ start: 0, end: safeDuration, title: fallbackTitle }];
 
   const segs: TimelineSegmentData[] = [];
-  if (valid[0].time> 0.05) {
-    segs.push({ start: 0, end: valid[0].time, title: fallbackTitle || "Начало" });
+  if (valid[0].time > 0.05) {
+    segs.push({ start: 0, end: valid[0].time, title: fallbackTitle || startLabel });
   }
 
   for (let i = 0; i < valid.length; i++) {
     const start = valid[i].time;
     const end = i + 1 < valid.length ? valid[i + 1].time : safeDuration;
-    if (end> start) {
-      segs.push({ start, end, title: valid[i].title || `Глава ${i + 1}` });
+    if (end > start) {
+      segs.push({ start, end, title: valid[i].title || chapterItemFn(i + 1) });
     }
   }
 
-  return segs.length> 0 ? segs : [{ start: 0, end: safeDuration, title: fallbackTitle }];
+  return segs.length > 0 ? segs : [{ start: 0, end: safeDuration, title: fallbackTitle }];
 }
 
 /** Процент заполнения отрезка [segStart, segEnd] относительно позиции time. */
@@ -152,6 +155,7 @@ TimelinePreview.displayName = "TimelinePreview";
  * - WAI-ARIA slider + полная клавиатурная навигация.
  */
 export const Timeline = React.memo(() => {
+  const { dict } = useTranslation();
   const {
     mediaInfo,
     chapters,
@@ -172,14 +176,20 @@ export const Timeline = React.memo(() => {
   const cachedRectRef = useRef<DOMRect | null>(null);
 
   // ─── Производные значения ────────────────────────────────────
-  const safeDuration = Number.isFinite(duration) && duration> 0 ? duration : 0;
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
   const rawPos = mousePosition ?? (seeking && seekTarget !== null ? seekTarget : position);
   const displayPos = Number.isFinite(rawPos) ? Math.max(0, Math.min(safeDuration, rawPos)) : 0;
-  const thumbPct = safeDuration> 0 ? Math.max(0, Math.min(100, (displayPos / safeDuration) * 100)) : 0;
+  const thumbPct = safeDuration > 0 ? Math.max(0, Math.min(100, (displayPos / safeDuration) * 100)) : 0;
 
   const segments = useMemo(
-    () => buildTimelineSegments(chapters, safeDuration, mediaPath),
-    [chapters, safeDuration, mediaPath]
+    () => buildTimelineSegments(
+      chapters,
+      safeDuration,
+      mediaPath,
+      dict.chapters.start,
+      dict.chapters.chapterItem
+    ),
+    [chapters, safeDuration, mediaPath, dict.chapters.start, dict.chapters.chapterItem]
   );
 
   const hasChapters = segments.length> 1;
@@ -391,7 +401,7 @@ export const Timeline = React.memo(() => {
       }`}
       role="slider"
       tabIndex={0}
-      aria-label="Шкала времени воспроизведения"
+      aria-label={dict.controls.timelineAriaLabel}
       aria-valuemin={0}
       aria-valuemax={safeDuration}
       aria-valuenow={Math.round(displayPos)}

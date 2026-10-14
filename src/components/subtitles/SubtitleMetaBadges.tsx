@@ -4,15 +4,26 @@
  * цвета, позиции и спецэффекта — только в технического режиме.
  */
 
+import { memo } from "react";
 import type { SubtitleLine } from "./subtitleTypes";
+import { computeSpeechMetrics } from "./subtitleTokenizer";
 import { useTranslation } from "../../i18n/LanguageContext";
 
 interface SubtitleMetaBadgesProps {
   line: SubtitleLine;
+  locale?: string;
 }
 
-export function SubtitleMetaBadges({ line }: SubtitleMetaBadgesProps) {
-  const { dict } = useTranslation();
+export const SubtitleMetaBadges = memo(function SubtitleMetaBadges({
+  line,
+  locale,
+}: SubtitleMetaBadgesProps) {
+  const { dict, locale: appLocale } = useTranslation();
+  const duration = Math.max(line.end - line.start, 0);
+  const activeLocale = locale || (appLocale === "ru" ? "ru-RU" : "en-US");
+  const speechMetrics =
+    duration > 0 ? computeSpeechMetrics(line.text, duration, activeLocale) : null;
+
   const hasMeta = Boolean(
     line.style ||
       line.actor ||
@@ -21,7 +32,8 @@ export function SubtitleMetaBadges({ line }: SubtitleMetaBadgesProps) {
       line.font_size ||
       line.color ||
       line.position ||
-      line.effect
+      line.effect ||
+      (speechMetrics && speechMetrics.wordCount > 0)
   );
 
   if (!hasMeta) return null;
@@ -104,6 +116,34 @@ export function SubtitleMetaBadges({ line }: SubtitleMetaBadgesProps) {
           {line.effect}
         </span>
       )}
+
+      {speechMetrics && speechMetrics.wordCount > 0 && (
+        <span
+          className={`sub-tech-tag ${
+            speechMetrics.isTooFast ? "sub-tech-tag--danger" : ""
+          }`}
+          title={`${dict.subtitlesSearch.metaSpeechSpeedTooltip(
+            speechMetrics.wpm,
+            speechMetrics.cps
+          )}${
+            speechMetrics.isTooFast
+              ? ` · ${dict.subtitlesSearch.metaFastSpeechWarning}`
+              : ""
+          }`}
+          style={
+            speechMetrics.isTooFast
+              ? {
+                  color: "#f87171",
+                  borderColor: "rgba(239, 68, 68, 0.45)",
+                  background: "rgba(239, 68, 68, 0.12)",
+                }
+              : undefined
+          }
+          >
+          {speechMetrics.isTooFast ? "⚡ " : ""}
+          {speechMetrics.wpm} WPM
+        </span>
+      )}
     </div>
   );
-}
+});

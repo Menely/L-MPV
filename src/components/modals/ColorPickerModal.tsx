@@ -355,7 +355,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
               marginBottom: "var(--space-3)",
             }}
             >
-            <span>Яркость</span>
+            <span>{dict.settings.appearance.colorScheme.brightness}</span>
             <span style={{ fontWeight: 600 }}>{lightness}%</span>
           </div>
           <input

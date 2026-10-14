@@ -44,6 +44,12 @@ export interface TranslationDict {
     repeatOff: string;
     repeatOne: string;
     repeatAll: string;
+    /** Подсказка при наведении на формат времени */
+    timeFormatHint: string;
+    /** ARIA-метка шкалы времени воспроизведения */
+    timelineAriaLabel: string;
+    /** Подсказка на пустом экране плеера (перетащите файл или откройте) */
+    placeholderHint: string;
     /** Короткая метка на кнопке скипа опенинга, например '+90s' */
     skipOpeningShortLabel: (sec: number) => string;
   };
@@ -76,6 +82,10 @@ export interface TranslationDict {
     title: (count: number) => string;
     close: string;
     noChapters: string;
+    /** Название первого сегмента шкалы времени до первой главы */
+    start: string;
+    /** Формат имени главы по умолчанию при отсутствии тега title */
+    chapterItem: (index: number) => string;
   };
 
   // ─── Медиаинфо (MediaInfoModal, DetailedMediaInfoModal) ────────
@@ -347,6 +357,7 @@ export interface TranslationDict {
         playerThemes: Record<string, string>;
         colorPickerTitle: string;
         colorPickerClose: string;
+        brightness: string;
         cancel: string;
         add: string;
       };
@@ -881,6 +892,9 @@ export interface TranslationDict {
     metaColorTooltip: (color: string) => string;
     metaPositionTooltip: string;
     metaEffectTooltip: string;
+    metaSpeechSpeedTooltip: (wpm: number, cps: number) => string;
+    metaFastSpeechWarning: string;
+    totalWordsSuffix: (words: number) => string;
     fileFilterName: string;
   };
 

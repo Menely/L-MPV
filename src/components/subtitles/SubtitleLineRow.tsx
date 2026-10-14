@@ -19,6 +19,7 @@ export interface SubtitleLineRowProps {
   isCopied: boolean;
   viewMode?: SubtitleViewMode;
   rawFormat?: SubtitleRawFormat;
+  locale?: string;
   onToggleRawFormat?: (fmt: SubtitleRawFormat) => void;
   onSeek: (line: SubtitleLine) => void;
   onCopy: (line: SubtitleLine, e: React.MouseEvent) => void;
@@ -49,6 +50,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
   isCopied,
   viewMode = "normal",
   rawFormat,
+  locale,
   onToggleRawFormat,
   onSeek,
   onCopy,
@@ -169,7 +171,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
             )}
 
             {/* Тех-бейджи (стиль, актёр, слой, шрифт, цвет...) */}
-            {isTech && <SubtitleMetaBadges line={line} />}
+            {isTech && <SubtitleMetaBadges line={line} locale={locale} />}
           </div>
 
           {/* Текст реплики */}

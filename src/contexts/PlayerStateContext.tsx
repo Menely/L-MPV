@@ -924,7 +924,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       await invoke("set_audio_track", { trackId });
       const t = tracksRef.current.find(x => x.type === "audio" && x.id === trackId);
       if (t) {
-         invoke("show_osd", { text: `Аудио: ${t.title || t.lang || ('Дорожка ' + t.id)}` }).catch(() => {});
+        const curLoc = getEffectiveLocale();
+        const prefix = curLoc === "en" ? "Audio: " : "Аудио: ";
+        const fallback = curLoc === "en" ? `Track ${t.id}` : `Дорожка ${t.id}`;
+        invoke("show_osd", { text: `${prefix}${t.title || t.lang || fallback}` }).catch(() => {});
       }
       await loadTracks();
     } catch (e) {
@@ -942,7 +945,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       await invoke("set_subtitle_track", { trackId });
       const t = tracksRef.current.find(x => x.type === "sub" && x.id === trackId);
       if (t) {
-         invoke("show_osd", { text: `Субтитры: ${t.title || t.lang || ('Дорожка ' + t.id)}` }).catch(() => {});
+        const curLoc = getEffectiveLocale();
+        const prefix = curLoc === "en" ? "Subtitles: " : "Субтитры: ";
+        const fallback = curLoc === "en" ? `Track ${t.id}` : `Дорожка ${t.id}`;
+        invoke("show_osd", { text: `${prefix}${t.title || t.lang || fallback}` }).catch(() => {});
       }
       await loadTracks();
     } catch (e) {
@@ -958,7 +964,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         return next;
       });
       await invoke("disable_subtitles");
-      invoke("show_osd", { text: "Субтитры: Выкл" }).catch(() => {});
+      const curLoc = getEffectiveLocale();
+      const offText = curLoc === "en" ? "Subtitles: Off" : "Субтитры: Выкл";
+      invoke("show_osd", { text: offText }).catch(() => {});
       await loadTracks();
     } catch (e) {
       console.error("Ошибка при отключении субтитров", e);

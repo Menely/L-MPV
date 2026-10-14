@@ -93,6 +93,7 @@
 .side-panel__list {
   flex: 1;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: var(--space-4);
 }
 

@@ -148,6 +148,26 @@
   min-height: 0;
 }
 
+/* ─── Scroll-Driven Animation: Плавная тень шапки модального окна без JS (Chromium 115+) ─── */
+@supports (animation-timeline: scroll()) {
+  .modal {
+    timeline-scope: --modal-body-scroll;
+  }
+
+  .modal__body {
+    scroll-timeline-name: --modal-body-scroll;
+    scroll-timeline-axis: block;
+  }
+
+  .modal__header {
+    position: relative;
+    z-index: 2;
+    animation: headerScrollElevation linear both;
+    animation-timeline: --modal-body-scroll;
+    animation-range: 0px 32px;
+  }
+}
+
 .modal__section {
   margin-bottom: 14px;
   min-width: 0;
@@ -914,6 +934,18 @@
   white-space: nowrap;
 }
 
+.option-toggle-row:has(.ui-checkbox:checked) .option-toggle-row__text {
+  color: var(--text-primary);
+  font-weight: 550;
+}
+
+.option-toggle-row:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-xs);
+}
+
+
 
 .compact-segment-btn:disabled {
   opacity: 0.45;
@@ -1144,6 +1176,7 @@
   max-width: 340px;
   max-height: 260px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   background: rgba(20, 22, 28, 0.97);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-md, 8px);
@@ -1760,6 +1793,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
   padding-right: var(--space-3);
   min-height: 0;
 }
@@ -2030,6 +2064,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
   padding-right: var(--space-3);
   min-height: 0;
 }

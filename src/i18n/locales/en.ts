@@ -39,6 +39,9 @@ export const en: TranslationDict = {
     repeatOff: "No repeat",
     repeatOne: "Repeat current file",
     repeatAll: "Repeat playlist",
+    timeFormatHint: "Click to cycle time display format",
+    timelineAriaLabel: "Playback timeline",
+    placeholderHint: "Drag and drop a file or Right-Click → Open",
     skipOpeningShortLabel: (sec) => `+${sec}s`,
   },
 
@@ -71,6 +74,8 @@ export const en: TranslationDict = {
     title: (count) => `Chapters (${count})`,
     close: "Close (Esc)",
     noChapters: "No chapter markers in this file.",
+    start: "Start",
+    chapterItem: (index) => `Chapter ${index}`,
   },
 
   // ─── Media Info ────────────────────────────────────────────────
@@ -243,9 +248,9 @@ export const en: TranslationDict = {
       tileAudioTitle: "Audio Path",
       tileAudioDesc:
         "How audio is processed before output. Audio overload protection (peak limiter, limit=0.98) prevents speaker clipping at 101–150% volume, remaining transparent without compression at 100%. Volume normalization smooths the loudness spread inside a track: Dynamic (dynaudnorm) gently balances quiet and loud scenes, Night mode (acompressor) softly tames loud explosions and gunshots without affecting speech volume. Normalization and overload protection work independently. Audio device latency fix (audio-stream-silence + audio-wait-open) stops the first fraction of a second from being swallowed by sleeping DACs and Bluetooth speakers.",
-      tileHdrTitle: "Color and Artifacts",
+      tileHdrTitle: "Artifact Reduction (Debanding)",
       tileHdrDesc:
-        "Tone mapping HDR down to SDR and fighting banding — stripes in dark gradients. Tone mapping picks the transfer curve: Auto follows mpv's smoothest spline, BT.2446a is recommended for carefully graded sources, BT.2390 is the technical standard for cinema mastering. Contrast recovery pulls detail out of shadows after tone mapping: 0.3 is mild, 0.5 is strong and can raise noise along with detail. Dithering removes stripes that appear when deep color is output at 8 bit: pick 10 bit for a 10-bit panel, Off only if you see no banding. Debanding (deband) is a shader that smooths transitions between close shades; it runs AFTER scaling in vo=gpu-next, so it saves no performance and is recommended only for 8-bit SDR panels with visible banding. Strength (Light / Balanced / Strong) sets the pass count and trigger threshold.",
+        "Smooths stepped color transitions (banding) across gradients in the sky, dark scenes, and anime. The shader inspects neighboring pixels and blends abrupt shade edges with procedural grain. Recommended when watching compressed videos or low-bitrate streams.",
       tileBufferTitle: "Data Buffer",
       tileBufferDesc:
         "How much data mpv reads ahead from the stream (demuxer-max-bytes). A short buffer gives minimal input latency, which matters for local files; a large one survives brief network stalls and bitrate drops on 4K-BD and remuxes, but input becomes noticeably less responsive. The value applies to the current file immediately and is saved to config/settings.json.",
@@ -445,6 +450,7 @@ export const en: TranslationDict = {
         },
         colorPickerTitle: "Choose Custom Color",
         colorPickerClose: "Close (Esc)",
+        brightness: "Brightness",
         cancel: "Cancel",
         add: "Add",
       },
@@ -1055,6 +1061,10 @@ export const en: TranslationDict = {
     metaColorTooltip: (color: string) => `Text color: ${color}`,
     metaPositionTooltip: "Position / Alignment",
     metaEffectTooltip: "Special effect (Karaoke etc.)",
+    metaSpeechSpeedTooltip: (wpm: number, cps: number) =>
+      `Speech speed: ${wpm} wpm (${cps} cps)`,
+    metaFastSpeechWarning: "Fast speech rate (> 210 WPM)",
+    totalWordsSuffix: (words: number) => ` · ${words.toLocaleString("en-US")} words`,
     fileFilterName: "Subtitles"
   },
   detailedMediaInfoModal: {

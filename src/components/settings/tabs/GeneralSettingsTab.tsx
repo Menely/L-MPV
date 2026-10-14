@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import {
   FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles,
   MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles, Globe,
@@ -20,19 +20,8 @@ import type { Locale } from "../../../i18n/types";
    Держатся здесь, а не внутри разметки: и кнопки, и сравнение
    со значением по умолчанию, и подсказки берутся из одного места. */
 const DEINTERLACE_OPTIONS = ["no", "auto", "yadif", "yadif2x"] as const;
-const DEINTERLACE_LABELS: Record<(typeof DEINTERLACE_OPTIONS)[number], string> = {
-  no: "Выкл",
-  auto: "Авто",
-  yadif: "Yadif",
-  yadif2x: "2x",
-};
 
 const HWDEC_OPTIONS = ["auto-safe", "auto-copy", "no"] as const;
-const HWDEC_LABELS: Record<(typeof HWDEC_OPTIONS)[number], string> = {
-  "auto-safe": "Auto Safe",
-  "auto-copy": "Auto Copy",
-  no: "Прог.",
-};
 
 const AUDIO_NORMALIZE_OPTIONS = ["no", "dynaudnorm", "loudnorm"] as const;
 const AUDIO_NORMALIZE_KEY_MAP = {
@@ -40,31 +29,7 @@ const AUDIO_NORMALIZE_KEY_MAP = {
   dynaudnorm: "audioNormalizeDyn",
   loudnorm: "audioNormalizeLoud",
 } as const;
-const TONE_MAPPING_OPTIONS = ["auto", "bt.2446a", "spline", "bt.2390"] as const;
-const TONE_MAPPING_LABELS: Record<(typeof TONE_MAPPING_OPTIONS)[number], string> = {
-  auto: "Авто",
-  "bt.2446a": "2446a",
-  spline: "Спл.",
-  "bt.2390": "2390",
-};
-
-const HDR_RECOVERY_OPTIONS = [0, 0.3, 0.5] as const;
-const HDR_RECOVERY_LABELS: Record<number, string> = { 0: "Выкл", 0.3: "0.3", 0.5: "0.5" };
-
-const DITHER_OPTIONS = ["auto", "8", "10", "0"] as const;
-const DITHER_LABELS: Record<(typeof DITHER_OPTIONS)[number], string> = {
-  auto: "Авто",
-  8: "8 бит",
-  10: "10 бит",
-  0: "Выкл",
-};
-
 const DEBAND_PRESET_OPTIONS = ["light", "balanced", "strong"] as const;
-const DEBAND_PRESET_LABELS: Record<(typeof DEBAND_PRESET_OPTIONS)[number], string> = {
-  light: "Лёгкий",
-  balanced: "Сбаланс.",
-  strong: "Сильный",
-};
 
 const DEMUXER_CACHE_OPTIONS = [50, 150, 500, 1024] as const;
 
@@ -110,13 +75,29 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   } = props;
 
   const { dict, locale, setLocale } = useTranslation();
+  const isRu = locale === "ru";
+
+  const deinterlaceLabels = useMemo<Record<(typeof DEINTERLACE_OPTIONS)[number], string>>(() => ({
+    no: isRu ? "Выкл" : "Off",
+    auto: isRu ? "Авто" : "Auto",
+    yadif: "Yadif",
+    yadif2x: "2x",
+  }), [isRu]);
+
+  const hwdecLabels = useMemo<Record<(typeof HWDEC_OPTIONS)[number], string>>(() => ({
+    "auto-safe": "Auto Safe",
+    "auto-copy": "Auto Copy",
+    no: isRu ? "Прог." : "SW",
+  }), [isRu]);
+
+  const debandPresetLabels = useMemo<Record<(typeof DEBAND_PRESET_OPTIONS)[number], string>>(() => ({
+    light: isRu ? "Лёгкий" : "Light",
+    balanced: isRu ? "Сбаланс." : "Balanced",
+    strong: isRu ? "Сильный" : "Strong",
+  }), [isRu]);
 
   // ── Состояние настроек оптимизации видео/аудио ──
   const [audioLimiter, setAudioLimiter] = useState(true);
-  const [toneMapping, setToneMapping] = useState("auto");
-  // hdrRecovery хранится как число для точного сравнения (0.0, 0.3, 0.5)
-  const [hdrRecovery, setHdrRecovery] = useState(0.0);
-  const [ditherDepth, setDitherDepth] = useState("auto");
   const [debandEnabled, setDebandEnabled] = useState(false);
   const [debandPreset, setDebandPreset] = useState("balanced");
   const [audioLatencyFix, setAudioLatencyFix] = useState(true);
@@ -129,9 +110,6 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   useEffect(() => {
     invoke<{
       audio_limiter_enabled: boolean;
-      tone_mapping: string;
-      hdr_contrast_recovery: number;
-      dither_depth: string;
       deband_enabled: boolean;
       deband_preset: string;
       audio_latency_fix: boolean;
@@ -142,12 +120,6 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
     }>("get_video_audio_settings")
       .then((s) => {
         setAudioLimiter(s.audio_limiter_enabled);
-        setToneMapping(s.tone_mapping);
-        // Нормализуем до 1 знака после запятой для корректного совпадения с кнопками (0, 0.3, 0.5)
-        setHdrRecovery(
-          Math.round(s.hdr_contrast_recovery * 10) / 10
-        );
-        setDitherDepth(s.dither_depth);
         setDebandEnabled(s.deband_enabled);
         setDebandPreset(s.deband_preset);
         setAudioLatencyFix(s.audio_latency_fix);
@@ -206,32 +178,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
     [audioNormalize, runSetting],
   );
 
-  const selectToneMapping = useCallback(
-    (algorithm: string) => {
-      const prev = toneMapping;
-      setToneMapping(algorithm);
-      void runSetting("тонемаппинг", () => invoke("set_hdr_tone_mapping_setting", { algorithm }), () => setToneMapping(prev));
-    },
-    [toneMapping, runSetting],
-  );
 
-  const selectHdrRecovery = useCallback(
-    (strength: number) => {
-      const prev = hdrRecovery;
-      setHdrRecovery(strength);
-      void runSetting("контраст HDR", () => invoke("set_hdr_contrast_recovery_setting", { strength }), () => setHdrRecovery(prev));
-    },
-    [hdrRecovery, runSetting],
-  );
-
-  const selectDitherDepth = useCallback(
-    (depth: string) => {
-      const prev = ditherDepth;
-      setDitherDepth(depth);
-      void runSetting("дизеринг", () => invoke("set_dither_depth_setting", { depth }), () => setDitherDepth(prev));
-    },
-    [ditherDepth, runSetting],
-  );
 
   const selectDebandPreset = useCallback(
     (preset: string) => {
@@ -858,7 +805,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
               onSelect={(v) => selectDeinterlace(String(v))}
               options={DEINTERLACE_OPTIONS.map((v) => ({
                 value: v,
-                label: DEINTERLACE_LABELS[v],
+                label: deinterlaceLabels[v],
                 title: dict.settings.general.DEINTERLACE_TIPS[v],
               }))}
             />
@@ -873,7 +820,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
               onSelect={(v) => selectHwdec(String(v))}
               options={HWDEC_OPTIONS.map((v) => ({
                 value: v,
-                label: HWDEC_LABELS[v],
+                label: hwdecLabels[v],
                 title: dict.settings.general.HWDEC_TIPS[v],
               }))}
             />
@@ -922,57 +869,12 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             />
           </OptionCard>
 
-          {/* 4.3 HDR, дизеринг и бандинг */}
+          {/* 4.3 Устранение артефактов (дебандинг) */}
           <OptionCard
             icon={<Sparkles size={15} />}
             title={dict.settings.general.tileHdrTitle}
             titleHint={dict.settings.general.tileHdrDesc}
             >
-            <OptionBlock
-              title={dict.settings.general.hdrToneMappingTitle}
-              value={toneMapping}
-              columns="1fr 1fr 1fr 1fr"
-              resetValue="auto"
-              resetTitle={dict.settings.general.resetToneMapping}
-              onReset={() => selectToneMapping("auto")}
-              onSelect={(v) => selectToneMapping(String(v))}
-              options={TONE_MAPPING_OPTIONS.map((v) => ({
-                value: v,
-                label: TONE_MAPPING_LABELS[v],
-                title: dict.settings.general.TONE_MAPPING_TIPS[v],
-              }))}
-            />
-
-            <OptionBlock
-              title={dict.settings.general.hdrContrastRecoveryTitle}
-              value={hdrRecovery}
-              columns="1fr 1fr 1fr"
-              resetValue={0}
-              resetTitle={dict.settings.general.resetHdrRecovery}
-              onReset={() => selectHdrRecovery(0)}
-              onSelect={(v) => selectHdrRecovery(Number(v))}
-              options={HDR_RECOVERY_OPTIONS.map((val) => ({
-                value: val,
-                label: HDR_RECOVERY_LABELS[val],
-                title: dict.settings.general.HDR_RECOVERY_TIPS[val],
-              }))}
-            />
-
-            <OptionBlock
-              title={dict.settings.general.ditherDepthTitle}
-              value={ditherDepth}
-              columns="1fr 1fr 1fr 1fr"
-              resetValue="auto"
-              resetTitle={dict.settings.general.resetDither}
-              onReset={() => selectDitherDepth("auto")}
-              onSelect={(v) => selectDitherDepth(String(v))}
-              options={DITHER_OPTIONS.map((v) => ({
-                value: v,
-                label: DITHER_LABELS[v],
-                title: dict.settings.general.DITHER_TIPS[v],
-              }))}
-            />
-
             <OptionToggleRow
               checked={debandEnabled}
               resetValue={false}
@@ -994,7 +896,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 onSelect={(v) => selectDebandPreset(String(v))}
                 options={DEBAND_PRESET_OPTIONS.map((v) => ({
                   value: v,
-                  label: DEBAND_PRESET_LABELS[v],
+                  label: debandPresetLabels[v],
                 }))}
               />
             )}
@@ -1015,7 +917,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
               onSelect={(v) => selectDemuxerCache(Number(v))}
               options={DEMUXER_CACHE_OPTIONS.map((val) => ({
                 value: val,
-                label: `${val} МБ`,
+                label: `${val} ${isRu ? "МБ" : "MB"}`,
                 title: dict.settings.general.DEMUXER_CACHE_TIPS[val],
               }))}
             />

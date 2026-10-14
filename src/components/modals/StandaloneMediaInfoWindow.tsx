@@ -29,6 +29,7 @@ import {
 } from "./mediainfo";
 import "../../styles/mediainfo-modal.css";
 import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils";
+import { getEffectiveLocale } from "../../i18n";
 
 interface DetailedMediaInfoResponse {
   text: string;
@@ -52,7 +53,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
-  const [useRussian, setUseRussian] = useState<boolean>(true);
+  const [useRussian, setUseRussian] = useState<boolean>(() => getEffectiveLocale() === "ru");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
   const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
@@ -82,7 +83,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   const loadMediaInfoForPath = useCallback((path: string) => {
     if (!path || !path.trim()) {
       setLoading(false);
-      setError("Путь к файлу не передан");
+      setError("NO_PATH");
       return;
     }
 
@@ -101,7 +102,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
       })
       .catch((err) => {
         console.error("Ошибка получения MediaInfo:", err);
-        setError(typeof err === "string" ? err : "Не удалось проанализировать файл с помощью MediaInfo.dll");
+        setError(typeof err === "string" ? err : "DLL_ERROR");
         setLoading(false);
       });
   }, []);
@@ -120,13 +121,13 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           loadMediaInfoForPath(initialPath);
         } else {
           setLoading(false);
-          setError("Файл для анализа не указан");
+          setError("NO_FILE");
         }
       })
       .catch((e) => {
         console.error("Ошибка вызова get_standalone_mediainfo_path:", e);
         setLoading(false);
-        setError("Ошибка инициализации окна MediaInfo");
+        setError("INIT_ERROR");
       });
 
     // 2. Слушатель события обновления пути (если окно уже открыто и выбран другой файл)
@@ -389,7 +390,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             <FileText size={15} />
           </span>
           <span className="mediainfo-standalone__app-title" data-tauri-drag-region>
-            Свойства MediaInfo
+            {useRussian ? "Свойства MediaInfo" : "MediaInfo Properties"}
           </span>
           {fileName && (
             <span 
@@ -406,7 +407,11 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           <button
             type="button"
             className={`mediainfo-standalone__control-btn ${isAlwaysOnTop ? "mediainfo-standalone__control-btn--active" : ""}`}
-            title={isAlwaysOnTop ? "Открепить от верха окон" : "Закрепить поверх всех окон"}
+            title={
+              isAlwaysOnTop
+                ? (useRussian ? "Открепить от верха окон" : "Unpin from top")
+                : (useRussian ? "Закрепить поверх всех окон" : "Keep on top")
+            }
             onClick={handleToggleAlwaysOnTop}
             >
             <Pin size={13} style={{ transform: isAlwaysOnTop ? "rotate(45deg)" : "none", color: isAlwaysOnTop ? "var(--accent)" : "inherit" }} />
@@ -414,7 +419,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           <button
             type="button"
             className="mediainfo-standalone__control-btn"
-            title="Свернуть"
+            title={useRussian ? "Свернуть" : "Minimize"}
             onClick={handleMinimize}
             >
             <Minus size={13} />
@@ -422,7 +427,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           <button
             type="button"
             className="mediainfo-standalone__control-btn"
-            title={isMaximized ? "Восстановить" : "Развернуть"}
+            title={isMaximized ? (useRussian ? "Восстановить" : "Restore") : (useRussian ? "Развернуть" : "Maximize")}
             onClick={handleToggleMaximize}
             >
             <Square size={11} />
@@ -430,7 +435,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           <button
             type="button"
             className="mediainfo-standalone__control-btn mediainfo-standalone__control-btn--close"
-            title="Закрыть (Esc)"
+            title={useRussian ? "Закрыть (Esc)" : "Close (Esc)"}
             onClick={handleClose}
             >
             <X size={14} />
@@ -446,19 +451,19 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             ref={searchInputRef}
             type="text"
             className="mediainfo-standalone__search-input"
-            placeholder="Поиск по свойствам... (Ctrl+F)"
+            placeholder={useRussian ? "Поиск по свойствам... (Ctrl+F)" : "Search properties... (Ctrl+F)"}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           {searchQuery && (
             <div className="mediainfo-standalone__search-stats">
               <span className="mediainfo-standalone__search-count">
-                {matchCount} совп.
+                {matchCount} {useRussian ? "совп." : "matches"}
               </span>
               <button
                 type="button"
                 className="mediainfo-standalone__btn-icon"
-                title="Очистить поиск"
+                title={useRussian ? "Очистить поиск" : "Clear search"}
                 onClick={() => setSearchQuery("")}
                 >
                 <X size={12} />
@@ -471,7 +476,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           <button
             type="button"
             className={`mediainfo-standalone__action-btn ${useRussian ? "mediainfo-standalone__action-btn--active" : ""}`}
-            title="Переключить язык (Русский / Английский)"
+            title={useRussian ? "Переключить язык (Русский / Английский)" : "Switch language (Russian / English)"}
             onClick={() => setUseRussian(!useRussian)}
             >
             <Languages size={13} />
@@ -481,23 +486,23 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           <button
             type="button"
             className="mediainfo-standalone__action-btn"
-            title="Копировать отчёт в буфер"
+            title={useRussian ? "Копировать отчёт в буфер" : "Copy report to clipboard"}
             onClick={handleCopy}
             disabled={!baseReport.rawText}
             >
             {copied ? <Check size={13} color="#4ade80" /> : <Copy size={13} />}
-            <span>{copied ? "Скопировано" : "Копировать"}</span>
+            <span>{copied ? (useRussian ? "Скопировано" : "Copied") : (useRussian ? "Копировать" : "Copy")}</span>
           </button>
 
           <button
             type="button"
             className="mediainfo-standalone__action-btn"
-            title="Экспорт в .txt"
+            title={useRussian ? "Экспорт в .txt" : "Export to .txt"}
             onClick={handleExportTxt}
             disabled={!baseReport.rawText}
             >
             <Download size={13} />
-            <span>Экспорт</span>
+            <span>{useRussian ? "Экспорт" : "Export"}</span>
           </button>
         </div>
       </div>
@@ -519,23 +524,32 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
         {loading && (
           <div className="mediainfo-standalone__center-state">
             <Loader2 className="mediainfo-standalone__spinner" size={24} />
-            <span>Анализ медиаконтейнера...</span>
+            <span>{useRussian ? "Анализ медиаконтейнера..." : "Analyzing media container..."}</span>
           </div>
         )}
 
         {error && !loading && (
           <div className="mediainfo-standalone__center-state mediainfo-standalone__center-state--error">
             <AlertCircle size={24} />
-            <span>{error}</span>
+            <span>
+              {error === "NO_PATH"
+                ? (useRussian ? "Путь к файлу не передан" : "File path not specified")
+                : error === "NO_FILE"
+                ? (useRussian ? "Файл для анализа не указан" : "No file specified for analysis")
+                : error === "INIT_ERROR"
+                ? (useRussian ? "Ошибка инициализации окна MediaInfo" : "MediaInfo window initialization error")
+                : error === "DLL_ERROR"
+                ? (useRussian ? "Не удалось проанализировать файл с помощью MediaInfo.dll" : "Failed to analyze file with MediaInfo.dll")
+                : error}
+            </span>
             {filePath && (
               <button
                 type="button"
                 className="mediainfo-standalone__action-btn mt-4"
-                
                 onClick={() => loadMediaInfoForPath(filePath)}
                 >
                 <RefreshCw size={12} />
-                <span>Повторить анализ</span>
+                <span>{useRussian ? "Повторить анализ" : "Retry analysis"}</span>
               </button>
             )}
           </div>

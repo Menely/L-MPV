@@ -43,7 +43,7 @@ export function SubtitlesModalHeader({
 
   return (
     <div
-      className="subtitles-search-card__header--draggable"
+      className="subtitles-search-card__header subtitles-search-card__header--draggable"
       onMouseDown={onDragStart}
       onDoubleClick={onResetPosition}
       title={dict.subtitlesSearch.dragHeader}

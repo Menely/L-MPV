@@ -28,6 +28,7 @@ import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
 import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
+import { useTranslation } from "./i18n/LanguageContext";
 import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
 import { getSavedSeekStepSeconds, triggerSeekIndicator } from "./utils/seekUtils";
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
@@ -38,23 +39,24 @@ import { SettingsPanel } from "./components/settings/SettingsPanel";
 // парсятся только при первом открытии (dnd-kit едет вместе с настройками).
 const MediaInfoModal = lazy(() =>
   import("./components/modals/MediaInfoModal").then((m) => ({ default: m.MediaInfoModal }))
-  );
+);
 const ChaptersModal = lazy(() =>
   import("./components/modals/ChaptersModal").then((m) => ({ default: m.ChaptersModal }))
-  );
+);
 
 
 const UpdateModal = lazy(() =>
   import("./components/modals/UpdateModal").then((m) => ({ default: m.UpdateModal }))
-  );
+);
 const UpdateToast = lazy(() =>
   import("./components/modals/UpdateModal").then((m) => ({ default: m.UpdateToast }))
-  );
+);
 const SubtitlesSearchModal = lazy(() =>
   import("./components/subtitles/SubtitlesSearchModal").then((m) => ({ default: m.SubtitlesSearchModal }))
-  );
+);
 
 function App() {
+  const { dict } = useTranslation();
   const {
     hasMedia,
     isIdle,
@@ -1373,7 +1375,7 @@ function App() {
               L-MPV
             </div>
             <div className="video-area__placeholder-hint">
-              Перетащите файл или нажмите ПКМ → Открыть
+              {dict.controls.placeholderHint}
             </div>
           </div>
         )}
