@@ -122,6 +122,8 @@ interface PlayerStateContextType {
   seekTo: (seconds: number) => Promise<void>;
   seekBy: (deltaSeconds: number) => Promise<void>;
   togglePause: () => Promise<void>;
+  /** Прямая установка паузы (true — пауза, false — воспроизведение). */
+  setPause: (paused: boolean) => Promise<void>;
   setVolume: (vol: number) => void;
   tracks: TrackInfo[];
   loadTracks: () => Promise<void>;
@@ -167,6 +169,7 @@ const PlayerStateContext = createContext<PlayerStateContextType>({
   seekTo: async () => {},
   seekBy: async () => {},
   togglePause: async () => {},
+  setPause: async () => {},
   setVolume: () => {},
   tracks: [],
   loadTracks: async () => {},
@@ -817,6 +820,25 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // ─── Прямая установка паузы ───
+  const setPause = useCallback(async (paused: boolean) => {
+    setMediaInfo(prev => {
+      if (!prev) return null;
+      if (prev.paused === paused) return prev;
+      const next = { ...prev, paused };
+      mediaInfoRef.current = next;
+      return next;
+    });
+
+    try {
+      await invoke("set_pause", { paused });
+      window.dispatchEvent(new Event("l-mpv-force-poll"));
+    } catch (e) {
+      console.error("Ошибка установки паузы:", e);
+      window.dispatchEvent(new Event("l-mpv-force-poll"));
+    }
+  }, []);
+
   // ─── Оптимистичное изменение громкости ───
   const setVolume = useCallback((vol: number) => {
     // Мгновенное обновление UI
@@ -1213,6 +1235,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     seekTo,
     seekBy,
     togglePause,
+    setPause,
     setVolume,
     tracks,
     loadTracks,
@@ -1242,6 +1265,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     seekTo,
     seekBy,
     togglePause,
+    setPause,
     setVolume,
     tracks,
     loadTracks,

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { X, Plus } from "lucide-react";
 import { hslToRgb, rgbToHex, hexToRgb, rgbToHsl } from "../../utils/colorUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 
 interface ColorPickerModalProps {
   initialColor?: string;
@@ -38,22 +38,14 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const isDraggingRef = useRef<boolean>(false);
 
-  const [isClosing, setIsClosing] = useState<boolean>(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const handleClose = useCallback(() => {
-    if (isClosing) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-    }, getCloseTimeoutMs("base"));
-  }, [isClosing, onClose]);
+  const { isClosing, handleClose } = useOverlayDismiss({
+    onClose,
+    kind: "base",
+    closeOnEscape: true,
+  });
 
   useEffect(() => {
     returnFocusRef.current = document.activeElement instanceof HTMLElement
@@ -62,21 +54,13 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     const focusFrame = requestAnimationFrame(() => closeButtonRef.current?.focus());
     return () => {
       cancelAnimationFrame(focusFrame);
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
       returnFocusRef.current?.focus();
     };
   }, []);
 
-  // Закрытие модального окна по нажатию клавиши Escape
+  // Удержание фокуса внутри модального окна (фокус-трап)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        handleClose();
-        return;
-      }
       if (e.key !== "Tab" || !dialogRef.current) return;
       const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
         'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])',
@@ -316,7 +300,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerCancel}
-            aria-label={dict.settings.appearance.colorScheme.colorPickerTitle}
+            aria-hidden="true"
             style={{
               width: 180,
               height: 180,
@@ -363,6 +347,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             min="5"
             max="95"
             value={lightness}
+            aria-label={dict.settings.appearance.colorScheme.brightness}
             onChange={(e) => setLightness(Number(e.target.value))}
             style={{
               width: "100%",
@@ -411,6 +396,9 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
                 value={hexInput}
                 onChange={(e) => handleHexChange(e.target.value)}
                 maxLength={7}
+                aria-label="HEX"
+                autoComplete="off"
+                spellCheck={false}
                 style={{
                   width: "100%",
                   padding: "5px 8px",
@@ -443,6 +431,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
                       min={0}
                       max={255}
                       value={val}
+                      aria-label={`RGB ${ch}`}
                       onChange={(e) => {
                         const num = Math.min(255, Math.max(0, Number(e.target.value) || 0));
                         if (idx === 0) handleRgbChange(num, gInput, bInput);

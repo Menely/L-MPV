@@ -181,7 +181,8 @@
 }
 
 .timeline--has-chapters .timeline__segment--hovered,
-.timeline--has-chapters .timeline__segment:hover {
+.timeline--has-chapters .timeline__segment:hover,
+.timeline--has-chapters:focus-visible .timeline__segment {
   height: 8px;
 }
 
@@ -632,11 +633,11 @@ html.no-animations .timeline__pulse {
   padding: 0;
 }
 
-/* Глобальный focus-visible перебивает `outline: none` у .ui-premium-slider
-   (у него в modals.css он без !important) — вокруг слайдера громкости
-   появлялась зелёная рамка. Ползунок и так индицируется наведением. */
+/* Видимое кольцо фокуса для клавиатурной навигации */
 .volume-slider__input:focus-visible {
-  outline: none !important;
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+  border-radius: var(--radius-xs, 4px);
 }
 
 /* ─── Полное отключение свечения при режиме Off ── */

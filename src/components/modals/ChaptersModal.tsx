@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X } from "lucide-react";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { formatTime } from "../../utils/timeUtils";
@@ -18,47 +18,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
   const { chapters, seekTo } = usePlayerState();
   const { position } = usePlayerProgress();
   const { dict } = useTranslation();
-  const [isClosing, setIsClosing] = useState(false);
-  const isClosingRef = useRef(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleClose = useCallback(() => {
-    if (isClosingRef.current) return;
-    isClosingRef.current = true;
-    setIsClosing(true);
-
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-    }, getCloseTimeoutMs("fast"));
-  }, [onClose]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-      isClosingRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        handleClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [handleClose]);
+  const { isClosing, handleClose } = useOverlayDismiss({ onClose, kind: "fast" });
 
   // Локальный выбор главы пользователем для мгновенного тактильного отклика
   const [selectedChapterIndex, setSelectedChapterIndex] = useState<number | null>(null);
@@ -90,16 +50,20 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
   }, [calculatedActiveIndex, selectedChapterIndex]);
 
   return (
-    <div className="chapters-modal-overlay">
+    <div className="chapters-modal-overlay" onClick={handleClose}>
       <div 
         className={`chapters-modal-card ${isClosing ? "chapters-modal-card--closing" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="chapters-modal-title"
         onClick={(e) => e.stopPropagation()}
         >
         <div className="chapters-modal-header">
-          <div className="chapters-modal-title">
+          <h2 id="chapters-modal-title" className="chapters-modal-title">
             {dict.chapters.title(chapters.length)}
-          </div>
+          </h2>
           <button 
+            type="button"
             className="modal__close"
             onClick={handleClose}
             title={dict.chapters.close}
@@ -113,8 +77,10 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
           {chapters.length> 0 ? (
             chapters.map((chapter) => (
               <button
+                type="button"
                 key={chapter.index}
                 className={`chapter-item ${chapter.index === activeIndex ? "chapter-item--active" : ""}`}
+                aria-current={chapter.index === activeIndex ? "true" : undefined}
                 onClick={async () => {
                   try {
                     setSelectedChapterIndex(chapter.index);

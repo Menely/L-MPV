@@ -16,6 +16,16 @@ export type Locale = "ru" | "en";
 export interface TranslationDict {
   // ─── Панель управления (PlayerControls) ───────────────────────
   controls: {
+    play: string;
+    pause: string;
+    prev: string;
+    next: string;
+    seekBackward: (sec: number) => string;
+    seekForward: (sec: number) => string;
+    shuffle: string;
+    mute: string;
+    unmute: string;
+    contextMenu: string;
     audioTracks: string;
     subtitles: string;
     subOff: string;

@@ -185,6 +185,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: auto;
+  overscroll-behavior: contain;
   scrollbar-gutter: stable;
   padding: var(--space-4) 12px;
   font-family: 'Consolas', 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;

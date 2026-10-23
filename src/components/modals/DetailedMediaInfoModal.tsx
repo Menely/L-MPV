@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 import {
   FileText,
   X,
@@ -128,19 +128,11 @@ export function DetailedMediaInfoModal({
   }, [isOpen, loadInfo, setInitialPosition]);
 
   // Закрытие окна с анимацией
-  const [isClosing, setIsClosing] = useState<boolean>(false);
-  const handleClose = useCallback(() => {
-    if (isClosing) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    setTimeout(() => {
-      setIsClosing(false);
-      onClose();
-    }, getCloseTimeoutMs("fast"));
-  }, [isClosing, onClose]);
+  const { isClosing, handleClose } = useOverlayDismiss({
+    onClose,
+    kind: "fast",
+    closeOnEscape: false,
+  });
 
   // Закрытие по Escape или Shift+F10 (если в поиске есть текст — первый Esc очищает поиск)
   useEffect(() => {
@@ -328,11 +320,13 @@ export function DetailedMediaInfoModal({
         <div className="mediainfo-floating-window__actions">
           {/* Переключение языка (RU / EN) */}
           <button
+            type="button"
             onClick={() => setUseRussian(!useRussian)}
             className={`mediainfo-floating-window__btn ${
               useRussian ? "mediainfo-floating-window__btn--active" : ""
             }`}
             title={useRussian ? dict.detailedMediaInfoModal.langTooltipRu : dict.detailedMediaInfoModal.langTooltipEn}
+            aria-label={useRussian ? dict.detailedMediaInfoModal.langTooltipRu : dict.detailedMediaInfoModal.langTooltipEn}
             >
             <Languages size={14} />
             <span style={{ fontSize: "var(--fs-2xs)", fontWeight: 600 }}>{useRussian ? "RU" : "EN"}</span>
@@ -340,9 +334,11 @@ export function DetailedMediaInfoModal({
 
           {/* Копировать всё */}
           <button
+            type="button"
             onClick={handleCopy}
             className="mediainfo-floating-window__btn"
             title={dict.detailedMediaInfoModal.copyReport}
+            aria-label={dict.detailedMediaInfoModal.copyReport}
             disabled={!baseReport.rawText}
             >
             {copied ? <Check size={14} color="#4ade80" /> : <Copy size={14} />}
@@ -350,9 +346,11 @@ export function DetailedMediaInfoModal({
 
           {/* Экспорт в TXT */}
           <button
+            type="button"
             onClick={handleExportTxt}
             className="mediainfo-floating-window__btn"
             title={dict.detailedMediaInfoModal.exportTxt}
+            aria-label={dict.detailedMediaInfoModal.exportTxt}
             disabled={!baseReport.rawText}
             >
             <Download size={14} />
@@ -360,6 +358,7 @@ export function DetailedMediaInfoModal({
 
           {/* Закрыть окно */}
           <button
+            type="button"
             onClick={handleClose}
             className="mediainfo-floating-window__btn mediainfo-floating-window__btn--close"
             title={dict.detailedMediaInfoModal.close}
@@ -379,6 +378,9 @@ export function DetailedMediaInfoModal({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={dict.detailedMediaInfoModal.searchPlaceholder}
+          aria-label={dict.detailedMediaInfoModal.searchPlaceholder}
+          autoComplete="off"
+          spellCheck={false}
           className="mediainfo-floating-window__search-input"
         />
         {searchQuery && (

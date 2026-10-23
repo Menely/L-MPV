@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 import {
   Download,
   Loader2,
@@ -197,42 +197,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     }
   };
 
-  const [isClosing, setIsClosing] = useState(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleClose = useCallback(() => {
-    if (closeTimerRef.current || isDownloading) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-    }, getCloseTimeoutMs("base"));
-  }, [isDownloading, onClose]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && (!isDownloading || !!errorMessage)) {
-        e.preventDefault();
-        e.stopPropagation();
-        handleClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [handleClose, isDownloading, errorMessage]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
+  const { isClosing, handleClose } = useOverlayDismiss({
+    onClose,
+    kind: "base",
+    disabled: isDownloading && !errorMessage,
+    closeOnEscape: true,
+  });
 
   const handlePostpone = () => {
     invoke("postpone_update").catch(console.error).finally(handleClose);
@@ -252,6 +222,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
       >
       <div
         className={`modal-container update-modal-card ${isClosing ? "update-modal-card--closing" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="update-modal-title"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: isExpanded ? "820px" : "480px",
@@ -304,7 +277,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               <AppLogoIcon size={24} color="#ffffff" />
             </div>
             <div>
-              <h3 style={{ margin: "var(--space-0)", fontSize: "var(--fs-xl)", fontWeight: 700, letterSpacing: "-0.01em" }}>
+              <h3 id="update-modal-title" style={{ margin: "var(--space-0)", fontSize: "var(--fs-xl)", fontWeight: 700, letterSpacing: "-0.01em" }}>
                 {isUpgrade
                   ? dict.updateModal.titleUpgrade
                   : isDowngrade
@@ -804,28 +777,11 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   onClose,
 }) => {
   const { dict } = useTranslation();
-  const [isClosing, setIsClosing] = useState(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleClose = useCallback(() => {
-    if (closeTimerRef.current) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-    }, getCloseTimeoutMs("fast"));
-  }, [onClose]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
+  const { isClosing, handleClose } = useOverlayDismiss({
+    onClose,
+    kind: "fast",
+    closeOnEscape: true,
+  });
 
   const handlePostpone = () => {
     invoke("postpone_update").catch(console.error).finally(handleClose);

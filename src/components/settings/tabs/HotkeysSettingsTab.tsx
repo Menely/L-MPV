@@ -25,7 +25,7 @@ export interface HotkeysSettingsTabProps {
 }
 
 /** Код комбинации из клавиатурного события. null — чистый модификатор. */
-function buildKeyCode(e: React.KeyboardEvent): string | null {
+function buildKeyCode(e: React.KeyboardEvent | KeyboardEvent): string | null {
   if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return null;
   const parts: string[] = [];
   if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
@@ -117,6 +117,78 @@ const CATEGORIZED_HOTKEYS: Record<string, typeof HOTKEY_ACTIONS> = HOTKEY_ACTION
 );
 
 /**
+ * Баннер предупреждения о конфликте назначенной комбинации.
+ */
+interface HotkeyConflictBannerProps {
+  conflict: HotkeyConflict;
+  onApply: (targetId: string, index: number, code: string, stealFrom: string | null) => void;
+  onCancel: () => void;
+}
+
+const HotkeyConflictBanner = React.memo<HotkeyConflictBannerProps>(({
+  conflict,
+  onApply,
+  onCancel,
+}) => {
+  const { dict, locale } = useTranslation();
+  const ownerTitle = dict.settings.hotkeys.actions[conflict.ownerId] || conflict.ownerLabel;
+  const keyName = getKeyDisplay(conflict.code, locale);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: "var(--space-4)",
+        marginTop: "var(--space-3)",
+        marginBottom: "var(--space-1)",
+        padding: "8px 12px",
+        background: "rgba(244, 67, 54, 0.08)",
+        border: "1px solid rgba(244, 67, 54, 0.35)",
+        borderRadius: "var(--radius-md)",
+        boxShadow: "0 0 12px rgba(244, 67, 54, 0.15)",
+      }}
+    >
+      <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-primary)", lineHeight: 1.4 }}>
+        {conflict.reserved ? (
+          <>
+            <span style={{ color: "#f87171", fontWeight: 700 }}>{dict.settings.hotkeys.conflictReserved} </span>
+            {dict.settings.hotkeys.conflictOnly(keyName || "", ownerTitle)}
+          </>
+        ) : (
+          <>
+            <span style={{ color: "#f87171", fontWeight: 700 }}>{dict.settings.hotkeys.conflictTaken} </span>
+            {keyName} — «{ownerTitle}»
+          </>
+        )}
+      </span>
+      <div className="row-center row-gap-4">
+        {!conflict.reserved && (
+          <button
+            type="button"
+            onClick={() => onApply(conflict.targetId, conflict.targetIndex, conflict.code, conflict.ownerId)}
+            className="btn btn--danger btn--sm"
+            title={dict.settings.hotkeys.btnStealTitle}
+          >
+            {dict.settings.hotkeys.btnOverwrite}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onCancel}
+          className="btn btn--secondary btn--sm"
+        >
+          {dict.settings.hotkeys.btnCancel}
+        </button>
+      </div>
+    </div>
+  );
+});
+HotkeyConflictBanner.displayName = "HotkeyConflictBanner";
+
+/**
  * Вкладка настроек горячих клавиш.
  * Управляет своими состояниями самостоятельно.
  */
@@ -129,6 +201,9 @@ export function HotkeysSettingsTab({
   const [customHotkeys, setCustomHotkeys] = useState<Record<string, string[]>>(
     getCustomHotkeys()
   );
+  const customHotkeysRef = useRef(customHotkeys);
+  customHotkeysRef.current = customHotkeys;
+
   const [recordingAction, setRecordingAction] = useState<{
     id: string;
     index: number;
@@ -148,29 +223,40 @@ export function HotkeysSettingsTab({
   }, []);
 
   // Финальная запись бинда. stealFrom — забрать комбинацию у другого действия.
-  // Без сайд-эффектов внутри апдейтера: считаем от свежего стейта замыкания.
-  const applyBinding = (targetId: string, index: number, code: string, stealFrom: string | null) => {
-    const next: Record<string, string[]> = { ...customHotkeys };
+  const applyBinding = useCallback((targetId: string, index: number, code: string, stealFrom: string | null) => {
+    const next: Record<string, string[]> = { ...customHotkeysRef.current };
     if (stealFrom) {
       next[stealFrom] = (next[stealFrom] || []).filter((c) => c !== code);
     }
     const arr = [...(next[targetId] || [])];
     if (index < arr.length) arr[index] = code;
     else arr.push(code);
-    next[targetId] = arr;
+    // Исключаем дубликаты одного и того же кода внутри действия
+    next[targetId] = Array.from(new Set(arr));
     setCustomHotkeys(next);
     saveCustomHotkeys(next);
     setRecordingAction(null);
     setConflict(null);
-  };
+  }, []);
+
+  // Синхронизация локального состояния вкладки при сбросе настроек или применении пресетов
+  useEffect(() => {
+    const handleSettingsChanged = () => {
+      setCustomHotkeys(getCustomHotkeys());
+    };
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    };
+  }, []);
 
   // Запись с проверкой конфликта: чужой владелец -> диалог, свой -> тихо
-  const tryCommitBinding = (
+  const tryCommitBinding = useCallback((
     targetId: string,
     index: number,
-    code: string,
-    hotkeys: Record<string, string[]>
+    code: string
   ) => {
+    const hotkeys = customHotkeysRef.current;
     const current = hotkeys[targetId] || [];
     if (current[index] === code) {
       cancelRecording();
@@ -195,9 +281,9 @@ export function HotkeysSettingsTab({
     } else {
       setConflict({ code, targetId, targetIndex: index, ownerId: owner.id, ownerLabel: owner.label });
     }
-  };
+  }, [applyBinding, cancelRecording, dict.settings.hotkeys.fallbackOwner]);
 
-  const handleMouseRecord = (targetId: string, index: number, e: React.MouseEvent) => {
+  const handleMouseRecord = useCallback((targetId: string, index: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     ignoreClickUntilRef.current = Date.now() + 400;
@@ -212,7 +298,7 @@ export function HotkeysSettingsTab({
         mouseClickTimerRef.current = null;
       }
       const dblCode = `${baseCode}DoubleClick`;
-      tryCommitBinding(targetId, index, dblCode, customHotkeys);
+      tryCommitBinding(targetId, index, dblCode);
     } else {
       // Одиночный клик: ожидаем возможный второй клик для 2x LMB
       if (mouseClickTimerRef.current) {
@@ -220,10 +306,10 @@ export function HotkeysSettingsTab({
       }
       mouseClickTimerRef.current = window.setTimeout(() => {
         mouseClickTimerRef.current = null;
-        tryCommitBinding(targetId, index, baseCode, customHotkeys);
+        tryCommitBinding(targetId, index, baseCode);
       }, 250);
     }
-  };
+  }, [conflict, tryCommitBinding]);
 
   useEffect(() => {
     if (onRecordingChange) {
@@ -231,30 +317,49 @@ export function HotkeysSettingsTab({
     }
   }, [recordingAction, onRecordingChange]);
 
+  // Глобальный перехват клавиатуры и мыши при активном режиме записи
   useEffect(() => {
     if (!recordingAction) return;
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        cancelRecording();
-      } else if (event.key === "Tab") {
-        cancelRecording();
+      // Игнорируем нажатия чистых клавиш-модификаторов
+      if (["Control", "Shift", "Alt", "Meta"].includes(event.key)) {
+        return;
       }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Escape и Tab отменяют активную запись
+      if (event.key === "Escape" || event.key === "Tab") {
+        cancelRecording();
+        return;
+      }
+
+      // При открытом баннере конфликта ожидаем выбор пользователя
+      if (conflict) return;
+
+      const newCode = buildKeyCode(event);
+      if (!newCode) return;
+
+      tryCommitBinding(recordingAction.id, recordingAction.index, newCode);
     };
+
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target instanceof Element ? event.target : null;
+      // Клик мимо блока записи отменяет режим назначения
       if (!target?.closest("[data-hotkey-recorder]")) {
         cancelRecording();
       }
     };
+
     window.addEventListener("keydown", handleKeyDown, true);
     window.addEventListener("pointerdown", handlePointerDown, true);
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
       window.removeEventListener("pointerdown", handlePointerDown, true);
     };
-  }, [cancelRecording, recordingAction]);
+  }, [cancelRecording, recordingAction, conflict, tryCommitBinding]);
 
   useEffect(() => () => {
     if (mouseClickTimerRef.current) {
@@ -381,22 +486,6 @@ export function HotkeysSettingsTab({
                                       e.preventDefault();
                                     }
                                   }}
-                                  onKeyDown={(e) => {
-                                    if (isRecording) {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      // Esc — отмена записи (глобальный хендлер модалки
-                                      // при записи отключён через onRecordingChange)
-                                      if (e.key === "Escape") {
-                                        cancelRecording();
-                                        return;
-                                      }
-                                      if (conflict) return;
-                                      const newCode = buildKeyCode(e);
-                                      if (!newCode) return;
-                                      tryCommitBinding(item.id, idx, newCode, customHotkeys);
-                                    }
-                                  }}
                                   onMouseDown={(e) => {
                                     if (isRecording) {
                                       handleMouseRecord(item.id, idx, e);
@@ -476,18 +565,6 @@ export function HotkeysSettingsTab({
                                 <button
                                   type="button"
                                   data-hotkey-recorder=""
-                                  onKeyDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    if (e.key === "Escape") {
-                                      cancelRecording();
-                                      return;
-                                    }
-                                    if (conflict) return;
-                                    const newCode = buildKeyCode(e);
-                                    if (!newCode) return;
-                                    tryCommitBinding(item.id, currentCodes.length, newCode, customHotkeys);
-                                  }}
                                   onMouseDown={(e) => {
                                     handleMouseRecord(item.id, currentCodes.length, e);
                                   }}
@@ -574,64 +651,11 @@ export function HotkeysSettingsTab({
 
                     {/* Баннер конфликта: комбинация уже занята другим действием */}
                     {itemConflict && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          flexWrap: "wrap",
-                          gap: "var(--space-4)",
-                          marginTop: "var(--space-3)",
-                          marginBottom: "var(--space-1)",
-                          padding: "8px 12px",
-                          background: "rgba(244, 67, 54, 0.08)",
-                          border: "1px solid rgba(244, 67, 54, 0.35)",
-                          borderRadius: "var(--radius-md)",
-                          boxShadow: "0 0 12px rgba(244, 67, 54, 0.15)",
-                        }}
-                        >
-                        <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-primary)", lineHeight: 1.4 }}>
-                          {(() => {
-                            const ownerTitle = dict.settings.hotkeys.actions[itemConflict.ownerId] || itemConflict.ownerLabel;
-                            const keyName = getKeyDisplay(itemConflict.code, locale);
-                            return itemConflict.reserved ? (
-                              <>
-                                <span style={{ color: "#f87171", fontWeight: 700 }}>{dict.settings.hotkeys.conflictReserved} </span>
-                                {dict.settings.hotkeys.conflictOnly(keyName || "", ownerTitle)}
-                              </>
-                            ) : (
-                              <>
-                                <span style={{ color: "#f87171", fontWeight: 700 }}>{dict.settings.hotkeys.conflictTaken} </span>
-                                {keyName} — «{ownerTitle}»
-                              </>
-                            );
-                          })()}
-                        </span>
-                        <div className="row-center row-gap-4">
-                          {!itemConflict.reserved && (
-                            <button
-                              type="button"
-                              onClick={() => applyBinding(
-                                itemConflict.targetId,
-                                itemConflict.targetIndex,
-                                itemConflict.code,
-                                itemConflict.ownerId
-                              )}
-                              className="btn btn--danger btn--sm"
-                              title={dict.settings.hotkeys.btnStealTitle}
-                              >
-                              {dict.settings.hotkeys.btnOverwrite}
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={cancelRecording}
-                            className="btn btn--secondary btn--sm"
-                            >
-                            {dict.settings.hotkeys.btnCancel}
-                          </button>
-                        </div>
-                      </div>
+                      <HotkeyConflictBanner
+                        conflict={itemConflict}
+                        onApply={applyBinding}
+                        onCancel={cancelRecording}
+                      />
                     )}
                     </React.Fragment>
                   );

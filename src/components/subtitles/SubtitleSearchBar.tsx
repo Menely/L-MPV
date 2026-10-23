@@ -82,6 +82,9 @@ export function SubtitleSearchBar({
           onChange={(e) => onSearchChange(e.target.value)}
           onKeyDown={onSearchKeyDown}
           placeholder={dict.subtitlesSearch.searchPlaceholder}
+          aria-label={dict.subtitlesSearch.searchPlaceholder}
+          autoComplete="off"
+          spellCheck={false}
           title={dict.subtitlesSearch.searchEnterHint}
           style={{
             width: "100%",
@@ -171,6 +174,7 @@ export function SubtitleSearchBar({
             }}
             className="hover-bright"
             title={dict.subtitlesSearch.clearSearch}
+            aria-label={dict.subtitlesSearch.clearSearch}
             >
             <X size={14} />
           </button>

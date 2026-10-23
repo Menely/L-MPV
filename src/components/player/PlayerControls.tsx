@@ -563,6 +563,7 @@ export function PlayerControls({
                         type="button"
                         className="track-download-btn"
                         title={dict.controls.downloadAudio}
+                        aria-label={dict.controls.downloadAudio}
                         disabled={downloadingTrackKey === `audio-${t.id}`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -647,6 +648,7 @@ export function PlayerControls({
                         type="button"
                         className="track-download-btn"
                         title={dict.controls.downloadSubtitle}
+                        aria-label={dict.controls.downloadSubtitle}
                         disabled={downloadingTrackKey === `sub-${t.id}`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -715,7 +717,8 @@ export function PlayerControls({
                 handleTrackButtonClick("audio", "MouseRight");
               }}
               id="btn-audio-tracks"
-              title={isAudioDownloading ? dict.controls.downloadingAudio : undefined}
+              title={isAudioDownloading ? dict.controls.downloadingAudio : dict.controls.audioTracks}
+              aria-label={isAudioDownloading ? dict.controls.downloadingAudio : dict.controls.audioTracks}
             >
               <AudioLines size={18} />
               {showTrackNames && audioLabel && (
@@ -736,7 +739,8 @@ export function PlayerControls({
                 handleTrackButtonClick("sub", "MouseRight");
               }}
               id="btn-sub-tracks"
-              title={isSubDownloading ? dict.controls.downloadingSubtitle : undefined}
+              title={isSubDownloading ? dict.controls.downloadingSubtitle : dict.controls.subtitles}
+              aria-label={isSubDownloading ? dict.controls.downloadingSubtitle : dict.controls.subtitles}
             >
               <Subtitles size={18} />
               {showTrackNames && subLabel && (
@@ -757,8 +761,10 @@ export function PlayerControls({
               >
               <button
                 className="control-btn"
-                onClick={() => handleVolumeChange(volume> 0 ? 0 : 100)}
+                onClick={() => handleVolumeChange(volume > 0 ? 0 : 100)}
                 id="btn-volume"
+                title={volume === 0 ? dict.controls.unmute : dict.controls.mute}
+                aria-label={volume === 0 ? dict.controls.unmute : dict.controls.mute}
                 >
                 {volume === 0 ? (
                   <VolumeX key="vol-x" size={18} />
@@ -816,6 +822,8 @@ export function PlayerControls({
               <button
                 className={`control-btn control-btn--priority-low ${repeatMode !== 0 ? "control-btn--active" : ""}`}
                 onClick={handleToggleRepeat}
+                title={repeatMode === 1 ? dict.controls.repeatOne : repeatMode === 2 ? dict.controls.repeatAll : dict.controls.repeatOff}
+                aria-label={repeatMode === 1 ? dict.controls.repeatOne : repeatMode === 2 ? dict.controls.repeatAll : dict.controls.repeatOff}
                 >
                 {repeatMode === 1 ? <Repeat1 size={16} /> : <Repeat size={16} />}
               </button>
@@ -825,6 +833,8 @@ export function PlayerControls({
               className="control-btn control-btn--priority-medium"
               onClick={handlePlaylistPrev}
               id="btn-playlist-prev"
+              title={dict.controls.prev}
+              aria-label={dict.controls.prev}
               >
               <SkipBack size={18} />
             </button>
@@ -837,7 +847,8 @@ export function PlayerControls({
                   triggerSeekIndicator("left", seekStepSeconds);
                 }}
                 id="btn-seek-back"
-                title={`-${seekStepSeconds}s`}
+                title={dict.controls.seekBackward(seekStepSeconds)}
+                aria-label={dict.controls.seekBackward(seekStepSeconds)}
                 >
                 <Undo size={18} />
               </button>
@@ -847,6 +858,8 @@ export function PlayerControls({
               className="control-btn control-btn--play"
               onClick={handleTogglePause}
               id="btn-play-pause"
+              title={paused ? dict.controls.play : dict.controls.pause}
+              aria-label={paused ? dict.controls.play : dict.controls.pause}
               >
               {paused ? (
                 <Play key="play-icon" size={22} fill="currentColor" />
@@ -863,7 +876,8 @@ export function PlayerControls({
                   triggerSeekIndicator("right", seekStepSeconds);
                 }}
                 id="btn-seek-forward"
-                title={`+${seekStepSeconds}s`}
+                title={dict.controls.seekForward(seekStepSeconds)}
+                aria-label={dict.controls.seekForward(seekStepSeconds)}
                 >
                 <Redo size={18} />
               </button>
@@ -873,6 +887,8 @@ export function PlayerControls({
               className="control-btn control-btn--priority-medium"
               onClick={handlePlaylistNext}
               id="btn-playlist-next"
+              title={dict.controls.next}
+              aria-label={dict.controls.next}
               >
               <SkipForward size={18} />
             </button>
@@ -881,6 +897,8 @@ export function PlayerControls({
               <button
                 className="control-btn control-btn--priority-low"
                 onClick={handleShuffle}
+                title={dict.controls.shuffle}
+                aria-label={dict.controls.shuffle}
                 >
                 <Shuffle size={16} />
               </button>
@@ -904,6 +922,7 @@ export function PlayerControls({
                 onClick={() => handleSeek(skipOpeningSeconds)}
                 id="btn-skip-opening"
                 title={dict.controls.skipOpening(skipOpeningSeconds)}
+                aria-label={dict.controls.skipOpening(skipOpeningSeconds)}
                 style={{ padding: "0 8px", gap: "var(--space-1)" }}
                 >
                 <FastForward size={16} />
@@ -917,6 +936,8 @@ export function PlayerControls({
               <button
                 className={`control-btn control-btn--priority-medium ${isAlwaysOnTop ? "control-btn--active" : ""}`}
                 id="btn-always-on-top"
+                title={dict.controls.alwaysOnTop}
+                aria-label={dict.controls.alwaysOnTop}
                 onClick={async () => {
                   try {
                     const appWindow = getCurrentWindow();
@@ -934,6 +955,8 @@ export function PlayerControls({
               <button
                 className={`control-btn control-btn--priority-low ${showMediaInfo ? "control-btn--active" : ""}`}
                 id="btn-file-info"
+                title={dict.controls.mediaInfo}
+                aria-label={dict.controls.mediaInfo}
                 onClick={() => {
                   closePopover(true);
                   if (onCloseChapters) onCloseChapters();
@@ -953,6 +976,7 @@ export function PlayerControls({
                 className={`control-btn control-btn--priority-low ${showDetailedMediaInfo ? "control-btn--active" : ""}`}
                 id="btn-mediainfo"
                 title={dict.controls.detailedMediaInfo}
+                aria-label={dict.controls.detailedMediaInfo}
                 onClick={() => {
                   closePopover(true);
                   if (onCloseChapters) onCloseChapters();
@@ -971,6 +995,8 @@ export function PlayerControls({
                   visualizerConfig.enabled ? "control-btn--active" : ""
                 }`}
                 id="btn-visualizer"
+                title={dict.controls.visualizer}
+                aria-label={dict.controls.visualizer}
                 onClick={() => {
                   const updated = { ...visualizerConfig, enabled: !visualizerConfig.enabled };
                   setVisualizerConfig(updated);
@@ -1007,6 +1033,8 @@ export function PlayerControls({
                   setIsPlaylistOpen(!isPlaylistOpen);
                 }}
                 id="btn-playlist-drawer"
+                title={dict.controls.playlist}
+                aria-label={dict.controls.playlist}
                 >
                 <ListVideo size={18} />
               </button>
@@ -1017,6 +1045,8 @@ export function PlayerControls({
                 className="control-btn control-btn--priority-low"
                 onClick={handleTakeScreenshot}
                 id="btn-screenshot"
+                title={dict.controls.screenshot}
+                aria-label={dict.controls.screenshot}
                 >
                 <Camera size={18} />
               </button>
@@ -1027,6 +1057,8 @@ export function PlayerControls({
                 className="control-btn"
                 onClick={toggleFullscreen}
                 id="btn-fullscreen"
+                title={isFullscreen ? dict.controls.exitFullscreen : dict.controls.fullscreen}
+                aria-label={isFullscreen ? dict.controls.exitFullscreen : dict.controls.fullscreen}
                 >
                 {isFullscreen ? (
                   <MinimizeIcon size={18} />

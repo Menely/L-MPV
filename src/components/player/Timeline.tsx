@@ -162,6 +162,7 @@ export const Timeline = React.memo(() => {
     seekTo,
     seekBy,
     togglePause,
+    setPause,
     prolongControlsIfActive,
   } = usePlayerState();
   const { position, duration, seeking, seekTarget } = usePlayerProgress();
@@ -173,6 +174,9 @@ export const Timeline = React.memo(() => {
   const [mousePosition, setMousePosition] = useState<number | null>(null);
   const [isDraggingState, setIsDraggingState] = useState(false);
   const isDragging = useRef(false);
+  const wasPlayingRef = useRef(false);
+  const mediaInfoRef = useRef(mediaInfo);
+  mediaInfoRef.current = mediaInfo;
   const cachedRectRef = useRef<DOMRect | null>(null);
 
   // ─── Производные значения ────────────────────────────────────
@@ -242,9 +246,13 @@ export const Timeline = React.memo(() => {
       window.removeEventListener("resize", invalidateRect);
       if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
       cachedRectRef.current = null;
+      cancelScrub();
+      if (isDragging.current && wasPlayingRef.current) {
+        setPause(false);
+      }
       isDragging.current = false;
     };
-  }, []);
+  }, [setPause, cancelScrub]);
 
   // ─── Pointer handlers ────────────────────────────────────────
 
@@ -262,6 +270,12 @@ export const Timeline = React.memo(() => {
     isDragging.current = true;
     setIsDraggingState(true);
 
+    const isCurrentlyPlaying = mediaInfoRef.current ? !mediaInfoRef.current.paused : false;
+    wasPlayingRef.current = isCurrentlyPlaying;
+    if (isCurrentlyPlaying) {
+      setPause(true);
+    }
+
     const ratio = clientXToRatio(e.clientX, rect);
     const time = ratio * safeDuration;
 
@@ -272,7 +286,8 @@ export const Timeline = React.memo(() => {
     }
     setMousePosition(time);
     setHoverInfo({ ratio, time });
-  }, [safeDuration, firePulse]);
+    scheduleScrub(time);
+  }, [safeDuration, firePulse, setPause, scheduleScrub]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (safeDuration <= 0) return;
@@ -291,6 +306,9 @@ export const Timeline = React.memo(() => {
     isDragging.current = false;
     setIsDraggingState(false);
 
+    const shouldResume = wasPlayingRef.current;
+    wasPlayingRef.current = false;
+
     if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
     pendingClientX.current = null;
     cancelScrub();
@@ -303,6 +321,9 @@ export const Timeline = React.memo(() => {
     if (commit) {
       if (rect.width <= 0 || safeDuration <= 0) {
         setMousePosition(null);
+        if (shouldResume) {
+          setPause(false);
+        }
         return;
       }
       const finalPos = clientXToSeconds(e.clientX, rect, safeDuration);
@@ -312,19 +333,23 @@ export const Timeline = React.memo(() => {
 
       // Скрыть подсказку если отпускание произошло вне шкалы
       const outside =
-        e.clientX < rect.left || e.clientX> rect.right ||
-        e.clientY < rect.top || e.clientY> rect.bottom;
+        e.clientX < rect.left || e.clientX > rect.right ||
+        e.clientY < rect.top || e.clientY > rect.bottom;
       if (outside) setHoverInfo(null);
     } else {
       // cancel: откатываем без seek
       setMousePosition(null);
     }
 
+    if (shouldResume) {
+      setPause(false);
+    }
+
     // Снимаем фокус с таймлайна, чтобы он не перехватывал последующие клавиатурные команды
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
-  }, [safeDuration, cancelScrub, seekTo]);
+  }, [safeDuration, cancelScrub, seekTo, setPause]);
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => stopDrag(e, true),
@@ -352,7 +377,7 @@ export const Timeline = React.memo(() => {
   }, [safeDuration, seekBy, prolongControlsIfActive]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (safeDuration <= 0) return;
+    if (safeDuration <= 0 || isDragging.current) return;
 
     if (e.key === " " || e.key === "Spacebar") {
       e.preventDefault();

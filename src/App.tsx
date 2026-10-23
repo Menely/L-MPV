@@ -1294,6 +1294,8 @@ function App() {
           className={`frame-osd ${osdText.includes("\n") ? "frame-osd--multiline" : ""} ${
             isOsdError ? "frame-osd--error" : ""
           } ${isOsdClosing ? "frame-osd--closing" : ""}`}
+          role={isOsdError ? "alert" : "status"}
+          aria-live={isOsdError ? "assertive" : "polite"}
           >
           {osdText}
         </div>

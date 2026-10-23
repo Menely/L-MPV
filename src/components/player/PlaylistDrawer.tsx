@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState, PlaylistItem } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { showOsd } from "../../hooks/useOsd";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2 } from "lucide-react";
 import { EmptyState } from "../settings/components/SettingBlocks";
@@ -44,10 +44,12 @@ const PlaylistItemRow = React.memo(function PlaylistItemRow({
 
   return (
     <button
+      type="button"
       ref={itemRef}
       className={`playlist-item ${
         isCurrent ? "playlist-item--current" : ""
       } ${isWatched ? "playlist-item--watched" : ""}`}
+      aria-current={isCurrent ? "true" : undefined}
       onClick={() => onPlay(item.index)}
       title={item.filename}
       >
@@ -103,7 +105,6 @@ export function PlaylistDrawer() {
   const { isPlaylistOpen, setIsPlaylistOpen, playlist, setPlaylist, refreshPlaylist } = usePlayerState();
   const { dict } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isClosing, setIsClosing] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [drawerWidth, setDrawerWidth] = useState<number>(getInitialPlaylistWidth);
   const [isResizing, setIsResizing] = useState(false);
@@ -112,9 +113,7 @@ export function PlaylistDrawer() {
   drawerWidthRef.current = drawerWidth;
 
   const isResizingRef = useRef(false);
-  const isClosingRef = useRef(false);
   const activeResizeCleanupRef = useRef<(() => void) | null>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const currentItemElRef = useRef<HTMLButtonElement | null>(null);
@@ -123,7 +122,6 @@ export function PlaylistDrawer() {
   // Очистка всех активных таймеров, глобальных стилей и слушателей при размонтировании
   useEffect(() => {
     return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       activeResizeCleanupRef.current?.();
       document.body.style.cursor = "";
@@ -157,15 +155,6 @@ export function PlaylistDrawer() {
     };
   }, [isPlaylistOpen, playlist]);
 
-  // Синхронизация и гарантированный сброс состояния закрытия при изменении видимости
-  useEffect(() => {
-    isClosingRef.current = false;
-    setIsClosing(false);
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  }, [isPlaylistOpen]);
 
   /**
    * Плавное перетаскивание левой границы плейлиста с rAF-синхронизацией кадров,
@@ -258,24 +247,12 @@ export function PlaylistDrawer() {
     }
   }, []);
 
-  const handleClose = useCallback(() => {
-    if (isClosingRef.current) return;
-    if (!isMotionAllowed()) {
-      setIsPlaylistOpen(false);
-      return;
-    }
-    isClosingRef.current = true;
-    setIsClosing(true);
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-    }
-    closeTimerRef.current = setTimeout(() => {
-      setIsPlaylistOpen(false);
-      setIsClosing(false);
-      isClosingRef.current = false;
-      closeTimerRef.current = null;
-    }, getCloseTimeoutMs("fast"));
-  }, [setIsPlaylistOpen]);
+  const { isClosing, handleClose } = useOverlayDismiss({
+    onClose: () => setIsPlaylistOpen(false),
+    isOpen: isPlaylistOpen,
+    kind: "fast",
+    closeOnEscape: false,
+  });
 
   const handleRefresh = useCallback(async () => {
     if (isRefreshing) return;
@@ -430,16 +407,20 @@ export function PlaylistDrawer() {
         </div>
         <div className="playlist-drawer__header-actions">
           <button
+            type="button"
             className={`playlist-drawer__action-btn ${isRefreshing ? "playlist-drawer__action-btn--spinning" : ""}`}
             onClick={handleRefresh}
             title={dict.playlist.refresh}
+            aria-label={dict.playlist.refresh}
             >
             <RotateCw size={15} />
           </button>
           <button
+            type="button"
             className="playlist-drawer__close"
             onClick={handleClose}
             title={dict.playlist.close}
+            aria-label={dict.playlist.close}
             >
             <X size={18} />
           </button>
@@ -451,6 +432,9 @@ export function PlaylistDrawer() {
         <input
           type="text"
           placeholder={dict.playlist.search}
+          aria-label={dict.playlist.search}
+          autoComplete="off"
+          spellCheck={false}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -464,9 +448,11 @@ export function PlaylistDrawer() {
         />
         {searchQuery && (
           <button
+            type="button"
             className="playlist-drawer__search-clear"
             onClick={() => setSearchQuery("")}
             title={dict.playlist.clearSearch}
+            aria-label={dict.playlist.clearSearch}
             >
             <X size={14} />
           </button>

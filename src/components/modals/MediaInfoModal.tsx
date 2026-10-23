@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
 import { X } from "lucide-react";
 import { usePlayerState, usePlayerProgress, useLiveState } from "../../contexts/PlayerStateContext";
 import { formatTime } from "../../utils/timeUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 import { useVideoBitrate } from "../../hooks/useVideoBitrate";
 import { BitrateSparkline } from "./BitrateSparkline";
 
@@ -21,7 +20,7 @@ function formatBytes(bytes: number): string {
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   if (i < 0) return "0 B";
-  if (i>= sizes.length) return parseFloat((bytes / Math.pow(k, sizes.length - 1)).toFixed(2)) + " " + sizes[sizes.length - 1];
+  if (i >= sizes.length) return parseFloat((bytes / Math.pow(k, sizes.length - 1)).toFixed(2)) + " " + sizes[sizes.length - 1];
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
@@ -52,57 +51,20 @@ export function MediaInfoModal({
   const droppedFrames = liveState?.dropped_frames ?? mediaInfo?.dropped_frames ?? 0;
   const currentVolume = liveState?.volume ?? mediaInfo?.volume ?? 100;
 
-  const [isClosing, setIsClosing] = useState<boolean>(false);
-  const isClosingRef = useRef<boolean>(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleClose = useCallback(() => {
-    if (isClosingRef.current) return;
-    isClosingRef.current = true;
-    setIsClosing(true);
-
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-    }, getCloseTimeoutMs("fast"));
-  }, [onClose]);
-
-  // Закрытие оверлея инфо по Escape
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        handleClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [handleClose]);
-
-  // Оверлей закрывается только через X / Escape / хоткей I —
-  // клики по плееру, панели управления и видео его не трогают.
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-      isClosingRef.current = false;
-    };
-  }, []);
+  const { isClosing, handleClose } = useOverlayDismiss({ onClose, kind: "fast" });
 
   return (
     <div
       className={`media-info-overlay ${isClosing ? "media-info-overlay--closing" : ""}`}
+      role="dialog"
+      aria-labelledby="media-info-title"
       onClick={(e) => e.stopPropagation()}
       >
       {/* Шапка оверлея с заголовком и кнопкой закрытия */}
       <div className="media-info__header">
-        <span className="media-info__title">{dict.mediaInfo.title}</span>
+        <h2 id="media-info-title" className="media-info__title">{dict.mediaInfo.title}</h2>
         <button
+          type="button"
           className="modal__close media-info__close"
           onClick={handleClose}
           title={dict.mediaInfo.close}

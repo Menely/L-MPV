@@ -128,6 +128,79 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "upscaleNet9", label: "Апскейлинг: Нейросеть #9", defaultKeys: DEFAULT_HOTKEYS["upscaleNet9"], category: "upscaling" },
 ];
 
+const HOTKEYS_MIGRATION_V2_KEY = "l-mpv-hotkeys-migrated-v2";
+
+/**
+ * Одноразовая нормализация устаревших профилей для плавного перехода со старых версий.
+ * Запускается строго один раз, фиксируя флаг HOTKEYS_MIGRATION_V2_KEY.
+ */
+function migrateLegacyHotkeys(migrated: Record<string, string[]>): Record<string, string[]> {
+  const isMigrated = localStorage.getItem(HOTKEYS_MIGRATION_V2_KEY) === "true";
+  if (isMigrated) {
+    return migrated;
+  }
+
+  // Миграция бинда playlist: добавление KeyP при наличии только KeyL
+  if (migrated["playlist"] && !migrated["playlist"].includes("KeyP")) {
+    migrated["playlist"] = [...migrated["playlist"], "KeyP"];
+  }
+
+  // Миграция устаревшего бинда KeyC на Ctrl+KeyC для copyFrame
+  if (migrated["copyFrame"]?.length === 1 && migrated["copyFrame"][0] === "KeyC") {
+    migrated["copyFrame"] = ["Ctrl+KeyC"];
+  }
+
+  // Миграция устаревшего бинда KeyO на Ctrl+KeyO для openFile
+  if (migrated["openFile"]?.length === 1 && migrated["openFile"][0] === "KeyO") {
+    migrated["openFile"] = ["Ctrl+KeyO", "KeyO"];
+  }
+
+  // Нормализация привязок мыши со старых версий: ЛКМ — смена дорожки, ПКМ — вызов меню
+  for (const menuKey of ["toggleAudioMenu", "toggleSubMenu"]) {
+    migrated[menuKey] = (migrated[menuKey] || ["MouseRight"]).filter(
+      (k) => k !== "MouseLeft"
+    );
+    if (!migrated[menuKey].length) migrated[menuKey] = ["MouseRight"];
+  }
+  for (const [cycleKey, defKey] of [
+    ["cycleAudioTrack", "KeyA"],
+    ["cycleSubTrack", "KeyV"],
+  ]) {
+    const list = migrated[cycleKey] || [defKey];
+    migrated[cycleKey] = list.includes("MouseLeft")
+      ? list
+      : [...list, "MouseLeft"];
+  }
+
+  // Гарантируем наличие базовых мышиных действий при переходе со старых версий
+  const hasAnyMouseBinding = Object.values(migrated).some(codes => 
+    codes.some(c => c.startsWith("Mouse"))
+  );
+  if (!hasAnyMouseBinding) {
+    if (!migrated["togglePause"]?.includes("MouseLeft")) {
+      migrated["togglePause"] = [...(migrated["togglePause"] || []), "MouseLeft"];
+    }
+    if (!migrated["fullscreen"]?.includes("MouseLeftDoubleClick")) {
+      migrated["fullscreen"] = [...(migrated["fullscreen"] || []), "MouseLeftDoubleClick"];
+    }
+    if (!migrated["openContextMenu"]?.includes("MouseRight")) {
+      migrated["openContextMenu"] = [...(migrated["openContextMenu"] || []), "MouseRight"];
+    }
+  }
+
+  try {
+    localStorage.setItem(
+      "l-mpv-custom-hotkeys",
+      JSON.stringify(migrated)
+    );
+    localStorage.setItem(HOTKEYS_MIGRATION_V2_KEY, "true");
+  } catch {
+    // Игнорируем ограничения доступа к хранилищу
+  }
+
+  return migrated;
+}
+
 export function getCustomHotkeys(): Record<string, string[]> {
   try {
     const saved = localStorage.getItem("l-mpv-custom-hotkeys");
@@ -135,7 +208,7 @@ export function getCustomHotkeys(): Record<string, string[]> {
       const parsed = JSON.parse(saved);
       const migrated: Record<string, string[]> = {};
       
-      // Миграция старых строковых форматов
+      // Считываем сохранённые пользователем настройки горячих клавиш
       for (const key of Object.keys(DEFAULT_HOTKEYS)) {
         if (parsed[key] !== undefined) {
           if (typeof parsed[key] === "string") {
@@ -150,68 +223,7 @@ export function getCustomHotkeys(): Record<string, string[]> {
         }
       }
 
-      // Миграция бинда playlist: добавление KeyP при наличии только KeyL
-      if (migrated["playlist"] && !migrated["playlist"].includes("KeyP")) {
-        migrated["playlist"] = [...migrated["playlist"], "KeyP"];
-      }
-
-      // Миграция устаревшего бинда KeyC на Ctrl+KeyC для copyFrame
-      if (migrated["copyFrame"]?.length === 1 && migrated["copyFrame"][0] === "KeyC") {
-        migrated["copyFrame"] = ["Ctrl+KeyC"];
-      }
-
-      // Миграция устаревшего бинда KeyO на Ctrl+KeyO для openFile
-      if (migrated["openFile"]?.length === 1 && migrated["openFile"][0] === "KeyO") {
-        migrated["openFile"] = ["Ctrl+KeyO", "KeyO"];
-      }
-
-      // Нормализация привязок мыши: ЛКМ — смена дорожки, ПКМ — вызов меню
-      for (const menuKey of ["toggleAudioMenu", "toggleSubMenu"]) {
-        migrated[menuKey] = (migrated[menuKey] || ["MouseRight"]).filter(
-          (k) => k !== "MouseLeft"
-        );
-        if (!migrated[menuKey].length) migrated[menuKey] = ["MouseRight"];
-      }
-      for (const [cycleKey, defKey] of [
-        ["cycleAudioTrack", "KeyA"],
-        ["cycleSubTrack", "KeyV"],
-      ]) {
-        const list = migrated[cycleKey] || [defKey];
-        migrated[cycleKey] = list.includes("MouseLeft")
-          ? list
-          : [...list, "MouseLeft"];
-      }
-
-      // Сохраняем актуализированный конфиг обратно в localStorage
-      if (JSON.stringify(migrated) !== saved) {
-        try {
-          localStorage.setItem(
-            "l-mpv-custom-hotkeys",
-            JSON.stringify(migrated)
-          );
-        } catch {
-          // Игнорируем ограничения доступа к хранилищу
-        }
-      }
-
-      // Гарантируем наличие базовых мышиных действий, если конфиг был сохранен
-      // в старой версии, где привязки мыши еще не сохранялись в localStorage
-      const hasAnyMouseBinding = Object.values(migrated).some(codes => 
-        codes.some(c => c.startsWith("Mouse"))
-      );
-      if (!hasAnyMouseBinding) {
-        if (!migrated["togglePause"]?.includes("MouseLeft")) {
-          migrated["togglePause"] = [...(migrated["togglePause"] || []), "MouseLeft"];
-        }
-        if (!migrated["fullscreen"]?.includes("MouseLeftDoubleClick")) {
-          migrated["fullscreen"] = [...(migrated["fullscreen"] || []), "MouseLeftDoubleClick"];
-        }
-        if (!migrated["openContextMenu"]?.includes("MouseRight")) {
-          migrated["openContextMenu"] = [...(migrated["openContextMenu"] || []), "MouseRight"];
-        }
-      }
-
-      return migrated;
+      return migrateLegacyHotkeys(migrated);
     }
   } catch (e) {
     console.error("Ошибка чтения горячих клавиш:", e);
@@ -228,6 +240,7 @@ export function getCustomHotkeys(): Record<string, string[]> {
 export function saveCustomHotkeys(hotkeys: Record<string, string[]>) {
   try {
     localStorage.setItem("l-mpv-custom-hotkeys", JSON.stringify(hotkeys));
+    localStorage.setItem(HOTKEYS_MIGRATION_V2_KEY, "true");
     window.dispatchEvent(new Event("l-mpv-settings-changed"));
   } catch (e) {
     console.error("Ошибка сохранения горячих клавиш:", e);
@@ -237,6 +250,7 @@ export function saveCustomHotkeys(hotkeys: Record<string, string[]>) {
 export function resetCustomHotkeys() {
   try {
     localStorage.removeItem("l-mpv-custom-hotkeys");
+    localStorage.setItem(HOTKEYS_MIGRATION_V2_KEY, "true");
     window.dispatchEvent(new Event("l-mpv-settings-changed"));
   } catch (e) {
     console.error("Ошибка сброса горячих клавиш:", e);

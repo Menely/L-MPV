@@ -11,6 +11,7 @@
 }
 
 :root {
+  color-scheme: dark;
   transition: --accent 320ms cubic-bezier(0.4, 0.0, 0.2, 1.0);
   /* Палитра на базе #7fc7ff */
   --accent:          #7fc7ff;

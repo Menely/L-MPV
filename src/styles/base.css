@@ -100,6 +100,8 @@ textarea {
   .settings-panel__content,
   .settings-side-panel__scroll,
   .playlist-drawer__list,
+  .playlist-drawer__content,
+  .chapters-list,
   .side-panel__content,
   .side-panel__list,
   .mediainfo-floating-window__content,
@@ -117,6 +119,7 @@ textarea {
   [data-scrollable="true"]
 ) {
   scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 html, body, #root {
