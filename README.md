@@ -334,6 +334,36 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 </details>
 
 <details>
+<summary><b>📊 Activity Heatmap: Dynamic Audio & Video Bitrate Waveform</b></summary>
+
+- **Dynamic Media Activity Relief:** Hardware-accelerated Canvas strip (`WaveformActivityStrip.tsx`) rendering stream activity across the entire runtime, allowing you to instantly locate action sequences, dialogue peaks, or quiet scenes.
+- **Dual Analysis Data Sources:**
+  - *Audio Loudness (Audio RMS)*: Sound level profile in decibels (RMS) analyzed via FFmpeg's `astats` filter.
+  - *Video Bitrate*: Real-time packet density distribution computed via `ffprobe` in Mbps.
+- **Three Visual Rendering Styles:**
+  - *Bars*: Discrete micro-equalizer bars with sleek rounded capsules.
+  - *Smooth Spline*: Luminous Bézier curve with gentle gradient fill below the wave.
+  - *Digital Hi-Fi Blocks*: Stepped digital matrix blocks for a retro Hi-Fi aesthetic.
+- **Four Spectrum Color Palettes:**
+  - *Theme Accent*: Dynamic gradient matching the active player accent theme.
+  - *Thermal*: Smooth heat-map transition from cool emerald to warm amber and vivid red.
+  - *Cyberpunk*: Neon gradient transitioning from rich violet to bright hot pink and cyan.
+  - *Monochrome*: Refined neutral silver-gray gradient.
+- **Flexible Positioning & Geometry:**
+  - Placed either *Above Control Bar* or directly *Above Timeline*.
+  - Configurable height (default **34px** for an ideal visual balance) and transparency slider.
+  - Optional glowing Neon Peak Line tracing the waveform crest.
+- **Live Hover Peak Badge in Timeline Preview:**
+  - Hovering along the timeline or heatmap displays real-time telemetry right inside the floating time preview badge: audio peak in decibels (`-14.2 dB`) or instantaneous video bitrate (`18.4 Mbps`).
+- **High-Performance SHA-256 Disk Caching:**
+  - Profile data is cached locally in `data/cache/heatmaps/` using SHA-256 hashes (canonical path + file size + source). Reopening media loads the waveform in sub-milliseconds without re-running FFmpeg.
+  - Non-blocking `TaskGuard` prevents redundant background analysis tasks.
+- **Compact Settings Accordion (`HeatmapSettingsSection.tsx`):**
+  - Accordion section under "General Settings" featuring an interactive live Canvas preview of styles, palettes, and sources, alongside a one-click button to clear cached waveform data.
+
+</details>
+
+<details>
 <summary><b>🔍 Hardware Zoom & Pan & Mouse Wheel Controls</b></summary>
 
 - **Silky Smooth Frame Scaling:** Cursor-centered zooming via `Ctrl` + Mouse Wheel at up to 60 FPS.
@@ -371,7 +401,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Slide-out Playlist Drawer (`L` / `P`):** Instant search, file filtering, active track highlighting, and one-click playback switching.
 - **Drag & Drop:** Drop local media files or streaming URLs directly into the player window.
 - **Loop Modes & Shuffle:** Loop current file, loop entire playlist, or play in random order. The toolbar button and the *Repeat Mode* submenu share a single `set_repeat_mode` command that always sets both loop properties together; the submenu marks the active mode immediately and confirms the change with an OSD toast.
-- **Watch Progress Bar (Netflix / YouTube Style):** Elegant bottom accent line under every playlist card reflecting saved SQLite playback progress (`get_watch_history_batch`). Fully watched episodes (≥ 90%) display a crisp green `CheckCircle2` badge and a completed progress line.
+- **Watch Progress Bar (Netflix / YouTube Style):** Elegant bottom accent line under every playlist card reflecting saved playback progress (`get_watch_history_batch`). Fully watched episodes (ending reached) are marked with a dedicated `completed` flag, displaying a crisp green `CheckCircle2` badge and a completed progress line, with live progress tracking of the actively playing media.
 - **Resilient Compact Geometry & Non-Compressing Items:** Playlist items strictly preserve vertical layout (`flex-shrink: 0; min-height: 38px`), providing smooth native vertical scrolling without vertical crushing or element collisions even in ultra-compact player windows.
 - **Chapter Navigation:** Interactive chapters modal with timestamps and jump-to-chapter shortcuts.
 - **Resume Playback:** Robust playback resume saving progress for **up to 300 files** in local `config/history.json`. Seamless start strictly from the saved timestamp, audio/video synchronization without premature audio desync (`hr-seek-framedrop=no`), rapid-exit safety, and preservation of actual watch progress even if interrupted before previous records.
@@ -416,6 +446,10 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>🖱️ Customizable Context Menu (Right-Click) & Drag-and-Drop Editor</b></summary>
 
+- **Floating Island Submenus (`.context-menu__group`):** Submenus are dynamically separated into sleek, independent floating card groups without a monolithic bounding container backdrop.
+- **Minimalist Radio-Dot Markers (`.context-menu__radio-dot`):** Active options and toggles across submenus feature clean accent dot indicators instead of checkmarks and borders, creating a focused and lightweight appearance.
+- **Scrollbar-Free Fluid Scrolling:** Long submenus hide the visible scrollbar while preserving silky smooth mouse wheel navigation, featuring an ergonomic 10px spacing from the main menu (`SUBMENU_GAP`) and click-outside dismissal that keeps submenus open while toggling settings.
+- **Clean Title-Free Controls:** Native browser `title` tooltips have been eliminated from the bottom control bar, window controls, and reset buttons for an uncluttered and distraction-free viewing experience.
 - **Interactive Drag-and-Drop Editor:** Visual layout customizer under Settings (`F2` -> "General" -> "Context Menu") powered by `@dnd-kit`, supporting dragging via grab handles or the entire card.
 - **22 Functional Actions & Submenus:** Manage audio and subtitle tracks, chapters, speed, aspect ratios, rotation, ambient lighting, MediaInfo, sleep timer, and visual style presets.
 - **Dynamic Smart Submenus:**
@@ -550,7 +584,9 @@ L-MPV/
 │   ├── assets/                           # Local fonts (Inter, JetBrainsMono, Manrope, Outfit, PlusJakartaSans)
 │   ├── components/                       # UI components (feature folders with barrel index.ts)
 │   │   ├── player/                       # Player shell: Titlebar, PlayerControls, Timeline,
-│   │   │                                # TimeDisplay, ContextMenu, PlaylistDrawer, AudioVisualizer, SeekIndicator
+│   │   │                                # TimeDisplay, ContextMenu (contextMenuBuilder, contextMenuGrouping),
+│   │   │                                # heatmap/ (WaveformActivityStrip, waveformDrawer, waveformPalette),
+│   │   │                                # PlaylistDrawer, AudioVisualizer, SeekIndicator
 │   │   ├── modals/                       # Windows: SettingsModal, MediaInfoModal (compact info overlay with bitrate Sparkline, color space & true source bit depth),
 │   │   │                                # StandaloneMediaInfoWindow (655x685), ChaptersModal, UpdateModal, ColorPickerModal;
 │   │   │                                # mediainfo/ module (MediaInfoTabsBar, MediaInfoSectionList, useMediaInfoDragDrop)
@@ -566,7 +602,8 @@ L-MPV/
 │   │   │   ├── sections/                  # Settings sections:
 │   │   │   │   ├── PresetsSection.tsx        # Presets manager ("My Presets" and "Built-in Styles") with unified controls
 │   │   │   │   ├── UpscalingSettingsSection.tsx # 4K AI upscaling controls (DirectML/TensorRT, ONNX library, mouse ordering, hotkeys)
-│   │   │   │   └── VisualizerSettingsSection.tsx # Audio visualizer options (modes, styles, ballistics)
+│   │   │   │   ├── VisualizerSettingsSection.tsx # Audio visualizer options (modes, styles, ballistics)
+│   │   │   │   └── HeatmapSettingsSection.tsx # Activity heatmap options (styles, data sources, palettes, cache)
 │   │   │   ├── components/                # Reusable settings components:
 │   │   │   │   ├── AccordionSection.tsx      # Reusable collapsible settings section
 │   │   │   │   ├── SettingBlocks.tsx         # Foundational layout blocks and EmptyState components
@@ -636,7 +673,8 @@ L-MPV/
 │   │   │   ├── recentFilesUtils.ts           # Recent files tracking and local history synchronization
 │   │   │   └── timeUtils.ts                  # High-precision timestamp formatting utilities
 │   │   ├── hooks/                            # Custom React hooks
-│   │   │   └── useOsd.ts                     # Centralized On-Screen Display (OSD) notification hook
+│   │   │   ├── useOsd.ts                     # Centralized On-Screen Display (OSD) notification hook
+│   │   │   └── useOverlayDismiss.ts          # Universal overlay and modal dismiss hook (Esc, outside click, scroll)
 │   │   ├── App.tsx                           # Main container (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, modals; uses useOsd); statically loads settings
 │   │   ├── index.css                         # Central stylesheet import hub
 │   │   └── main.tsx                          # React entry point (imports index.css and settings-panel.css)
@@ -655,7 +693,14 @@ L-MPV/
 │   │   │   ├── config.rs                 # Atomic loading and persistence of AppSettings (config/settings.json)
 │   │   │   ├── presets.rs                # Saving, loading, importing, and exporting configuration presets
 │   │   │   ├── playlist.rs               # Playlist management, folder traversal, Natural Sort
-│   │   │   └── history.rs                # Persistent playback history and timestamps (config/history.json)
+│   │   │   ├── history.rs                # Persistent playback history and timestamps (config/history.json, completed flag)
+│   │   │   └── heatmap/                  # Modular media heatmap and waveform generation:
+│   │   │       ├── mod.rs                # Facade, heatmap IPC commands registration
+│   │   │       ├── types.rs              # MediaHeatmapProfile, HeatmapSource, HeatmapPoint
+│   │   │       ├── cache.rs              # Atomic SHA-256 disk cache in data/cache/heatmaps/
+│   │   │       ├── manager.rs            # Async task manager with duplicate prevention TaskGuard
+│   │   │       ├── audio.rs              # FFmpeg astats RMS loudness profile extraction
+│   │   │       └── video_bitrate.rs      # FFprobe video packet density and bitrate computation
 │   │   ├── upscale/                      # Modular 4K AI upscaling subsystem:
 │   │   │   ├── mod.rs                    # Subsystem facade, IPC commands, unit tests
 │   │   │   ├── types.rs                  # Data models: ModelFileItem, UpscaleSettings, GpuHardwareInfo, Progress
@@ -753,22 +798,23 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 
 ## ⚡ IPC Architecture (Rust ↔ React)
 
-Communication between the React user interface and the MPV engine, neural upscaling subsystem, and Windows system modules is facilitated through **131 native IPC commands**, delivering sub-millisecond response times with zero overhead:
+Communication between the React user interface and the MPV engine, neural upscaling subsystem, and Windows system modules is facilitated through **137 native IPC commands**, delivering sub-millisecond response times with zero overhead:
 
 - **AI Upscaling & Neural Models (11 commands):** `get_upscale_status`, `get_system_gpu_info`, `scan_onnx_models`, `open_models_folder`, `open_inference_folder`, `apply_upscale_settings`, `download_inference_engine`, `delete_inference_engine`, `switch_upscale_network_hotkey`, `precompile_model_engine_1080p`, `save_models_order`.
 - **Playback & Playlist (20 commands):** `open_file`, `toggle_pause`, `set_pause`, `seek`, `seek_absolute`, `seek_preview`, `frame_step`, `frame_back_step`, `playlist_prev`, `playlist_next`, `get_playlist`, `play_playlist_item`, `reload_folder_playlist`, `set_loop_file`, `set_loop_playlist`, `set_repeat_mode`, `get_repeat_mode`, `toggle_shuffle`, `get_play_next_on_end`, `set_play_next_on_end`.
 - **Volume & Speed (2 commands):** `set_volume`, `set_speed`.
 - **Video & Audio Settings (12 commands):** `get_video_audio_settings`, `set_hdr_tone_mapping_setting`, `set_hdr_contrast_recovery_setting`, `set_dither_depth_setting`, `set_deband_setting`, `set_deband_preset_setting`, `set_audio_limiter_setting`, `set_audio_latency_fix_setting`, `set_deinterlace_mode_setting`, `set_hwdec_mode_setting`, `set_audio_normalize_setting`, `set_demuxer_cache_setting`.
 - **Tracks, Subtitles & FFmpeg (18 commands):** `get_tracks`, `set_audio_track`, `set_subtitle_track`, `disable_subtitles`, `set_sub_delay`, `get_sub_delay`, `load_subtitle_file`, `load_audio_file`, `set_video_track`, `extract_track`, `get_auto_load_tracks`, `set_auto_load_tracks`, `get_auto_select_external_audio`, `set_auto_select_external_audio`, `load_external_tracks_for_file`, `get_subtitles_avoid_ui`, `set_subtitles_avoid_ui_setting`, `update_subtitles_avoid_ui`.
-- **Viewport, Zoom & Windowing (7 commands):** `set_frame_mode`, `get_frame_mode`, `set_rotation`, `set_video_zoom_and_pan`, `get_video_zoom`, `get_video_dimensions`, `toggle_fullscreen`.
+- **Viewport, Zoom & Windowing (10 commands):** `set_frame_mode`, `get_frame_mode`, `set_rotation`, `set_video_zoom_and_pan`, `get_video_zoom`, `get_video_dimensions`, `toggle_fullscreen`, `set_window_aspect_ratio`, `reset_window_aspect_ratio`, `get_window_aspect_ratio`.
 - **MediaInfo Analysis (5 commands):** `get_detailed_media_info`, `is_standalone_mode`, `get_standalone_mediainfo_path`, `open_mediainfo_window`, `toggle_mediainfo_window`.
 - **Screenshots & Clipboard (4 commands):** `take_screenshot`, `copy_frame_to_clipboard`, `get_screenshot_dir`, `set_screenshot_dir`.
 - **Chapters (2 commands):** `get_chapters`, `seek_chapter`.
-- **Metadata & Position Tracking (13 commands):** `get_position`, `get_duration`, `get_frame_number`, `get_frame_count`, `get_fps`, `get_media_info`, `get_playback_state`, `get_last_position`, `save_position`, `save_current_position`, `get_app_version`, `get_active_subtitle_lines`, `analyze_subtitle_track`.
+- **Metadata & Position Tracking (13 commands):** `get_position`, `get_duration`, `get_frame_number`, `get_frame_count`, `get_fps`, `get_media_info`, `get_playback_state`, `get_last_position`, `get_watch_history_batch`, `save_position`, `save_current_position`, `get_app_version`, `get_active_subtitle_lines`, `analyze_subtitle_track`.
 - **Windows System Integration (9 commands):** `register_file_associations`, `unregister_file_associations`, `open_default_apps_settings`, `register_explorer_context_menu`, `unregister_explorer_context_menu`, `is_explorer_context_menu_registered`, `get_windows_accent_color`, `get_multi_instance`, `set_multi_instance`.
 - **Letterbox Illumination / Ambient Light (5 commands):** `get_ambient_settings`, `get_ambient_palette`, `apply_ambient_preview`, `set_ambient_settings`, `toggle_ambient_mode`.
 - **Settings Presets & File I/O (8 commands):** `get_settings_presets`, `save_settings_presets`, `save_single_preset`, `delete_preset_file`, `rename_preset_file`, `open_presets_folder`, `write_text_file`, `read_text_file`.
 - **Audio Visualizer (2 commands):** `get_audio_spectrum`, `set_visualizer_active`.
+- **Activity Heatmap & Waveform (3 commands):** `get_media_heatmap_data`, `cancel_media_heatmap_analysis`, `clear_waveform_cache`.
 - **Context Menu Layout (2 commands):** `get_context_menu_layout`, `save_context_menu_layout`.
 - **UI Settings (2 commands):** `get_ui_settings`, `save_ui_settings`.
 - **Font Ecosystem (3 commands):** `open_fonts_folder`, `get_custom_fonts`, `load_font_data`.

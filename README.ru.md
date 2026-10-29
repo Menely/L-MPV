@@ -334,6 +334,36 @@
 </details>
 
 <details>
+<summary><b>📊 Тепловая Карта Таймлайна (Activity Heatmap & Рельеф Медиафайла)</b></summary>
+
+- **Визуализация динамического рельефа потока:** аппаратно-ускоренная Canvas-полоса (`WaveformActivityStrip.tsx`) отображает активность звука или битрейта видео по всей шкале хронометража, позволяя мгновенно ориентироваться в хронометраже и находить диалоговые сцены, тихие паузы или динамичный экшен.
+- **Два источника анализа данных:**
+  - *Громкость звука (Audio RMS)*: амплитудный профиль звуковой дорожки в децибелах (RMS) через фильтр `astats` утилиты FFmpeg.
+  - *Битрейт видео (Video Bitrate)*: распределение плотности видеопотока и размеров пакетов через `ffprobe` в Мбит/с.
+- **Три стиля отображения графика:**
+  - *Столбики (Bars)*: классический микро-эквалайзер с закругленными капсулами.
+  - *Сплайн-рельеф (Smooth Spline)*: мягкая светящаяся линия Безье с деликатным градиентным заполнением под кривой.
+  - *Ступенчатые блоки (Digital Hi-Fi)*: цифровая Hi-Fi матрица с четкими уровнями.
+- **Четыре цветовые палитры спектра:**
+  - *Акцент темы*: градиент на основе активного системного или пользовательского акцента плеера.
+  - *Термальная*: спектральный тепловой переход от холодного изумрудного к янтарному и ярко-красному.
+  - *Киберпанк*: ультра-неоновый переход от глубокого фиолетового к яркому ультра-розовому и бирюзовому.
+  - *Монохром*: лаконичная нейтральная серебристая градация.
+- **Гибкая геометрия и размещение:**
+  - Расположение: *«Над панелью»* (над плавающей панелью управления) или *«Над таймлайном»* (непосредственно над полосой перемотки).
+  - Настройка высоты полосы (по умолчанию **34px** для идеального визуального баланса) и общей прозрачности.
+  - Опциональный светящийся неоновый гребень волны (Neon Peak Line).
+- **Живой бейдж интенсивности в тултипе таймлайна (Live Hover Peak Badge):**
+  - При наведении курсора на таймлайн или полосу активности во всплывающем бейдже времени в реальном времени отображается точный пик звука в децибелах (`-14.2 dB`) либо мгновенный битрейт видео (`18.4 Мбит/с`).
+- **Высокопроизводительное кэширование SHA-256 на диске:**
+  - Профиль активности сохраняется в папку `data/cache/heatmaps/` по SHA-256 хешу (канонический путь + размер файла + источник). При повторном открытии файла график появляется мгновенно за доли миллисекунды без повторных запусков FFmpeg.
+  - Защита `TaskGuard` исключает дублирующие параллельные задачи анализа.
+- **Компактная секция настроек (`HeatmapSettingsSection.tsx`):**
+  - Аккордеонная секция в «Общих настройках» с интерактивным живым предпросмотром выбранного стиля, палитры и источника, а также кнопкой быстрой очистки кэша.
+
+</details>
+
+<details>
 <summary><b>🔍 Аппаратный Zoom & Pan и Колесо Мыши</b></summary>
 
 - **Плавное масштабирование кадра:** центрированный зум относительно курсора по комбинации `Ctrl` + Колесо мыши с частотой до 60 FPS.
@@ -371,7 +401,7 @@
 - **Выдвижная панель Playlist Drawer (`L` / `P`):** мгновенный поиск, фильтрация, подсветка активного трека и переключение в один клик.
 - **Drag & Drop:** поддержка перетаскивания файлов и сетевых URL напрямую в окно плеера.
 - **Режимы повтора и Shuffle:** циклическое воспроизведение текущего файла, всего плейлиста или случайный порядок. Кнопка на панели и подменю «Режим повтора» в ПКМ-меню используют одну команду `set_repeat_mode`, которая всегда выставляет оба свойства повтора вместе; подменю сразу отмечает активный режим, смена подтверждается OSD.
-- **Индикатор прогресса серий (Watch Progress Bar в стиле Netflix/YouTube):** изящная акцентная полоска снизу каждой карточки серии в плейлисте, отображающая процент просмотра из локальной SQLite-базы истории (`get_watch_history_batch`). Полностью просмотренные эпизоды (≥ 90%) помечаются аккуратной зелёной галочкой `CheckCircle2` и заполненной линией.
+- **Индикатор прогресса серий (Watch Progress Bar в стиле Netflix/YouTube):** изящная акцентная полоска снизу каждой карточки серии в плейлисте, отображающая процент просмотра из локальной истории (`get_watch_history_batch`). Полностью просмотренные эпизоды (досмотренные до конца) получают флаг `completed`, помечаются аккуратной зелёной галочкой `CheckCircle2` и заполненной линией со специальным стилем, а также поддерживается живое отслеживание прогресса текущего файла.
 - **Защита от сплющивания в компактных окнах:** элементам плейлиста гарантирована фиксированная минимальная высота (`flex-shrink: 0`, `min-height: 38px`), обеспечивающая плавную вертикальную прокрутку со скроллбаром без взаимного наезда и расплющивания строк даже в самых маленьких окнах плеера.
 - **Главы (Chapters):** модальное окно навигации по встроенным главам файла с интерактивными таймкодами.
 - **Возобновление просмотра (Resume Playback):** надёжное автосохранение последней позиции для **до 300 файлов** в локальной истории `config/history.json`. Бесшовный старт строго с сохранённого таймкода, синхронизация видео и звука без опережения аудио (`hr-seek-framedrop=no`), защита от случайного сброса при быстром закрытии и сохранение актуальной позиции даже при прерывании просмотра раньше предыдущего рекорда.
@@ -416,6 +446,10 @@
 <details>
 <summary><b>🖱️ Настраиваемое Контекстное Меню (ПКМ) и Drag-and-Drop Конфигуратор</b></summary>
 
+- **Парящие островные карточки-группы подменю (`.context-menu__group`):** выпадающие подменю теперь динамически делятся на стильные изолированные островные группы карточек без единого тяжелого фонового прямоугольника.
+- **Минималистичные круглые индикаторы выбора (`.context-menu__radio-dot`):** активные пункты и радио-переключатели в подменю унифицированы на чистые круглые маркеры-точки без избыточных обводок и галочек, создавая аккуратный и легкий облик.
+- **Плавная прокрутка без видимого скроллбара:** в длинных списках подменю полоса прокрутки скрыта, при этом колесо мыши скроллит списки идеально плавно; зазор между главным меню и подменю зафиксирован на удобных 10px (`SUBMENU_GAP`), а клики по переключателям не захлопывают меню.
+- **Полная ликвидация назойливых всплывающих подсказок (`title`):** со всех кнопок панели управления, кнопок сворачивания/разворачивания/закрытия окон и кнопок сброса «По умолчанию» удалены браузерные желтые подсказки для максимальной визуальной чистоты.
 - **Интерактивный Drag-and-Drop редактор:** визуальный конфигуратор в Настройках (`F2` -> «Основные» -> «Контекстное меню (ПКМ)») на базе движка `@dnd-kit` с поддержкой перетаскивания как за ручку-хват (Grip), так и за всю карточку пункта.
 - **22 функциональных действия и подменю:** управление дорожками аудио и субтитров, главами, скоростью, соотношением сторон, поворотом кадра, подсветкой полос, информацией MediaInfo, таймером сна и пресетами оформления.
 - **Динамические интеллектуальные подменю:**
@@ -551,7 +585,9 @@ L-MPV/
 │   ├── assets/                           # Локальные шрифты (Inter, JetBrainsMono, Manrope, Outfit, PlusJakartaSans)
 │   ├── components/                       # Компоненты интерфейса (feature-папки с barrel index.ts)
 │   │   ├── player/                       # Оболочка плеера: Titlebar, PlayerControls, Timeline,
-│   │   │                                # TimeDisplay, ContextMenu, PlaylistDrawer, AudioVisualizer, SeekIndicator
+│   │   │                                # TimeDisplay, ContextMenu (contextMenuBuilder, contextMenuGrouping),
+│   │   │                                # heatmap/ (WaveformActivityStrip, waveformDrawer, waveformPalette),
+│   │   │                                # PlaylistDrawer, AudioVisualizer, SeekIndicator
 │   │   ├── modals/                       # Окна: SettingsModal, MediaInfoModal (инфо-оверлей со Sparkline битрейта, цветом и реальной разрядностью исходника),
 │   │   │                                # StandaloneMediaInfoWindow (655x685), ChaptersModal, UpdateModal, ColorPickerModal;
 │   │   │                                # модуль mediainfo/ (MediaInfoTabsBar, MediaInfoSectionList, useMediaInfoDragDrop)
@@ -567,7 +603,8 @@ L-MPV/
 │   │   │   ├── sections/                  # Секции настроек:
 │   │   │   │   ├── PresetsSection.tsx        # Секция управления пресетами («Мои пресеты» и «Готовые стили») с унифицированными кнопками
 │   │   │   │   ├── UpscalingSettingsSection.tsx # Управление 4K AI апскейлингом (DirectML / TensorRT, библиотека ONNX моделей, порядок моделей мышкой, хоткеи)
-│   │   │   │   └── VisualizerSettingsSection.tsx # Настройки аудио-визуалайзера (режимы, стили, баллистика)
+│   │   │   │   ├── VisualizerSettingsSection.tsx # Настройки аудио-визуалайзера (режимы, стили, баллистика)
+│   │   │   │   └── HeatmapSettingsSection.tsx # Настройки тепловой карты (стили, источники данных, палитры, кэш)
 │   │   │   ├── components/                # Переиспользуемые компоненты настроек:
 │   │   │   │   ├── AccordionSection.tsx      # Переиспользуемая collapsible-секция настроек
 │   │   │   │   ├── SettingBlocks.tsx         # Базовые блоки и EmptyState настроек
@@ -637,7 +674,8 @@ L-MPV/
 │   │   ├── recentFilesUtils.ts           # Управление списком недавних файлов и синхронизация с локальной историей
 │   │   └── timeUtils.ts                  # Высокоточное форматирование временных меток
 │   ├── hooks/                            # Локальные хуки
-│   │   └── useOsd.ts                     # Централизованный хук экранных уведомлений (OSD)
+│   │   ├── useOsd.ts                     # Централизованный хук экранных уведомлений (OSD)
+│   │   └── useOverlayDismiss.ts          # Универсальный хук закрытия оверлеев и модальных окон (Esc, клик вне, скролл)
 │   ├── App.tsx                           # Главный контейнер (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, модалки; использует useOsd); SettingsModal и SettingsPanel подключены статически
 │   ├── index.css                         # Единый импорт модулей стилей
 │   └── main.tsx                          # Точка входа React (импортирует index.css и settings-panel.css)
@@ -656,7 +694,14 @@ L-MPV/
 │   │   │   ├── config.rs                 # Загрузка и атомарное сохранение настроек AppSettings (config/settings.json)
 │   │   │   ├── presets.rs                # Сохранение, загрузка, экспорт и импорт пресетов конфигурации
 │   │   │   ├── playlist.rs               # Управление плейлистом, навигация по файлам в папке, Natural Sort
-│   │   │   └── history.rs                # Персистентная история воспроизведения и позиций файлов (config/history.json)
+│   │   │   ├── history.rs                # Персистентная история воспроизведения и позиций файлов (config/history.json, флаг completed)
+│   │   │   └── heatmap/                  # Модульная генерация и кэширование тепловых карт активности медиафайла:
+│   │   │       ├── mod.rs                # Фасад, регистрация IPC-команд тепловой карты
+│   │   │       ├── types.rs              # MediaHeatmapProfile, HeatmapSource, HeatmapPoint
+│   │   │       ├── cache.rs              # Атомарный дисковый кэш SHA-256 в data/cache/heatmaps/
+│   │   │       ├── manager.rs            # Менеджер асинхронных задач с TaskGuard от дублирования
+│   │   │       ├── audio.rs              # Извлечение RMS-громкости звука через FFmpeg astats
+│   │   │       └── video_bitrate.rs      # Анализ плотности видеокадров и битрейта через FFprobe
 │   │   ├── upscale/                      # Модульная подсистема 4K AI апскейлинга:
 │   │   │   ├── mod.rs                    # Фасад подсистемы, IPC-команды, unit-тесты
 │   │   │   ├── types.rs                  # Модели данных: ModelFileItem, UpscaleSettings, GpuHardwareInfo, Progress
@@ -754,22 +799,23 @@ L-MPV/
 
 ## ⚡ IPC-Архитектура (Rust ↔ React)
 
-Связь интерфейса React с движком MPV, подсистемой апскейлинга и системными модулями осуществляется через **131 нативную IPC-команду**, гарантирующую мгновенный отклик и отсутствие задержек:
+Связь интерфейса React с движком MPV, подсистемой апскейлинга и системными модулями осуществляется через **137 нативных IPC-команд**, гарантирующую мгновенный отклик и отсутствие задержек:
 
 - **Апскейлинг и AI Модели (11 команд):** `get_upscale_status`, `get_system_gpu_info`, `scan_onnx_models`, `open_models_folder`, `open_inference_folder`, `apply_upscale_settings`, `download_inference_engine`, `delete_inference_engine`, `switch_upscale_network_hotkey`, `precompile_model_engine_1080p`, `save_models_order`.
 - **Воспроизведение и Плейлист (20 команд):** `open_file`, `toggle_pause`, `set_pause`, `seek`, `seek_absolute`, `seek_preview`, `frame_step`, `frame_back_step`, `playlist_prev`, `playlist_next`, `get_playlist`, `play_playlist_item`, `reload_folder_playlist`, `set_loop_file`, `set_loop_playlist`, `set_repeat_mode`, `get_repeat_mode`, `toggle_shuffle`, `get_play_next_on_end`, `set_play_next_on_end`.
 - **Громкость и Скорость (2 команды):** `set_volume`, `set_speed`.
 - **Настройки Видео и Звука (12 команд):** `get_video_audio_settings`, `set_hdr_tone_mapping_setting`, `set_hdr_contrast_recovery_setting`, `set_dither_depth_setting`, `set_deband_setting`, `set_deband_preset_setting`, `set_audio_limiter_setting`, `set_audio_latency_fix_setting`, `set_deinterlace_mode_setting`, `set_hwdec_mode_setting`, `set_audio_normalize_setting`, `set_demuxer_cache_setting`.
 - **Дорожки, Субтитры и FFmpeg (18 команд):** `get_tracks`, `set_audio_track`, `set_subtitle_track`, `disable_subtitles`, `set_sub_delay`, `get_sub_delay`, `load_subtitle_file`, `load_audio_file`, `set_video_track`, `extract_track`, `get_auto_load_tracks`, `set_auto_load_tracks`, `get_auto_select_external_audio`, `set_auto_select_external_audio`, `load_external_tracks_for_file`, `get_subtitles_avoid_ui`, `set_subtitles_avoid_ui_setting`, `update_subtitles_avoid_ui`.
-- **Вид, Зумирование и Окно (7 команд):** `set_frame_mode`, `get_frame_mode`, `set_rotation`, `set_video_zoom_and_pan`, `get_video_zoom`, `get_video_dimensions`, `toggle_fullscreen`.
+- **Вид, Зумирование и Окно (10 команд):** `set_frame_mode`, `get_frame_mode`, `set_rotation`, `set_video_zoom_and_pan`, `get_video_zoom`, `get_video_dimensions`, `toggle_fullscreen`, `set_window_aspect_ratio`, `reset_window_aspect_ratio`, `get_window_aspect_ratio`.
 - **Анализ MediaInfo (5 команд):** `get_detailed_media_info`, `is_standalone_mode`, `get_standalone_mediainfo_path`, `open_mediainfo_window`, `toggle_mediainfo_window`.
 - **Скриншоты и Буфер Обмена (4 команды):** `take_screenshot`, `copy_frame_to_clipboard`, `get_screenshot_dir`, `set_screenshot_dir`.
 - **Главы (2 команды):** `get_chapters`, `seek_chapter`.
-- **Метаданные и Позиция (13 команд):** `get_position`, `get_duration`, `get_frame_number`, `get_frame_count`, `get_fps`, `get_media_info`, `get_playback_state`, `get_last_position`, `save_position`, `save_current_position`, `get_app_version`, `get_active_subtitle_lines`, `analyze_subtitle_track`.
+- **Метаданные и Позиция (13 команд):** `get_position`, `get_duration`, `get_frame_number`, `get_frame_count`, `get_fps`, `get_media_info`, `get_playback_state`, `get_last_position`, `get_watch_history_batch`, `save_position`, `save_current_position`, `get_app_version`, `get_active_subtitle_lines`, `analyze_subtitle_track`.
 - **Интеграция с Windows (9 команд):** `register_file_associations`, `unregister_file_associations`, `open_default_apps_settings`, `register_explorer_context_menu`, `unregister_explorer_context_menu`, `is_explorer_context_menu_registered`, `get_windows_accent_color`, `get_multi_instance`, `set_multi_instance`.
 - **Подсветка Полос / Ambient Light (5 команд):** `get_ambient_settings`, `get_ambient_palette`, `apply_ambient_preview`, `set_ambient_settings`, `toggle_ambient_mode`.
 - **Пресеты настроек и Файлы (8 команд):** `get_settings_presets`, `save_settings_presets`, `save_single_preset`, `delete_preset_file`, `rename_preset_file`, `open_presets_folder`, `write_text_file`, `read_text_file`.
 - **Аудио-визуалайзер (2 команды):** `get_audio_spectrum`, `set_visualizer_active`.
+- **Тепловая карта таймлайна (3 команды):** `get_media_heatmap_data`, `cancel_media_heatmap_analysis`, `clear_waveform_cache`.
 - **Раскладка ПКМ-меню (2 команды):** `get_context_menu_layout`, `save_context_menu_layout`.
 - **UI-настройки (2 команды):** `get_ui_settings`, `save_ui_settings`.
 - **Шрифтовая экосистема (3 команды):** `open_fonts_folder`, `get_custom_fonts`, `load_font_data`.
