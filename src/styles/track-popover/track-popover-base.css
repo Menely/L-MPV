@@ -1,0 +1,302 @@
+/* ─── Окно выбора дорожек: базовый вид (цельное окно) ────────────
+   Используется стилями «Модерн» и «Классический». Стиль «Капсула»
+   переопределяет оформление в track-popover-capsule.css. */
+.track-popover {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 0;
+  min-width: 280px;
+  max-width: min(400px, 90vw);
+  width: max-content;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 6px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+  z-index: var(--z-float);
+  transform-origin: bottom left;
+  -webkit-font-smoothing: subpixel-antialiased;
+  text-rendering: optimizeLegibility;
+  animation: popoverFadeIn var(--t-pop) var(--ease-decelerate);
+}
+
+.track-popover--speed {
+  min-width: 140px;
+  max-width: 180px;
+  width: auto;
+  left: auto;
+  right: 120px;
+  transform-origin: bottom right;
+}
+
+/* Анимации только прозрачностью: сдвиг transform размывает текст */
+@keyframes popoverFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.track-popover--closing {
+  animation: popoverFadeOut var(--t-close-pop) var(--ease-accelerate)
+    forwards !important;
+  pointer-events: none;
+}
+
+@keyframes popoverFadeOut {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ─── Шапка: название, счётчик и кнопки действий ─────────────── */
+.track-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 8px 10px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.track-popover__heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.track-popover__title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.track-popover__badge {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0 8px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.track-popover__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ─── Иконочная кнопка в шапке (поиск субтитров) ─────────────── */
+.track-popover__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              opacity var(--t-fast) var(--ease-smooth);
+}
+
+.track-popover__icon-btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.track-popover__icon-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.track-popover__icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.track-popover__icon-btn:disabled {
+  cursor: wait;
+}
+
+/* ─── Список дорожек ─────────────────────────────────────────── */
+.track-popover__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(290px, calc(100vh - 160px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-gutter: auto;
+}
+
+.track-popover__list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* ─── Строка списка: кнопка дорожки + кнопка скачивания ──────── */
+.track-popover__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.track-popover__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 10px;
+  box-sizing: border-box;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
+}
+
+.track-popover__item:hover {
+  background: var(--bg-hover);
+}
+
+.track-popover__item--active {
+  background: rgba(var(--accent-rgb), 0.12) !important;
+  color: var(--text-primary) !important;
+}
+
+.track-popover__item--active:hover {
+  background: rgba(var(--accent-rgb), 0.18) !important;
+}
+
+.track-popover__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.track-popover__item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Контейнер индикатора активного выбора справа от названия */
+.track-popover__item-check {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Неоновая радио-точка активного выбора справа */
+.track-radio-dot {
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  min-height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.8);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ─── Кнопка скачивания дорожки (всегда видна) ─────────────────── */
+.track-download-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-pill);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  outline: none;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+.track-download-btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.track-download-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.4);
+}
+
+.track-download-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.track-download-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.track-popover__divider {
+  height: 1px;
+  margin: 4px 8px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.track-popover__empty {
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}

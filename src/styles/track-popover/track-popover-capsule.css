@@ -1,0 +1,56 @@
+/* ─── Окно выбора дорожек: стиль «Капсула» (островки) ────────────
+   Корневой контейнер становится прозрачным, а содержимое
+   распадается на независимые парящие карточки с зазором 6px:
+   [ название + счётчик ]            [ действия ]
+   [ список дорожек                              ] */
+.track-popover.track-popover--capsule {
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  /* Не обрезаем тени островков по краям контейнера */
+  overflow: visible;
+}
+
+/* Шапка — прозрачная строка, в которой лежат два островка */
+.track-popover--capsule .track-popover__header {
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  border-bottom: none;
+}
+
+/* Общая «стеклянная» подложка для всех островков окна */
+.track-popover--capsule .track-popover__heading,
+.track-popover--capsule .track-popover__header-actions,
+.track-popover--capsule .track-popover__list {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-sizing: border-box;
+}
+
+/* Островок 1: название и счётчик (высота совпадает с островком действий) */
+.track-popover--capsule .track-popover__heading {
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+/* Островок 2: кнопки действий шапки */
+.track-popover--capsule .track-popover__header-actions {
+  min-height: 38px;
+  padding: 4px;
+}
+
+/* Островок 3: список дорожек */
+.track-popover--capsule .track-popover__list {
+  padding: 5px;
+}
+

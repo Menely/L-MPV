@@ -342,10 +342,45 @@
               color var(--t-fast) var(--ease-smooth);
 }
 
+/* Кнопка скачивания дорожки в подменю контекстного меню */
 .context-menu .track-download-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 28px;
   height: 28px;
+  padding: 0;
+  flex-shrink: 0;
   border-radius: var(--radius-sm);
+  border: 1px solid var(--border-pill);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+.context-menu .track-download-btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.context-menu .track-download-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.context-menu .track-download-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.context-menu .track-download-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .context-menu__track-btn:hover {
