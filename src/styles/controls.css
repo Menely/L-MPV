@@ -124,11 +124,24 @@
   min-height: 28px;
   cursor: pointer;
   user-select: none;
+  transition: transform var(--t-pop) var(--ease-standard),
+              box-shadow var(--t-pop) var(--ease-standard),
+              border-color var(--t-fast) var(--ease-smooth);
 }
 
 .controls-island--time:hover {
   box-shadow: var(--shadow-pill-hover);
   border-color: rgba(var(--accent-rgb), 0.35);
+}
+
+.controls-island--time:active {
+  transform: scale(0.97);
+  transition: transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+.controls-island--time:has(.time-display:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .controls-island--time .time-display {
@@ -141,6 +154,17 @@
   color: var(--text-primary);
   height: auto;
   padding: 0;
+  background: transparent !important;
+  border-radius: 0;
+}
+
+.controls-island--time .time-display:focus-visible {
+  outline: none !important;
+}
+
+.controls-island--time:hover .time-display {
+  background: transparent !important;
+  color: var(--accent-hover, var(--accent));
 }
 
 /* Нижний ряд: 3 островка с абсолютным центрированием центрального островка */
