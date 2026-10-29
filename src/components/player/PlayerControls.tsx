@@ -1078,11 +1078,39 @@ export function PlayerControls({
         >
           {renderTrackPopovers()}
 
-          {/* Парящая полоска таймлайна */}
-          <div className="controls-island controls-island--timeline">
-            {renderAudioVisualizerAbove()}
-            {renderFloatingCenterTime()}
-            {renderTimelineRow()}
+          {/* Верхняя строка: парящий таймлайн и отдельная карточка времени */}
+          <div className="controls-timeline-wrap">
+            {timePosition === "timeline_left" && (
+              <div className="controls-island controls-island--time">
+                <TimeDisplay
+                  timeFormat={timeFormat}
+                  onCycleFormat={handleCycleTimeFormat}
+                  speed={mediaInfo?.speed}
+                />
+              </div>
+            )}
+
+            <div className="controls-island controls-island--timeline">
+              {renderAudioVisualizerAbove()}
+              {renderFloatingCenterTime()}
+              <div className="timeline-col">
+                <WaveformActivityStrip
+                  isTimelineHovered={isControlsHovered || isStripHovered}
+                  onHoverChange={setIsStripHovered}
+                />
+                <Timeline />
+              </div>
+            </div>
+
+            {timePosition === "timeline_right" && (
+              <div className="controls-island controls-island--time">
+                <TimeDisplay
+                  timeFormat={timeFormat}
+                  onCycleFormat={handleCycleTimeFormat}
+                  speed={mediaInfo?.speed}
+                />
+              </div>
+            )}
           </div>
 
           {/* 3 отдельных парящих островка */}

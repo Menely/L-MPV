@@ -684,8 +684,16 @@
   gap: 3px;
 }
 
-.visual-bar-preview__capsule-timeline {
+.visual-bar-preview__capsule-top {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   width: 100%;
+}
+
+.visual-bar-preview__capsule-timeline {
+  flex: 1;
+  min-width: 0;
   height: 4px;
   border-radius: 999px;
   background: rgba(22, 28, 38, 0.90);
@@ -696,7 +704,19 @@
   transition: border-color var(--t-fast) var(--ease-smooth);
 }
 
-.visual-bar-card--active .visual-bar-preview__capsule-timeline {
+.visual-bar-preview__capsule-time {
+  width: 16px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(22, 28, 38, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  transition: border-color var(--t-fast) var(--ease-smooth);
+}
+
+.visual-bar-card--active .visual-bar-preview__capsule-timeline,
+.visual-bar-card--active .visual-bar-preview__capsule-time {
   border-color: var(--accent);
 }
 

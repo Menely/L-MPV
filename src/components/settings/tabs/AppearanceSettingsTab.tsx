@@ -784,8 +784,11 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 <div className="visual-bar-preview__screen">
                                   <div className="visual-bar-preview__glow" />
                                   <div className="visual-bar-preview__capsule-wrap">
-                                    <div className="visual-bar-preview__capsule-timeline">
-                                      <div className="visual-bar-preview__progress" style={{ width: "45%" }} />
+                                    <div className="visual-bar-preview__capsule-top">
+                                      <div className="visual-bar-preview__capsule-timeline">
+                                        <div className="visual-bar-preview__progress" style={{ width: "45%" }} />
+                                      </div>
+                                      <div className="visual-bar-preview__capsule-time" />
                                     </div>
                                     <div className="visual-bar-preview__capsule-islands">
                                       <div className="visual-bar-preview__capsule-island visual-bar-preview__capsule-island--side">
