@@ -19,7 +19,6 @@ import {
   Minimize as MinimizeIcon,
   AudioLines,
   Subtitles,
-  Check,
   Info,
   Camera,
   ListVideo,
@@ -27,12 +26,10 @@ import {
   Repeat1,
   Shuffle,
   Pin,
-  Download,
   Loader2,
   FastForward,
   FileText,
   AudioWaveform,
-  Search,
 } from "lucide-react";
 import { Timeline } from "./Timeline";
 import {
@@ -68,6 +65,7 @@ import {
   CapsuleControlsLayout,
   ModernControlsLayout,
   DockedControlsLayout,
+  TrackPopovers,
 } from "./controls";
 
 export function PlayerControls({
@@ -529,150 +527,25 @@ export function PlayerControls({
 
 
 
-  const audioTracks = useMemo(() => tracks.filter((t) => t.type === "audio"), [tracks]);
-  const subTracks = useMemo(() => tracks.filter((t) => t.type === "sub"), [tracks]);
-
   const displayedPopover = activePopover || closingPopover;
   const isPopoverClosing = !activePopover && Boolean(closingPopover);
 
-  const renderTrackPopovers = () => {
-    if (!displayedPopover || (displayedPopover !== "audio" && displayedPopover !== "sub")) {
-      return null;
-    }
-    return (
-      <div
-        className={`track-popover ${isPopoverClosing ? "track-popover--closing" : ""}`}
-        ref={popoverRef}
-      >
-        <div className="track-popover__title">
-          {displayedPopover === "audio" ? dict.controls.audioTracks : dict.controls.subtitles}
-        </div>
-        {displayedPopover === "audio" &&
-          (audioTracks.length > 0 ? (
-            <div className="track-popover__list">
-              {audioTracks.map((t) => (
-                <div key={t.id} className="track-popover__row">
-                  <button
-                    type="button"
-                    className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
-                    ref={t.selected ? activeTrackItemRef : null}
-                    onClick={() => {
-                      selectAudioTrack(t.id);
-                      closePopover();
-                    }}
-                  >
-                    <span className="track-popover__item-title">
-                      {t.title || dict.controls.trackLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
-                    </span>
-                    <span className="track-popover__item-check">
-                      {t.selected && <Check size={15} />}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="track-download-btn"
-                    title={dict.controls.downloadAudio}
-                    aria-label={dict.controls.downloadAudio}
-                    disabled={downloadingTrackKey === `audio-${t.id}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownloadTrack(t);
-                    }}
-                  >
-                    {downloadingTrackKey === `audio-${t.id}` ? (
-                      <Loader2 size={14} className="spin-animation" />
-                    ) : (
-                      <Download size={14} />
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="track-popover__item" style={{ opacity: 0.6 }}>
-              {dict.controls.noAudioTracks}
-            </div>
-          ))}
-
-        {displayedPopover === "sub" && (
-          <>
-            <div className="track-popover__row" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "var(--space-3)", marginBottom: "var(--space-1)" }}>
-              <button
-                type="button"
-                className={`track-popover__item ${!subTracks.some((t) => t.selected) ? "track-popover__item--active" : ""}`}
-                onClick={() => {
-                  selectSubTrack(-1);
-                  closePopover();
-                }}
-              >
-                <span className="track-popover__item-title">
-                  {dict.controls.disableSubtitles}
-                </span>
-                <span className="track-popover__item-check">
-                  {!subTracks.some((t) => t.selected) && <Check size={15} />}
-                </span>
-              </button>
-              {onOpenSubtitlesSearch && (
-                <button
-                  type="button"
-                  className="track-download-btn"
-                  title={dict.controls.searchSubtitles}
-                  aria-label={dict.controls.searchSubtitles}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closePopover(true);
-                    onOpenSubtitlesSearch();
-                  }}
-                >
-                  <Search size={14} />
-                </button>
-              )}
-            </div>
-
-            <div className="track-popover__list">
-              {subTracks.map((t) => (
-                <div key={t.id} className="track-popover__row">
-                  <button
-                    type="button"
-                    className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
-                    ref={t.selected ? activeTrackItemRef : null}
-                    onClick={() => {
-                      selectSubTrack(t.id);
-                      closePopover();
-                    }}
-                  >
-                    <span className="track-popover__item-title">
-                      {t.title || dict.controls.subtitleLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
-                    </span>
-                    <span className="track-popover__item-check">
-                      {t.selected && <Check size={15} />}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="track-download-btn"
-                    title={dict.controls.downloadSubtitle}
-                    aria-label={dict.controls.downloadSubtitle}
-                    disabled={downloadingTrackKey === `sub-${t.id}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownloadTrack(t);
-                    }}
-                  >
-                    {downloadingTrackKey === `sub-${t.id}` ? (
-                      <Loader2 size={14} className="spin-animation" />
-                    ) : (
-                      <Download size={14} />
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    );
-  };
+  const renderTrackPopovers = () => (
+    <TrackPopovers
+      displayedPopover={displayedPopover}
+      isPopoverClosing={isPopoverClosing}
+      popoverRef={popoverRef}
+      activeTrackItemRef={activeTrackItemRef}
+      controlBarStyle={controlBarStyle}
+      tracks={tracks}
+      downloadingTrackKey={downloadingTrackKey}
+      onSelectAudioTrack={selectAudioTrack}
+      onSelectSubTrack={selectSubTrack}
+      onClose={closePopover}
+      onDownloadTrack={handleDownloadTrack}
+      onOpenSubtitlesSearch={onOpenSubtitlesSearch}
+    />
+  );
 
   const renderAudioVisualizerAbove = () => (
     <AudioVisualizer placement="above_timeline" />
