@@ -1,0 +1,191 @@
+/* ─── Стиль «Капсула» (3 островка + отдельная полоса таймлайна) ── */
+.player-controls--capsule {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.player-controls--capsule:hover {
+  box-shadow: none !important;
+}
+
+.controls-island {
+  position: relative;
+  background: var(--bg-pill);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-pill);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  transition: transform var(--t-pop) var(--ease-standard),
+              box-shadow var(--t-pop) var(--ease-standard),
+              border-color var(--t-fast) var(--ease-smooth);
+}
+
+.controls-island:hover {
+  box-shadow: var(--shadow-pill-hover);
+  border-color: rgba(var(--accent-rgb), 0.28);
+}
+
+/* Верхний ряд: парящий таймлайн и отдельная карточка времени */
+.controls-timeline-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+
+.controls-island--timeline {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 14px;
+  min-height: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.controls-island--timeline .timeline {
+  margin-bottom: 0;
+}
+
+.controls-island--time {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  flex-shrink: 0;
+  min-height: 28px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform var(--t-pop) var(--ease-standard),
+              box-shadow var(--t-pop) var(--ease-standard),
+              border-color var(--t-fast) var(--ease-smooth);
+}
+
+.controls-island--time:hover {
+  box-shadow: var(--shadow-pill-hover);
+  border-color: rgba(var(--accent-rgb), 0.35);
+}
+
+.controls-island--time:active {
+  transform: scale(0.97);
+  transition: transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+.controls-island--time:has(.time-display:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.controls-island--time .time-display {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-primary);
+  height: auto;
+  padding: 0;
+  background: transparent !important;
+  border-radius: 0;
+}
+
+.controls-island--time .time-display:focus-visible {
+  outline: none !important;
+}
+
+.controls-island--time:hover .time-display {
+  background: transparent !important;
+  color: var(--accent-hover, var(--accent));
+}
+
+/* Нижний ряд: 3 островка с абсолютным центрированием центрального островка */
+.controls-islands-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+}
+
+.controls-island--tracks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 4px 14px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.controls-island--transport {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: 4px 18px;
+  height: 44px;
+  flex-shrink: 0;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.controls-island--utilities {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: 4px 14px;
+  height: 44px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+@container controls (max-width: 760px) {
+  .controls-timeline-wrap {
+    gap: 6px;
+  }
+  .controls-island--time {
+    padding: 0 10px;
+  }
+  .controls-island--tracks {
+    padding: 4px 8px;
+    gap: var(--space-2);
+  }
+  .controls-island--transport {
+    padding: 4px 10px;
+    gap: var(--space-2);
+  }
+  .controls-island--utilities {
+    padding: 4px 8px;
+    gap: var(--space-2);
+  }
+}
+
+@container controls (max-width: 600px) {
+  .player-controls--capsule {
+    gap: 4px;
+  }
+  .controls-island--tracks,
+  .controls-island--transport,
+  .controls-island--utilities {
+    height: 40px;
+    padding: 2px 8px;
+  }
+  .controls-island--timeline,
+  .controls-island--time {
+    min-height: 26px;
+    padding: 4px 10px;
+  }
+}

@@ -828,14 +828,16 @@
   transform: scale(0.985);
 }
 
+/* Выбранный файл во всех стилях: без плашки, номер в неоновом кружке */
 .playlist-item--current {
-  background: var(--bg-active);
-  border-color: var(--accent);
-  color: var(--accent);
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-primary) !important;
 }
 
 .playlist-item--current:hover {
-  background: var(--bg-active);
+  background: var(--bg-hover) !important;
 }
 
 .playlist-item--watched {
@@ -847,21 +849,42 @@
 }
 
 .playlist-item__num {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: #ffffff;
-  min-width: 18px;
-  text-align: left;
-  flex-shrink: 0;
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: 50%;
+  flex-shrink: 0;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
 
 .playlist-item--current .playlist-item__num {
+  background: var(--accent);
+  color: #0b0f14 !important;
+  font-weight: 700;
+  font-size: 11px;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6);
+  line-height: 1;
+}
+
+.playlist-item--current .playlist-item__icon {
   color: var(--accent);
+}
+
+.playlist-item--current .playlist-item__title {
+  color: #ffffff !important;
+  font-weight: 600;
 }
 
 .playlist-item__icon {

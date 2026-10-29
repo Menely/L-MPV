@@ -64,6 +64,11 @@ import {
 } from "../../utils/controlBarStyleUtils";
 import { TimeDisplay } from "./TimeDisplay";
 import { WaveformActivityStrip } from "./heatmap";
+import {
+  CapsuleControlsLayout,
+  ModernControlsLayout,
+  DockedControlsLayout,
+} from "./controls";
 
 export function PlayerControls({
   onShowMediaInfo,
@@ -1052,6 +1057,28 @@ export function PlayerControls({
     </>
   );
 
+  const layoutProps = {
+    controlsPillRef,
+    isControlsHovered,
+    onPointerEnter: () => setIsControlsHovered(true),
+    onPointerLeave: () => setIsControlsHovered(false),
+    visualizerConfig,
+    timePosition,
+    timeFormat,
+    mediaInfo,
+    onCycleTimeFormat: handleCycleTimeFormat,
+    renderTrackPopovers,
+    renderAudioVisualizerAbove,
+    renderFloatingCenterTime,
+    renderTimelineRow,
+    renderTrackButtons,
+    renderVolumeSlider,
+    renderTransportButtons,
+    renderUtilityButtons,
+    isStripHovered,
+    setIsStripHovered,
+  };
+
   return (
     <div
       className={`player-controls-wrapper ${
@@ -1065,140 +1092,9 @@ export function PlayerControls({
         setIsStripHovered(false);
       }}
     >
-      {controlBarStyle === "capsule" ? (
-        <div
-          ref={controlsPillRef}
-          className={`player-controls player-controls--capsule ${
-            visualizerConfig.enabled && visualizerConfig.placement === "above_timeline"
-              ? "player-controls--has-visualizer-above"
-              : ""
-          }`}
-          onPointerEnter={() => setIsControlsHovered(true)}
-          onPointerLeave={() => setIsControlsHovered(false)}
-        >
-          {renderTrackPopovers()}
-
-          {/* Верхняя строка: парящий таймлайн и отдельная карточка времени */}
-          <div className="controls-timeline-wrap">
-            {timePosition === "timeline_left" && (
-              <div className="controls-island controls-island--time">
-                <TimeDisplay
-                  timeFormat={timeFormat}
-                  onCycleFormat={handleCycleTimeFormat}
-                  speed={mediaInfo?.speed}
-                />
-              </div>
-            )}
-
-            <div className="controls-island controls-island--timeline">
-              {renderAudioVisualizerAbove()}
-              {renderFloatingCenterTime()}
-              <div className="timeline-col">
-                <WaveformActivityStrip
-                  isTimelineHovered={isControlsHovered || isStripHovered}
-                  onHoverChange={setIsStripHovered}
-                />
-                <Timeline />
-              </div>
-            </div>
-
-            {timePosition === "timeline_right" && (
-              <div className="controls-island controls-island--time">
-                <TimeDisplay
-                  timeFormat={timeFormat}
-                  onCycleFormat={handleCycleTimeFormat}
-                  speed={mediaInfo?.speed}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* 3 отдельных парящих островка */}
-          <div className="controls-islands-row">
-            {/* Островок 1: Аудиодорожки, субтитры, громкость */}
-            <div className="controls-island controls-island--tracks">
-              {renderTrackButtons()}
-              {renderVolumeSlider()}
-              {timePosition === "volume_right" && (
-                <TimeDisplay
-                  className="time-display--toolbar"
-                  timeFormat={timeFormat}
-                  onCycleFormat={handleCycleTimeFormat}
-                  speed={mediaInfo?.speed}
-                />
-              )}
-              <AudioVisualizer placement="toolbar" />
-            </div>
-
-            {/* Островок 2: Транспортные кнопки управления */}
-            <div className="controls-island controls-island--transport">
-              {renderTransportButtons()}
-            </div>
-
-            {/* Островок 3: Время и утилиты */}
-            <div className="controls-island controls-island--utilities">
-              {timePosition === "toolbar_right" && (
-                <TimeDisplay
-                  className="time-display--toolbar"
-                  timeFormat={timeFormat}
-                  onCycleFormat={handleCycleTimeFormat}
-                  speed={mediaInfo?.speed}
-                />
-              )}
-              {renderUtilityButtons()}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div
-          ref={controlsPillRef}
-          className={`player-controls ${
-            visualizerConfig.enabled && visualizerConfig.placement === "above_timeline"
-              ? "player-controls--has-visualizer-above"
-              : ""
-          }`}
-          onPointerEnter={() => setIsControlsHovered(true)}
-          onPointerLeave={() => setIsControlsHovered(false)}
-        >
-          {renderTrackPopovers()}
-          {renderAudioVisualizerAbove()}
-          {renderFloatingCenterTime()}
-          {renderTimelineRow()}
-
-          <div className="controls-row">
-            <div className="controls-row__left">
-              {renderTrackButtons()}
-              {renderVolumeSlider()}
-              {timePosition === "volume_right" && (
-                <TimeDisplay
-                  className="time-display--toolbar"
-                  timeFormat={timeFormat}
-                  onCycleFormat={handleCycleTimeFormat}
-                  speed={mediaInfo?.speed}
-                />
-              )}
-              <AudioVisualizer placement="toolbar" />
-            </div>
-
-            <div className="controls-row__center">
-              {renderTransportButtons()}
-            </div>
-
-            <div className="controls-row__right">
-              {timePosition === "toolbar_right" && (
-                <TimeDisplay
-                  className="time-display--toolbar"
-                  timeFormat={timeFormat}
-                  onCycleFormat={handleCycleTimeFormat}
-                  speed={mediaInfo?.speed}
-                />
-              )}
-              {renderUtilityButtons()}
-            </div>
-          </div>
-        </div>
-      )}
+      {controlBarStyle === "capsule" && <CapsuleControlsLayout {...layoutProps} />}
+      {controlBarStyle === "modern" && <ModernControlsLayout {...layoutProps} />}
+      {controlBarStyle === "docked" && <DockedControlsLayout {...layoutProps} />}
     </div>
-
   );
 }

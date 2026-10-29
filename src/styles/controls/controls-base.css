@@ -1,0 +1,1075 @@
+/* ─── Обертка панели управления (Floating Pill Full-Width) ── */
+.player-controls-wrapper {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  right: 14px;
+  z-index: var(--z-controls);
+  width: calc(100% - 28px);
+  max-width: none;
+  container-type: inline-size;
+  container-name: controls;
+  transform: translateY(0);
+  transition: opacity var(--t-panel) var(--ease-standard),
+              transform var(--t-panel) var(--ease-decelerate);
+}
+
+/* ─── Таблетка управления ─────────────────────────────── */
+.player-controls {
+  position: relative;
+  background: var(--bg-pill);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  padding: var(--space-2) 16px 8px;
+  box-shadow: var(--shadow-pill);
+  transition: transform var(--t-pop) var(--ease-standard),
+              box-shadow var(--t-pop) var(--ease-standard),
+              border-color var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
+}
+
+.player-controls:hover {
+  box-shadow: var(--shadow-pill-hover);
+}
+
+/* ─── Строка таймлайна со временем (справа, слева или на всю ширину) ── */
+.timeline-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-6);
+  width: 100%;
+  margin-bottom: var(--space-1);
+}
+
+.timeline-row--full {
+  gap: 0;
+}
+
+.timeline-row .timeline-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.timeline-row .timeline-col .timeline,
+.timeline-row .timeline {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.timeline-row .time-display {
+  flex-shrink: 0;
+  padding: 0 2px;
+  user-select: none;
+  height: 14px;
+  display: flex;
+  align-items: center;
+}
+
+/* ─── Плавающий бейдж со временем над центром таймлайна ── */
+.timeline-floating-time {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  z-index: var(--z-in-thumb);
+}
+
+.time-display--floating-center {
+  pointer-events: auto;
+  background: var(--bg-pill);
+  border: 1px solid var(--border-pill);
+  border-radius: 999px;
+  padding: var(--space-1) 11px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-smooth);
+}
+
+.time-display--floating-center:hover {
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+  color: #ffffff;
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-1px);
+}
+
+.time-display--floating-center:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ─── Таймлайн ───────────────────────────────────────── */
+.timeline {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: var(--space-1);
+  outline: none;
+  touch-action: none;
+  z-index: 20;
+}
+
+.timeline__track {
+  width: 100%;
+  height: 5px;
+  position: relative;
+  transition: height var(--t-fast) var(--ease-smooth);
+}
+
+/* При отсутствии глав увеличивается вся дорожка таймлайна целиком */
+.timeline:not(.timeline--has-chapters):hover .timeline__track,
+.timeline:not(.timeline--has-chapters).timeline--dragging .timeline__track,
+.timeline:not(.timeline--has-chapters):focus-visible .timeline__track {
+  height: 8px;
+}
+
+/* Глобальный focus-visible (components.css) рисует 2px рамку вокруг всего
+   таймлайна: клик мышью по tabIndex-элементу в Chromium считается
+   :focus-visible, и рамка залипала поверх видео. Индикатор фокуса уже
+   продублирован ростом дорожки (.timeline__track) выше. */
+.timeline:focus-visible {
+  outline: none !important;
+}
+
+.timeline__segments {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+}
+
+.timeline__segment {
+  position: relative;
+  height: 100%;
+  border-radius: var(--radius-xs, 4px);
+  overflow: hidden;
+  transition: height var(--t-fast) var(--ease-smooth);
+}
+
+/* При наличии глав увеличивается только сегмент активной главы под курсором */
+.timeline--has-chapters .timeline__segment {
+  height: 5px;
+}
+
+.timeline--has-chapters .timeline__segment--hovered,
+.timeline--has-chapters .timeline__segment:hover,
+.timeline--has-chapters:focus-visible .timeline__segment {
+  height: 8px;
+}
+
+.timeline__segment-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-xs, 4px);
+}
+
+.timeline__segment-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: var(--radius-xs, 4px);
+}
+
+.timeline__segment-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--accent-gradient, var(--accent));
+  border-radius: var(--radius-xs, 4px);
+  box-shadow: var(--timeline-glow, none);
+  transition: box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.timeline:hover .timeline__segment-progress,
+.timeline--dragging .timeline__segment-progress {
+  box-shadow: var(--timeline-glow, none), 0 0 10px var(--accent-glow);
+}
+
+.timeline__thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  box-shadow: var(--thumb-glow, var(--shadow-glow));
+  transition: transform var(--t-spring) var(--ease-spring-bounce),
+              box-shadow var(--t-base) var(--ease-smooth);
+  z-index: var(--z-in-thumb);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.timeline:hover .timeline__thumb,
+.timeline--dragging .timeline__thumb,
+.timeline__thumb--dragging,
+.timeline:focus-visible .timeline__thumb {
+  transform: translate(-50%, -50%) scale(1.15);
+}
+
+/* ─── Neon Pulse Wave: радиальная волна от точки клика ─── */
+/*
+ * Только transform + opacity — обрабатываются GPU compositor без reflow (60 fps).
+ * Фиксированный размер 36px, начальный scale(0.28) ≈ 10px зрительно.
+ */
+.timeline__pulse {
+  position: absolute;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow, var(--accent));
+  pointer-events: none;
+  z-index: var(--z-in-pulse);
+  will-change: transform, opacity;
+  animation: timeline-pulse 500ms ease-out forwards;
+}
+
+@keyframes timeline-pulse {
+  from {
+    transform: translate(-50%, -50%) scale(0.28);
+    opacity: 0.85;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+
+/* Отключаем волну при data-glow="off" */
+html[data-glow="off"] .timeline__pulse {
+  display: none;
+}
+
+/* Без анимаций onAnimationEnd не выстрелит — волну не показываем,
+   иначе кольцо залипает поверх кнопок. */
+html.no-animations .timeline__pulse {
+  display: none;
+}
+
+
+/* ─── Кнопки управления (Grid с математическим центрированием) ── */
+.controls-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+}
+
+.controls-row__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  justify-self: start;
+  min-width: 0;
+}
+
+.controls-row__center {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  justify-self: center;
+  flex-shrink: 0;
+}
+
+.controls-row__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  justify-self: end;
+  min-width: 0;
+}
+
+.control-btn {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 50%;
+  transform-origin: center center;
+  transform: translateZ(0) scale(1);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--t-spring) var(--ease-spring-smooth),
+              color var(--t-fast) var(--ease-smooth);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.control-btn--with-label {
+  width: auto;
+  min-width: 34px;
+  padding: 0 8px;
+  border-radius: var(--radius-md, 12px);
+  gap: var(--space-2);
+  transform: none !important;
+  will-change: auto;
+}
+
+.control-btn__label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-primary);
+  user-select: none;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--t-fast) var(--ease-smooth);
+}
+
+.control-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.25;
+  display: block;
+  flex-shrink: 0;
+  transform-origin: center center;
+  transition: color var(--t-fast) var(--ease-smooth);
+}
+
+.control-btn:hover {
+  background: transparent;
+  color: var(--accent-hover, var(--accent));
+  transform: translateZ(0) scale(1.08);
+  box-shadow: none;
+}
+
+.control-btn--with-label:hover {
+  transform: none !important;
+}
+
+.control-btn--with-label svg {
+  transform-origin: center center;
+  transform: translateZ(0) scale(1);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--t-spring) var(--ease-spring-smooth);
+}
+
+.control-btn--with-label:hover svg {
+  transform: translateZ(0) scale(1.08);
+}
+
+.control-btn:hover svg {
+  filter: var(--hover-icon-glow, none);
+}
+
+.control-btn:active {
+  transform: translateZ(0) scale(0.92);
+  transition: transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+.control-btn--with-label:active svg {
+  transform: translateZ(0) scale(0.92);
+  transition: transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+/* Кнопка Play / Pause с интерактивным живым шейпом */
+.control-btn--play {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  color: var(--accent);
+  background: transparent;
+  box-shadow: none;
+  transform-origin: center center;
+  transform: translateZ(0) scale(1);
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform var(--t-spring) var(--ease-spring-smooth),
+              color var(--t-fast) var(--ease-smooth);
+}
+
+.control-btn--play svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.4;
+  display: block;
+  flex-shrink: 0;
+  filter: var(--play-icon-glow, none);
+  transform-origin: center center;
+  animation: playPausePop var(--t-spring) var(--ease-spring-smooth);
+  transition: color var(--t-fast) var(--ease-smooth);
+}
+
+@keyframes playPausePop {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.control-btn--play:hover {
+  color: var(--accent-hover, var(--accent));
+  background: transparent;
+  transform: translateZ(0) scale(1.08);
+  box-shadow: none;
+}
+
+.control-btn--play:hover svg {
+  filter: var(--play-icon-glow, none);
+}
+
+.control-btn--play:active {
+  transform: translateZ(0) scale(0.92);
+  transition: transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+/* Анимация переключения громкости (Mute/Unmute) — срабатывает только при смене иконки (key), не при каждом шаге громкости */
+.volume-slider #btn-volume svg {
+  display: block;
+  flex-shrink: 0;
+  transform-origin: center center;
+  animation: volumeIconPop var(--t-spring) var(--ease-spring-smooth);
+}
+
+@keyframes volumeIconPop {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.control-btn--active {
+  color: var(--accent);
+  background: transparent;
+  box-shadow: none;
+}
+
+.control-btn--active:hover {
+  background: transparent;
+  color: var(--accent-hover, var(--accent));
+}
+
+.control-btn--active svg {
+  filter: var(--active-icon-glow, none);
+  transition: filter var(--t-fast) var(--ease-smooth);
+}
+
+.control-btn--active:hover svg {
+  filter: var(--active-icon-glow, none);
+}
+
+/* ─── Текстовые метки (время, кадры) ─────────────────── */
+.time-display {
+  font-size: var(--fs-sm, 0.78rem);
+  color: var(--accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  white-space: nowrap;
+  padding: var(--space-1) 6px;
+  border-radius: var(--radius-xs, 4px);
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  /* Стандартная типографика без искусственных теней */
+  transition: background var(--t-fast) var(--ease-standard),
+              color var(--t-fast) var(--ease-standard),
+              transform var(--t-fast) var(--ease-standard);
+}
+
+.time-display:hover {
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--accent-hover, var(--accent));
+}
+
+.time-display:active {
+  transform: scale(0.96);
+}
+
+.time-display__compact {
+  display: none;
+}
+
+.time-display__full {
+  display: inline-flex;
+  align-items: center;
+}
+
+.time-display--toolbar {
+  font-size: var(--fs-xs, 0.74rem);
+  margin: 0 4px 0 2px;
+  padding: var(--space-1) 4px;
+  user-select: none;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.frame-display {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  white-space: nowrap;
+  padding: 0 2px;
+}
+
+/* ─── Слайдер громкости ──────────────────────────────── */
+.volume-slider {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: auto;
+}
+
+.volume-slider #btn-volume {
+  width: 28px;
+  height: 28px;
+}
+
+.volume-slider__expandable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 0;
+  height: 28px;
+  padding: 0;
+  opacity: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  transform: translateX(-6px);
+  /* max-width вместо width + без margin-анимации: меньше layout-thrash, соседи не прыгают */
+  transition: max-width var(--t-spring) var(--ease-spring-smooth),
+              opacity var(--t-base) var(--ease-smooth),
+              transform var(--t-spring) var(--ease-spring-smooth),
+              padding var(--t-spring) var(--ease-spring-smooth);
+  pointer-events: none;
+}
+
+.volume-slider:hover .volume-slider__expandable,
+.volume-slider__expandable:focus-within {
+  max-width: 80px;
+  padding: 0 6px;
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.volume-slider__value {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  min-width: 32px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  user-select: none;
+  margin-left: var(--space-2);
+  transition: color var(--t-fast) var(--ease-smooth);
+}
+
+/* Громкость едет на премиальном слайдере: трек/тамб/переходы берёт
+   из .ui-premium-slider, здесь только посадка в компактный контейнер */
+.volume-slider__input {
+  min-width: 0;
+  padding: 0;
+}
+
+/* Видимое кольцо фокуса для клавиатурной навигации */
+.volume-slider__input:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+  border-radius: var(--radius-xs, 4px);
+}
+
+/* ─── Полное отключение свечения при режиме Off ── */
+[data-glow="off"] .control-btn svg,
+[data-glow="off"] .control-btn:hover svg,
+[data-glow="off"] .control-btn--play svg,
+[data-glow="off"] .control-btn--play:hover svg,
+[data-glow="off"] .control-btn--active svg,
+[data-glow="off"] .control-btn--active:hover svg,
+html[data-glow="off"] .control-btn svg,
+html[data-glow="off"] .control-btn:hover svg,
+html[data-glow="off"] .control-btn--play svg,
+html[data-glow="off"] .control-btn--play:hover svg,
+html[data-glow="off"] .control-btn--active svg,
+html[data-glow="off"] .control-btn--active:hover svg {
+  filter: none !important;
+}
+
+[data-glow="off"] .timeline__segment-progress,
+html[data-glow="off"] .timeline__segment-progress,
+[data-glow="off"] .volume-slider__input::-webkit-slider-thumb,
+[data-glow="off"] .volume-slider__input:hover::-webkit-slider-thumb,
+html[data-glow="off"] .volume-slider__input::-webkit-slider-thumb,
+html[data-glow="off"] .volume-slider__input:hover::-webkit-slider-thumb,
+[data-glow="off"] .timeline__thumb,
+html[data-glow="off"] .timeline__thumb {
+  box-shadow: none !important;
+}
+
+/* ─── Адаптивность Панели Управления (Container Queries) ─── */
+
+/* 1. Плавное компактное сужение при ширине <= 1040px */
+@container controls (max-width: 1040px) {
+  .control-btn__label {
+    max-width: 80px;
+  }
+  .controls-row__left,
+  .controls-row__right {
+    gap: var(--space-2);
+  }
+  .controls-row__center {
+    gap: var(--space-4);
+  }
+}
+
+/* 2. Скрытие текстовых подписей дорожек при ширине <= 920px (визуализатор остаётся активным) */
+@container controls (max-width: 920px) {
+  .control-btn__label {
+    display: none !important;
+  }
+  .control-btn--with-label {
+    width: 34px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+  }
+  .audio-visualizer--toolbar {
+    max-width: 65px;
+  }
+  .controls-row__left,
+  .controls-row__right {
+    gap: var(--space-1);
+  }
+  .controls-row__center {
+    gap: var(--space-3);
+  }
+}
+
+/* 3. Скрытие визуализатора и низкоприоритетных кнопок при ширине <= 780px */
+@container controls (max-width: 780px) {
+  .audio-visualizer--toolbar {
+    display: none !important;
+  }
+  .control-btn--priority-low {
+    display: none !important;
+  }
+  .controls-row__center {
+    gap: var(--space-3);
+  }
+  .controls-row__left,
+  .controls-row__right {
+    gap: var(--space-1);
+  }
+}
+
+/* 4. Скрытие среднеприоритетных кнопок и компактный слайдер при ширине <= 580px */
+@container controls (max-width: 580px) {
+  .player-controls {
+    padding: var(--space-2) 10px 8px;
+  }
+  .volume-slider__value {
+    display: none !important;
+  }
+  .volume-slider:hover .volume-slider__expandable,
+  .volume-slider__expandable:focus-within {
+    max-width: 52px;
+    overflow: visible;
+  }
+  .control-btn--priority-medium {
+    display: none !important;
+  }
+  .controls-row__center {
+    gap: var(--space-2);
+  }
+  .controls-row__left,
+  .controls-row__right {
+    gap: var(--space-1);
+  }
+}
+
+/* 5. Мобильный / ультракомпактный режим при ширине <= 460px */
+@container controls (max-width: 460px) {
+  .player-controls {
+    padding: var(--space-2) 8px 7px;
+    border-radius: var(--radius-controls, 14px);
+  }
+  .controls-row {
+    grid-template-columns: auto 1fr auto;
+    gap: var(--space-2);
+  }
+  .volume-slider {
+    display: none !important;
+  }
+  .time-display__full {
+    display: none !important;
+  }
+  .time-display__compact {
+    display: inline !important;
+    font-size: var(--fs-xs);
+  }
+  .controls-row__center {
+    gap: var(--space-2);
+    justify-self: center;
+  }
+  .control-btn {
+    width: 30px;
+    height: 30px;
+  }
+  .control-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  .control-btn--play {
+    width: 36px;
+    height: 36px;
+  }
+  .control-btn--play svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* 6. Экстремально узкое окно при ширине <= 340px */
+@container controls (max-width: 340px) {
+  .time-display {
+    display: none !important;
+  }
+  .controls-row__left button#btn-audio-tracks {
+    display: none !important;
+  }
+}
+
+/* ─── Минималистичный оверлей перемотки (Seek Indicator) ── */
+.seek-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%) scale(1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  color: #ffffff;
+  pointer-events: none;
+  user-select: none;
+  z-index: var(--z-widget);
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.95));
+  transition: opacity 0.18s var(--ease-smooth),
+              transform 0.18s var(--ease-smooth);
+  animation: seek-indicator-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.seek-indicator--left {
+  left: clamp(80px, 14vw, 180px);
+}
+
+.seek-indicator--right {
+  right: clamp(80px, 14vw, 180px);
+}
+
+.seek-indicator--pulse {
+  animation: seek-indicator-nudge 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.seek-indicator--closing {
+  opacity: 0;
+  transform: translateY(-50%) scale(0.92);
+}
+
+.seek-indicator__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent, #00e5a3);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.seek-indicator--left .seek-indicator__icon {
+  animation: seek-glide-left 0.22s ease-out;
+}
+
+.seek-indicator--right .seek-indicator__icon {
+  animation: seek-glide-right 0.22s ease-out;
+}
+
+.seek-indicator__label {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+@keyframes seek-indicator-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@keyframes seek-indicator-nudge {
+  0% {
+    transform: translateY(-50%) scale(1);
+  }
+  40% {
+    transform: translateY(-50%) scale(1.04);
+  }
+  100% {
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@keyframes seek-glide-left {
+  0% {
+    transform: translateX(0);
+  }
+  40% {
+    transform: translateX(-4px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes seek-glide-right {
+  0% {
+    transform: translateX(0);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* ─── Звуковая тепловая карта (Waveform Activity Strip) ──────── */
+.waveform-activity-strip {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  box-sizing: border-box;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity var(--t-fast) var(--ease-smooth);
+}
+
+.waveform-activity-strip--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 1. Режим: «Над панелью» (above_controls) — парящий HUD строго по ширине таймлайна над пилюлей */
+.waveform-activity-strip--above-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  bottom: calc(100% + 10px);
+  z-index: 15;
+  overflow: visible;
+}
+
+/* Адаптация вертикального положения при наличии аудио-визуализатора над таймлайном */
+.waveform-activity-strip--above-controls.waveform-activity-strip--above-visualizer,
+.player-controls--has-visualizer-above .waveform-activity-strip--above-controls {
+  bottom: calc(100% + var(--visualizer-height, 22px) + 10px);
+}
+
+/* 2. Режим: «Над таймлайном» (above_timeline) — внутри панели прямо над таймлайном */
+.waveform-activity-strip--above-timeline {
+  position: relative;
+  width: 100%;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm, 6px);
+  overflow: visible;
+  z-index: 10;
+}
+
+.waveform-activity-strip:hover {
+  border: none;
+  box-shadow: none;
+}
+
+.waveform-activity-strip__canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: var(--radius-sm, 6px);
+  pointer-events: none;
+}
+
+/* Парящий информационный бейдж над тепловой картой при наведении (стиль timeline-preview-card) */
+.waveform-activity-strip__badge {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) 10px;
+  box-shadow: var(--shadow-card-hover);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: 0.4px;
+  line-height: 1.2;
+  pointer-events: none;
+  white-space: nowrap;
+  user-select: none;
+  z-index: var(--z-float);
+  opacity: 1;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
+}
+
+.waveform-activity-strip__badge-time {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.waveform-activity-strip__badge-dot {
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
+  font-size: var(--fs-2xs, 11px);
+  line-height: 1;
+  user-select: none;
+}
+
+.waveform-activity-strip__badge-metric {
+  font-weight: 600;
+  color: var(--accent, #3b82f6);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Индикатор статуса анализа / ошибки тепловой карты */
+.waveform-activity-strip__status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-surface-elevated, rgba(15, 23, 42, 0.88));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--radius-pill, 9999px);
+  padding: 3px 10px;
+  font-size: var(--fs-3xs, 10px);
+  font-weight: 500;
+  color: var(--text-secondary, #94a3b8);
+  pointer-events: auto;
+  user-select: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  animation: stripFadeIn 0.2s ease-out;
+}
+
+.waveform-activity-strip__spinner {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--accent, #3b82f6);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: stripSpin 0.75s linear infinite;
+}
+
+@keyframes stripSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes stripFadeIn {
+  from { opacity: 0; transform: translate(-50%, -40%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+.waveform-activity-strip__retry-btn {
+  background: var(--bg-card, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.18));
+  border-radius: 4px;
+  color: var(--text-primary, #fff);
+  padding: 1px 6px;
+  font-size: 9px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.waveform-activity-strip__retry-btn:hover {
+  background: var(--accent, #3b82f6);
+  border-color: var(--accent, #3b82f6);
+}
+
+
