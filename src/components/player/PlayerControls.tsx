@@ -42,6 +42,9 @@ import {
   VisualizerConfig,
   VisualizerMode,
 } from "./AudioVisualizer";
+
+
+
 import { getSavedSeekStepSeconds, triggerSeekIndicator } from "../../utils/seekUtils";
 import { getCustomHotkeys, getKeyDisplay } from "../../utils/hotkeyUtils";
 import {
@@ -60,6 +63,7 @@ import {
   getSavedControlBarStyle,
 } from "../../utils/controlBarStyleUtils";
 import { TimeDisplay } from "./TimeDisplay";
+import { WaveformActivityStrip } from "./heatmap";
 
 export function PlayerControls({
   onShowMediaInfo,
@@ -106,6 +110,8 @@ export function PlayerControls({
   } = usePlayerState();
   const [localVolume, setLocalVolume] = useState<number | null>(null);
   const volume = localVolume !== null ? localVolume : contextVolume;
+  const [isControlsHovered, setIsControlsHovered] = useState(false);
+  const [isStripHovered, setIsStripHovered] = useState(false);
 
   // Состояния для всплывающих окон дорожек с поддержкой exit-анимации
   const [activePopover, setActivePopover] = useState<"audio" | "sub" | null>(null);
@@ -201,6 +207,7 @@ export function PlayerControls({
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+
 
   const handleCycleTimeFormat = useCallback(() => {
     const nextFormat = getNextTimeFormat(timeFormat);
@@ -516,6 +523,8 @@ export function PlayerControls({
     }
   };
 
+
+
   const audioTracks = useMemo(() => tracks.filter((t) => t.type === "audio"), [tracks]);
   const subTracks = useMemo(() => tracks.filter((t) => t.type === "sub"), [tracks]);
 
@@ -528,7 +537,16 @@ export function PlayerControls({
         controlBarStyle === "docked" ? "player-controls-wrapper--docked" : ""
       }`}
       >
-      <div ref={controlsPillRef} className="player-controls">
+      <div
+        ref={controlsPillRef}
+        className={`player-controls ${
+          visualizerConfig.enabled && visualizerConfig.placement === "above_timeline"
+            ? "player-controls--has-visualizer-above"
+            : ""
+        }`}
+        onPointerEnter={() => setIsControlsHovered(true)}
+        onPointerLeave={() => setIsControlsHovered(false)}
+      >
         {/* Всплывающее меню дорожек */}
         {(displayedPopover === "audio" || displayedPopover === "sub") && (
           <div
@@ -686,6 +704,7 @@ export function PlayerControls({
 
         {/* Строка таймлайна со временем (справа, слева или во всю ширину) */}
         <div className={`timeline-row ${timePosition !== "timeline_left" && timePosition !== "timeline_right" ? "timeline-row--full" : ""}`}>
+
           {timePosition === "timeline_left" && (
             <TimeDisplay
               timeFormat={timeFormat}
@@ -693,7 +712,15 @@ export function PlayerControls({
               speed={mediaInfo?.speed}
             />
           )}
-          <Timeline />
+
+          <div className="timeline-col">
+            <WaveformActivityStrip
+              isTimelineHovered={isControlsHovered || isStripHovered}
+              onHoverChange={setIsStripHovered}
+            />
+            <Timeline />
+          </div>
+
           {timePosition === "timeline_right" && (
             <TimeDisplay
               timeFormat={timeFormat}
@@ -717,7 +744,6 @@ export function PlayerControls({
                 handleTrackButtonClick("audio", "MouseRight");
               }}
               id="btn-audio-tracks"
-              title={isAudioDownloading ? dict.controls.downloadingAudio : dict.controls.audioTracks}
               aria-label={isAudioDownloading ? dict.controls.downloadingAudio : dict.controls.audioTracks}
             >
               <AudioLines size={18} />
@@ -739,7 +765,6 @@ export function PlayerControls({
                 handleTrackButtonClick("sub", "MouseRight");
               }}
               id="btn-sub-tracks"
-              title={isSubDownloading ? dict.controls.downloadingSubtitle : dict.controls.subtitles}
               aria-label={isSubDownloading ? dict.controls.downloadingSubtitle : dict.controls.subtitles}
             >
               <Subtitles size={18} />
@@ -763,7 +788,6 @@ export function PlayerControls({
                 className="control-btn"
                 onClick={() => handleVolumeChange(volume > 0 ? 0 : 100)}
                 id="btn-volume"
-                title={volume === 0 ? dict.controls.unmute : dict.controls.mute}
                 aria-label={volume === 0 ? dict.controls.unmute : dict.controls.mute}
                 >
                 {volume === 0 ? (
@@ -833,7 +857,6 @@ export function PlayerControls({
               className="control-btn control-btn--priority-medium"
               onClick={handlePlaylistPrev}
               id="btn-playlist-prev"
-              title={dict.controls.prev}
               aria-label={dict.controls.prev}
               >
               <SkipBack size={18} />
@@ -847,7 +870,6 @@ export function PlayerControls({
                   triggerSeekIndicator("left", seekStepSeconds);
                 }}
                 id="btn-seek-back"
-                title={dict.controls.seekBackward(seekStepSeconds)}
                 aria-label={dict.controls.seekBackward(seekStepSeconds)}
                 >
                 <Undo size={18} />
@@ -858,7 +880,6 @@ export function PlayerControls({
               className="control-btn control-btn--play"
               onClick={handleTogglePause}
               id="btn-play-pause"
-              title={paused ? dict.controls.play : dict.controls.pause}
               aria-label={paused ? dict.controls.play : dict.controls.pause}
               >
               {paused ? (
@@ -876,7 +897,6 @@ export function PlayerControls({
                   triggerSeekIndicator("right", seekStepSeconds);
                 }}
                 id="btn-seek-forward"
-                title={dict.controls.seekForward(seekStepSeconds)}
                 aria-label={dict.controls.seekForward(seekStepSeconds)}
                 >
                 <Redo size={18} />
@@ -887,7 +907,6 @@ export function PlayerControls({
               className="control-btn control-btn--priority-medium"
               onClick={handlePlaylistNext}
               id="btn-playlist-next"
-              title={dict.controls.next}
               aria-label={dict.controls.next}
               >
               <SkipForward size={18} />
@@ -1057,7 +1076,6 @@ export function PlayerControls({
                 className="control-btn"
                 onClick={toggleFullscreen}
                 id="btn-fullscreen"
-                title={isFullscreen ? dict.controls.exitFullscreen : dict.controls.fullscreen}
                 aria-label={isFullscreen ? dict.controls.exitFullscreen : dict.controls.fullscreen}
                 >
                 {isFullscreen ? (

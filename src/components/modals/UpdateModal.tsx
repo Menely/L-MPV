@@ -804,7 +804,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
         <button
           className="update-toast__close"
           onClick={handleClose}
-          title={dict.updateModal.toastClose}
+
           aria-label={dict.updateModal.toastClose}
           >
           <X size={16} />

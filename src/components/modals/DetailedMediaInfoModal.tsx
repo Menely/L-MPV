@@ -130,7 +130,7 @@ export function DetailedMediaInfoModal({
   // Закрытие окна с анимацией
   const { isClosing, handleClose } = useOverlayDismiss({
     onClose,
-    kind: "fast",
+    kind: "pop",
     closeOnEscape: false,
   });
 
@@ -361,7 +361,7 @@ export function DetailedMediaInfoModal({
             type="button"
             onClick={handleClose}
             className="mediainfo-floating-window__btn mediainfo-floating-window__btn--close"
-            title={dict.detailedMediaInfoModal.close}
+
             aria-label={dict.detailedMediaInfoModal.close}
             >
             <X size={15} />
@@ -399,7 +399,7 @@ export function DetailedMediaInfoModal({
           <button
             onClick={() => setSearchQuery("")}
             className="mediainfo-floating-window__search-clear"
-            title={dict.detailedMediaInfoModal.clearSearch}
+
             aria-label={dict.detailedMediaInfoModal.clearSearch}
             >
             <X size={12} />

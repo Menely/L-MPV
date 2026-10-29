@@ -29,12 +29,7 @@ export const MediaInfoSectionItem: React.FC<MediaInfoSectionItemProps> = React.m
           type="button"
           className="mediainfo-section__collapse-trigger"
           onClick={() => onToggleCollapse(section.id)}
-          title={
-            effectiveCollapsed
-              ? useRussian ? "Развернуть категорию" : "Expand"
-              : useRussian ? "Свернуть категорию" : "Collapse"
-          }
-          >
+        >
           <span className="mediainfo-section__chevron">
             {effectiveCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
           </span>
@@ -42,7 +37,7 @@ export const MediaInfoSectionItem: React.FC<MediaInfoSectionItemProps> = React.m
           <span className="mediainfo-section__count-badge">
             {section.rows.length} {useRussian ? "свойств" : "props"}
           </span>
-          {section.matchesCount> 0 && (
+          {section.matchesCount > 0 && (
             <span className="mediainfo-section__match-badge">
               {section.matchesCount} {useRussian ? "совп." : "match"}
             </span>
@@ -56,7 +51,7 @@ export const MediaInfoSectionItem: React.FC<MediaInfoSectionItemProps> = React.m
           }`}
           title={useRussian ? `Скопировать категорию «${section.title}»` : `Copy "${section.title}"`}
           onClick={() => onCopySection(section.title, section.cleanText)}
-          >
+        >
           {isCopied ? (
             <>
               <Check size={12} color="#4ade80" />
@@ -77,7 +72,7 @@ export const MediaInfoSectionItem: React.FC<MediaInfoSectionItemProps> = React.m
             <div
               key={row.id}
               className={`mediainfo-row ${row.isMatch ? "mediainfo-row--match" : ""}`}
-              >
+            >
               <span className="mediainfo-row__key">{row.key}</span>
               <span className="mediainfo-row__colon">:</span>
               <span className="mediainfo-row__val">{row.value}</span>

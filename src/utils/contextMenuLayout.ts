@@ -36,6 +36,7 @@ export const DEFAULT_LAYOUT: LayoutEntry[] = [
   { type: "item", id: "presets" },
   { type: "divider" },
   { type: "item", id: "detailed_media_info" },
+  { type: "item", id: "heatmap" },
   { type: "item", id: "settings" },
 ];
 

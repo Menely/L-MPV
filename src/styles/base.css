@@ -113,7 +113,6 @@ textarea {
   .cmenu-editor__available-list,
   .media-info-overlay,
   .version-picker-popover,
-  .context-menu__submenu,
   .custom-scrollbar,
   .scrollable-container,
   [data-scrollable="true"]
@@ -234,11 +233,11 @@ html, body, #root {
   position: absolute;
   bottom: calc(100% + 10px);
   transform: translateX(-50%);
-  background: rgba(10, 12, 18, 0.92);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-sm);
   padding: var(--space-2) 10px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-card-hover);
   pointer-events: none;
   z-index: var(--z-float);
   white-space: nowrap;
@@ -251,6 +250,18 @@ html, body, #root {
   will-change: transform;
   contain: layout paint;
 }
+
+/* Смещение карточки превью выше парящей звуковой карты */
+.timeline:has(.waveform-activity-strip--visible) .timeline-preview-card,
+.player-controls:has(.waveform-activity-strip--visible) .timeline-preview-card {
+  bottom: calc(100% + 58px);
+}
+
+.player-controls--has-visualizer-above .timeline:has(.waveform-activity-strip--visible) .timeline-preview-card,
+.player-controls--has-visualizer-above:has(.waveform-activity-strip--visible) .timeline-preview-card {
+  bottom: calc(100% + var(--visualizer-height, 22px) + 58px);
+}
+
 
 .timeline-preview-card__time {
   font-size: var(--fs-xs);

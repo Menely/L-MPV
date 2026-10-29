@@ -328,10 +328,30 @@ export function getSavedUiOpacity(): number {
 
 /**
  * Применить значение прозрачности интерфейса к CSS-переменной --ui-opacity.
+ * Также адаптивно масштабирует плотность теней (--shadow-alpha), предотвращая
+ * просвечивание темной тени сквозь прозрачные плашки.
  */
 export function applyUiOpacity(opacity: number): void {
   const clamped = Math.max(0.1, Math.min(1.0, Number(opacity.toFixed(2))));
-  document.documentElement.style.setProperty("--ui-opacity", clamped.toString());
+  const root = document.documentElement;
+  root.style.setProperty("--ui-opacity", clamped.toString());
+
+  // Обновляем инлайн фоны с новой прозрачностью для активной темы плеера
+  const computed = getComputedStyle(root);
+  const themeGlassRgb = (root.style.getPropertyValue("--bg-glass-rgb") || computed.getPropertyValue("--bg-glass-rgb")).trim() || "18, 22, 32";
+  const themePillRgb = (root.style.getPropertyValue("--bg-pill-rgb") || computed.getPropertyValue("--bg-pill-rgb")).trim() || "14, 18, 26";
+  root.style.setProperty("--bg-pill", `rgba(${themePillRgb}, ${clamped})`);
+  root.style.setProperty("--bg-glass", `rgba(${themeGlassRgb}, ${clamped})`);
+  root.style.setProperty("--bg-elevated", `rgba(${themeGlassRgb}, ${clamped})`);
+
+  // Масштабируем альфу теней пропорционально прозрачности интерфейса:
+  // При ui-opacity = 1.0 -> мягкая естественная тень (0.35 / 0.18)
+  // При ui-opacity = 0.5 -> деликатная приглушенная тень (0.18 / 0.09)
+  // При ui-opacity = 0.1 -> ультра-воздушная тень (0.04 / 0.02)
+  const shadowAlpha = (clamped * 0.35).toFixed(2);
+  const shadowAmbientAlpha = (clamped * 0.18).toFixed(2);
+  root.style.setProperty("--shadow-alpha", shadowAlpha);
+  root.style.setProperty("--shadow-ambient-alpha", shadowAmbientAlpha);
 }
 
 /**

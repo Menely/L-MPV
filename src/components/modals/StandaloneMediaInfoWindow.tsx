@@ -57,7 +57,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
   const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
-  const [isMaximized, setIsMaximized] = useState<boolean>(false);
+  const [, setIsMaximized] = useState<boolean>(false);
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState<boolean>(true);
 
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -419,7 +419,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           <button
             type="button"
             className="mediainfo-standalone__control-btn"
-            title={useRussian ? "Свернуть" : "Minimize"}
+
             onClick={handleMinimize}
             >
             <Minus size={13} />
@@ -427,7 +427,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           <button
             type="button"
             className="mediainfo-standalone__control-btn"
-            title={isMaximized ? (useRussian ? "Восстановить" : "Restore") : (useRussian ? "Развернуть" : "Maximize")}
+
             onClick={handleToggleMaximize}
             >
             <Square size={11} />
@@ -435,7 +435,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           <button
             type="button"
             className="mediainfo-standalone__control-btn mediainfo-standalone__control-btn--close"
-            title={useRussian ? "Закрыть (Esc)" : "Close (Esc)"}
+
             onClick={handleClose}
             >
             <X size={14} />
@@ -463,7 +463,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
               <button
                 type="button"
                 className="mediainfo-standalone__btn-icon"
-                title={useRussian ? "Очистить поиск" : "Clear search"}
+
                 onClick={() => setSearchQuery("")}
                 >
                 <X size={12} />

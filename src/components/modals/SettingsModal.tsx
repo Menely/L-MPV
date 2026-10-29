@@ -152,7 +152,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.6.3");
+  const [appVersion, setAppVersion] = useState<string>("2.6.4");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
@@ -756,7 +756,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             className="modal__close"
             onClick={handleClose}
             id="btn-settings-close"
-            title={dict.settings.close}
+
             aria-label={dict.settings.close}
             >
             <X size={18} />

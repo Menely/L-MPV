@@ -193,7 +193,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.6.3");
+  const [appVersion, setAppVersion] = useState<string>("2.6.4");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
@@ -884,7 +884,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
             type="button"
             className="settings-side-panel__close"
             onClick={handleClose}
-            title={dict.settings.close}
+
             aria-label={dict.settings.close}
             >
             <X size={18} />

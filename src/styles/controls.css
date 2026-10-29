@@ -29,8 +29,7 @@
 }
 
 .player-controls:hover {
-  box-shadow: var(--shadow-pill),
-              0 0 20px rgba(127, 199, 255, 0.06);
+  box-shadow: var(--shadow-pill-hover);
 }
 
 /* ─── Пристыкованная ко дну панель управления (Docked Bar) ── */
@@ -46,9 +45,9 @@
   border-left: none;
   border-right: none;
   border-bottom: none;
-  border-top: 1px solid var(--border-pill);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 18%, rgba(255, 255, 255, 0.14));
   padding: var(--space-3) 18px 9px;
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.14), 0 -6px 24px rgba(0, 0, 0, var(--shadow-alpha, 0.40));
 }
 
 .app-container--idle .player-controls-wrapper--docked,
@@ -63,7 +62,7 @@
 /* ─── Строка таймлайна со временем (справа, слева или на всю ширину) ── */
 .timeline-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--space-6);
   width: 100%;
   margin-bottom: var(--space-1);
@@ -73,9 +72,18 @@
   gap: 0;
 }
 
-.timeline-row .timeline {
+.timeline-row .timeline-col {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.timeline-row .timeline-col .timeline,
+.timeline-row .timeline {
+  width: 100%;
   margin-bottom: 0;
 }
 
@@ -83,6 +91,9 @@
   flex-shrink: 0;
   padding: 0 2px;
   user-select: none;
+  height: 14px;
+  display: flex;
+  align-items: center;
 }
 
 /* ─── Плавающий бейдж со временем над центром таймлайна ── */
@@ -100,17 +111,17 @@
 
 .time-display--floating-center {
   pointer-events: auto;
-  background: rgba(14, 20, 30, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--bg-pill);
+  border: 1px solid var(--border-pill);
   border-radius: 999px;
   padding: var(--space-1) 11px;
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-primary);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-card);
   cursor: pointer;
   user-select: none;
-  transition: background-color var(--t-fast) var(--ease-smooth),
+  transition: background var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth),
@@ -118,11 +129,16 @@
 }
 
 .time-display--floating-center:hover {
-  background: rgba(20, 30, 48, 0.92);
+  background: var(--bg-elevated);
   border-color: var(--accent);
   color: #ffffff;
-  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.4);
+  box-shadow: var(--shadow-card-hover);
   transform: translateY(-1px);
+}
+
+.time-display--floating-center:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ─── Таймлайн ───────────────────────────────────────── */
@@ -136,6 +152,7 @@
   margin-bottom: var(--space-1);
   outline: none;
   touch-action: none;
+  z-index: 20;
 }
 
 .timeline__track {
@@ -912,6 +929,174 @@ html[data-glow="off"] .timeline__thumb {
   100% {
     transform: translateX(0);
   }
+}
+
+/* ─── Звуковая тепловая карта (Waveform Activity Strip) ──────── */
+.waveform-activity-strip {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  box-sizing: border-box;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity var(--t-fast) var(--ease-smooth);
+}
+
+.waveform-activity-strip--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 1. Режим: «Над панелью» (above_controls) — парящий HUD строго по ширине таймлайна над пилюлей */
+.waveform-activity-strip--above-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  bottom: calc(100% + 10px);
+  z-index: 15;
+  overflow: visible;
+}
+
+/* Адаптация вертикального положения при наличии аудио-визуализатора над таймлайном */
+.waveform-activity-strip--above-controls.waveform-activity-strip--above-visualizer,
+.player-controls--has-visualizer-above .waveform-activity-strip--above-controls {
+  bottom: calc(100% + var(--visualizer-height, 22px) + 10px);
+}
+
+/* 2. Режим: «Над таймлайном» (above_timeline) — внутри панели прямо над таймлайном */
+.waveform-activity-strip--above-timeline {
+  position: relative;
+  width: 100%;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm, 6px);
+  overflow: visible;
+  z-index: 10;
+}
+
+.waveform-activity-strip:hover {
+  border: none;
+  box-shadow: none;
+}
+
+.waveform-activity-strip__canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: var(--radius-sm, 6px);
+  pointer-events: none;
+}
+
+/* Парящий информационный бейдж над тепловой картой при наведении (стиль timeline-preview-card) */
+.waveform-activity-strip__badge {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) 10px;
+  box-shadow: var(--shadow-card-hover);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: 0.4px;
+  line-height: 1.2;
+  pointer-events: none;
+  white-space: nowrap;
+  user-select: none;
+  z-index: var(--z-float);
+  opacity: 1;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
+}
+
+.waveform-activity-strip__badge-time {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.waveform-activity-strip__badge-dot {
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
+  font-size: var(--fs-2xs, 11px);
+  line-height: 1;
+  user-select: none;
+}
+
+.waveform-activity-strip__badge-metric {
+  font-weight: 600;
+  color: var(--accent, #3b82f6);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Индикатор статуса анализа / ошибки тепловой карты */
+.waveform-activity-strip__status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-surface-elevated, rgba(15, 23, 42, 0.88));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--radius-pill, 9999px);
+  padding: 3px 10px;
+  font-size: var(--fs-3xs, 10px);
+  font-weight: 500;
+  color: var(--text-secondary, #94a3b8);
+  pointer-events: auto;
+  user-select: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  animation: stripFadeIn 0.2s ease-out;
+}
+
+.waveform-activity-strip__spinner {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--accent, #3b82f6);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: stripSpin 0.75s linear infinite;
+}
+
+@keyframes stripSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes stripFadeIn {
+  from { opacity: 0; transform: translate(-50%, -40%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+.waveform-activity-strip__retry-btn {
+  background: var(--bg-card, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.18));
+  border-radius: 4px;
+  color: var(--text-primary, #fff);
+  padding: 1px 6px;
+  font-size: 9px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.waveform-activity-strip__retry-btn:hover {
+  background: var(--accent, #3b82f6);
+  border-color: var(--accent, #3b82f6);
 }
 
 

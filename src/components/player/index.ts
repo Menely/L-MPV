@@ -9,4 +9,5 @@ export { ContextMenu } from "./ContextMenu";
 export { PlaylistDrawer } from "./PlaylistDrawer";
 export { SeekIndicator } from "./SeekIndicator";
 export * from "./AudioVisualizer";
+export * from "./heatmap";
 

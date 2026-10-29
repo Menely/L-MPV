@@ -296,33 +296,61 @@ export function getEffectiveAccentColor(): string {
   return "#7fc7ff";
 }
 
+function getCurrentUiOpacity(): number {
+  try {
+    const raw = localStorage.getItem("l-mpv-ui-opacity");
+    if (raw) {
+      const parsed = parseFloat(raw);
+      if (Number.isFinite(parsed) && parsed >= 0.1 && parsed <= 1.0) {
+        return parsed;
+      }
+    }
+  } catch {}
+  return 0.88;
+}
+
+let isApplyingPlayerTheme = false;
+
 /**
  * Применить тему оформления плеера (цвета фона, поверхностей, текста, бордеров).
  */
 export function applyPlayerTheme(themeId: string): void {
-  const root = document.documentElement;
-  const config = (PLAYER_THEMES[themeId as PlayerThemeId] || PLAYER_THEMES.graphite);
-  const { tokens } = config;
+  if (isApplyingPlayerTheme) return;
+  isApplyingPlayerTheme = true;
+  try {
+    const root = document.documentElement;
+    const config = (PLAYER_THEMES[themeId as PlayerThemeId] || PLAYER_THEMES.graphite);
+    const { tokens } = config;
+    const curOpacity = getCurrentUiOpacity();
 
-  root.setAttribute("data-player-theme", config.id);
-  root.style.setProperty("--bg-primary", tokens.bgPrimary);
-  root.style.setProperty("--bg-surface", tokens.bgSurface);
-  root.style.setProperty("--bg-modal-solid", tokens.bgSurface || "#11141c");
-  root.style.setProperty("--bg-glass-rgb", tokens.bgGlassRgb);
-  root.style.setProperty("--bg-pill-rgb", tokens.bgPillRgb);
+    root.setAttribute("data-player-theme", config.id);
+    root.style.setProperty("--bg-primary", tokens.bgPrimary);
+    root.style.setProperty("--bg-surface", tokens.bgSurface);
+    root.style.setProperty("--bg-modal-solid", tokens.bgSurface || "#11141c");
+    root.style.setProperty("--bg-glass-rgb", tokens.bgGlassRgb);
+    root.style.setProperty("--bg-pill-rgb", tokens.bgPillRgb);
 
-  root.style.setProperty("--bg-glass", `rgba(${tokens.bgGlassRgb}, var(--ui-opacity, 0.88))`);
-  root.style.setProperty("--bg-pill", `rgba(${tokens.bgPillRgb}, var(--ui-opacity, 0.88))`);
+    // Напрямую рассчитываем и применяем динамические свойства фона с текущей прозрачностью
+    root.style.setProperty("--bg-pill", `rgba(${tokens.bgPillRgb}, ${curOpacity})`);
+    root.style.setProperty("--bg-glass", `rgba(${tokens.bgGlassRgb}, ${curOpacity})`);
+    root.style.setProperty("--bg-elevated", `rgba(${tokens.bgGlassRgb}, ${curOpacity})`);
 
-  root.style.setProperty("--text-primary", tokens.textPrimary);
-  root.style.setProperty("--text-secondary", tokens.textSecondary);
-  root.style.setProperty("--text-muted", tokens.textMuted);
+    root.style.setProperty("--text-primary", tokens.textPrimary);
+    root.style.setProperty("--text-secondary", tokens.textSecondary);
+    root.style.setProperty("--text-muted", tokens.textMuted);
 
-  root.style.setProperty("--border", tokens.border);
-  root.style.setProperty("--border-hover", tokens.borderHover);
+    root.style.setProperty("--border", tokens.border);
+    root.style.setProperty("--border-hover", tokens.borderHover);
+    root.style.setProperty("--border-default", tokens.border);
 
-  // Пересчитываем текущий акцентный цвет с гармонизацией под новую тему
-  applyAccentColor(getEffectiveAccentColor());
+    // Пересчитываем текущий акцентный цвет с гармонизацией под новую тему
+    applyAccentColor(getEffectiveAccentColor());
+
+    window.dispatchEvent(new CustomEvent("l-mpv-player-theme-changed", { detail: config.id }));
+    window.dispatchEvent(new CustomEvent("l-mpv-theme-changed", { detail: config.id }));
+  } finally {
+    isApplyingPlayerTheme = false;
+  }
 }
 
 /**
@@ -337,6 +365,8 @@ export function savePlayerTheme(themeId: string): void {
   }
   applyPlayerTheme(validId);
   window.dispatchEvent(new CustomEvent("l-mpv-player-theme-changed", { detail: validId }));
+  window.dispatchEvent(new CustomEvent("l-mpv-theme-changed", { detail: validId }));
+  window.dispatchEvent(new Event("l-mpv-settings-changed"));
 }
 
 // ─── Пресеты акцентных цветов ───────────────────────────────────────────────
@@ -586,45 +616,57 @@ const GLOW_PROFILES: Record<Exclude<GlowIntensity, "off">, GlowProfile> = {
 
 // ─── Применение акцентного цвета с динамической гармонизацией под тему ───────
 
+let isApplyingAccent = false;
+
 export function applyAccentColor(value: string): void {
-  const root = document.documentElement;
-  const hex = value === "windows" || !value.startsWith("#") ? getEffectiveAccentColor() : value;
+  if (isApplyingAccent) return;
+  isApplyingAccent = true;
+  try {
+    const root = document.documentElement;
+    const hex = value === "windows" || !value.startsWith("#") ? getEffectiveAccentColor() : value;
 
-  const hover = adjustBrightness(hex, 15);
-  const dim = adjustBrightness(hex, -25);
-  const dark = adjustBrightness(hex, -45);
+    const hover = adjustBrightness(hex, 15);
+    const dim = adjustBrightness(hex, -25);
+    const dark = adjustBrightness(hex, -45);
 
-  const intensity = getGlowIntensity();
-  const isOled = getSavedPlayerTheme() === "oled";
+    const intensity = getGlowIntensity();
+    const isOled = getSavedPlayerTheme() === "oled";
 
-  const rgb = hexToRgb(hex) || { r: 127, g: 199, b: 255 };
-  const rgbString = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
+    const rgb = hexToRgb(hex) || { r: 127, g: 199, b: 255 };
+    const rgbString = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
 
-  const profile = intensity !== "off" ? GLOW_PROFILES[intensity] : null;
-  const glowAlpha = profile ? (isOled ? profile.alpha[1] : profile.alpha[0]) : 0;
+    const profile = intensity !== "off" ? GLOW_PROFILES[intensity] : null;
+    const glowAlpha = profile ? (isOled ? profile.alpha[1] : profile.alpha[0]) : 0;
 
-  root.setAttribute("data-glow", intensity);
-  root.style.setProperty("--glow-intensity", intensity);
-  root.style.setProperty("--accent-rgb", rgbString);
-  root.style.setProperty("--accent-glow", glowAlpha > 0 ? `rgba(${rgbString}, ${glowAlpha})` : "transparent");
-  root.style.setProperty("--accent-glass", `rgba(${rgbString}, 0.10)`);
-  root.style.setProperty("--border-pill", `rgba(${rgbString}, 0.12)`);
-  root.style.setProperty("--bg-hover", `rgba(${rgbString}, 0.09)`);
-  root.style.setProperty("--bg-active", `rgba(${rgbString}, 0.15)`);
+    root.setAttribute("data-glow", intensity);
+    root.style.setProperty("--glow-intensity", intensity);
+    root.style.setProperty("--accent-rgb", rgbString);
+    root.style.setProperty("--accent-glow", glowAlpha > 0 ? `rgba(${rgbString}, ${glowAlpha})` : "transparent");
+    root.style.setProperty("--accent-glass", `rgba(${rgbString}, 0.10)`);
+    root.style.setProperty("--border-pill", `rgba(${rgbString}, 0.16)`);
+    root.style.setProperty("--border-pill-hover", `rgba(${rgbString}, 0.35)`);
+    root.style.setProperty("--bg-hover", `rgba(${rgbString}, 0.09)`);
+    root.style.setProperty("--bg-active", `rgba(${rgbString}, 0.15)`);
 
-  root.style.setProperty("--shadow-glow", profile ? profile.shadow(rgbString) : "none");
-  root.style.setProperty("--thumb-glow", profile ? profile.thumb(rgbString) : "none");
-  root.style.setProperty("--timeline-glow", profile ? profile.timeline(rgbString) : "none");
-  root.style.setProperty("--btn-glow", "none");
-  root.style.setProperty("--play-btn-glow", "none");
-  root.style.setProperty("--active-btn-glow", "none");
-  root.style.setProperty("--active-icon-glow", profile ? profile.activeIcon(rgbString) : "none");
-  root.style.setProperty("--play-icon-glow", profile ? profile.playIcon(rgbString) : "none");
-  root.style.setProperty("--hover-icon-glow", profile ? profile.hoverIcon(rgbString) : "none");
+    root.style.setProperty("--shadow-glow", profile ? profile.shadow(rgbString) : "none");
+    root.style.setProperty("--thumb-glow", profile ? profile.thumb(rgbString) : "none");
+    root.style.setProperty("--timeline-glow", profile ? profile.timeline(rgbString) : "none");
+    root.style.setProperty("--btn-glow", "none");
+    root.style.setProperty("--play-btn-glow", "none");
+    root.style.setProperty("--active-btn-glow", "none");
+    root.style.setProperty("--active-icon-glow", profile ? profile.activeIcon(rgbString) : "none");
+    root.style.setProperty("--play-icon-glow", profile ? profile.playIcon(rgbString) : "none");
+    root.style.setProperty("--hover-icon-glow", profile ? profile.hoverIcon(rgbString) : "none");
 
-  root.style.setProperty("--accent", hex);
-  root.style.setProperty("--accent-gradient", `linear-gradient(90deg, ${hex}, ${hover})`);
-  root.style.setProperty("--accent-hover", hover);
-  root.style.setProperty("--accent-dim", dim);
-  root.style.setProperty("--accent-dark", dark);
+    root.style.setProperty("--accent", hex);
+    root.style.setProperty("--accent-gradient", `linear-gradient(90deg, ${hex}, ${hover})`);
+    root.style.setProperty("--accent-hover", hover);
+    root.style.setProperty("--accent-dim", dim);
+    root.style.setProperty("--accent-dark", dark);
+
+    window.dispatchEvent(new CustomEvent("l-mpv-accent-changed", { detail: hex }));
+    window.dispatchEvent(new CustomEvent("l-mpv-accent-color-changed", { detail: hex }));
+  } finally {
+    isApplyingAccent = false;
+  }
 }

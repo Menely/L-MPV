@@ -183,6 +183,13 @@ pub fn run() {
                         let _ = window.set_focus();
                     }
                 }
+            } else {
+                // Повторный запуск без файла: отображаем и фокусируем главное окно
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                }
             }
         }));
     }
@@ -191,6 +198,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(player_state)
+        .manage(commands::HeatmapTaskManager::new())
         .invoke_handler(tauri::generate_handler![
             // Управление воспроизведением
             commands::open_file,
@@ -309,9 +317,12 @@ pub fn run() {
             updater::get_available_releases,
             updater::download_and_install_update,
             updater::postpone_update,
-            // Аудио-визуализатор
+            // Аудио-визуализатор и звуковая карта
             commands::get_audio_spectrum,
             commands::set_visualizer_active,
+            commands::get_media_heatmap_data,
+            commands::cancel_media_heatmap_analysis,
+            commands::clear_waveform_cache,
             // Пресеты настроек
             commands::get_settings_presets,
             commands::save_settings_presets,
@@ -360,7 +371,7 @@ pub fn run() {
                             window.app_handle().exit(0);
                         }
                     }
-                } else {
+                } else if window.label() == "main" {
                     let state = window.state::<PlayerState>();
                     commands::save_current_playback_position(&state);
                     commands::save_history_to_disk();
@@ -428,16 +439,16 @@ pub fn run() {
                 if let Err(e) = mediainfo::open_or_update_mediainfo_window(&app_handle, target_path) {
                     eprintln!("[L-MPV] Ошибка открытия автономного окна MediaInfo: {}", e);
                 }
-                // Окно плеера main остается скрытым
+                // Окно плеера main остается скрытым для автономного режима MediaInfo
             } else if let Some(ref path) = cli.file_path {
                 let state = app.state::<PlayerState>();
                 let app_h = app.handle().clone();
                 if let Err(e) = commands::open_file_internal(&state, path, Some(&app_h)) {
-                    println!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
+                    eprintln!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
                     window.show().ok();
                 }
             } else {
-                // Нет аргумента файла — показываем окно сразу со стартовой страницей
+                // Запуск без файла — сразу отображаем окно со стартовой страницей (drag-and-drop заглушка)
                 window.show().ok();
             }
             

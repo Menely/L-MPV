@@ -34,7 +34,7 @@ interface ControlButtonsPreviewCardProps {
 export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps> = ({
   visibleButtons,
   skipOpeningSeconds,
-  seekStepSeconds = 10,
+  seekStepSeconds: _seekStepSeconds = 10,
 }) => {
   const { dict } = useTranslation();
   const isBtnVisible = (id: string, def = true) => {
@@ -74,7 +74,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
     { id: "visualizer", title: dict.settings.appearance.controlButtons.visualizer, icon: <AudioWaveform size={13} /> },
     { id: "playlist", title: dict.settings.appearance.controlButtons.playlist, icon: <ListVideo size={13} /> },
     { id: "screenshot", title: dict.settings.appearance.controlButtons.screenshot, icon: <Camera size={13} /> },
-    { id: "fullscreen", title: dict.settings.appearance.controlButtons.fullscreen, icon: <Maximize size={13} /> },
+    { id: "fullscreen", title: undefined, icon: <Maximize size={13} /> },
   ];
 
   const roundIconBtnStyle: React.CSSProperties = {
@@ -198,13 +198,13 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
           >
           {/* Левая группа (дорожки, звук без громоздкого ползунка) */}
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", flexShrink: 0 }}>
-            <div title={dict.settings.appearance.controlButtons.track} style={roundIconBtnStyle}>
+            <div style={roundIconBtnStyle}>
               <AudioLines size={13} />
             </div>
-            <div title={dict.settings.appearance.controlButtons.subs} style={roundIconBtnStyle}>
+            <div style={roundIconBtnStyle}>
               <Subtitles size={13} />
             </div>
-            <div title={dict.settings.appearance.controlButtons.volume} style={roundIconBtnStyle}>
+            <div style={roundIconBtnStyle}>
               <Volume2 size={13} />
             </div>
           </div>
@@ -219,12 +219,12 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
                 <Repeat size={12} />
               </div>
             )}
-            <div title={dict.settings.appearance.controlButtons.prev} style={roundIconBtnStyle}>
+            <div style={roundIconBtnStyle}>
               <SkipBack size={13} />
             </div>
             {isBtnVisible("seekButtons", true) && (
               <div
-                title={dict.settings.appearance.controlButtons.seekBack?.(seekStepSeconds) || `-${seekStepSeconds}s`}
+
                 style={roundIconBtnStyle}
                 >
                 <Undo size={13} />
@@ -233,7 +233,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
 
             {/* Play/Pause */}
             <div
-              title={dict.settings.appearance.controlButtons.playPause}
+
               style={{
                 width: 28,
                 height: 28,
@@ -250,13 +250,13 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
 
             {isBtnVisible("seekButtons", true) && (
               <div
-                title={dict.settings.appearance.controlButtons.seekForward?.(seekStepSeconds) || `+${seekStepSeconds}s`}
+
                 style={roundIconBtnStyle}
                 >
                 <Redo size={13} />
               </div>
             )}
-            <div title={dict.settings.appearance.controlButtons.next} style={roundIconBtnStyle}>
+            <div style={roundIconBtnStyle}>
               <SkipForward size={13} />
             </div>
 

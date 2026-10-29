@@ -18,7 +18,7 @@ export const optionCardStyle: React.CSSProperties = {
   background: "rgba(255, 255, 255, 0.025)",
   borderRadius: "var(--radius-md)",
   border: "1px solid var(--border)",
-  boxShadow: "0 6px 18px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.28)",
+  boxShadow: "var(--shadow-card)",
   transition:
     "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth), background-color var(--t-fast) var(--ease-smooth)",
 };

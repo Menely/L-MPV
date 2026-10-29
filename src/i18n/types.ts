@@ -173,6 +173,9 @@ export interface TranslationDict {
       subAvoidUiDesc: string;
       saveTracksToDirTitle: string;
       saveTracksToDirDesc: string;
+      waveformActivityTitle: string;
+      waveformActivityDesc: string;
+
       // Язык
       languageSection: string;
       languageTitle: string;
@@ -341,7 +344,10 @@ export interface TranslationDict {
         themes: Record<string, { label: string; desc: string }>;
         modes: Record<string, { label: string; desc: string }>;
         placements: Record<string, { label: string; desc: string }>;
+        waveformStrip: string;
+        waveformStripDesc: string;
       };
+
       colorScheme: {
         sectionDesc: string;
         preview: string;
@@ -446,6 +452,63 @@ export interface TranslationDict {
       ambientColorUseAccent: string;
       ambientColorAsTheme: (theme: string) => string;
       ambientColorCustom: string;
+      heatmap: {
+        sectionTitle: string;
+        sectionDesc: string;
+        off: string;
+        previewTitle: string;
+        enableTitle: string;
+        enableDesc: string;
+        styleTitle: string;
+        styles: {
+          bars: string;
+          barsDesc: string;
+          spline: string;
+          splineDesc: string;
+          blocks: string;
+          blocksDesc: string;
+          mirrored?: string;
+          mirroredDesc?: string;
+        };
+        sourceTitle: string;
+        sources: {
+          audio: string;
+          audioDesc: string;
+          videoBitrate: string;
+          videoBitrateDesc: string;
+          dialogue?: string;
+          dialogueDesc?: string;
+          motion?: string;
+          motionDesc?: string;
+        };
+        paletteTitle: string;
+        palettes: {
+          theme: string;
+          thermal: string;
+          cyberpunk: string;
+          monochrome: string;
+        };
+        geometryTitle: string;
+        placementLabel: string;
+        aboveControls: string;
+        aboveTimeline: string;
+        inTimeline?: string;
+        heightLabel: string;
+        heightDesc: string;
+        opacityLabel: string;
+        opacityDesc: string;
+        showCrestLabel: string;
+        loadingText: string;
+        errorText: string;
+        noVideoStream: string;
+        avgVolume: string;
+        peakVolume: string;
+        intervalBitrate: (seconds: number) => string;
+        retry: string;
+        clearCache: string;
+        clearCacheDesc: string;
+        cacheCleared: (count: number) => string;
+      };
     };
     presets: {
       presetsSection: string;
@@ -715,6 +778,8 @@ export interface TranslationDict {
       barStyleDesc: string;
       controlBtns: string;
       controlBtnsDesc: string;
+      heatmap: string;
+      heatmapDesc: string;
       settings: string;
       settingsDesc: string;
     };
@@ -724,6 +789,11 @@ export interface TranslationDict {
       alwaysOnTop: string;
       fileInfo: string;
       mediaInfo: string;
+      heatmap: string;
+      heatmapOn: string;
+      heatmapOff: string;
+      osdHeatmapOn: string;
+      osdHeatmapOff: string;
       visualizer: string;
       screenshot: string;
       playlist: string;
@@ -808,6 +878,24 @@ export interface TranslationDict {
       osdBarStyle: (label: string) => string;
       controlBtns: string;
       settings: string;
+      groupRecent: string;
+      groupAudioTracks: string;
+      groupSubTracks: string;
+      groupSubTools: string;
+      groupFrameScale: string;
+      groupRotation: string;
+      groupAmbient: string;
+      groupSpeed: string;
+      groupUpscaleModels: string;
+      groupRepeat: string;
+      groupUserPresets: string;
+      groupBuiltinPresets: string;
+      groupTimePos: string;
+      groupTimeFmt: string;
+      groupBarStyle: string;
+      groupControlBtns: string;
+      groupHeatmapSource: string;
+      groupHeatmapStyle: string;
     };
     integration: {
       githubTooltip: string;

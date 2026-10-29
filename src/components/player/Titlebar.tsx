@@ -167,7 +167,7 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
             className="titlebar__btn"
             onClick={handleMinimize}
             id="titlebar-minimize"
-            title={dict.titlebar.minimize}
+
             aria-label={dict.titlebar.minimize}
             >
             <Minus size={14} strokeWidth={1.5} />
@@ -177,7 +177,7 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
             className="titlebar__btn"
             onClick={handleMaximize}
             id="titlebar-maximize"
-            title={isMaximized ? dict.titlebar.restore : dict.titlebar.maximize}
+
             aria-label={isMaximized ? dict.titlebar.restore : dict.titlebar.maximize}
             >
             {isMaximized ? (
@@ -191,7 +191,7 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
             className="titlebar__btn titlebar__btn--close"
             onClick={handleClose}
             id="titlebar-close"
-            title={dict.titlebar.close}
+
             aria-label={dict.titlebar.close}
             >
             <X size={14} strokeWidth={1.5} />

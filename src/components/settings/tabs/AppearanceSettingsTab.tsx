@@ -7,6 +7,7 @@ import { setAnimationsEnabled as applyAnimationsEnabledToDom } from "../../../ut
 import { AccordionSection } from "../components/AccordionSection";
 import { ColorSchemeSection } from "../components/ColorSchemeSection";
 import { VisualizerSettingsSection } from "../sections/VisualizerSettingsSection";
+import { HeatmapSettingsSection } from "../sections/HeatmapSettingsSection";
 import { ControlButtonsPreviewCard } from "../components/ControlButtonsPreviewCard";
 import { optionCardStyle, optionResetBtnStyle, optionBtnStyle } from "../components/optionCardStyles";
 import { VerticalSlider, AmbientTuneRow } from "../appearance/ambientPrimitives";
@@ -167,7 +168,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 icon={<SlidersHorizontal size={16} />}
                 title={dict.settings.appearance.interfaceSection}
                 >
-                <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", marginTop: "var(--space-4)", marginBottom: "var(--space-6)", lineHeight: 1.35 }}>
+                <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", marginBottom: "var(--space-6)", lineHeight: 1.35 }}>
                   {dict.settings.appearance.interfaceDesc}
                 </div>
 
@@ -193,7 +194,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             displayStr: string,
                             defaultValue: number,
                             ariaLabel: string,
-                            resetTitle: string,
+                            _resetTitle: string,
                             onChange: (val: number) => void,
                             onReset: () => void,
                           ) => {
@@ -293,7 +294,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                       transform: isChanged ? "scale(1)" : "scale(0.85)",
                                       transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                                     }}
-                                    title={resetTitle}
+
                                     tabIndex={isChanged ? 0 : -1}
                                     >
                                     <RotateCcw size={11} />
@@ -475,7 +476,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     cursor: "pointer",
                                     transition: "all var(--t-fast) var(--ease-smooth)",
                                   }}
-                                  title={dict.settings.appearance.scaleAuto}
+
                                   >
                                   A
                                 </button>
@@ -679,7 +680,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                       </div>
 
                       {/* ── Блок Стиль окна настроек ── */}
-                      <div style={{ ...cardStyle, marginTop: "var(--space-5)", display: "flex", flexDirection: "column" }}>
+                      <div className="option-card" style={{ ...cardStyle, marginTop: "var(--space-5)", display: "flex", flexDirection: "column" }}>
                         <div className="block-head">
                           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
                             <SlidersHorizontal size={14} className="t-accent no-shrink" />
@@ -699,7 +700,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               transform: settingsStyle !== "modal" ? "scale(1)" : "scale(0.85)",
                               transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                             }}
-                            title={dict.settings.appearance.settingsWindow.resetTitle}
+
                             tabIndex={settingsStyle !== "modal" ? 0 : -1}
                             >
                             <RotateCcw size={11} />
@@ -737,7 +738,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                       {/* ── Блок 5 и 6: Стиль панели управления (слева) + Позиция и Формат времени (справа) ── */}
                       <div className="controls-and-time-grid">
                         {/* Левая колонка: Стиль панели управления (друг под другом) */}
-                        <div style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                        <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                           <div className="block-head">
                             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
                               <PanelBottom size={14} className="t-accent no-shrink" />
@@ -760,7 +761,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 transform: controlBarStyle !== "floating" ? "scale(1)" : "scale(0.85)",
                                 transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                               }}
-                              title={dict.settings.appearance.resetFloating}
+
                               tabIndex={controlBarStyle !== "floating" ? 0 : -1}
                               >
                               <RotateCcw size={11} />
@@ -833,7 +834,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                         {/* Правая колонка: Время видео (Позиция времени сверху, Формат времени снизу) */}
                         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", flex: 1 }}>
                           {/* Справа сверху: Позиция времени */}
-                          <div style={{ ...cardStyle, margin: "var(--space-0)", flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                          <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                             <div className="block-head">
                               <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
                                 <Clock size={14} className="t-accent no-shrink" />
@@ -856,7 +857,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                   transform: timePosition !== "timeline_right" ? "scale(1)" : "scale(0.85)",
                                   transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                                 }}
-                                title={dict.settings.appearance.resetRight}
+
                                 tabIndex={timePosition !== "timeline_right" ? 0 : -1}
                                 >
                                 <RotateCcw size={11} />
@@ -899,7 +900,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           </div>
 
                           {/* Справа снизу: Формат отображения времени */}
-                          <div style={{ ...cardStyle, margin: "var(--space-0)", flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                          <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                             <div className="block-head">
                               <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
                                 <Timer size={14} className="t-accent no-shrink" />
@@ -922,7 +923,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                   transform: timeFormat !== "elapsed_total" ? "scale(1)" : "scale(0.85)",
                                   transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                                 }}
-                                title={dict.settings.appearance.resetElapsedTotal}
+
                                 tabIndex={timeFormat !== "elapsed_total" ? 0 : -1}
                                 >
                                 <RotateCcw size={11} />
@@ -967,29 +968,42 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 icon={<Zap size={16} />}
                 title={dict.settings.appearance.animationsSection}
                 >
-                <div style={{ marginTop: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: "var(--space-6)", cursor: "pointer", userSelect: "none" }}>
-                    <input
-                      type="checkbox"
-                      className="ui-checkbox"
-                      checked={animationsEnabled}
-                      onChange={(e) => {
-                        const val = e.target.checked;
-                        setAnimationsEnabled(val);
-                        applyAnimationsEnabledToDom(val);
-                      }}
-                    />
-                    <span style={{ fontSize: "var(--fs-base)", color: "var(--text-primary)", fontWeight: 500 }}>
-                      {dict.settings.appearance.animationsDesc1}
-                    </span>
-                  </label>
-                  <p style={{ margin: "2px 0 0 30px", fontSize: "var(--fs-xs)", color: "var(--text-muted)", lineHeight: 1.4 }}>
-                    {dict.settings.appearance.animationsDesc2}
-                  </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+                  <div style={optionCardStyle} className="option-card">
+                    <label className="option-row" style={{ cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        className="ui-checkbox mt-1"
+                        checked={animationsEnabled}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setAnimationsEnabled(val);
+                          applyAnimationsEnabledToDom(val);
+                        }}
+                      />
+                      <div className="option-body">
+                        <div className="row-center row-gap-3">
+                          <Zap size={14} className="t-accent" />
+                          <span className="font-semibold text-sm">
+                            {dict.settings.appearance.animationsDesc1}
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted" style={{ lineHeight: 1.45 }}>
+                          {dict.settings.appearance.animationsDesc2}
+                        </span>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               </AccordionSection>
 
-              {/* 5. Аудио-визуалайзер на панели управления */}
+              {/* 5. Тепловая карта таймлайна (Activity Heatmap) */}
+              <HeatmapSettingsSection
+                isOpen={!!openSections["app_heatmap"]}
+                onToggle={() => toggleSection("app_heatmap")}
+              />
+
+              {/* 6. Аудио-визуалайзер на панели управления */}
               <VisualizerSettingsSection
                 isOpen={!!openSections["app_visualizer"]}
                 onToggle={() => toggleSection("app_visualizer")}
@@ -1002,7 +1016,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 icon={<SlidersHorizontal size={16} />}
                 title={dict.settings.appearance.visibilitySection}
                 >
-                <div style={{ marginTop: "var(--space-6)" }}>
+                <div>
                   <ControlButtonsPreviewCard
                     visibleButtons={visibleButtons}
                     skipOpeningSeconds={skipOpeningSeconds}
@@ -1183,7 +1197,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 icon={<Sparkles size={16} />}
                 title={dict.settings.appearance.ambientSection}
                 >
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", marginTop: "var(--space-6)" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
                   {/* Переключатель режимов */}
                   <div
                     style={{
@@ -1239,7 +1253,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     const bPct = Math.round(((bVal - bMin) / (bMax - bMin)) * 100);
                     const isDefault = bVal === bDef;
                     return (
-                      <div style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 14 }}>
+                      <div className="option-card" style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 14 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0, lineHeight: 1 }}>
                           <Sparkles size={15} className="t-accent" />
                           <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
@@ -1277,7 +1291,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               transform: isDefault ? "scale(0.85)" : "scale(1)",
                               transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                             }}
-                            title={dict.settings.appearance.reset100px}
+
                             tabIndex={isDefault ? -1 : 0}
                             >
                             <RotateCcw size={11} />

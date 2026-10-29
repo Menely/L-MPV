@@ -27,6 +27,7 @@ import {
   SlidersHorizontal,
   Cpu,
   Eye,
+  Flame,
 } from "lucide-react";
 import type { LayoutEntry } from "../../../utils/contextMenuLayout";
 import {
@@ -57,6 +58,7 @@ export const MENU_ICON_MAP: Record<string, React.ReactNode> = {
   Timer: <Timer size={14} />,
   LayoutTemplate: <LayoutTemplate size={14} />,
   Eye: <Eye size={14} />,
+  Flame: <Flame size={14} />,
   Settings: <Settings size={14} />,
 };
 

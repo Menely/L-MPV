@@ -173,7 +173,7 @@ export function SubtitleSearchBar({
               padding: "var(--space-1)",
             }}
             className="hover-bright"
-            title={dict.subtitlesSearch.clearSearch}
+
             aria-label={dict.subtitlesSearch.clearSearch}
             >
             <X size={14} />

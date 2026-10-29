@@ -22,6 +22,9 @@ pub struct WatchHistoryItem {
     /// с записями, сохранёнными до добавления этого поля.
     #[serde(default)]
     pub duration: f64,
+    /// Флаг полного завершения просмотра (видео досмотрено до конца).
+    #[serde(default)]
+    pub completed: bool,
 }
 
 // ─── Глобальное состояние ───────────────────────────────
@@ -123,7 +126,7 @@ pub fn update_history_position(
     let key = normalize_history_path(path);
 
     // Если видео просмотрено почти до конца (за 10 сек до конца при длительности > 15 сек),
-    // сохраняем 0.0, чтобы при последующем открытии видео начиналось с самого начала.
+    // помечаем как completed, а позицию сбрасываем в 0.0, чтобы при открытии файл начинался сначала.
     let is_near_end = duration > 15.0 && position >= (duration - 10.0);
     let target_pos = if is_near_end {
         0.0
@@ -136,21 +139,23 @@ pub fn update_history_position(
         // Если новая позиция < 3.0 сек (файл только открылся или закрыт в первые 1-2 секунды),
         // а в истории УЖЕ сохранена валидная позиция (например, 10 минут или 8 минут),
         // мы НЕ затираем её нулём, если только это не реальный конец видео (is_near_end).
-        // Если же пользователь реально смотрел дальше (например, закрыл на 8 минуте),
-        // position >= 3.0 и новая позиция штатно сохраняется.
         if !is_near_end && position < 3.0 {
             if let Some(existing) = map.get(&key) {
-                if existing.position >= 5.0 {
+                if existing.position >= 5.0 || existing.completed {
                     return;
                 }
             }
         }
 
+        let existing_duration = map.get(&key).map(|e| e.duration).unwrap_or(0.0);
         let duration_to_store = if duration > 0.0 {
             duration
         } else {
-            map.get(&key).map(|e| e.duration).unwrap_or(0.0)
+            existing_duration
         };
+
+        // Флаг завершённости выставляется строго при реальном досмотре видео до конца
+        let completed = is_near_end;
 
         map.insert(
             key,
@@ -158,6 +163,7 @@ pub fn update_history_position(
                 position: target_pos,
                 timestamp: now,
                 duration: duration_to_store,
+                completed,
             },
         );
 
@@ -200,9 +206,21 @@ pub fn save_current_playback_position(
     {
         if !current_path.trim().is_empty() {
             let is_eof = mpv.get_property_bool("eof-reached").unwrap_or(false);
-            let duration = mpv
+            let mut duration = mpv
                 .get_property_double("duration")
                 .unwrap_or(0.0);
+
+            // Если mpv не вернул длительность (файл уже выгружается), берем ранее сохраненную
+            if duration <= 0.0 {
+                let key = normalize_history_path(&current_path);
+                if let Ok(map) = get_history_map().lock() {
+                    if let Some(existing) = map.get(&key) {
+                        if existing.duration > 0.0 {
+                            duration = existing.duration;
+                        }
+                    }
+                }
+            }
 
             if is_eof && duration > 0.0 {
                 update_history_position(
@@ -374,8 +392,18 @@ pub fn save_current_position(
 /// Используется компонентом `PlaylistDrawer` при открытии панели плейлиста.
 #[tauri::command]
 pub fn get_watch_history_batch(
+    state: State<'_, PlayerState>,
     paths: Vec<String>,
 ) -> Result<HashMap<String, WatchProgressInfo>, String> {
+    let current_path = state.mpv.get_property_string("path").unwrap_or_default();
+    let current_norm = if !current_path.is_empty() {
+        Some(normalize_history_path(&current_path))
+    } else {
+        None
+    };
+    let current_dur = state.mpv.get_property_double("duration").unwrap_or(0.0);
+    let current_pos = state.mpv.get_property_double("time-pos").unwrap_or(0.0);
+
     let map = get_history_map()
         .lock()
         .map_err(|_| "Ошибка блокировки мьютекса истории".to_string())?;
@@ -383,17 +411,38 @@ pub fn get_watch_history_batch(
     let result = paths
         .into_iter()
         .filter_map(|raw_path| {
-            let item = map.get(&normalize_history_path(&raw_path))?;
-            let progress_percent = if item.duration > 3.0 && item.position > 0.0 {
-                ((item.position / item.duration) * 100.0).clamp(0.0, 100.0)
+            let norm = normalize_history_path(&raw_path);
+            let is_cur = current_norm.as_ref().map(|c| c == &norm).unwrap_or(false);
+
+            // Если файл прямо сейчас играет в MPV, берем свежайшие данные из плеера
+            let (pos, mut dur, completed) = if is_cur && current_dur > 0.0 {
+                let is_near_end = current_dur > 15.0 && current_pos >= (current_dur - 10.0);
+                (current_pos, current_dur, is_near_end)
+            } else if let Some(item) = map.get(&norm) {
+                let is_comp = item.completed || (item.duration > 15.0 && item.position == 0.0);
+                (item.position, item.duration, is_comp)
+            } else {
+                return None;
+            };
+
+            // Если в истории duration не был сохранен, но плеер его знает прямо сейчас
+            if dur <= 0.0 && is_cur && current_dur > 0.0 {
+                dur = current_dur;
+            }
+
+            let progress_percent = if completed {
+                100.0
+            } else if dur > 3.0 && pos > 0.0 {
+                ((pos / dur) * 100.0).clamp(0.0, 100.0)
             } else {
                 0.0
             };
+
             Some((
                 raw_path,
                 WatchProgressInfo {
-                    position: item.position,
-                    duration: item.duration,
+                    position: pos,
+                    duration: dur,
                     progress_percent,
                 },
             ))

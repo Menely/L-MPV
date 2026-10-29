@@ -22,6 +22,11 @@ import {
   getVisualizerConfig,
   saveVisualizerConfig,
 } from "../components/player/AudioVisualizer";
+import {
+  HeatmapConfig,
+  getHeatmapConfig,
+  saveHeatmapConfig,
+} from "../components/player/heatmap";
 import { getCustomHotkeys, saveCustomHotkeys } from "./hotkeyUtils";
 import {
   UiRadiusLevel,
@@ -98,6 +103,8 @@ export interface SettingsPresetData {
   ambient: AmbientPresetSettings;
   /** Конфигурация аудио-визуализатора */
   visualizer: VisualizerConfig;
+  /** Конфигурация тепловой карты таймлайна */
+  heatmap?: HeatmapConfig;
   /** Сохранять извлечённые дорожки в папку с видео */
   saveTracksToVideoDir: boolean;
   /** Автоподхват внешних дорожек при перетаскивании */
@@ -364,6 +371,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
   }
 
   const visualizer = getVisualizerConfig();
+  const heatmap = getHeatmapConfig();
   const saveTracksToVideoDir = localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false";
   const hotloadEnabled = localStorage.getItem("l-mpv-hotload-enabled") === "true";
   const skipOpeningSeconds = Number(localStorage.getItem("l-mpv-skip-opening-seconds") || 90);
@@ -398,6 +406,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
       customColors,
       ambient,
       visualizer,
+      heatmap,
       saveTracksToVideoDir,
       hotloadEnabled,
       skipOpeningSeconds,
@@ -518,6 +527,11 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   // 9. Аудио-визуализатор
   if (data.visualizer) {
     saveVisualizerConfig(data.visualizer);
+  }
+
+  // 9.1. Тепловая карта таймлайна
+  if (data.heatmap) {
+    saveHeatmapConfig(data.heatmap);
   }
 
   // 10. Поведение сохранения дорожек и хотлоад
@@ -772,6 +786,7 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
               theme: "accent",
               height: 22,
             },
+            heatmap: item.data.heatmap,
             saveTracksToVideoDir: item.data.saveTracksToVideoDir !== false,
             hotloadEnabled: item.data.hotloadEnabled === true,
             skipOpeningSeconds: typeof item.data.skipOpeningSeconds === "number" ? item.data.skipOpeningSeconds : 90,

@@ -24,6 +24,7 @@ import {
   Cpu,
   Eye,
   Search,
+  Flame,
 } from "lucide-react";
 import type { TrackInfo } from "../../../contexts/PlayerStateContext";
 import type { TranslationDict } from "../../../i18n/types";
@@ -35,6 +36,11 @@ import type { AmbientMode } from "../../../utils/ambientSettingsUtils";
 import type { TimeDisplayPosition } from "../../../utils/timePositionUtils";
 import type { TimeFormatMode } from "../../../utils/timeFormatUtils";
 import type { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
+import type {
+  HeatmapConfig,
+  HeatmapDataSource,
+  HeatmapStyle,
+} from "../heatmap";
 import { BUILT_IN_PRESETS } from "../../../utils/presetsUtils";
 import { TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
 import { TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
@@ -42,12 +48,14 @@ import { CONTROL_BAR_STYLE_OPTIONS } from "../../../utils/controlBarStyleUtils";
 import { getKeyDisplay } from "../../../utils/hotkeyUtils";
 
 export interface MenuItem {
-  type: "item" | "divider" | "submenu" | "track";
+  type: "item" | "divider" | "submenu" | "track" | "header";
   icon?: React.ReactNode;
   label?: string;
   shortcut?: string;
   action?: () => void;
   active?: boolean;
+  /** Визуальный тип индикатора при active=true: "dot" (радио-точка) или "check" (галочка). */
+  indicator?: "dot" | "check";
   disabled?: boolean;
   title?: string;
   children?: MenuItem[];
@@ -98,6 +106,7 @@ export const STATIC_ICONS = {
   timePosition: <Clock size={16} />,
   timeFormat: <Timer size={16} />,
   controlBarStyle: <LayoutTemplate size={16} />,
+  heatmap: <Flame size={16} />,
   controlButtonsVisibility: <Eye size={16} />,
   settings: <Settings size={16} />,
 };
@@ -111,6 +120,7 @@ export interface ContextMenuBuilderParams {
   downloadingTrackKey: string | null;
   ambientMode: AmbientMode;
   currentSpeed: number;
+  currentRotation: number;
   frameMode: "stretch" | "fit" | "fill";
   repeatMode: 0 | 1 | 2;
   currentTimePos: TimeDisplayPosition;
@@ -154,6 +164,10 @@ export interface ContextMenuBuilderParams {
   handleSelectTimePosition: (pos: TimeDisplayPosition, label: string) => void;
   handleSelectTimeFormat: (fmt: TimeFormatMode, label: string) => void;
   handleSelectControlBarStyle: (style: ControlBarStyle, label: string) => void;
+  heatmapConfig: HeatmapConfig;
+  handleToggleHeatmap: () => void;
+  handleSetHeatmapSource: (source: HeatmapDataSource) => void;
+  handleSetHeatmapStyle: (style: HeatmapStyle) => void;
 }
 
 /**
@@ -188,6 +202,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
     downloadingTrackKey,
     ambientMode,
     currentSpeed,
+    currentRotation,
     frameMode,
     repeatMode,
     currentTimePos,
@@ -229,6 +244,10 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
     handleSelectTimePosition,
     handleSelectTimeFormat,
     handleSelectControlBarStyle,
+    heatmapConfig,
+    handleToggleHeatmap,
+    handleSetHeatmapSource,
+    handleSetHeatmapStyle,
   } = params;
 
   const rawItems: MenuItem[] = [];
@@ -253,7 +272,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
             handleClose();
           },
         },
-        { type: "divider" },
+        { type: "header", label: dict.settings.cmenuUI.groupRecent },
         ...(recentFiles.length > 0
           ? [
               ...recentFiles.map((rf) => ({
@@ -288,8 +307,9 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       icon: STATIC_ICONS.audioTrack,
       label: dict.settings.cmenuUI.audioTrack,
       submenuClassName: "context-menu__submenu--tracks",
-      children:
-        audioTracks.length > 0
+      children: [
+        { type: "header" as const, label: dict.settings.cmenuUI.groupAudioTracks },
+        ...(audioTracks.length > 0
           ? audioTracks.map((t) => ({
               type: "track" as const,
               track: t,
@@ -297,12 +317,14 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
                 t.lang ? `(${t.lang})` : ""
               }`.trim(),
               active: t.selected,
+              indicator: "dot" as const,
               action: () => handleSelectAudio(t.id),
               onDownload: () => handleDownloadTrack(t),
               isDownloading: downloadingTrackKey === `audio-${t.id}`,
               downloadTitle: dict.settings.cmenuUI.downloadAudio,
             }))
-          : [{ type: "item" as const, label: dict.settings.cmenuUI.noAudio }],
+          : [{ type: "item" as const, label: dict.settings.cmenuUI.noAudio, disabled: true }]),
+      ],
     }),
 
     subtitle_track: () => ({
@@ -311,10 +333,12 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       label: dict.settings.cmenuUI.subtitles,
       submenuClassName: "context-menu__submenu--tracks",
       children: [
+        { type: "header" as const, label: dict.settings.cmenuUI.groupSubTracks },
         {
           type: "track" as const,
           label: dict.settings.cmenuUI.subOff,
           active: !subTracks.some((t) => t.selected),
+          indicator: "dot" as const,
           action: handleDisableSubs,
         },
         ...subTracks.map((t) => ({
@@ -324,12 +348,13 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
             t.lang ? `(${t.lang})` : ""
           }`.trim(),
           active: t.selected,
+          indicator: "dot" as const,
           action: () => handleSelectSub(t.id),
           onDownload: () => handleDownloadTrack(t),
           isDownloading: downloadingTrackKey === `sub-${t.id}`,
           downloadTitle: dict.settings.cmenuUI.downloadSub,
         })),
-        { type: "divider" },
+        { type: "header" as const, label: dict.settings.cmenuUI.groupSubTools },
         {
           type: "item" as const,
           icon: STATIC_ICONS.search,
@@ -364,22 +389,26 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       icon: STATIC_ICONS.aspectRatio,
       label: dict.settings.cmenuUI.aspect,
       children: [
+        { type: "header", label: dict.settings.cmenuUI.groupFrameScale },
         {
           type: "item",
           label: dict.settings.cmenuUI.frameStretch,
           active: frameMode === "stretch",
+          indicator: "dot",
           action: () => handleSetFrameMode("stretch"),
         },
         {
           type: "item",
           label: dict.settings.cmenuUI.frameFit,
           active: frameMode === "fit",
+          indicator: "dot",
           action: () => handleSetFrameMode("fit"),
         },
         {
           type: "item",
           label: dict.settings.cmenuUI.frameFill,
           active: frameMode === "fill",
+          indicator: "dot",
           action: () => handleSetFrameMode("fill"),
         },
       ],
@@ -390,10 +419,35 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       icon: STATIC_ICONS.rotation,
       label: dict.settings.cmenuUI.rotation,
       children: [
-        { type: "item", label: dict.settings.cmenuUI.rot0, action: () => handleSetRotation(0) },
-        { type: "item", label: dict.settings.cmenuUI.rot90, action: () => handleSetRotation(90) },
-        { type: "item", label: "180°", action: () => handleSetRotation(180) },
-        { type: "item", label: dict.settings.cmenuUI.rot270, action: () => handleSetRotation(270) },
+        { type: "header", label: dict.settings.cmenuUI.groupRotation },
+        {
+          type: "item",
+          label: dict.settings.cmenuUI.rot0,
+          active: currentRotation === 0,
+          indicator: "dot",
+          action: () => handleSetRotation(0),
+        },
+        {
+          type: "item",
+          label: dict.settings.cmenuUI.rot90,
+          active: currentRotation === 90,
+          indicator: "dot",
+          action: () => handleSetRotation(90),
+        },
+        {
+          type: "item",
+          label: "180°",
+          active: currentRotation === 180,
+          indicator: "dot",
+          action: () => handleSetRotation(180),
+        },
+        {
+          type: "item",
+          label: dict.settings.cmenuUI.rot270,
+          active: currentRotation === 270,
+          indicator: "dot",
+          action: () => handleSetRotation(270),
+        },
       ],
     }),
 
@@ -402,22 +456,26 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       icon: STATIC_ICONS.ambient,
       label: dict.settings.cmenuUI.ambient,
       children: [
+        { type: "header", label: dict.settings.cmenuUI.groupAmbient },
         {
           type: "item",
           label: dict.settings.cmenuUI.ambOff,
           active: ambientMode === "off",
+          indicator: "dot",
           action: () => handleSetAmbientMode("off"),
         },
         {
           type: "item",
           label: dict.settings.cmenuUI.ambBlur,
           active: ambientMode === "blur",
+          indicator: "dot",
           action: () => handleSetAmbientMode("blur"),
         },
         {
           type: "item",
           label: dict.settings.cmenuUI.ambColor,
           active: ambientMode === "color",
+          indicator: "dot",
           action: () => handleSetAmbientMode("color"),
         },
       ],
@@ -427,12 +485,16 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       type: "submenu",
       icon: STATIC_ICONS.speed,
       label: dict.settings.cmenuUI.speed,
-      children: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => ({
-        type: "item" as const,
-        label: `${s}x${s === 1.0 ? dict.settings.cmenuUI.speedNormal : ""}`,
-        active: currentSpeed === s,
-        action: () => handleSetSpeed(s),
-      })),
+      children: [
+        { type: "header" as const, label: dict.settings.cmenuUI.groupSpeed },
+        ...[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => ({
+          type: "item" as const,
+          label: `${s}x${s === 1.0 ? dict.settings.cmenuUI.speedNormal : ""}`,
+          active: currentSpeed === s,
+          indicator: "dot" as const,
+          action: () => handleSetSpeed(s),
+        })),
+      ],
     }),
 
     upscale: () => ({
@@ -444,9 +506,10 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
           type: "item",
           label: dict.settings.cmenuUI.upscaleOff,
           active: upscaleMode === "off",
+          indicator: "dot",
           action: handleSetUpscaleOff,
         },
-        { type: "divider" },
+        { type: "header", label: dict.settings.cmenuUI.groupUpscaleModels },
         ...(upscaleModels.length > 0
           ? upscaleModels.map((m) => ({
               type: "item" as const,
@@ -454,6 +517,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
               active:
                 upscaleMode === "ai" &&
                 (selectedModel === m.filename || selectedSlot === m.slot),
+              indicator: "dot" as const,
               action: () => handleSelectUpscaleModel(m),
             }))
           : [
@@ -471,22 +535,26 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       icon: STATIC_ICONS.repeatMode,
       label: dict.settings.cmenuUI.repeatMode,
       children: [
+        { type: "header", label: dict.settings.cmenuUI.groupRepeat },
         {
           type: "item",
           label: dict.settings.cmenuUI.repeatOff,
           active: repeatMode === 0,
+          indicator: "dot",
           action: () => handleSetRepeatMode(0),
         },
         {
           type: "item",
           label: dict.settings.cmenuUI.repeatOne,
           active: repeatMode === 1,
+          indicator: "dot",
           action: () => handleSetRepeatMode(1),
         },
         {
           type: "item",
           label: dict.settings.cmenuUI.repeatAll,
           active: repeatMode === 2,
+          indicator: "dot",
           action: () => handleSetRepeatMode(2),
         },
       ],
@@ -541,28 +609,28 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       icon: STATIC_ICONS.presets,
       label: dict.settings.cmenuUI.presets,
       children: [
+        { type: "header" as const, label: dict.settings.cmenuUI.groupUserPresets },
         ...(userPresets.length > 0
-          ? [
-              ...userPresets.map((p) => ({
-                type: "item" as const,
-                label: p.name,
-                active: p.id === activePresetId,
-                action: () => handleApplyPreset(p),
-              })),
-              { type: "divider" as const },
-            ]
+          ? userPresets.map((p) => ({
+              type: "item" as const,
+              label: p.name,
+              active: p.id === activePresetId,
+              indicator: "dot" as const,
+              action: () => handleApplyPreset(p),
+            }))
           : [
               {
                 type: "item" as const,
                 label: dict.settings.cmenuUI.noPresets,
                 disabled: true,
               },
-              { type: "divider" as const },
             ]),
+        { type: "header" as const, label: dict.settings.cmenuUI.groupBuiltinPresets },
         ...BUILT_IN_PRESETS.map((p) => ({
           type: "item" as const,
           label: dict.settings.presets.builtinPresets[p.id]?.name || p.name,
           active: p.id === activePresetId,
+          indicator: "dot" as const,
           action: () => handleApplyPreset(p),
         })),
       ],
@@ -572,97 +640,167 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       type: "submenu",
       icon: STATIC_ICONS.timePosition,
       label: dict.settings.cmenuUI.timePos,
-      children: TIME_POSITION_OPTIONS.map((posOption) => {
-        const posLabel =
-          posOption.id === "timeline_left"
-            ? dict.settings.appearance.timePosLeft
-            : posOption.id === "timeline_right"
-            ? dict.settings.appearance.timePosRight
-            : posOption.id === "volume_right"
-            ? dict.settings.appearance.timePosSound
-            : posOption.id === "toolbar_right"
-            ? dict.settings.appearance.timePosToolbar
-            : posOption.id === "timeline_floating_center"
-            ? dict.settings.appearance.timePosCenter
-            : "Titlebar";
-        return {
-          type: "item" as const,
-          label: posLabel,
-          active: currentTimePos === posOption.id,
-          action: () => handleSelectTimePosition(posOption.id, posLabel),
-        };
-      }),
+      children: [
+        { type: "header" as const, label: dict.settings.cmenuUI.groupTimePos },
+        ...TIME_POSITION_OPTIONS.map((posOption) => {
+          const posLabel =
+            posOption.id === "timeline_left"
+              ? dict.settings.appearance.timePosLeft
+              : posOption.id === "timeline_right"
+              ? dict.settings.appearance.timePosRight
+              : posOption.id === "volume_right"
+              ? dict.settings.appearance.timePosSound
+              : posOption.id === "toolbar_right"
+              ? dict.settings.appearance.timePosToolbar
+              : posOption.id === "timeline_floating_center"
+              ? dict.settings.appearance.timePosCenter
+              : "Titlebar";
+          return {
+            type: "item" as const,
+            label: posLabel,
+            active: currentTimePos === posOption.id,
+            indicator: "dot" as const,
+            action: () => handleSelectTimePosition(posOption.id, posLabel),
+          };
+        }),
+      ],
     }),
 
     time_format: () => ({
       type: "submenu",
       icon: STATIC_ICONS.timeFormat,
       label: dict.settings.cmenuUI.timeFmt,
-      children: TIME_FORMAT_OPTIONS.map((fmtOption) => {
-        const fmtLabelMap: Record<string, string> = {
-          elapsed_total: dict.settings.cmenuUI.fmtElapsedTotal,
-          elapsed_remaining: dict.settings.cmenuUI.fmtElapsedRemaining,
-          remaining_only: dict.settings.cmenuUI.fmtRemainingOnly,
-          finish_time: dict.settings.cmenuUI.fmtFinishTime,
-        };
-        const fmtLabel = fmtLabelMap[fmtOption.id] || fmtOption.label;
-        return {
-          type: "item" as const,
-          label: fmtLabel,
-          active: timeFormat === fmtOption.id,
-          action: () => handleSelectTimeFormat(fmtOption.id, fmtLabel),
-        };
-      }),
+      children: [
+        { type: "header" as const, label: dict.settings.cmenuUI.groupTimeFmt },
+        ...TIME_FORMAT_OPTIONS.map((fmtOption) => {
+          const fmtLabelMap: Record<string, string> = {
+            elapsed_total: dict.settings.cmenuUI.fmtElapsedTotal,
+            elapsed_remaining: dict.settings.cmenuUI.fmtElapsedRemaining,
+            remaining_only: dict.settings.cmenuUI.fmtRemainingOnly,
+            finish_time: dict.settings.cmenuUI.fmtFinishTime,
+          };
+          const fmtLabel = fmtLabelMap[fmtOption.id] || fmtOption.label;
+          return {
+            type: "item" as const,
+            label: fmtLabel,
+            active: timeFormat === fmtOption.id,
+            indicator: "dot" as const,
+            action: () => handleSelectTimeFormat(fmtOption.id, fmtLabel),
+          };
+        }),
+      ],
     }),
 
     control_bar_style: () => ({
       type: "submenu",
       icon: STATIC_ICONS.controlBarStyle,
       label: dict.settings.cmenuUI.barStyle,
-      children: CONTROL_BAR_STYLE_OPTIONS.map((barOption) => {
-        const barLabel =
-          barOption.id === "floating"
-            ? dict.settings.appearance.styleCapsule
-            : dict.settings.appearance.styleClassic;
-        return {
-          type: "item" as const,
-          label: barLabel,
-          active: controlBarStyle === barOption.id,
-          action: () => handleSelectControlBarStyle(barOption.id, barLabel),
-        };
-      }),
+      children: [
+        { type: "header" as const, label: dict.settings.cmenuUI.groupBarStyle },
+        ...CONTROL_BAR_STYLE_OPTIONS.map((barOption) => {
+          const barLabel =
+            barOption.id === "floating"
+              ? dict.settings.appearance.styleCapsule
+              : dict.settings.appearance.styleClassic;
+          return {
+            type: "item" as const,
+            label: barLabel,
+            active: controlBarStyle === barOption.id,
+            indicator: "dot" as const,
+            action: () => handleSelectControlBarStyle(barOption.id, barLabel),
+          };
+        }),
+      ],
     }),
 
     control_buttons_visibility: () => ({
       type: "submenu",
       icon: STATIC_ICONS.controlButtonsVisibility,
       label: dict.settings.cmenuUI.controlBtns,
-      children: CONTROL_BUTTON_ITEMS.map((btn) => {
-        const btnLabelMap: Record<string, string> = {
-          seekButtons: dict.settings.appearance.visSeekButtons,
-          repeat: dict.settings.cmenuUI.repeat,
-          shuffle: dict.settings.cmenuUI.shuffle,
-          alwaysOnTop: dict.settings.cmenuUI.alwaysOnTop,
-          info: dict.settings.cmenuUI.fileInfo,
-          mediaInfo: dict.settings.cmenuUI.mediaInfo,
-          visualizer: dict.settings.cmenuUI.visualizer,
-          screenshot: dict.settings.cmenuUI.screenshot,
-          playlist: dict.settings.cmenuUI.playlist,
-          fullscreen: dict.settings.cmenuUI.fullscreen,
-          skipOpening: dict.settings.cmenuUI.skipOpening,
-        };
-        const localizedLabel = btnLabelMap[btn.id] || btn.id;
-        const isChecked =
-          visibleButtons[btn.id] !== undefined
-            ? visibleButtons[btn.id]
-            : btn.defaultChecked;
-        return {
-          type: "item" as const,
-          label: localizedLabel,
-          active: isChecked,
-          action: () => handleToggleControlButton(btn.id, localizedLabel, isChecked),
-        };
-      }),
+      children: [
+        { type: "header" as const, label: dict.settings.cmenuUI.groupControlBtns },
+        ...CONTROL_BUTTON_ITEMS.map((btn) => {
+          const btnLabelMap: Record<string, string> = {
+            seekButtons: dict.settings.appearance.visSeekButtons,
+            repeat: dict.settings.cmenuUI.repeat,
+            shuffle: dict.settings.cmenuUI.shuffle,
+            alwaysOnTop: dict.settings.cmenuUI.alwaysOnTop,
+            info: dict.settings.cmenuUI.fileInfo,
+            mediaInfo: dict.settings.cmenuUI.mediaInfo,
+            visualizer: dict.settings.cmenuUI.visualizer,
+            screenshot: dict.settings.cmenuUI.screenshot,
+            playlist: dict.settings.cmenuUI.playlist,
+            fullscreen: dict.settings.cmenuUI.fullscreen,
+            skipOpening: dict.settings.cmenuUI.skipOpening,
+          };
+          const localizedLabel = btnLabelMap[btn.id] || btn.id;
+          const isChecked =
+            visibleButtons[btn.id] !== undefined
+              ? visibleButtons[btn.id]
+              : btn.defaultChecked;
+          return {
+            type: "item" as const,
+            label: localizedLabel,
+            active: isChecked,
+            indicator: "dot" as const,
+            action: () => handleToggleControlButton(btn.id, localizedLabel, isChecked),
+          };
+        }),
+      ],
+    }),
+
+    heatmap: () => ({
+      type: "submenu",
+      icon: STATIC_ICONS.heatmap,
+      label: dict.settings.cmenuUI.heatmap,
+      children: [
+        {
+          type: "item",
+          label: heatmapConfig.enabled
+            ? dict.settings.cmenuUI.heatmapOff
+            : dict.settings.cmenuUI.heatmapOn,
+          active: heatmapConfig.enabled,
+          indicator: "dot",
+          action: handleToggleHeatmap,
+        },
+        { type: "header", label: dict.settings.cmenuUI.groupHeatmapSource },
+        {
+          type: "item",
+          label: dict.settings.appearance.heatmap?.sources?.audio || "Громкость звука",
+          active: heatmapConfig.dataSource === "audio",
+          indicator: "dot",
+          action: () => handleSetHeatmapSource("audio"),
+        },
+        {
+          type: "item",
+          label: dict.settings.appearance.heatmap?.sources?.videoBitrate || "Битрейт видео",
+          active: heatmapConfig.dataSource === "video_bitrate",
+          indicator: "dot",
+          action: () => handleSetHeatmapSource("video_bitrate"),
+        },
+        { type: "header", label: dict.settings.cmenuUI.groupHeatmapStyle },
+        {
+          type: "item",
+          label: dict.settings.appearance.heatmap?.styles?.bars || "Столбики",
+          active: heatmapConfig.style === "bars",
+          indicator: "dot",
+          action: () => handleSetHeatmapStyle("bars"),
+        },
+        {
+          type: "item",
+          label: dict.settings.appearance.heatmap?.styles?.spline || "Сплайн-рельеф",
+          active: heatmapConfig.style === "spline",
+          indicator: "dot",
+          action: () => handleSetHeatmapStyle("spline"),
+        },
+        {
+          type: "item",
+          label: dict.settings.appearance.heatmap?.styles?.blocks || "Ступенчатые блоки",
+          active: heatmapConfig.style === "blocks",
+          indicator: "dot",
+          action: () => handleSetHeatmapStyle("blocks"),
+        },
+      ],
     }),
 
     settings: () => ({

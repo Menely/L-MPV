@@ -656,7 +656,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   setIsModelsListOpen((prev) => !prev);
                 }}
                 aria-expanded={isModelsListOpen}
-                title={isModelsListOpen ? dict.settings.upscaling.btnCollapseModels : dict.settings.upscaling.btnExpandModels}
+
                 >
                 <ChevronDown
                   size={16}

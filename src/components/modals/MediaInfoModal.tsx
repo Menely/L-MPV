@@ -51,7 +51,7 @@ export function MediaInfoModal({
   const droppedFrames = liveState?.dropped_frames ?? mediaInfo?.dropped_frames ?? 0;
   const currentVolume = liveState?.volume ?? mediaInfo?.volume ?? 100;
 
-  const { isClosing, handleClose } = useOverlayDismiss({ onClose, kind: "fast" });
+  const { isClosing, handleClose } = useOverlayDismiss({ onClose, kind: "pop" });
 
   return (
     <div
@@ -67,7 +67,7 @@ export function MediaInfoModal({
           type="button"
           className="modal__close media-info__close"
           onClick={handleClose}
-          title={dict.mediaInfo.close}
+
           aria-label={dict.mediaInfo.close}
           >
           <X size={15} />

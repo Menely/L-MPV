@@ -4,15 +4,16 @@
   min-width: 200px;
   max-width: calc(100vw - 16px);
   background: var(--bg-glass);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-pill);
   border-radius: var(--radius-md);
   padding: var(--space-2);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-elevated);
   z-index: var(--z-window);
   animation: contextMenuFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: top left;
   contain: layout style;
-  transition: border-color var(--t-fast) var(--ease-smooth),
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth);
 }
 
@@ -81,7 +82,7 @@
   position: absolute;
   top: -16px;
   bottom: -16px;
-  right: -16px;
+  right: -18px;
   width: 24px;
   background: transparent;
   pointer-events: auto;
@@ -90,7 +91,7 @@
 
 .context-menu__item--submenu-open.context-menu__item--submenu-left::after {
   right: auto;
-  left: -16px;
+  left: -18px;
   width: 24px;
 }
 
@@ -100,10 +101,9 @@
 }
 
 .context-menu__item--active {
-  color: var(--text-primary) !important;
-  background: rgba(var(--accent-rgb), 0.16) !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  color: var(--text-primary);
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .context-menu__item-icon {
@@ -151,23 +151,92 @@
   margin: var(--space-1) 10px;
 }
 
-/* Подменю: аккуратный зазор от родителя + безопасный переход */
+/* Подменю: прозрачный контейнер для независимых парящих карточек-групп */
 .context-menu__submenu {
   position: absolute;
-  left: calc(100% + 8px);
+  left: calc(100% + 10px);
   top: -6px;
-  max-height: min(420px, calc(100vh - 40px));
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-gutter: stable;
+  min-width: 210px;
+  width: max-content;
+  max-width: 320px;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   animation: contextMenuFadeIn var(--t-fast) var(--ease-out);
   transform-origin: top left;
   z-index: var(--z-popover);
 }
 
+/* Самостоятельная островная карточка-группа во всплывающем подменю */
+.context-menu__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  max-height: min(280px, calc(100vh - 140px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  box-shadow: var(--shadow-elevated);
+}
+
+.context-menu__group:only-child {
+  max-height: min(460px, calc(100vh - 36px));
+}
+
+.context-menu,
+.context-menu__submenu {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.context-menu::-webkit-scrollbar,
+.context-menu__submenu::-webkit-scrollbar,
+.context-menu__group::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Компактная подпись островной карточки */
+.context-menu__group-header {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  opacity: 0.72;
+  padding: 3px 9px 2px;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Индикатор активного радио-выбора (точка ●) */
+.context-menu__radio-dot {
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  min-height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.8);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 .context-menu__submenu--left {
   left: auto;
-  right: calc(100% + 8px);
+  right: calc(100% + 10px);
   transform-origin: top right;
 }
 
@@ -184,17 +253,11 @@
 .context-menu__submenu--tracks {
   min-width: 220px;
   width: 220px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
 }
 
 .context-menu__submenu--recent {
   min-width: 250px;
   max-width: 320px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
 }
 
 .context-menu__item--disabled {
@@ -249,10 +312,9 @@
 }
 
 .context-menu__track-btn--active {
-  background: rgba(var(--accent-rgb), 0.16) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  color: var(--text-primary);
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .context-menu__track-title {

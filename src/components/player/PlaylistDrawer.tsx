@@ -2,10 +2,10 @@ import React, {
   useEffect, useState, useRef, useCallback, useMemo,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { usePlayerState, PlaylistItem } from "../../contexts/PlayerStateContext";
+import { usePlayerState, usePlayerProgress, PlaylistItem } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { showOsd } from "../../hooks/useOsd";
-import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
+import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2 } from "lucide-react";
 import { EmptyState } from "../settings/components/SettingBlocks";
@@ -39,8 +39,9 @@ const PlaylistItemRow = React.memo(function PlaylistItemRow({
   itemRef,
   watchProgress = 0,
 }: PlaylistItemRowProps) {
-  const isWatched = watchProgress>= 90;
-  const showProgress = watchProgress>= 2;
+  const isWatched = watchProgress >= 90;
+  // Показываем полоску, если просмотр начат (от 0.5% прогресса)
+  const showProgress = watchProgress >= 0.5;
 
   return (
     <button
@@ -71,7 +72,7 @@ const PlaylistItemRow = React.memo(function PlaylistItemRow({
             className={`playlist-item__progress-fill ${
               isWatched ? "playlist-item__progress-fill--watched" : ""
             }`}
-            style={{ width: `${isWatched ? 100 : Math.min(100, watchProgress)}%` }}
+            style={{ width: `${isWatched ? 100 : Math.min(100, Math.max(0, watchProgress))}%` }}
           />
         </div>
       )}
@@ -129,31 +130,36 @@ export function PlaylistDrawer() {
     };
   }, []);
 
-  // Пакетная загрузка данных прогресса просмотра через IPC при открытии плейлиста.
-  // Один вызов вместо N вызовов для каждого файла.
+  // Актуальный живой прогресс текущего воспроизводимого видео
+  const { position: livePos, duration: liveDur } = usePlayerProgress();
+  const liveProgress = liveDur > 0
+    ? Math.min(100, Math.max(0, (livePos / liveDur) * 100))
+    : 0;
+
+  // Пакетная загрузка данных прогресса просмотра через IPC при открытии и обновлении плейлиста.
   const [watchProgressMap, setWatchProgressMap] = useState<
     Record<string, WatchProgressInfo>
-    >({});
+  >({});
+
+  const fetchWatchProgress = useCallback(async (items: PlaylistItem[]) => {
+    if (items.length === 0) return;
+    try {
+      const paths = items.map((item) => item.filename);
+      const result = await invoke<Record<string, WatchProgressInfo>>(
+        "get_watch_history_batch",
+        { paths }
+      );
+      setWatchProgressMap(result);
+    } catch (err) {
+      console.error("Ошибка загрузки данных просмотра:", err);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!isPlaylistOpen || playlist.length === 0) return;
-
-    let isMounted = true;
-    const paths = playlist.map((item) => item.filename);
-    invoke<Record<string, WatchProgressInfo>>("get_watch_history_batch", {
-      paths,
-    })
-      .then((result) => {
-        if (isMounted) setWatchProgressMap(result);
-      })
-      .catch((err) =>
-        console.error("Ошибка загрузки данных просмотра:", err)
-      );
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isPlaylistOpen, playlist]);
+    if (isPlaylistOpen && playlist.length > 0) {
+      fetchWatchProgress(playlist);
+    }
+  }, [isPlaylistOpen, playlist, fetchWatchProgress]);
 
 
   /**
@@ -247,12 +253,47 @@ export function PlaylistDrawer() {
     }
   }, []);
 
-  const { isClosing, handleClose } = useOverlayDismiss({
-    onClose: () => setIsPlaylistOpen(false),
-    isOpen: isPlaylistOpen,
-    kind: "fast",
-    closeOnEscape: false,
-  });
+  const [shouldRender, setShouldRender] = useState(isPlaylistOpen);
+  const [isClosing, setIsClosing] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isPlaylistOpen) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      setIsClosing(false);
+      setShouldRender(true);
+    } else {
+      // isPlaylistOpen переключился в false (по кнопке в панели, хоткею или клику мимо)
+      if (!isMotionAllowed()) {
+        setShouldRender(false);
+        setIsClosing(false);
+        return;
+      }
+      setIsClosing(true);
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = setTimeout(() => {
+        setShouldRender(false);
+        setIsClosing(false);
+        closeTimerRef.current = null;
+      }, getCloseTimeoutMs("panel"));
+    }
+  }, [isPlaylistOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setIsPlaylistOpen(false);
+  }, [setIsPlaylistOpen]);
 
   const handleRefresh = useCallback(async () => {
     if (isRefreshing) return;
@@ -342,13 +383,15 @@ export function PlaylistDrawer() {
       );
       try {
         await invoke("play_playlist_item", { index });
+        // Актуализируем историю просмотра для покинутого трека
+        fetchWatchProgress(playlist);
       } catch (e) {
         console.error("Ошибка воспроизведения файла из плейлиста", e);
         refreshPlaylist();
         showOsd(dict.osd.playlistPlayErr, { isError: true });
       }
     },
-    [playlist, setPlaylist, refreshPlaylist, dict]
+    [playlist, setPlaylist, refreshPlaylist, fetchWatchProgress, dict]
   );
 
   // Мемоизированная фильтрация для производительности на больших плейлистах
@@ -370,7 +413,7 @@ export function PlaylistDrawer() {
     return curIdx>= 0 ? `${curIdx + 1} / ${total}` : `${total}`;
   }, [playlist]);
 
-  if (!isPlaylistOpen) return null;
+  if (!shouldRender) return null;
 
   return (
     <div
@@ -419,7 +462,7 @@ export function PlaylistDrawer() {
             type="button"
             className="playlist-drawer__close"
             onClick={handleClose}
-            title={dict.playlist.close}
+
             aria-label={dict.playlist.close}
             >
             <X size={18} />
@@ -451,7 +494,7 @@ export function PlaylistDrawer() {
             type="button"
             className="playlist-drawer__search-clear"
             onClick={() => setSearchQuery("")}
-            title={dict.playlist.clearSearch}
+
             aria-label={dict.playlist.clearSearch}
             >
             <X size={14} />
@@ -471,18 +514,24 @@ export function PlaylistDrawer() {
             }
           />
         ) : (
-          filteredPlaylist.map((item) => (
-            <PlaylistItemRow
-              key={item.index}
-              item={item}
-              isCurrent={item.current}
-              onPlay={handlePlayItem}
-              itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
-              watchProgress={
-                watchProgressMap[item.filename]?.progress_percent ?? 0
-              }
-            />
-          ))
+          filteredPlaylist.map((item) => {
+            // Для текущего играющего элемента используем живой прогресс в реальном времени
+            const itemProgress =
+              item.current && liveDur > 0
+                ? liveProgress
+                : (watchProgressMap[item.filename]?.progress_percent ?? 0);
+
+            return (
+              <PlaylistItemRow
+                key={item.index}
+                item={item}
+                isCurrent={item.current}
+                onPlay={handlePlayItem}
+                itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
+                watchProgress={itemProgress}
+              />
+            );
+          })
         )}
       </div>
     </div>

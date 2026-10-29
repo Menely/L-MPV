@@ -6,7 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getSavedLayout, LAYOUT_CHANGED_EVENT, type LayoutEntry } from "../../utils/contextMenuLayout";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Check, ChevronRight, Download, Loader2 } from "lucide-react";
+import { ChevronRight, Download, Loader2 } from "lucide-react";
 import { getCustomHotkeys } from "../../utils/hotkeyUtils";
 import {
   type TimeDisplayPosition,
@@ -39,9 +39,18 @@ import type { ModelFileItem, UpscaleStatus, UpscaleSettings } from "../upscale/t
 import type { AmbientMode } from "../../utils/ambientSettingsUtils";
 import { normalizeAmbientSettings } from "../../utils/ambientSettingsUtils";
 import {
+  getHeatmapConfig,
+  saveHeatmapConfig,
+  HEATMAP_CONFIG_CHANGED_EVENT,
+  type HeatmapConfig,
+  type HeatmapDataSource,
+  type HeatmapStyle,
+} from "./heatmap";
+import {
   type MenuItem,
   buildContextMenuItems,
 } from "./contextMenu/contextMenuBuilder";
+import { groupSubmenuChildren } from "./contextMenu/contextMenuGrouping";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */
@@ -100,6 +109,7 @@ export function ContextMenu({
   } = usePlayerState();
 
   const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
+  const [currentRotation, setCurrentRotation] = useState<number>(0);
   const [frameMode, setFrameMode] = useState<"stretch" | "fit" | "fill">("fit");
   const [repeatMode, setRepeatMode] = useState<0 | 1 | 2>(0);
   const [ambientMode, setAmbientMode] = useState<AmbientMode>("off");
@@ -141,10 +151,20 @@ export function ContextMenu({
   // Стейт пользовательских горячих клавиш для динамических шорткатов
   const [hotkeys, setHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
 
+  // Стейт конфигурации тепловой карты (Activity Heatmap)
+  const [heatmapConfig, setHeatmapConfig] = useState<HeatmapConfig>(() => getHeatmapConfig());
+
   useEffect(() => {
-    const handleSettingsChanged = () => setHotkeys(getCustomHotkeys());
-    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
-    return () => window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    const handleHeatmapChanged = (event: Event) => {
+      const detail = (event as CustomEvent<HeatmapConfig>).detail;
+      if (detail) {
+        setHeatmapConfig(detail);
+      } else {
+        setHeatmapConfig(getHeatmapConfig());
+      }
+    };
+    window.addEventListener(HEATMAP_CONFIG_CHANGED_EVENT, handleHeatmapChanged);
+    return () => window.removeEventListener(HEATMAP_CONFIG_CHANGED_EVENT, handleHeatmapChanged);
   }, []);
 
   useEffect(() => {
@@ -203,6 +223,8 @@ export function ContextMenu({
       });
 
     const handleSettingsChanged = () => {
+      setHotkeys(getCustomHotkeys());
+      setHeatmapConfig(getHeatmapConfig());
       setCurrentTimePos(getSavedTimePosition());
       setTimeFormat(getSavedTimeFormat());
       setControlBarStyle(getSavedControlBarStyle());
@@ -381,18 +403,15 @@ export function ContextMenu({
   // ─── Обработчики команд (мемоизированы для стабильности ссылок) ───
   const handleSelectAudio = useCallback(async (id: number) => {
     await selectAudioTrack(id);
-    handleClose();
-  }, [selectAudioTrack, handleClose]);
+  }, [selectAudioTrack]);
 
   const handleSelectSub = useCallback(async (id: number) => {
     await selectSubTrack(id);
-    handleClose();
-  }, [selectSubTrack, handleClose]);
+  }, [selectSubTrack]);
 
   const handleDisableSubs = useCallback(async () => {
     await disableSubtitles();
-    handleClose();
-  }, [disableSubtitles, handleClose]);
+  }, [disableSubtitles]);
 
   const handleLoadSubFile = useCallback(async () => {
     try {
@@ -417,8 +436,7 @@ export function ContextMenu({
     } catch (e) {
       console.error("Ошибка установки скорости воспроизведения:", e);
     }
-    handleClose();
-  }, [handleClose]);
+  }, []);
 
   const handleSetFrameMode = useCallback(async (mode: "stretch" | "fit" | "fill") => {
     try {
@@ -434,17 +452,16 @@ export function ContextMenu({
       console.error("Ошибка смены режима видеокадра:", e);
       showOsd(dict.settings.cmenuUI.errFrame(String(e)), { isError: true });
     }
-    handleClose();
-  }, [dict.settings.cmenuUI, handleClose]);
+  }, [dict.settings.cmenuUI]);
 
   const handleSetRotation = useCallback(async (degrees: number) => {
     try {
       await invoke("set_rotation", { degrees });
+      setCurrentRotation(degrees);
     } catch (e) {
       console.error("Ошибка установки поворота видео:", e);
     }
-    handleClose();
-  }, [handleClose]);
+  }, []);
 
   const handleSetAmbientMode = useCallback(async (mode: AmbientMode) => {
     try {
@@ -463,8 +480,7 @@ export function ContextMenu({
     } catch (e) {
       console.error("Ошибка смены режима подсветки полос:", e);
     }
-    handleClose();
-  }, [dict.settings.cmenuUI, handleClose]);
+  }, [dict.settings.cmenuUI]);
 
   const handleToggleAlwaysOnTop = useCallback(async () => {
     try {
@@ -502,8 +518,7 @@ export function ContextMenu({
       console.error("Ошибка установки режима повтора:", e);
       showOsd(dict.settings.cmenuUI.errRepeat(String(e)), { isError: true });
     }
-    handleClose();
-  }, [dict.settings.cmenuUI, handleClose]);
+  }, [dict.settings.cmenuUI]);
 
   const handleToggleShuffle = useCallback(() => {
     invoke("toggle_shuffle").catch(console.error);
@@ -525,8 +540,7 @@ export function ContextMenu({
       console.error("Ошибка применения пресета:", e);
       showOsd(dict.settings.cmenuUI.osdPresetErr, { isError: true });
     }
-    handleClose();
-  }, [handleClose, dict.settings.cmenuUI]);
+  }, [dict.settings.cmenuUI]);
 
   // ── Обработчики апскейлинга ────────────────────────
   const handleSetUpscaleOff = useCallback(async () => {
@@ -545,8 +559,7 @@ export function ContextMenu({
     } catch (e) {
       console.error("Ошибка выключения апскейлинга:", e);
     }
-    handleClose();
-  }, [selectedSlot, upscaleBackend, selectedModel, handleClose, dict.settings.cmenuUI]);
+  }, [selectedSlot, upscaleBackend, selectedModel, dict.settings.cmenuUI]);
 
   const handleSelectUpscaleModel = useCallback(async (model: ModelFileItem) => {
     const updated: UpscaleSettings = {
@@ -569,8 +582,7 @@ export function ContextMenu({
       console.error("Ошибка включения модели апскейлинга:", e);
       showOsd(dict.settings.cmenuUI.osdUpscaleModelErr, { isError: true });
     }
-    handleClose();
-  }, [upscaleBackend, handleClose, dict.settings.cmenuUI]);
+  }, [upscaleBackend, dict.settings.cmenuUI]);
 
   // ── Обработчик переключения видимости кнопки панели ─
   const handleToggleControlButton = useCallback((buttonId: string, label: string, currentVal: boolean) => {
@@ -580,8 +592,7 @@ export function ContextMenu({
     localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(updated));
     window.dispatchEvent(new Event("l-mpv-settings-changed"));
     showOsd(dict.settings.cmenuUI.osdBtn(label, nextVal));
-    handleClose();
-  }, [visibleButtons, handleClose, dict.settings.cmenuUI]);
+  }, [visibleButtons, dict.settings.cmenuUI]);
 
   const audioTracks = useMemo(() => tracks.filter((t) => t.type === "audio"), [tracks]);
   const subTracks = useMemo(() => tracks.filter((t) => t.type === "sub"), [tracks]);
@@ -592,9 +603,8 @@ export function ContextMenu({
       saveTimePosition(pos);
       setCurrentTimePos(pos);
       showOsd(dict.settings.cmenuUI.osdTime(label));
-      handleClose();
     },
-    [dict.settings.cmenuUI, handleClose]
+    [dict.settings.cmenuUI]
   );
 
   const handleSelectTimeFormat = useCallback(
@@ -602,9 +612,8 @@ export function ContextMenu({
       saveTimeFormat(fmt);
       setTimeFormat(fmt);
       showOsd(dict.settings.cmenuUI.osdTimeFmt(label));
-      handleClose();
     },
-    [dict.settings.cmenuUI, handleClose]
+    [dict.settings.cmenuUI]
   );
 
   const handleSelectControlBarStyle = useCallback(
@@ -612,9 +621,48 @@ export function ContextMenu({
       saveControlBarStyle(style);
       setControlBarStyle(style);
       showOsd(dict.settings.cmenuUI.osdBarStyle(label));
-      handleClose();
     },
-    [dict.settings.cmenuUI, handleClose]
+    [dict.settings.cmenuUI]
+  );
+
+  // ── Обработчики тепловой карты (Activity Heatmap) ──
+  const handleToggleHeatmap = useCallback(() => {
+    const nextState = !heatmapConfig.enabled;
+    const updated = saveHeatmapConfig({ enabled: nextState });
+    setHeatmapConfig(updated);
+    showOsd(
+      nextState
+        ? dict.settings.cmenuUI.osdHeatmapOn
+        : dict.settings.cmenuUI.osdHeatmapOff
+    );
+  }, [heatmapConfig.enabled, dict.settings.cmenuUI]);
+
+  const handleSetHeatmapSource = useCallback(
+    (source: HeatmapDataSource) => {
+      const updated = saveHeatmapConfig({ dataSource: source });
+      setHeatmapConfig(updated);
+      const sourceName =
+        source === "audio"
+          ? dict.settings.appearance.heatmap?.sources?.audio || "Громкость звука"
+          : dict.settings.appearance.heatmap?.sources?.videoBitrate || "Битрейт видео";
+      showOsd(`${dict.settings.cmenuUI.heatmap}: ${sourceName}`);
+    },
+    [dict.settings.cmenuUI, dict.settings.appearance.heatmap?.sources]
+  );
+
+  const handleSetHeatmapStyle = useCallback(
+    (style: HeatmapStyle) => {
+      const updated = saveHeatmapConfig({ style });
+      setHeatmapConfig(updated);
+      const styleName =
+        style === "bars"
+          ? dict.settings.appearance.heatmap?.styles?.bars || "Столбики"
+          : style === "spline"
+          ? dict.settings.appearance.heatmap?.styles?.spline || "Сплайн-рельеф"
+          : dict.settings.appearance.heatmap?.styles?.blocks || "Ступенчатые блоки";
+      showOsd(`${dict.settings.cmenuUI.heatmap}: ${styleName}`);
+    },
+    [dict.settings.cmenuUI, dict.settings.appearance.heatmap?.styles]
   );
 
   // ─── Динамическая сборка пунктов меню через модульную фабрику ─────
@@ -629,6 +677,7 @@ export function ContextMenu({
         downloadingTrackKey,
         ambientMode,
         currentSpeed,
+        currentRotation,
         frameMode,
         repeatMode,
         currentTimePos,
@@ -670,6 +719,10 @@ export function ContextMenu({
         handleSelectTimePosition,
         handleSelectTimeFormat,
         handleSelectControlBarStyle,
+        heatmapConfig,
+        handleToggleHeatmap,
+        handleSetHeatmapSource,
+        handleSetHeatmapStyle,
       }),
     [
       dict,
@@ -680,6 +733,7 @@ export function ContextMenu({
       downloadingTrackKey,
       ambientMode,
       currentSpeed,
+      currentRotation,
       frameMode,
       repeatMode,
       currentTimePos,
@@ -721,6 +775,10 @@ export function ContextMenu({
       handleSelectTimePosition,
       handleSelectTimeFormat,
       handleSelectControlBarStyle,
+      heatmapConfig,
+      handleToggleHeatmap,
+      handleSetHeatmapSource,
+      handleSetHeatmapStyle,
     ]
   );
 
@@ -802,7 +860,7 @@ export function ContextMenu({
             >
             <button
               type="button"
-              role="menuitemcheckbox"
+              role={item.indicator === "dot" ? "menuitemradio" : "menuitemcheckbox"}
               aria-checked={Boolean(item.active)}
               className={`context-menu__track-btn ${
                 item.active ? "context-menu__track-btn--active" : ""
@@ -811,7 +869,9 @@ export function ContextMenu({
               >
               <span className="context-menu__track-title">{item.label}</span>
               <span className="context-menu__track-check">
-                {item.active && <Check size={15} />}
+                {item.active && (
+                  <span className="context-menu__radio-dot" aria-hidden="true" />
+                )}
               </span>
             </button>
             {item.onDownload && (
@@ -910,7 +970,7 @@ export function ContextMenu({
               <div
                 role="menu"
                 aria-label={item.label}
-                className={`context-menu context-menu__submenu ${
+                className={`context-menu__submenu ${
                   item.submenuClassName || ""
                 } ${isRightScreenEdge ? "context-menu__submenu--left" : ""} ${
                   isBottomHalf ? "context-menu__submenu--bottom" : ""
@@ -926,7 +986,21 @@ export function ContextMenu({
                   }
                 }}
                 >
-                {item.children.map((child, ci) => renderItem(child, ci, true))}
+                {groupSubmenuChildren(item.children).map((group, gi) => (
+                  <div
+                    key={`group-${gi}`}
+                    role="group"
+                    aria-label={group.header}
+                    className="context-menu__group"
+                  >
+                    {group.header && (
+                      <div className="context-menu__group-header" aria-hidden="true">
+                        {group.header}
+                      </div>
+                    )}
+                    {group.items.map((child, ci) => renderItem(child, ci, true))}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -937,7 +1011,13 @@ export function ContextMenu({
         <button
           type="button"
           key={`item-${index}`}
-          role={item.active !== undefined ? "menuitemcheckbox" : "menuitem"}
+          role={
+            item.active !== undefined
+              ? item.indicator === "dot"
+                ? "menuitemradio"
+                : "menuitemcheckbox"
+              : "menuitem"
+          }
           aria-checked={item.active !== undefined ? Boolean(item.active) : undefined}
           className={`context-menu__item ${
             item.active ? "context-menu__item--active" : ""
@@ -971,7 +1051,13 @@ export function ContextMenu({
           <span className="context-menu__item-label context-menu__item-label--truncate">
             {item.label}
           </span>
-          {item.active && <Check size={15} style={{ marginLeft: "var(--space-3)" }} />}
+          {item.active && (
+            <span
+              className="context-menu__radio-dot"
+              style={{ marginLeft: "var(--space-3)" }}
+              aria-hidden="true"
+            />
+          )}
           {item.shortcut && (
             <span className="context-menu__item-shortcut">
               {item.shortcut}

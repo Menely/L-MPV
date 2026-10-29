@@ -30,6 +30,7 @@ export type MenuItemId =
   | "time_format"
   | "control_bar_style"
   | "control_buttons_visibility"
+  | "heatmap"
   | "settings";
 
 /** Статический дескриптор пункта меню для конфигуратора. */
@@ -63,6 +64,7 @@ export const MENU_ITEM_REGISTRY: MenuItemDescriptor[] = [
   { id: "time_format", label: "Формат времени", iconName: "Timer", hasSubmenu: true, description: "Формат таймера: прошедшее / оставшееся / до конца / …" },
   { id: "control_bar_style", label: "Стиль панели", iconName: "LayoutTemplate", hasSubmenu: true, description: "Стиль нижней панели управления плеером" },
   { id: "control_buttons_visibility", label: "Кнопки панели управления", iconName: "Eye", hasSubmenu: true, description: "Настройка видимости кнопок на нижней панели управления" },
+  { id: "heatmap", label: "Тепловая карта", iconName: "Flame", hasSubmenu: true, description: "Включение и настройка тепловой карты таймлайна (звук / битрейт)" },
   { id: "settings", label: "Настройки", iconName: "Settings", hasSubmenu: false, description: "Открыть окно настроек L-MPV (F2)" },
 ];
 
@@ -128,6 +130,8 @@ export function getLocalizedMenuItem(
       return { label: reg.barStyle, description: reg.barStyleDesc };
     case "control_buttons_visibility":
       return { label: reg.controlBtns, description: reg.controlBtnsDesc };
+    case "heatmap":
+      return { label: reg.heatmap, description: reg.heatmapDesc };
     case "settings":
       return { label: reg.settings, description: reg.settingsDesc };
     default:

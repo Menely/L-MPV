@@ -212,7 +212,7 @@ export const AmbientTuneRow = memo(function AmbientTuneRow({
   step,
   def,
   unit,
-  resetTitle,
+  resetTitle: _resetTitle,
   ariaLabel,
   onChange,
   onReset,
@@ -258,7 +258,7 @@ export const AmbientTuneRow = memo(function AmbientTuneRow({
             transform: isDefault ? "scale(0.85)" : "scale(1)",
             transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
           }}
-          title={resetTitle}
+
           tabIndex={isDefault ? -1 : 0}
           >
           <RotateCcw size={11} />

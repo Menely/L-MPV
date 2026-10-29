@@ -52,7 +52,9 @@ if (typeof document !== "undefined") {
   const handleStorage = () => applyAllVisualSettings();
   const handlePlayerThemeChanged = (event: Event) => {
     const detail = (event as CustomEvent<string>).detail;
-    if (detail) applyPlayerTheme(detail);
+    if (detail && document.documentElement.getAttribute("data-player-theme") !== detail) {
+      applyPlayerTheme(detail);
+    }
   };
   const handleContextMenu = (event: MouseEvent) => {
     const target = event.target as HTMLElement | null;

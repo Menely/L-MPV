@@ -90,6 +90,8 @@ pub struct UiSettings {
     pub skip_opening_seconds: Option<u32>,
     #[serde(default)]
     pub visualizer_config: Option<serde_json::Value>,
+    #[serde(default)]
+    pub heatmap_config: Option<serde_json::Value>,
 }
 
 /// Конфигурация приложения, сохраняемая в config/settings.json.

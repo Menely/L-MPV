@@ -13,25 +13,27 @@
   background: rgba(14, 16, 24, 0.94);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-md);
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.75), 0 0 1px rgba(0, 0, 0, 0.75);
+  box-shadow: var(--shadow-modal);
   z-index: var(--z-window);
   overflow: hidden;
-  animation: mediainfoSpringIn var(--t-spring) var(--ease-out);
+  animation: mediainfoSpringIn var(--t-pop) var(--ease-decelerate);
   transform-origin: center center;
   transition: border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 @keyframes mediainfoSpringIn {
   0% {
-    transform: translateY(10px);
+    opacity: 0;
+    transform: translateY(8px);
   }
   100% {
+    opacity: 1;
     transform: translateY(0);
   }
 }
 
 .mediainfo-floating-window--closing {
-  animation: mediainfoSpringOut 120ms var(--ease-out) forwards !important;
+  animation: mediainfoSpringOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 
@@ -42,7 +44,7 @@
   }
   100% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
 }
 
@@ -770,19 +772,24 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  background: transparent;
-  border: none;
-  padding: var(--space-1) 4px;
-  border-radius: var(--radius-xs, 4px);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm, 6px);
   cursor: pointer;
   color: inherit;
   font: inherit;
   text-align: left;
-  transition: background var(--t-fast) var(--ease-smooth);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
 
 .mediainfo-section__collapse-trigger:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: var(--shadow-card);
 }
 
 .mediainfo-section__chevron {

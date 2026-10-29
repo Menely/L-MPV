@@ -7,7 +7,7 @@
   justify-content: center;
   z-index: var(--z-modal);
   background: rgba(0, 0, 0, 0.50);
-  animation: fadeIn 200ms var(--ease-smooth);
+  animation: fadeIn var(--t-pop) var(--ease-decelerate);
 }
 
 @keyframes fadeIn {
@@ -26,12 +26,12 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-glass, rgba(var(--bg-glass-rgb, 16, 19, 28), var(--ui-opacity, 0.88)));
+  background: var(--bg-glass, var(--bg-modal-solid, #11141c));
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg), 0 0 30px rgba(127, 199, 255, 0.05);
+  box-shadow: var(--shadow-modal);
   overflow: hidden;
-  animation: modalSlideIn var(--t-base) var(--ease-out);
+  animation: modalSlideIn var(--t-pop) var(--ease-decelerate);
   transform-origin: center center;
   transition: background 0.25s var(--ease-smooth),
               box-shadow 0.25s var(--ease-smooth),
@@ -52,15 +52,17 @@
 
 @keyframes modalSlideIn {
   from {
+    opacity: 0;
     transform: translateY(8px);
   }
   to {
+    opacity: 1;
     transform: translateY(0);
   }
 }
 
 .modal-overlay--closing {
-  animation: modalOverlayFadeOut 140ms var(--ease-out) forwards !important;
+  animation: modalOverlayFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 
@@ -70,7 +72,7 @@
 }
 
 .modal--closing {
-  animation: modalFadeOut 140ms var(--ease-out) forwards !important;
+  animation: modalFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 
@@ -81,7 +83,7 @@
   }
   100% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
 }
 
@@ -882,6 +884,15 @@
 
 .option-card {
   min-width: 0;
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth);
+}
+
+.option-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-card-hover) !important;
 }
 
 .option-block {
@@ -1180,7 +1191,7 @@
   background: rgba(20, 22, 28, 0.97);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-md, 8px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 25px rgba(0, 0, 0, 0.75);
+  box-shadow: var(--shadow-modal);
   padding: var(--space-3);
   z-index: var(--z-float);
   animation: versionPickerSlideUp var(--t-base) var(--ease-out);
@@ -1267,27 +1278,32 @@
 
 /* ─── Сворачиваемые секции (Аккордеон) ────────────────── */
 .settings-accordion {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
   margin-bottom: var(--space-5);
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.24);
   transition: border-color var(--t-fast) var(--ease-smooth),
               background var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth);
 }
 
 .settings-accordion:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.028);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.42), 0 1px 4px rgba(0, 0, 0, 0.42);
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.038);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.38), 0 2px 5px rgba(0, 0, 0, 0.26);
 }
 
 .settings-accordion--open {
   border-color: var(--border-pill);
-  background: rgba(255, 255, 255, 0.035);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.48), 0 2px 5px rgba(0, 0, 0, 0.48);
+  background: rgba(255, 255, 255, 0.032);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42), 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
+.settings-accordion--open:hover {
+  border-color: var(--border-pill-hover);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.46), 0 3px 8px rgba(0, 0, 0, 0.30);
 }
 
 .settings-accordion__header {
@@ -1295,16 +1311,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-6) 14px;
-  background: rgba(255, 255, 255, 0.015);
+  padding: 12px 16px;
+  background: transparent;
   border: none;
   cursor: pointer;
   user-select: none;
   color: var(--text-primary);
   text-align: left;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-  transition: background var(--t-fast) var(--ease-smooth),
-              box-shadow var(--t-fast) var(--ease-smooth);
+  box-shadow: none !important;
+  transition: background var(--t-fast) var(--ease-smooth);
 }
 
 .settings-accordion__header:hover {
@@ -1312,9 +1327,9 @@
 }
 
 .settings-accordion--open .settings-accordion__header {
-  background: rgba(255, 255, 255, 0.028);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  background: rgba(255, 255, 255, 0.025);
+  border-bottom: 1px solid var(--border);
+  box-shadow: none !important;
 }
 
 .settings-accordion__title {
@@ -1329,7 +1344,7 @@
 }
 
 .settings-accordion--open .settings-accordion__title {
-  color: var(--accent);
+  color: var(--text-primary);
 }
 
 .settings-accordion__icon {
@@ -1343,6 +1358,11 @@
   line-height: 1;
   color: var(--accent);
   flex-shrink: 0;
+  transition: filter var(--t-fast) var(--ease-smooth);
+}
+
+.settings-accordion--open .settings-accordion__icon {
+  filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.45));
 }
 
 .settings-accordion__icon svg {
@@ -1358,13 +1378,15 @@
   color: var(--text-secondary);
   transform: rotate(0deg);
   transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
-              color var(--t-fast) var(--ease-smooth);
+              color var(--t-fast) var(--ease-smooth),
+              filter var(--t-fast) var(--ease-smooth);
   flex-shrink: 0;
 }
 
 .settings-accordion--open .settings-accordion__chevron {
   transform: rotate(180deg);
   color: var(--accent);
+  filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), 0.35));
 }
 
 /* Плавный аккордеон через CSS Grid 0fr -> 1fr.
@@ -1391,7 +1413,8 @@
 }
 
 .settings-accordion__body {
-  padding: var(--space-2) 14px 14px 14px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.16);
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   min-width: 0;
   overflow-wrap: anywhere;
@@ -1404,6 +1427,10 @@
   opacity: 1;
   transform: none !important;
   will-change: auto !important;
+}
+
+.settings-accordion__body > :first-child {
+  margin-top: 0 !important;
 }
 
 /* ─── Вкладки и анимация переключения категорий в настройках ─── */

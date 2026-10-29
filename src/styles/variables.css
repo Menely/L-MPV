@@ -29,30 +29,62 @@
   --surface-accent-glow:   color-mix(in srgb, var(--accent) 35%, transparent);
   --surface-accent-border: color-mix(in srgb, var(--accent) 40%, transparent);
 
-  /* Фоны (Glassmorphism) */
   --ui-opacity: 0.88;
+
+  /* ─── Фоны и Поверхности (Dark Surfaces & Themes) ──────── */
   --bg-primary:     #0b0d12;
   --bg-surface:     #13161d;
   --bg-modal-solid: #11141c;
-  --bg-glass-rgb:   16, 19, 28;
-  --bg-pill-rgb:    10, 12, 18;
-  --bg-glass:       rgba(var(--bg-glass-rgb), var(--ui-opacity));
+  --bg-pill-rgb:    14, 18, 26;
+  --bg-glass-rgb:   18, 22, 32;
+  --bg-pill:        rgba(var(--bg-pill-rgb, 14, 18, 26), var(--ui-opacity, 0.88));
+  --bg-glass:       rgba(var(--bg-glass-rgb, 18, 22, 32), var(--ui-opacity, 0.88));
+  --bg-elevated:    rgba(var(--bg-glass-rgb, 18, 22, 32), var(--ui-opacity, 0.88));
   --bg-hover:       rgba(127, 199, 255, 0.08);
   --bg-active:      rgba(127, 199, 255, 0.14);
-  --bg-pill:        rgba(var(--bg-pill-rgb), var(--ui-opacity));
 
-  /* Текст (калибровка контраста под 96 DPI мониторы Full HD) */--text-primary: rgba(255, 255, 255, 0.96);
-  --text-secondary: rgba(255, 255, 255, 0.82);--text-muted: rgba(255, 255, 255, 0.55);
+  /* Текст (калибровка контраста под 96 DPI мониторы Full HD) */
+  --text-primary:   rgba(255, 255, 255, 0.96);
+  --text-secondary: rgba(255, 255, 255, 0.82);
+  --text-muted:     rgba(255, 255, 255, 0.55);
 
-  /* Бордеры и Поверхности */--border: rgba(255, 255, 255, 0.06);--border-subtle: rgba(255, 255, 255, 0.06);--border-default: rgba(255, 255, 255, 0.09);--border-hover: rgba(255, 255, 255, 0.16);
-  --border-pill:    rgba(127, 199, 255, 0.12);--surface-level-2: rgba(255, 255, 255, 0.025);--surface-level-3: rgba(255, 255, 255, 0.04);--surface-level-3-hover: rgba(255, 255, 255, 0.075);
+  /* Бордеры и Контуры */
+  --border:         rgba(255, 255, 255, 0.08);
+  --border-subtle:  rgba(255, 255, 255, 0.05);
+  --border-default: var(--border, rgba(255, 255, 255, 0.09));
+  --border-hover:   rgba(255, 255, 255, 0.16);
+  --border-pill:    rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --border-pill-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.35);
+  --surface-level-2: rgba(255, 255, 255, 0.025);
+  --surface-level-3: rgba(255, 255, 255, 0.04);
+  --surface-level-3-hover: rgba(255, 255, 255, 0.075);
 
-  /* Тени и Неоновое свечение */--shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);--shadow-md: 0 4px 20px rgba(0, 0, 0, 0.45);--shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.55);
+  /* ─── Адаптивная альфа теней под уровень прозрачности --ui-opacity ───
+     Масштабируется динамически в applyUiOpacity: при снижении прозрачности
+     тени деликатно ослабевают, чтобы черная тень не просвечивала сквозь прозрачный фон */
+  --shadow-alpha:         0.35;
+  --shadow-ambient-alpha: 0.18;
+
+  /* ─── Современные многослойные тени (Refined Soft Shadows) ── */
+  --shadow-sm:       0 1px 4px rgba(0, 0, 0, var(--shadow-ambient-alpha, 0.18));
+  --shadow-md:       0 3px 12px rgba(0, 0, 0, var(--shadow-alpha, 0.25));
+  --shadow-lg:       0 8px 24px rgba(0, 0, 0, var(--shadow-alpha, 0.32));
+
+  /* Тени карточек (базовое состояние, ховер, активность) — глубокие, чистые, объёмные */
+  --shadow-card:       0 4px 14px rgba(0, 0, 0, var(--shadow-alpha, 0.28)), 0 1px 3px rgba(0, 0, 0, var(--shadow-ambient-alpha, 0.18));
+  --shadow-card-hover: 0 6px 18px rgba(0, 0, 0, var(--shadow-alpha, 0.36)), 0 2px 5px rgba(0, 0, 0, var(--shadow-ambient-alpha, 0.22));
+  --shadow-card-active: 0 2px 8px rgba(0, 0, 0, var(--shadow-alpha, 0.28)), 0 0 10px rgba(var(--accent-rgb, 127, 199, 255), 0.18);
+
+  /* Тени плавающих панелей, оверлеев и модалок */
+  --shadow-pill:       0 6px 20px rgba(0, 0, 0, var(--shadow-alpha, 0.38)), 0 2px 6px rgba(0, 0, 0, var(--shadow-ambient-alpha, 0.18));
+  --shadow-pill-hover: 0 8px 28px rgba(0, 0, 0, var(--shadow-alpha, 0.44)), 0 2px 8px rgba(0, 0, 0, var(--shadow-ambient-alpha, 0.20));
+  --shadow-elevated:   0 8px 24px rgba(0, 0, 0, var(--shadow-alpha, 0.35)), 0 2px 8px rgba(0, 0, 0, var(--shadow-ambient-alpha, 0.18));
+  --shadow-modal:      0 16px 40px rgba(0, 0, 0, var(--shadow-alpha, 0.42)), 0 4px 14px rgba(0, 0, 0, var(--shadow-ambient-alpha, 0.20));
+
   --shadow-glow:     0 0 8px rgba(127, 199, 255, 0.45), 0 0 18px rgba(127, 199, 255, 0.22), 0 0 30px rgba(127, 199, 255, 0.09);
   --thumb-glow:      0 0 6px rgba(127, 199, 255, 0.45), 0 0 13px rgba(127, 199, 255, 0.22), 0 0 22px rgba(127, 199, 255, 0.08);
   --btn-glow:        0 0 5px rgba(127, 199, 255, 0.35), 0 0 12px rgba(127, 199, 255, 0.18), 0 0 20px rgba(127, 199, 255, 0.07);
-  --play-btn-glow:   0 0 7px rgba(127, 199, 255, 0.45), 0 0 15px rgba(127, 199, 255, 0.24), 0 0 26px rgba(127, 199, 255, 0.10);--shadow-pill: 0 4px 30px rgba(0, 0, 0, 0.50),
-                 0 0 1px rgba(127, 199, 255, 0.15);
+  --play-btn-glow:   0 0 7px rgba(127, 199, 255, 0.45), 0 0 15px rgba(127, 199, 255, 0.24), 0 0 26px rgba(127, 199, 255, 0.10);
 
   /* Скругления */
   --radius-xs:       4px;
@@ -162,8 +194,10 @@
        --scrim-N   — чёрный (тени, затемнение фона под модалкой).
      Раньше эти альфы подбирались вручную и давали значения вроде
      0.028 / 0.045 / 0.075, которые не совпадали ни с одной другой
-     парой в проекте. Теперь шаг осмысленный и повторяемый. */
-  /* ─── Служебные цвета ─────────────────────────────────────────────── */
+     парой в проекте. Теперь шаг осмысленный и повторяемый. */
+
+  /* ─── Служебные цвета ─────────────────────────────────────────────── */
+
   /* ─── Слои наложения (z-index) ───────────────────────────────────────
      Каждый токен сохраняет ТОЧНО то число, которое стояло в коде до его
      введения, поэтому подстановка var() не меняет ни один порядок
@@ -188,7 +222,8 @@
   --z-popover:  10001;    /* подменю контекстного меню, выбор версии           */
   --z-toast:     9500;    /* уведомление об обновлении (под модальными окнами)   */
   --z-toast-max:100000;   /* тосты поверх всего                                 */
-  --z-dialog:   200000;   /* модальные подтверждения                            */  
+  --z-dialog:   200000;   /* модальные подтверждения                            */
+  
   /* Масштабирование UI для мониторов высокого разрешения */
   --ui-scale: 1;
 }
@@ -215,3 +250,10 @@ html.no-animations :root {
 
 
 
+
+/* ─── Адаптация теней при отключенном свечении ── */
+[data-glow="off"],
+html[data-glow="off"] {
+  --shadow-card-hover: 0 8px 24px -4px rgba(0, 0, 0, 0.60), 0 2px 6px rgba(0, 0, 0, 0.40);
+  --shadow-pill-hover: 0 16px 44px -4px rgba(0, 0, 0, 0.80), 0 4px 14px rgba(0, 0, 0, 0.55);
+}

@@ -275,7 +275,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             type="button"
             onClick={handleClose}
             className="modal__close"
-            title={dict.settings.appearance.colorScheme.colorPickerClose}
+
             aria-label={dict.settings.appearance.colorScheme.colorPickerClose}
             >
             <X size={16} />

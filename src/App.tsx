@@ -32,11 +32,14 @@ import { useTranslation } from "./i18n/LanguageContext";
 import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
 import { getSavedSeekStepSeconds, triggerSeekIndicator } from "./utils/seekUtils";
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
-import { SettingsModal } from "./components/modals/SettingsModal";
-import { SettingsPanel } from "./components/settings/SettingsPanel";
-
-// Тяжёлые модалки грузятся лениво: в стартовый бандл не попадают,
+// Тяжёлые модалки и панели настроек грузятся лениво: в стартовый бандл не попадают,
 // парсятся только при первом открытии (dnd-kit едет вместе с настройками).
+const SettingsModal = lazy(() =>
+  import("./components/modals/SettingsModal").then((m) => ({ default: m.SettingsModal }))
+);
+const SettingsPanel = lazy(() =>
+  import("./components/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel }))
+);
 const MediaInfoModal = lazy(() =>
   import("./components/modals/MediaInfoModal").then((m) => ({ default: m.MediaInfoModal }))
 );
@@ -1478,27 +1481,27 @@ function App() {
       )}
 
       {showSettings && (
-        settingsStyle === "modal" ? (
-          <SettingsModal
-            onClose={closeSettings}
-            onShowUpdate={(info: UpdateInfo) => {
+        <Suspense fallback={null}>
+          {(() => {
+            const handleShowUpdateFromSettings = (info: UpdateInfo) => {
               closeSettings();
               setShowUpdateToast(false);
               setPendingUpdate(info);
               setShowUpdateModal(true);
-            }}
-          />
-        ) : (
-          <SettingsPanel
-            onClose={closeSettings}
-            onShowUpdate={(info: UpdateInfo) => {
-              closeSettings();
-              setShowUpdateToast(false);
-              setPendingUpdate(info);
-              setShowUpdateModal(true);
-            }}
-          />
-        )
+            };
+            return settingsStyle === "modal" ? (
+              <SettingsModal
+                onClose={closeSettings}
+                onShowUpdate={handleShowUpdateFromSettings}
+              />
+            ) : (
+              <SettingsPanel
+                onClose={closeSettings}
+                onShowUpdate={handleShowUpdateFromSettings}
+              />
+            );
+          })()}
+        </Suspense>
       )}
 
       {showUpdateModal && pendingUpdate && (

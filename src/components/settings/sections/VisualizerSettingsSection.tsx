@@ -371,7 +371,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         transform: isDefault ? "scale(0.85)" : "scale(1)",
                         transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                       }}
-                      title={dict.settings.appearance.visualizer.reset22}
+
                       tabIndex={isDefault ? -1 : 0}
                       >
                       <RotateCcw size={11} />
@@ -380,6 +380,8 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                 </div>
               );
             })()}
+
+
           </>
       </div>
     </AccordionSection>

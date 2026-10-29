@@ -178,6 +178,7 @@ export const Timeline = React.memo(() => {
   const mediaInfoRef = useRef(mediaInfo);
   mediaInfoRef.current = mediaInfo;
   const cachedRectRef = useRef<DOMRect | null>(null);
+  const dragStartXRef = useRef<number | null>(null);
 
   // ─── Производные значения ────────────────────────────────────
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
@@ -223,7 +224,12 @@ export const Timeline = React.memo(() => {
     const time = ratio * safeDuration;
     if (p.drag) {
       setMousePosition(time);
-      scheduleScrub(time);
+      // Во время перетаскивания используем быстрые ключевые кадры (exact=false),
+      // чтобы не перегружать декодер на паузе, и игнорируем микро-сдвиги (< 3px) при обычном клике.
+      const movedDistance = dragStartXRef.current !== null ? Math.abs(p.x - dragStartXRef.current) : 999;
+      if (movedDistance > 3) {
+        scheduleScrub(time, false);
+      }
     }
     setHoverInfo({ ratio, time });
   };
@@ -267,6 +273,7 @@ export const Timeline = React.memo(() => {
 
     const rect = e.currentTarget.getBoundingClientRect();
     cachedRectRef.current = rect;
+    dragStartXRef.current = e.clientX;
     isDragging.current = true;
     setIsDraggingState(true);
 
@@ -286,8 +293,7 @@ export const Timeline = React.memo(() => {
     }
     setMousePosition(time);
     setHoverInfo({ ratio, time });
-    scheduleScrub(time);
-  }, [safeDuration, firePulse, setPause, scheduleScrub]);
+  }, [safeDuration, firePulse, setPause]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (safeDuration <= 0) return;
@@ -304,6 +310,7 @@ export const Timeline = React.memo(() => {
   ) => {
     if (!isDragging.current) return;
     isDragging.current = false;
+    dragStartXRef.current = null;
     setIsDraggingState(false);
 
     const shouldResume = wasPlayingRef.current;
@@ -444,6 +451,7 @@ export const Timeline = React.memo(() => {
       {hoverInfo && (
         <TimelinePreview hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath} />
       )}
+
 
       {pulse && (
         <div

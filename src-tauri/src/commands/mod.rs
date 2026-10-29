@@ -8,6 +8,7 @@
 
 mod config;
 mod dir_scan;
+pub mod heatmap;
 mod history;
 mod playback;
 mod playlist;
@@ -18,6 +19,8 @@ mod tracks;
 mod types;
 
 // ─── Реэкспорт типов ───────────────────────────────────
+#[allow(unused_imports)]
+pub use heatmap::*;
 pub use types::*;
 
 // ─── Реэкспорт IPC-команд ──────────────────────────────

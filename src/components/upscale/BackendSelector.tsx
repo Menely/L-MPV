@@ -119,7 +119,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               setIsOpen((prev) => !prev);
             }}
             aria-expanded={isOpen}
-            title={isOpen ? dict.settings.upscaling.btnCollapseEngines : dict.settings.upscaling.btnExpandEngines}
+
             >
             <ChevronDown
               size={16}

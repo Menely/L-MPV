@@ -57,6 +57,12 @@ import {
 } from "./timeFormatUtils";
 import { getCustomHotkeys, saveCustomHotkeys } from "./hotkeyUtils";
 import { saveLocale, getEffectiveLocale, type Locale } from "../i18n/index";
+import {
+  getHeatmapConfig,
+  saveHeatmapConfig,
+  HeatmapConfig,
+  HEATMAP_CONFIG_CHANGED_EVENT,
+} from "../components/player/heatmap";
 
 export interface StoredVisualizerSettings {
   enabled: boolean;
@@ -92,6 +98,7 @@ export interface UiSettings {
   save_tracks_to_video_dir?: boolean;
   skip_opening_seconds?: number;
   visualizer_config?: StoredVisualizerSettings;
+  heatmap_config?: HeatmapConfig;
 }
 
 const UI_SYNC_PENDING_KEY = "l-mpv-ui-sync-pending";
@@ -244,6 +251,7 @@ export function collectCurrentUiSettings(): UiSettings {
     save_tracks_to_video_dir: localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false",
     skip_opening_seconds: Math.min(600, Math.max(1, Number(localStorage.getItem("l-mpv-skip-opening-seconds")) || 90)),
     visualizer_config: visualizerConfig,
+    heatmap_config: getHeatmapConfig(),
   };
 }
 
@@ -417,6 +425,10 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
     } satisfies StoredVisualizerSettings));
     restored = true;
   }
+  if (ui.heatmap_config && typeof ui.heatmap_config === "object") {
+    saveHeatmapConfig(ui.heatmap_config);
+    restored = true;
+  }
   return restored;
 }
 
@@ -509,6 +521,7 @@ export function initUiSettingsAutoSync(): () => void {
 
   const events = [
     "l-mpv-settings-changed",
+    HEATMAP_CONFIG_CHANGED_EVENT,
     "l-mpv-player-theme-changed",
     "l-mpv-ui-scale-changed",
     "l-mpv-accent-color-changed",

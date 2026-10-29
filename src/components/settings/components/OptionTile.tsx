@@ -101,7 +101,7 @@ export function OptionBlock({
               className="btn btn--secondary btn--sm"
               style={optionResetBtnStyle}
               onClick={onReset}
-              title={resetTitle}
+
               aria-label={resetTitle}
               >
               <RotateCcw size={11} />
@@ -184,7 +184,7 @@ export function OptionToggleRow({
           className="btn btn--secondary btn--sm"
           style={optionResetBtnStyle}
           onClick={onReset}
-          title={resetTitle}
+
           aria-label={resetTitle}
           >
           <RotateCcw size={11} />

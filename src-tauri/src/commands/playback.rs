@@ -240,26 +240,29 @@ pub fn seek_absolute(
 
 /// Быстрый предпросмотр кадра во время перетаскивания ползунка.
 ///
-/// Во время драга намеренно используется `absolute+keyframes`: прыжок
-/// к ближайшему ключевому кадру без декодирования всех промежуточных
-/// кадров — в ~5-10 раз дешевле `absolute+exact` и не перегружает
-/// аппаратный декодер (D3D11VA) серией тяжёлых точных сиков.
-/// Именно лавина `exact`-сиков каждые ~120 мс давала у части пользователей
-/// рваный кадр/артефакты и рассинхрон UI таймлайна (см. скриншот).
-/// Точное позиционирование (`absolute+exact`) выполняется один раз
-/// при отпускании ползунка через `seek_absolute`.
+/// По умолчанию использует `absolute+keyframes` (прыжок к ключевым кадрам без
+/// перегрузки аппаратного декодера лавиной декодирования длинных GOP), а при
+/// явном запросе `exact = Some(true)` — `absolute+exact`.
 #[tauri::command]
 pub fn seek_preview(
     state: State<'_, PlayerState>,
     seconds: f64,
+    exact: Option<bool>,
 ) -> Result<(), String> {
     if seconds.is_nan() || seconds.is_infinite() {
         return Ok(());
     }
     let safe_seconds = seconds.max(0.0);
+
+    let mode = if exact.unwrap_or(false) {
+        "absolute+exact"
+    } else {
+        "absolute+keyframes"
+    };
+
     let result = state.mpv.command(&format!(
-        "seek {} absolute+keyframes",
-        safe_seconds
+        "seek {} {}",
+        safe_seconds, mode
     ));
     invalidate_ambient_result(&state, result)
 }

@@ -23,6 +23,7 @@ import { useSearchNavigation } from "./hooks/useSearchNavigation";
 import { usePersistentState } from "./hooks/usePersistentState";
 import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 import {
   MIN_MODAL_WIDTH,
   TECH_MODAL_MIN_WIDTH,
@@ -126,7 +127,11 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   // ── Базовые UI-состояния ───────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
   const [followPlayback, setFollowPlayback] = useState(true);
-  const [isClosing, setIsClosing] = useState(false);
+  const { isClosing, handleClose } = useOverlayDismiss({
+    onClose,
+    kind: "pop",
+    closeOnEscape: false,
+  });
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [clickedLineIndex, setClickedLineIndex] = useState<number | null>(
     null
@@ -142,10 +147,8 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const trackPickerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isClosingRef = useRef(false);
   const expectedScrollTopRef = useRef<number>(NaN);
   const lastManualNavTimeRef = useRef<number>(0);
 
@@ -190,10 +193,8 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   // ── Гарантированная очистка таймеров при размонтировании ──────────────────
   useEffect(() => {
     return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       if (clickedTimerRef.current) clearTimeout(clickedTimerRef.current);
-      isClosingRef.current = false;
     };
   }, []);
 
@@ -295,22 +296,6 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     scrollOffset,
     estimatedRowHeight,
   ]);
-
-  // ── Плавное закрытие окна ──────────────────────────────────────────────────
-  const handleClose = useCallback(() => {
-    if (isClosingRef.current) return;
-    isClosingRef.current = true;
-    setIsClosing(true);
-
-    const isNoAnim =
-      typeof document !== "undefined" &&
-      document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
-      onClose();
-      return;
-    }
-    closeTimerRef.current = setTimeout(onClose, 155);
-  }, [onClose]);
 
   // ── Глобальные горячие клавиши (Escape, Ctrl+F, стрелки) ──────────────────
   useEffect(() => {

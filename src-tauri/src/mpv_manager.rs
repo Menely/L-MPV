@@ -592,9 +592,9 @@ impl MpvManager {
     }
 
     unsafe fn set_option(api: &MpvApi, handle: *mut MpvHandle, name: &str, value: &str) {
-        let c_name = CString::new(name).unwrap();
-        let c_value = CString::new(value).unwrap();
-        (api.set_option_string)(handle, c_name.as_ptr(), c_value.as_ptr());
+        if let (Ok(c_name), Ok(c_value)) = (CString::new(name), CString::new(value)) {
+            (api.set_option_string)(handle, c_name.as_ptr(), c_value.as_ptr());
+        }
     }
 
     /// Вспомогательная функция: возвращает параметры дебандинга по имени пресета.

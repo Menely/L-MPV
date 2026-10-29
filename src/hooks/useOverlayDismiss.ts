@@ -94,7 +94,7 @@ export function useOverlayDismiss({
   }, []);
 
   useEffect(() => {
-    if (!closeOnEscape) return;
+    if (!closeOnEscape || isOpen === false) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {

@@ -1,9 +1,14 @@
 import React, { useCallback, useEffect, useState, useMemo } from "react";
 import {
-  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles,
+  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, AudioWaveform, Sparkles,
   MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles, Globe,
   Volume2, Tv2, HardDrive
 } from "lucide-react";
+import {
+  isWaveformEnabled,
+  setWaveformEnabled,
+} from "../../player/heatmap";
+
 import { invoke } from "@tauri-apps/api/core";
 import { AccordionSection } from "../components/AccordionSection";
 import { ContextMenuSettingsTab } from "./ContextMenuSettingsTab";
@@ -105,6 +110,17 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   const [hwdecMode, setHwdecMode] = useState("auto-safe");
   const [audioNormalize, setAudioNormalize] = useState("no");
   const [demuxerCacheMb, setDemuxerCacheMb] = useState(64);
+  const [waveformEnabled, setWaveformEnabledState] = useState<boolean>(isWaveformEnabled);
+
+  useEffect(() => {
+    const handleSettingsChanged = () => {
+      setWaveformEnabledState(isWaveformEnabled());
+    };
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    };
+  }, []);
 
   // Загрузка сохранённых настроек при открытии панели
   useEffect(() => {
@@ -234,7 +250,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
     background: "rgba(255, 255, 255, 0.025)",
     borderRadius: "var(--radius-md)",
     border: "1px solid var(--border)",
-    boxShadow: "0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.22)",
+    boxShadow: "var(--shadow-card)",
     transition: "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
   };
 
@@ -248,7 +264,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         icon={<Globe size={16} />}
         title={dict.settings.general.languageSection}
         >
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", marginTop: "var(--space-4)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
           <div style={cardStyle}>
             <SectionHeader
               icon={<Globe size={14} />}
@@ -342,7 +358,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         icon={<Camera size={16} />}
         title={dict.settings.general.screenshotsSection}
         >
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", marginTop: "var(--space-4)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
           <div style={cardStyle}>
             <SectionHeader
               icon={<Camera size={14} />}
@@ -410,7 +426,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   justifyContent: "center",
                   flexShrink: 0,
                 }}
-                title={dict.settings.general.resetDefaultTitle}
+
                 >
                 <RotateCcw size={13} />
               </button>
@@ -426,7 +442,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         icon={<Play size={16} />}
         title={dict.settings.general.playbackSection}
         >
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", marginTop: "var(--space-4)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
           
           {/* 1.1 Поведение по окончании видео (Сегментный селектор) */}
           <div style={cardStyle}>
@@ -558,7 +574,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         icon={<AudioLines size={16} />}
         title={dict.settings.general.tracksSection}
         >
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", marginTop: "var(--space-4)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
           
           {/* 2.1 Автоматический подхват внешних дорожек */}
           <div style={cardStyle}>
@@ -774,6 +790,33 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             </label>
           </div>
 
+          {/* 2.6 Звуковая тепловая карта (Waveform Activity Strip) */}
+          <div style={cardStyle}>
+            <label className="option-row">
+              <input
+                type="checkbox"
+                className="ui-checkbox mt-1"
+                checked={waveformEnabled}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setWaveformEnabledState(val);
+                  setWaveformEnabled(val);
+                }}
+              />
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <AudioWaveform size={14} className="t-accent" />
+                  <span className="t-label">
+                    {dict.settings.general.waveformActivityTitle}
+                  </span>
+                </div>
+                <span className="t-label-xs">
+                  {dict.settings.general.waveformActivityDesc}
+                </span>
+              </div>
+            </label>
+          </div>
+
         </div>
       </AccordionSection>
 
@@ -784,7 +827,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         icon={<Sparkles size={16} />}
         title={dict.settings.general.videoAudioSection}
         >
-        <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", marginTop: "var(--space-4)", marginBottom: "var(--space-5)", lineHeight: 1.35 }}>
+        <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", marginBottom: "var(--space-5)", lineHeight: 1.35 }}>
           {dict.settings.general.videoAudioDesc}
         </div>
 

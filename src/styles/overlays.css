@@ -35,7 +35,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
-  background: var(--bg-pill);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
   padding: var(--space-6) 14px;
@@ -44,14 +44,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-elevated);
   font-size: var(--fs-sm);
   min-width: min(280px, calc(100vw - 28px));
   max-width: min(380px, calc(100vw - 28px));
   width: min(380px, calc(100vw - 28px));
   pointer-events: auto;
   box-sizing: border-box;
-  animation: mediaInfoFadeIn 160ms var(--ease-out);
+  animation: mediaInfoFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: bottom left;
   transition: bottom var(--t-base) var(--ease-smooth),
               max-height var(--t-base) var(--ease-smooth);
@@ -61,15 +61,17 @@
 
 @keyframes mediaInfoFadeIn {
   0% {
-    transform: translateY(6px);
+    opacity: 0;
+    transform: translateY(8px);
   }
   100% {
+    opacity: 1;
     transform: translateY(0);
   }
 }
 
 .media-info-overlay--closing {
-  animation: mediaInfoFadeOut 120ms var(--ease-out) forwards !important;
+  animation: mediaInfoFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 
@@ -104,18 +106,18 @@
   flex-direction: column;
   max-height: 100%;
   overflow: hidden;
-  background: var(--bg-pill);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
   padding: var(--space-7);
-  box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-elevated);
   pointer-events: auto;
-  animation: mediaInfoFadeIn var(--t-base) var(--ease-out);
+  animation: mediaInfoFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: bottom right;
 }
 
 .chapters-modal-card--closing {
-  animation: mediaInfoFadeOut 120ms var(--ease-out) forwards !important;
+  animation: mediaInfoFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 
@@ -214,7 +216,7 @@
 
 
 .subtitles-search-card {
-  animation: mediaInfoFadeIn 160ms var(--ease-out);
+  animation: mediaInfoFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: bottom right;
   position: relative;
 }
@@ -225,7 +227,7 @@
 }
 
 .subtitles-search-card--closing {
-  animation: mediaInfoFadeOut 120ms var(--ease-out) forwards !important;
+  animation: mediaInfoFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 
@@ -514,18 +516,20 @@
   min-width: min(360px, calc(100% - 28px));
   max-width: calc(100% - 28px);
   width: 360px;
-  background: var(--bg-pill);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg), 0 0 25px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-elevated);
   z-index: var(--z-card);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: playlistFadeIn var(--t-pop) var(--ease-decelerate);
+  animation: playlistFadeIn var(--t-panel) var(--ease-decelerate);
   transform-origin: bottom right;
-  transition: bottom var(--t-pop) var(--ease-standard),
-              max-height var(--t-pop) var(--ease-standard);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transition: bottom var(--t-panel) var(--ease-standard),
+              max-height var(--t-panel) var(--ease-standard);
 }
 
 .playlist-drawer--resizing {
@@ -571,15 +575,17 @@
 
 @keyframes playlistFadeIn {
   0% {
-    transform: translateY(6px);
+    opacity: 0;
+    transform: translateY(10px);
   }
   100% {
+    opacity: 1;
     transform: translateY(0);
   }
 }
 
 .playlist-drawer--closing {
-  animation: playlistFadeOut 120ms var(--ease-out) forwards !important;
+  animation: playlistFadeOut var(--t-close-panel) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 
@@ -804,8 +810,7 @@
   cursor: pointer;
   color: #ffffff;
   transition: background-color var(--t-fast) var(--ease-standard),
-              border-color var(--t-fast) var(--ease-standard),
-              transform var(--t-fast) var(--ease-decelerate);
+              border-color var(--t-fast) var(--ease-standard);
   background: transparent;
   border: 1px solid transparent;
   text-align: left;
@@ -845,9 +850,12 @@
   font-size: var(--fs-xs);
   font-weight: 600;
   color: #ffffff;
-  min-width: 16px;
+  min-width: 18px;
   text-align: left;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
@@ -886,7 +894,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
-  padding-bottom: var(--space-1);
+  line-height: 1.25;
 }
 
 .playlist-item--current .playlist-item__title {
@@ -923,9 +931,11 @@
 /* ─── Модальное окно автообновления (UpdateModal) ── */
 @keyframes updateModalFadeIn {
   from {
-    transform: scale(0.95) translateY(8px);
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
   }
   to {
+    opacity: 1;
     transform: scale(1) translateY(0);
   }
 }
@@ -937,12 +947,12 @@
   }
   to {
     opacity: 0;
-    transform: scale(0.95) translateY(8px);
+    transform: scale(0.96) translateY(6px);
   }
 }
 
 .update-modal-card--closing {
-  animation: updateModalFadeOut var(--t-close-base) var(--ease-out) forwards !important;
+  animation: updateModalFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 

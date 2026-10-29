@@ -18,7 +18,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
   const { chapters, seekTo } = usePlayerState();
   const { position } = usePlayerProgress();
   const { dict } = useTranslation();
-  const { isClosing, handleClose } = useOverlayDismiss({ onClose, kind: "fast" });
+  const { isClosing, handleClose } = useOverlayDismiss({ onClose, kind: "pop" });
 
   // Локальный выбор главы пользователем для мгновенного тактильного отклика
   const [selectedChapterIndex, setSelectedChapterIndex] = useState<number | null>(null);
@@ -66,7 +66,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
             type="button"
             className="modal__close"
             onClick={handleClose}
-            title={dict.chapters.close}
+
             aria-label={dict.chapters.close}
             >
             <X size={18} />

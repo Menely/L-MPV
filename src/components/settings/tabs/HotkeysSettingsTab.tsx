@@ -437,7 +437,7 @@ export function HotkeysSettingsTab({
                 </span>
               }
               >
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", paddingTop: "var(--space-6)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
                 {items.map((item) => {
                   const currentCodes = customHotkeys[item.id] || [];
                   const itemConflict = conflict?.targetId === item.id ? conflict : null;
@@ -454,6 +454,7 @@ export function HotkeysSettingsTab({
                           background: "rgba(255, 255, 255, 0.03)",
                           border: "1px solid rgba(255, 255, 255, 0.04)",
                           borderRadius: "var(--radius-md)",
+                          boxShadow: "var(--shadow-card)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",

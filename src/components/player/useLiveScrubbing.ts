@@ -6,7 +6,7 @@ const SCRUB_THROTTLE_MS = 120;
 
 export interface UseLiveScrubbing {
   /** Запланировать предпросмотровый seek к позиции (мс-троттлинг). */
-  scheduleScrub: (seconds: number) => void;
+  scheduleScrub: (seconds: number, exact?: boolean) => void;
   /** Немедленно отменить все ожидающие preview-seek. */
   cancelScrub: () => void;
 }
@@ -23,21 +23,21 @@ export interface UseLiveScrubbing {
 export function useLiveScrubbing(): UseLiveScrubbing {
   const lastMs = useRef(0);
   const rafId = useRef<number | null>(null);
-  const pendingPos = useRef<number | null>(null);
+  const pendingPos = useRef<{ seconds: number; exact: boolean } | null>(null);
 
   // Используем ref для рекурсии, чтобы функция всегда была «свежей»
   const flushRef = useRef<() => void>(() => {});
 
   flushRef.current = () => {
     rafId.current = null;
-    const pos = pendingPos.current;
-    if (pos === null) return;
+    const item = pendingPos.current;
+    if (item === null) return;
 
     const now = performance.now();
     if (now - lastMs.current >= SCRUB_THROTTLE_MS) {
       pendingPos.current = null;
       lastMs.current = now;
-      invoke("seek_preview", { seconds: pos }).catch(() => {});
+      invoke("seek_preview", { seconds: item.seconds, exact: item.exact }).catch(() => {});
     } else {
       // Throttle ещё не прошёл — перепланируем следующий кадр
       // (позиция сохраняется в pendingPos до следующей попытки)
@@ -45,8 +45,8 @@ export function useLiveScrubbing(): UseLiveScrubbing {
     }
   };
 
-  const scheduleScrub = useCallback((seconds: number) => {
-    pendingPos.current = seconds;
+  const scheduleScrub = useCallback((seconds: number, exact: boolean = false) => {
+    pendingPos.current = { seconds, exact };
     if (rafId.current === null) {
       rafId.current = requestAnimationFrame(flushRef.current);
     }

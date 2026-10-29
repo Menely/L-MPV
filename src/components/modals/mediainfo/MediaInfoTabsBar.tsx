@@ -34,9 +34,9 @@ export const MediaInfoTabsBar: React.FC<MediaInfoTabsBarProps> = React.memo(({
               type="button"
               className={`mediainfo-tab-chip ${isActive ? "mediainfo-tab-chip--active" : ""}`}
               onClick={() => onSelectCategory(isActive && tab.key !== "all" ? "all" : tab.key)}
-              >
+            >
               <span>{tab.label}</span>
-              {tab.count> 1 && (
+              {tab.count > 1 && (
                 <span className="mediainfo-tab-chip__badge">{tab.count}</span>
               )}
             </button>
@@ -47,13 +47,8 @@ export const MediaInfoTabsBar: React.FC<MediaInfoTabsBarProps> = React.memo(({
       <button
         type="button"
         className="mediainfo-tab-action-btn"
-        title={
-          areAllCollapsed
-            ? useRussian ? "Развернуть все секции" : "Expand all"
-            : useRussian ? "Свернуть все секции" : "Collapse all"
-        }
         onClick={onToggleCollapseAll}
-        >
+      >
         <ChevronsUpDown size={12} />
         <span>
           {areAllCollapsed

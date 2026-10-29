@@ -288,12 +288,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshPlaylist, loadTracks]);
 
-  // Вызывается при загрузке нового файла или изменении стейта hasMedia
+  // Очистка состояния дорожек и плейлиста при переходе в пустое состояние (!hasMedia).
+  // При появлении медиа (hasMedia === true) первичный опрос дорожек и плейлиста уже выполняется внутри fetchState.
   useEffect(() => {
-    if (hasMedia) {
-      loadTracks();
-      refreshPlaylist();
-    } else {
+    if (!hasMedia) {
       tracksRef.current = [];
       setTracks([]);
       setPlaylist([]);
@@ -302,7 +300,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       currentVidRef.current = "";
       trackCountRef.current = 0;
     }
-  }, [hasMedia, loadTracks, refreshPlaylist]);
+  }, [hasMedia]);
 
   // Обработка idle (бездействия мыши)
   const lastActivityTimeRef = useRef<number>(0);
@@ -419,16 +417,41 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const currentPositionRef = useRef<number>(0);
   const eofReachedRef = useRef<boolean>(false);
 
-  // Оптимизированный цикл поллинга
+  // Оптимизированный последовательный цикл поллинга с защитой от параллельных вызовов и коалесценцией force-poll
   useEffect(() => {
     let timerId: number | null = null;
+    let resumeTimerId: number | null = null;
     let isCancelled = false;
+    let isFetching = false;
+    let pendingForcePoll = false;
+
+    const clearPollTimer = () => {
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
+        timerId = null;
+      }
+    };
+
+    const scheduleNext = (delay: number) => {
+      if (isCancelled) return;
+      clearPollTimer();
+      timerId = window.setTimeout(fetchState, delay);
+    };
 
     const fetchState = async () => {
       if (isCancelled) return;
+      if (isFetching) {
+        // Если опрос уже выполняется, запоминаем запрос на немедленный повтор после завершения текущего цикла
+        pendingForcePoll = true;
+        return;
+      }
+
+      isFetching = true;
+      clearPollTimer();
       let nextDelay = 100;
       try {
         const dynState = await invoke<PlaybackState>("get_playback_state");
+        if (isCancelled) return;
         if (dynState.paused) {
           nextDelay = 1000;
         } else if (dynState.path === "") {
@@ -437,6 +460,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         
         if (!hasMediaInfoRef.current || dynState.path !== currentPathRef.current) {
           const fullInfo = await invoke<MediaInfo>("get_media_info");
+          if (isCancelled) return;
           if (fullInfo.path !== "") {
             const effectiveDuration = fullInfo.duration> 0
               ? fullInfo.duration
@@ -478,6 +502,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
               seekTarget: null,
             });
             const chaps = await invoke<Chapter[]>("get_chapters").catch(() => []);
+            if (isCancelled) return;
             setChapters(chaps);
             refreshPlaylist();
             if (fullInfo.paused) nextDelay = 1000;
@@ -488,7 +513,11 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             isResumingRef.current = true;
             lastSavedPositionRef.current = fullInfo.position;
             // Предотвращаем ложное срабатывание автосохранения во время инициализации
-            setTimeout(() => {
+            if (resumeTimerId !== null) {
+              window.clearTimeout(resumeTimerId);
+            }
+            resumeTimerId = window.setTimeout(() => {
+              resumeTimerId = null;
               isResumingRef.current = false;
             }, 300);
           } else {
@@ -580,7 +609,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             }
             // Подгружаем главы, так как при первой инициализации контейнер мог быть не готов
             invoke<Chapter[]>("get_chapters").then(chaps => {
-              if (chaps && chaps.length> 0) setChapters(chaps);
+              if (!isCancelled && chaps && chaps.length> 0) setChapters(chaps);
             }).catch(() => {});
           }
 
@@ -657,34 +686,46 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         nextDelay = 1000;
-      }
-      
-      if (!isCancelled) {
-        timerId = window.setTimeout(fetchState, nextDelay);
+      } finally {
+        isFetching = false;
+        if (!isCancelled) {
+          if (pendingForcePoll) {
+            pendingForcePoll = false;
+            scheduleNext(0);
+          } else {
+            scheduleNext(nextDelay);
+          }
+        }
       }
     };
 
-    fetchState();
+    void fetchState();
 
     const handleForcePoll = () => {
-      if (timerId !== null) {
-        window.clearTimeout(timerId);
-        timerId = null;
+      if (isCancelled) return;
+      if (isFetching) {
+        pendingForcePoll = true;
+        return;
       }
-      fetchState();
+      clearPollTimer();
+      void fetchState();
     };
     window.addEventListener("l-mpv-force-poll", handleForcePoll);
 
     return () => {
       isCancelled = true;
-      if (timerId !== null) window.clearTimeout(timerId);
+      clearPollTimer();
+      if (resumeTimerId !== null) {
+        window.clearTimeout(resumeTimerId);
+        resumeTimerId = null;
+      }
       if (seekTimeoutIdRef.current !== null) {
         window.clearTimeout(seekTimeoutIdRef.current);
         seekTimeoutIdRef.current = null;
       }
       window.removeEventListener("l-mpv-force-poll", handleForcePoll);
     };
-  }, [loadTracks]);
+  }, [loadTracks, refreshPlaylist]);
 
   // ─── Единая точка входа для seek ───
   const seekTo = useCallback(async (seconds: number) => {

@@ -395,7 +395,7 @@ export function ContextMenuSettingsTab() {
             type="button"
             className="btn btn--secondary btn--sm"
             onClick={handleReset}
-            title={dict.settings.contextMenuConfig.btnResetTitle}
+
             >
             <RotateCcw size={13} /> {dict.settings.contextMenuConfig.btnReset}
           </button>

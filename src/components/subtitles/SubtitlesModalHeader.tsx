@@ -232,7 +232,7 @@ export function SubtitlesModalHeader({
         <button
           className="modal__close"
           onClick={onClose}
-          title={dict.subtitlesSearch.close}
+
           aria-label={dict.subtitlesSearch.close}
           style={{ width: 28, height: 28 }}
           >
