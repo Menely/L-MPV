@@ -928,6 +928,181 @@
   box-shadow: 0 0 4px rgba(74, 222, 128, 0.4);
 }
 
+/* ─── Модульный островной дизайн плейлиста для стиля «Капсула» ─── */
+.playlist-drawer.playlist-drawer--capsule {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  overflow: visible !important;
+}
+
+/* Шапка плейлиста в капсульном стиле: прозрачная строка между островками */
+.playlist-drawer--capsule .playlist-drawer__header {
+  background: transparent !important;
+  border-bottom: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+}
+
+/* 1. Островок названия («Плейлист» и счётчик) */
+.playlist-drawer--capsule .playlist-drawer__header-left {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer--capsule .playlist-drawer__title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* 2. Островок действий (кнопки «Обновить» и «Закрыть») */
+.playlist-drawer--capsule .playlist-drawer__header-actions {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer--capsule .playlist-drawer__action-btn,
+.playlist-drawer--capsule .playlist-drawer__close {
+  width: 28px;
+  height: 28px;
+}
+
+/* 3. Островок строки поиска */
+.playlist-drawer--capsule .playlist-drawer__search {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-pill) !important;
+  display: flex;
+  align-items: center;
+  position: relative;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer--capsule .playlist-drawer__search-icon {
+  left: 22px;
+  color: var(--text-muted);
+}
+
+.playlist-drawer--capsule .playlist-drawer__search-input {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 2px 28px 2px 26px !important;
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  height: 26px;
+}
+
+.playlist-drawer--capsule .playlist-drawer__search-input:focus {
+  outline: none;
+}
+
+.playlist-drawer--capsule .playlist-drawer__search:has(.playlist-drawer__search-input:focus) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.35) !important;
+  background: var(--bg-glass) !important;
+}
+
+.playlist-drawer--capsule .playlist-drawer__search:has(.playlist-drawer__search-input:focus) .playlist-drawer__search-icon {
+  color: var(--accent);
+}
+
+.playlist-drawer--capsule .playlist-drawer__search-clear {
+  right: 12px;
+}
+
+/* 4. Островок списка воспроизведения (сам список) */
+.playlist-drawer--capsule .playlist-drawer__content {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer--capsule .playlist-drawer__content::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.playlist-drawer--capsule .playlist-item {
+  border-radius: var(--radius-sm);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+.playlist-drawer--capsule .playlist-item--current {
+  background: rgba(var(--accent-rgb), 0.16) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.3) !important;
+  color: var(--accent) !important;
+}
+
+.playlist-drawer--capsule .playlist-item:hover:not(.playlist-item--current) {
+  background: var(--bg-hover);
+}
+
+.playlist-drawer--capsule .playlist-item:active {
+  transform: scale(0.985);
+}
+
+/* Настройка ручки изменения размера для островного контейнера */
+.playlist-drawer--capsule .playlist-drawer__resize-handle {
+  left: -8px;
+  width: 12px;
+}
+
 /* ─── Модальное окно автообновления (UpdateModal) ── */
 @keyframes updateModalFadeIn {
   from {

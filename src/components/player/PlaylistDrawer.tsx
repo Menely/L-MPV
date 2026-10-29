@@ -9,6 +9,10 @@ import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2 } from "lucide-react";
 import { EmptyState } from "../settings/components/SettingBlocks";
+import {
+  type ControlBarStyle,
+  getSavedControlBarStyle,
+} from "../../utils/controlBarStyleUtils";
 
 /** Данные прогресса просмотра для одного файла плейлиста. */
 interface WatchProgressInfo {
@@ -105,7 +109,22 @@ const getInitialPlaylistWidth = (): number => {
 export function PlaylistDrawer() {
   const { isPlaylistOpen, setIsPlaylistOpen, playlist, setPlaylist, refreshPlaylist } = usePlayerState();
   const { dict } = useTranslation();
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const handleStyleChanged = () => {
+      setControlBarStyle(getSavedControlBarStyle());
+    };
+    window.addEventListener("l-mpv-settings-changed", handleStyleChanged);
+    window.addEventListener("l-mpv-control-bar-style-changed", handleStyleChanged);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", handleStyleChanged);
+      window.removeEventListener("l-mpv-control-bar-style-changed", handleStyleChanged);
+    };
+  }, []);
+
+  const isCapsule = controlBarStyle === "capsule";
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [drawerWidth, setDrawerWidth] = useState<number>(getInitialPlaylistWidth);
   const [isResizing, setIsResizing] = useState(false);
@@ -418,7 +437,7 @@ export function PlaylistDrawer() {
   return (
     <div
       ref={drawerRef}
-      className={`playlist-drawer ${isClosing ? "playlist-drawer--closing" : ""} ${
+      className={`playlist-drawer ${isCapsule ? "playlist-drawer--capsule" : ""} ${isClosing ? "playlist-drawer--closing" : ""} ${
         isResizing ? "playlist-drawer--resizing" : ""
       }`}
       style={{
@@ -453,7 +472,6 @@ export function PlaylistDrawer() {
             type="button"
             className={`playlist-drawer__action-btn ${isRefreshing ? "playlist-drawer__action-btn--spinning" : ""}`}
             onClick={handleRefresh}
-            title={dict.playlist.refresh}
             aria-label={dict.playlist.refresh}
             >
             <RotateCw size={15} />

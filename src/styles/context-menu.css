@@ -27,7 +27,7 @@
   contain: none !important;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 @keyframes contextMenuFadeIn {
@@ -181,7 +181,7 @@
   overflow: visible;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   padding: 0;
   background: transparent;
   border: none;
