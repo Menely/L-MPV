@@ -17,6 +17,18 @@
               box-shadow var(--t-fast) var(--ease-smooth);
 }
 
+/* Модульный островной дизайн главного меню для стиля «Капсула» */
+.context-menu.context-menu--capsule {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  contain: none !important;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 @keyframes contextMenuFadeIn {
   0% {
@@ -151,7 +163,7 @@
   margin: var(--space-1) 10px;
 }
 
-/* Подменю: прозрачный контейнер для независимых парящих карточек-групп */
+/* Подменю: базовый контейнер для всплывающего окна */
 .context-menu__submenu {
   position: absolute;
   left: calc(100% + 10px);
@@ -159,6 +171,13 @@
   min-width: 210px;
   width: max-content;
   max-width: 320px;
+  animation: contextMenuFadeIn var(--t-fast) var(--ease-out);
+  transform-origin: top left;
+  z-index: var(--z-popover);
+}
+
+/* Островной вариант подменю для стиля «Капсула» */
+.context-menu__submenu--capsule {
   overflow: visible;
   display: flex;
   flex-direction: column;
@@ -167,12 +186,29 @@
   background: transparent;
   border: none;
   box-shadow: none;
-  animation: contextMenuFadeIn var(--t-fast) var(--ease-out);
-  transform-origin: top left;
-  z-index: var(--z-popover);
 }
 
-/* Самостоятельная островная карточка-группа во всплывающем подменю */
+/* Монолитное цельное окно подменю для стилей «Модерн» и «Классический» */
+.context-menu__submenu--solid {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  box-shadow: var(--shadow-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(420px, calc(100vh - 40px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+/* Самостоятельная островная карточка-группа во всплывающем меню и подменю */
 .context-menu__group {
   display: flex;
   flex-direction: column;
@@ -188,6 +224,15 @@
   border-radius: var(--radius-md);
   padding: var(--space-2);
   box-shadow: var(--shadow-elevated);
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+/* Островные карточки главного меню: не обрезают выпадающие подменю */
+.context-menu__group--main {
+  overflow: visible !important;
+  max-height: none !important;
 }
 
 .context-menu__group:only-child {
@@ -208,7 +253,7 @@
   height: 0;
 }
 
-/* Компактная подпись островной карточки */
+/* Компактная подпись островной карточки и заголовка группы */
 .context-menu__group-header {
   font-size: 10px;
   font-weight: 600;

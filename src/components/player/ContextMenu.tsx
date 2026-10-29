@@ -50,7 +50,10 @@ import {
   type MenuItem,
   buildContextMenuItems,
 } from "./contextMenu/contextMenuBuilder";
-import { groupSubmenuChildren } from "./contextMenu/contextMenuGrouping";
+import {
+  groupMenuItems,
+  groupSubmenuChildren,
+} from "./contextMenu/contextMenuGrouping";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */
@@ -833,6 +836,18 @@ export function ContextMenu({
         );
       }
 
+      if (item.type === "header") {
+        return (
+          <div
+            key={`header-${index}`}
+            className="context-menu__group-header"
+            aria-hidden="true"
+          >
+            {item.label}
+          </div>
+        );
+      }
+
       if (item.type === "track") {
         return (
           <div
@@ -971,6 +986,10 @@ export function ContextMenu({
                 role="menu"
                 aria-label={item.label}
                 className={`context-menu__submenu ${
+                  controlBarStyle === "capsule"
+                    ? "context-menu__submenu--capsule"
+                    : "context-menu__submenu--solid"
+                } ${
                   item.submenuClassName || ""
                 } ${isRightScreenEdge ? "context-menu__submenu--left" : ""} ${
                   isBottomHalf ? "context-menu__submenu--bottom" : ""
@@ -986,21 +1005,23 @@ export function ContextMenu({
                   }
                 }}
                 >
-                {groupSubmenuChildren(item.children).map((group, gi) => (
-                  <div
-                    key={`group-${gi}`}
-                    role="group"
-                    aria-label={group.header}
-                    className="context-menu__group"
-                  >
-                    {group.header && (
-                      <div className="context-menu__group-header" aria-hidden="true">
-                        {group.header}
+                {controlBarStyle === "capsule"
+                  ? groupSubmenuChildren(item.children).map((group, gi) => (
+                      <div
+                        key={`group-${gi}`}
+                        role="group"
+                        aria-label={group.header}
+                        className="context-menu__group"
+                      >
+                        {group.header && (
+                          <div className="context-menu__group-header" aria-hidden="true">
+                            {group.header}
+                          </div>
+                        )}
+                        {group.items.map((child, ci) => renderItem(child, ci, true))}
                       </div>
-                    )}
-                    {group.items.map((child, ci) => renderItem(child, ci, true))}
-                  </div>
-                ))}
+                    ))
+                  : item.children.map((child, ci) => renderItem(child, ci, true))}
               </div>
             )}
           </div>
@@ -1066,15 +1087,20 @@ export function ContextMenu({
         </button>
       );
     },
-    [activeSubmenu, isRightScreenEdge, menuItems.length, dict.controls.downloadAudio]
+    [activeSubmenu, isRightScreenEdge, menuItems.length, dict.controls.downloadAudio, controlBarStyle]
   );
+
+  const isCapsule = controlBarStyle === "capsule";
+  let renderedItemCount = 0;
 
   return (
     <div
       ref={menuRef}
       role="menu"
       aria-label={dict.controls.contextMenu}
-      className={`context-menu ${isClosing ? "context-menu--closing" : ""}`}
+      className={`context-menu ${
+        isCapsule ? "context-menu--capsule" : ""
+      } ${isClosing ? "context-menu--closing" : ""}`}
       style={{
         left: adjustedPos.x,
         top: adjustedPos.y,
@@ -1082,7 +1108,26 @@ export function ContextMenu({
         visibility: positioned ? "visible" : "hidden",
       }}
       >
-      {menuItems.map((item, index) => renderItem(item, index, false))}
+      {isCapsule
+        ? groupMenuItems(menuItems).map((group, gi) => (
+            <div
+              key={`main-group-${gi}`}
+              role="group"
+              aria-label={group.header}
+              className="context-menu__group context-menu__group--main"
+            >
+              {group.header && (
+                <div className="context-menu__group-header" aria-hidden="true">
+                  {group.header}
+                </div>
+              )}
+              {group.items.map((item) => {
+                const itemIdx = renderedItemCount++;
+                return renderItem(item, itemIdx, false);
+              })}
+            </div>
+          ))
+        : menuItems.map((item, index) => renderItem(item, index, false))}
     </div>
   );
 }
