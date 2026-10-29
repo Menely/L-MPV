@@ -865,17 +865,19 @@
 }
 
 .playlist-item__icon {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
-  transform: scale(1);
-  transition: transform var(--t-fast) var(--ease-standard);
+  transition: color var(--t-fast) var(--ease-standard);
 }
 
 .playlist-item:hover .playlist-item__icon {
-  transform: scale(1.15);
+  color: var(--text-primary);
 }
 
 .playlist-item--current .playlist-item__icon {
@@ -1065,6 +1067,7 @@
   gap: 3px;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  scrollbar-gutter: auto !important;
   transition: background var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth);
@@ -1078,10 +1081,12 @@
 
 .playlist-drawer--capsule .playlist-item {
   border-radius: var(--radius-sm);
-  padding: var(--space-2) 8px;
+  padding: 6px 8px;
   min-height: 36px;
-  transition: background-color var(--t-fast) var(--ease-smooth),
-              transform var(--t-fast) var(--ease-spring-smooth);
+  border: 1px solid transparent !important;
+  box-sizing: border-box !important;
+  contain: layout paint;
+  transition: background-color var(--t-fast) var(--ease-smooth);
 }
 
 .playlist-drawer--capsule .playlist-item__num {
@@ -1096,7 +1101,10 @@
   font-weight: 600;
   color: var(--text-secondary);
   border-radius: 50%;
-  transition: all var(--t-fast) var(--ease-smooth);
+  flex-shrink: 0;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
 
 /* Текущий воспроизводимый файл: строка не заливается плашкой, номер выделен в неоновом кружке */

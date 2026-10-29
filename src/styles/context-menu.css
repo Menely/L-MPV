@@ -9,9 +9,10 @@
   padding: var(--space-2);
   box-shadow: var(--shadow-elevated);
   z-index: var(--z-window);
-  animation: contextMenuFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: top left;
   contain: layout style;
+  -webkit-font-smoothing: subpixel-antialiased;
+  text-rendering: optimizeLegibility;
   transition: background var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth);
@@ -32,11 +33,9 @@
 
 @keyframes contextMenuFadeIn {
   0% {
-    transform: translateY(-4px);
     opacity: 0;
   }
   100% {
-    transform: translateY(0);
     opacity: 1;
   }
 }
@@ -49,11 +48,9 @@
 @keyframes contextMenuFadeOut {
   0% {
     opacity: 1;
-    transform: translateY(0);
   }
   100% {
     opacity: 0;
-    transform: translateY(-4px);
   }
 }
 

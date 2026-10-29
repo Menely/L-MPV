@@ -309,8 +309,8 @@ export function ContextMenu({
     const newY = cssY + estHeight> cssInnerHeight ? cssY - estHeight : cssY;
 
     return {
-      x: Math.max(0, newX),
-      y: Math.max(0, newY),
+      x: Math.round(Math.max(0, newX)),
+      y: Math.round(Math.max(0, newY)),
     };
   });
 
@@ -329,8 +329,8 @@ export function ContextMenu({
       const newY = cssY + cssHeight> cssInnerHeight ? cssY - cssHeight : cssY;
 
       setAdjustedPos({
-        x: Math.max(0, newX),
-        y: Math.max(0, newY),
+        x: Math.round(Math.max(0, newX)),
+        y: Math.round(Math.max(0, newY)),
       });
       setMenuWidth(cssWidth);
       setPositioned(true);
@@ -1106,6 +1106,9 @@ export function ContextMenu({
         top: adjustedPos.y,
         transformOrigin: menuOrigin,
         visibility: positioned ? "visible" : "hidden",
+        animation: positioned && !isClosing
+          ? "contextMenuFadeIn var(--t-fast) var(--ease-out)"
+          : undefined,
       }}
       >
       {isCapsule
