@@ -284,13 +284,15 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **4 Interactive Time Formats with 1-Click Toggle:**
   - Supports: *Elapsed / Total*, *Remaining Only*, *Estimated End Time* (adjusted for playback `speed`), and *High-Precision Milliseconds*.
   - Click directly on the timestamp anywhere in the UI to cycle through formats with an OSD confirmation.
-- **Control Bar Form Factors ("Floating Island" & "Docked Bar"):**
-  - Switch between an airy floating capsule offset from window borders and a monolithic docked bar spanning the full window width.
+- **Player Styles ("Capsule", "Modern", & "Classic"):**
+  - **Capsule**: Ultra-sleek modular design featuring 3 independent floating islands (Streams, Transport, Utilities) and a detached floating timeline strip.
+  - **Modern**: Unified floating capsule with integrated seekbar and elegant window margins.
+  - **Classic**: Solid full-width panel docked at the bottom window edge without gaps.
   - Detailed `148×64px` mini-previews in Settings with neon active selection outlines.
 - **Ergonomic "Appearance" Tab Redesign:**
   - Global UI Opacity slider (10–100%) with seamless real-time reactivity across `--ui-opacity` and `--bg-glass` design tokens.
   - Responsive 3-column grid (collapses to 1 column on widths ≤ 480px): Corner Radius (2x2 cards + compact slider) | UI Scaling (2x2 cards + slider + "A" auto-scale toggle) | Typography (6 font options + custom user fonts with folder button).
-  - Bottom section: Control bar style with visual mini-previews (left) + compact grids for Time Position (3x2) and Time Format (2x2) (right).
+  - Bottom section: Player Style with visual mini-previews (left) + compact grids for Time Position (3x2) and Time Format (2x2) (right).
 - **Floating Quick-Control Pill & Default Button Suite:** Minimalist bottom toolbar with accent lighting and a rich out-of-the-box button set: audio tracks, subtitles, volume, previous/next file, seek backward/forward, play/pause, anime opening skip, always-on-top, screenshot, playlist drawer, and fullscreen.
 - **Tabular Numbers & Anti-Jitter System:** Monospaced numerical font alignment (`tabular-nums`, `font-feature-settings: "tnum"`) across timelines, bitrates, frame rates, and playlist counters, completely eliminating visual digit jitter during active playback.
 - **Unified Kinetic Motion Tokens:** Standardized 5-tier duration system (`--t-instant`, `--t-fast`, `--t-base`, `--t-pop`, `--t-drawer`) and 4 curated cubic-bezier curves (`--ease-smooth`, `--ease-decelerate`, `--ease-accelerate`, `--ease-spring-smooth`), synchronized seamlessly between CSS and TypeScript runtime.

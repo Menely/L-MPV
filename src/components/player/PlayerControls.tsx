@@ -46,7 +46,7 @@ import {
 
 
 import { getSavedSeekStepSeconds, triggerSeekIndicator } from "../../utils/seekUtils";
-import { getCustomHotkeys, getKeyDisplay } from "../../utils/hotkeyUtils";
+import { getCustomHotkeys } from "../../utils/hotkeyUtils";
 import {
   TimeDisplayPosition,
   getSavedTimePosition,
@@ -98,7 +98,6 @@ export function PlayerControls({
     loadTracks,
     selectAudioTrack,
     selectSubTrack,
-    disableSubtitles,
     cycleAudioTrack,
     cycleSubTrack,
     isFullscreen,
@@ -531,563 +530,647 @@ export function PlayerControls({
   const displayedPopover = activePopover || closingPopover;
   const isPopoverClosing = !activePopover && Boolean(closingPopover);
 
+  const renderTrackPopovers = () => {
+    if (!displayedPopover || (displayedPopover !== "audio" && displayedPopover !== "sub")) {
+      return null;
+    }
+    return (
+      <div
+        className={`track-popover ${isPopoverClosing ? "track-popover--closing" : ""}`}
+        ref={popoverRef}
+      >
+        <div className="track-popover__title">
+          {displayedPopover === "audio" ? dict.controls.audioTracks : dict.controls.subtitles}
+        </div>
+        {displayedPopover === "audio" &&
+          (audioTracks.length > 0 ? (
+            <div className="track-popover__list">
+              {audioTracks.map((t) => (
+                <div key={t.id} className="track-popover__row">
+                  <button
+                    type="button"
+                    className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
+                    ref={t.selected ? activeTrackItemRef : null}
+                    onClick={() => {
+                      selectAudioTrack(t.id);
+                      closePopover();
+                    }}
+                  >
+                    <span className="track-popover__item-title">
+                      {t.title || dict.controls.trackLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
+                    </span>
+                    <span className="track-popover__item-check">
+                      {t.selected && <Check size={15} />}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="track-download-btn"
+                    title={dict.controls.downloadAudio}
+                    aria-label={dict.controls.downloadAudio}
+                    disabled={downloadingTrackKey === `audio-${t.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownloadTrack(t);
+                    }}
+                  >
+                    {downloadingTrackKey === `audio-${t.id}` ? (
+                      <Loader2 size={14} className="spin-animation" />
+                    ) : (
+                      <Download size={14} />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="track-popover__item" style={{ opacity: 0.6 }}>
+              {dict.controls.noAudioTracks}
+            </div>
+          ))}
+
+        {displayedPopover === "sub" && (
+          <>
+            <div className="track-popover__row" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "var(--space-3)", marginBottom: "var(--space-1)" }}>
+              <button
+                type="button"
+                className={`track-popover__item ${!subTracks.some((t) => t.selected) ? "track-popover__item--active" : ""}`}
+                onClick={() => {
+                  selectSubTrack(-1);
+                  closePopover();
+                }}
+              >
+                <span className="track-popover__item-title">
+                  {dict.controls.disableSubtitles}
+                </span>
+                <span className="track-popover__item-check">
+                  {!subTracks.some((t) => t.selected) && <Check size={15} />}
+                </span>
+              </button>
+              {onOpenSubtitlesSearch && (
+                <button
+                  type="button"
+                  className="track-download-btn"
+                  title={dict.controls.searchSubtitles}
+                  aria-label={dict.controls.searchSubtitles}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closePopover(true);
+                    onOpenSubtitlesSearch();
+                  }}
+                >
+                  <Search size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="track-popover__list">
+              {subTracks.map((t) => (
+                <div key={t.id} className="track-popover__row">
+                  <button
+                    type="button"
+                    className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
+                    ref={t.selected ? activeTrackItemRef : null}
+                    onClick={() => {
+                      selectSubTrack(t.id);
+                      closePopover();
+                    }}
+                  >
+                    <span className="track-popover__item-title">
+                      {t.title || dict.controls.subtitleLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
+                    </span>
+                    <span className="track-popover__item-check">
+                      {t.selected && <Check size={15} />}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="track-download-btn"
+                    title={dict.controls.downloadSubtitle}
+                    aria-label={dict.controls.downloadSubtitle}
+                    disabled={downloadingTrackKey === `sub-${t.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownloadTrack(t);
+                    }}
+                  >
+                    {downloadingTrackKey === `sub-${t.id}` ? (
+                      <Loader2 size={14} className="spin-animation" />
+                    ) : (
+                      <Download size={14} />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const renderAudioVisualizerAbove = () => (
+    <AudioVisualizer placement="above_timeline" />
+  );
+
+  const renderFloatingCenterTime = () => (
+    timePosition === "timeline_floating_center" ? (
+      <div className="timeline-floating-time">
+        <TimeDisplay
+          className="time-display--floating-center"
+          timeFormat={timeFormat}
+          onCycleFormat={handleCycleTimeFormat}
+          speed={mediaInfo?.speed}
+        />
+      </div>
+    ) : null
+  );
+
+  const renderTimelineRow = () => (
+    <div className={`timeline-row ${timePosition !== "timeline_left" && timePosition !== "timeline_right" ? "timeline-row--full" : ""}`}>
+      {timePosition === "timeline_left" && (
+        <TimeDisplay
+          timeFormat={timeFormat}
+          onCycleFormat={handleCycleTimeFormat}
+          speed={mediaInfo?.speed}
+        />
+      )}
+
+      <div className="timeline-col">
+        <WaveformActivityStrip
+          isTimelineHovered={isControlsHovered || isStripHovered}
+          onHoverChange={setIsStripHovered}
+        />
+        <Timeline />
+      </div>
+
+      {timePosition === "timeline_right" && (
+        <TimeDisplay
+          timeFormat={timeFormat}
+          onCycleFormat={handleCycleTimeFormat}
+          speed={mediaInfo?.speed}
+        />
+      )}
+    </div>
+  );
+
+  const renderTrackButtons = () => (
+    <>
+      <button
+        className={`control-btn ${activePopover === "audio" ? "control-btn--active" : ""} ${
+          (showTrackNames && audioLabel) || isAudioDownloading ? "control-btn--with-label" : ""
+        }`}
+        onClick={() => handleTrackButtonClick("audio", "MouseLeft")}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          handleTrackButtonClick("audio", "MouseRight");
+        }}
+        id="btn-audio-tracks"
+        aria-label={isAudioDownloading ? dict.controls.downloadingAudio : dict.controls.audioTracks}
+      >
+        <AudioLines size={18} />
+        {showTrackNames && audioLabel && (
+          <span className="control-btn__label">{audioLabel}</span>
+        )}
+        {isAudioDownloading && (
+          <Loader2 size={13} className="spin-animation" style={{ flexShrink: 0, color: "var(--accent)" }} />
+        )}
+      </button>
+
+      <button
+        className={`control-btn ${activePopover === "sub" ? "control-btn--active" : ""} ${
+          (showTrackNames && subLabel) || isSubDownloading ? "control-btn--with-label" : ""
+        }`}
+        onClick={() => handleTrackButtonClick("sub", "MouseLeft")}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          handleTrackButtonClick("sub", "MouseRight");
+        }}
+        id="btn-sub-tracks"
+        aria-label={isSubDownloading ? dict.controls.downloadingSubtitle : dict.controls.subtitles}
+      >
+        <Subtitles size={18} />
+        {showTrackNames && subLabel && (
+          <span className="control-btn__label">{subLabel}</span>
+        )}
+        {isSubDownloading && (
+          <Loader2 size={13} className="spin-animation" style={{ flexShrink: 0, color: "var(--accent)" }} />
+        )}
+      </button>
+    </>
+  );
+
+  const renderVolumeSlider = () => (
+    <div
+      className="volume-slider"
+      onWheel={(e) => {
+        const delta = e.deltaY < 0 ? 5 : -5;
+        const newVol = Math.max(0, Math.min(150, volume + delta));
+        handleVolumeChange(newVol, true);
+      }}
+    >
+      <button
+        className="control-btn"
+        onClick={() => handleVolumeChange(volume > 0 ? 0 : 100)}
+        id="btn-volume"
+        aria-label={volume === 0 ? dict.controls.unmute : dict.controls.mute}
+      >
+        {volume === 0 ? (
+          <VolumeX key="vol-x" size={18} />
+        ) : volume < 50 ? (
+          <Volume1 key="vol-1" size={18} />
+        ) : (
+          <Volume2 key="vol-2" size={18} />
+        )}
+      </button>
+      <div className="volume-slider__expandable">
+        <input
+          type="range"
+          className="ui-premium-slider volume-slider__input"
+          min="0"
+          max="150"
+          value={volume}
+          style={{
+            "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${Math.min(100, (volume / 150) * 100)}%, rgba(255, 255, 255, 0.12) ${Math.min(100, (volume / 150) * 100)}%, rgba(255, 255, 255, 0.12) 100%)`,
+          } as React.CSSProperties}
+          aria-label={dict.controls.volume}
+          onChange={(e) =>
+            handleVolumeChange(Number(e.target.value), false)
+          }
+          onMouseUp={(e) => 
+            handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
+          }
+          onTouchEnd={(e) => 
+            handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
+          }
+          id="slider-volume"
+        />
+      </div>
+      <span className="volume-slider__value">
+        {Math.round(volume)}%
+      </span>
+    </div>
+  );
+
+  const renderTransportButtons = () => (
+    <>
+      {visibleButtons.repeat !== false && (
+        <button
+          className={`control-btn control-btn--priority-low ${repeatMode !== 0 ? "control-btn--active" : ""}`}
+          onClick={handleToggleRepeat}
+          title={repeatMode === 1 ? dict.controls.repeatOne : repeatMode === 2 ? dict.controls.repeatAll : dict.controls.repeatOff}
+          aria-label={repeatMode === 1 ? dict.controls.repeatOne : repeatMode === 2 ? dict.controls.repeatAll : dict.controls.repeatOff}
+        >
+          {repeatMode === 1 ? <Repeat1 size={16} /> : <Repeat size={16} />}
+        </button>
+      )}
+
+      <button
+        className="control-btn control-btn--priority-medium"
+        onClick={handlePlaylistPrev}
+        id="btn-playlist-prev"
+        aria-label={dict.controls.prev}
+      >
+        <SkipBack size={18} />
+      </button>
+
+      {visibleButtons.seekButtons !== false && (
+        <button
+          className="control-btn"
+          onClick={() => {
+            handleSeek(-seekStepSeconds);
+            triggerSeekIndicator("left", seekStepSeconds);
+          }}
+          id="btn-seek-back"
+          aria-label={dict.controls.seekBackward(seekStepSeconds)}
+        >
+          <Undo size={18} />
+        </button>
+      )}
+
+      <button
+        className="control-btn control-btn--play"
+        onClick={handleTogglePause}
+        id="btn-play-pause"
+        aria-label={paused ? dict.controls.play : dict.controls.pause}
+      >
+        {paused ? (
+          <Play key="play-icon" size={22} fill="currentColor" />
+        ) : (
+          <Pause key="pause-icon" size={22} fill="currentColor" />
+        )}
+      </button>
+
+      {visibleButtons.seekButtons !== false && (
+        <button
+          className="control-btn"
+          onClick={() => {
+            handleSeek(seekStepSeconds);
+            triggerSeekIndicator("right", seekStepSeconds);
+          }}
+          id="btn-seek-forward"
+          aria-label={dict.controls.seekForward(seekStepSeconds)}
+        >
+          <Redo size={18} />
+        </button>
+      )}
+
+      <button
+        className="control-btn control-btn--priority-medium"
+        onClick={handlePlaylistNext}
+        id="btn-playlist-next"
+        aria-label={dict.controls.next}
+      >
+        <SkipForward size={18} />
+      </button>
+
+      {visibleButtons.shuffle !== false && (
+        <button
+          className="control-btn control-btn--priority-low"
+          onClick={handleShuffle}
+          title={dict.controls.shuffle}
+          aria-label={dict.controls.shuffle}
+        >
+          <Shuffle size={16} />
+        </button>
+      )}
+    </>
+  );
+
+  const renderUtilityButtons = () => (
+    <>
+      {visibleButtons.skipOpening !== false && (
+        <button
+          className="control-btn control-btn--with-label control-btn--priority-low"
+          onClick={() => handleSeek(skipOpeningSeconds)}
+          id="btn-skip-opening"
+          title={dict.controls.skipOpening(skipOpeningSeconds)}
+          aria-label={dict.controls.skipOpening(skipOpeningSeconds)}
+          style={{ padding: "0 8px", gap: "var(--space-1)" }}
+        >
+          <FastForward size={16} />
+          <span className="control-btn__label t-sub">
+            {dict.controls.skipOpeningShortLabel(skipOpeningSeconds)}
+          </span>
+        </button>
+      )}
+
+      {visibleButtons.alwaysOnTop !== false && (
+        <button
+          className={`control-btn control-btn--priority-medium ${isAlwaysOnTop ? "control-btn--active" : ""}`}
+          id="btn-always-on-top"
+          title={dict.controls.alwaysOnTop}
+          aria-label={dict.controls.alwaysOnTop}
+          onClick={async () => {
+            try {
+              const appWindow = getCurrentWindow();
+              const current = await appWindow.isAlwaysOnTop();
+              await appWindow.setAlwaysOnTop(!current);
+              setIsAlwaysOnTop(!current);
+            } catch (e) { console.error(e); }
+          }}
+        >
+          <Pin size={18} />
+        </button>
+      )}
+
+      {visibleButtons.info !== false && (
+        <button
+          className={`control-btn control-btn--priority-low ${showMediaInfo ? "control-btn--active" : ""}`}
+          id="btn-file-info"
+          title={dict.controls.mediaInfo}
+          aria-label={dict.controls.mediaInfo}
+          onClick={() => {
+            closePopover(true);
+            if (onCloseChapters) onCloseChapters();
+            if (onToggleMediaInfo) {
+              onToggleMediaInfo();
+            } else if (onShowMediaInfo) {
+              onShowMediaInfo();
+            }
+          }}
+        >
+          <Info size={18} />
+        </button>
+      )}
+
+      {visibleButtons.mediaInfo !== false && (
+        <button
+          className={`control-btn control-btn--priority-low ${showDetailedMediaInfo ? "control-btn--active" : ""}`}
+          id="btn-mediainfo"
+          title={dict.controls.detailedMediaInfo}
+          aria-label={dict.controls.detailedMediaInfo}
+          onClick={() => {
+            closePopover(true);
+            if (onCloseChapters) onCloseChapters();
+            if (onToggleDetailedMediaInfo) {
+              onToggleDetailedMediaInfo();
+            }
+          }}
+        >
+          <FileText size={18} />
+        </button>
+      )}
+
+      {visibleButtons.visualizer !== false && (
+        <button
+          className={`control-btn control-btn--priority-low ${
+            visualizerConfig.enabled ? "control-btn--active" : ""
+          }`}
+          id="btn-visualizer"
+          title={dict.controls.visualizer}
+          aria-label={dict.controls.visualizer}
+          onClick={() => {
+            const updated = { ...visualizerConfig, enabled: !visualizerConfig.enabled };
+            setVisualizerConfig(updated);
+            saveVisualizerConfig(updated);
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            const modes: VisualizerMode[] = [
+              "waveform",
+              "spectrum",
+              "bars",
+              "matrix",
+              "ribbon",
+              "particles",
+              "circular",
+              "blob",
+              "strings",
+            ];
+            const nextIndex = (modes.indexOf(visualizerConfig.mode) + 1) % modes.length;
+            const updated = { ...visualizerConfig, mode: modes[nextIndex], enabled: true };
+            setVisualizerConfig(updated);
+            saveVisualizerConfig(updated);
+          }}
+        >
+          <AudioWaveform size={18} />
+        </button>
+      )}
+
+      {visibleButtons.playlist !== false && (
+        <button
+          className={`control-btn ${isPlaylistOpen ? "control-btn--active" : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsPlaylistOpen(!isPlaylistOpen);
+          }}
+          id="btn-playlist-drawer"
+          title={dict.controls.playlist}
+          aria-label={dict.controls.playlist}
+        >
+          <ListVideo size={18} />
+        </button>
+      )}
+
+      {visibleButtons.screenshot !== false && (
+        <button
+          className="control-btn control-btn--priority-low"
+          onClick={handleTakeScreenshot}
+          id="btn-screenshot"
+          title={dict.controls.screenshot}
+          aria-label={dict.controls.screenshot}
+        >
+          <Camera size={18} />
+        </button>
+      )}
+
+      {visibleButtons.fullscreen !== false && (
+        <button
+          className="control-btn"
+          onClick={toggleFullscreen}
+          id="btn-fullscreen"
+          aria-label={isFullscreen ? dict.controls.exitFullscreen : dict.controls.fullscreen}
+        >
+          {isFullscreen ? (
+            <MinimizeIcon size={18} />
+          ) : (
+            <Maximize size={18} />
+          )}
+        </button>
+      )}
+    </>
+  );
+
   return (
     <div
       className={`player-controls-wrapper ${
         controlBarStyle === "docked" ? "player-controls-wrapper--docked" : ""
+      } ${
+        controlBarStyle === "capsule" ? "player-controls-wrapper--capsule" : ""
       }`}
-      >
-      <div
-        ref={controlsPillRef}
-        className={`player-controls ${
-          visualizerConfig.enabled && visualizerConfig.placement === "above_timeline"
-            ? "player-controls--has-visualizer-above"
-            : ""
-        }`}
-        onPointerEnter={() => setIsControlsHovered(true)}
-        onPointerLeave={() => setIsControlsHovered(false)}
-      >
-        {/* Всплывающее меню дорожек */}
-        {(displayedPopover === "audio" || displayedPopover === "sub") && (
-          <div
-            className={`track-popover ${isPopoverClosing ? "track-popover--closing" : ""}`}
-            ref={popoverRef}
-            >
-            <div className="track-popover__title">
-            {displayedPopover === "audio" ? dict.controls.audioTracks : dict.controls.subtitles}
-            </div>
-            {displayedPopover === "audio" &&
-              (audioTracks.length> 0 ? (
-                <div className="track-popover__list">
-                  {audioTracks.map((t) => (
-                    <div key={t.id} className="track-popover__row">
-                      <button
-                        type="button"
-                        className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
-                        ref={t.selected ? activeTrackItemRef : null}
-                        onClick={() => {
-                          selectAudioTrack(t.id);
-                          closePopover();
-                        }}
-                        >
-                        <span className="track-popover__item-title">
-                          {t.title || dict.controls.trackLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
-                        </span>
-                        <span className="track-popover__item-check">
-                          {t.selected && <Check size={15} />}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="track-download-btn"
-                        title={dict.controls.downloadAudio}
-                        aria-label={dict.controls.downloadAudio}
-                        disabled={downloadingTrackKey === `audio-${t.id}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadTrack(t);
-                        }}
-                        >
-                        {downloadingTrackKey === `audio-${t.id}` ? (
-                          <Loader2 size={14} className="spin-animation" />
-                        ) : (
-                          <Download size={14} />
-                        )}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="track-popover__item" style={{ opacity: 0.6 }}>
-                  {dict.controls.noAudioTracks}
-                </div>
-              ))}
+      onMouseEnter={() => setIsControlsHovered(true)}
+      onMouseLeave={() => {
+        setIsControlsHovered(false);
+        setIsStripHovered(false);
+      }}
+    >
+      {controlBarStyle === "capsule" ? (
+        <div
+          ref={controlsPillRef}
+          className={`player-controls player-controls--capsule ${
+            visualizerConfig.enabled && visualizerConfig.placement === "above_timeline"
+              ? "player-controls--has-visualizer-above"
+              : ""
+          }`}
+          onPointerEnter={() => setIsControlsHovered(true)}
+          onPointerLeave={() => setIsControlsHovered(false)}
+        >
+          {renderTrackPopovers()}
 
-            {displayedPopover === "sub" && (
-              <>
-                <div className="track-popover__row" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "var(--space-3)", marginBottom: "var(--space-1)" }}>
-                  <button
-                    type="button"
-                    className="track-popover__item"
-                    style={{ width: "100%", gap: "var(--space-4)", color: "var(--accent)" }}
-                    onClick={() => {
-                      closePopover();
-                      onOpenSubtitlesSearch?.();
-                    }}
-                    >
-                    <Search size={14} />
-                    <span className="track-popover__item-title" style={{ fontWeight: 600 }}>{dict.controls.searchSubtitles}</span>
-                    <span style={{ fontSize: "var(--fs-xs)", opacity: 0.7, marginLeft: "auto" }}>
-                      {getKeyDisplay(hotkeys.searchSubtitles?.[0] || "Ctrl+KeyF")}
-                    </span>
-                  </button>
-                </div>
-                <div className="track-popover__list">
-                  <div className="track-popover__row">
-                    <button
-                      type="button"
-                      className={`track-popover__item ${
-                        !subTracks.some((t) => t.selected)
-                          ? "track-popover__item--active"
-                          : ""
-                      }`}
-                      ref={!subTracks.some((t) => t.selected) ? activeTrackItemRef : null}
-                      style={{ width: "100%" }}
-                      onClick={() => {
-                        disableSubtitles();
-                        closePopover();
-                      }}
-                      >
-                      <span className="track-popover__item-title">{dict.controls.disableSubtitles}</span>
-                      <span className="track-popover__item-check">
-                        {!subTracks.some((t) => t.selected) && <Check size={15} />}
-                      </span>
-                    </button>
-                  </div>
-                  {subTracks.map((t) => (
-                    <div key={t.id} className="track-popover__row">
-                      <button
-                        type="button"
-                        className={`track-popover__item ${t.selected ? "track-popover__item--active" : ""}`}
-                        ref={t.selected ? activeTrackItemRef : null}
-                        onClick={() => {
-                          selectSubTrack(t.id);
-                          closePopover();
-                        }}
-                        >
-                        <span className="track-popover__item-title">
-                          {t.title || dict.controls.subtitleLabel(t.id)} {t.lang ? `(${t.lang})` : ""}
-                        </span>
-                        <span className="track-popover__item-check">
-                          {t.selected && <Check size={15} />}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="track-download-btn"
-                        title={dict.controls.downloadSubtitle}
-                        aria-label={dict.controls.downloadSubtitle}
-                        disabled={downloadingTrackKey === `sub-${t.id}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadTrack(t);
-                        }}
-                        >
-                        {downloadingTrackKey === `sub-${t.id}` ? (
-                          <Loader2 size={14} className="spin-animation" />
-                        ) : (
-                          <Download size={14} />
-                        )}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Аудио-визуалайзер над таймлайном */}
-        <AudioVisualizer placement="above_timeline" />
-
-        {/* Плавающий бейдж со временем над центром таймлайна */}
-        {timePosition === "timeline_floating_center" && (
-          <div className="timeline-floating-time">
-            <TimeDisplay
-              className="time-display--floating-center"
-              timeFormat={timeFormat}
-              onCycleFormat={handleCycleTimeFormat}
-              speed={mediaInfo?.speed}
-            />
-          </div>
-        )}
-
-        {/* Строка таймлайна со временем (справа, слева или во всю ширину) */}
-        <div className={`timeline-row ${timePosition !== "timeline_left" && timePosition !== "timeline_right" ? "timeline-row--full" : ""}`}>
-
-          {timePosition === "timeline_left" && (
-            <TimeDisplay
-              timeFormat={timeFormat}
-              onCycleFormat={handleCycleTimeFormat}
-              speed={mediaInfo?.speed}
-            />
-          )}
-
-          <div className="timeline-col">
-            <WaveformActivityStrip
-              isTimelineHovered={isControlsHovered || isStripHovered}
-              onHoverChange={setIsStripHovered}
-            />
-            <Timeline />
+          {/* Парящая полоска таймлайна */}
+          <div className="controls-island controls-island--timeline">
+            {renderAudioVisualizerAbove()}
+            {renderFloatingCenterTime()}
+            {renderTimelineRow()}
           </div>
 
-          {timePosition === "timeline_right" && (
-            <TimeDisplay
-              timeFormat={timeFormat}
-              onCycleFormat={handleCycleTimeFormat}
-              speed={mediaInfo?.speed}
-            />
-          )}
-        </div>
-
-        {/* Кнопки управления */}
-        <div className="controls-row">
-          {/* Левый блок: Аудио, Субтитры, Громкость, Время, Визуалайзер */}
-          <div className="controls-row__left">
-            <button
-              className={`control-btn ${activePopover === "audio" ? "control-btn--active" : ""} ${
-                (showTrackNames && audioLabel) || isAudioDownloading ? "control-btn--with-label" : ""
-              }`}
-              onClick={() => handleTrackButtonClick("audio", "MouseLeft")}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                handleTrackButtonClick("audio", "MouseRight");
-              }}
-              id="btn-audio-tracks"
-              aria-label={isAudioDownloading ? dict.controls.downloadingAudio : dict.controls.audioTracks}
-            >
-              <AudioLines size={18} />
-              {showTrackNames && audioLabel && (
-                <span className="control-btn__label">{audioLabel}</span>
-              )}
-              {isAudioDownloading && (
-                <Loader2 size={13} className="spin-animation" style={{ flexShrink: 0, color: "var(--accent)" }} />
-              )}
-            </button>
-
-            <button
-              className={`control-btn ${activePopover === "sub" ? "control-btn--active" : ""} ${
-                (showTrackNames && subLabel) || isSubDownloading ? "control-btn--with-label" : ""
-              }`}
-              onClick={() => handleTrackButtonClick("sub", "MouseLeft")}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                handleTrackButtonClick("sub", "MouseRight");
-              }}
-              id="btn-sub-tracks"
-              aria-label={isSubDownloading ? dict.controls.downloadingSubtitle : dict.controls.subtitles}
-            >
-              <Subtitles size={18} />
-              {showTrackNames && subLabel && (
-                <span className="control-btn__label">{subLabel}</span>
-              )}
-              {isSubDownloading && (
-                <Loader2 size={13} className="spin-animation" style={{ flexShrink: 0, color: "var(--accent)" }} />
-              )}
-            </button>
-
-            <div
-              className="volume-slider"
-              onWheel={(e) => {
-                const delta = e.deltaY < 0 ? 5 : -5;
-                const newVol = Math.max(0, Math.min(150, volume + delta));
-                handleVolumeChange(newVol, true);
-              }}
-              >
-              <button
-                className="control-btn"
-                onClick={() => handleVolumeChange(volume > 0 ? 0 : 100)}
-                id="btn-volume"
-                aria-label={volume === 0 ? dict.controls.unmute : dict.controls.mute}
-                >
-                {volume === 0 ? (
-                  <VolumeX key="vol-x" size={18} />
-                ) : volume < 50 ? (
-                  <Volume1 key="vol-1" size={18} />
-                ) : (
-                  <Volume2 key="vol-2" size={18} />
-                )}
-              </button>
-              <div className="volume-slider__expandable">
-                <input
-                  type="range"
-                  className="ui-premium-slider volume-slider__input"
-                  min="0"
-                  max="150"
-                  value={volume}
-                  style={{
-                    "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${Math.min(100, (volume / 150) * 100)}%, rgba(255, 255, 255, 0.12) ${Math.min(100, (volume / 150) * 100)}%, rgba(255, 255, 255, 0.12) 100%)`,
-                  } as React.CSSProperties}
-                  aria-label={dict.controls.volume}
-                  onChange={(e) =>
-                    handleVolumeChange(Number(e.target.value), false)
-                  }
-                  onMouseUp={(e) => 
-                    handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
-                  }
-                  onTouchEnd={(e) => 
-                    handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
-                  }
-                  id="slider-volume"
+          {/* 3 отдельных парящих островка */}
+          <div className="controls-islands-row">
+            {/* Островок 1: Аудиодорожки, субтитры, громкость */}
+            <div className="controls-island controls-island--tracks">
+              {renderTrackButtons()}
+              {renderVolumeSlider()}
+              {timePosition === "volume_right" && (
+                <TimeDisplay
+                  className="time-display--toolbar"
+                  timeFormat={timeFormat}
+                  onCycleFormat={handleCycleTimeFormat}
+                  speed={mediaInfo?.speed}
                 />
-              </div>
-              <span className="volume-slider__value">
-                {Math.round(volume)}%
-              </span>
+              )}
+              <AudioVisualizer placement="toolbar" />
             </div>
 
-            {/* Время воспроизведения справа от громкости */}
-            {timePosition === "volume_right" && (
-              <TimeDisplay
-                className="time-display--toolbar"
-                timeFormat={timeFormat}
-                onCycleFormat={handleCycleTimeFormat}
-                speed={mediaInfo?.speed}
-              />
-            )}
+            {/* Островок 2: Транспортные кнопки управления */}
+            <div className="controls-island controls-island--transport">
+              {renderTransportButtons()}
+            </div>
 
-            {/* Компактный аудио-визуалайзер в тулбаре */}
-            <AudioVisualizer placement="toolbar" />
-          </div>
-
-          {/* Центральный блок: Пред. видео, -10с, Play/Pause, +10с, Сл. видео */}
-          <div className="controls-row__center">
-            {visibleButtons.repeat !== false && (
-              <button
-                className={`control-btn control-btn--priority-low ${repeatMode !== 0 ? "control-btn--active" : ""}`}
-                onClick={handleToggleRepeat}
-                title={repeatMode === 1 ? dict.controls.repeatOne : repeatMode === 2 ? dict.controls.repeatAll : dict.controls.repeatOff}
-                aria-label={repeatMode === 1 ? dict.controls.repeatOne : repeatMode === 2 ? dict.controls.repeatAll : dict.controls.repeatOff}
-                >
-                {repeatMode === 1 ? <Repeat1 size={16} /> : <Repeat size={16} />}
-              </button>
-            )}
-
-            <button
-              className="control-btn control-btn--priority-medium"
-              onClick={handlePlaylistPrev}
-              id="btn-playlist-prev"
-              aria-label={dict.controls.prev}
-              >
-              <SkipBack size={18} />
-            </button>
-
-            {visibleButtons.seekButtons !== false && (
-              <button
-                className="control-btn"
-                onClick={() => {
-                  handleSeek(-seekStepSeconds);
-                  triggerSeekIndicator("left", seekStepSeconds);
-                }}
-                id="btn-seek-back"
-                aria-label={dict.controls.seekBackward(seekStepSeconds)}
-                >
-                <Undo size={18} />
-              </button>
-            )}
-
-            <button
-              className="control-btn control-btn--play"
-              onClick={handleTogglePause}
-              id="btn-play-pause"
-              aria-label={paused ? dict.controls.play : dict.controls.pause}
-              >
-              {paused ? (
-                <Play key="play-icon" size={22} fill="currentColor" />
-              ) : (
-                <Pause key="pause-icon" size={22} fill="currentColor" />
+            {/* Островок 3: Время и утилиты */}
+            <div className="controls-island controls-island--utilities">
+              {timePosition === "toolbar_right" && (
+                <TimeDisplay
+                  className="time-display--toolbar"
+                  timeFormat={timeFormat}
+                  onCycleFormat={handleCycleTimeFormat}
+                  speed={mediaInfo?.speed}
+                />
               )}
-            </button>
-
-            {visibleButtons.seekButtons !== false && (
-              <button
-                className="control-btn"
-                onClick={() => {
-                  handleSeek(seekStepSeconds);
-                  triggerSeekIndicator("right", seekStepSeconds);
-                }}
-                id="btn-seek-forward"
-                aria-label={dict.controls.seekForward(seekStepSeconds)}
-                >
-                <Redo size={18} />
-              </button>
-            )}
-
-            <button
-              className="control-btn control-btn--priority-medium"
-              onClick={handlePlaylistNext}
-              id="btn-playlist-next"
-              aria-label={dict.controls.next}
-              >
-              <SkipForward size={18} />
-            </button>
-
-            {visibleButtons.shuffle !== false && (
-              <button
-                className="control-btn control-btn--priority-low"
-                onClick={handleShuffle}
-                title={dict.controls.shuffle}
-                aria-label={dict.controls.shuffle}
-                >
-                <Shuffle size={16} />
-              </button>
-            )}
-          </div>
-
-          {/* Правый блок: Полный экран и новые кнопки */}
-          <div className="controls-row__right">
-            {timePosition === "toolbar_right" && (
-              <TimeDisplay
-                className="time-display--toolbar"
-                timeFormat={timeFormat}
-                onCycleFormat={handleCycleTimeFormat}
-                speed={mediaInfo?.speed}
-              />
-            )}
-
-            {visibleButtons.skipOpening !== false && (
-              <button
-                className="control-btn control-btn--with-label control-btn--priority-low"
-                onClick={() => handleSeek(skipOpeningSeconds)}
-                id="btn-skip-opening"
-                title={dict.controls.skipOpening(skipOpeningSeconds)}
-                aria-label={dict.controls.skipOpening(skipOpeningSeconds)}
-                style={{ padding: "0 8px", gap: "var(--space-1)" }}
-                >
-                <FastForward size={16} />
-                <span className="control-btn__label t-sub">
-                  {dict.controls.skipOpeningShortLabel(skipOpeningSeconds)}
-                </span>
-              </button>
-            )}
-
-            {visibleButtons.alwaysOnTop !== false && (
-              <button
-                className={`control-btn control-btn--priority-medium ${isAlwaysOnTop ? "control-btn--active" : ""}`}
-                id="btn-always-on-top"
-                title={dict.controls.alwaysOnTop}
-                aria-label={dict.controls.alwaysOnTop}
-                onClick={async () => {
-                  try {
-                    const appWindow = getCurrentWindow();
-                    const current = await appWindow.isAlwaysOnTop();
-                    await appWindow.setAlwaysOnTop(!current);
-                    setIsAlwaysOnTop(!current);
-                  } catch (e) { console.error(e); }
-                }}
-                >
-                <Pin size={18} />
-              </button>
-            )}
-
-            {visibleButtons.info !== false && (
-              <button
-                className={`control-btn control-btn--priority-low ${showMediaInfo ? "control-btn--active" : ""}`}
-                id="btn-file-info"
-                title={dict.controls.mediaInfo}
-                aria-label={dict.controls.mediaInfo}
-                onClick={() => {
-                  closePopover(true);
-                  if (onCloseChapters) onCloseChapters();
-                  if (onToggleMediaInfo) {
-                    onToggleMediaInfo();
-                  } else if (onShowMediaInfo) {
-                    onShowMediaInfo();
-                  }
-                }}
-                >
-                <Info size={18} />
-              </button>
-            )}
-
-            {visibleButtons.mediaInfo !== false && (
-              <button
-                className={`control-btn control-btn--priority-low ${showDetailedMediaInfo ? "control-btn--active" : ""}`}
-                id="btn-mediainfo"
-                title={dict.controls.detailedMediaInfo}
-                aria-label={dict.controls.detailedMediaInfo}
-                onClick={() => {
-                  closePopover(true);
-                  if (onCloseChapters) onCloseChapters();
-                  if (onToggleDetailedMediaInfo) {
-                    onToggleDetailedMediaInfo();
-                  }
-                }}
-                >
-                <FileText size={18} />
-              </button>
-            )}
-
-            {visibleButtons.visualizer !== false && (
-              <button
-                className={`control-btn control-btn--priority-low ${
-                  visualizerConfig.enabled ? "control-btn--active" : ""
-                }`}
-                id="btn-visualizer"
-                title={dict.controls.visualizer}
-                aria-label={dict.controls.visualizer}
-                onClick={() => {
-                  const updated = { ...visualizerConfig, enabled: !visualizerConfig.enabled };
-                  setVisualizerConfig(updated);
-                  saveVisualizerConfig(updated);
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  const modes: VisualizerMode[] = [
-                    "waveform",
-                    "spectrum",
-                    "bars",
-                    "matrix",
-                    "ribbon",
-                    "particles",
-                    "circular",
-                    "blob",
-                    "strings",
-                  ];
-                  const nextIndex = (modes.indexOf(visualizerConfig.mode) + 1) % modes.length;
-                  const updated = { ...visualizerConfig, mode: modes[nextIndex], enabled: true };
-                  setVisualizerConfig(updated);
-                  saveVisualizerConfig(updated);
-                }}
-                >
-                <AudioWaveform size={18} />
-              </button>
-            )}
-
-            {visibleButtons.playlist !== false && (
-              <button
-                className={`control-btn ${isPlaylistOpen ? "control-btn--active" : ""}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsPlaylistOpen(!isPlaylistOpen);
-                }}
-                id="btn-playlist-drawer"
-                title={dict.controls.playlist}
-                aria-label={dict.controls.playlist}
-                >
-                <ListVideo size={18} />
-              </button>
-            )}
-
-            {visibleButtons.screenshot !== false && (
-              <button
-                className="control-btn control-btn--priority-low"
-                onClick={handleTakeScreenshot}
-                id="btn-screenshot"
-                title={dict.controls.screenshot}
-                aria-label={dict.controls.screenshot}
-                >
-                <Camera size={18} />
-              </button>
-            )}
-
-            {visibleButtons.fullscreen !== false && (
-              <button
-                className="control-btn"
-                onClick={toggleFullscreen}
-                id="btn-fullscreen"
-                aria-label={isFullscreen ? dict.controls.exitFullscreen : dict.controls.fullscreen}
-                >
-                {isFullscreen ? (
-                  <MinimizeIcon size={18} />
-                ) : (
-                  <Maximize size={18} />
-                )}
-              </button>
-            )}
+              {renderUtilityButtons()}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div
+          ref={controlsPillRef}
+          className={`player-controls ${
+            visualizerConfig.enabled && visualizerConfig.placement === "above_timeline"
+              ? "player-controls--has-visualizer-above"
+              : ""
+          }`}
+          onPointerEnter={() => setIsControlsHovered(true)}
+          onPointerLeave={() => setIsControlsHovered(false)}
+        >
+          {renderTrackPopovers()}
+          {renderAudioVisualizerAbove()}
+          {renderFloatingCenterTime()}
+          {renderTimelineRow()}
+
+          <div className="controls-row">
+            <div className="controls-row__left">
+              {renderTrackButtons()}
+              {renderVolumeSlider()}
+              {timePosition === "volume_right" && (
+                <TimeDisplay
+                  className="time-display--toolbar"
+                  timeFormat={timeFormat}
+                  onCycleFormat={handleCycleTimeFormat}
+                  speed={mediaInfo?.speed}
+                />
+              )}
+              <AudioVisualizer placement="toolbar" />
+            </div>
+
+            <div className="controls-row__center">
+              {renderTransportButtons()}
+            </div>
+
+            <div className="controls-row__right">
+              {timePosition === "toolbar_right" && (
+                <TimeDisplay
+                  className="time-display--toolbar"
+                  timeFormat={timeFormat}
+                  onCycleFormat={handleCycleTimeFormat}
+                  speed={mediaInfo?.speed}
+                />
+              )}
+              {renderUtilityButtons()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 }

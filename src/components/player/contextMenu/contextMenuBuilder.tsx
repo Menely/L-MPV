@@ -699,8 +699,10 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
         { type: "header" as const, label: dict.settings.cmenuUI.groupBarStyle },
         ...CONTROL_BAR_STYLE_OPTIONS.map((barOption) => {
           const barLabel =
-            barOption.id === "floating"
+            barOption.id === "capsule"
               ? dict.settings.appearance.styleCapsule
+              : barOption.id === "modern"
+              ? dict.settings.appearance.styleModern
               : dict.settings.appearance.styleClassic;
           return {
             type: "item" as const,

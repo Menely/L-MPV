@@ -402,8 +402,11 @@ export interface TranslationDict {
       timeFormatEndsAt: (time: string) => string;
       reset100Percent: string;
       resetFloating: string;
+      resetModern: string;
       styleCapsule: string;
       styleCapsuleDesc: string;
+      styleModern: string;
+      styleModernDesc: string;
       styleClassic: string;
       styleClassicDesc: string;
       timePosition: string;

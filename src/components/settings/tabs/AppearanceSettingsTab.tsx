@@ -737,7 +737,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
                       {/* ── Блок 5 и 6: Стиль панели управления (слева) + Позиция и Формат времени (справа) ── */}
                       <div className="controls-and-time-grid">
-                        {/* Левая колонка: Стиль панели управления (друг под другом) */}
+                        {/* Левая колонка: Стиль плеера (друг под другом) */}
                         <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                           <div className="block-head">
                             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
@@ -749,33 +749,71 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             <button
                               type="button"
                               onClick={() => {
-                                setControlBarStyle("floating");
-                                saveControlBarStyle("floating");
+                                setControlBarStyle("modern");
+                                saveControlBarStyle("modern");
                               }}
                               className="btn btn--secondary btn--sm"
+                              title={dict.settings.appearance.resetModern}
+                              aria-label={dict.settings.appearance.resetModern}
                               style={{
                                 ...resetBtnStyle,
-                                opacity: controlBarStyle !== "floating" ? 1 : 0,
-                                visibility: controlBarStyle !== "floating" ? "visible" : "hidden",
-                                pointerEvents: controlBarStyle !== "floating" ? "auto" : "none",
-                                transform: controlBarStyle !== "floating" ? "scale(1)" : "scale(0.85)",
+                                opacity: controlBarStyle !== "modern" ? 1 : 0,
+                                visibility: controlBarStyle !== "modern" ? "visible" : "hidden",
+                                pointerEvents: controlBarStyle !== "modern" ? "auto" : "none",
+                                transform: controlBarStyle !== "modern" ? "scale(1)" : "scale(0.85)",
                                 transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
                               }}
-
-                              tabIndex={controlBarStyle !== "floating" ? 0 : -1}
+                              tabIndex={controlBarStyle !== "modern" ? 0 : -1}
                               >
                               <RotateCcw size={11} />
                             </button>
                           </div>
 
                           {/* Наглядные реалистичные превью плеера друг под другом */}
-                          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", flex: 1, justifyContent: "center" }}>
-                            {/* 1: Капсула */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", flex: 1, justifyContent: "center" }}>
+                            {/* 1: Капсула (3 островка + отдельный таймлайн) */}
                             <div
-                              className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "floating" ? "visual-bar-card--active" : ""}`}
+                              className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "capsule" ? "visual-bar-card--active" : ""}`}
                               onClick={() => {
-                                setControlBarStyle("floating");
-                                saveControlBarStyle("floating");
+                                setControlBarStyle("capsule");
+                                saveControlBarStyle("capsule");
+                              }}
+                              >
+                              {/* Мини-превью плеера */}
+                              <div className="visual-bar-preview">
+                                <div className="visual-bar-preview__screen">
+                                  <div className="visual-bar-preview__glow" />
+                                  <div className="visual-bar-preview__capsule-wrap">
+                                    <div className="visual-bar-preview__capsule-timeline">
+                                      <div className="visual-bar-preview__progress" style={{ width: "45%" }} />
+                                    </div>
+                                    <div className="visual-bar-preview__capsule-islands">
+                                      <div className="visual-bar-preview__capsule-island visual-bar-preview__capsule-island--side">
+                                        <div className="visual-bar-preview__dot" />
+                                      </div>
+                                      <div className="visual-bar-preview__capsule-island visual-bar-preview__capsule-island--center">
+                                        <div className="visual-bar-preview__btn-play" />
+                                      </div>
+                                      <div className="visual-bar-preview__capsule-island visual-bar-preview__capsule-island--side">
+                                        <div className="visual-bar-preview__dot" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="visual-bar-card__info">
+                                <span className="visual-bar-card__label">{dict.settings.appearance.styleCapsule}</span>
+                                <span className="visual-bar-card__desc">{dict.settings.appearance.styleCapsuleDesc}</span>
+                              </div>
+                            </div>
+
+                            {/* 2: Модерн (Единая парящая капсула) */}
+                            <div
+                              className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "modern" || (controlBarStyle as string) === "floating" ? "visual-bar-card--active" : ""}`}
+                              onClick={() => {
+                                setControlBarStyle("modern");
+                                saveControlBarStyle("modern");
                               }}
                               >
                               {/* Мини-превью плеера */}
@@ -793,12 +831,12 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               </div>
 
                               <div className="visual-bar-card__info">
-                                <span className="visual-bar-card__label">{dict.settings.appearance.styleCapsule}</span>
-                                <span className="visual-bar-card__desc">{dict.settings.appearance.styleCapsuleDesc}</span>
+                                <span className="visual-bar-card__label">{dict.settings.appearance.styleModern}</span>
+                                <span className="visual-bar-card__desc">{dict.settings.appearance.styleModernDesc}</span>
                               </div>
                             </div>
 
-                            {/* 2: Классический */}
+                            {/* 3: Классический */}
                             <div
                               className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "docked" ? "visual-bar-card--active" : ""}`}
                               onClick={() => {
