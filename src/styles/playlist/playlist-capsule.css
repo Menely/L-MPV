@@ -1,0 +1,270 @@
+/* ─── Окно плейлиста: стиль «Капсула» (островной дизайн) ────────────
+   Корневой контейнер и скролл-список абсолютно прозрачны.
+   Парят исключительно независимые карточки-островки:
+   [ Плейлист  1/10 ]       [ Обновить  ✕ ]
+   [ 🔍 Поиск видео...                   ]
+   [ 1 ▶ Название видео 1                ]
+   [ 2 🎬 Название видео 2                ]
+   [ 3 🎬 Название видео 3                ] */
+
+.playlist-drawer.playlist-drawer--capsule {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  overflow: visible !important;
+}
+
+/* Шапка плейлиста в капсульном стиле: прозрачная строка между островками */
+.playlist-drawer--capsule .playlist-drawer__header {
+  position: relative;
+  z-index: 2;
+  background: transparent !important;
+  border-bottom: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+}
+
+/* Островок 1: Название («Плейлист» и счётчик) */
+.playlist-drawer--capsule .playlist-drawer__header-left {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated);
+  padding: 6px 14px;
+  min-height: 38px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer--capsule .playlist-drawer__title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* Островок 2: Действия («Обновить» и «Закрыть») */
+.playlist-drawer--capsule .playlist-drawer__header-actions {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated);
+  padding: 4px 6px;
+  min-height: 38px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer--capsule .playlist-drawer__action-btn,
+.playlist-drawer--capsule .playlist-drawer__close {
+  width: 28px;
+  height: 28px;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px));
+}
+
+/* Островок 3: Строка поиска */
+.playlist-drawer--capsule .playlist-drawer__search {
+  position: relative;
+  z-index: 2;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated);
+  padding: 4px 12px;
+  min-height: 38px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer--capsule .playlist-drawer__search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  transition: color var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer--capsule .playlist-drawer__search-input,
+.playlist-drawer--capsule .playlist-drawer__search-input:focus {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 2px 24px 2px 26px !important;
+  font-size: var(--fs-sm);
+  color: var(--text-primary) !important;
+  height: 28px !important;
+  width: 100% !important;
+}
+
+.playlist-drawer--capsule .playlist-drawer__search:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35) !important;
+  background: var(--bg-glass) !important;
+}
+
+.playlist-drawer--capsule .playlist-drawer__search:focus-within .playlist-drawer__search-icon {
+  color: var(--accent);
+}
+
+.playlist-drawer--capsule .playlist-drawer__search-clear {
+  position: absolute;
+  right: 10px;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px)) !important;
+}
+
+/* ─── Скролл-контейнер списка файлов ───────────────────────────
+   Единый монолитный островок (как в окне поиска субтитров).
+   Устраняет рябь и визуальный шум от сотен повторяющихся рамок и теней */
+.playlist-drawer--capsule .playlist-drawer__content {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 8px !important;
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 2px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-gutter: auto !important;
+}
+
+/* Деликатный парящий скроллбар: отступы трека сверху и снизу исключают вылезание за скругления */
+.playlist-drawer--capsule .playlist-drawer__content::-webkit-scrollbar {
+  display: block !important;
+  width: 5px !important;
+}
+
+.playlist-drawer--capsule .playlist-drawer__content::-webkit-scrollbar-track {
+  background: transparent !important;
+  margin-top: 10px !important;
+  margin-bottom: 10px !important;
+}
+
+.playlist-drawer--capsule .playlist-drawer__content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22) !important;
+  border-radius: 9999px !important;
+  transition: background var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer--capsule .playlist-drawer__content::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
+}
+
+.playlist-drawer--capsule .playlist-drawer__content::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* ─── Строка файла внутри монолитного списка плейлиста ─────────
+   Чистая, спокойная строка без индивидуальных рамок и теней:
+   - Фон прозрачный
+   - Наведение: мягкая подложка var(--bg-hover)
+   - Активный трек: деликатная акцентная плашка + неоновый номер */
+.playlist-drawer--capsule .playlist-item {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--radius-list-row) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 6px 10px !important;
+  min-height: 36px !important;
+  box-sizing: border-box !important;
+  color: var(--text-primary) !important;
+  text-shadow: none !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+/* При наведении: мягкая подсветка строки */
+.playlist-drawer--capsule .playlist-item:hover {
+  background: var(--bg-hover) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-primary) !important;
+}
+
+.playlist-drawer--capsule .playlist-item:active {
+  transform: scale(0.99);
+}
+
+/* Выбранный воспроизводимый файл:
+   - Без сплошной цветной плашки и рамки (строка остается чистой)
+   - Выделение строго за счет яркого номера файла в неоновом кружке */
+.playlist-drawer--capsule .playlist-item--current {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+
+.playlist-drawer--capsule .playlist-item--current:hover {
+  background: var(--bg-hover) !important;
+  border-color: transparent !important;
+}
+
+.playlist-drawer--capsule .playlist-item--current .playlist-item__num {
+  background: var(--accent);
+  color: #0b0f14 !important;
+  font-weight: 700;
+  font-size: 11px;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6);
+  line-height: 1;
+}
+
+.playlist-drawer--capsule .playlist-item--current .playlist-item__icon {
+  color: var(--accent);
+}
+
+.playlist-drawer--capsule .playlist-item--current .playlist-item__title {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+/* Островок при пустом результате поиска (без паразитной вложенной рамки) */
+.playlist-drawer--capsule .empty-state {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+/* Настройка ручки изменения размера для островного контейнера */
+.playlist-drawer--capsule .playlist-drawer__resize-handle {
+  left: -8px;
+  width: 12px;
+}
+

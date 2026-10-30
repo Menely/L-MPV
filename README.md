@@ -31,9 +31,9 @@
 
 ## 🌟 About the Project
 
-<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** is a modern desktop media player for Windows that brings together the reference-grade playback quality of the native **MPV** video engine (`vo=gpu-next`, Direct3D 11, HDR tone-mapping, WASAPI, studio-quality 32-tap sinc resampling) and hardware-accelerated **Real-Time 4K AI Upscaling** (ONNX inference via DirectML and TensorRT) with a sleek, responsive **Glassmorphic** interface crafted in **React 19** and **TypeScript**.
+<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** is a modern desktop media player for Windows that brings together the playback capabilities of the native **MPV** video engine (`vo=gpu-next`, Direct3D 11, HDR tone-mapping, WASAPI, sinc resampling) and hardware-accelerated **Real-Time 4K AI Upscaling** (ONNX inference via DirectML and TensorRT) with a customizable **Glassmorphic** interface crafted in **React 19** and **TypeScript**.
 
-The player is engineered around a strict **True Portable Architecture (Zero-Install)** concept: it is completely self-contained and leaves zero footprint in system directories. All configuration files, cache, screenshots, the universal ONNX models directory (`models/onnx/`), and native binary libraries (`libmpv-2.dll`, `ffmpeg.exe`, `mediainfo.dll`) reside directly inside the application folder.
+The player is engineered around a **True Portable Architecture (Zero-Install)** concept: it is completely self-contained and leaves zero footprint in system directories. All configuration files, cache, screenshots, the ONNX models directory (`models/onnx/`), and native libraries (`libmpv-2.dll`, `ffmpeg.exe`, `mediainfo.dll`) reside directly inside the application folder.
 
 <p align="center">
   <img src="./assets/interface-player.png?v=2" alt="L-MPV Player Interface" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
@@ -43,15 +43,15 @@ The player is engineered around a strict **True Portable Architecture (Zero-Inst
 
 ## 💖 Acknowledgements
 
-The creation and ongoing evolution of **L-MPV** have been made possible thanks to extraordinary open-source projects and talented contributors:
+The creation and ongoing evolution of **L-MPV** have been made possible thanks to open-source projects and their contributors:
 
-- **[LANKETT](https://github.com/LANKETT)** — A huge thank you to the designer for creating the signature app icon and visual brand identity!
+- **[LANKETT](https://github.com/LANKETT)** — Thank you to the designer for creating the signature app icon and visual brand identity!
   - GitHub: **[@LANKETT](https://github.com/LANKETT)**
   - Telegram Channel: **[LANKETT WORK](https://t.me/lankett_work)**
-- **[mpv](https://mpv.io/)** ([GitHub](https://github.com/mpv-player/mpv)) — For the gold-standard, versatile, and high-performance native media engine that powers uncompromising playback quality.
-- **[mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai)** & **[the-database](https://github.com/the-database)** — For the pioneering `vf_animejanai` video filter and real-time neural 4K upscaling capabilities.
-- **[Tauri](https://tauri.app/)** ([GitHub](https://github.com/tauri-apps/tauri)) — For the lightweight, secure, and lightning-fast next-gen framework powered by Rust and modern web technologies.
-- **[dnd-kit](https://dndkit.com/)** ([GitHub](https://github.com/clauderic/dnd-kit)) — For the modern, flexible, and high-performance Drag & Drop toolkit for React, providing intuitive interactive reordering.
+- **[mpv](https://mpv.io/)** ([GitHub](https://github.com/mpv-player/mpv)) — For the flexible and high-performance native media engine.
+- **[mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai)** & **[the-database](https://github.com/the-database)** — For the `vf_animejanai` video filter and real-time neural 4K upscaling implementation.
+- **[Tauri](https://tauri.app/)** ([GitHub](https://github.com/tauri-apps/tauri)) — For the lightweight and performant framework powered by Rust and modern web technologies.
+- **[dnd-kit](https://dndkit.com/)** ([GitHub](https://github.com/clauderic/dnd-kit)) — For the flexible and reliable Drag & Drop toolkit for React.
 
 ---
 
@@ -204,7 +204,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>🎧 Studio Audiophile Sound & 150% Volume Boost (Audiophile Profile)</b></summary>
 
-- **Ultra-Low Latency Output:** Native Windows WASAPI driver (`ao=wasapi`) with a fine-tuned 0.2s buffer.
+- **Low-Latency Output:** Native Windows WASAPI driver (`ao=wasapi`) with a fine-tuned 0.2s buffer.
 - **Audio Overload Peak Limiter (Zero Clipping):** Transparent `af=lavfi=[alimiter=limit=0.98]` filter prevents clipping and harsh distortions when boosting volume to 101–150%, while remaining bit-perfect transparent at 100% volume.
 - **Audio Device Latency Fix:** `audio-stream-silence=yes` and `audio-wait-open=0.25` prevents sleeping DACs and Bluetooth speakers from clipping initial milliseconds without adding seek latency (`audio-buffer=0.2`).
 - **Software Volume Boost (Up to 150%):** Amplify quiet dialogue and low-gain audio tracks up to 150% without clipping or harmonic distortion (`volume-max=150.0`).
@@ -217,7 +217,15 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>🎧 Track Management & 1-Click Export (Track Popover & FFmpeg)</b></summary>
 
-- **Ergonomic Track Popover:** Streamlined popover menu for audio and subtitles on the bottom control bar, sized to display 7 tracks cleanly, with smooth vertical scrolling and automatic scrolling to the active stream on open.
+- **Ergonomic Track Popover:** Streamlined popover menu for audio and subtitles on the bottom control bar, sized to display 7 tracks cleanly, with smooth vertical scrolling (`scrollbar-width: none`) and automatic scrolling to the active stream on open.
+- **Modular Capsule Island Design:**
+  - Floating independent header pill with stream count badge and quick shortcut to full-text Subtitle Search (`Ctrl+F`);
+  - Dedicated floating island card for **"Disable Subtitles"** isolated above the stream list;
+  - Unified monolithic glass track list card eliminating visual clutter and fragmented micro-pills;
+  - Integrated direct FFmpeg download button and luminous active stream dot placed on the right-hand side;
+  - Concentric corner radiuses following $R_{\text{inner}} = \max(0, R_{\text{outer}} - d)$;
+  - Automatic keyboard focus restoration to the invoking button when closing popovers.
+- **Fail-Safe Subtitle & Audio Disabling (Mpv Property Alignment):** selecting "Disable Subtitles" reliably dispatches native mpv `sid: "no"` (`aid: "no"` for audio), optimistically clearing active UI tracks and displaying an informative OSD confirmation.
 - **Full Track Title Parity (MP4 / MOV ↔ MKV):** Intelligent cascade metadata probing (`title` → QuickTime/MP4 `metadata/name` from `udta/name` atom → `metadata/title` → `metadata/handler_name`). Track titles (e.g., "Dubbing", "Original Atmos") display consistently and accurately in MP4 and MOV files just like in MKV.
 - **Ergonomic Track Menu Invocation (Left & Right Click):** Both left and right clicks on the audio and subtitle buttons now cleanly toggle the track selection menu, eliminating accidental track cycling on stray clicks.
 - **1-Click Audio & Subtitle Export:** Integrated download buttons within the bottom bar popover and context menu (Right-Click).
@@ -246,6 +254,10 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Quick Track Picker:** Switch between embedded and external tracks, load new `.srt`/`.ass` files, or disable subtitles in a single click.
 - **Freeform Geometry & Positioning:** Resize window width by dragging edges, move the window anywhere via header Drag & Drop, auto-adapt width per mode, and remember layout preferences.
 - **Adjustable Opacity (Glass / Solid):** Toggle between a translucent Glassmorphic backdrop and a solid high-contrast dark theme for optimal readability over vibrant scenes.
+- **Modular Island Architecture & Ergonomic Hitboxes:**
+  - Organized into 4 distinct floating surface islands ("Header", "Search & Timing", "Transcript List", "Inspector");
+  - Enlarged click hitboxes (28px minimum) for match navigation arrows (`∧`, `∨`), search reset (`X`), and timing delay adjusters (`−`, `+`);
+  - Harmonized border-radius styling for the "Standard / Inspector" mode switcher.
 - **High-Performance DOM Virtualization:** Effortlessly scrolls through thousands of subtitle lines with silky-smooth frame rates and negligible CPU usage.
 - **Intelligent Speech Tokenizer & Tempo Metrics (Intl.Segmenter):** High-precision text segmentation with native support for spaceless CJK languages (Japanese, Chinese), automated ISO 639 to BCP-47 locale normalization, real-time speech rate analysis (WPM — words per minute, CPS — characters per second), and color-coded speech tempo badges in the ASS inspector (relaxed, brisk, rapid).
 
@@ -285,7 +297,14 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Supports: *Elapsed / Total*, *Remaining Only*, *Estimated End Time* (adjusted for playback `speed`), and *High-Precision Milliseconds*.
   - Click directly on the timestamp anywhere in the UI to cycle through formats with an OSD confirmation.
 - **Player Styles ("Capsule", "Modern", & "Classic"):**
-  - **Capsule**: Ultra-sleek modular design featuring 3 independent floating islands (Streams, Transport, Utilities) and a detached floating timeline strip.
+  - **Capsule**: Modular architecture of decoupled floating islands and a detached floating timeline strip:
+    - *Independent Functional Islands*: Dedicated cards for Streams (Audio + Subtitles), Volume Slider, Toolbar Visualizer (dynamically rendered only when active), Transport, Utilities, and Fullscreen toggle;
+    - *3-Column CSS Grid*: Dedicated `minmax(0, 1fr) auto minmax(0, 1fr)` grid with `gap: 12px`, guaranteeing islands never overlap even on narrow windows or verbose track names;
+    - *Concentric Geometry Design System*: Mathematically aligned concentric nested corners $R_{\text{inner}} = \max(0, R_{\text{outer}} - d)$ across all popovers, context menus, and playlist items;
+    - *Seamless Integrated Scrollbars*: Thin, semi-transparent scroll indicators seamlessly inset into playlists and subtitle search dialogs without borders overflow or arrows;
+    - *Accurate Color Rendering*: Calibrated `bgPillRgb` and `bgGlassRgb` tokens ensuring true surface color match without accidental UI darkening;
+    - *Accessible `<button>` Time Card*: Entire time island serves as a keyboard-focusable, clickable button with W3C a11y compliance (`isInteractive={false}` inside inner `TimeDisplay`) and tactile interaction across its entire surface;
+    - *Rigid Heatmap Anchoring*: Dedicated `.timeline-col--capsule` container locking Activity Heatmap canvas and hover peak badge positioning into seamless alignment.
   - **Modern**: Unified floating capsule with integrated seekbar and elegant window margins.
   - **Classic**: Solid full-width panel docked at the bottom window edge without gaps.
   - Detailed `148×64px` mini-previews in Settings with neon active selection outlines.
@@ -324,7 +343,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 
 - **Segmented Chapter Hover Adaptation:** when hovering over a video with chapters, only the segment of the chapter under the cursor smoothly expands in height (from 5px to 8px) with vertical centering, while neighboring segments maintain their sleek default thickness. For single-chapter or non-chapter videos, the entire timeline expands uniformly as before.
 - **Kinematic Neon Pulse Wave:** Compact glowing neon ring expanding from the click point along the progress track, styled to match the active player accent theme. Automatically suppressed when animations are disabled, so the ring can never linger over the control buttons.
-- **Unthrottled Live Scrubbing:** Ultra-responsive `pointermove` handling delivering silky smooth scrubbing without micro-stutters, fully optimized for high refresh rate (144Hz+) gaming monitors.
+- **Unthrottled Live Scrubbing:** Responsive `pointermove` handling delivering smooth scrubbing without micro-stutters, optimized for high refresh rate (144Hz+) monitors.
 - **Artifact-Free Instant Seeking (Anti-Flicker):** While dragging, the timeline uses lightweight `absolute+keyframes` preview seeks that skip intermediate frame decoding; a single precise `absolute+exact` seek lands on the exact frame once you release. This removes decoder overload, torn frames and UI desync on slower hardware.
 - **Pixel-Accurate Release Geometry:** The final seek position is computed from a freshly measured track rectangle (invalidated on window resize), so auto window resizing can no longer misplace the playhead.
 - **No Stray Focus Ring:** Clicking the timeline no longer leaves a green `:focus-visible` outline floating over the video; keyboard focus indication is preserved via the progress track growing from 5px to 8px.
@@ -404,7 +423,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Drag & Drop:** Drop local media files or streaming URLs directly into the player window.
 - **Loop Modes & Shuffle:** Loop current file, loop entire playlist, or play in random order. The toolbar button and the *Repeat Mode* submenu share a single `set_repeat_mode` command that always sets both loop properties together; the submenu marks the active mode immediately and confirms the change with an OSD toast.
 - **Watch Progress Bar (Netflix / YouTube Style):** Elegant bottom accent line under every playlist card reflecting saved playback progress (`get_watch_history_batch`). Fully watched episodes (ending reached) are marked with a dedicated `completed` flag, displaying a crisp green `CheckCircle2` badge and a completed progress line, with live progress tracking of the actively playing media.
-- **Resilient Compact Geometry & Non-Compressing Items:** Playlist items strictly preserve vertical layout (`flex-shrink: 0; min-height: 38px`), providing smooth native vertical scrolling without vertical crushing or element collisions even in ultra-compact player windows.
+- **Resilient Compact Geometry & Non-Compressing Items:** Playlist items strictly preserve vertical layout (`flex-shrink: 0; min-height: 38px`), providing smooth native vertical scrolling without vertical crushing or element collisions even in compact player windows.
 - **Chapter Navigation:** Interactive chapters modal with timestamps and jump-to-chapter shortcuts.
 - **Resume Playback:** Robust playback resume saving progress for **up to 300 files** in local `config/history.json`. Seamless start strictly from the saved timestamp, audio/video synchronization without premature audio desync (`hr-seek-framedrop=no`), rapid-exit safety, and preservation of actual watch progress even if interrupted before previous records.
 - **Windows Taskbar Progress:** Displays playback progress bars directly over the player's icon in the Windows taskbar.
@@ -531,7 +550,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   <tr>
     <td><b>Frontend</b></td>
     <td>React 19, TypeScript 5.8, Vite 7, Lucide Icons, Vanilla CSS</td>
-    <td>Ultra-fast Glassmorphic interface, CSS Custom Properties design system, micro-animations</td>
+    <td>Glassmorphic interface, CSS Custom Properties design system, micro-animations</td>
   </tr>
   <tr>
     <td><b>DnD Engine</b></td>

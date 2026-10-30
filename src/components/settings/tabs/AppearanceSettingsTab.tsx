@@ -1241,13 +1241,14 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
                   {/* Переключатель режимов */}
                   <div
+                    className="radius-segmented"
                     style={{
                       display: "grid",
                       gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
                       gap: "var(--space-4)",
-                      padding: "var(--space-2)",
+                      padding: "var(--segment-padding)",
                       background: "rgba(255, 255, 255, 0.03)",
-                      borderRadius: "var(--radius-md)",
+                      borderRadius: "var(--segment-radius)",
                       border: "1px solid var(--border)",
                     }}
                     >
@@ -1268,7 +1269,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             justifyContent: "center",
                             gap: "var(--space-1)",
                             padding: "10px 6px",
-                            borderRadius: "var(--radius-sm)",
+                            borderRadius: "var(--segment-inner-radius)",
                             border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                             cursor: "pointer",
                             background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "transparent",

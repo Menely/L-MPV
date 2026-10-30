@@ -22,7 +22,7 @@ let lastMediaFilePath: string | null = null;
  */
 export function useSubtitlesAnalysis() {
   const { dict } = useTranslation();
-  const { tracks, selectSubTrack, mediaInfo, loadTracks } = usePlayerState();
+  const { tracks, selectSubTrack, disableSubtitles, mediaInfo, loadTracks } = usePlayerState();
 
   const [lines, setLines] = useState<SubtitleLine[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -189,9 +189,9 @@ export function useSubtitlesAnalysis() {
   );
 
   /** Отключение субтитров в плеере. */
-  const handleDisableTracks = useCallback(() => {
-    invoke("disable_subtitles").catch(console.error);
-  }, []);
+  const handleDisableTracks = useCallback(async () => {
+    await disableSubtitles();
+  }, [disableSubtitles]);
 
   /** Принудительный повторный анализ выбранной дорожки. */
   const handleReanalyze = useCallback(() => {

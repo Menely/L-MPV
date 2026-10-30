@@ -11,20 +11,25 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  padding: 6px;
-  background: var(--bg-glass);
-  border: 1px solid var(--border-pill);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-elevated);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  overflow: hidden;
   z-index: var(--z-float);
   transform-origin: bottom left;
   -webkit-font-smoothing: subpixel-antialiased;
   text-rendering: optimizeLegibility;
   animation: popoverFadeIn var(--t-pop) var(--ease-decelerate);
+}
+
+/* Монолитный стиль (для стилей «Модерн» и «Классический»):
+   прозрачность следует глобальной настройке плеера (--ui-opacity через --bg-glass) */
+.track-popover:not(.track-popover--capsule) {
+  gap: 0;
+  padding: 6px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
 }
 
 .track-popover--speed {
@@ -116,7 +121,7 @@
   flex-shrink: 0;
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-list-row);
   color: var(--text-secondary);
   cursor: pointer;
   outline: none;
@@ -142,6 +147,13 @@
 
 .track-popover__icon-btn:disabled {
   cursor: wait;
+}
+
+/* ─── Блок отключения субтитров ──────────────────────────────── */
+.track-popover__disable-sub-card {
+  padding: 0 0 4px 0;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* ─── Список дорожек ─────────────────────────────────────────── */
@@ -181,32 +193,39 @@
   flex: 1;
   min-width: 0;
   min-height: 34px;
-  padding: 7px 10px;
+  padding: 6px 10px;
   box-sizing: border-box;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-list-row);
   color: var(--text-primary);
   font-family: var(--font-family);
   font-size: var(--fs-sm);
   text-align: left;
   cursor: pointer;
   outline: none;
-  transition: background-color var(--t-fast) var(--ease-smooth),
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth);
 }
 
+/* При наведении — подсветка var(--bg-hover), как в контекстном меню и плейлисте */
 .track-popover__item:hover {
-  background: var(--bg-hover);
-}
-
-.track-popover__item--active {
-  background: rgba(var(--accent-rgb), 0.12) !important;
+  background: var(--bg-hover) !important;
   color: var(--text-primary) !important;
 }
 
+/* Выбранная дорожка не заливается цветной плашкой — обозначается радио-точкой справа */
+.track-popover__item--active {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 .track-popover__item--active:hover {
-  background: rgba(var(--accent-rgb), 0.18) !important;
+  background: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 .track-popover__item:focus-visible {
@@ -232,7 +251,7 @@
   flex-shrink: 0;
 }
 
-/* Неоновая радио-точка активного выбора справа */
+/* Неоновая радио-точка активного выбора справа (как в контекстном меню) */
 .track-radio-dot {
   width: 7px;
   height: 7px;
@@ -254,7 +273,7 @@
   height: 28px;
   min-width: 28px;
   min-height: 28px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-list-row);
   border: 1px solid var(--border-pill);
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);

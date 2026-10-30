@@ -35,6 +35,15 @@
 /* 9. Popover-ы выбора дорожек */
 @import './styles/track-popover.css';
 
+/* 9.1. Всплывающее окно информации о файле (I) */
+@import './styles/media-info-overlay.css';
+
+/* 9.2. Окно плейлиста */
+@import './styles/playlist.css';
+
+/* 9.3. Окно поиска по субтитрам */
+@import './styles/subtitles-modal.css';
+
 /* 10. Overlays: drag&drop, scrollbar, media info, playlist, update */
 @import './styles/overlays.css';
 
@@ -50,4 +59,3 @@
 /* 14. Утилиты оформления — ПОСЛЕДНИМ, чтобы класс при равной
        специфичности побеждал обычные правила, как раньше инлайн-стиль */
 @import './styles/utilities.css';
-

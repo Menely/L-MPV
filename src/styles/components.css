@@ -3,6 +3,14 @@
 
 /* ─── 1. Поверхности и Уровни глубины (Elevation Surfaces) ─────────── */
 
+/* Вложенные сегменты: расстояние до внешнего контура включает рамку. */
+.radius-segmented {
+  --segment-radius: var(--radius-md);
+  --segment-padding: var(--space-2);
+  --segment-border: 1px;
+  --segment-inner-radius: max(0px, calc(var(--segment-radius) - var(--segment-padding) - var(--segment-border)));
+}
+
 /* Level 1: Главные парящие панели, окна, выпадающие меню */
 .glass-panel {
   position: relative;
@@ -126,7 +134,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-control);
   font-family: inherit;
   font-size: var(--fs-sm, 0.82rem);
   font-weight: 600;
@@ -233,7 +241,7 @@
   height: 34px;
   min-width: 34px;
   padding: 0;
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-control);
 }
 
 .btn--icon-sm {

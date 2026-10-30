@@ -58,30 +58,17 @@ export function SubtitlesModalHeader({
       >
       {/* Иконка + заголовок */}
       <div
+        className="subtitles-search-card__header-left"
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "var(--space-4)",
+          gap: "var(--space-3)",
           minWidth: 0,
         }}
         >
+        <Subtitles size={18} className="t-accent" style={{ flexShrink: 0 }} />
         <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: "var(--radius-xs)",
-            background:
-              "linear-gradient(135deg, var(--accent, #3b82f6) 0%, rgba(59, 130, 246, 0.4) 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#fff",
-            flexShrink: 0,
-          }}
-          >
-          <Subtitles size={16} />
-        </div>
-        <div
+          className="subtitles-search-card__header-title"
           style={{
             fontSize: "var(--fs-lg)",
             fontWeight: 600,
@@ -97,6 +84,7 @@ export function SubtitlesModalHeader({
 
       {/* Кнопки управления */}
       <div
+        className="subtitles-search-card__header-actions"
         style={{
           display: "flex",
           alignItems: "center",
@@ -105,45 +93,15 @@ export function SubtitlesModalHeader({
         }}
         >
         {/* Переключатель режимов: Обычный / Инспектор с повышенным контрастом */}
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "var(--space-1)",
-            background: "rgba(0, 0, 0, 0.55)",
-            borderRadius: "var(--radius-xs)",
-            border: "1px solid rgba(255, 255, 255, 0.16)",
-            marginRight: "var(--space-2)",
-            gap: "var(--space-1)",
-          }}
-          >
+        <div className="subtitles-search-card__mode-switch">
           <button
             type="button"
             onClick={() => onToggleViewMode("normal")}
-            style={{
-              background:
-                viewMode === "normal"
-                  ? "rgba(var(--accent-rgb, 127, 199, 255), 0.25)"
-                  : "transparent",
-              color: viewMode === "normal" ? "#ffffff" : "var(--text-secondary)",
-              border:
-                viewMode === "normal"
-                  ? "1px solid var(--accent)"
-                  : "1px solid transparent",
-              borderRadius: "calc(var(--radius-xs) - 2px)",
-              padding: "4px 9px",
-              fontSize: "var(--fs-xs)",
-              fontWeight: viewMode === "normal" ? 600 : 500,
-              cursor: "pointer",
-              transition:
-                "background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
-              lineHeight: 1.2,
-              boxShadow:
-                viewMode === "normal"
-                  ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35)"
-                  : "none",
-            }}
-            className="hover-bright"
+            className={`subtitles-search-card__mode-btn ${
+              viewMode === "normal"
+                ? "subtitles-search-card__mode-btn--active"
+                : ""
+            }`}
             title={dict.subtitlesSearch.modeNormalTooltip}
             >
             {dict.subtitlesSearch.modeNormal}
@@ -151,40 +109,18 @@ export function SubtitlesModalHeader({
           <button
             type="button"
             onClick={() => onToggleViewMode("technical")}
-            style={{
-              background:
-                viewMode === "technical"
-                  ? "rgba(var(--accent-rgb, 127, 199, 255), 0.25)"
-                  : "transparent",
-              color:
-                viewMode === "technical" ? "#ffffff" : "var(--text-secondary)",
-              border:
-                viewMode === "technical"
-                  ? "1px solid var(--accent)"
-                  : "1px solid transparent",
-              borderRadius: "calc(var(--radius-xs) - 2px)",
-              padding: "4px 9px",
-              fontSize: "var(--fs-xs)",
-              fontWeight: viewMode === "technical" ? 600 : 500,
-              cursor: "pointer",
-              transition:
-                "background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "var(--space-2)",
-              lineHeight: 1.2,
-              boxShadow:
-                viewMode === "technical"
-                  ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35)"
-                  : "none",
-            }}
-            className="hover-bright"
+            className={`subtitles-search-card__mode-btn ${
+              viewMode === "technical"
+                ? "subtitles-search-card__mode-btn--active"
+                : ""
+            }`}
             title={dict.subtitlesSearch.modeTechTooltip}
             >
             <SlidersHorizontal
               size={12}
               style={{
-                color: viewMode === "technical" ? "var(--accent)" : "currentColor",
+                color:
+                  viewMode === "technical" ? "var(--accent)" : "currentColor",
               }}
             />
             <span>{dict.subtitlesSearch.modeTech}</span>

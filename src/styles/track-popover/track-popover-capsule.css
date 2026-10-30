@@ -1,56 +1,232 @@
-/* ─── Окно выбора дорожек: стиль «Капсула» (островки) ────────────
-   Корневой контейнер становится прозрачным, а содержимое
-   распадается на независимые парящие карточки с зазором 6px:
-   [ название + счётчик ]            [ действия ]
-   [ список дорожек                              ] */
-.track-popover.track-popover--capsule {
-  gap: 6px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  /* Не обрезаем тени островков по краям контейнера */
-  overflow: visible;
+/* ─── Окно выбора дорожек: стиль «Капсула» (островной дизайн) ────────────
+   Контейнер абсолютно прозрачный без общих подложек и паразитных рамок.
+   Состоит из двух гармоничных блоков:
+   1. Шапка: островки названия и действия
+   2. Единый монолитный островок списка дорожек (без ряби от десятков рамок) */
+.track-popover.track-popover--capsule,
+.track-popover--capsule {
+  transform-origin: bottom left !important;
+  bottom: calc(100% + 10px) !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  overflow: visible !important;
 }
 
-/* Шапка — прозрачная строка, в которой лежат два островка */
+/* Шапка — прозрачная строка между островком названия и кнопкой действий.
+   Фиксированный z-index: 2 гарантирует приоритет отрисовки над списком */
 .track-popover--capsule .track-popover__header {
+  position: relative;
+  z-index: 2;
   gap: 6px;
   padding: 0;
-  margin: 0;
+  margin: 0 0 6px 0;
   border-bottom: none;
+  background: transparent !important;
 }
 
-/* Общая «стеклянная» подложка для всех островков окна */
-.track-popover--capsule .track-popover__heading,
-.track-popover--capsule .track-popover__header-actions,
-.track-popover--capsule .track-popover__list {
-  background: var(--bg-glass);
-  border: 1px solid var(--border-pill);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-elevated);
+/* Островок 1: Название и счётчик дорожек */
+.track-popover--capsule .track-popover__heading {
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  box-sizing: border-box;
-}
-
-/* Островок 1: название и счётчик (высота совпадает с островком действий) */
-.track-popover--capsule .track-popover__heading {
   min-height: 38px;
   padding: 0 14px;
+  box-sizing: border-box;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
 
-/* Островок 2: кнопки действий шапки */
+/* Островок 2: Кнопка действия в шапке (поиск субтитров) */
 .track-popover--capsule .track-popover__header-actions {
+  --track-action-padding: 4px;
+  --track-action-border: 1px;
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   min-height: 38px;
-  padding: 4px;
+  padding: var(--track-action-padding);
+  box-sizing: border-box;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
 }
 
-/* Островок 3: список дорожек */
+
+/* Островок «Выключить субтитры»: отдельная самостоятельная карточка-островок */
+.track-popover--capsule .track-popover__disable-sub-card {
+  position: relative;
+  z-index: 2;
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 4px 6px !important;
+  margin: 0 0 6px 0 !important;
+  box-sizing: border-box !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.track-popover--capsule .track-popover__disable-sub-card .track-popover__item {
+  min-height: 34px !important;
+  padding: 6px 10px !important;
+  border-radius: var(--radius-list-row) !important;
+}
+
+.track-popover--capsule .track-popover__disable-sub-card .track-popover__item:hover {
+  background: var(--bg-hover) !important;
+}
+
+/* Скролл-контейнер списка дорожек:
+   Единый монолитный островок с мягким фоном и тонким скроллбаром */
 .track-popover--capsule .track-popover__list {
-  padding: 5px;
+  position: relative;
+  z-index: 1;
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 6px 6px !important;
+  margin: 0 !important;
+  gap: 2px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  scrollbar-gutter: auto !important;
 }
 
+.track-popover--capsule .track-popover__list::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Строка списка в монолитном островке:
+   Прозрачная, служит flex-контейнером для дорожки и отдельной кнопки скачивания */
+.track-popover--capsule .track-popover__row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  width: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Пункт выбора дорожки внутри строки:
+   - Фон прозрачный
+   - Наведение: мягкая подсветка var(--bg-hover)
+   - Выбранная дорожка НЕ заливается плашкой и не имеет рамки,
+     а обозначается исключительно светящейся неоновой радио-точкой справа */
+.track-popover--capsule .track-popover__item {
+  background: transparent !important;
+  border: none !important;
+  border-radius: var(--radius-list-row) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  min-height: 34px !important;
+  padding: 6px 10px !important;
+  flex: 1 1 auto !important;
+  box-sizing: border-box;
+  color: var(--text-primary) !important;
+  text-shadow: none !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
+}
+
+.track-popover--capsule .track-popover__item:hover {
+  background: var(--bg-hover) !important;
+  color: #ffffff !important;
+}
+
+.track-popover--capsule .track-popover__item--active {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+.track-popover--capsule .track-popover__item--active:hover {
+  background: var(--bg-hover) !important;
+  color: #ffffff !important;
+}
+
+/* Кнопка скачивания:
+   - Отдельный интерактивный элемент справа от дорожки
+   - Не имеет фонов и рамок в обычном состоянии
+   - Не выделяется вместе с активной дорожкой
+   - При наведении на неё мягко подсвечивается */
+.track-popover--capsule .track-download-btn {
+  background: transparent !important;
+  border: none !important;
+  border-radius: var(--radius-list-row) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+  transition: color var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth);
+}
+
+.track-popover--capsule .track-download-btn:hover:not(:disabled) {
+  background: var(--bg-hover) !important;
+  color: var(--accent) !important;
+}
+
+/* Разделитель между «Выключить» и списком в монолитном режиме скрывается */
+.track-popover--capsule .track-popover__divider {
+  display: none !important;
+}
+
+/* Островок при отсутствии аудиодорожек */
+.track-popover--capsule .track-popover__empty {
+  background: transparent !important;
+  border: none !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: none !important;
+  padding: 12px 14px;
+  text-align: center;
+  color: var(--text-secondary) !important;
+}
+
+/* Концентрическое скругление кнопки поиска в шапке окна дорожек */
+.track-popover--capsule .track-popover__icon-btn {
+  border-radius: max(0px, calc(var(--radius-surface) - var(--track-action-padding) - var(--track-action-border))) !important;
+}

@@ -11,6 +11,8 @@ export interface TimeDisplayProps {
   onCycleFormat: () => void;
   /** Текущая скорость воспроизведения для расчета времени окончания */
   speed?: number;
+  /** Признак интерактивности (если false — рендерится как пассивный span без ролей кнопки и табиндекса) */
+  isInteractive?: boolean;
 }
 
 /**
@@ -21,10 +23,24 @@ export function TimeDisplay({
   timeFormat,
   onCycleFormat,
   speed = 1.0,
+  isInteractive = true,
 }: TimeDisplayProps) {
   const { dict, locale } = useTranslation();
   const { position, duration } = usePlayerProgress();
   const formatted = formatTimeByMode(position, duration, timeFormat, speed, locale);
+
+  if (!isInteractive) {
+    return (
+      <span className={`time-display ${className}`}>
+        <span className="time-display__full">
+          {formatted.full}
+        </span>
+        <span className="time-display__compact">
+          {formatted.compact}
+        </span>
+      </span>
+    );
+  }
 
   return (
     <span

@@ -35,6 +35,7 @@ export function TrackPicker({
   return (
     <div
       ref={pickerRef}
+      className="subtitles-search-card__track-picker"
       style={{
         position: "relative",
         flex: 1,
@@ -44,6 +45,7 @@ export function TrackPicker({
       <button
         type="button"
         onClick={onToggle}
+        className="subtitles-search-card__track-picker-btn hover-bright"
         style={{
           width: "100%",
           display: "flex",
@@ -59,7 +61,6 @@ export function TrackPicker({
           transition: "background 0.15s ease",
           gap: "var(--space-3)",
         }}
-        className="hover-bright"
         title={dict.subtitlesSearch.selectTrack}
         >
         <div
@@ -113,26 +114,30 @@ export function TrackPicker({
       {/* Выпадающее меню выбора дорожек */}
       {isOpen && (
         <div
-          className="custom-scrollbar"
+          className="subtitles-search-card__track-picker-menu"
           style={{
             position: "absolute",
             top: "calc(100% + 4px)",
             left: 0,
             right: 0,
-            zIndex: 30,
+            zIndex: 40,
             background: "var(--bg-glass)",
             border: "1px solid var(--border-pill)",
-            borderRadius: "var(--radius-sm)",
-            boxShadow: "var(--shadow-lg)",
+            borderRadius: "var(--radius-controls, var(--radius-sm))",
+            boxShadow: "var(--shadow-modal)",
             maxHeight: "220px",
             overflowY: "auto",
-            scrollbarGutter: "stable",
+            overflowX: "hidden",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            scrollbarGutter: "auto",
             padding: "var(--space-2)",
           }}
           >
           <button
             type="button"
             onClick={onDisable}
+            className="subtitles-search-card__track-picker-item hover-bright"
             style={{
               width: "100%",
               display: "flex",
@@ -141,14 +146,12 @@ export function TrackPicker({
               padding: "6px 8px",
               background: !activeTrack ? "var(--bg-active)" : "transparent",
               border: "none",
-              borderRadius: "var(--radius-xs)",
               color: !activeTrack ? "var(--accent)" : "var(--text-secondary)",
               fontSize: "var(--fs-sm)",
               cursor: "pointer",
               textAlign: "left",
               marginBottom: "var(--space-1)",
             }}
-            className="hover-bright"
             >
             <span>{dict.subtitlesSearch.disableSubtitles}</span>
             {!activeTrack && <Check size={14} />}
@@ -163,6 +166,7 @@ export function TrackPicker({
                 key={t.id}
                 type="button"
                 onClick={() => onSelect(t.id)}
+                className="subtitles-search-card__track-picker-item hover-bright"
                 style={{
                   width: "100%",
                   display: "flex",
@@ -171,14 +175,12 @@ export function TrackPicker({
                   padding: "6px 8px",
                   background: isSelected ? "var(--bg-active)" : "transparent",
                   border: "none",
-                  borderRadius: "var(--radius-xs)",
                   color: isSelected ? "var(--accent)" : "var(--text-primary)",
                   fontSize: "var(--fs-sm)",
                   cursor: "pointer",
                   textAlign: "left",
                   gap: "var(--space-3)",
                 }}
-                className="hover-bright"
                 >
                 <div
                   style={{

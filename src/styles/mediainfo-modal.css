@@ -12,7 +12,7 @@
   flex-direction: column;
   background: rgba(14, 16, 24, 0.94);
   border: 1px solid var(--border-pill);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-surface);
   box-shadow: var(--shadow-modal);
   z-index: var(--z-window);
   overflow: hidden;

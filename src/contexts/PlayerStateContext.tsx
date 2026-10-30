@@ -998,7 +998,28 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     }
   }, [loadTracks]);
   
+  const disableSubtitles = useCallback(async () => {
+    try {
+      setTracks(prev => {
+        const next = prev.map(t => t.type === "sub" ? { ...t, selected: false } : t);
+        tracksRef.current = next;
+        return next;
+      });
+      await invoke("disable_subtitles");
+      const curLoc = getEffectiveLocale();
+      const offText = curLoc === "en" ? "Subtitles: Off" : "Субтитры: Выкл";
+      invoke("show_osd", { text: offText }).catch(() => {});
+      await loadTracks();
+    } catch (e) {
+      console.error("Ошибка при отключении субтитров", e);
+    }
+  }, [loadTracks]);
+
   const selectSubTrack = useCallback(async (trackId: number) => {
+    if (trackId <= 0) {
+      await disableSubtitles();
+      return;
+    }
     try {
       setTracks(prev => {
         const next = prev.map(t => t.type === "sub" ? { ...t, selected: t.id === trackId } : t);
@@ -1017,24 +1038,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error("Ошибка при выборе дорожки субтитров", e);
     }
-  }, [loadTracks]);
-  
-  const disableSubtitles = useCallback(async () => {
-    try {
-      setTracks(prev => {
-        const next = prev.map(t => t.type === "sub" ? { ...t, selected: false } : t);
-        tracksRef.current = next;
-        return next;
-      });
-      await invoke("disable_subtitles");
-      const curLoc = getEffectiveLocale();
-      const offText = curLoc === "en" ? "Subtitles: Off" : "Субтитры: Выкл";
-      invoke("show_osd", { text: offText }).catch(() => {});
-      await loadTracks();
-    } catch (e) {
-      console.error("Ошибка при отключении субтитров", e);
-    }
-  }, [loadTracks]);
+  }, [loadTracks, disableSubtitles]);
   
   const cycleAudioTrack = useCallback(async () => {
     const audioTracks = tracks.filter((t) => t.type === "audio");

@@ -233,7 +233,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
           maxHeight: "92vh",
           display: "flex",
           flexDirection: "column",
-          borderRadius: "var(--radius-lg)",
+          borderRadius: "var(--radius-surface)",
           background: "linear-gradient(180deg, rgba(26, 28, 35, 0.96) 0%, rgba(18, 19, 24, 0.98) 100%)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           boxShadow: isExpanded

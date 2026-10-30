@@ -33,20 +33,29 @@ pub fn set_audio_track(
     state: State<'_, PlayerState>,
     track_id: i64,
 ) -> Result<(), String> {
-    state
-        .mpv
-        .set_property_string("aid", &track_id.to_string())
+    if track_id <= 0 {
+        state.mpv.set_property_string("aid", "no")
+    } else {
+        state
+            .mpv
+            .set_property_string("aid", &track_id.to_string())
+    }
 }
 
 /// Переключение субтитров по ID.
+/// Если track_id <= 0, субтитры полностью отключаются (sid = "no").
 #[tauri::command]
 pub fn set_subtitle_track(
     state: State<'_, PlayerState>,
     track_id: i64,
 ) -> Result<(), String> {
-    state
-        .mpv
-        .set_property_string("sid", &track_id.to_string())
+    if track_id <= 0 {
+        state.mpv.set_property_string("sid", "no")
+    } else {
+        state
+            .mpv
+            .set_property_string("sid", &track_id.to_string())
+    }
 }
 
 /// Отключение субтитров.

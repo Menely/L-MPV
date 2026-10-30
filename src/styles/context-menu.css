@@ -1,12 +1,16 @@
 /* ─── Контекстное меню ───────────────────────────────── */
 .context-menu {
+  --menu-radius: var(--radius-surface);
+  --menu-padding: var(--space-2);
+  --menu-border: 1px;
+  --menu-item-radius: max(0px, calc(var(--menu-radius) - var(--menu-padding) - var(--menu-border)));
   position: fixed;
   min-width: 200px;
   max-width: calc(100vw - 16px);
   background: var(--bg-glass);
   border: 1px solid var(--border-pill);
-  border-radius: var(--radius-md);
-  padding: var(--space-2);
+  border-radius: var(--radius-controls, 16px);
+  padding: var(--menu-padding);
   box-shadow: var(--shadow-elevated);
   z-index: var(--z-window);
   transform-origin: top left;
@@ -66,7 +70,7 @@
   font-size: var(--fs-sm);
   font-family: var(--font-family);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--menu-item-radius);
   width: 100%;
   text-align: left;
   transform-origin: center center;
@@ -189,7 +193,7 @@
 .context-menu__submenu--solid {
   background: var(--bg-glass);
   border: 1px solid var(--border-pill);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-controls, 16px);
   padding: var(--space-2);
   box-shadow: var(--shadow-elevated);
   display: flex;
@@ -207,6 +211,10 @@
 
 /* Самостоятельная островная карточка-группа во всплывающем меню и подменю */
 .context-menu__group {
+  --menu-radius: var(--radius-surface);
+  --menu-padding: var(--space-2);
+  --menu-border: 1px;
+  --menu-item-radius: max(0px, calc(var(--menu-radius) - var(--menu-padding) - var(--menu-border)));
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -218,8 +226,8 @@
   -ms-overflow-style: none;
   background: var(--bg-glass);
   border: 1px solid var(--border-pill);
-  border-radius: var(--radius-md);
-  padding: var(--space-2);
+  border-radius: var(--menu-radius);
+  padding: var(--menu-padding);
   box-shadow: var(--shadow-elevated);
   transition: background var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
@@ -335,7 +343,7 @@
   font-size: var(--fs-sm);
   font-family: var(--font-family);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--menu-item-radius);
   text-align: left;
   transition: background-color var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
@@ -351,7 +359,7 @@
   height: 28px;
   padding: 0;
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--menu-item-radius);
   border: 1px solid var(--border-pill);
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);

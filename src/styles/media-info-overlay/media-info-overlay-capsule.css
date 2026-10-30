@@ -1,0 +1,132 @@
+/* ─── Всплывающее окно информации о файле (клавиша I): стиль «Капсула» ───
+   Контейнер становится прозрачным, а содержимое распадается
+   на независимые парящие островки с зазором ровно 6px:
+   [ Инфо о файле          ]  [ X ]
+   [ Контейнер секций (со скроллом) ]
+     [ Карточка файла            ]
+     [ Карточка видео и битрейта ]
+     [ Карточка звука            ] */
+.media-info-overlay.media-info-overlay--capsule {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  gap: 6px !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  max-height: calc(100% - var(--bottom-overlays-bottom, 94px) - 60px) !important;
+  overflow: visible !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Шапка в стиле «Капсула»: фиксированная строка между островками */
+.media-info-overlay--capsule .media-info__header {
+  flex-shrink: 0 !important;
+  background: transparent !important;
+  border-bottom: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+}
+
+/* Островок 1: Название окна */
+.media-info-overlay--capsule .media-info__header-left {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0 14px;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  box-sizing: border-box;
+}
+
+.media-info-overlay--capsule .media-info__title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: none;
+  letter-spacing: 0.2px;
+}
+
+/* Островок 2: Кнопка закрытия */
+.media-info-overlay--capsule .media-info__header-actions {
+  --media-action-padding: 4px;
+  --media-action-border: 1px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: var(--media-action-padding);
+  min-height: 38px;
+  min-width: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.media-info-overlay--capsule .media-info__close {
+  width: 28px;
+  height: 28px;
+  border-radius: max(0px, calc(var(--radius-surface) - var(--media-action-padding) - var(--media-action-border)));
+  color: var(--text-secondary);
+}
+
+.media-info-overlay--capsule .media-info__close:hover {
+  background: var(--bg-hover);
+  color: #ffffff;
+}
+
+/* Скролл-контейнер секций информации:
+   Безопасные отступы (padding: 6px 14px 10px 14px / margin: 0 -14px)
+   полностью исключают срез боковых теней карточек при прокрутке */
+.media-info-overlay--capsule .media-info__body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 6px 14px 10px 14px !important;
+  margin: 0 -14px !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  scrollbar-gutter: auto !important;
+}
+
+.media-info-overlay--capsule .media-info__body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Островки секций сведений (Файл, Видео, Аудио):
+   Мягкая деликатная тень без тяжелой грязи в зазорах между карточками */
+.media-info-overlay--capsule .media-info__section {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.16) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-sizing: border-box;
+}
+

@@ -63,7 +63,7 @@ export function SubtitleSearchBar({
       >
       {/* Строка ввода */}
       <div
-        className="sub-search-input-wrapper"
+        className="sub-search-input-wrapper subtitles-search-card__search-input-wrap"
         style={{ position: "relative", display: "flex", alignItems: "center" }}
         >
         <Search
@@ -77,6 +77,7 @@ export function SubtitleSearchBar({
         />
         <input
           ref={inputRef}
+          className="subtitles-search-card__search-input"
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -88,9 +89,7 @@ export function SubtitleSearchBar({
           title={dict.subtitlesSearch.searchEnterHint}
           style={{
             width: "100%",
-            padding: hasResults
-              ? "8px 76px 8px 32px"
-              : "8px 32px 8px 32px",
+            padding: `8px ${hasResults && searchQuery ? "96px" : searchQuery ? "40px" : "14px"} 8px 32px`,
             background: "rgba(0, 0, 0, 0.3)",
             border: "1px solid var(--border-pill)",
             borderRadius: "var(--radius-sm)",
@@ -101,83 +100,97 @@ export function SubtitleSearchBar({
           }}
         />
 
-        {/* Кнопки навигации по совпадениям */}
-        {hasResults && (
+        {/* Кнопки действий поиска: навигация и очистка в едином flex-контейнере */}
+        {(hasResults || searchQuery) && (
           <div
+            className="subtitles-search-card__actions"
             style={{
               position: "absolute",
-              right: searchQuery ? 30 : 8,
+              right: 6,
               display: "flex",
               alignItems: "center",
-              gap: "var(--space-0)",
+              gap: 2,
             }}
-            >
-            <button
-              type="button"
-              onClick={onJumpPrev}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "var(--space-1)",
-                borderRadius: "var(--radius-xs)",
-              }}
-              className="hover-bright"
-              title={dict.subtitlesSearch.prevMatch}
-              aria-label={dict.subtitlesSearch.prevMatch}
+          >
+            {hasResults && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0,
+                }}
               >
-              <ChevronUp size={13} />
-            </button>
-            <button
-              type="button"
-              onClick={onJumpNext}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "var(--space-1)",
-                borderRadius: "var(--radius-xs)",
-              }}
-              className="hover-bright"
-              title={dict.subtitlesSearch.nextMatch}
-              aria-label={dict.subtitlesSearch.nextMatch}
+                <button
+                  type="button"
+                  onClick={onJumpPrev}
+                  className="subtitles-search-card__jump-btn hover-bright"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 26,
+                    minHeight: 26,
+                    padding: 0,
+                    borderRadius: "var(--radius-xs)",
+                  }}
+                  title={dict.subtitlesSearch.prevMatch}
+                  aria-label={dict.subtitlesSearch.prevMatch}
+                >
+                  <ChevronUp size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={onJumpNext}
+                  className="subtitles-search-card__jump-btn hover-bright"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 26,
+                    minHeight: 26,
+                    padding: 0,
+                    borderRadius: "var(--radius-xs)",
+                  }}
+                  title={dict.subtitlesSearch.nextMatch}
+                  aria-label={dict.subtitlesSearch.nextMatch}
+                >
+                  <ChevronDown size={13} />
+                </button>
+              </div>
+            )}
+
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={onClearSearch}
+                className="subtitles-search-card__clear-btn hover-bright"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 26,
+                  minHeight: 26,
+                  padding: 0,
+                  borderRadius: "var(--radius-xs)",
+                }}
+                aria-label={dict.subtitlesSearch.clearSearch}
               >
-              <ChevronDown size={13} />
-            </button>
+                <X size={14} />
+              </button>
+            )}
           </div>
-        )}
-
-        {/* Кнопка сброса запроса */}
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={onClearSearch}
-            style={{
-              position: "absolute",
-              right: "var(--space-4)",
-              background: "transparent",
-              border: "none",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "var(--space-1)",
-            }}
-            className="hover-bright"
-
-            aria-label={dict.subtitlesSearch.clearSearch}
-            >
-            <X size={14} />
-          </button>
         )}
       </div>
 
@@ -238,14 +251,18 @@ export function SubtitleSearchBar({
             <button
               type="button"
               onClick={(e) => onStepDelay(-0.1, e.shiftKey)}
-              className="hover-bright"
-              title={dict.subtitlesSearch.delayEarlier}
+              className="subtitles-search-card__delay-btn hover-bright"
               style={{
                 background: "transparent",
                 border: "none",
                 color: "var(--text-muted)",
                 cursor: "pointer",
-                padding: "2px 6px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: 28,
+                minHeight: 26,
+                padding: "2px 4px",
                 borderRadius: "var(--radius-xs)",
                 fontSize: "var(--fs-xs)",
                 fontWeight: 700,
@@ -269,14 +286,18 @@ export function SubtitleSearchBar({
             <button
               type="button"
               onClick={(e) => onStepDelay(0.1, e.shiftKey)}
-              className="hover-bright"
-              title={dict.subtitlesSearch.delayLater}
+              className="subtitles-search-card__delay-btn hover-bright"
               style={{
                 background: "transparent",
                 border: "none",
                 color: "var(--text-muted)",
                 cursor: "pointer",
-                padding: "2px 6px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: 28,
+                minHeight: 26,
+                padding: "2px 4px",
                 borderRadius: "var(--radius-xs)",
                 fontSize: "var(--fs-xs)",
                 fontWeight: 700,

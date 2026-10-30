@@ -1155,6 +1155,13 @@ function App() {
         || isSlider;
       if (isEditing) return;
 
+      // Если сфокусирована интерактивная кнопка, отдаём Space и Enter её локальному обработчику
+      const isButton = target instanceof HTMLButtonElement
+        || target?.getAttribute("role") === "button";
+      if (isButton && (e.code === "Space" || e.code === "Enter" || e.key === " " || e.key === "Enter")) {
+        return;
+      }
+
       const inSettings = latestRef.current.showSettings
         && Boolean(target?.closest(".settings-side-panel, .modal--settings"));
       const curHotkeys = latestRef.current.hotkeys;

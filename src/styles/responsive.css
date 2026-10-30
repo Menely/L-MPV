@@ -23,14 +23,14 @@
     width: calc(100vw - 20px) !important;
     max-width: calc(100vw - 20px) !important;
     max-height: 86vh !important;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-surface);
   }
   .modal--settings {
     width: calc(100vw - 12px) !important;
     height: auto !important;
     max-width: calc(100vw - 12px) !important;
     max-height: calc(100vh - 12px) !important;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-surface);
   }
   .modal__header {
     padding: var(--space-5) 14px;

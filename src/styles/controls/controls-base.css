@@ -336,7 +336,7 @@ html.no-animations .timeline__pulse {
   width: auto;
   min-width: 34px;
   padding: 0 8px;
-  border-radius: var(--radius-md, 12px);
+  border-radius: var(--radius-control);
   gap: var(--space-2);
   transform: none !important;
   will-change: auto;

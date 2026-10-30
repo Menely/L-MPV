@@ -31,6 +31,8 @@ export interface TrackPopoversProps {
   onClose: (immediate?: boolean) => void;
   /** Скачивание дорожки. */
   onDownloadTrack: (track: TrackInfo) => void;
+  /** Отключение субтитров. */
+  onDisableSubtitles?: () => void;
   /** Открытие окна поиска субтитров. */
   onOpenSubtitlesSearch?: () => void;
 }
@@ -53,6 +55,7 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
   onSelectSubTrack,
   onClose,
   onDownloadTrack,
+  onDisableSubtitles,
   onOpenSubtitlesSearch,
 }) => {
   const { dict } = useTranslation();
@@ -74,13 +77,16 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
     return t.lang ? `${base} (${t.lang})` : base;
   };
 
+  /**
+   * Выбор дорожки без закрытия окна — позволяет пользователю прослушать/проверить
+   * выбранный вариант и при необходимости переключить на другой.
+   */
   const select = (id: number): void => {
     if (isAudio) {
       onSelectAudioTrack(id);
     } else {
       onSelectSubTrack(id);
     }
-    onClose();
   };
 
   const rootClass = [
@@ -107,17 +113,23 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
         }
       />
 
-      <div className="track-popover__list">
-        {!isAudio && (
+      {!isAudio && (
+        <div className="track-popover__disable-sub-card">
           <TrackRow
             label={dict.controls.disableSubtitles}
             isActive={isNoSubsActive}
-            onSelect={() => select(-1)}
+            onSelect={() => {
+              if (onDisableSubtitles) {
+                onDisableSubtitles();
+              } else {
+                select(-1);
+              }
+            }}
           />
-        )}
-        {!isAudio && kindTracks.length > 0 && (
-          <div className="track-popover__divider" aria-hidden="true" />
-        )}
+        </div>
+      )}
+
+      <div className="track-popover__list">
         {isAudio && kindTracks.length === 0 && (
           <div className="track-popover__empty">
             {dict.controls.noAudioTracks}
@@ -143,4 +155,3 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
     </div>
   );
 };
-

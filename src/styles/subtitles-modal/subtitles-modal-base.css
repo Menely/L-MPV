@@ -1,0 +1,258 @@
+/* ─── Базовые стили окна поиска по субтитрам ──────────────────────────────
+   Содержит позиционирование, анимации появления/закрытия, индикатор
+   изменения ширины, переключатель режимов и монолитный стиль для «Модерн» и «Классический». */
+
+.subtitles-search-card {
+  animation: mediaInfoFadeIn var(--t-pop) var(--ease-decelerate);
+  transform-origin: bottom right;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+}
+
+/* Монолитный вид карточки для стилей «Модерн» и «Классический» */
+.subtitles-search-card:not(.subtitles-search-card--capsule) {
+  background: var(--bg-pill);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  padding: var(--space-7);
+  box-shadow: var(--shadow-lg), 0 0 35px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.subtitles-search-card:not(.subtitles-search-card--capsule).subtitles-search-card--opaque {
+  background: #0b0f15;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.subtitles-search-card--resizing {
+  user-select: none !important;
+  transition: none !important;
+}
+
+.subtitles-search-card--closing {
+  animation: mediaInfoFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
+  pointer-events: none;
+}
+
+/* Ручка изменения ширины слева */
+.subtitles-search-card__resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: ew-resize;
+  z-index: var(--z-in-handle-2);
+  touch-action: none;
+  user-select: none;
+}
+
+.subtitles-search-card__resize-handle::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 38px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              height var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.subtitles-search-card__resize-handle:hover::after,
+.subtitles-search-card--resizing .subtitles-search-card__resize-handle::after {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glass, rgba(127, 199, 255, 0.4));
+  height: 56px;
+}
+
+/* Перетаскивание шапки */
+.subtitles-search-card__header--draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.subtitles-search-card__header--draggable:active {
+  cursor: grabbing;
+}
+
+/* ─── Scroll-Driven Animation: Плавная тень шапки окна субтитров без JS (Chromium 115+) ─── */
+@supports (animation-timeline: scroll()) {
+  .subtitles-search-card:not(.subtitles-search-card--capsule) {
+    timeline-scope: --subtitles-list-scroll;
+  }
+
+  .subtitles-search-card:not(.subtitles-search-card--capsule) .custom-scrollbar {
+    scroll-timeline-name: --subtitles-list-scroll;
+    scroll-timeline-axis: block;
+  }
+
+  .subtitles-search-card:not(.subtitles-search-card--capsule) .subtitles-search-card__header,
+  .subtitles-search-card:not(.subtitles-search-card--capsule) .subtitles-search-card__bar {
+    position: relative;
+    z-index: 2;
+    animation: headerScrollElevation linear both;
+    animation-timeline: --subtitles-list-scroll;
+    animation-range: 0px 32px;
+  }
+}
+
+/* ─── Интерактивная строка поиска субтитров (:has) ─── */
+.sub-search-input-wrapper {
+  border-radius: var(--radius-sm);
+  transition: box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.sub-search-input-wrapper:has(input:focus-visible) {
+  box-shadow: 0 0 14px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.3));
+}
+
+.sub-search-input-wrapper:has(input:focus-visible) svg {
+  color: var(--accent) !important;
+}
+
+.sub-search-mark {
+  background: rgba(251, 191, 36, 0.35);
+  color: #fbbf24;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+/* ─── Переключатель режимов (Обычный / Инспектор) во ВСЕХ стилях ──────────
+   Использует системный токен скругления var(--radius-controls), благодаря чему
+   форма кнопок гармонично адаптируется под глобальные настройки скругления
+   во всех стилях (Капсула, Модерн, Классический), устраняя квадратные углы. */
+.subtitles-search-card__mode-switch {
+  display: inline-flex;
+  align-items: center;
+  --segment-padding: 3px;
+  --segment-border: 1px;
+  --segment-inner-radius: max(0px, calc(var(--radius-surface) - var(--segment-padding) - var(--segment-border)));
+  padding: var(--segment-padding);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, var(--radius-md));
+  gap: 3px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.subtitles-search-card__mode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 4px 10px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--segment-inner-radius);
+  box-sizing: border-box;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.subtitles-search-card__mode-btn:hover:not(.subtitles-search-card__mode-btn--active) {
+  background: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+  border-color: transparent !important;
+}
+
+.subtitles-search-card__mode-btn--active {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.22) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+}
+
+/* Кнопки действий шапки */
+.subtitles-search-card .modal__close {
+  border-radius: var(--radius-control) !important;
+}
+
+/* Пункты выпадающего списка дорожек */
+.subtitles-search-card .subtitles-search-card__track-picker-item {
+  border-radius: var(--radius-control) !important;
+}
+
+/* Кнопки навигации и сдвига задержки в поиске */
+.subtitles-search-card .subtitles-search-card__jump-btn,
+.subtitles-search-card .subtitles-search-card__clear-btn,
+.subtitles-search-card .subtitles-search-card__delay-btn {
+  border-radius: var(--radius-control) !important;
+}
+
+/* Строки субтитров в списке */
+.subtitles-search-card .sub-line-row {
+  border-radius: var(--radius-list-row) !important;
+}
+
+/* ─── Приоритет слоев панели дорожек при открытом меню выбора ─── */
+.subtitles-search-card__track-row {
+  position: relative;
+  z-index: 3;
+}
+
+.subtitles-search-card__track-row.subtitles-search-card__track-row--open,
+.subtitles-search-card__track-row:has(.subtitles-search-card__track-picker-menu) {
+  z-index: 30 !important;
+}
+
+.subtitles-search-card__track-picker-menu {
+  z-index: 40 !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  scrollbar-gutter: auto !important;
+}
+
+.subtitles-search-card__track-picker-menu::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.subtitles-search-card__list {
+  scrollbar-gutter: auto;
+}
+
+.subtitles-search-card__list::-webkit-scrollbar {
+  display: block;
+  width: 5px;
+}
+
+.subtitles-search-card__list::-webkit-scrollbar-track {
+  background: transparent;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.subtitles-search-card__list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 9999px;
+}
+
+.subtitles-search-card__list::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.65);
+}
+
+.subtitles-search-card__list::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}

@@ -40,8 +40,10 @@ export interface ControlsLayoutProps {
   renderVolumeSlider: () => React.ReactNode;
   /** Рендер транспортных кнопок воспроизведения/перемотки. */
   renderTransportButtons: () => React.ReactNode;
-  /** Рендер утилитных кнопок панели. */
-  renderUtilityButtons: () => React.ReactNode;
+  /** Рендер утилитных кнопок панели (с опцией исключения кнопки полного экрана). */
+  renderUtilityButtons: (options?: { excludeFullscreen?: boolean }) => React.ReactNode;
+  /** Рендер отдельной кнопки полноэкранного режима. */
+  renderFullscreenButton?: () => React.ReactNode;
   /** Флаг наведения на тепловую полосу. */
   isStripHovered?: boolean;
   /** Обработчик смены наведения на тепловую полосу. */

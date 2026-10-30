@@ -28,7 +28,7 @@
   flex-direction: column;
   background: var(--bg-glass, var(--bg-modal-solid, #11141c));
   border: 1px solid var(--border-pill);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-surface);
   box-shadow: var(--shadow-modal);
   overflow: hidden;
   animation: modalSlideIn var(--t-pop) var(--ease-decelerate);
@@ -46,7 +46,7 @@
     height: auto !important;
     max-width: calc(100vw - 24px) !important;
     max-height: min(75vh, calc(100vh - 24px)) !important;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-surface);
   }
 }
 
@@ -1111,7 +1111,8 @@
   font-size: var(--fs-sm);
   color: var(--text-muted);
   flex-shrink: 0;
-  border-radius: 0 0 var(--radius-lg, 12px) var(--radius-lg, 12px);
+  /* Внешний контур обрезается родительской панелью с overflow: hidden. */
+  border-radius: 0;
 }
 
 .settings-footer__left {

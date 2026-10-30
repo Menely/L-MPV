@@ -101,6 +101,7 @@ export function PlayerControls({
     loadTracks,
     selectAudioTrack,
     selectSubTrack,
+    disableSubtitles,
     cycleAudioTrack,
     cycleSubTrack,
     isFullscreen,
@@ -125,9 +126,18 @@ export function PlayerControls({
       clearTimeout(closePopoverTimerRef.current);
       closePopoverTimerRef.current = null;
     }
+    const currentType = activePopover;
+    const restoreFocus = () => {
+      if (currentType === "audio") {
+        document.getElementById("btn-audio-tracks")?.focus();
+      } else if (currentType === "sub") {
+        document.getElementById("btn-sub-tracks")?.focus();
+      }
+    };
     if (immediate || !isMotionAllowed()) {
       setActivePopover(null);
       setClosingPopover(null);
+      restoreFocus();
       return;
     }
     setActivePopover((current) => {
@@ -136,10 +146,11 @@ export function PlayerControls({
       closePopoverTimerRef.current = setTimeout(() => {
         setClosingPopover(null);
         closePopoverTimerRef.current = null;
+        restoreFocus();
       }, getCloseTimeoutMs("fast"));
       return null;
     });
-  }, []);
+  }, [activePopover]);
 
   const openPopover = useCallback((type: "audio" | "sub") => {
     if (closePopoverTimerRef.current) {
@@ -541,6 +552,7 @@ export function PlayerControls({
       downloadingTrackKey={downloadingTrackKey}
       onSelectAudioTrack={selectAudioTrack}
       onSelectSubTrack={selectSubTrack}
+      onDisableSubtitles={disableSubtitles}
       onClose={closePopover}
       onDownloadTrack={handleDownloadTrack}
       onOpenSubtitlesSearch={onOpenSubtitlesSearch}
@@ -775,7 +787,24 @@ export function PlayerControls({
     </>
   );
 
-  const renderUtilityButtons = () => (
+  const renderFullscreenButton = () => (
+    visibleButtons.fullscreen !== false ? (
+      <button
+        className="control-btn"
+        onClick={toggleFullscreen}
+        id="btn-fullscreen"
+        aria-label={isFullscreen ? dict.controls.exitFullscreen : dict.controls.fullscreen}
+      >
+        {isFullscreen ? (
+          <MinimizeIcon size={18} />
+        ) : (
+          <Maximize size={18} />
+        )}
+      </button>
+    ) : null
+  );
+
+  const renderUtilityButtons = (options?: { excludeFullscreen?: boolean }) => (
     <>
       {visibleButtons.skipOpening !== false && (
         <button
@@ -913,20 +942,7 @@ export function PlayerControls({
         </button>
       )}
 
-      {visibleButtons.fullscreen !== false && (
-        <button
-          className="control-btn"
-          onClick={toggleFullscreen}
-          id="btn-fullscreen"
-          aria-label={isFullscreen ? dict.controls.exitFullscreen : dict.controls.fullscreen}
-        >
-          {isFullscreen ? (
-            <MinimizeIcon size={18} />
-          ) : (
-            <Maximize size={18} />
-          )}
-        </button>
-      )}
+      {!options?.excludeFullscreen && renderFullscreenButton()}
     </>
   );
 
@@ -948,6 +964,7 @@ export function PlayerControls({
     renderVolumeSlider,
     renderTransportButtons,
     renderUtilityButtons,
+    renderFullscreenButton,
     isStripHovered,
     setIsStripHovered,
   };

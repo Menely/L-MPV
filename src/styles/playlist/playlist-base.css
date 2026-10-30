@@ -1,0 +1,466 @@
+/* ─── Окно плейлиста: базовый вид (монолитное окно) ─────────────
+   Используется стилями «Модерн» и «Классический».
+   Стиль «Капсула» переопределяет оформление в playlist-capsule.css. */
+
+.playlist-drawer {
+  position: fixed;
+  bottom: var(--bottom-overlays-bottom, 94px);
+  right: 14px;
+  max-height: calc(100% - var(--bottom-overlays-bottom, 94px) - 60px);
+  min-width: min(360px, calc(100% - 28px));
+  max-width: calc(100% - 28px);
+  width: 360px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: var(--z-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: playlistFadeIn var(--t-panel) var(--ease-decelerate);
+  transform-origin: bottom right;
+  -webkit-font-smoothing: subpixel-antialiased;
+  text-rendering: optimizeLegibility;
+  transition: bottom var(--t-panel) var(--ease-standard),
+              max-height var(--t-panel) var(--ease-standard);
+}
+
+.playlist-drawer--resizing {
+  user-select: none !important;
+  transition: none !important;
+}
+
+/* ─── Левая граница для растягивания ширины ─────────────────── */
+.playlist-drawer__resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: ew-resize;
+  z-index: var(--z-in-handle);
+  touch-action: none;
+  user-select: none;
+  transition: background-color var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer__resize-handle::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 38px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              height var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer__resize-handle:hover::after,
+.playlist-drawer--resizing .playlist-drawer__resize-handle::after {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glass, rgba(127, 199, 255, 0.4));
+  height: 56px;
+}
+
+/* ─── Анимации прозрачностью (без замыливания шрифтов) ──────── */
+@keyframes playlistFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.playlist-drawer--closing {
+  animation: playlistFadeOut var(--t-close-panel) var(--ease-accelerate)
+    forwards !important;
+  pointer-events: none;
+}
+
+@keyframes playlistFadeOut {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ─── Шапка плейлиста ────────────────────────────────────────── */
+.playlist-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.playlist-drawer__header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.playlist-drawer__title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.playlist-drawer__badge {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0 8px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.playlist-drawer__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.playlist-drawer__action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer__action-btn svg,
+.playlist-drawer__close svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.playlist-drawer__action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.playlist-drawer__action-btn:active {
+  transform: scale(0.92);
+}
+
+.playlist-drawer__action-btn--spinning svg {
+  animation: playlistSpin 0.75s linear infinite;
+}
+
+@keyframes playlistSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.playlist-drawer__close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer__close:hover {
+  background: var(--bg-hover);
+  color: #ffffff;
+}
+
+.playlist-drawer__close:active {
+  transform: scale(0.92);
+}
+
+/* ─── Строка поиска ──────────────────────────────────────────── */
+.playlist-drawer__search {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.playlist-drawer__search-icon {
+  position: absolute;
+  left: 20px;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: color var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer__search-input {
+  width: 100%;
+  height: 30px;
+  background: var(--surface-level-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 28px 0 30px;
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  outline: none;
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer__search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+  background: var(--surface-level-3);
+}
+
+.playlist-drawer__search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.playlist-drawer__search-clear {
+  position: absolute;
+  right: 20px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: color var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer__search-clear:hover {
+  color: var(--text-primary);
+}
+
+/* ─── Контейнер списка ───────────────────────────────────────── */
+.playlist-drawer__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.playlist-drawer__content::-webkit-scrollbar {
+  display: block;
+  width: 5px;
+}
+
+.playlist-drawer__content::-webkit-scrollbar-track {
+  background: transparent;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.playlist-drawer__content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 9999px;
+  transition: background var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-drawer__content::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.65);
+}
+
+.playlist-drawer__content::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* ─── Строка элемента плейлиста ──────────────────────────────── */
+.playlist-item {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) 8px;
+  border-radius: var(--radius-list-row);
+  cursor: pointer;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+  width: 100%;
+  flex-shrink: 0;
+  min-height: 38px;
+  box-sizing: border-box;
+  transition: background-color var(--t-fast) var(--ease-standard),
+              border-color var(--t-fast) var(--ease-standard),
+              color var(--t-fast) var(--ease-standard);
+}
+
+.playlist-item:hover {
+  background: var(--bg-hover);
+}
+
+.playlist-item:active {
+  transform: scale(0.985);
+}
+
+/* Выбранный файл во всех стилях: без плашки, номер в неоновом кружке */
+.playlist-item--current {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-primary) !important;
+}
+
+.playlist-item--current:hover {
+  background: var(--bg-hover) !important;
+}
+
+.playlist-item--watched {
+  opacity: 0.82;
+}
+
+.playlist-item--watched:hover {
+  opacity: 1;
+}
+
+.playlist-item__num {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: 50%;
+  flex-shrink: 0;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.playlist-item--current .playlist-item__num {
+  background: var(--accent);
+  color: #0b0f14 !important;
+  font-weight: 700;
+  font-size: 11px;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6);
+  line-height: 1;
+}
+
+.playlist-item__icon {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: color var(--t-fast) var(--ease-standard);
+}
+
+.playlist-item:hover .playlist-item__icon {
+  color: var(--text-primary);
+}
+
+.playlist-item--current .playlist-item__icon {
+  color: var(--accent);
+}
+
+.playlist-item__watched-icon {
+  color: #4ade80;
+}
+
+.playlist-item__title {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  line-height: 1.25;
+}
+
+.playlist-item--current .playlist-item__title {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+/* ─── Watch Progress Bar (Netflix/YouTube стиль) ─── */
+.playlist-item__progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  border-radius: 0 0 var(--radius-list-row) var(--radius-list-row);
+  pointer-events: none;
+}
+
+.playlist-item__progress-fill {
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glass, rgba(127, 199, 255, 0.5));
+  border-radius: 0 1.5px 1.5px 0;
+  transition: width var(--t-fast) var(--ease-standard);
+}
+
+.playlist-item__progress-fill--watched {
+  background: #4ade80;
+  box-shadow: 0 0 4px rgba(74, 222, 128, 0.4);
+}
+

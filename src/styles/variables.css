@@ -35,8 +35,8 @@
   --bg-primary:     #0b0d12;
   --bg-surface:     #13161d;
   --bg-modal-solid: #11141c;
-  --bg-pill-rgb:    14, 18, 26;
-  --bg-glass-rgb:   18, 22, 32;
+  --bg-pill-rgb:    19, 22, 29;
+  --bg-glass-rgb:   19, 22, 29;
   --bg-pill:        rgba(var(--bg-pill-rgb, 14, 18, 26), var(--ui-opacity, 0.88));
   --bg-glass:       rgba(var(--bg-glass-rgb, 18, 22, 32), var(--ui-opacity, 0.88));
   --bg-elevated:    rgba(var(--bg-glass-rgb, 18, 22, 32), var(--ui-opacity, 0.88));
@@ -94,6 +94,12 @@
   --radius-xl:       16px;
   --radius-pill:     50px;
   --radius-controls: 16px;
+
+  /* Самостоятельные элементы: компактная форма без превращения строк в капсулы.
+     Круги, бегунки и индикаторы используют собственную геометрию. */
+  --radius-surface: var(--radius-controls);
+  --radius-control: min(12px, max(0px, calc(var(--radius-controls) / 2)));
+  --radius-list-row: min(8px, var(--radius-control));
 
   /* Адаптивный отступ снизу для всплывающих окон над панелью управления */
   --bottom-overlays-bottom: 94px;

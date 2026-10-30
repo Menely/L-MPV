@@ -36,7 +36,7 @@
   pointer-events: auto;
   background: var(--bg-glass, rgba(var(--bg-glass-rgb, 16, 19, 28), var(--ui-opacity, 0.88)));
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-surface);
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35), 0 0 1px rgba(255, 255, 255, 0.08);
   animation: settingsPanelIn 220ms var(--ease-out);
   transform-origin: left center;
