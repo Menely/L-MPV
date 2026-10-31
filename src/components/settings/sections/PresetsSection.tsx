@@ -513,7 +513,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               className="preset-tag__color-dot"
               style={{
                 backgroundColor: colorHex,
-                boxShadow: data.glowIntensity && data.glowIntensity !== "off" ? `0 0 6px ${colorHex}` : "none",
+                boxShadow: "none",
               }}
             />
             <span>{isWindows ? "Windows" : data.accentColor.toUpperCase()}</span>

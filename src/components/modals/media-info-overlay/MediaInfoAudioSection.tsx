@@ -38,7 +38,7 @@ export const MediaInfoAudioSection: React.FC<MediaInfoAudioSectionProps> = ({
         <span className="media-info__label">{dict.mediaInfoModal.bitrate}</span>
         <span className="media-info__value">
           {audioBitrate > 0
-            ? `${Math.round(audioBitrate / 1000)} ${dict.mediaInfoModal.kbps}`
+            ? `${Math.round(audioBitrate / 1000).toLocaleString()} ${dict.mediaInfoModal.kbps}`
             : "—"}
         </span>
       </div>

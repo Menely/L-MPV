@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -46,6 +46,7 @@ import {
   Layers,
   RefreshCw,
   X,
+  Settings,
 } from "lucide-react";
 import { useTranslation } from "../../i18n/LanguageContext";
 import {
@@ -125,6 +126,13 @@ const SETTINGS_TABS = [
 
 type SettingsTabId = (typeof SETTINGS_TABS)[number];
 
+const MemoizedGeneralSettingsTab = React.memo(GeneralSettingsTab);
+const MemoizedAppearanceSettingsTab = React.memo(AppearanceSettingsTab);
+const MemoizedPresetsSection = React.memo(PresetsSection);
+const MemoizedUpscalingSettingsSection = React.memo(UpscalingSettingsSection);
+const MemoizedHotkeysSettingsTab = React.memo(HotkeysSettingsTab);
+const MemoizedIntegrationSettingsTab = React.memo(IntegrationSettingsTab);
+
 export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [screenshotDir, setScreenshotDir] = useState<string>("");
   const [uiOpacity, setUiOpacity] = useState<number>(() => getSavedUiOpacity());
@@ -165,6 +173,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const isCapsule = controlBarStyle === "capsule";
   const initialViewSession = getSettingsViewSession();
   const [activeTab, setActiveTab] = useState<SettingsTabId>(() => {
     const saved = initialViewSession.modalTab as SettingsTabId;
@@ -727,218 +736,318 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     }
   };
 
-  return (
-    <div className={`modal-overlay settings-modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`} onClick={handleClose}>
-      <div
-        ref={modalRef}
-        className={`modal modal--settings ${isClosing ? "modal--closing" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-modal-title"
-        style={{
-          width: 720,
-          maxWidth: "95vw",
-          maxHeight: "75vh",
-          display: "flex",
-          flexDirection: "column",
-        }}
-        onClick={(e) => e.stopPropagation()}
-        >
-        {/* Шапка модального окна */}
-        <div className="modal__header" style={{ padding: "14px 18px", flexShrink: 0 }}>
-          <h2 id="settings-modal-title" className="modal__title" style={{ display: "flex", alignItems: "center", gap: "var(--space-5)", fontSize: "var(--fs-xl)" }}>
-            <SlidersHorizontal size={20} color="var(--accent)" /> {dict.settings.title}
-          </h2>
+  const tabItems = [
+    { id: "general" as const, label: dict.settings.tabs.general, icon: SlidersHorizontal },
+    { id: "appearance" as const, label: dict.settings.tabs.appearance, icon: Palette },
+    { id: "presets" as const, label: dict.settings.tabs.presets, icon: Layers },
+    { id: "upscaling" as const, label: dict.settings.tabs.upscaling, icon: Sparkles },
+    { id: "hotkeys" as const, label: dict.settings.tabs.hotkeys, icon: Keyboard },
+    { id: "integration" as const, label: dict.settings.tabs.integration, icon: Link },
+  ];
+
+  const renderTabContent = () => (
+    <div key={activeTab} className="settings-tab-content">
+      {activeTab === "general" && (
+        <MemoizedGeneralSettingsTab
+          multiInstance={multiInstance} setMultiInstance={setMultiInstance}
+          saveTracksToVideoDir={saveTracksToVideoDir} setSaveTracksToVideoDir={setSaveTracksToVideoDir}
+          autoLoadTracks={autoLoadTracks} setAutoLoadTracks={setAutoLoadTracks}
+          autoSelectExternalAudio={autoSelectExternalAudio} setAutoSelectExternalAudio={setAutoSelectExternalAudio}
+          playNextOnEnd={playNextOnEnd} setPlayNextOnEnd={setPlayNextOnEnd}
+          hotloadEnabled={hotloadEnabled} setHotloadEnabled={setHotloadEnabled}
+          hideControlsInUpperHalf={hideControlsInUpperHalf} setHideControlsInUpperHalf={setHideControlsInUpperHalf}
+          openSections={openSections} onToggleSection={toggleSection}
+          screenshotDir={screenshotDir}
+          handlePickFolder={handlePickFolder}
+          handleResetDefault={handleResetDefault}
+          showTrackNames={showTrackNames}
+          setShowTrackNames={setShowTrackNames}
+          subtitlesAvoidUi={subtitlesAvoidUi}
+          setSubtitlesAvoidUi={setSubtitlesAvoidUi}
+        />
+      )}
+
+      {activeTab === "appearance" && (
+        <MemoizedAppearanceSettingsTab
+          activeColor={activeColor} setActiveColor={setActiveColor}
+          uiRadius={uiRadius} saveUiRadius={saveUiRadius} setUiRadius={setUiRadius}
+          uiScale={uiScale} saveUiScale={saveUiScale} setUiScale={setUiScale}
+          uiOpacity={uiOpacity} saveUiOpacity={saveUiOpacity} setUiOpacity={setUiOpacity}
+          uiFont={uiFont} saveUiFont={saveUiFont} setUiFont={setUiFont}
+          timePosition={timePosition} saveTimePosition={saveTimePosition} setTimePosition={setTimePosition}
+          timeFormat={timeFormat} saveTimeFormat={saveTimeFormat} setTimeFormat={setTimeFormat}
+          controlBarStyle={controlBarStyle} saveControlBarStyle={saveControlBarStyle} setControlBarStyle={setControlBarStyle}
+          ambientSettings={ambientSettings} updateAmbient={updateAmbient}
+          visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons}
+          skipOpeningSeconds={skipOpeningSeconds} setSkipOpeningSeconds={setSkipOpeningSeconds}
+          seekStepSeconds={seekStepSeconds} setSeekStepSeconds={setSeekStepSeconds}
+          animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
+          openSections={openSections} onToggleSection={toggleSection}
+          getEffectiveAccentColor={getEffectiveAccentColor}
+        />
+      )}
+
+      {activeTab === "presets" && (
+        <div className="modal__section col">
+          <MemoizedPresetsSection onPresetApplied={handlePresetApplied} />
+        </div>
+      )}
+
+      {activeTab === "upscaling" && (
+        <div className="modal__section col">
+          <MemoizedUpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
+        </div>
+      )}
+
+      {activeTab === "hotkeys" && (
+        <MemoizedHotkeysSettingsTab
+          openSections={openSections}
+          onToggleSection={toggleSection}
+          onRecordingChange={setIsRecordingHotkey}
+        />
+      )}
+
+      {activeTab === "integration" && (
+        <MemoizedIntegrationSettingsTab />
+      )}
+    </div>
+  );
+
+  const renderFooterContent = () => (
+    <>
+      <div className="settings-footer__left">
+        {/* Иконки социальных сетей слева от названия L-MPV */}
+        <div className="settings-footer__icons">
+          <button
+            type="button"
+            onClick={() => openUrl("https://github.com/Menely/L-MPV")}
+            className="settings-footer__icon-btn hover-bright"
+            title={dict.settings.integration.githubTooltip}
+          >
+            <GithubIcon size={19} />
+          </button>
 
           <button
-            ref={closeButtonRef}
             type="button"
-            className="modal__close"
-            onClick={handleClose}
-            id="btn-settings-close"
-
-            aria-label={dict.settings.close}
-            >
-            <X size={18} />
+            onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
+            className="settings-footer__icon-btn hover-bright"
+            title={dict.settings.integration.telegramTooltip}
+          >
+            <TelegramIcon size={19} />
           </button>
         </div>
 
-        {/* Навигация по вкладкам */}
-        <div className="settings-tabs">
-          {[
-            { id: "general", label: dict.settings.tabs.general, icon: SlidersHorizontal },
-            { id: "appearance", label: dict.settings.tabs.appearance, icon: Palette },
-            { id: "presets", label: dict.settings.tabs.presets, icon: Layers },
-            { id: "upscaling", label: dict.settings.tabs.upscaling, icon: Sparkles },
-            { id: "hotkeys", label: dict.settings.tabs.hotkeys, icon: Keyboard },
-            { id: "integration", label: dict.settings.tabs.integration, icon: Link },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id as typeof activeTab)}
-                className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
-                >
-                <Icon size={16} className="settings-tab-icon" />
-                <span className="settings-tab-label">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        <span className="settings-footer__title">L-MPV</span>
 
-        {/* Тело модального окна */}
-        <div className="modal__body" ref={bodyRef} style={{ padding: "16px 20px 10px 20px" }}>
-          <div ref={panelRef} className="settings-tab-panel">
-          <div key={activeTab} className="settings-tab-content">
-            {activeTab === "general" && (
-            <GeneralSettingsTab
-              multiInstance={multiInstance} setMultiInstance={setMultiInstance}
-              saveTracksToVideoDir={saveTracksToVideoDir} setSaveTracksToVideoDir={setSaveTracksToVideoDir}
-              autoLoadTracks={autoLoadTracks} setAutoLoadTracks={setAutoLoadTracks}
-              autoSelectExternalAudio={autoSelectExternalAudio} setAutoSelectExternalAudio={setAutoSelectExternalAudio}
-              playNextOnEnd={playNextOnEnd} setPlayNextOnEnd={setPlayNextOnEnd}
-              hotloadEnabled={hotloadEnabled} setHotloadEnabled={setHotloadEnabled}
-              hideControlsInUpperHalf={hideControlsInUpperHalf} setHideControlsInUpperHalf={setHideControlsInUpperHalf}
-              openSections={openSections} onToggleSection={toggleSection}
-              screenshotDir={screenshotDir}
-              handlePickFolder={handlePickFolder}
-              handleResetDefault={handleResetDefault}
-              showTrackNames={showTrackNames}
-              setShowTrackNames={setShowTrackNames}
-              subtitlesAvoidUi={subtitlesAvoidUi}
-              setSubtitlesAvoidUi={setSubtitlesAvoidUi}
-            />
+        <button
+          type="button"
+          onClick={handleShowVersionInfo}
+          disabled={isLoadingVersionInfo}
+          className="settings-footer__btn settings-footer__btn--version"
+        >
+          {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
+          <span>v{appVersion}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleCheckForUpdates}
+          disabled={isCheckingUpdate}
+          className="settings-footer__btn settings-footer__btn--check"
+        >
+          {isCheckingUpdate ? (
+            <>
+              <Loader2 size={12} className="animate-spin" />
+              <span>{dict.settings.integration.checking}</span>
+            </>
+          ) : (
+            <>
+              <RefreshCw size={12} />
+              <span>{dict.settings.integration.checkUpdates}</span>
+            </>
           )}
+        </button>
 
-          {activeTab === "appearance" && (
-            <AppearanceSettingsTab
-              activeColor={activeColor} setActiveColor={setActiveColor}
-              uiRadius={uiRadius} saveUiRadius={saveUiRadius} setUiRadius={setUiRadius}
-              uiScale={uiScale} saveUiScale={saveUiScale} setUiScale={setUiScale}
-              uiOpacity={uiOpacity} saveUiOpacity={saveUiOpacity} setUiOpacity={setUiOpacity}
-              uiFont={uiFont} saveUiFont={saveUiFont} setUiFont={setUiFont}
-              timePosition={timePosition} saveTimePosition={saveTimePosition} setTimePosition={setTimePosition}
-              timeFormat={timeFormat} saveTimeFormat={saveTimeFormat} setTimeFormat={setTimeFormat}
-              controlBarStyle={controlBarStyle} saveControlBarStyle={saveControlBarStyle} setControlBarStyle={setControlBarStyle}
-              ambientSettings={ambientSettings} updateAmbient={updateAmbient}
-              visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons}
-              skipOpeningSeconds={skipOpeningSeconds} setSkipOpeningSeconds={setSkipOpeningSeconds}
-              seekStepSeconds={seekStepSeconds} setSeekStepSeconds={setSeekStepSeconds}
-              animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
-              openSections={openSections} onToggleSection={toggleSection}
-              getEffectiveAccentColor={getEffectiveAccentColor}
-            />
-          )}
-
-          {activeTab === "presets" && (
-            <div className="modal__section col">
-              <PresetsSection onPresetApplied={handlePresetApplied} />
-            </div>
-          )}
-
-          {activeTab === "upscaling" && (
-            <div className="modal__section col">
-              <UpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
-            </div>
-          )}
-
-          {activeTab === "hotkeys" && (
-            <HotkeysSettingsTab
-              openSections={openSections}
-              onToggleSection={toggleSection}
-              onRecordingChange={setIsRecordingHotkey}
-            />
-          )}
-
-          {activeTab === "integration" && (
-            <IntegrationSettingsTab />
-          )}
-          </div>
-          </div>
-        </div>
-        {/* Футер с версией приложения и проверкой обновлений */}
-        <div className="settings-footer">
-          <div className="settings-footer__left">
-            {/* Иконки социальных сетей слева от названия L-MPV */}
-            <div className="settings-footer__icons">
-              <button
-                type="button"
-                onClick={() => openUrl("https://github.com/Menely/L-MPV")}
-                className="settings-footer__icon-btn hover-bright"
-                title={dict.settings.integration.githubTooltip}
-                >
-                <GithubIcon size={19} />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
-                className="settings-footer__icon-btn hover-bright"
-                title={dict.settings.integration.telegramTooltip}
-                >
-                <TelegramIcon size={19} />
-              </button>
-            </div>
-
-            <span className="settings-footer__title">L-MPV</span>
-
+        {updateStatus && (
+          foundUpdate && onShowUpdate ? (
             <button
               type="button"
-              onClick={handleShowVersionInfo}
-              disabled={isLoadingVersionInfo}
-              className="settings-footer__btn settings-footer__btn--version"
-              >
-              {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
-              <span>v{appVersion}</span>
+              onClick={() => onShowUpdate(foundUpdate)}
+              className="settings-footer__btn settings-footer__btn--update"
+            >
+              <Sparkles size={12} />
+              <span>{updateStatus}</span>
             </button>
-
-            <button
-              type="button"
-              onClick={handleCheckForUpdates}
-              disabled={isCheckingUpdate}
-              className="settings-footer__btn settings-footer__btn--check"
-              >
-              {isCheckingUpdate ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" />
-                  <span>{dict.settings.integration.checking}</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw size={12} />
-                  <span>{dict.settings.integration.checkUpdates}</span>
-                </>
-              )}
-            </button>
-
-            {updateStatus && (
-              foundUpdate && onShowUpdate ? (
-                <button
-                  type="button"
-                  onClick={() => onShowUpdate(foundUpdate)}
-                  className="settings-footer__btn settings-footer__btn--update"
-                  >
-                  <Sparkles size={12} />
-                  <span>{updateStatus}</span>
-                </button>
-              ) : (
-                <span
-                  style={{
-                    fontSize: "var(--fs-xs)",
-                    color: isUpdateFound ? "var(--accent)" : "var(--text-muted)",
-                    marginLeft: "var(--space-2)",
-                  }}
-                  >
-                  {updateStatus}
-                </span>
-              )
-            )}
-          </div>
-          <span style={{ fontSize: "var(--fs-xs)" }}>{dict.settings.integration.portableEdition}</span>
-        </div>
+          ) : (
+            <span
+              style={{
+                fontSize: "var(--fs-xs)",
+                color: isUpdateFound ? "var(--accent)" : "var(--text-muted)",
+                marginLeft: "var(--space-2)",
+              }}
+            >
+              {updateStatus}
+            </span>
+          )
+        )}
       </div>
+      <span style={{ fontSize: "var(--fs-xs)" }}>{dict.settings.integration.portableEdition}</span>
+    </>
+  );
+
+  return (
+    <div className={`modal-overlay settings-modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`} onClick={handleClose}>
+      {!isCapsule ? (
+        /* ─── КЛАССИЧЕСКИЙ РЕЖИМ (Модерн, Прикрепленный) ─── */
+        <div
+          ref={modalRef}
+          className={`modal modal--settings ${isClosing ? "modal--closing" : ""}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-modal-title"
+          style={{
+            width: 720,
+            maxWidth: "95vw",
+            maxHeight: "75vh",
+            display: "flex",
+            flexDirection: "column",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Шапка модального окна с шестерёнкой */}
+          <div className="modal__header" style={{ padding: "14px 18px", flexShrink: 0 }}>
+            <h2
+              id="settings-modal-title"
+              className="modal__title"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-5)",
+                fontSize: "var(--fs-xl)",
+              }}
+            >
+              <Settings size={20} color="var(--accent)" /> {dict.settings.title}
+            </h2>
+            <button
+              ref={closeButtonRef}
+              type="button"
+              className="modal__close"
+              onClick={handleClose}
+              id="btn-settings-close"
+              aria-label={dict.settings.close}
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Навигация по вкладкам */}
+          <div className="settings-tabs">
+            {tabItems.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
+                >
+                  <Icon size={16} className="settings-tab-icon" />
+                  <span className="settings-tab-label">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Тело модального окна */}
+          <div className="modal__body" ref={bodyRef} style={{ padding: "16px 20px 10px 20px" }}>
+            <div ref={panelRef} className="settings-tab-panel">
+              {renderTabContent()}
+            </div>
+          </div>
+
+          {/* Футер с версией приложения и проверкой обновлений */}
+          <div className="settings-footer">
+            {renderFooterContent()}
+          </div>
+        </div>
+      ) : (
+        /* ─── ОСТРОВНОЙ РЕЖИМ (Стиль «Капсула») ─── */
+        <div
+          ref={modalRef}
+          className={`modal modal--settings modal--settings-capsule ${isClosing ? "modal--closing" : ""}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-modal-title"
+          style={{
+            width: 720,
+            maxWidth: "95vw",
+            maxHeight: "80vh",
+            display: "flex",
+            flexDirection: "column",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Верхний ряд: 3 самостоятельные карточки-островка */}
+          <div className="settings-capsule-header">
+            <h2 id="settings-modal-title" className="sr-only">
+              {dict.settings.title}
+            </h2>
+
+            {/* Карточка 1: Шестерёнка */}
+            <div
+              className="settings-card settings-card--gear"
+              aria-label={dict.settings.title}
+            >
+              <Settings size={20} color="var(--accent)" />
+            </div>
+
+            {/* Карточка 2: Вкладки */}
+            <div className="settings-card settings-card--tabs">
+              {tabItems.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id)}
+                    className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
+                    aria-label={tab.label}
+                  >
+                    <Icon size={14} className="settings-tab-icon" />
+                    <span className="settings-tab-label">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Карточка 3: Крестик */}
+            <button
+              ref={closeButtonRef}
+              type="button"
+              className="settings-card settings-card--close"
+              onClick={handleClose}
+              id="btn-settings-close"
+              aria-label={dict.settings.close}
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Карточка 2: Основное тело настроек */}
+          <div className="settings-card settings-card--body">
+            <div className="settings-card__scroll-container" ref={bodyRef}>
+              <div ref={panelRef} className="settings-tab-panel">
+                {renderTabContent()}
+              </div>
+            </div>
+          </div>
+
+          {/* Карточка 3: Футер с версией приложения и проверкой обновлений */}
+          <div className="settings-card settings-card--footer">
+            {renderFooterContent()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

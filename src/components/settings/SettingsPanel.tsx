@@ -12,6 +12,7 @@ import {
   Layers,
   RefreshCw,
   X,
+  Settings,
 } from "lucide-react";
 import { useTranslation } from "../../i18n/LanguageContext";
 import {
@@ -206,6 +207,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const isCapsule = controlBarStyle === "capsule";
   
   const { dict } = useTranslation();
 
@@ -849,222 +851,296 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     }
   };
 
+  const renderSections = () => (
+    <>
+      <SectionBlock
+        id="section-general"
+        Icon={SlidersHorizontal}
+        label={dict.settings.tabs.general}
+        isMounted={mountedSections.has("section-general")}
+      >
+        <MemoizedGeneralSettingsTab
+          multiInstance={multiInstance} setMultiInstance={setMultiInstance}
+          saveTracksToVideoDir={saveTracksToVideoDir} setSaveTracksToVideoDir={setSaveTracksToVideoDir}
+          autoLoadTracks={autoLoadTracks} setAutoLoadTracks={setAutoLoadTracks}
+          autoSelectExternalAudio={autoSelectExternalAudio} setAutoSelectExternalAudio={setAutoSelectExternalAudio}
+          playNextOnEnd={playNextOnEnd} setPlayNextOnEnd={setPlayNextOnEnd}
+          hotloadEnabled={hotloadEnabled} setHotloadEnabled={setHotloadEnabled}
+          hideControlsInUpperHalf={hideControlsInUpperHalf} setHideControlsInUpperHalf={setHideControlsInUpperHalf}
+          openSections={openSections} onToggleSection={toggleSection}
+          screenshotDir={screenshotDir}
+          handlePickFolder={handlePickFolder}
+          handleResetDefault={handleResetDefault}
+          showTrackNames={showTrackNames}
+          setShowTrackNames={setShowTrackNames}
+          subtitlesAvoidUi={subtitlesAvoidUi}
+          setSubtitlesAvoidUi={setSubtitlesAvoidUi}
+        />
+      </SectionBlock>
+
+      <SectionBlock
+        id="section-appearance"
+        Icon={Palette}
+        label={dict.settings.tabs.appearance}
+        isMounted={mountedSections.has("section-appearance")}
+      >
+        <MemoizedAppearanceSettingsTab
+          activeColor={activeColor} setActiveColor={setActiveColor}
+          uiRadius={uiRadius} saveUiRadius={saveUiRadius} setUiRadius={setUiRadius}
+          uiScale={uiScale} saveUiScale={saveUiScale} setUiScale={setUiScale}
+          uiOpacity={uiOpacity} saveUiOpacity={saveUiOpacity} setUiOpacity={setUiOpacity}
+          uiFont={uiFont} saveUiFont={saveUiFont} setUiFont={setUiFont}
+          timePosition={timePosition} saveTimePosition={saveTimePosition} setTimePosition={setTimePosition}
+          timeFormat={timeFormat} saveTimeFormat={saveTimeFormat} setTimeFormat={setTimeFormat}
+          controlBarStyle={controlBarStyle} saveControlBarStyle={saveControlBarStyle} setControlBarStyle={setControlBarStyle}
+          ambientSettings={ambientSettings} updateAmbient={updateAmbient}
+          visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons}
+          skipOpeningSeconds={skipOpeningSeconds} setSkipOpeningSeconds={setSkipOpeningSeconds}
+          seekStepSeconds={seekStepSeconds} setSeekStepSeconds={setSeekStepSeconds}
+          animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
+          openSections={openSections} onToggleSection={toggleSection}
+          getEffectiveAccentColor={getEffectiveAccentColor}
+        />
+      </SectionBlock>
+
+      <SectionBlock
+        id="section-presets"
+        Icon={Layers}
+        label={dict.settings.tabs.presets}
+        isMounted={mountedSections.has("section-presets")}
+      >
+        <div className="modal__section col">
+          <MemoizedPresetsSection onPresetApplied={handlePresetApplied} />
+        </div>
+      </SectionBlock>
+
+      <SectionBlock
+        id="section-upscaling"
+        Icon={Sparkles}
+        label={dict.settings.tabs.upscaling}
+        isMounted={mountedSections.has("section-upscaling")}
+      >
+        <div className="modal__section col">
+          <MemoizedUpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
+        </div>
+      </SectionBlock>
+
+      <SectionBlock
+        id="section-hotkeys"
+        Icon={Keyboard}
+        label={dict.settings.tabs.hotkeys}
+        isMounted={mountedSections.has("section-hotkeys")}
+      >
+        <MemoizedHotkeysSettingsTab
+          openSections={openSections}
+          onToggleSection={toggleSection}
+          onRecordingChange={setIsRecordingHotkey}
+        />
+      </SectionBlock>
+
+      <SectionBlock
+        id="section-integration"
+        Icon={Link}
+        label={dict.settings.tabs.integration}
+        isMounted={mountedSections.has("section-integration")}
+      >
+        <MemoizedIntegrationSettingsTab />
+      </SectionBlock>
+    </>
+  );
+
+  const renderFooterContent = () => (
+    <>
+      <div className="settings-footer__left">
+        <div className="settings-footer__icons">
+          <button
+            type="button"
+            onClick={() => openUrl("https://github.com/Menely/L-MPV")}
+            className="settings-footer__icon-btn hover-bright"
+            title={dict.settings.integration.githubTooltip}
+          >
+            <GithubIcon size={19} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
+            className="settings-footer__icon-btn hover-bright"
+            title={dict.settings.integration.telegramTooltip}
+          >
+            <TelegramIcon size={19} />
+          </button>
+        </div>
+
+        <span className="settings-footer__title">L-MPV</span>
+
+        <button
+          type="button"
+          onClick={handleShowVersionInfo}
+          disabled={isLoadingVersionInfo}
+          className="settings-footer__btn settings-footer__btn--version"
+        >
+          {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
+          <span>v{appVersion}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleCheckForUpdates}
+          disabled={isCheckingUpdate}
+          className="settings-footer__btn settings-footer__btn--check"
+        >
+          {isCheckingUpdate ? (
+            <>
+              <Loader2 size={12} className="animate-spin" />
+              <span>{dict.settings.integration.checking}</span>
+            </>
+          ) : (
+            <>
+              <RefreshCw size={12} />
+              <span>{dict.settings.integration.checkUpdates}</span>
+            </>
+          )}
+        </button>
+
+        {updateStatus && (
+          foundUpdate && onShowUpdate ? (
+            <button
+              type="button"
+              onClick={() => onShowUpdate(foundUpdate)}
+              className="settings-footer__btn settings-footer__btn--update"
+            >
+              <Sparkles size={12} />
+              <span>{updateStatus}</span>
+            </button>
+          ) : (
+            <span
+              style={{
+                fontSize: "var(--fs-xs)",
+                color: isUpdateFound ? "var(--accent)" : "var(--text-muted)",
+                marginLeft: "var(--space-2)",
+              }}
+            >
+              {updateStatus}
+            </span>
+          )
+        )}
+      </div>
+      <span className="settings-footer__edition">{dict.settings.integration.portableEdition}</span>
+    </>
+  );
+
   return (
     <div className={`settings-panel-overlay ${isClosing ? "settings-panel-overlay--closing" : ""}`}>
       <div
         ref={panelRef}
-        className={`settings-side-panel ${isClosing ? "settings-side-panel--closing" : ""}`}
+        className={`settings-side-panel ${isCapsule ? "settings-side-panel--capsule" : ""} ${isClosing ? "settings-side-panel--closing" : ""}`}
         role="region"
         aria-label={dict.settings.title}
         inert={isClosing}
-        >
-        <div className="settings-side-panel__nav">
-          <h2 className="settings-side-panel__nav-title" data-tauri-drag-region>
-            <SlidersHorizontal size={19} color="var(--accent)" />
-            {dict.settings.title}
-          </h2>
+      >
+        {isCapsule ? (
+          <>
+            {/* Верхний ряд: 3 самостоятельные карточки-островка */}
+            <div className="settings-capsule-header">
+              <h2 id="settings-panel-title" className="sr-only">
+                {dict.settings.title}
+              </h2>
 
-          <div className="settings-side-panel__nav-sep" />
-
-          {SECTION_DEFS.map(({ id, Icon, labelKey }) => (
-            <button
-              key={id}
-              type="button"
-              className={`settings-side-panel__nav-btn ${activeSection === id ? "settings-side-panel__nav-btn--active" : ""}`}
-              onClick={() => scrollToSection(id)}
-              title={dict.settings.tabs[labelKey as keyof typeof dict.settings.tabs]}
-              aria-label={dict.settings.tabs[labelKey as keyof typeof dict.settings.tabs]}
-              aria-current={activeSection === id ? "true" : undefined}
+              {/* Карточка 1: Шестерёнка */}
+              <div
+                className="settings-card settings-card--gear"
+                aria-label={dict.settings.title}
               >
-              <Icon size={17} />
-            </button>
-          ))}
+                <Settings size={20} color="var(--accent)" />
+              </div>
 
-          <button
-            type="button"
-            className="settings-side-panel__close"
-            onClick={handleClose}
+              {/* Карточка 2: Вкладки-навигация по разделам */}
+              <div className="settings-card settings-card--tabs">
+                {SECTION_DEFS.map(({ id, Icon, labelKey }) => {
+                  const isActive = activeSection === id;
+                  const label = dict.settings.tabs[labelKey as keyof typeof dict.settings.tabs];
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
+                      onClick={() => scrollToSection(id)}
+                      aria-label={label}
+                      aria-current={isActive ? "true" : undefined}
+                    >
+                      <Icon size={14} className="settings-tab-icon" />
+                      <span className="settings-tab-label">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-            aria-label={dict.settings.close}
-            >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="settings-side-panel__scroll" ref={scrollRef}>
-          <SectionBlock
-            id="section-general"
-            Icon={SlidersHorizontal}
-            label={dict.settings.tabs.general}
-            isMounted={mountedSections.has("section-general")}
-            >
-            <MemoizedGeneralSettingsTab
-              multiInstance={multiInstance} setMultiInstance={setMultiInstance}
-              saveTracksToVideoDir={saveTracksToVideoDir} setSaveTracksToVideoDir={setSaveTracksToVideoDir}
-              autoLoadTracks={autoLoadTracks} setAutoLoadTracks={setAutoLoadTracks}
-              autoSelectExternalAudio={autoSelectExternalAudio} setAutoSelectExternalAudio={setAutoSelectExternalAudio}
-              playNextOnEnd={playNextOnEnd} setPlayNextOnEnd={setPlayNextOnEnd}
-              hotloadEnabled={hotloadEnabled} setHotloadEnabled={setHotloadEnabled}
-              hideControlsInUpperHalf={hideControlsInUpperHalf} setHideControlsInUpperHalf={setHideControlsInUpperHalf}
-              openSections={openSections} onToggleSection={toggleSection}
-              screenshotDir={screenshotDir}
-              handlePickFolder={handlePickFolder}
-              handleResetDefault={handleResetDefault}
-              showTrackNames={showTrackNames}
-              setShowTrackNames={setShowTrackNames}
-              subtitlesAvoidUi={subtitlesAvoidUi}
-              setSubtitlesAvoidUi={setSubtitlesAvoidUi}
-            />
-          </SectionBlock>
-
-          <SectionBlock
-            id="section-appearance"
-            Icon={Palette}
-            label={dict.settings.tabs.appearance}
-            isMounted={mountedSections.has("section-appearance")}
-            >
-            <MemoizedAppearanceSettingsTab
-              activeColor={activeColor} setActiveColor={setActiveColor}
-              uiRadius={uiRadius} saveUiRadius={saveUiRadius} setUiRadius={setUiRadius}
-              uiScale={uiScale} saveUiScale={saveUiScale} setUiScale={setUiScale}
-              uiOpacity={uiOpacity} saveUiOpacity={saveUiOpacity} setUiOpacity={setUiOpacity}
-              uiFont={uiFont} saveUiFont={saveUiFont} setUiFont={setUiFont}
-              timePosition={timePosition} saveTimePosition={saveTimePosition} setTimePosition={setTimePosition}
-              timeFormat={timeFormat} saveTimeFormat={saveTimeFormat} setTimeFormat={setTimeFormat}
-              controlBarStyle={controlBarStyle} saveControlBarStyle={saveControlBarStyle} setControlBarStyle={setControlBarStyle}
-              ambientSettings={ambientSettings} updateAmbient={updateAmbient}
-              visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons}
-              skipOpeningSeconds={skipOpeningSeconds} setSkipOpeningSeconds={setSkipOpeningSeconds}
-              seekStepSeconds={seekStepSeconds} setSeekStepSeconds={setSeekStepSeconds}
-              animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
-              openSections={openSections} onToggleSection={toggleSection}
-              getEffectiveAccentColor={getEffectiveAccentColor}
-            />
-          </SectionBlock>
-
-          <SectionBlock
-            id="section-presets"
-            Icon={Layers}
-            label={dict.settings.tabs.presets}
-            isMounted={mountedSections.has("section-presets")}
-            >
-            <div className="modal__section col">
-              <MemoizedPresetsSection onPresetApplied={handlePresetApplied} />
-            </div>
-          </SectionBlock>
-
-          <SectionBlock
-            id="section-upscaling"
-            Icon={Sparkles}
-            label={dict.settings.tabs.upscaling}
-            isMounted={mountedSections.has("section-upscaling")}
-            >
-            <div className="modal__section col">
-              <MemoizedUpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
-            </div>
-          </SectionBlock>
-
-          <SectionBlock
-            id="section-hotkeys"
-            Icon={Keyboard}
-            label={dict.settings.tabs.hotkeys}
-            isMounted={mountedSections.has("section-hotkeys")}
-            >
-            <MemoizedHotkeysSettingsTab
-              openSections={openSections}
-              onToggleSection={toggleSection}
-              onRecordingChange={setIsRecordingHotkey}
-            />
-          </SectionBlock>
-
-          <SectionBlock
-            id="section-integration"
-            Icon={Link}
-            label={dict.settings.tabs.integration}
-            isMounted={mountedSections.has("section-integration")}
-            >
-            <MemoizedIntegrationSettingsTab />
-          </SectionBlock>
-        </div>
-
-        <div className="settings-footer">
-          <div className="settings-footer__left">
-            <div className="settings-footer__icons">
+              {/* Карточка 3: Крестик */}
               <button
                 type="button"
-                onClick={() => openUrl("https://github.com/Menely/L-MPV")}
-                className="settings-footer__icon-btn hover-bright"
-                title={dict.settings.integration.githubTooltip}
-                >
-                <GithubIcon size={19} />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
-                className="settings-footer__icon-btn hover-bright"
-                title={dict.settings.integration.telegramTooltip}
-                >
-                <TelegramIcon size={19} />
+                className="settings-card settings-card--close"
+                onClick={handleClose}
+                aria-label={dict.settings.close}
+              >
+                <X size={20} />
               </button>
             </div>
 
-            <span className="settings-footer__title">L-MPV</span>
+            {/* Карточка 2: Основное тело настроек со скроллом */}
+            <div className="settings-card settings-card--body">
+              <div className="settings-card__scroll-container" ref={scrollRef}>
+                {renderSections()}
+              </div>
+            </div>
 
-            <button
-              type="button"
-              onClick={handleShowVersionInfo}
-              disabled={isLoadingVersionInfo}
-              className="settings-footer__btn settings-footer__btn--version"
-              >
-              {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
-              <span>v{appVersion}</span>
-            </button>
+            {/* Карточка 3: Футер с версией приложения и проверкой обновлений */}
+            <div className="settings-card settings-card--footer">
+              {renderFooterContent()}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="settings-side-panel__nav">
+              <h2 className="settings-side-panel__nav-title" data-tauri-drag-region>
+                <SlidersHorizontal size={19} color="var(--accent)" />
+                {dict.settings.title}
+              </h2>
 
-            <button
-              type="button"
-              onClick={handleCheckForUpdates}
-              disabled={isCheckingUpdate}
-              className="settings-footer__btn settings-footer__btn--check"
-              >
-              {isCheckingUpdate ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" />
-                  <span>{dict.settings.integration.checking}</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw size={12} />
-                  <span>{dict.settings.integration.checkUpdates}</span>
-                </>
-              )}
-            </button>
+              <div className="settings-side-panel__nav-sep" />
 
-            {updateStatus && (
-              foundUpdate && onShowUpdate ? (
+              {SECTION_DEFS.map(({ id, Icon, labelKey }) => (
                 <button
+                  key={id}
                   type="button"
-                  onClick={() => onShowUpdate(foundUpdate)}
-                  className="settings-footer__btn settings-footer__btn--update"
-                  >
-                  <Sparkles size={12} />
-                  <span>{updateStatus}</span>
+                  className={`settings-side-panel__nav-btn ${activeSection === id ? "settings-side-panel__nav-btn--active" : ""}`}
+                  onClick={() => scrollToSection(id)}
+                  aria-label={dict.settings.tabs[labelKey as keyof typeof dict.settings.tabs]}
+                  aria-current={activeSection === id ? "true" : undefined}
+                >
+                  <Icon size={17} />
                 </button>
-              ) : (
-                <span
-                  style={{
-                    fontSize: "var(--fs-xs)",
-                    color: isUpdateFound ? "var(--accent)" : "var(--text-muted)",
-                    marginLeft: "var(--space-2)",
-                  }}
-                  >
-                  {updateStatus}
-                </span>
-              )
-            )}
-          </div>
-          <span className="settings-footer__edition">{dict.settings.integration.portableEdition}</span>
-        </div>
+              ))}
+
+              <button
+                type="button"
+                className="settings-side-panel__close"
+                onClick={handleClose}
+                aria-label={dict.settings.close}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="settings-side-panel__scroll" ref={scrollRef}>
+              {renderSections()}
+            </div>
+
+            <div className="settings-footer">
+              {renderFooterContent()}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -35,8 +35,8 @@ const isMediaInfoWindow = checkIsMediaInfoWindow();
 
 if (typeof document !== "undefined") {
   if (isMediaInfoWindow) {
-    document.documentElement.style.background = "#0f121a";
-    document.body.style.background = "#0f121a";
+    document.documentElement.style.background = "var(--bg-primary, #0b0d12)";
+    document.body.style.background = "var(--bg-primary, #0b0d12)";
   } else {
     document.documentElement.style.background = "transparent";
     document.body.style.background = "transparent";
@@ -73,6 +73,10 @@ if (typeof document !== "undefined") {
   if (!isMediaInfoWindow) {
     void hydrateUiSettingsFromDisk();
     cleanupUiSync = initUiSettingsAutoSync();
+  } else {
+    // В автономном окне MediaInfo синхронизируем визуальные настройки с диска,
+    // чтобы сразу отобразить активную тему плеера даже при прямом запуске из Проводника
+    void hydrateUiSettingsFromDisk();
   }
 
   runtimeWindow.__lMpvUiRuntimeCleanup = () => {

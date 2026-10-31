@@ -53,15 +53,15 @@ export const MediaInfoSectionItem: React.FC<MediaInfoSectionItemProps> = React.m
           onClick={() => onCopySection(section.title, section.cleanText)}
         >
           {isCopied ? (
-            <>
-              <Check size={12} color="#4ade80" />
-              <span>{useRussian ? "Скопировано" : "Copied"}</span>
-            </>
+
+              <Check size={13} color="#4ade80" />
+
+
           ) : (
-            <>
-              <Copy size={12} />
-              <span>{useRussian ? "Копировать" : "Copy"}</span>
-            </>
+
+              <Copy size={13} />
+
+
           )}
         </button>
       </div>

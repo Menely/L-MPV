@@ -1364,18 +1364,18 @@ impl MpvManager {
             let speed = if speed_raw <= 0.0 { 1.0 } else { speed_raw };
             let volume = Self::get_double_raw(&self.api, handle, c"volume");
 
-            let ab = Self::get_double_raw(&self.api, handle, c"packet-audio-bitrate");
+            let ab = Self::get_double_raw(&self.api, handle, c"audio-bitrate");
             let audio_bitrate = if ab > 0.0 {
                 ab
             } else {
-                Self::get_double_raw(&self.api, handle, c"audio-bitrate")
+                Self::get_double_raw(&self.api, handle, c"packet-audio-bitrate")
             };
 
-            let vb = Self::get_double_raw(&self.api, handle, c"packet-video-bitrate");
+            let vb = Self::get_double_raw(&self.api, handle, c"video-bitrate");
             let video_bitrate = if vb > 0.0 {
                 vb
             } else {
-                Self::get_double_raw(&self.api, handle, c"video-bitrate")
+                Self::get_double_raw(&self.api, handle, c"packet-video-bitrate")
             };
 
             let dropped_frames = Self::get_double_raw(

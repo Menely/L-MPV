@@ -831,28 +831,28 @@ pub fn get_media_info(
             .unwrap_or_default(),
         audio_bitrate: {
             let ab = mpv
-                .get_property_double(
-                    "packet-audio-bitrate",
-                )
+                .get_property_double("audio-bitrate")
                 .unwrap_or(0.0);
             if ab > 0.0 {
                 ab
             } else {
-                mpv.get_property_double("audio-bitrate")
-                    .unwrap_or(0.0)
+                mpv.get_property_double(
+                    "packet-audio-bitrate",
+                )
+                .unwrap_or(0.0)
             }
         },
         video_bitrate: {
             let vb = mpv
-                .get_property_double(
-                    "packet-video-bitrate",
-                )
+                .get_property_double("video-bitrate")
                 .unwrap_or(0.0);
             if vb > 0.0 {
                 vb
             } else {
-                mpv.get_property_double("video-bitrate")
-                    .unwrap_or(0.0)
+                mpv.get_property_double(
+                    "packet-video-bitrate",
+                )
+                .unwrap_or(0.0)
             }
         },
         total_bitrate,

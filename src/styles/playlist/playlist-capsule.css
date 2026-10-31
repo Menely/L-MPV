@@ -120,7 +120,7 @@
 
 .playlist-drawer--capsule .playlist-drawer__search:focus-within {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35) !important;
+  box-shadow: none !important;
   background: var(--bg-glass) !important;
 }
 
@@ -239,7 +239,7 @@
   color: #0b0f14 !important;
   font-weight: 700;
   font-size: 11px;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6);
+  box-shadow: none !important;
   line-height: 1;
 }
 

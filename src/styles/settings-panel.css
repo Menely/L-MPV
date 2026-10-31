@@ -53,6 +53,7 @@
   position: relative;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   transition: border-color var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth),
@@ -128,7 +129,7 @@
   padding: 0;
   background: transparent;
   border: 1.5px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   color: var(--text-muted);
   cursor: pointer;
   transition: background var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth);
@@ -164,7 +165,7 @@
   border: 0;
   color: var(--text-secondary);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   transition: background var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-out);
 }
 
@@ -292,8 +293,14 @@ body.settings-open .player-controls-wrapper--docked {
 }
 
 .settings-side-panel .settings-footer {
-  border-radius: 0;
+  border-radius: 0 0 var(--radius-surface) var(--radius-surface);
   flex-shrink: 0;
+}
+
+/* ─── Адаптация боковой панели настроек под стиль «Капсула» ─── */
+.settings-side-panel--capsule {
+  --settings-panel-left-inset: 12px;
+  --settings-panel-top-inset: 12px;
 }
 
 .settings-window-choice-grid {

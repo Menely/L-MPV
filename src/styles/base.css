@@ -279,6 +279,8 @@ html, body, #root {
 
 /* ─── Унифицированное центрированное вращение крестиков (Close & Clear) ── */
 .modal__close svg,
+.settings-card--close svg,
+.update-card__action-btn--close svg,
 .titlebar__btn--close svg,
 .playlist-drawer__close svg,
 .side-panel__close svg,
@@ -298,6 +300,8 @@ html, body, #root {
 }
 
 .modal__close:hover svg,
+.settings-card--close:hover svg,
+.update-card__action-btn--close:hover svg,
 .titlebar__btn--close:hover svg,
 .playlist-drawer__close:hover svg,
 .side-panel__close:hover svg,

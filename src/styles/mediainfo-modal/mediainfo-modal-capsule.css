@@ -1,0 +1,564 @@
+/* ─── Окно MediaInfo: стиль «Капсула» (островная архитектура) ────────────
+   Корневой контейнер прозрачен, интерфейс разделяется на парящие
+   независимые карточки-островки с системным зазором 6px, глобальной
+   прозрачностью (--bg-glass), мягкими тенями (--shadow-elevated)
+   и адаптивным скруглением углов (--radius-controls, 16px).
+   Никаких дешевых неоновых свечений, размытий текста или лишних подложек.
+──────────────────────────────────────────────────────────────────────────── */
+
+/* ─── 1. Автономное изолированное окно MediaInfo (Shift+F10) ─────────────── */
+.mediainfo-standalone.mediainfo-standalone--capsule {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 8px !important;
+  gap: 6px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Общий базовый стиль для всех парящих островков окна MediaInfo */
+.mediainfo-standalone--capsule .mediainfo-standalone__titlebar-left,
+.mediainfo-standalone--capsule .mediainfo-standalone__window-controls,
+.mediainfo-standalone--capsule .mediainfo-standalone__search-wrapper,
+.mediainfo-standalone--capsule .mediainfo-standalone__actions,
+.mediainfo-standalone--capsule .mediainfo-standalone__tabs-bar,
+.mediainfo-standalone--capsule .mediainfo-standalone__body {
+  background: var(--bg-glass, rgba(16, 19, 28, 0.94)) !important;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08)) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated, 0 8px 24px rgba(0, 0, 0, 0.35)) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  box-sizing: border-box !important;
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth) !important;
+}
+
+/* ── Ряд 1: Верхняя панель (Шапка) ───────────────────────────────────────── */
+.mediainfo-standalone--capsule .mediainfo-standalone__titlebar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: auto !important;
+  min-height: auto !important;
+  flex-shrink: 0 !important;
+  cursor: default !important;
+}
+
+/* Островок 1: Информация о файле */
+.mediainfo-standalone--capsule .mediainfo-standalone__titlebar-left {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  cursor: grab !important;
+  user-select: none !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__titlebar-left:active {
+  cursor: grabbing !important;
+}
+
+/* Чистая иконка без подложек и рамок */
+.mediainfo-standalone--capsule .mediainfo-standalone__icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--accent) !important;
+  flex-shrink: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__filename {
+  font-size: var(--fs-xs, 12px) !important;
+  font-weight: 500 !important;
+  color: var(--text-primary, #ffffff) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+/* Островок 2: Управление окном (Pin, Свернуть, Развернуть, Закрыть) */
+.mediainfo-standalone--capsule .mediainfo-standalone__window-controls {
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 4px 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  padding: 0 !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--radius-control) !important;
+  background: transparent !important;
+  color: var(--text-secondary, #94a3b8) !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--text-primary, #ffffff) !important;
+}
+
+/* Активное состояние кнопки Always on Top */
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn--active {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  color: var(--accent) !important;
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+}
+
+/* Кнопка закрытия окна */
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn--close:hover {
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+/* ── Ряд 2: Панель поиска и действий ─────────────────────────────────────── */
+.mediainfo-standalone--capsule .mediainfo-standalone__toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Островок 3: Поле поиска по свойствам */
+.mediainfo-standalone--capsule .mediainfo-standalone__search-wrapper {
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 1 1 auto !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__search-wrapper:focus-within {
+  border-color: var(--accent) !important;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.05) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__search-icon {
+  color: var(--text-muted, #64748b) !important;
+  flex-shrink: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__search-input {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  color: var(--text-primary, #ffffff) !important;
+  font-size: var(--fs-xs, 12px) !important;
+  width: 100% !important;
+  padding: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__search-stats {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__search-count {
+  font-size: var(--fs-2xs, 11px) !important;
+  color: var(--accent) !important;
+  font-weight: 600 !important;
+  padding: 2px 8px !important;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.14) !important;
+  border-radius: var(--radius-pill, 9999px) !important;
+  line-height: 1.2 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__btn-icon {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: var(--radius-control) !important;
+}
+
+/* Островок 4: Кнопки действий (Язык, Копировать, Экспорт) — идеальное выравнивание с островком 2 */
+.mediainfo-standalone--capsule .mediainfo-standalone__actions {
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 4px 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn {
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  font-size: var(--fs-xs, 12px) !important;
+  font-weight: 500 !important;
+  border-radius: var(--radius-control) !important;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.1)) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--text-secondary, #cbd5e1) !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  box-sizing: border-box !important;
+  transition: all var(--t-fast) var(--ease-smooth) !important;
+  box-shadow: none !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn--icon {
+  width: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  border-radius: var(--radius-control) !important;
+  box-sizing: border-box !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09) !important;
+  color: var(--text-primary, #ffffff) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn--active {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  font-weight: 600 !important;
+}
+
+/* ── Ряд 3: Островок чипов категорий (Tabs Bar) ───────────────────────────── */
+.mediainfo-standalone--capsule .mediainfo-standalone__tabs-bar {
+  min-height: 38px !important;
+  padding: 4px 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip {
+  height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: var(--radius-control) !important;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.1)) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--text-secondary, #cbd5e1) !important;
+  font-size: var(--fs-2xs, 11px) !important;
+  font-weight: 500 !important;
+  gap: 6px !important;
+  transition: all var(--t-fast) var(--ease-smooth) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip:hover {
+  background: rgba(255, 255, 255, 0.09) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip--active {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  color: var(--text-primary, #ffffff) !important;
+  border-color: var(--accent) !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip__badge {
+  font-size: var(--fs-3xs, 9px) !important;
+  padding: 1px 5px !important;
+  border-radius: var(--radius-xs) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-muted, #94a3b8) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip--active .mediainfo-tab-chip__badge {
+  background: var(--accent) !important;
+  color: #0b0d12 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-action-btn {
+  height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: var(--radius-control) !important;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.1)) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--text-secondary, #94a3b8) !important;
+  font-size: var(--fs-2xs, 11px) !important;
+  font-weight: 500 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-action-btn:hover {
+  background: rgba(255, 255, 255, 0.09) !important;
+  color: var(--text-primary, #ffffff) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* ── Ряд 4: Островок контента (Тело отчёта) ───────────────────────────────── */
+.mediainfo-standalone--capsule .mediainfo-standalone__body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  padding: 12px 14px !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  scrollbar-gutter: stable !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section {
+  margin-bottom: 12px !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section:last-child {
+  margin-bottom: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__header {
+  margin-top: 14px !important;
+  margin-bottom: 6px !important;
+  padding-bottom: 0 !important;
+  border-bottom: none !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section:first-child .mediainfo-section__header {
+  margin-top: 0 !important;
+}
+
+/* Интерактивный триггер сворачивания секции */
+.mediainfo-standalone--capsule .mediainfo-section__collapse-trigger {
+  background: rgba(255, 255, 255, 0.035) !important;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08)) !important;
+  border-radius: var(--radius-control) !important;
+  padding: 5px 10px !important;
+  gap: 8px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  transition: all var(--t-fast) var(--ease-smooth) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__collapse-trigger:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__title {
+  color: var(--accent) !important;
+  font-size: var(--fs-xs, 12px) !important;
+  font-weight: 700 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__count-badge {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-radius: var(--radius-xs) !important;
+  color: var(--text-muted, #94a3b8) !important;
+  font-size: var(--fs-2xs, 10px) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__match-badge {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.25) !important;
+  color: var(--accent) !important;
+  border-radius: var(--radius-xs) !important;
+  font-size: var(--fs-3xs, 9px) !important;
+  font-weight: 600 !important;
+}
+
+/* Кнопка копирования секции (только иконка) */
+.mediainfo-standalone--capsule .mediainfo-section__copy-btn {
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: var(--radius-control) !important;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08)) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--text-secondary, #94a3b8) !important;
+  transition: all var(--t-fast) var(--ease-smooth) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__copy-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__copy-btn--copied {
+  background: rgba(74, 222, 128, 0.16) !important;
+  color: #4ade80 !important;
+  border-color: rgba(74, 222, 128, 0.4) !important;
+}
+
+/* Строки свойств */
+.mediainfo-standalone--capsule .mediainfo-row {
+  border-radius: var(--radius-xs) !important;
+  padding: 2px 6px !important;
+  margin: 1px 0 !important;
+  transition: background var(--t-fast) var(--ease-smooth) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-row:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-row__colon {
+  color: var(--accent) !important;
+  opacity: 0.65 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-row--match {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.18) !important;
+  color: #ffffff !important;
+  border-radius: var(--radius-xs) !important;
+}
+
+/* Drag and Drop оверлей в капсульном режиме */
+.mediainfo-standalone--capsule .mediainfo-standalone__drag-overlay {
+  border-radius: var(--radius-controls, 16px) !important;
+  padding: 12px !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__drag-box {
+  border-radius: var(--radius-controls, 16px) !important;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.05) !important;
+}
+
+/* ─── 2. Модальное плавающее окно MediaInfo (в плеере) ──────────────────── */
+.mediainfo-floating-window.mediainfo-floating-window--capsule {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  gap: 6px !important;
+  overflow: visible !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__header-left,
+.mediainfo-floating-window--capsule .mediainfo-floating-window__actions,
+.mediainfo-floating-window--capsule .mediainfo-floating-window__search-bar,
+.mediainfo-floating-window--capsule .mediainfo-floating-window__body {
+  background: var(--bg-glass, rgba(16, 19, 28, 0.94)) !important;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08)) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated, 0 8px 24px rgba(0, 0, 0, 0.35)) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  box-sizing: border-box !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__header {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  gap: 6px !important;
+  height: auto !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__header-left {
+  flex: 1 1 auto !important;
+  min-height: 42px !important;
+  padding: 0 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--accent) !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__actions {
+  min-height: 42px !important;
+  padding: 4px 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__btn {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: var(--radius-control) !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__search-bar {
+  min-height: 40px !important;
+  padding: 0 12px !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  padding: 12px 14px !important;
+}

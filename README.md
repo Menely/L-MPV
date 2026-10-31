@@ -446,11 +446,16 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Native In-Memory Inspection:** Direct C-FFI binding to `mediainfo.dll` via `libloading` for instant comprehensive extraction of video, audio, and subtitle streams without external command-line shells.
 - **Independent Desktop Window (655×685 px):** The MediaInfo window moves freely across monitors beyond the main player; launches over the player (`Shift+F10`) with an Always-on-Top pin button (`alwaysOnTop`).
 - **Standalone File Inspection ("Open with L-MPV MediaInfo"):** Inspect media metadata straight from the Windows Explorer context menu without launching the video player.
+- **Modular "Capsule" Island Design (`mediainfo-modal-capsule.css`):**
+  - Fully decoupled into 6 floating cards with a systematic 6px gap: file metadata, window controls, search input, report actions, category chips, and content viewport.
+  - **160px Modular Grid Alignment:** Window controls (`.mediainfo-standalone__window-controls`) and action bar (`.mediainfo-standalone__actions`) share an identical $160\text{px} \times 42\text{px}$ footprint ($gap = 6\text{px}$), with language toggle calibrated to $70\text{px}$ ($32\text{px} + 6\text{px} + 32\text{px}$), eliminating step offsets.
+- **Theme Color Synchronization:** Automatically inherits the active player theme (`--bg-surface`, `--bg-primary`, `--bg-glass`) across all visual modes (Modern, Classic, Capsule).
+- **Disk Auto-Hydration (`hydrateUiSettingsFromDisk()`):** Seamlessly restores user theme and layout configuration upon cold startup directly from Windows Explorer.
 - **Interactive Stream Filter Tabs (Quick Filter):** Filter tracks instantly (*"All"*, *"General"*, *"Video"*, *"Audio"*, *"Subtitles"*, *"Chapters"*) with informative stream count badges and 6px rounded pills matching the design system.
 - **Collapsible Stream Accordions:** Collapse or expand individual streams or all at once ("Expand/Collapse All"), with auto-expansion during `Ctrl+F` search.
 - **Native Drag-and-Drop:** Drop any media file straight into the open MediaInfo window with a translucent overlay (`FileUp`) for instant analysis.
 - **Real-Time Bitrate Telemetry (Bitrate Sparkline):** Live interactive graph tracking incoming video and audio bitrates, demuxer cache depth, buffer metrics, and hardware decoder performance.
-- **Productivity Features:** Instant property search with highlighting (`Ctrl+F`), export to `.txt`, copy to clipboard, and bilingual interface (EN/RU).
+- **Productivity Features:** Instant property search with highlighting (`Ctrl+F`), export to `.txt`, copy to clipboard, and bilingual interface (EN/RU). Action buttons feature clean minimalist vector icons without redundant borders or text.
 
 </details>
 
@@ -671,7 +676,9 @@ L-MPV/
 │   │   │   ├── presets.css                   # Presets manager styling
 │   │   │   ├── context-menu.css              # Right-click context menu styling
 │   │   │   ├── modals.css                    # Modal dialogs (Settings with ergonomic grids, MediaInfo, Chapters)
-│   │   │   ├── mediainfo-modal.css           # Styling for custom window and modal MediaInfo inspection
+│   │   │   ├── mediainfo-modal.css           # Central styles for custom window and modal MediaInfo inspection
+│   │   ├── mediainfo-modal/              # Modular styles for MediaInfo:
+│   │   │   └── mediainfo-modal-capsule.css # "Capsule" island architecture (6 floating cards, 160px grid alignment)
 │   │   │   ├── side-panel.css                # Chapters drawer panel
 │   │   │   ├── track-popover.css             # Audio and subtitle track popovers
 │   │   │   ├── overlays.css                  # Overlay elements (Drag&Drop, Playlist Drawer, etc.)

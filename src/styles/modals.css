@@ -113,7 +113,7 @@
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   padding: 0;
   margin: 0;
   line-height: 1;
@@ -245,7 +245,7 @@
 .settings-action-btn--primary:hover:not(:disabled) {
   background: var(--accent);
   color: #0b0d12;
-  box-shadow: 0 0 16px var(--accent-glow);
+  box-shadow: none;
   border-color: var(--accent);
 }
 
@@ -271,7 +271,7 @@
   background: rgba(244, 67, 54, 0.18);
   border-color: rgba(244, 67, 54, 0.45);
   color: #fca5a5;
-  box-shadow: 0 0 14px rgba(244, 67, 54, 0.25);
+  box-shadow: none;
 }
 
 .spin-animation {
@@ -367,7 +367,7 @@
 
 .color-circle--active {
   border-color: #ffffff !important;
-  box-shadow: 0 0 14px var(--accent-glow) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
   transform: scale(1.12);
 }
 
@@ -391,7 +391,7 @@
   background: var(--accent-glass);
   border-color: var(--accent);
   color: var(--accent);
-  box-shadow: 0 0 10px var(--accent-glow);
+  box-shadow: none;
 }
 
 .color-circle--empty {
@@ -626,7 +626,7 @@
 .visual-bar-card--active {
   background: rgba(var(--accent-rgb), 0.16) !important;
   border: 1.5px solid var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  box-shadow: inset 0 0 0 1.5px var(--accent) !important;
 }
 
 /* ─── Реалистичное мини-превью стиля панели плеера ─── */
@@ -641,7 +641,7 @@
 .visual-bar-preview {
   width: 148px;
   height: 64px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: #090e15;
   border: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
@@ -754,7 +754,7 @@
 .visual-bar-card--active .visual-bar-preview__capsule-island {
   border-color: var(--accent);
   background: rgba(16, 28, 42, 0.95);
-  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.4);
+  box-shadow: none;
 }
 
 /* 2: Модерн (единый парящий остров) */
@@ -780,7 +780,7 @@
 .visual-bar-card--active .visual-bar-preview__floating-island {
   border-color: var(--accent);
   background: rgba(16, 28, 42, 0.95);
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.45);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
 }
 
 /* 2: Классический (пристыкованная плашка) */
@@ -803,7 +803,7 @@
 .visual-bar-card--active .visual-bar-preview__docked-bar {
   border-top-color: var(--accent);
   background: rgba(15, 25, 36, 0.98);
-  box-shadow: 0 -2px 10px rgba(var(--accent-rgb), 0.35);
+  box-shadow: none;
 }
 
 .visual-bar-preview__docked-timeline {
@@ -968,6 +968,7 @@
 
 .option-card {
   min-width: 0;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   transition: border-color var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth),
@@ -1089,7 +1090,7 @@
   background: rgba(var(--accent-rgb), 0.16) !important;
   color: var(--text-primary) !important;
   border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  box-shadow: inset 0 0 0 1.5px var(--accent) !important;
 }
 
 .compact-segment-btn--mono {
@@ -1134,7 +1135,7 @@
   padding: 1px 2px;
   cursor: pointer;
   color: var(--text-muted);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1224,7 +1225,7 @@
 }
 
 .version-picker-trigger {
-  height: 29px;
+  height: 32px;
   box-sizing: border-box;
   font-size: var(--fs-sm);
   font-family: inherit;
@@ -1232,36 +1233,84 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-pill, 9999px);
+  border-radius: var(--radius-control, 8px);
   cursor: pointer;
   outline: none;
   border: 1px solid var(--border-pill, rgba(59, 130, 246, 0.3));
   background: var(--accent-glass, rgba(59, 130, 246, 0.18));
   color: var(--accent, #60a5fa);
   font-weight: 700;
-  padding: 0 10px;
+  padding: 0 12px;
   gap: var(--space-2);
   user-select: none;
-  transform: none !important;
-  transition: background-color var(--t-fast) var(--ease-smooth),
-              border-color var(--t-fast) var(--ease-smooth),
-              color var(--t-fast) var(--ease-smooth);
+  box-shadow: none !important;
+  transition: all var(--t-fast) var(--ease-smooth);
 }
 
 .version-picker-trigger:hover {
-  background: rgba(59, 130, 246, 0.28);
+  background: rgba(var(--accent-rgb, 59, 130, 246), 0.28);
   border-color: var(--accent, #60a5fa);
+  color: var(--accent, #60a5fa);
 }
 
 .version-picker-trigger--downgrade {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.18);
-  border-color: rgba(245, 158, 11, 0.35);
+  color: var(--accent, #60a5fa);
+  background: var(--accent-glass, rgba(var(--accent-rgb, 59, 130, 246), 0.18));
+  border-color: var(--border-pill, rgba(var(--accent-rgb, 59, 130, 246), 0.35));
 }
 
 .version-picker-trigger--downgrade:hover {
-  background: rgba(245, 158, 11, 0.28);
-  border-color: #fbbf24;
+  background: rgba(var(--accent-rgb, 59, 130, 246), 0.28);
+  border-color: var(--accent, #60a5fa);
+}
+
+/* ─── Кнопки диалога обновления в классическом режиме (Модерн, Прикрепленный) ─── */
+.update-modal-btn {
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  font-size: var(--fs-sm, 13px);
+  font-weight: 600;
+  border-radius: var(--radius-control, 8px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--t-fast) var(--ease-smooth);
+  white-space: nowrap;
+  user-select: none;
+  outline: none;
+  box-shadow: none !important;
+}
+
+.update-modal-btn--primary {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+.update-modal-btn--primary:hover:not(:disabled) {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.28);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.update-modal-btn--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.update-modal-btn--secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.1));
+  color: var(--text-secondary, #d1d5db);
+}
+
+.update-modal-btn--secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
 }
 
 .version-picker-popover {
@@ -1584,7 +1633,7 @@
   border-color: var(--accent);
   /* font-weight НЕ меняется (500): смена 500->600 расширяла подпись,
      отбирала ширину у соседних кнопок (flex:1) и сдвигала все иконки. */
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35), inset 0 0 0 1.5px var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .settings-tab-btn--active svg {
@@ -1641,15 +1690,280 @@
   margin-bottom: 0 !important;
 }
 
+/* ─── Модальное окно настроек: Базовые стили для классического режима ─── */
 .modal--settings {
   container-type: inline-size;
   container-name: settings-shell;
-  background: var(--bg-glass, var(--bg-modal-solid, #11141c));
 }
 
 .modal--settings .modal__body {
   background: transparent;
   overflow-anchor: none;
+}
+
+/* ─── Островные карточки настроек: ИСКЛЮЧИТЕЛЬНО для стиля «Капсула» (модалка и панель) ─── */
+.modal--settings.modal--settings-capsule,
+.settings-side-panel.settings-side-panel--capsule {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  gap: 10px !important;
+  overflow: visible !important;
+}
+
+.modal--settings-capsule .settings-card,
+.settings-side-panel--capsule .settings-card {
+  background: var(--bg-glass, var(--bg-modal-solid, #11141c));
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-controls, var(--radius-lg, 16px));
+  box-shadow: var(--shadow-elevated, 0 8px 32px rgba(0, 0, 0, 0.35));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-sizing: border-box;
+}
+
+/* 1. Верхний ряд: 3 отдельные карточки-островка */
+.modal--settings-capsule .settings-capsule-header,
+.settings-side-panel--capsule .settings-capsule-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* Карточка 1 (слева): шестерёнка (статичная карточка без анимаций) */
+.modal--settings-capsule .settings-card--gear,
+.settings-side-panel--capsule .settings-card--gear {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  line-height: 0;
+  border-radius: var(--radius-controls, var(--radius-lg, 16px));
+}
+
+.modal--settings-capsule .settings-card--gear svg,
+.settings-side-panel--capsule .settings-card--gear svg {
+  display: block;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  transform: none;
+}
+
+/* Карточка 2 (по центру): вкладки */
+.modal--settings-capsule .settings-card--tabs,
+.settings-side-panel--capsule .settings-card--tabs {
+  --tabs-card-padding: 4px;
+  --tabs-card-border: 1px;
+  --tab-sub-radius: max(0px, calc(var(--radius-controls, 16px) - var(--tabs-card-padding) - var(--tabs-card-border)));
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  min-height: 42px;
+  padding: var(--tabs-card-padding) 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.modal--settings-capsule .settings-card--tabs::-webkit-scrollbar,
+.settings-side-panel--capsule .settings-card--tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.modal--settings-capsule .settings-card--tabs .settings-tab-btn,
+.settings-side-panel--capsule .settings-card--tabs .settings-tab-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 32px;
+  min-height: 32px;
+  padding: 4px 8px;
+  gap: 5px;
+  font-size: var(--fs-xs, 12px);
+  border-radius: var(--tab-sub-radius);
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.modal--settings-capsule .settings-card--tabs .settings-tab-btn:hover,
+.settings-side-panel--capsule .settings-card--tabs .settings-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.modal--settings-capsule .settings-card--tabs .settings-tab-btn--active,
+.settings-side-panel--capsule .settings-card--tabs .settings-tab-btn--active {
+  border-radius: var(--tab-sub-radius);
+  background: rgba(var(--accent-rgb), 0.16);
+  border-color: var(--accent);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.modal--settings-capsule .settings-card--tabs .settings-tab-icon,
+.settings-side-panel--capsule .settings-card--tabs .settings-tab-icon {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+}
+
+/* Карточка 3 (справа): крестик (сама карточка статична, вращается только svg) */
+.modal--settings-capsule .settings-card--close,
+.settings-side-panel--capsule .settings-card--close {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-controls, var(--radius-lg, 16px));
+  box-sizing: border-box;
+  line-height: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color var(--t-fast) var(--ease-smooth);
+}
+
+.modal--settings-capsule .settings-card--close:hover,
+.settings-side-panel--capsule .settings-card--close:hover {
+  color: var(--text-primary);
+}
+
+.modal--settings-capsule .settings-card--close svg,
+.settings-side-panel--capsule .settings-card--close svg {
+  display: block;
+  flex-shrink: 0;
+  transform-origin: center center;
+  transform: rotate(0deg);
+  transition: transform var(--t-spring, 260ms) var(--ease-spring-smooth);
+}
+
+.modal--settings-capsule .settings-card--close:hover svg,
+.settings-side-panel--capsule .settings-card--close:hover svg {
+  transform: rotate(90deg);
+}
+
+/* 2. Центральная карточка: тело настроек */
+.modal--settings-capsule .settings-card--body,
+.settings-side-panel--capsule .settings-card--body {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden; /* Гарантированно обрезает все вложенные элементы и скроллбар по радиусу карточки */
+  position: relative;
+}
+
+.modal--settings-capsule .settings-card__scroll-container,
+.settings-side-panel--capsule .settings-card__scroll-container {
+  width: 100%;
+  height: 100%;
+  padding: 16px 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  position: relative;
+  overflow-anchor: none;
+}
+
+.modal--settings-capsule .settings-card__scroll-container::-webkit-scrollbar,
+.modal--settings-capsule .settings-card--body::-webkit-scrollbar,
+.settings-side-panel--capsule .settings-card__scroll-container::-webkit-scrollbar,
+.settings-side-panel--capsule .settings-card--body::-webkit-scrollbar {
+  display: block !important;
+  width: 5px !important;
+}
+
+.modal--settings-capsule .settings-card__scroll-container::-webkit-scrollbar-track,
+.modal--settings-capsule .settings-card--body::-webkit-scrollbar-track,
+.settings-side-panel--capsule .settings-card__scroll-container::-webkit-scrollbar-track,
+.settings-side-panel--capsule .settings-card--body::-webkit-scrollbar-track {
+  background: transparent !important;
+  margin-top: 14px !important;
+  margin-bottom: 14px !important;
+}
+
+.modal--settings-capsule .settings-card__scroll-container::-webkit-scrollbar-thumb,
+.modal--settings-capsule .settings-card--body::-webkit-scrollbar-thumb,
+.settings-side-panel--capsule .settings-card__scroll-container::-webkit-scrollbar-thumb,
+.settings-side-panel--capsule .settings-card--body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-radius: 9999px !important;
+  transition: background var(--t-fast) var(--ease-smooth);
+}
+
+.modal--settings-capsule .settings-card__scroll-container::-webkit-scrollbar-thumb:hover,
+.modal--settings-capsule .settings-card--body::-webkit-scrollbar-thumb:hover,
+.settings-side-panel--capsule .settings-card__scroll-container::-webkit-scrollbar-thumb:hover,
+.settings-side-panel--capsule .settings-card--body::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
+}
+
+.modal--settings-capsule .settings-card__scroll-container::-webkit-scrollbar-button,
+.modal--settings-capsule .settings-card--body::-webkit-scrollbar-button,
+.settings-side-panel--capsule .settings-card__scroll-container::-webkit-scrollbar-button,
+.settings-side-panel--capsule .settings-card--body::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* 3. Нижняя карточка: футер */
+.modal--settings-capsule .settings-card--footer,
+.settings-side-panel--capsule .settings-card--footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: 10px 16px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .settings-tab-content {
@@ -2022,7 +2336,7 @@
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   transition: opacity var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
               background-color var(--t-fast) var(--ease-smooth);
@@ -2082,7 +2396,7 @@
   background: transparent;
   border: none;
   padding: var(--space-1);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   color: var(--text-muted);
   cursor: pointer;
   display: flex;
@@ -2108,7 +2422,7 @@
   background: transparent;
   border: none;
   padding: var(--space-1);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   color: var(--text-muted);
   cursor: pointer;
   display: flex;
@@ -2235,7 +2549,7 @@
 .cmenu-available-item__add {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: var(--space-1) 5px;
   color: var(--text-muted);
   cursor: pointer;
@@ -2263,4 +2577,343 @@
   .cmenu-editor__body {
     grid-template-columns: 1fr;
   }
+}
+
+/* ─── Модальное окно обновления / отката: стиль «Капсула» ─── */
+.update-modal-capsule {
+  position: relative;
+  width: 500px;
+  max-width: 94vw;
+  height: 480px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  color: var(--text, #fff);
+  animation: modalSlideIn var(--t-pop, 0.25s) var(--ease-decelerate);
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.update-modal-capsule--expanded {
+  width: 820px !important;
+  height: 78vh !important;
+}
+
+.update-modal-capsule.update-modal-capsule--closing {
+  animation: modalFadeOut var(--t-fast) var(--ease-accelerate) forwards;
+}
+
+.update-modal-capsule .update-card {
+  background: var(--bg-glass, var(--bg-modal-solid, #11141c));
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-controls, var(--radius-lg, 16px));
+  box-shadow: var(--shadow-elevated, 0 8px 32px rgba(0, 0, 0, 0.35));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-sizing: border-box;
+}
+
+/* 1. Верхний ряд: островки шапки */
+.update-modal-capsule .update-capsule-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* Островок 1: информация о версии и логотип */
+.update-modal-capsule .update-card--header-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  min-height: 52px;
+  cursor: default;
+  user-select: none;
+}
+
+.update-modal-capsule .update-card__logo-badge {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px));
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.12);
+  border: 1px solid var(--border-pill, rgba(var(--accent-rgb, 127, 199, 255), 0.22));
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none !important;
+  flex-shrink: 0;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.update-modal-capsule .update-card__logo-badge--downgrade {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.12);
+  border-color: var(--border-pill, rgba(var(--accent-rgb, 127, 199, 255), 0.22));
+  color: var(--accent);
+  box-shadow: none !important;
+}
+
+.update-modal-capsule .update-card__title-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.update-modal-capsule .update-card__title {
+  margin: 0;
+  font-size: var(--fs-base, 15px);
+  font-weight: 700;
+  color: var(--text-primary, #ffffff);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.update-modal-capsule .update-card__subtitle {
+  margin: 3px 0 0 0;
+  font-size: var(--fs-xs, 12px);
+  color: var(--text-muted, #9ca3af);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Островок 2: кнопки управления окном (развернуть и закрыть) */
+.update-modal-capsule .update-card--header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  min-height: 52px;
+  flex-shrink: 0;
+}
+
+.update-modal-capsule .update-card__action-btn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px));
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.update-modal-capsule .update-card__action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.update-modal-capsule .update-card__action-btn svg {
+  display: block;
+  flex-shrink: 0;
+  transform-origin: center center;
+  transform: rotate(0deg);
+  transition: transform var(--t-spring, 260ms) var(--ease-spring-smooth);
+}
+
+.update-modal-capsule .update-card__action-btn--close:hover svg {
+  transform: rotate(90deg);
+}
+
+/* 2. Центральная карточка: тело релиза / заметки о версии */
+.update-modal-capsule .update-card--body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.update-modal-capsule .update-card__body-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.update-modal-capsule .update-card__body-title {
+  font-size: var(--fs-xs, 12px);
+  font-weight: 600;
+  color: var(--text-secondary, #d1d5db);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.update-modal-capsule .update-card__github-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.1));
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px));
+  padding: 4px 10px;
+  font-size: var(--fs-xs, 12px);
+  color: var(--accent, #60a5fa);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.update-modal-capsule .update-card__github-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* Контейнер заметок со скроллом */
+.update-modal-capsule .update-card__notes-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px));
+  padding: 12px 14px;
+  position: relative;
+}
+
+.update-modal-capsule .update-card__notes-wrap::-webkit-scrollbar {
+  display: block !important;
+  width: 5px !important;
+}
+
+.update-modal-capsule .update-card__notes-wrap::-webkit-scrollbar-track {
+  background: transparent !important;
+  margin-top: 10px !important;
+  margin-bottom: 10px !important;
+}
+
+.update-modal-capsule .update-card__notes-wrap::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-radius: 9999px !important;
+  transition: background var(--t-fast) var(--ease-smooth);
+}
+
+.update-modal-capsule .update-card__notes-wrap::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
+}
+
+/* 3. Нижняя карточка: футер с селектором версий и действиями */
+.update-modal-capsule .update-card--footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  min-height: 48px;
+}
+
+.update-modal-capsule .update-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.update-modal-capsule .update-card__btn {
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  font-size: var(--fs-sm, 13px);
+  font-weight: 500;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px));
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--t-fast) var(--ease-smooth);
+  white-space: nowrap;
+}
+
+.update-modal-capsule .update-card__btn--secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.1));
+  color: var(--text-secondary, #d1d5db);
+}
+
+.update-modal-capsule .update-card__btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+
+.update-modal-capsule .update-card__btn--primary,
+.update-modal-capsule .update-card__btn--downgrade {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: none !important;
+}
+
+.update-modal-capsule .update-card__btn--primary:hover,
+.update-modal-capsule .update-card__btn--downgrade:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.28);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+.update-modal-capsule .update-card__btn--primary:disabled,
+.update-modal-capsule .update-card__btn--downgrade:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Концентрическое скругление и стиль поповера версий в стиле Капсула */
+.update-modal-capsule .version-picker-trigger,
+.update-modal-capsule .version-picker-trigger--downgrade {
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px));
+  height: 32px;
+  box-shadow: none !important;
+  background: var(--accent-glass, rgba(var(--accent-rgb, 127, 199, 255), 0.12));
+  border: 1px solid var(--border-pill, rgba(var(--accent-rgb, 127, 199, 255), 0.22));
+  color: var(--accent);
+  transition: all var(--t-fast) var(--ease-smooth);
+}
+
+.update-modal-capsule .version-picker-trigger:hover,
+.update-modal-capsule .version-picker-trigger--downgrade:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: none !important;
+}
+
+.update-modal-capsule .version-picker-popover {
+  background: var(--bg-glass, rgba(20, 22, 28, 0.97));
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated, 0 10px 30px rgba(0, 0, 0, 0.5));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }

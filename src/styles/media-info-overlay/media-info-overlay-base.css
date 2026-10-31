@@ -209,6 +209,6 @@
 }
 
 .media-info__sparkline-dot {
-  filter: drop-shadow(0 0 4px var(--accent-glow, rgba(99, 102, 241, 0.6)));
+  opacity: 0.9;
 }
 

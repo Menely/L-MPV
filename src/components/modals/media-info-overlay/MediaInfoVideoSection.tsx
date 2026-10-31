@@ -67,7 +67,7 @@ export const MediaInfoVideoSection: React.FC<MediaInfoVideoSectionProps> = ({
           <BitrateSparkline data={bitrateHistory} />
           <span className="media-info__value">
             {currentVideoBitrate > 0
-              ? `${Math.round(currentVideoBitrate / 1000)} ${dict.mediaInfoModal.kbps}`
+              ? `${Math.round(currentVideoBitrate / 1000).toLocaleString()} ${dict.mediaInfoModal.kbps}`
               : "—"}
           </span>
         </div>
@@ -76,7 +76,7 @@ export const MediaInfoVideoSection: React.FC<MediaInfoVideoSectionProps> = ({
         <span className="media-info__label">{dict.mediaInfoModal.totalBitrate}</span>
         <span className="media-info__value">
           {mediaInfo?.total_bitrate
-            ? `${Math.round(mediaInfo.total_bitrate / 1000)} ${dict.mediaInfoModal.kbps}`
+            ? `${Math.round(mediaInfo.total_bitrate / 1000).toLocaleString()} ${dict.mediaInfoModal.kbps}`
             : "—"}
         </span>
       </div>

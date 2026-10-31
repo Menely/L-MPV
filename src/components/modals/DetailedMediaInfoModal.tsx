@@ -23,6 +23,10 @@ import {
   MediaInfoSectionList,
 } from "./mediainfo";
 import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils";
+import {
+  getSavedControlBarStyle,
+  type ControlBarStyle,
+} from "../../utils/controlBarStyleUtils";
 
 interface DetailedMediaInfoModalProps {
   isOpen: boolean;
@@ -43,6 +47,10 @@ export function DetailedMediaInfoModal({
   const { dict } = useTranslation();
   const { mediaInfo } = usePlayerState();
   const currentPath = filePath || mediaInfo?.path;
+  const fileName = useMemo(() => {
+    if (!currentPath) return "";
+    return currentPath.split(/[/\\]/).pop() || currentPath;
+  }, [currentPath]);
 
   const [data, setData] = useState<DetailedMediaInfoResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -55,6 +63,22 @@ export function DetailedMediaInfoModal({
 
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+
+  // Синхронизация стиля оформления интерфейса
+  useEffect(() => {
+    const handleSettingsChanged = () => {
+      setControlBarStyle(getSavedControlBarStyle());
+    };
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    window.addEventListener("storage", handleSettingsChanged);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+      window.removeEventListener("storage", handleSettingsChanged);
+    };
+  }, []);
+
+  const isCapsule = controlBarStyle === "capsule";
 
   const modalRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -299,7 +323,7 @@ export function DetailedMediaInfoModal({
   return (
     <div
       ref={modalRef}
-      className={`mediainfo-floating-window ${
+      className={`mediainfo-floating-window ${isCapsule ? "mediainfo-floating-window--capsule" : ""} ${
         isClosing ? "mediainfo-floating-window--closing" : ""
       }`}
       role="dialog"
@@ -313,7 +337,7 @@ export function DetailedMediaInfoModal({
         <div className="mediainfo-floating-window__header-left">
           <FileText size={16} className="mediainfo-floating-window__icon" />
           <span className="mediainfo-floating-window__title">
-            {dict.detailedMediaInfoModal.title}
+            {fileName}
           </span>
         </div>
 
