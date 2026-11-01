@@ -88,42 +88,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
       onToggle={onToggle}
       icon={<AudioWaveform size={16} />}
       title={dict.settings.appearance.controlButtons.visualizer}
-      badge={
-        visualizerConfig.enabled ? (
-          <span
-            style={{
-              fontSize: "var(--fs-xs)",
-              padding: "2px 8px",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--accent-glow, rgba(127, 199, 255, 0.2))",
-              color: "var(--accent, #7fc7ff)",
-              fontWeight: 600,
-              marginLeft: "var(--space-4)",
-            }}
-            >
-            {visualizerConfig.placement === "above_timeline"
-              ? dict.settings.appearance.visualizer.aboveTimeline
-              : visualizerConfig.placement === "inside_timeline"
-              ? dict.settings.appearance.visualizer.inTimeline
-              : dict.settings.appearance.visualizer.inToolbar}
-          </span>
-        ) : (
-          <span
-            style={{
-              fontSize: "var(--fs-xs)",
-              padding: "2px 8px",
-              borderRadius: "var(--radius-sm)",
-              background: "rgba(255, 255, 255, 0.06)",
-              color: "var(--text-muted)",
-              fontWeight: 500,
-              marginLeft: "var(--space-4)",
-            }}
-            >
-            {dict.settings.appearance.visualizer.off}
-          </span>
-        )
-      }
-      >
+    >
       <div className="col col-gap-5">
         <span style={optionSectionDescStyle}>
           {dict.settings.appearance.visualizer.desc}
@@ -164,8 +129,12 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         className="player-theme-btn"
                         aria-label={itemLabel}
                         style={{
-                          height: 30,
-                          padding: isSel ? "0 12px 0 5px" : "0 5px",
+                          width: isSel ? "auto" : 32,
+                          minWidth: 32,
+                          height: 32,
+                          padding: isSel ? "0 10px 0 6px" : "0",
+                          justifyContent: "center",
+                          borderRadius: "var(--radius-control)",
                           border: isSel
                             ? "1.5px solid var(--accent)"
                             : "1.5px solid rgba(255, 255, 255, 0.10)",
@@ -182,7 +151,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                           style={{
                             width: 20,
                             height: 20,
-                            borderRadius: "50%",
+                            borderRadius: "var(--radius-sm)",
                             background: THEME_SWATCH[item.id],
                             border: isSel
                               ? "1.5px solid rgba(255, 255, 255, 0.40)"

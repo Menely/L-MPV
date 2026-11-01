@@ -272,6 +272,14 @@
   justify-content: center !important;
   border-radius: var(--radius-control) !important;
   box-sizing: border-box !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn--icon:hover:not(:disabled) {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--text-primary, #ffffff) !important;
+  border-color: transparent !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-standalone__action-btn:hover:not(:disabled) {

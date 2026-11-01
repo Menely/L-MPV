@@ -128,6 +128,41 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "upscaleNet9", label: "Апскейлинг: Нейросеть #9", defaultKeys: DEFAULT_HOTKEYS["upscaleNet9"], category: "upscaling" },
 ];
 
+export const VIDEO_MOUSE_ACTIONS = new Set([
+  "togglePause",
+  "fullscreen",
+  "openContextMenu",
+  "fileInfo",
+  "detailedMediaInfo",
+  "chapters",
+  "settings",
+  "screenshot",
+  "resetZoom",
+  "copyFrame",
+  "toggleRepeat",
+  "playlist",
+]);
+
+export const AUDIO_TRACK_MOUSE_ACTIONS = new Set(["cycleAudioTrack", "toggleAudioMenu"]);
+export const SUB_TRACK_MOUSE_ACTIONS = new Set(["cycleSubTrack", "toggleSubMenu"]);
+
+/**
+ * Проверка совместимости контекстов мыши.
+ * Действия на полотне видео и на кнопках тулбара не мешают друг другу.
+ */
+export function isMouseScopeCompatible(actionA: string, actionB: string): boolean {
+  if (VIDEO_MOUSE_ACTIONS.has(actionA) && VIDEO_MOUSE_ACTIONS.has(actionB)) {
+    return false; // Конфликт внутри контекста полотна видео
+  }
+  if (AUDIO_TRACK_MOUSE_ACTIONS.has(actionA) && AUDIO_TRACK_MOUSE_ACTIONS.has(actionB)) {
+    return false; // Конфликт внутри контекста кнопки аудио
+  }
+  if (SUB_TRACK_MOUSE_ACTIONS.has(actionA) && SUB_TRACK_MOUSE_ACTIONS.has(actionB)) {
+    return false; // Конфликт внутри контекста кнопки субтитров
+  }
+  return true;
+}
+
 const HOTKEYS_MIGRATION_V2_KEY = "l-mpv-hotkeys-migrated-v2";
 
 /**
@@ -140,9 +175,14 @@ function migrateLegacyHotkeys(migrated: Record<string, string[]>): Record<string
     return migrated;
   }
 
-  // Миграция бинда playlist: добавление KeyP при наличии только KeyL
+  // Миграция бинда playlist: добавление KeyP при наличии только KeyL, если KeyP не занят другим действием
   if (migrated["playlist"] && !migrated["playlist"].includes("KeyP")) {
-    migrated["playlist"] = [...migrated["playlist"], "KeyP"];
+    const keyPTaken = Object.entries(migrated).some(
+      ([act, codes]) => act !== "playlist" && codes.includes("KeyP")
+    );
+    if (!keyPTaken) {
+      migrated["playlist"] = [...migrated["playlist"], "KeyP"];
+    }
   }
 
   // Миграция устаревшего бинда KeyC на Ctrl+KeyC для copyFrame
@@ -172,7 +212,7 @@ function migrateLegacyHotkeys(migrated: Record<string, string[]>): Record<string
       : [...list, "MouseLeft"];
   }
 
-  // Гарантируем наличие базовых мышиных действий при переходе со старых версий
+  // Гарантируем наличие базовых мышиных действий при переходе со старых версий (если мышиных биндов вообще не было)
   const hasAnyMouseBinding = Object.values(migrated).some(codes => 
     codes.some(c => c.startsWith("Mouse"))
   );
@@ -208,7 +248,8 @@ export function getCustomHotkeys(): Record<string, string[]> {
       const parsed = JSON.parse(saved);
       const migrated: Record<string, string[]> = {};
       
-      // Считываем сохранённые пользователем настройки горячих клавиш
+      // Считываем сохранённые пользователем настройки горячих клавиш.
+      // Для существующих действий строго сохраняем выбор пользователя (включая пустые списки).
       for (const key of Object.keys(DEFAULT_HOTKEYS)) {
         if (parsed[key] !== undefined) {
           if (typeof parsed[key] === "string") {
@@ -218,9 +259,63 @@ export function getCustomHotkeys(): Record<string, string[]> {
           } else {
             migrated[key] = [...DEFAULT_HOTKEYS[key]];
           }
-        } else {
-          migrated[key] = [...DEFAULT_HOTKEYS[key]];
         }
+      }
+
+      // Сохраняем пользовательские действия, если они выходят за рамки базового DEFAULT_HOTKEYS
+      for (const key of Object.keys(parsed)) {
+        if (migrated[key] === undefined && Array.isArray(parsed[key])) {
+          migrated[key] = parsed[key];
+        }
+      }
+
+      // Для новых действий, добавленных в обновлениях (отсутствующих в сохранённом конфиге пользователя):
+      // берём дефолтные клавиши, НО ИСКЛЮЧАЕМ те, которые пользователь уже назначил другим действиям!
+      for (const key of Object.keys(DEFAULT_HOTKEYS)) {
+        if (migrated[key] === undefined) {
+          const rawDefaults = DEFAULT_HOTKEYS[key] || [];
+          const safeDefaults = rawDefaults.filter((code) => {
+            const isMouse = code.startsWith("Mouse");
+            // Проверяем, не занята ли эта клавиша пользователем в другом действии
+            for (const [otherAction, otherCodes] of Object.entries(migrated)) {
+              if (otherAction === key) continue;
+              if (isMouse && isMouseScopeCompatible(key, otherAction)) continue;
+              if (otherCodes.includes(code)) {
+                return false; // Клавиша занята пользователем — не перезаписываем!
+              }
+            }
+            return true;
+          });
+          migrated[key] = safeDefaults;
+        }
+      }
+
+      // Гарантируем наличие мышиных биндов по умолчанию для видео-полотна,
+      // если пользователь явно не переназначил кнопку мыши на другое действие видео.
+      const hasAnyVideoMouseLeft = Array.from(VIDEO_MOUSE_ACTIONS).some(
+        (act) => act !== "togglePause" && (migrated[act] || []).includes("MouseLeft")
+      );
+      if (!hasAnyVideoMouseLeft && !(migrated["togglePause"] || []).includes("MouseLeft")) {
+        migrated["togglePause"] = [...(migrated["togglePause"] || ["Space"]), "MouseLeft"];
+      }
+
+      const hasAnyVideoMouseDoubleClick = Array.from(VIDEO_MOUSE_ACTIONS).some(
+        (act) => act !== "fullscreen" && (migrated[act] || []).includes("MouseLeftDoubleClick")
+      );
+      if (!hasAnyVideoMouseDoubleClick && !(migrated["fullscreen"] || []).includes("MouseLeftDoubleClick")) {
+        migrated["fullscreen"] = [...(migrated["fullscreen"] || ["KeyF", "F11"]), "MouseLeftDoubleClick"];
+      }
+
+      const hasAnyVideoMouseRight = Array.from(VIDEO_MOUSE_ACTIONS).some(
+        (act) => act !== "openContextMenu" && (migrated[act] || []).includes("MouseRight")
+      );
+      if (!hasAnyVideoMouseRight && !(migrated["openContextMenu"] || []).includes("MouseRight")) {
+        migrated["openContextMenu"] = [...(migrated["openContextMenu"] || []), "MouseRight"];
+      }
+
+      // Устраняем случайные дубликаты клавиш внутри каждого действия
+      for (const key of Object.keys(migrated)) {
+        migrated[key] = Array.from(new Set(migrated[key]));
       }
 
       return migrateLegacyHotkeys(migrated);
@@ -259,7 +354,20 @@ export function resetCustomHotkeys() {
 
 export function resetSingleHotkey(actionId: string, currentHotkeys: Record<string, string[]>): Record<string, string[]> {
   const updated = { ...currentHotkeys };
-  updated[actionId] = [...(DEFAULT_HOTKEYS[actionId] || [])];
+  const defaultCodes = DEFAULT_HOTKEYS[actionId] || [];
+
+  // Удаляем восстанавливаемые дефолтные клавиши из других действий, чтобы не создавать конфликтов
+  const isMouse = (code: string) => code.startsWith("Mouse");
+  for (const otherId of Object.keys(updated)) {
+    if (otherId === actionId) continue;
+    updated[otherId] = (updated[otherId] || []).filter((code) => {
+      if (!defaultCodes.includes(code)) return true;
+      if (isMouse(code) && isMouseScopeCompatible(actionId, otherId)) return true;
+      return false; // Дефолтный код возвращён владельцу
+    });
+  }
+
+  updated[actionId] = [...defaultCodes];
   saveCustomHotkeys(updated);
   return updated;
 }
@@ -301,9 +409,33 @@ function formatSingleKey(part: string, locale?: string): string {
   if (part === "Period") return ".";
   if (part === "BracketLeft") return "[";
   if (part === "BracketRight") return "]";
+  if (part === "Semicolon") return ";";
+  if (part === "Quote") return "'";
+  if (part === "Backquote") return "`";
+  if (part === "Minus") return "-";
+  if (part === "Equal") return "=";
+  if (part === "Slash") return "/";
+  if (part === "Backslash") return "\\";
   if (part === "Backspace") return "Backspace";
+  if (part === "Tab") return "Tab";
+  if (part === "Enter") return "Enter";
+  if (part === "Escape") return "Esc";
+  if (part === "Delete") return "Del";
+  if (part === "Insert") return "Ins";
+  if (part === "Home") return "Home";
+  if (part === "End") return "End";
   if (part === "PageUp") return "Page Up";
   if (part === "PageDown") return "Page Down";
+  if (part === "CapsLock") return "Caps";
+  if (part.startsWith("Numpad")) {
+    if (part === "NumpadAdd") return "Num +";
+    if (part === "NumpadSubtract") return "Num -";
+    if (part === "NumpadMultiply") return "Num *";
+    if (part === "NumpadDivide") return "Num /";
+    if (part === "NumpadDecimal") return "Num .";
+    if (part === "NumpadEnter") return "Num Enter";
+    return part.replace("Numpad", "Num ");
+  }
   if (part === "ControlLeft" || part === "ControlRight" || part === "Ctrl") return "Ctrl";
   if (part === "ShiftLeft" || part === "ShiftRight" || part === "Shift") return "Shift";
   if (part === "AltLeft" || part === "AltRight" || part === "Alt") return "Alt";
@@ -312,11 +444,37 @@ function formatSingleKey(part: string, locale?: string): string {
   return part;
 }
 
+export function parseBindCode(bindCode: string): {
+  reqCtrl: boolean;
+  reqShift: boolean;
+  reqAlt: boolean;
+  mainKey: string;
+} {
+  const parts = bindCode.split("+");
+  const reqCtrl = parts.includes("Ctrl");
+  const reqShift = parts.includes("Shift");
+  const reqAlt = parts.includes("Alt");
+  const nonModifiers = parts.filter((p) => p !== "Ctrl" && p !== "Shift" && p !== "Alt");
+  const mainKey = nonModifiers.join("+") || (bindCode.endsWith("+") ? "+" : parts[parts.length - 1]);
+  return { reqCtrl, reqShift, reqAlt, mainKey };
+}
+
 export function getKeyDisplay(currentCode: string, locale?: string): string {
   if (!currentCode) return "—";
-  const parts = currentCode.split("+");
-  return parts.map((p) => formatSingleKey(p, locale)).join(" + ");
+  const { reqCtrl, reqShift, reqAlt, mainKey } = parseBindCode(currentCode);
+  const formatted: string[] = [];
+  if (reqCtrl) formatted.push("Ctrl");
+  if (reqShift) formatted.push("Shift");
+  if (reqAlt) formatted.push("Alt");
+  if (mainKey) formatted.push(formatSingleKey(mainKey, locale));
+  return formatted.length ? formatted.join(" + ") : currentCode;
 }
+
+const QWERTY_TO_CYRILLIC: Record<string, string> = {
+  q: "й", w: "ц", e: "у", r: "к", t: "е", y: "н", u: "г", i: "ш", o: "щ", p: "з",
+  a: "ф", s: "ы", d: "в", f: "а", g: "п", h: "р", j: "о", k: "л", l: "д",
+  z: "я", x: "ч", c: "с", v: "м", b: "и", n: "т", m: "ь",
+};
 
 /**
  * Проверка нажатия события клавиши на соответствие строке бинда (с учетом Ctrl, Shift, Alt).
@@ -324,24 +482,44 @@ export function getKeyDisplay(currentCode: string, locale?: string): string {
 export function isKeyboardEventMatch(e: KeyboardEvent, bindCode: string): boolean {
   if (bindCode.startsWith("Mouse")) return false;
 
-  const parts = bindCode.split("+");
-  const mainKey = parts[parts.length - 1];
-  const reqCtrl = parts.includes("Ctrl");
-  const reqShift = parts.includes("Shift");
-  const reqAlt = parts.includes("Alt");
+  const { reqCtrl, reqShift, reqAlt, mainKey } = parseBindCode(bindCode);
 
-  const ctrlPressed = e.ctrlKey || e.metaKey;
+  const ctrlPressed = Boolean(e.ctrlKey || e.metaKey);
   if (reqCtrl !== ctrlPressed) return false;
-  if (reqShift !== e.shiftKey) return false;
-  if (reqAlt !== e.altKey) return false;
+  if (reqShift !== Boolean(e.shiftKey)) return false;
+  if (reqAlt !== Boolean(e.altKey)) return false;
 
-  return (
-    e.code === mainKey ||
-    (Boolean(e.key) && e.key.toLowerCase() === mainKey.toLowerCase()) ||
-    (mainKey === "Comma" && (e.key === "б" || e.key === "Б" || e.key === ",")) ||
-    (mainKey === "Period" && (e.key === "ю" || e.key === "Ю" || e.key === ".")) ||
-    (mainKey === "BracketLeft" && (e.key === "х" || e.key === "Х" || e.key === "[")) ||
-    (mainKey === "BracketRight" && (e.key === "ъ" || e.key === "Ъ" || e.key === "]")) ||
-    (mainKey === "KeyJ" && (e.key === "о" || e.key === "О" || e.key.toLowerCase() === "j"))
-  );
+  // 1. Прямое соответствие физического кода клавиши (не зависит от раскладки RU/EN/...)
+  if (e.code && e.code === mainKey) return true;
+
+  // 2. Соответствие значения символа клавиши без учёта регистра
+  const keyVal = e.key ? e.key.toLowerCase() : "";
+  const mainKeyLower = mainKey.toLowerCase();
+  if (keyVal && keyVal === mainKeyLower) return true;
+
+  // 3. Латинские клавиши KeyA-KeyZ (с поддержкой русской раскладки в Chromium)
+  if (mainKey.startsWith("Key")) {
+    const letter = mainKey.replace(/^Key/, "").toLowerCase();
+    if (keyVal === letter) return true;
+    if (QWERTY_TO_CYRILLIC[letter] && keyVal === QWERTY_TO_CYRILLIC[letter]) return true;
+  }
+
+  // 4. Цифры Digit0-Digit9 и Numpad0-Numpad9
+  if (mainKey.startsWith("Digit") && keyVal === mainKey.replace(/^Digit/, "")) return true;
+  if (mainKey.startsWith("Numpad") && keyVal === mainKey.replace(/^Numpad/, "")) return true;
+
+  // 5. Специальные знаки препинания на русской и английской раскладках
+  if (mainKey === "Comma" && (keyVal === "б" || keyVal === ",")) return true;
+  if (mainKey === "Period" && (keyVal === "ю" || keyVal === ".")) return true;
+  if (mainKey === "BracketLeft" && (keyVal === "х" || keyVal === "[")) return true;
+  if (mainKey === "BracketRight" && (keyVal === "ъ" || keyVal === "]")) return true;
+  if (mainKey === "Semicolon" && (keyVal === "ж" || keyVal === ";")) return true;
+  if (mainKey === "Quote" && (keyVal === "э" || keyVal === "'")) return true;
+  if (mainKey === "Backquote" && (keyVal === "ё" || keyVal === "`")) return true;
+  if (mainKey === "Minus" && keyVal === "-") return true;
+  if (mainKey === "Equal" && (keyVal === "=" || keyVal === "+")) return true;
+  if (mainKey === "Slash" && (keyVal === "/" || keyVal === ".")) return true;
+  if (mainKey === "Backslash" && (keyVal === "\\" || keyVal === "/")) return true;
+
+  return false;
 }

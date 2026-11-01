@@ -1,0 +1,258 @@
+/* ─── Кнопка и меню скорости воспроизведения ───────────────────────
+   Отображается в правой секции панели управления:
+   - по умолчанию при скорости, отличной от 1.0x (или если включена в настройках)
+   - в стилях «Модерн» и «Классический» — кнопка левее утилит
+   - в стиле «Капсула» — отдельная карточка-островок
+   ─────────────────────────────────────────────────────────────────── */
+
+.speed-control-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Кнопка скорости */
+.control-btn--speed {
+  gap: var(--space-1, 4px);
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.control-btn--speed svg {
+  color: var(--text-secondary);
+  transition: color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-smooth);
+}
+
+.control-btn--speed:hover svg,
+.control-btn--speed.control-btn--active svg {
+  color: var(--accent);
+}
+
+/* При нестандартной скорости иконка мягко подчеркивает активное состояние */
+.control-btn--speed.control-btn--speed-modified svg {
+  color: var(--accent);
+}
+
+.control-btn--speed .control-btn__label {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Островок скорости в стиле «Капсула» */
+.controls-island--speed {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  height: 42px;
+  min-height: 42px;
+  box-sizing: border-box;
+}
+
+.player-controls--capsule .controls-island--speed .control-btn {
+  height: 32px;
+  min-width: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius-control) !important;
+}
+
+.player-controls--capsule .control-btn--speed {
+  height: 32px;
+  min-width: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius-control) !important;
+}
+
+/* ─── Всплывающее меню скорости: интеграция с дизайн-системой плеера ───
+   Использует базовые стили .track-popover и модификатор .track-popover--speed.
+   - В «Капсуле»: парящие островки (шапка и список)
+   - В «Модерне» и «Классическом»: единое монолитное стекло
+   - Расположено строго над иконкой скорости и выше таймлайна
+   ─────────────────────────────────────────────────────────────────── */
+
+.track-popover--speed {
+  min-width: 145px !important;
+  max-width: 170px !important;
+  width: max-content !important;
+  right: auto !important;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+/* Общая шапка всплывающего окна скорости */
+.track-popover--speed .track-popover__header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  box-sizing: border-box !important;
+}
+
+.track-popover--speed .track-popover__heading {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.track-popover--speed .track-popover__heading svg {
+  color: var(--accent) !important;
+  flex-shrink: 0 !important;
+}
+
+.track-popover--speed .track-popover__title {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.2px !important;
+  line-height: 1 !important;
+  color: var(--text-secondary) !important;
+  white-space: nowrap !important;
+  text-transform: none !important;
+}
+
+.track-popover--speed .track-popover__header-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+/* Кнопка-крестик закрытия */
+.track-popover--speed .speed-popover__close-btn {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  color: var(--text-muted) !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth) !important;
+}
+
+.track-popover--speed .speed-popover__close-btn:hover {
+  background: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ─── Адаптация для стиля «Капсула» (островной дизайн) ─────────────── */
+.track-popover--capsule.track-popover--speed .track-popover__header {
+  margin: 0 0 6px 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.track-popover--capsule.track-popover--speed .track-popover__heading {
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  min-height: 32px !important;
+  height: 32px !important;
+  padding: 0 10px !important;
+}
+
+.track-popover--capsule.track-popover--speed .track-popover__header-actions {
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  min-height: 32px !important;
+  height: 32px !important;
+  width: 32px !important;
+  padding: 0 !important;
+}
+
+/* ─── Адаптация для стилей «Модерн» и «Классический» (монолитный) ──── */
+.track-popover:not(.track-popover--capsule).track-popover--speed {
+  padding: 6px !important;
+  gap: 2px !important;
+}
+
+.track-popover:not(.track-popover--capsule).track-popover--speed .track-popover__header {
+  padding: 2px 2px 5px 6px !important;
+  margin-bottom: 4px !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  background: transparent !important;
+}
+
+.track-popover:not(.track-popover--capsule).track-popover--speed .track-popover__heading {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-height: auto !important;
+}
+
+.track-popover:not(.track-popover--capsule).track-popover--speed .track-popover__header-actions {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-height: auto !important;
+}
+
+/* ─── Список скоростей (компактный и собранный) ─────────────────────── */
+.track-popover--speed .track-popover__list {
+  padding: 4px !important;
+  gap: 1px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.track-popover--speed .track-popover__item,
+.track-popover--speed.track-popover--capsule .track-popover__item {
+  min-height: 25px !important;
+  height: 25px !important;
+  padding: 0 8px !important;
+  box-sizing: border-box !important;
+  border-radius: var(--radius-sm, 6px) !important;
+  font-size: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.track-popover--speed .track-popover__item-title {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  font-variant-numeric: tabular-nums !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.track-popover--speed .track-popover__item:hover {
+  background: var(--bg-hover) !important;
+  color: #ffffff !important;
+}
+
+.track-popover--speed .track-popover__item--active {
+  color: var(--accent) !important;
+  font-weight: 600 !important;
+}
+
+.track-popover:not(.track-popover--capsule).track-popover--speed .track-popover__item--active {
+  background: var(--accent-subtle, rgba(56, 189, 248, 0.12)) !important;
+}
+
+.track-popover--speed .speed-popover__item-sublabel {
+  font-size: 10px !important;
+  color: var(--text-muted) !important;
+  font-weight: 400 !important;
+}

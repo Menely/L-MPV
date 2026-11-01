@@ -59,7 +59,7 @@
   flex: 1;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   padding: var(--space-4) 14px;
   color: var(--text-primary);
   font-size: var(--fs-base);
@@ -85,7 +85,7 @@
   font-weight: 600;
   font-size: var(--fs-base);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   cursor: pointer;
   transition: filter var(--t-fast) var(--ease-smooth),
               background-color var(--t-fast) var(--ease-smooth),
@@ -165,7 +165,7 @@
   gap: var(--space-3);
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   padding: var(--space-2) 10px;
   font-size: var(--fs-xs);
   color: var(--text-secondary);
@@ -262,7 +262,7 @@
 .preset-card__rename-input {
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   color: var(--text-primary);
   font-size: var(--fs-md);
   font-weight: 600;
@@ -336,7 +336,7 @@
   justify-content: center;
   gap: var(--space-3);
   padding: var(--space-3) 12px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);

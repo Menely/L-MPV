@@ -184,10 +184,18 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--space-7) 20px 10px;
-  scrollbar-gutter: stable;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  scrollbar-gutter: auto !important;
   overscroll-behavior: contain;
   overflow-anchor: none;
   scroll-behavior: smooth;
+}
+
+.settings-side-panel__scroll::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 /* ─── Scroll-Driven Animation: Плавная тень шапки навигации без JS (Chromium 115+) ─── */

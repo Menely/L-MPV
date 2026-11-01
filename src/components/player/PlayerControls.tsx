@@ -30,6 +30,7 @@ import {
   FastForward,
   FileText,
   AudioWaveform,
+
 } from "lucide-react";
 import { Timeline } from "./Timeline";
 import {
@@ -67,6 +68,7 @@ import {
   DockedControlsLayout,
   TrackPopovers,
 } from "./controls";
+import { SpeedPopover, formatSpeedValue, SPEED_PRESETS, SpeedIcon } from "./controls";
 
 export function PlayerControls({
   onShowMediaInfo,
@@ -117,8 +119,10 @@ export function PlayerControls({
   const [isStripHovered, setIsStripHovered] = useState(false);
 
   // Состояния для всплывающих окон дорожек с поддержкой exit-анимации
-  const [activePopover, setActivePopover] = useState<"audio" | "sub" | null>(null);
-  const [closingPopover, setClosingPopover] = useState<"audio" | "sub" | null>(null);
+  const [activePopover, setActivePopover] = useState<"audio" | "sub" | "speed" | null>(null);
+  const [closingPopover, setClosingPopover] = useState<"audio" | "sub" | "speed" | null>(null);
+  const speedPopoverRef = useRef<HTMLDivElement | null>(null);
+  const speedButtonRef = useRef<HTMLButtonElement | null>(null);
   const closePopoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const closePopover = useCallback((immediate: boolean = false) => {
@@ -132,6 +136,8 @@ export function PlayerControls({
         document.getElementById("btn-audio-tracks")?.focus();
       } else if (currentType === "sub") {
         document.getElementById("btn-sub-tracks")?.focus();
+      } else if (currentType === "speed") {
+        document.getElementById("btn-playback-speed")?.focus();
       }
     };
     if (immediate || !isMotionAllowed()) {
@@ -152,7 +158,7 @@ export function PlayerControls({
     });
   }, [activePopover]);
 
-  const openPopover = useCallback((type: "audio" | "sub") => {
+  const openPopover = useCallback((type: "audio" | "sub" | "speed") => {
     if (closePopoverTimerRef.current) {
       clearTimeout(closePopoverTimerRef.current);
       closePopoverTimerRef.current = null;
@@ -390,10 +396,12 @@ export function PlayerControls({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (target.closest('#btn-audio-tracks') || target.closest('#btn-sub-tracks')) {
+      if (target.closest('#btn-audio-tracks') || target.closest('#btn-sub-tracks') || target.closest('#btn-playback-speed')) {
         return; // Кнопки сами управляют закрытием (toggle)
       }
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      const isInsideTrackPopover = popoverRef.current?.contains(target);
+      const isInsideSpeedPopover = speedPopoverRef.current?.contains(target);
+      if (!isInsideTrackPopover && !isInsideSpeedPopover) {
         closePopover();
       }
     };
@@ -542,21 +550,38 @@ export function PlayerControls({
   const isPopoverClosing = !activePopover && Boolean(closingPopover);
 
   const renderTrackPopovers = () => (
-    <TrackPopovers
-      displayedPopover={displayedPopover}
-      isPopoverClosing={isPopoverClosing}
-      popoverRef={popoverRef}
-      activeTrackItemRef={activeTrackItemRef}
-      controlBarStyle={controlBarStyle}
-      tracks={tracks}
-      downloadingTrackKey={downloadingTrackKey}
-      onSelectAudioTrack={selectAudioTrack}
-      onSelectSubTrack={selectSubTrack}
-      onDisableSubtitles={disableSubtitles}
-      onClose={closePopover}
-      onDownloadTrack={handleDownloadTrack}
-      onOpenSubtitlesSearch={onOpenSubtitlesSearch}
-    />
+    <>
+      <TrackPopovers
+        displayedPopover={displayedPopover === "speed" ? null : displayedPopover}
+        isPopoverClosing={isPopoverClosing}
+        popoverRef={popoverRef}
+        activeTrackItemRef={activeTrackItemRef}
+        controlBarStyle={controlBarStyle}
+        tracks={tracks}
+        downloadingTrackKey={downloadingTrackKey}
+        onSelectAudioTrack={selectAudioTrack}
+        onSelectSubTrack={selectSubTrack}
+        onDisableSubtitles={disableSubtitles}
+        onClose={closePopover}
+        onDownloadTrack={handleDownloadTrack}
+        onOpenSubtitlesSearch={onOpenSubtitlesSearch}
+      />
+      {displayedPopover === "speed" && (
+        <SpeedPopover
+          currentSpeed={mediaInfo?.speed ?? 1.0}
+          isClosing={isPopoverClosing}
+          popoverRef={speedPopoverRef}
+          anchorRef={speedButtonRef}
+          containerRef={controlsPillRef}
+          controlBarStyle={controlBarStyle}
+          onSelectSpeed={(speed) => {
+            handleSetSpeed(speed);
+            closePopover();
+          }}
+          onClose={closePopover}
+        />
+      )}
+    </>
   );
 
   const renderAudioVisualizerAbove = () => (
@@ -804,8 +829,87 @@ export function PlayerControls({
     ) : null
   );
 
+  const handleSetSpeed = useCallback(async (newSpeed: number) => {
+    try {
+      await invoke("set_speed", { speed: newSpeed });
+      showOsd(formatSpeedValue(newSpeed));
+    } catch (e) {
+      console.error("Ошибка при установке скорости воспроизведения:", e);
+    }
+  }, []);
+
+  const handleSpeedButtonClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      if (activePopover === "speed") {
+        closePopover();
+      }
+      const cur = mediaInfo?.speed ?? 1.0;
+      const next = SPEED_PRESETS.find((s) => s > cur + 0.05) ?? SPEED_PRESETS[0];
+      handleSetSpeed(next);
+    },
+    [activePopover, closePopover, mediaInfo?.speed, handleSetSpeed]
+  );
+
+  const handleSpeedButtonContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      if (activePopover === "speed") {
+        closePopover();
+      } else {
+        if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
+        if (onCloseChapters) onCloseChapters();
+        openPopover("speed");
+      }
+    },
+    [activePopover, closePopover, showMediaInfo, onToggleMediaInfo, onCloseChapters, openPopover]
+  );
+
+  const renderSpeedButtonContent = () => {
+    const currentSpeed = mediaInfo?.speed ?? 1.0;
+    const formatted = formatSpeedValue(currentSpeed);
+
+    return (
+      <button
+        ref={speedButtonRef}
+        type="button"
+        className={`control-btn control-btn--with-label control-btn--speed ${
+          activePopover === "speed" ? "control-btn--active" : ""
+        } ${Math.abs(currentSpeed - 1.0) > 0.01 ? "control-btn--speed-modified" : ""
+        }`}
+        id="btn-playback-speed"
+        onClick={handleSpeedButtonClick}
+        onContextMenu={handleSpeedButtonContextMenu}
+        title={dict.controls.speedHint || "Скорость: ЛКМ — переключить, ПКМ — меню выбора"}
+        aria-label={`${dict.controls.speed || "Скорость"}: ${formatted}`}
+      >
+        <SpeedIcon size={16} />
+        <span className="control-btn__label t-sub">{formatted}</span>
+      </button>
+    );
+  };
+
+  const renderSpeedButton = () => {
+    // Если кнопка закреплена через настройки, она отображается со всеми кнопками внутри renderUtilityButtons
+    if (visibleButtons.speed === true) {
+      return null;
+    }
+
+    const currentSpeed = mediaInfo?.speed ?? 1.0;
+    const isNonStandard = Math.abs(currentSpeed - 1.0) > 0.01;
+    const isSpeedPopoverOpen = displayedPopover === "speed";
+
+    if (!isNonStandard && !isSpeedPopoverOpen) {
+      return null;
+    }
+
+    return renderSpeedButtonContent();
+  };
+
   const renderUtilityButtons = (options?: { excludeFullscreen?: boolean }) => (
     <>
+      {visibleButtons.speed === true && renderSpeedButtonContent()}
+
       {visibleButtons.skipOpening !== false && (
         <button
           className="control-btn control-btn--with-label control-btn--priority-low"
@@ -964,6 +1068,7 @@ export function PlayerControls({
     renderVolumeSlider,
     renderTransportButtons,
     renderUtilityButtons,
+    renderSpeedButton,
     renderFullscreenButton,
     isStripHovered,
     setIsStripHovered,

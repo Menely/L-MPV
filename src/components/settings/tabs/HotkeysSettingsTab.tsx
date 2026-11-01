@@ -13,6 +13,7 @@ import {
   getKeyDisplay,
   isCodeReservedForUpscaleOff,
   UPSCALE_OFF_ACTION_ID,
+  isMouseScopeCompatible,
 } from "../../../utils/hotkeyUtils";
 import { AccordionSection } from "../components/AccordionSection";
 import { useTranslation } from "../../../i18n/LanguageContext";
@@ -41,37 +42,6 @@ function buildMouseCode(e: React.MouseEvent): string {
   return btnMap[e.button] || `MouseButton${e.button}`;
 }
 
-const VIDEO_MOUSE_ACTIONS = new Set([
-  "togglePause",
-  "fullscreen",
-  "openContextMenu",
-  "fileInfo",
-  "screenshot",
-  "resetZoom",
-  "copyFrame",
-  "toggleRepeat",
-  "playlist",
-]);
-
-const AUDIO_TRACK_MOUSE_ACTIONS = new Set(["cycleAudioTrack", "toggleAudioMenu"]);
-const SUB_TRACK_MOUSE_ACTIONS = new Set(["cycleSubTrack", "toggleSubMenu"]);
-
-/**
- * Проверка совместимости контекстов мыши.
- * Действия на полотне видео и на кнопках тулбара не мешают друг другу.
- */
-function isMouseScopeCompatible(actionA: string, actionB: string): boolean {
-  if (VIDEO_MOUSE_ACTIONS.has(actionA) && VIDEO_MOUSE_ACTIONS.has(actionB)) {
-    return false; // Конфликт внутри контекста полотна видео
-  }
-  if (AUDIO_TRACK_MOUSE_ACTIONS.has(actionA) && AUDIO_TRACK_MOUSE_ACTIONS.has(actionB)) {
-    return false; // Конфликт внутри контекста кнопки аудио
-  }
-  if (SUB_TRACK_MOUSE_ACTIONS.has(actionA) && SUB_TRACK_MOUSE_ACTIONS.has(actionB)) {
-    return false; // Конфликт внутри контекста кнопки субтитров
-  }
-  return true;
-}
 
 /** Владелец комбинации среди ДРУГИХ действий (для диалога конфликта). */
 function findConflictOwner(
@@ -226,7 +196,14 @@ export function HotkeysSettingsTab({
   const applyBinding = useCallback((targetId: string, index: number, code: string, stealFrom: string | null) => {
     const next: Record<string, string[]> = { ...customHotkeysRef.current };
     if (stealFrom) {
-      next[stealFrom] = (next[stealFrom] || []).filter((c) => c !== code);
+      const isMouse = code.startsWith("Mouse");
+      for (const actionId of Object.keys(next)) {
+        if (actionId === targetId) continue;
+        if (isMouse && isMouseScopeCompatible(targetId, actionId)) continue;
+        if (next[actionId]?.includes(code)) {
+          next[actionId] = next[actionId].filter((c) => c !== code);
+        }
+      }
     }
     const arr = [...(next[targetId] || [])];
     if (index < arr.length) arr[index] = code;
@@ -513,7 +490,7 @@ export function HotkeysSettingsTab({
                                       : isRecording
                                       ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
                                       : "none",
-                                    borderRadius: "var(--radius-sm)",
+                                    borderRadius: "var(--radius-control)",
                                     fontFamily: "monospace",
                                     fontSize: "var(--fs-sm)",
                                     fontWeight: 600,
@@ -544,7 +521,7 @@ export function HotkeysSettingsTab({
                                     background: "rgba(255, 50, 50, 0.15)",
                                     border: "1px solid rgba(255, 50, 50, 0.3)",
                                     borderLeft: "none",
-                                    borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
+                                    borderRadius: "0 var(--radius-control) var(--radius-control) 0",
                                     color: "#ff8888",
                                     cursor: "pointer",
                                     display: "flex",
@@ -575,7 +552,7 @@ export function HotkeysSettingsTab({
                                     background: "rgba(var(--accent-rgb, 127, 199, 255), 0.16)",
                                     border: "1.5px solid var(--accent)",
                                     boxShadow: "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)",
-                                    borderRadius: "var(--radius-sm)",
+                                    borderRadius: "var(--radius-control)",
                                     fontFamily: "monospace",
                                     fontSize: "var(--fs-sm)",
                                     fontWeight: 600,
@@ -605,7 +582,7 @@ export function HotkeysSettingsTab({
                                   padding: "4px 8px",
                                   background: "rgba(255, 255, 255, 0.05)",
                                   border: "1px dashed rgba(255, 255, 255, 0.2)",
-                                  borderRadius: "var(--radius-sm)",
+                                  borderRadius: "var(--radius-control)",
                                   color: "var(--text-secondary)",
                                   cursor: "pointer",
                                   fontSize: "var(--fs-lg)",

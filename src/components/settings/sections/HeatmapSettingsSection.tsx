@@ -416,38 +416,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
       icon={<Flame size={16} />}
       title={
         dict.settings.appearance.heatmap?.sectionTitle ||
-        "Тепловая карта таймлайна (Activity Heatmap)"
-      }
-      badge={
-        config.enabled ? (
-          <span
-            style={{
-              fontSize: "var(--fs-xs)",
-              padding: "2px 8px",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--accent-glow, rgba(127, 199, 255, 0.2))",
-              color: "var(--accent, #7fc7ff)",
-              fontWeight: 600,
-              marginLeft: "var(--space-4)",
-            }}
-          >
-            {styleItems.find((s) => s.id === config.style)?.label || "Вкл"}
-          </span>
-        ) : (
-          <span
-            style={{
-              fontSize: "var(--fs-xs)",
-              padding: "2px 8px",
-              borderRadius: "var(--radius-sm)",
-              background: "rgba(255, 255, 255, 0.06)",
-              color: "var(--text-muted)",
-              fontWeight: 500,
-              marginLeft: "var(--space-4)",
-            }}
-          >
-            {dict.settings.appearance.heatmap?.off || "Выкл"}
-          </span>
-        )
+        "Тепловая карта таймлайна"
       }
     >
       <div
@@ -488,7 +457,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             style={{
               width: "100%",
               height: 26,
-              borderRadius: "var(--radius-xs, 4px)",
+              borderRadius: "var(--radius-sm, 6px)",
               background: "rgba(255, 255, 255, 0.025)",
               border: "1px solid rgba(255, 255, 255, 0.06)",
               overflow: "hidden",
@@ -597,7 +566,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                       style={{
                         width: 12,
                         height: 12,
-                        borderRadius: "50%",
+                        borderRadius: "var(--radius-sm)",
                         background: item.swatch,
                         boxShadow: "0 0 4px rgba(0,0,0,0.45)",
                         flexShrink: 0,

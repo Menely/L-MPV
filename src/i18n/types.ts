@@ -62,6 +62,11 @@ export interface TranslationDict {
     placeholderHint: string;
     /** Короткая метка на кнопке скипа опенинга, например '+90s' */
     skipOpeningShortLabel: (sec: number) => string;
+    /** Метка кнопки скорости воспроизведения */
+    speed?: string;
+    /** Подсказка на кнопке скорости воспроизведения */
+    speedHint?: string;
+    speedReset?: string;
   };
 
   // ─── Плейлист (PlaylistDrawer) ─────────────────────────────────
@@ -433,6 +438,7 @@ export interface TranslationDict {
       visPlaylist: string;
       visFullscreen: string;
       visSkipOpening: string;
+      visSpeed: string;
       secSuffix: string;
       ambientSection: string;
       ambientDesc: string;
@@ -953,6 +959,7 @@ export interface TranslationDict {
     disableSubtitles: string;
     followSpeech: string;
     followOff: string;
+    tracking: string;
     followTooltip: string;
     noTracks: string;
     resizeTooltip: string;

@@ -511,12 +511,29 @@ export async function hydrateUiSettingsFromDisk(): Promise<void> {
 }
 
 /**
+ * Немедленный сброс параметров интерфейса на диск без ожидания дебаунса.
+ * Гарантирует сохранение настроек и кастомных горячих клавиш перед выгрузкой окна.
+ */
+export function flushUiSettingsNow(): void {
+  if (syncDebounceTimer !== null) {
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = null;
+  }
+  const snapshot = collectCurrentUiSettings();
+  queueUiSettingsSnapshot(snapshot);
+}
+
+/**
  * Инициализация автоматической синхронизации параметров интерфейса с диском.
  * Отслеживает пользовательские события изменения темы, цвета, масштаба и т.д.
  */
 export function initUiSettingsAutoSync(): () => void {
   const handleSettingsChanged = () => {
     syncUiSettingsToDisk(400);
+  };
+
+  const handleBeforeUnload = () => {
+    flushUiSettingsNow();
   };
 
   const events = [
@@ -536,10 +553,12 @@ export function initUiSettingsAutoSync(): () => void {
 
   events.forEach((evt) => window.addEventListener(evt, handleSettingsChanged));
   window.addEventListener("storage", handleSettingsChanged);
+  window.addEventListener("beforeunload", handleBeforeUnload);
 
   return () => {
     events.forEach((evt) => window.removeEventListener(evt, handleSettingsChanged));
     window.removeEventListener("storage", handleSettingsChanged);
+    window.removeEventListener("beforeunload", handleBeforeUnload);
     if (syncDebounceTimer !== null) {
       clearTimeout(syncDebounceTimer);
       syncDebounceTimer = null;

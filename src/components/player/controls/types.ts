@@ -42,6 +42,8 @@ export interface ControlsLayoutProps {
   renderTransportButtons: () => React.ReactNode;
   /** Рендер утилитных кнопок панели (с опцией исключения кнопки полного экрана). */
   renderUtilityButtons: (options?: { excludeFullscreen?: boolean }) => React.ReactNode;
+  /** Рендер кнопки скорости воспроизведения (отображается при скорости != 1.0). */
+  renderSpeedButton?: () => React.ReactNode;
   /** Рендер отдельной кнопки полноэкранного режима. */
   renderFullscreenButton?: () => React.ReactNode;
   /** Флаг наведения на тепловую полосу. */

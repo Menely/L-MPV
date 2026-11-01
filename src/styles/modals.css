@@ -209,7 +209,7 @@
   justify-content: center;
   height: 38px;
   padding: 0 16px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-control);
   font-size: var(--fs-base);
   font-weight: 500;
   gap: var(--space-4);
@@ -298,7 +298,7 @@
 .color-column-card {
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-control);
   padding: var(--space-4) 8px 10px 8px;
   display: flex;
   flex-direction: column;
@@ -343,7 +343,7 @@
 .color-circle {
   width: 28px;
   height: 28px;
-  border-radius: 50%;
+  border-radius: var(--radius-control);
   cursor: pointer;
   position: relative;
   display: flex;
@@ -468,8 +468,8 @@
 .player-theme-btn {
   display: inline-flex;
   align-items: center;
-  height: 34px;
-  border-radius: var(--radius-pill);
+  height: 32px;
+  border-radius: var(--radius-control);
   cursor: pointer;
   outline: none;
   flex-shrink: 0;
@@ -609,7 +609,7 @@
   padding: var(--space-4) 10px;
   background: rgba(255, 255, 255, 0.025);
   border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md, 10px);
   cursor: pointer;
   transition: background-color var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
@@ -1062,7 +1062,7 @@
   color: var(--text-secondary);
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
-  border-radius: var(--radius-xs, 4px);
+  border-radius: var(--radius-control);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1162,7 +1162,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-pill, 9999px);
+  border-radius: var(--radius-control);
   cursor: pointer;
   outline: none;
   border: 1px solid transparent;
@@ -1414,7 +1414,7 @@
 .settings-accordion {
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md, 10px);
+  border-radius: var(--radius-lg, 12px);
   margin-bottom: var(--space-5);
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.24);
@@ -1596,7 +1596,7 @@
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   transition: background-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
@@ -1699,6 +1699,15 @@
 .modal--settings .modal__body {
   background: transparent;
   overflow-anchor: none;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  scrollbar-gutter: auto !important;
+}
+
+.modal--settings .modal__body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 /* ─── Островные карточки настроек: ИСКЛЮЧИТЕЛЬНО для стиля «Капсула» (модалка и панель) ─── */
@@ -1879,62 +1888,34 @@
 /* 2. Центральная карточка: тело настроек */
 .modal--settings-capsule .settings-card--body,
 .settings-side-panel--capsule .settings-card--body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   padding: 0;
-  overflow: hidden; /* Гарантированно обрезает все вложенные элементы и скроллбар по радиусу карточки */
+  overflow: hidden;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal--settings-capsule .settings-card__scroll-container,
 .settings-side-panel--capsule .settings-card__scroll-container {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  height: 100%;
   padding: 16px 20px;
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
-  position: relative;
   overflow-anchor: none;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  scrollbar-gutter: auto !important;
 }
 
 .modal--settings-capsule .settings-card__scroll-container::-webkit-scrollbar,
 .modal--settings-capsule .settings-card--body::-webkit-scrollbar,
 .settings-side-panel--capsule .settings-card__scroll-container::-webkit-scrollbar,
 .settings-side-panel--capsule .settings-card--body::-webkit-scrollbar {
-  display: block !important;
-  width: 5px !important;
-}
-
-.modal--settings-capsule .settings-card__scroll-container::-webkit-scrollbar-track,
-.modal--settings-capsule .settings-card--body::-webkit-scrollbar-track,
-.settings-side-panel--capsule .settings-card__scroll-container::-webkit-scrollbar-track,
-.settings-side-panel--capsule .settings-card--body::-webkit-scrollbar-track {
-  background: transparent !important;
-  margin-top: 14px !important;
-  margin-bottom: 14px !important;
-}
-
-.modal--settings-capsule .settings-card__scroll-container::-webkit-scrollbar-thumb,
-.modal--settings-capsule .settings-card--body::-webkit-scrollbar-thumb,
-.settings-side-panel--capsule .settings-card__scroll-container::-webkit-scrollbar-thumb,
-.settings-side-panel--capsule .settings-card--body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18) !important;
-  border-radius: 9999px !important;
-  transition: background var(--t-fast) var(--ease-smooth);
-}
-
-.modal--settings-capsule .settings-card__scroll-container::-webkit-scrollbar-thumb:hover,
-.modal--settings-capsule .settings-card--body::-webkit-scrollbar-thumb:hover,
-.settings-side-panel--capsule .settings-card__scroll-container::-webkit-scrollbar-thumb:hover,
-.settings-side-panel--capsule .settings-card--body::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
-}
-
-.modal--settings-capsule .settings-card__scroll-container::-webkit-scrollbar-button,
-.modal--settings-capsule .settings-card--body::-webkit-scrollbar-button,
-.settings-side-panel--capsule .settings-card__scroll-container::-webkit-scrollbar-button,
-.settings-side-panel--capsule .settings-card--body::-webkit-scrollbar-button {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
@@ -2061,9 +2042,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-control);
   background: rgba(var(--accent-rgb), 0.12);
   border: 1.5px solid var(--accent);
   color: var(--accent);

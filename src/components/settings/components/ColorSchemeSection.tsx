@@ -237,7 +237,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
           style={{
             background: "var(--bg-pill)",
             border: "1px solid var(--border-pill)",
-            borderRadius: "var(--radius-controls, 16px)",
+            borderRadius: "var(--radius-control)",
             padding: "6px 14px 8px",
             boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
             transition: "all var(--t-fast) var(--ease-smooth)",
@@ -308,7 +308,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               style={{
                 height: 22,
                 padding: "0 8px",
-                borderRadius: "var(--radius-sm)",
+                borderRadius: "var(--radius-control)",
                 display: "flex",
                 alignItems: "center",
                 gap: "var(--space-2)",
@@ -335,7 +335,12 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 className="player-theme-btn"
                 aria-label={dict.settings.appearance.colorScheme.playerThemes[themeKey] || theme.name}
                 style={{
-                  padding: isSel ? "0 12px 0 5px" : "0 5px",
+                  width: isSel ? "auto" : 32,
+                  minWidth: 32,
+                  height: 32,
+                  padding: isSel ? "0 10px 0 6px" : "0",
+                  justifyContent: "center",
+                  borderRadius: "var(--radius-control)",
                   border: isSel
                     ? "1.5px solid var(--accent)"
                     : "1.5px solid rgba(255, 255, 255, 0.10)",
@@ -353,7 +358,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                   style={{
                     width: 20,
                     height: 20,
-                    borderRadius: "50%",
+                    borderRadius: "var(--radius-sm)",
                     background: theme.dotColor,
                     border: isSel
                       ? "1.5px solid rgba(255, 255, 255, 0.40)"
@@ -544,7 +549,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                   justifyContent: "center",
                   gap: "var(--space-1)",
                   padding: "6px 4px",
-                  borderRadius: "var(--radius-sm)",
+                  borderRadius: "var(--radius-control)",
                   border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                   cursor: "pointer",
                   background: isSel ? mode.selectedBg : "rgba(255, 255, 255, 0.03)",

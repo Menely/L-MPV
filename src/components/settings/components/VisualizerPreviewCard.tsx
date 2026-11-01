@@ -196,7 +196,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
                 style={{
                   width: "100%",
                   height: 32,
-                  borderRadius: "var(--radius-sm, 4px)",
+                  borderRadius: "var(--radius-control)",
                   overflow: "hidden",
                   display: "flex",
                 }}
@@ -237,7 +237,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
                 width: "100%",
                 height: 32,
                 background: "rgba(255, 255, 255, 0.08)",
-                borderRadius: "var(--radius-md, 6px)",
+                borderRadius: "var(--radius-control)",
                 overflow: "hidden",
               }}
               >
@@ -274,7 +274,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
               style={{
                 width: 120,
                 height: 36,
-                borderRadius: "var(--radius-md, 8px)",
+                borderRadius: "var(--radius-control)",
                 overflow: "hidden",
                 display: "flex",
                 background: "rgba(0, 0, 0, 0.35)",

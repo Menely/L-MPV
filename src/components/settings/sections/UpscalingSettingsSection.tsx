@@ -14,6 +14,7 @@ import {
   getCustomHotkeys,
   saveCustomHotkeys,
   isCodeReservedForUpscaleOff,
+  isMouseScopeCompatible,
 } from "../../../utils/hotkeyUtils";
 import {
   ModelFileItem,
@@ -507,7 +508,16 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       return;
     }
 
-    const updated = { ...customHotkeys, [actionId]: [newCode] };
+    const updated = { ...customHotkeys };
+    const isMouse = newCode.startsWith("Mouse");
+    for (const otherId of Object.keys(updated)) {
+      if (otherId === actionId) continue;
+      if (isMouse && isMouseScopeCompatible(actionId, otherId)) continue;
+      if (updated[otherId]?.includes(newCode)) {
+        updated[otherId] = updated[otherId].filter((c) => c !== newCode);
+      }
+    }
+    updated[actionId] = [newCode];
     setCustomHotkeys(updated);
     saveCustomHotkeys(updated);
     setRecordingActionId(null);
@@ -520,7 +530,15 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     ignoreClickUntilRef.current = Date.now() + 400;
     const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
     const newCode = btnMap[e.button] || `MouseButton${e.button}`;
-    const updated = { ...customHotkeys, [actionId]: [newCode] };
+    const updated = { ...customHotkeys };
+    for (const otherId of Object.keys(updated)) {
+      if (otherId === actionId) continue;
+      if (isMouseScopeCompatible(actionId, otherId)) continue;
+      if (updated[otherId]?.includes(newCode)) {
+        updated[otherId] = updated[otherId].filter((c) => c !== newCode);
+      }
+    }
+    updated[actionId] = [newCode];
     setCustomHotkeys(updated);
     saveCustomHotkeys(updated);
     setRecordingActionId(null);
@@ -593,7 +611,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
             className={`btn ${isAiActive ? "btn--primary" : "btn--secondary"}`}
             onClick={() => updateSettings({ mode: isAiActive ? "off" : "ai" })}
             title={isAiActive ? dict.settings.upscaling.toggleOff : dict.settings.upscaling.toggleOn}
-            style={{ borderRadius: "var(--radius-pill)", padding: "6px 14px", fontWeight: 600, fontSize: "var(--fs-sm)" }}
+            style={{ borderRadius: "var(--radius-control)", padding: "6px 14px", fontWeight: 600, fontSize: "var(--fs-sm)" }}
             >
             <span
               style={{

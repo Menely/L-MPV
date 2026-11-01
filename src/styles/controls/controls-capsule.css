@@ -378,6 +378,7 @@ button.controls-island--time,
   .controls-island--volume,
   .controls-island--visualizer,
   .controls-island--transport,
+  .controls-island--speed,
   .controls-island--utilities,
   .controls-island--fullscreen {
     --fullscreen-island-size: 44px;

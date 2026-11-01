@@ -229,7 +229,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
         style={{
           background: "#0c0c0c",
           border: "1px solid var(--border)",
-          borderRadius: "var(--radius-sm)",
+          borderRadius: "var(--radius-md)",
           padding: "var(--space-6)",
           height: "200px",
           overflowY: "auto",

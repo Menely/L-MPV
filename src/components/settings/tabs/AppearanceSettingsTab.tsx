@@ -596,7 +596,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                       alignItems: "center",
                                       justifyContent: "space-between",
                                       padding: "6px 8px",
-                                      borderRadius: "var(--radius-sm)",
+                                      borderRadius: "var(--radius-control)",
                                       border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                                       background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                                       color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
@@ -640,7 +640,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                           alignItems: "center",
                                           justifyContent: "space-between",
                                           padding: "6px 8px",
-                                          borderRadius: "var(--radius-sm)",
+                                          borderRadius: "var(--radius-control)",
                                           border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                                           background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                                           color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
@@ -1078,7 +1078,8 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     { id: 'screenshot', label: dict.settings.appearance.visScreenshot, defaultChecked: true },
                     { id: 'playlist', label: dict.settings.appearance.visPlaylist, defaultChecked: true },
                     { id: 'fullscreen', label: dict.settings.appearance.visFullscreen, defaultChecked: true },
-                    { id: 'skipOpening', label: dict.settings.appearance.visSkipOpening, defaultChecked: false }
+                    { id: 'skipOpening', label: dict.settings.appearance.visSkipOpening, defaultChecked: false },
+                    { id: 'speed', label: dict.settings.appearance.visSpeed, defaultChecked: false }
                   ].map(btn => {
                     const isChecked = visibleButtons[btn.id] !== undefined 
                       ? visibleButtons[btn.id]
@@ -1405,7 +1406,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               title={dict.settings.appearance.ambientColorUseAccent}
                               style={{
                                 padding: "6px 12px",
-                                borderRadius: "var(--radius-sm)",
+                                borderRadius: "var(--radius-control)",
                                 border: isThemeMatch
                                   ? "1.5px solid var(--accent)"
                                   : "1px solid var(--border)",
@@ -1436,7 +1437,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             style={{
                               width: 26,
                               height: 26,
-                              borderRadius: "50%",
+                              borderRadius: "var(--radius-control)",
                               backgroundColor: hex,
                               border: ambientSettings.color === hex ? "2px solid white" : "1px solid var(--border)",
                               cursor: "pointer",
@@ -1454,7 +1455,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           style={{
                             width: 28,
                             height: 28,
-                            borderRadius: "50%",
+                            borderRadius: "var(--radius-control)",
                             border: "none",
                             cursor: "pointer",
                             background: "none",

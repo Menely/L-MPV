@@ -1,6 +1,6 @@
 /* ─── Базовые стили окна поиска по субтитрам ──────────────────────────────
-   Содержит позиционирование, анимации появления/закрытия, индикатор
-   изменения ширины, переключатель режимов и монолитный стиль для «Модерн» и «Классический». */
+   Содержит позиционирование, анимации, монолитный вид для «Модерн» и «Классический»,
+   переключатель режимов и деликатный скроллбар. */
 
 .subtitles-search-card {
   animation: mediaInfoFadeIn var(--t-pop) var(--ease-decelerate);
@@ -13,7 +13,9 @@
   box-sizing: border-box;
 }
 
-/* Монолитный вид карточки для стилей «Модерн» и «Классический» */
+/* ─── Монолитный вид окна для стилей «Модерн» и «Классический» ─────────────
+   Единая цельная карточка-подложка со скруглением дизайн-системы,
+   без разбиения на парящие островки. */
 .subtitles-search-card:not(.subtitles-search-card--capsule) {
   background: var(--bg-pill);
   border: 1px solid var(--border-pill);
@@ -84,39 +86,9 @@
   cursor: grabbing;
 }
 
-/* ─── Scroll-Driven Animation: Плавная тень шапки окна субтитров без JS (Chromium 115+) ─── */
-@supports (animation-timeline: scroll()) {
-  .subtitles-search-card:not(.subtitles-search-card--capsule) {
-    timeline-scope: --subtitles-list-scroll;
-  }
-
-  .subtitles-search-card:not(.subtitles-search-card--capsule) .custom-scrollbar {
-    scroll-timeline-name: --subtitles-list-scroll;
-    scroll-timeline-axis: block;
-  }
-
-  .subtitles-search-card:not(.subtitles-search-card--capsule) .subtitles-search-card__header,
-  .subtitles-search-card:not(.subtitles-search-card--capsule) .subtitles-search-card__bar {
-    position: relative;
-    z-index: 2;
-    animation: headerScrollElevation linear both;
-    animation-timeline: --subtitles-list-scroll;
-    animation-range: 0px 32px;
-  }
-}
-
-/* ─── Интерактивная строка поиска субтитров (:has) ─── */
+/* ─── Интерактивная строка поиска субтитров (спокойный фокус без кричащих теней) ─── */
 .sub-search-input-wrapper {
   border-radius: var(--radius-sm);
-  transition: box-shadow var(--t-fast) var(--ease-smooth);
-}
-
-.sub-search-input-wrapper:has(input:focus-visible) {
-  box-shadow: 0 0 14px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.3));
-}
-
-.sub-search-input-wrapper:has(input:focus-visible) svg {
-  color: var(--accent) !important;
 }
 
 .sub-search-mark {
@@ -127,10 +99,7 @@
   font-weight: 600;
 }
 
-/* ─── Переключатель режимов (Обычный / Инспектор) во ВСЕХ стилях ──────────
-   Использует системный токен скругления var(--radius-controls), благодаря чему
-   форма кнопок гармонично адаптируется под глобальные настройки скругления
-   во всех стилях (Капсула, Модерн, Классический), устраняя квадратные углы. */
+/* ─── Переключатель режимов (Обычный / Инспектор) во ВСЕХ стилях ────────── */
 .subtitles-search-card__mode-switch {
   display: inline-flex;
   align-items: center;

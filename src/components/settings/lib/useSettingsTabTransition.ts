@@ -96,7 +96,7 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     }
     // Пока окно едет — скроллбар тела прячем, иначе при сужении
     // он мелькает на время анимации, хотя по факту не нужен.
-    if (body) body.style.overflowY = "hidden";
+    // overflowY не глушим, чтобы не блокировать скролл
     panel.style.height = `${h0}px`;
     void panel.offsetHeight; // reflow: transition стартует со старой высоты
     panel.style.transition = `height ${TRANSITION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`;

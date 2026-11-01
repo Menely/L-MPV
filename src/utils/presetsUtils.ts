@@ -165,6 +165,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         playlist: true,
         fullscreen: true,
         skipOpening: true,
+        speed: false,
         seekButtons: true,
       },
       ambient: {
@@ -210,6 +211,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         playlist: true,
         fullscreen: true,
         skipOpening: true,
+        speed: false,
         seekButtons: true,
       },
       ambient: {
@@ -255,6 +257,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         playlist: true,
         fullscreen: true,
         skipOpening: false,
+        speed: false,
         seekButtons: true,
       },
       ambient: {
@@ -300,6 +303,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         playlist: true,
         fullscreen: true,
         skipOpening: false,
+        speed: false,
         seekButtons: true,
       },
       ambient: {
@@ -343,6 +347,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
     playlist: true,
     fullscreen: true,
     skipOpening: true,
+    speed: false,
     seekButtons: true,
   };
   try {

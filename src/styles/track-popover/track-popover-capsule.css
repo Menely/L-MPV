@@ -7,7 +7,6 @@
 .track-popover--capsule {
   transform-origin: bottom left !important;
   bottom: calc(100% + 10px) !important;
-  left: 0 !important;
   gap: 0 !important;
   padding: 0 !important;
   margin: 0 !important;
@@ -20,6 +19,12 @@
   -webkit-backdrop-filter: none !important;
   overflow: visible !important;
 }
+
+.track-popover.track-popover--capsule:not(.track-popover--speed),
+.track-popover--capsule:not(.track-popover--speed) {
+  left: 0 !important;
+}
+
 
 /* Шапка — прозрачная строка между островком названия и кнопкой действий.
    Фиксированный z-index: 2 гарантирует приоритет отрисовки над списком */

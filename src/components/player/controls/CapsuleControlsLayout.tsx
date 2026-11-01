@@ -34,11 +34,13 @@ export const CapsuleControlsLayout: React.FC<ControlsLayoutProps> = ({
   renderVolumeSlider,
   renderTransportButtons,
   renderUtilityButtons,
+  renderSpeedButton,
   renderFullscreenButton,
   isStripHovered = false,
   setIsStripHovered,
 }) => {
   const { dict } = useTranslation();
+  const speedButtonNode = renderSpeedButton?.();
 
   return (
     <div
@@ -139,6 +141,13 @@ export const CapsuleControlsLayout: React.FC<ControlsLayoutProps> = ({
 
         {/* Правая станция: служебные утилиты и полный экран (прижаты к правому краю) */}
         <div className="controls-group controls-group--right">
+          {/* Островок скорости (отображается только при скорости != 1.0x) */}
+          {speedButtonNode && (
+            <div className="controls-island controls-island--speed">
+              {speedButtonNode}
+            </div>
+          )}
+
           {/* Островок 4: Время и утилиты */}
           <div className="controls-island controls-island--utilities">
             {timePosition === "toolbar_right" && (

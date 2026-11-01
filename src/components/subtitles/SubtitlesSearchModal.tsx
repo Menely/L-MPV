@@ -490,6 +490,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
           viewMode={viewMode}
           isOpaque={isOpaque}
           isAnalyzing={isAnalyzing}
+          isCapsule={isCapsule}
           onToggleViewMode={handleToggleViewMode}
           onToggleOpaque={handleToggleOpaque}
           onReanalyze={handleReanalyze}
@@ -500,87 +501,126 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
 
         {/* Панель дорожек */}
         {subTracks.length > 0 ? (
-          <div
-            className={`subtitles-search-card__track-row ${
-              isTrackPickerOpen ? "subtitles-search-card__track-row--open" : ""
-            }`}
-            style={{
-              display: "flex",
-              gap: isCapsule ? "var(--space-3)" : "var(--space-4)",
-              alignItems: "center",
-              marginBottom: isCapsule ? 0 : "var(--space-5)",
-              flexShrink: 0,
-              position: "relative",
-              zIndex: isTrackPickerOpen ? 30 : 3,
-            }}
-            >
-            <TrackPicker
-              subTracks={subTracks}
-              activeTrack={activeTrack}
-              currentDisplayedTrack={currentDisplayedTrack}
-              selectedTrackId={selectedTrackId}
-              isOpen={isTrackPickerOpen}
-              onToggle={() => setIsTrackPickerOpen((prev) => !prev)}
-              onSelect={handlePickTrack}
-              onDisable={handlePickerDisable}
-              pickerRef={trackPickerRef}
-            />
-
-            <button
-              type="button"
-              onClick={() => setFollowPlayback((prev) => !prev)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "var(--space-3)",
-                padding: "7px 12px",
-                background: followPlayback
-                  ? "rgba(var(--accent-rgb, 127, 199, 255), 0.20)"
-                  : "rgba(255, 255, 255, 0.05)",
-                border: "1px solid",
-                borderColor: followPlayback
-                  ? "var(--accent)"
-                  : "var(--border-pill)",
-                borderRadius: "var(--radius-xs)",
-                color: followPlayback
-                  ? "var(--accent)"
-                  : "var(--text-secondary)",
-                fontSize: "var(--fs-sm)",
-                fontWeight: 600,
-                cursor: "pointer",
-                flexShrink: 0,
-                transition: "all 0.15s ease",
-              }}
-              className={`subtitles-search-card__follow-btn hover-bright ${
-                followPlayback ? "subtitles-search-card__follow-btn--active" : ""
+          isCapsule ? (
+            <div
+              className={`subtitles-capsule-row subtitles-capsule-row--tracks ${
+                isTrackPickerOpen ? "subtitles-capsule-row--open" : ""
               }`}
-              title={dict.subtitlesSearch.followTooltip}
+              style={{
+                position: "relative",
+                zIndex: isTrackPickerOpen ? 30 : 3,
+              }}
+            >
+              {/* Карточка 1: Выбор дорожки */}
+              <div className="subtitles-card subtitles-card--track-picker">
+                <TrackPicker
+                  subTracks={subTracks}
+                  activeTrack={activeTrack}
+                  currentDisplayedTrack={currentDisplayedTrack}
+                  selectedTrackId={selectedTrackId}
+                  isOpen={isTrackPickerOpen}
+                  onToggle={() => setIsTrackPickerOpen((prev) => !prev)}
+                  onSelect={handlePickTrack}
+                  onDisable={handlePickerDisable}
+                  pickerRef={trackPickerRef}
+                />
+              </div>
+
+              {/* Карточка 2: Отслеживание (кнопка следования за речью) */}
+              <button
+                type="button"
+                onClick={() => setFollowPlayback((prev) => !prev)}
+                className={`subtitles-card subtitles-card--follow-btn hover-bright ${
+                  followPlayback ? "subtitles-card--follow-btn--active" : ""
+                }`}
+                title={dict.subtitlesSearch.followTooltip}
               >
-              <Radio
-                size={13}
-                className={followPlayback ? "pulse-subtle" : ""}
+                <Radio
+                  size={14}
+                  className={followPlayback ? "pulse-subtle" : ""}
+                />
+                <span>{dict.subtitlesSearch.tracking}</span>
+              </button>
+            </div>
+          ) : (
+            <div
+              className={`subtitles-search-card__track-row ${
+                isTrackPickerOpen ? "subtitles-search-card__track-row--open" : ""
+              }`}
+              style={{
+                display: "flex",
+                gap: "var(--space-4)",
+                alignItems: "center",
+                marginBottom: "var(--space-5)",
+                flexShrink: 0,
+                position: "relative",
+                zIndex: isTrackPickerOpen ? 30 : 3,
+              }}
+            >
+              <TrackPicker
+                subTracks={subTracks}
+                activeTrack={activeTrack}
+                currentDisplayedTrack={currentDisplayedTrack}
+                selectedTrackId={selectedTrackId}
+                isOpen={isTrackPickerOpen}
+                onToggle={() => setIsTrackPickerOpen((prev) => !prev)}
+                onSelect={handlePickTrack}
+                onDisable={handlePickerDisable}
+                pickerRef={trackPickerRef}
               />
-              <span>
-                {followPlayback
-                  ? dict.subtitlesSearch.followSpeech
-                  : dict.subtitlesSearch.followOff}
-              </span>
-            </button>
-          </div>
+
+              <button
+                type="button"
+                onClick={() => setFollowPlayback((prev) => !prev)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "var(--space-3)",
+                  padding: "7px 12px",
+                  background: followPlayback
+                    ? "rgba(var(--accent-rgb, 127, 199, 255), 0.20)"
+                    : "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid",
+                  borderColor: followPlayback
+                    ? "var(--accent)"
+                    : "var(--border-pill)",
+                  borderRadius: "var(--radius-xs)",
+                  color: followPlayback
+                    ? "var(--accent)"
+                    : "var(--text-secondary)",
+                  fontSize: "var(--fs-sm)",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  transition: "all 0.15s ease",
+                }}
+                className={`subtitles-search-card__follow-btn hover-bright ${
+                  followPlayback ? "subtitles-search-card__follow-btn--active" : ""
+                }`}
+                title={dict.subtitlesSearch.followTooltip}
+              >
+                <Radio
+                  size={13}
+                  className={followPlayback ? "pulse-subtle" : ""}
+                />
+                <span>{dict.subtitlesSearch.tracking}</span>
+              </button>
+            </div>
+          )
         ) : (
           <div
-            className="subtitles-search-card__no-tracks"
+            className={`subtitles-search-card__no-tracks ${isCapsule ? "subtitles-card" : ""}`}
             style={{
               padding: "8px 12px",
-              background: "rgba(255, 255, 255, 0.03)",
-              borderRadius: "var(--radius-xs)",
+              background: isCapsule ? undefined : "rgba(255, 255, 255, 0.03)",
+              borderRadius: isCapsule ? undefined : "var(--radius-xs)",
               color: "var(--text-muted)",
               fontSize: "var(--fs-sm)",
               marginBottom: isCapsule ? 0 : "var(--space-5)",
               textAlign: "center",
             }}
-            >
+          >
             {dict.subtitlesSearch.noTracks}
           </div>
         )}

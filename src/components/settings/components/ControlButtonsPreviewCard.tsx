@@ -19,7 +19,9 @@ import {
   ListVideo,
   Maximize,
   FastForward,
+
 } from "lucide-react";
+import { SpeedIcon } from "../../player/controls/SpeedIcon";
 
 interface ControlButtonsPreviewCardProps {
   visibleButtons: Record<string, boolean>;
@@ -42,6 +44,32 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
   };
 
   const rightButtons = [
+    {
+      id: "speed",
+      defaultVisible: false,
+      render: () => (
+        <div
+          key="speed"
+          title={dict.settings.appearance.visSpeed}
+          style={{
+            height: 20,
+            padding: "0 4px",
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--space-0)",
+            color: "var(--accent)",
+            background: "rgba(255, 255, 255, 0.06)",
+            borderRadius: "var(--radius-xs, 4px)",
+            fontSize: "var(--fs-3xs)",
+            fontWeight: 600,
+            transition: "all 0.15s ease",
+          }}
+        >
+          <SpeedIcon size={11} />
+          <span>1.0x</span>
+        </div>
+      ),
+    },
     {
       id: "skipOpening",
       defaultVisible: false,
@@ -84,7 +112,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
     alignItems: "center",
     justifyContent: "center",
     color: "var(--text-secondary)",
-    borderRadius: "50%",
+    borderRadius: "var(--radius-control)",
     transition: "all 0.15s ease",
   };
 
@@ -242,7 +270,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
                 justifyContent: "center",
                 color: "var(--accent)",
                 filter: "drop-shadow(0 0 6px var(--accent-glow))",
-                borderRadius: "50%",
+                borderRadius: "var(--radius-control)",
               }}
               >
               <Play size={16} fill="currentColor" />

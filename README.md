@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.6.4-blueviolet?style=for-the-badge" alt="Version 2.6.4">
+  <img src="https://img.shields.io/badge/Version-2.7.0-blueviolet?style=for-the-badge" alt="Version 2.7.0">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -217,14 +217,13 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>🎧 Track Management & 1-Click Export (Track Popover & FFmpeg)</b></summary>
 
-- **Ergonomic Track Popover:** Streamlined popover menu for audio and subtitles on the bottom control bar, sized to display 7 tracks cleanly, with smooth vertical scrolling (`scrollbar-width: none`) and automatic scrolling to the active stream on open.
-- **Modular Capsule Island Design:**
-  - Floating independent header pill with stream count badge and quick shortcut to full-text Subtitle Search (`Ctrl+F`);
-  - Dedicated floating island card for **"Disable Subtitles"** isolated above the stream list;
-  - Unified monolithic glass track list card eliminating visual clutter and fragmented micro-pills;
-  - Integrated direct FFmpeg download button and luminous active stream dot placed on the right-hand side;
-  - Concentric corner radiuses following $R_{\text{inner}} = \max(0, R_{\text{outer}} - d)$;
-  - Automatic keyboard focus restoration to the invoking button when closing popovers.
+- **Ergonomic Track Popover Menus:** Compact audio and subtitle popover on the bottom control bar; displays up to 7 tracks cleanly without scrolling, features smooth vertical scrolling for long lists, and automatically centers on the active stream on open.
+- **Adaptive Style-Matching Design:**
+  - In **"Capsule"** style: Popovers feature floating cards: a header card with stream count badge and quick shortcut to Subtitle Search (`Ctrl+F`), a standalone card for quickly disabling subtitles, and a unified track list card;
+  - In **"Modern"** and **"Classic"** styles: Elegant cohesive window with frosted glass backdrop;
+  - Luminous active stream dots replace heavy checkmarks;
+  - 1-click track export directly inside the menu;
+  - Smooth cinematic open animations without font blurriness or text jitter.
 - **Fail-Safe Subtitle & Audio Disabling (Mpv Property Alignment):** selecting "Disable Subtitles" reliably dispatches native mpv `sid: "no"` (`aid: "no"` for audio), optimistically clearing active UI tracks and displaying an informative OSD confirmation.
 - **Full Track Title Parity (MP4 / MOV ↔ MKV):** Intelligent cascade metadata probing (`title` → QuickTime/MP4 `metadata/name` from `udta/name` atom → `metadata/title` → `metadata/handler_name`). Track titles (e.g., "Dubbing", "Original Atmos") display consistently and accurately in MP4 and MOV files just like in MKV.
 - **Ergonomic Track Menu Invocation (Left & Right Click):** Both left and right clicks on the audio and subtitle buttons now cleanly toggle the track selection menu, eliminating accidental track cycling on stray clicks.
@@ -293,21 +292,28 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
     - *Centered Over Timeline* — Floating neon pill centered above the seek bar (expands timeline to 100% width).
     - *Window Titlebar* — Interactive time badge inside the top window header to the left of window controls; leaves the bottom control bar uncluttered.
   - Selecting any off-timeline position automatically expands the seek bar to span 100% of the bar width (`.timeline-row--full`).
+- **Smart Playback Speed Control & Adaptive Popover (v2.7.0):**
+  - *Context-Aware Visibility*: The speed button dynamically surfaces in the right control group whenever playback speed differs from 1.0x (or can be permanently pinned via Settings).
+  - *1-Click Interaction*:
+    - **Left Click**: Rapidly cycles playback speeds (0.25x -> 0.5x -> 0.75x -> 1.0x -> 1.25x -> 1.5x -> 1.75x -> 2.0x);
+    - **Right Click**: Opens the compact speed selection popover menu.
+  - *Adaptive Style-Matching Architecture*:
+    - In **"Capsule"** style: Displays as a standalone floating island card, with floating header islands and monolithic list card;
+    - In **"Modern"** & **"Classic"** styles: Unified monolithic button and seamless frosted glass menu window.
+  - *Luminous Radio-Dots*: Selected speed is indicated by an elegant neon dot matching the audio and subtitle track popover design language.
+  - *Pixel-Perfect Positioning & HiDPI Scale Normalization*: Popover floats precisely centered above the speed button with mathematical zoom scaling normalization on 2K/4K and Fullscreen displays.
 - **4 Interactive Time Formats with 1-Click Toggle:**
   - Supports: *Elapsed / Total*, *Remaining Only*, *Estimated End Time* (adjusted for playback `speed`), and *High-Precision Milliseconds*.
   - Click directly on the timestamp anywhere in the UI to cycle through formats with an OSD confirmation.
-- **Player Styles ("Capsule", "Modern", & "Classic"):**
-  - **Capsule**: Modular architecture of decoupled floating islands and a detached floating timeline strip:
-    - *Independent Functional Islands*: Dedicated cards for Streams (Audio + Subtitles), Volume Slider, Toolbar Visualizer (dynamically rendered only when active), Transport, Utilities, and Fullscreen toggle;
-    - *3-Column CSS Grid*: Dedicated `minmax(0, 1fr) auto minmax(0, 1fr)` grid with `gap: 12px`, guaranteeing islands never overlap even on narrow windows or verbose track names;
-    - *Concentric Geometry Design System*: Mathematically aligned concentric nested corners $R_{\text{inner}} = \max(0, R_{\text{outer}} - d)$ across all popovers, context menus, and playlist items;
-    - *Seamless Integrated Scrollbars*: Thin, semi-transparent scroll indicators seamlessly inset into playlists and subtitle search dialogs without borders overflow or arrows;
-    - *Accurate Color Rendering*: Calibrated `bgPillRgb` and `bgGlassRgb` tokens ensuring true surface color match without accidental UI darkening;
-    - *Accessible `<button>` Time Card*: Entire time island serves as a keyboard-focusable, clickable button with W3C a11y compliance (`isInteractive={false}` inside inner `TimeDisplay`) and tactile interaction across its entire surface;
-    - *Rigid Heatmap Anchoring*: Dedicated `.timeline-col--capsule` container locking Activity Heatmap canvas and hover peak badge positioning into seamless alignment.
-  - **Modern**: Unified floating capsule with integrated seekbar and elegant window margins.
-  - **Classic**: Solid full-width panel docked at the bottom window edge without gaps.
-  - Detailed `148×64px` mini-previews in Settings with neon active selection outlines.
+- **Three Distinct Player Styles:**
+  - **Capsule**: Futuristic modular interface built from independent floating cards:
+    - *Independent Functional Islands*: Dedicated cards for streams (audio + subtitles), volume slider, playback controls, utilities, and fullscreen toggle;
+    - *Floating Timeline & Time Card*: Seekbar and time badge float independently with soft backlighting; clicking the time card instantly cycles time formats;
+    - *Pixel-Perfect Center Alignment*: Play/pause and seek buttons stay strictly locked to the center of the window regardless of track label lengths;
+    - *Adaptive Layout*: Cards fluidly rearrange and never overlap even in compact window sizes.
+  - **Modern**: Elegant floating unified pill with integrated seekbar and comfortable window margins.
+  - **Classic**: Familiar full-width edge-docked control panel pinned seamlessly to the bottom edge.
+  - Interactive mini-previews under Settings (`F2` → "Appearance") for 1-click visual switching.
 - **Ergonomic "Appearance" Tab Redesign:**
   - Global UI Opacity slider (10–100%) with seamless real-time reactivity across `--ui-opacity` and `--bg-glass` design tokens.
   - Responsive 3-column grid (collapses to 1 column on widths ≤ 480px): Corner Radius (2x2 cards + compact slider) | UI Scaling (2x2 cards + slider + "A" auto-scale toggle) | Typography (6 font options + custom user fonts with folder button).
@@ -333,7 +339,8 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Context Preservation Across Layouts:** Active category, tab, expanded accordions, scroll position, and draft preset name seamlessly persist when switching between Sidebar and Modal views.
 - **True Display Scaling:** Panel width is computed from actual window dimensions factoring in `UI Scale`, ensuring perfect proportions on 2K/4K high-DPI displays.
 - **Exclusive Single-Accordion Mode:** Expanding any settings category automatically and smoothly collapses sibling categories, maintaining a clean and focused workspace in both Sidebar and Modal layouts.
-- **Adaptive Settings Grids:** Blocks dynamically collapse from three columns to single-column layouts on compact windows without label truncation or slider clipping.
+- **Adaptive Settings Grids & Clean Visuals:** Blocks dynamically collapse from three columns to single-column layouts on compact windows without label truncation. Accordion headers are free of distracting technical badges, and inner preview cards and color pickers adhere to concentric border radius geometry.
+- **Reliable Vertical Scrolling:** Seamless, uninterrupted mousewheel and trackpad scrolling across all player styles (Capsule, Modern, Classic).
 - **Video & Audio Settings Section:** Dedicated accordion in the General tab, laid out as four compact tiles in a two-column grid. *Frame Processing* (deinterlacing `no`/`auto`/`yadif`/`yadif2x`, hardware decoding `auto-safe`/`auto-copy`/`no`), *Audio Path* (peak limiter, volume normalization `dynaudnorm`/`loudnorm`, device latency fix), *Artifact Reduction* (debanding with strength presets: Light, Balanced, Strong), and *Data Buffer* (50–1024 MB). The icon lives on the tile only, and every segment block has a reset-to-default button plus a hover tooltip.
 
 </details>
@@ -420,6 +427,11 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 
 - **Auto-Playlist with Natural Sort:** Opening a file automatically populates the playlist with all sibling media in the directory, ordered by natural human numerical sorting.
 - **Slide-out Playlist Drawer (`L` / `P`):** Instant search, file filtering, active track highlighting, and one-click playback switching.
+- **Adaptive Style-Matching Design:**
+  - In **"Capsule"** style: The playlist drawer is separated into floating cards: a header badge with file count, action buttons, a seamless search bar, and an independent track list container;
+  - In **"Modern"** and **"Classic"** styles: Features a cohesive frosted glass panel.
+- **Smooth, Zero-Jitter Scrolling:** Completely eliminates layout shifting, text jumping, or element jitter during scrolling and cursor hover.
+- **Elegant Active Media Marker:** A circular accent badge with subtle neon backlighting marks the currently playing file instead of heavy bounding boxes, ensuring pristine text readability.
 - **Drag & Drop:** Drop local media files or streaming URLs directly into the player window.
 - **Loop Modes & Shuffle:** Loop current file, loop entire playlist, or play in random order. The toolbar button and the *Repeat Mode* submenu share a single `set_repeat_mode` command that always sets both loop properties together; the submenu marks the active mode immediately and confirms the change with an OSD toast.
 - **Watch Progress Bar (Netflix / YouTube Style):** Elegant bottom accent line under every playlist card reflecting saved playback progress (`get_watch_history_batch`). Fully watched episodes (ending reached) are marked with a dedicated `completed` flag, displaying a crisp green `CheckCircle2` badge and a completed progress line, with live progress tracking of the actively playing media.
@@ -446,11 +458,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Native In-Memory Inspection:** Direct C-FFI binding to `mediainfo.dll` via `libloading` for instant comprehensive extraction of video, audio, and subtitle streams without external command-line shells.
 - **Independent Desktop Window (655×685 px):** The MediaInfo window moves freely across monitors beyond the main player; launches over the player (`Shift+F10`) with an Always-on-Top pin button (`alwaysOnTop`).
 - **Standalone File Inspection ("Open with L-MPV MediaInfo"):** Inspect media metadata straight from the Windows Explorer context menu without launching the video player.
-- **Modular "Capsule" Island Design (`mediainfo-modal-capsule.css`):**
-  - Fully decoupled into 6 floating cards with a systematic 6px gap: file metadata, window controls, search input, report actions, category chips, and content viewport.
-  - **160px Modular Grid Alignment:** Window controls (`.mediainfo-standalone__window-controls`) and action bar (`.mediainfo-standalone__actions`) share an identical $160\text{px} \times 42\text{px}$ footprint ($gap = 6\text{px}$), with language toggle calibrated to $70\text{px}$ ($32\text{px} + 6\text{px} + 32\text{px}$), eliminating step offsets.
-- **Theme Color Synchronization:** Automatically inherits the active player theme (`--bg-surface`, `--bg-primary`, `--bg-glass`) across all visual modes (Modern, Classic, Capsule).
-- **Disk Auto-Hydration (`hydrateUiSettingsFromDisk()`):** Seamlessly restores user theme and layout configuration upon cold startup directly from Windows Explorer.
+- **Style & Color Theme Harmonization:** MediaInfo fully adapts to the selected player style (Capsule, Modern, Classic) and automatically inherits the active color theme, even when opened directly from Windows Explorer. In Capsule mode, elements are organized into floating cards with balanced symmetry.
 - **Interactive Stream Filter Tabs (Quick Filter):** Filter tracks instantly (*"All"*, *"General"*, *"Video"*, *"Audio"*, *"Subtitles"*, *"Chapters"*) with informative stream count badges and 6px rounded pills matching the design system.
 - **Collapsible Stream Accordions:** Collapse or expand individual streams or all at once ("Expand/Collapse All"), with auto-expansion during `Ctrl+F` search.
 - **Native Drag-and-Drop:** Drop any media file straight into the open MediaInfo window with a translucent overlay (`FileUp`) for instant analysis.
@@ -472,8 +480,11 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>🖱️ Customizable Context Menu (Right-Click) & Drag-and-Drop Editor</b></summary>
 
-- **Floating Island Submenus (`.context-menu__group`):** Submenus are dynamically separated into sleek, independent floating card groups without a monolithic bounding container backdrop.
-- **Minimalist Radio-Dot Markers (`.context-menu__radio-dot`):** Active options and toggles across submenus feature clean accent dot indicators instead of checkmarks and borders, creating a focused and lightweight appearance.
+- **Adaptive Style-Matching Design:**
+  - In **"Capsule"** style: The main context menu forms sleek floating card islands matching the control bar and playlist aesthetic;
+  - In **"Modern"** and **"Classic"** styles: The menu and submenus feature a classic cohesive frosted glass window.
+- **Minimalist Radio-Dot Markers:** Active options and toggles across all menu styles feature clean accent dot indicators instead of cumbersome checkmarks and bulky outlines.
+- **Razor-Sharp Typography:** Menus appear instantly without motion blur or font fuzziness during transitions.
 - **Scrollbar-Free Fluid Scrolling:** Long submenus hide the visible scrollbar while preserving silky smooth mouse wheel navigation, featuring an ergonomic 10px spacing from the main menu (`SUBMENU_GAP`) and click-outside dismissal that keeps submenus open while toggling settings.
 - **Clean Title-Free Controls:** Native browser `title` tooltips have been eliminated from the bottom control bar, window controls, and reset buttons for an uncluttered and distraction-free viewing experience.
 - **Interactive Drag-and-Drop Editor:** Visual layout customizer under Settings (`F2` -> "General" -> "Context Menu") powered by `@dnd-kit`, supporting dragging via grab handles or the entire card.

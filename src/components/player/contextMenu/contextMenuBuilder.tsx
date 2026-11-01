@@ -79,6 +79,7 @@ export const CONTROL_BUTTON_ITEMS = [
   { id: "playlist", defaultChecked: true },
   { id: "fullscreen", defaultChecked: true },
   { id: "skipOpening", defaultChecked: false },
+  { id: "speed", defaultChecked: false },
 ] as const;
 
 /** Статические узлы иконок для предотвращения лишних пересозданий VNode при рендере. */
@@ -734,6 +735,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
             playlist: dict.settings.cmenuUI.playlist,
             fullscreen: dict.settings.cmenuUI.fullscreen,
             skipOpening: dict.settings.cmenuUI.skipOpening,
+            speed: dict.settings.appearance.visSpeed,
           };
           const localizedLabel = btnLabelMap[btn.id] || btn.id;
           const isChecked =

@@ -105,6 +105,7 @@ Portable-L-MPV*
 # ==============================================================================
 .agents/rules/
 .agents/skills/
+.agents/mcp/
 agents/rules/
 .codebase-memory/*
 SKILL.md

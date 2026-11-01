@@ -24,7 +24,11 @@ import { SeekIndicator } from "./components/player/SeekIndicator";
 import { UpdateInfo } from "./components/modals/UpdateModal";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
 import { applyAccentColor } from "./utils/colorUtils";
-import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
+import {
+  getCustomHotkeys,
+  isKeyboardEventMatch,
+  VIDEO_MOUSE_ACTIONS,
+} from "./utils/hotkeyUtils";
 import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
@@ -1022,20 +1026,8 @@ function App() {
       let singleClickAction: string | null = null;
       let doubleClickAction: string | null = null;
 
-      // Действия, которые разрешены для клика непосредственно по видео
-      const allowedVideoActions = [
-        "togglePause",
-        "fullscreen",
-        "openContextMenu",
-        "fileInfo",
-        "screenshot",
-        "resetZoom",
-        "copyFrame",
-        "toggleRepeat",
-        "playlist",
-      ];
-
-      for (const actionId of allowedVideoActions) {
+      // Поиск действий, относящихся исключительно к контексту видео-полотна
+      for (const actionId of VIDEO_MOUSE_ACTIONS) {
         const codes = curHotkeys[actionId] || [];
         if (codes.includes("MouseLeft")) {
           singleClickAction = actionId;
@@ -1045,7 +1037,7 @@ function App() {
         }
       }
 
-      // Безусловный дефолт для клика по видео
+      // Гарантированные безопасные дефолты при клике по видео
       if (!singleClickAction) {
         singleClickAction = "togglePause";
       }
@@ -1092,8 +1084,8 @@ function App() {
 
       const curHotkeys = latestRef.current.hotkeys;
       let action: string | null = null;
-      const allowedContextMenuActions = ["openContextMenu", "fileInfo", "togglePause", "fullscreen"];
-      for (const actionId of allowedContextMenuActions) {
+      for (const actionId of VIDEO_MOUSE_ACTIONS) {
+        if (actionId === "openContextMenu") continue;
         const codes = curHotkeys[actionId] || [];
         if (codes.includes("MouseRight")) {
           action = actionId;
@@ -1121,7 +1113,8 @@ function App() {
         }
         const curHotkeys = latestRef.current.hotkeys;
         let action: string | null = null;
-        for (const [actionId, codes] of Object.entries(curHotkeys)) {
+        for (const actionId of VIDEO_MOUSE_ACTIONS) {
+          const codes = curHotkeys[actionId] || [];
           if (codes.includes("MouseMiddle")) {
             action = actionId;
             break;
