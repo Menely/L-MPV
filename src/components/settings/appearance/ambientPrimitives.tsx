@@ -1,6 +1,4 @@
 import { useState, useRef, memo, useCallback } from "react";
-import { RotateCcw } from "lucide-react";
-import { optionCardStyle, optionResetBtnStyle } from "../components/optionCardStyles";
 
 export interface VerticalSliderProps {
   value: number;
@@ -183,87 +181,6 @@ export const VerticalSlider = memo(function VerticalSlider({
             : "transform var(--t-spring, 0.25s) var(--ease-spring-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)), box-shadow var(--t-fast, 0.15s) var(--ease-smooth, ease), height 0.08s ease",
         }}
       />
-    </div>
-  );
-});
-
-export interface AmbientTuneRowProps {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  def: number;
-  unit: string;
-  resetTitle: string;
-  ariaLabel: string;
-  onChange: (v: number) => void;
-  onReset: () => void;
-}
-
-/** Горизонтальный премиум-ряд подсветки (яркость/насыщенность): иконка + слайдер + бейдж + условный сброс. */
-export const AmbientTuneRow = memo(function AmbientTuneRow({
-  icon,
-  label,
-  value,
-  min,
-  max,
-  step,
-  def,
-  unit,
-  resetTitle: _resetTitle,
-  ariaLabel,
-  onChange,
-  onReset,
-}: AmbientTuneRowProps) {
-  const pct = Math.round(((value - min) / (max - min)) * 100);
-  const isDefault = value === def;
-  return (
-    <div style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0, lineHeight: 1 }}>
-        <span style={{ display: "flex", color: "var(--accent)" }}>{icon}</span>
-        <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
-          {label}
-        </span>
-      </div>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", minWidth: 0, height: 20 }}>
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="ui-premium-slider"
-          style={{
-            "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, rgba(255, 255, 255, 0.12) ${pct}%, rgba(255, 255, 255, 0.12) 100%)`,
-          } as React.CSSProperties}
-          aria-label={ariaLabel}
-        />
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexShrink: 0, lineHeight: 1 }}>
-        <span style={{ fontSize: "var(--fs-sm)", fontWeight: 700, color: "var(--accent)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-          {value} {unit}
-        </span>
-        <button
-          type="button"
-          onClick={onReset}
-          className="btn btn--secondary btn--sm"
-          style={{
-            ...optionResetBtnStyle,
-            opacity: isDefault ? 0 : 1,
-            visibility: isDefault ? "hidden" : "visible",
-            pointerEvents: isDefault ? "none" : "auto",
-            transform: isDefault ? "scale(0.85)" : "scale(1)",
-            transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-          }}
-
-          tabIndex={isDefault ? -1 : 0}
-          >
-          <RotateCcw size={11} />
-        </button>
-      </div>
     </div>
   );
 });

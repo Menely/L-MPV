@@ -892,7 +892,6 @@ function App() {
           const labels: Record<string, string> = {
             off: dict.settings.cmenuUI.ambientOff,
             blur: dict.settings.cmenuUI.ambientBlur,
-            color: dict.settings.cmenuUI.ambientColor,
           };
           triggerOsd(dict.osd.ambientMode(labels[res.mode] || res.mode), 2000);
           window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: res }));
@@ -1388,6 +1387,7 @@ function App() {
 
       {hasMedia && (
         <PlayerControls
+          onOpenSettings={openSettings}
           showMediaInfo={showMediaInfo}
           showDetailedMediaInfo={isMediaInfoOpen}
           showChapters={showChapters}

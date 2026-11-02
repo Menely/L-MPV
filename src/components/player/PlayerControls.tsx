@@ -30,6 +30,7 @@ import {
   FastForward,
   FileText,
   AudioWaveform,
+  MoreHorizontal,
 
 } from "lucide-react";
 import { Timeline } from "./Timeline";
@@ -69,6 +70,7 @@ import {
   TrackPopovers,
 } from "./controls";
 import { SpeedPopover, formatSpeedValue, SPEED_PRESETS, SpeedIcon } from "./controls";
+import { ControlsOverflow, type OverflowAction } from "./controls/ControlsOverflow";
 
 export function PlayerControls({
   onShowMediaInfo,
@@ -79,6 +81,7 @@ export function PlayerControls({
   showChapters,
   onCloseChapters,
   onOpenSubtitlesSearch,
+  onOpenSettings,
 }: {
   onShowMediaInfo?: () => void;
   onToggleMediaInfo?: () => void;
@@ -88,6 +91,7 @@ export function PlayerControls({
   showChapters?: boolean;
   onCloseChapters?: () => void;
   onOpenSubtitlesSearch?: () => void;
+  onOpenSettings?: () => void;
 }) {
   const { mediaInfo, isPlaylistOpen, setIsPlaylistOpen } = usePlayerState();
   const { dict } = useTranslation();
@@ -119,8 +123,10 @@ export function PlayerControls({
   const [isStripHovered, setIsStripHovered] = useState(false);
 
   // Состояния для всплывающих окон дорожек с поддержкой exit-анимации
-  const [activePopover, setActivePopover] = useState<"audio" | "sub" | "speed" | null>(null);
-  const [closingPopover, setClosingPopover] = useState<"audio" | "sub" | "speed" | null>(null);
+  const [activePopover, setActivePopover] = useState<"audio" | "sub" | "speed" | "more" | null>(null);
+  const [closingPopover, setClosingPopover] = useState<"audio" | "sub" | "speed" | "more" | null>(null);
+  const morePopoverRef = useRef<HTMLDivElement | null>(null);
+  const moreButtonRef = useRef<HTMLButtonElement | null>(null);
   const speedPopoverRef = useRef<HTMLDivElement | null>(null);
   const speedButtonRef = useRef<HTMLButtonElement | null>(null);
   const closePopoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,13 +138,14 @@ export function PlayerControls({
     }
     const currentType = activePopover;
     const restoreFocus = () => {
-      if (currentType === "audio") {
-        document.getElementById("btn-audio-tracks")?.focus();
-      } else if (currentType === "sub") {
-        document.getElementById("btn-sub-tracks")?.focus();
-      } else if (currentType === "speed") {
-        document.getElementById("btn-playback-speed")?.focus();
-      }
+      const id = currentType === "audio" ? "btn-audio-tracks"
+        : currentType === "sub" ? "btn-sub-tracks"
+        : currentType === "speed" ? "btn-playback-speed" : "btn-controls-more";
+      const target = document.getElementById(id);
+      const fallback = moreButtonRef.current;
+      if (target?.getClientRects().length) target.focus();
+      else if (fallback?.getClientRects().length) fallback.focus();
+      else document.getElementById("btn-play-pause")?.focus();
     };
     if (immediate || !isMotionAllowed()) {
       setActivePopover(null);
@@ -158,7 +165,7 @@ export function PlayerControls({
     });
   }, [activePopover]);
 
-  const openPopover = useCallback((type: "audio" | "sub" | "speed") => {
+  const openPopover = useCallback((type: "audio" | "sub" | "speed" | "more") => {
     if (closePopoverTimerRef.current) {
       clearTimeout(closePopoverTimerRef.current);
       closePopoverTimerRef.current = null;
@@ -396,12 +403,13 @@ export function PlayerControls({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (target.closest('#btn-audio-tracks') || target.closest('#btn-sub-tracks') || target.closest('#btn-playback-speed')) {
+      if (target.closest('#btn-audio-tracks, #btn-sub-tracks, #btn-playback-speed, #btn-controls-more')) {
         return; // Кнопки сами управляют закрытием (toggle)
       }
       const isInsideTrackPopover = popoverRef.current?.contains(target);
       const isInsideSpeedPopover = speedPopoverRef.current?.contains(target);
-      if (!isInsideTrackPopover && !isInsideSpeedPopover) {
+      const isInsideMorePopover = morePopoverRef.current?.contains(target);
+      if (!isInsideTrackPopover && !isInsideSpeedPopover && !isInsideMorePopover) {
         closePopover();
       }
     };
@@ -546,13 +554,94 @@ export function PlayerControls({
 
 
 
+  const handleToggleAlwaysOnTop = async () => {
+    try {
+      const appWindow = getCurrentWindow();
+      const current = await appWindow.isAlwaysOnTop();
+      await appWindow.setAlwaysOnTop(!current);
+      setIsAlwaysOnTop(!current);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleShowFileInfo = () => {
+    closePopover(true);
+    onCloseChapters?.();
+    (onToggleMediaInfo ?? onShowMediaInfo)?.();
+  };
+
+  const handleShowDetailedInfo = () => {
+    closePopover(true);
+    onCloseChapters?.();
+    onToggleDetailedMediaInfo?.();
+  };
+
+  const handleToggleVisualizer = () => {
+    const updated = { ...visualizerConfig, enabled: !visualizerConfig.enabled };
+    setVisualizerConfig(updated);
+    saveVisualizerConfig(updated);
+  };
+
+  const overflowActions: OverflowAction[] = [
+    ...(visibleButtons.repeat !== false ? [{
+      id: "repeat", label: repeatMode === 1 ? dict.controls.repeatOne
+        : repeatMode === 2 ? dict.controls.repeatAll : dict.controls.repeatOff,
+      icon: <Repeat size={18} />, priority: "low" as const,
+      onSelect: handleToggleRepeat, active: repeatMode !== 0,
+    }] : []),
+    ...(visibleButtons.shuffle !== false ? [{
+      id: "shuffle", label: dict.controls.shuffle, icon: <Shuffle size={18} />,
+      priority: "low" as const, onSelect: handleShuffle,
+    }] : []),
+    ...(visibleButtons.skipOpening !== false ? [{
+      id: "skip-opening", label: dict.controls.skipOpening(skipOpeningSeconds),
+      icon: <FastForward size={18} />, priority: "low" as const,
+      onSelect: () => handleSeek(skipOpeningSeconds),
+    }] : []),
+    ...(visibleButtons.info !== false ? [{
+      id: "file-info", label: dict.controls.mediaInfo, icon: <Info size={18} />,
+      priority: "low" as const, onSelect: handleShowFileInfo, active: showMediaInfo,
+    }] : []),
+    ...(visibleButtons.mediaInfo !== false ? [{
+      id: "mediainfo", label: dict.controls.detailedMediaInfo, icon: <FileText size={18} />,
+      priority: "low" as const, onSelect: handleShowDetailedInfo, active: showDetailedMediaInfo,
+    }] : []),
+    ...(visibleButtons.visualizer !== false ? [{
+      id: "visualizer", label: dict.controls.visualizer, icon: <AudioWaveform size={18} />,
+      priority: "low" as const, onSelect: handleToggleVisualizer, active: visualizerConfig.enabled,
+    }] : []),
+    ...(visibleButtons.screenshot !== false ? [{
+      id: "screenshot", label: dict.controls.screenshot, icon: <Camera size={18} />,
+      priority: "low" as const, onSelect: handleTakeScreenshot,
+    }] : []),
+    { id: "previous", label: dict.controls.prev, icon: <SkipBack size={18} />,
+      priority: "medium", onSelect: handlePlaylistPrev },
+    { id: "next", label: dict.controls.next, icon: <SkipForward size={18} />,
+      priority: "medium", onSelect: handlePlaylistNext },
+    ...(visibleButtons.alwaysOnTop !== false ? [{
+      id: "always-on-top", label: dict.controls.alwaysOnTop, icon: <Pin size={18} />,
+      priority: "medium" as const, onSelect: handleToggleAlwaysOnTop, active: isAlwaysOnTop,
+    }] : []),
+    { id: "audio", label: dict.controls.audioTracks, icon: <AudioLines size={18} />,
+      priority: "audio", onSelect: () => toggleTrackPopover("audio") },
+    ...(visibleButtons.playlist !== false ? [{
+      id: "playlist", label: dict.controls.playlist, icon: <ListVideo size={18} />,
+      priority: "medium" as const, onSelect: () => setIsPlaylistOpen(!isPlaylistOpen), active: isPlaylistOpen,
+    }] : []),
+    ...(visibleButtons.seekButtons !== false ? [
+      { id: "seek-back", label: dict.controls.seekBackward(seekStepSeconds), icon: <Undo size={18} />,
+        priority: "compact" as const, onSelect: () => { handleSeek(-seekStepSeconds); triggerSeekIndicator("left", seekStepSeconds); } },
+      { id: "seek-forward", label: dict.controls.seekForward(seekStepSeconds), icon: <Redo size={18} />,
+        priority: "compact" as const, onSelect: () => { handleSeek(seekStepSeconds); triggerSeekIndicator("right", seekStepSeconds); } },
+    ] : []),
+  ];
+
   const displayedPopover = activePopover || closingPopover;
   const isPopoverClosing = !activePopover && Boolean(closingPopover);
 
   const renderTrackPopovers = () => (
     <>
       <TrackPopovers
-        displayedPopover={displayedPopover === "speed" ? null : displayedPopover}
+        displayedPopover={displayedPopover === "audio" || displayedPopover === "sub" ? displayedPopover : null}
         isPopoverClosing={isPopoverClosing}
         popoverRef={popoverRef}
         activeTrackItemRef={activeTrackItemRef}
@@ -578,6 +667,21 @@ export function PlayerControls({
             handleSetSpeed(speed);
             closePopover();
           }}
+          onClose={closePopover}
+        />
+      )}
+      {displayedPopover === "more" && (
+        <ControlsOverflow
+          popoverRef={morePopoverRef}
+          triggerRef={moreButtonRef}
+          isClosing={isPopoverClosing}
+          actions={overflowActions}
+          volume={volume}
+          speed={mediaInfo?.speed ?? 1}
+          onVolumeChange={(value) => handleVolumeChange(value)}
+          onMute={() => handleVolumeChange(volume > 0 ? 0 : 100)}
+          onSpeedChange={handleSetSpeed}
+          onOpenSettings={onOpenSettings}
           onClose={closePopover}
         />
       )}
@@ -751,7 +855,7 @@ export function PlayerControls({
 
       {visibleButtons.seekButtons !== false && (
         <button
-          className="control-btn"
+          className="control-btn control-btn--priority-compact"
           onClick={() => {
             handleSeek(-seekStepSeconds);
             triggerSeekIndicator("left", seekStepSeconds);
@@ -778,7 +882,7 @@ export function PlayerControls({
 
       {visibleButtons.seekButtons !== false && (
         <button
-          className="control-btn"
+          className="control-btn control-btn--priority-compact"
           onClick={() => {
             handleSeek(seekStepSeconds);
             triggerSeekIndicator("right", seekStepSeconds);
@@ -932,14 +1036,7 @@ export function PlayerControls({
           id="btn-always-on-top"
           title={dict.controls.alwaysOnTop}
           aria-label={dict.controls.alwaysOnTop}
-          onClick={async () => {
-            try {
-              const appWindow = getCurrentWindow();
-              const current = await appWindow.isAlwaysOnTop();
-              await appWindow.setAlwaysOnTop(!current);
-              setIsAlwaysOnTop(!current);
-            } catch (e) { console.error(e); }
-          }}
+          onClick={handleToggleAlwaysOnTop}
         >
           <Pin size={18} />
         </button>
@@ -951,15 +1048,7 @@ export function PlayerControls({
           id="btn-file-info"
           title={dict.controls.mediaInfo}
           aria-label={dict.controls.mediaInfo}
-          onClick={() => {
-            closePopover(true);
-            if (onCloseChapters) onCloseChapters();
-            if (onToggleMediaInfo) {
-              onToggleMediaInfo();
-            } else if (onShowMediaInfo) {
-              onShowMediaInfo();
-            }
-          }}
+          onClick={handleShowFileInfo}
         >
           <Info size={18} />
         </button>
@@ -971,13 +1060,7 @@ export function PlayerControls({
           id="btn-mediainfo"
           title={dict.controls.detailedMediaInfo}
           aria-label={dict.controls.detailedMediaInfo}
-          onClick={() => {
-            closePopover(true);
-            if (onCloseChapters) onCloseChapters();
-            if (onToggleDetailedMediaInfo) {
-              onToggleDetailedMediaInfo();
-            }
-          }}
+          onClick={handleShowDetailedInfo}
         >
           <FileText size={18} />
         </button>
@@ -991,11 +1074,7 @@ export function PlayerControls({
           id="btn-visualizer"
           title={dict.controls.visualizer}
           aria-label={dict.controls.visualizer}
-          onClick={() => {
-            const updated = { ...visualizerConfig, enabled: !visualizerConfig.enabled };
-            setVisualizerConfig(updated);
-            saveVisualizerConfig(updated);
-          }}
+          onClick={handleToggleVisualizer}
           onContextMenu={(e) => {
             e.preventDefault();
             const modes: VisualizerMode[] = [
@@ -1021,7 +1100,7 @@ export function PlayerControls({
 
       {visibleButtons.playlist !== false && (
         <button
-          className={`control-btn ${isPlaylistOpen ? "control-btn--active" : ""}`}
+          className={`control-btn control-btn--priority-medium ${isPlaylistOpen ? "control-btn--active" : ""}`}
           onClick={(e) => {
             e.stopPropagation();
             setIsPlaylistOpen(!isPlaylistOpen);
@@ -1046,6 +1125,25 @@ export function PlayerControls({
         </button>
       )}
 
+      <button
+        ref={moreButtonRef}
+        type="button"
+        id="btn-controls-more"
+        className={`control-btn controls-overflow-trigger ${activePopover === "more" ? "control-btn--active" : ""}`}
+        aria-label={dict.controls.more}
+        title={dict.controls.more}
+        aria-haspopup="dialog"
+        aria-expanded={activePopover === "more"}
+        aria-controls={displayedPopover === "more" ? "player-controls-overflow" : undefined}
+        onClick={() => {
+          if (activePopover === "more") { closePopover(); return; }
+          if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
+          onCloseChapters?.();
+          openPopover("more");
+        }}
+      >
+        <MoreHorizontal size={18} aria-hidden="true" />
+      </button>
       {!options?.excludeFullscreen && renderFullscreenButton()}
     </>
   );

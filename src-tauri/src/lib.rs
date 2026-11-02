@@ -95,6 +95,9 @@ pub fn run() {
     let thumb_dir = data_dir.join("thumbs");
     let logs_dir = exe_dir.join("logs");
     let webview_dir = data_dir.join("webview");
+    let cache_dir = data_dir.join("cache");
+    let shader_cache_dir = cache_dir.join("shaders");
+    let icc_cache_dir = cache_dir.join("icc");
     
     std::fs::create_dir_all(&screenshots_dir).ok();
     std::fs::create_dir_all(&data_dir).ok();
@@ -102,6 +105,8 @@ pub fn run() {
     std::fs::create_dir_all(&thumb_dir).ok();
     std::fs::create_dir_all(&logs_dir).ok();
     std::fs::create_dir_all(&webview_dir).ok();
+    std::fs::create_dir_all(&shader_cache_dir).ok();
+    std::fs::create_dir_all(&icc_cache_dir).ok();
 
     // Очистка устаревших временных файлов от аварийных завершений
     commands::clean_stale_temp_files(&config_dir);
@@ -279,7 +284,7 @@ pub fn run() {
             commands::extract_track,
             commands::get_active_subtitle_lines,
             commands::analyze_subtitle_track,
-            // Подсветка полос (Ambient Light)
+            // Подсветка полос (Blur)
             commands::get_ambient_settings,
             commands::apply_ambient_preview,
             commands::set_ambient_settings,
@@ -423,12 +428,12 @@ pub fn run() {
                     }
                 }
 
-                // Применяем сохранённые настройки подсветки полос (Ambient Light)
+                // Применяем сохранённые настройки подсветки полос (Blur)
                 let saved_cfg = commands::AppSettings::load_portable();
                 if let Err(e) = state.ambient_controller.apply(&saved_cfg.ambient) {
-                    println!("[L-MPV] Ошибка инициализации Ambient Light: {}", e);
+                    println!("[L-MPV] Ошибка инициализации Blur: {}", e);
                 } else {
-                    println!("[L-MPV] Режим Ambient Light инициализирован: {:?}", saved_cfg.ambient.mode);
+                    println!("[L-MPV] Режим Blur инициализирован: {:?}", saved_cfg.ambient.mode);
                 }
             }
 

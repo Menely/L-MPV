@@ -50,7 +50,7 @@ export const MENU_ITEM_REGISTRY: MenuItemDescriptor[] = [
   { id: "chapters", label: "Главы", iconName: "BookOpen", hasSubmenu: false, description: "Открыть панель навигации по главам файла" },
   { id: "aspect_ratio", label: "Видеокадр", iconName: "Monitor", hasSubmenu: true, description: "Масштаб кадра в окне: растянуть, вписать или заполнить с обрезкой" },
   { id: "rotation", label: "Поворот видео", iconName: "RotateCw", hasSubmenu: true, description: "Поворот видео на 0°, 90°, 180° или 270°" },
-  { id: "ambient", label: "Подсветка полос", iconName: "Sparkles", hasSubmenu: true, description: "Режим Ambient Light: выкл / размытие / цветной фон" },
+  { id: "ambient", label: "Blur", iconName: "Sparkles", hasSubmenu: true, description: "Размытие чёрных полос краями кадра: выкл / вкл" },
   { id: "speed", label: "Скорость воспроизведения", iconName: "Zap", hasSubmenu: true, description: "Скорость воспроизведения: 0.25× – 2×" },
   { id: "upscale", label: "Апскейлинг", iconName: "Cpu", hasSubmenu: true, description: "Выбор нейросетевых моделей апскейлинга и качества видео" },
   { id: "repeat_mode", label: "Режим повтора", iconName: "Repeat", hasSubmenu: true, description: "Без повтора / повтор файла / повтор плейлиста" },

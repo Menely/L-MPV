@@ -72,15 +72,18 @@
   padding: 0 !important;
 }
 
-.subtitles-search-card--capsule .subtitles-card--icon:active {
-  cursor: grabbing !important;
-}
+
 
 .subtitles-search-card--capsule .subtitles-card--icon:hover {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.4) !important;
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
 }
 
-/* Карточка 2: Переключатель режимов Обычный / Инспектор */
+.subtitles-search-card--capsule .subtitles-card--icon:active {
+  cursor: grabbing !important;
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
+}
+
+/* Карточка 2: Самостоятельный переключатель режимов: Обычный / Инспектор (без вложенной подложки) */
 .subtitles-search-card--capsule .subtitles-card--mode-switch {
   flex: 1 1 auto !important;
   min-width: 0 !important;
@@ -88,19 +91,17 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 0 8px !important;
+  padding: 3px !important;
+  gap: 3px !important;
+  box-sizing: border-box !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--mode-switch:hover {
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--mode-switch .subtitles-search-card__mode-switch {
-  width: 100% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  background: rgba(0, 0, 0, 0.45) !important;
-  border: 1px solid var(--border-pill) !important;
-  border-radius: var(--radius-controls, 16px) !important;
-  padding: var(--segment-padding, 2px) !important;
-  box-sizing: border-box !important;
+  display: contents !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--mode-switch .subtitles-search-card__mode-btn {
@@ -109,23 +110,30 @@
   align-items: center !important;
   justify-content: center !important;
   gap: 6px !important;
-  height: 28px !important;
-  padding: 0 8px !important;
+  height: 100% !important;
+  padding: 0 10px !important;
   font-size: var(--fs-xs) !important;
   font-weight: 500 !important;
   color: var(--text-secondary) !important;
-  border-radius: var(--segment-inner-radius, 14px) !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 3px)) !important;
   cursor: pointer !important;
-  border: none !important;
+  border: 1px solid transparent !important;
   background: transparent !important;
   transition: all var(--t-fast) var(--ease-smooth) !important;
   white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--mode-switch .subtitles-search-card__mode-btn:hover:not(.subtitles-search-card__mode-btn--active) {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--text-primary) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--mode-switch .subtitles-search-card__mode-btn--active {
   background: var(--bg-hover, rgba(255, 255, 255, 0.12)) !important;
   color: var(--text-primary) !important;
   font-weight: 600 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 /* Карточка 3: Кнопки действий (Eye/EyeOff, Refresh, X) */
@@ -141,13 +149,17 @@
   flex-shrink: 0 !important;
 }
 
+.subtitles-search-card--capsule .subtitles-card--actions:hover {
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+}
+
 .subtitles-search-card--capsule .subtitles-card--actions .modal__close {
   width: 28px !important;
   height: 28px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  border-radius: var(--radius-control, 8px) !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
   cursor: pointer !important;
   background: transparent !important;
   border: none !important;
@@ -179,8 +191,18 @@
   height: var(--sub-card-height, 42px) !important;
   display: flex !important;
   align-items: center !important;
-  padding: 0 8px !important;
+  padding: 3px !important;
   position: relative !important;
+  box-sizing: border-box !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--track-picker:hover {
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--track-picker:focus-within,
+.subtitles-search-card--capsule .subtitles-card--track-picker:active {
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--track-picker .subtitles-search-card__track-picker {
@@ -193,19 +215,22 @@
 
 .subtitles-search-card--capsule .subtitles-card--track-picker .subtitles-search-card__track-picker-btn {
   width: 100% !important;
-  height: 32px !important;
+  height: 100% !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  border-radius: var(--radius-control) !important;
-  padding: 0 6px !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 3px)) !important;
+  padding: 0 10px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
   cursor: pointer !important;
-  transition: background var(--t-fast) var(--ease-smooth) !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth) !important;
+  box-sizing: border-box !important;
 }
 
+.subtitles-search-card--capsule .subtitles-card--track-picker:hover .subtitles-search-card__track-picker-btn,
 .subtitles-search-card--capsule .subtitles-card--track-picker .subtitles-search-card__track-picker-btn:hover {
   background: var(--bg-hover) !important;
 }
@@ -220,9 +245,21 @@
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   z-index: 40 !important;
+  padding: 6px !important;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
   scrollbar-gutter: auto !important;
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__track-picker-item {
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px)) !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__track-picker-item:hover {
+  background: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-search-card__track-picker-menu::-webkit-scrollbar {
@@ -256,11 +293,16 @@
 .subtitles-search-card--capsule .subtitles-card--follow-btn:hover {
   background: var(--bg-hover) !important;
   color: var(--text-primary) !important;
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--follow-btn:active {
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--follow-btn--active {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.22) !important;
-  border-color: var(--accent) !important;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
   color: var(--accent) !important;
   box-shadow: none !important;
 }
@@ -297,8 +339,12 @@
 
 /* Акцентное свечение всего островка при фокусе на поиске */
 /* При фокусе на поиске карточка сохраняет спокойный вид, без кричащего свечения */
+.subtitles-search-card--capsule .subtitles-search-card__bar:hover {
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+}
+
 .subtitles-search-card--capsule .subtitles-search-card__bar:focus-within {
-  border-color: var(--border-pill) !important;
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
   box-shadow: var(--shadow-elevated) !important;
 }
 
@@ -383,7 +429,7 @@
 
 /* Внутри монолитного списка: строки реплик НЕ имеют индивидуальных теней */
 .subtitles-search-card--capsule .sub-line-row {
-  border-radius: var(--radius-list-row) !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 8px)) !important;
   box-shadow: none !important;
 }
 
@@ -391,6 +437,7 @@
 .subtitles-search-card--capsule .subtitles-search-card__jump-btn,
 .subtitles-search-card--capsule .subtitles-search-card__clear-btn,
 .subtitles-search-card--capsule .subtitles-search-card__delay-btn {
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px)) !important;
   transition: color var(--t-fast) var(--ease-smooth),
               background var(--t-fast) var(--ease-smooth);
 }

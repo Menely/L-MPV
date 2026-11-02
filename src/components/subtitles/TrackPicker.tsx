@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import type { TrackInfo } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
 
@@ -61,7 +61,6 @@ export function TrackPicker({
           transition: "background 0.15s ease",
           gap: "var(--space-3)",
         }}
-        title={dict.subtitlesSearch.selectTrack}
         >
         <div
           style={{
@@ -154,7 +153,7 @@ export function TrackPicker({
             }}
             >
             <span>{dict.subtitlesSearch.disableSubtitles}</span>
-            {!activeTrack && <Check size={14} />}
+            {!activeTrack && <span className="track-radio-dot" aria-hidden="true" />}
           </button>
 
           {subTracks.map((t) => {
@@ -236,7 +235,7 @@ export function TrackPicker({
                     </span>
                   )}
                 </div>
-                {isSelected && <Check size={14} className="no-shrink" />}
+                {isSelected && <span className="track-radio-dot" aria-hidden="true" />}
               </button>
             );
           })}

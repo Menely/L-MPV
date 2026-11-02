@@ -409,6 +409,31 @@ impl MpvManager {
             Self::set_option(&api, handle, "config", "yes");
             Self::set_option(&api, handle, "config-dir", &config_dir);
 
+            // Портативные каталоги кэша: GPU-шейдеры и 3D LUT калибровки цвета
+            let cache_dir = portable_dir.join("data").join("cache");
+            let shader_cache_dir = cache_dir.join("shaders");
+            let icc_cache_dir = cache_dir.join("icc");
+            let _ = std::fs::create_dir_all(&shader_cache_dir);
+            let _ = std::fs::create_dir_all(&icc_cache_dir);
+            let shader_cache_path = shader_cache_dir
+                .to_string_lossy()
+                .replace('\\', "/");
+            let icc_cache_path = icc_cache_dir
+                .to_string_lossy()
+                .replace('\\', "/");
+            Self::set_option(
+                &api,
+                handle,
+                "gpu-shader-cache-dir",
+                &shader_cache_path,
+            );
+            Self::set_option(
+                &api,
+                handle,
+                "icc-cache-dir",
+                &icc_cache_path,
+            );
+
             // Настройка логирования MPV в отдельный файл (сохраняет только ошибки)
             let log_file = portable_dir
                 .join("logs")

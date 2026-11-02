@@ -99,7 +99,7 @@ export interface SettingsPresetData {
   visibleButtons: Record<string, boolean>;
   /** Пользовательская сохранённая палитра цветов */
   customColors?: string[];
-  /** Параметры подсветки полос (Ambient Light) */
+  /** Параметры подсветки полос (Blur) */
   ambient: AmbientPresetSettings;
   /** Конфигурация аудио-визуализатора */
   visualizer: VisualizerConfig;
@@ -171,7 +171,6 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       ambient: {
         mode: "blur",
         blur_radius: 35,
-        color: "#000000",
       },
       visualizer: {
         enabled: true,
@@ -215,9 +214,8 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         seekButtons: true,
       },
       ambient: {
-        mode: "color",
+        mode: "off",
         blur_radius: 50,
-        color: "#4a044e",
       },
       visualizer: {
         enabled: true,
@@ -263,7 +261,6 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       ambient: {
         mode: "blur",
         blur_radius: 65,
-        color: "#000000",
       },
       visualizer: {
         enabled: false,
@@ -309,7 +306,6 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       ambient: {
         mode: "off",
         blur_radius: 20,
-        color: "#000000",
       },
       visualizer: {
         enabled: false,
@@ -364,7 +360,6 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
   let ambient: AmbientPresetSettings = {
     mode: "off",
     blur_radius: 35,
-    color: "#000000",
   };
   try {
     const savedAmbient = await invoke<unknown>("get_ambient_settings");
@@ -372,7 +367,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
       ambient = normalizeAmbientSettings(savedAmbient);
     }
   } catch (e) {
-    console.error("Ошибка получения настроек Ambient Light:", e);
+    console.error("Ошибка получения настроек Blur:", e);
   }
 
   const visualizer = getVisualizerConfig();
@@ -913,7 +908,7 @@ export function isSettingsMatchingPreset(
     }
   }
 
-  // 11. Ambient Light
+  // 11. Blur
   if (current.ambient && preset.ambient) {
     const currentAmbient = normalizeAmbientSettings(current.ambient);
     const presetAmbient = normalizeAmbientSettings(preset.ambient);
@@ -921,11 +916,7 @@ export function isSettingsMatchingPreset(
     if (currentAmbient.mode === "blur") {
       if (currentAmbient.blur_radius !== presetAmbient.blur_radius) return false;
     }
-    if (currentAmbient.mode === "color") {
-      if (currentAmbient.color.toLowerCase() !== presetAmbient.color.toLowerCase()) return false;
-      if (currentAmbient.brightness !== presetAmbient.brightness) return false;
-      if (currentAmbient.saturation !== presetAmbient.saturation) return false;
-    }
+
   }
 
   // 12. Аудио-визуализатор

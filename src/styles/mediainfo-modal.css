@@ -496,8 +496,12 @@
   transition: border-color var(--t-fast) var(--ease-smooth);
 }
 
+.mediainfo-standalone__search-wrapper:hover:not(:focus-within) {
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35);
+}
+
 .mediainfo-standalone__search-wrapper:focus-within {
-  border-color: var(--accent);
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65);
   background: rgba(255, 255, 255, 0.08);
 }
 

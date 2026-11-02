@@ -332,7 +332,6 @@ export function DetailedMediaInfoModal({
       {/* Шапка окна с кнопками управления */}
       <div
         className="mediainfo-floating-window__header"
-        title={dict.detailedMediaInfoModal.dragHeader}
         >
         <div className="mediainfo-floating-window__header-left">
           <FileText size={16} className="mediainfo-floating-window__icon" />

@@ -51,46 +51,43 @@ export function SubtitlesModalHeader({
           className="subtitles-card subtitles-card--icon"
           onMouseDown={onDragStart}
           onDoubleClick={onResetPosition}
-          title={dict.subtitlesSearch.dragHeader}
         >
           <Subtitles size={20} className="t-accent" />
         </div>
 
-        {/* Карточка 2: Переключатель режимов: Обычный / Инспектор */}
+        {/* Карточка 2: Самостоятельный переключатель режимов: Обычный / Инспектор */}
         <div className="subtitles-card subtitles-card--mode-switch">
-          <div className="subtitles-search-card__mode-switch">
-            <button
-              type="button"
-              onClick={() => onToggleViewMode("normal")}
-              className={`subtitles-search-card__mode-btn ${
-                viewMode === "normal"
-                  ? "subtitles-search-card__mode-btn--active"
-                  : ""
-              }`}
-              title={dict.subtitlesSearch.modeNormalTooltip}
-            >
-              {dict.subtitlesSearch.modeNormal}
-            </button>
-            <button
-              type="button"
-              onClick={() => onToggleViewMode("technical")}
-              className={`subtitles-search-card__mode-btn ${
-                viewMode === "technical"
-                  ? "subtitles-search-card__mode-btn--active"
-                  : ""
-              }`}
-              title={dict.subtitlesSearch.modeTechTooltip}
-            >
-              <SlidersHorizontal
-                size={12}
-                style={{
-                  color:
-                    viewMode === "technical" ? "var(--accent)" : "currentColor",
-                }}
-              />
-              <span>{dict.subtitlesSearch.modeTech}</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => onToggleViewMode("normal")}
+            className={`subtitles-search-card__mode-btn ${
+              viewMode === "normal"
+                ? "subtitles-search-card__mode-btn--active"
+                : ""
+            }`}
+            title={dict.subtitlesSearch.modeNormalTooltip}
+          >
+            {dict.subtitlesSearch.modeNormal}
+          </button>
+          <button
+            type="button"
+            onClick={() => onToggleViewMode("technical")}
+            className={`subtitles-search-card__mode-btn ${
+              viewMode === "technical"
+                ? "subtitles-search-card__mode-btn--active"
+                : ""
+            }`}
+            title={dict.subtitlesSearch.modeTechTooltip}
+          >
+            <SlidersHorizontal
+              size={12}
+              style={{
+                color:
+                  viewMode === "technical" ? "var(--accent)" : "currentColor",
+              }}
+            />
+            <span>{dict.subtitlesSearch.modeTech}</span>
+          </button>
         </div>
 
         {/* Карточка 3: Кнопки действий (Eye/EyeOff, Refresh, Close) */}
@@ -149,7 +146,6 @@ export function SubtitlesModalHeader({
       className="subtitles-search-card__header subtitles-search-card__header--draggable"
       onMouseDown={onDragStart}
       onDoubleClick={onResetPosition}
-      title={dict.subtitlesSearch.dragHeader}
       style={{
         display: "flex",
         justifyContent: "space-between",

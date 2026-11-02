@@ -26,6 +26,7 @@ export interface TranslationDict {
     mute: string;
     unmute: string;
     contextMenu: string;
+    more: string;
     audioTracks: string;
     subtitles: string;
     subOff: string;
@@ -321,7 +322,6 @@ export interface TranslationDict {
       ambientLight: {
         mode: string;
         blurRadius: string;
-        color: string;
         reset100: string;
       };
       visualizer: {
@@ -446,21 +446,11 @@ export interface TranslationDict {
       ambientOffDesc: string;
       ambientBlur: string;
       ambientBlurDesc: string;
-      ambientColor: string;
-      ambientColorDesc: string;
       ambientRadius: string;
       ambientRadiusAria: string;
       reset100px: string;
 
-      ambientBrightness: string;
-      ambientBrightnessAria: string;
       reset100pct: string;
-      ambientSaturation: string;
-      ambientSaturationAria: string;
-      ambientColorTitle: string;
-      ambientColorUseAccent: string;
-      ambientColorAsTheme: (theme: string) => string;
-      ambientColorCustom: string;
       heatmap: {
         sectionTitle: string;
         sectionDesc: string;
@@ -565,7 +555,6 @@ export interface TranslationDict {
       ambientTitle: string;
       ambientOff: string;
       ambientBlur: string;
-      ambientColor: string;
       visualizerTitle: string;
       visualizerMode: (mode: string) => string;
       visualizerOff: string;
@@ -814,7 +803,6 @@ export interface TranslationDict {
       errRotation: (err: string) => string;
       ambientOff: string;
       ambientBlur: string;
-      ambientColor: string;
       osdAmbient: (mode: string) => string;
       errAmbient: (err: string) => string;
       errTop: (err: string) => string;
@@ -859,7 +847,6 @@ export interface TranslationDict {
       ambient: string;
       ambOff: string;
       ambBlur: string;
-      ambColor: string;
       speed: string;
       speedNormal: string;
       upscale: string;

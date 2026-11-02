@@ -71,7 +71,6 @@ import {
 import type { AmbientSettings } from "../../utils/ambientSettingsUtils";
 import { getSavedSeekStepSeconds } from "../../utils/seekUtils";
 import { UpdateInfo } from "./UpdateModal";
-import { getEffectiveAccentColor } from "../../utils/colorUtils";
 import { PresetsSection } from "../settings/sections/PresetsSection";
 import { UpscalingSettingsSection } from "../settings/sections/UpscalingSettingsSection";
 import { HotkeysSettingsTab } from "../settings/tabs/HotkeysSettingsTab";
@@ -136,13 +135,7 @@ const MemoizedIntegrationSettingsTab = React.memo(IntegrationSettingsTab);
 export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [screenshotDir, setScreenshotDir] = useState<string>("");
   const [uiOpacity, setUiOpacity] = useState<number>(() => getSavedUiOpacity());
-  const [activeColor, setActiveColor] = useState<string>(() => {
-    try {
-      return localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
-    } catch {
-      return "#7fc7ff";
-    }
-  });
+
   const [showTrackNames, setShowTrackNames] = useState<boolean>(true);
   const [subtitlesAvoidUi, setSubtitlesAvoidUi] = useState<boolean>(() => {
     try {
@@ -292,7 +285,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   // Синхронизация локальных состояний SettingsModal при применении любого пресета
   const handlePresetApplied = useCallback((preset: SettingsPreset) => {
     const { data } = preset;
-    if (data.accentColor) setActiveColor(data.accentColor);
     if (typeof data.uiOpacity === "number") setUiOpacity(data.uiOpacity);
     if (data.uiRadius) {
       if (typeof data.uiRadius === "string") {
@@ -449,7 +441,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     pendingPreviewRef.current = null;
     if (settings) {
       invoke("apply_ambient_preview", { settings }).catch((err) => {
-        console.error("Ошибка предпросмотра Ambient Light:", err);
+        console.error("Ошибка предпросмотра Blur:", err);
       });
     }
   };
@@ -481,7 +473,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         }
       });
     ambientSaveQueueRef.current = request.catch((error) => {
-      console.error("Ошибка сохранения настроек Ambient Light:", error);
+      console.error("Ошибка сохранения настроек Blur:", error);
       if (revision === ambientSaveRevisionRef.current && ambientMountedRef.current) {
         isAmbientDirtyRef.current = true;
         if (ambientSaveTimeoutRef.current !== null) {
@@ -566,7 +558,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             setAmbientSettings(normalizeAmbientSettings(settings));
           }
         })
-        .catch((e) => console.error("Ошибка загрузки настроек Ambient Light:", e));
+        .catch((e) => console.error("Ошибка загрузки настроек Blur:", e));
     };
 
     invoke<string>("get_screenshot_dir").then(setScreenshotDir).catch(console.error);
@@ -581,8 +573,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     invoke<string>("get_app_version").then(setAppVersion).catch(console.error);
     loadAmbient();
 
-    const savedAccent = localStorage.getItem("l-mpv-accent-color");
-    if (savedAccent) setActiveColor(savedAccent);
 
     const savedShowTracks = localStorage.getItem("l-mpv-show-track-names");
     if (savedShowTracks !== null) setShowTrackNames(savedShowTracks === "true");
@@ -634,7 +624,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         try {
         await queueAmbientSave(updated, revision);
         } catch (err) {
-          console.error("Ошибка отложенного сохранения настроек Ambient Light:", err);
+          console.error("Ошибка отложенного сохранения настроек Blur:", err);
         }
       }, 400);
     }
@@ -769,7 +759,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
       {activeTab === "appearance" && (
         <MemoizedAppearanceSettingsTab
-          activeColor={activeColor} setActiveColor={setActiveColor}
           uiRadius={uiRadius} saveUiRadius={saveUiRadius} setUiRadius={setUiRadius}
           uiScale={uiScale} saveUiScale={saveUiScale} setUiScale={setUiScale}
           uiOpacity={uiOpacity} saveUiOpacity={saveUiOpacity} setUiOpacity={setUiOpacity}
@@ -783,7 +772,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           seekStepSeconds={seekStepSeconds} setSeekStepSeconds={setSeekStepSeconds}
           animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
           openSections={openSections} onToggleSection={toggleSection}
-          getEffectiveAccentColor={getEffectiveAccentColor}
         />
       )}
 

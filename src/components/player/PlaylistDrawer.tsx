@@ -450,7 +450,6 @@ export function PlaylistDrawer() {
         className="playlist-drawer__resize-handle"
         onMouseDown={handleResizeStart}
         onDoubleClick={handleResetWidth}
-        title={dict.playlist.resizeHandle}
       />
       <div className="playlist-drawer__header">
         <div className="playlist-drawer__header-left">

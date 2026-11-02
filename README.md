@@ -61,8 +61,8 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   <tr>
     <td width="50%" align="center">
       <b>🌌 Hardware Letterbox Illumination</b><br>
-      <sub>Shader-based video edge blurring (Ambient)</sub><br><br>
-      <a href="./assets/ambient-light-demo.png"><img src="./assets/ambient-light-demo.png" alt="Ambient Light" style="border-radius: 8px;"></a>
+      <sub>Shader-based video edge blurring (Blur)</sub><br><br>
+      <a href="./assets/ambient-light-demo.png"><img src="./assets/ambient-light-demo.png" alt="Blur" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
       <b>📑 Slide-out Playlist Drawer</b><br>
@@ -189,15 +189,14 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 </details>
 
 <details>
-<summary><b>🌌 Hardware Letterbox Illumination (Ambient Light / GPU Blur)</b></summary>
+<summary><b>🌌 Hardware Letterbox Blur (GPU)</b></summary>
 
 - **Black Bar Elimination:** When video and monitor aspect ratios differ (e.g., 21:9 on 16:9, 4:3, ultra-wide), video borders are projected and blurred across letterbox and pillarbox zones using `libplacebo` shaders with zero CPU load.
-- **3 Operating Modes:**
+- **2 Operating Modes:**
   - `Off` — Classic black letterbox bars;
-  - `Blur` — Real-time hardware shader blur with smooth radius adjustment (10px to 150px);
-  - `Color` — Soft fill using the player accent color (including Windows System Accent) or any custom HEX shade.
+  - `Blur` — Real-time hardware shader blur with smooth radius adjustment (5px to 150px);
 - **60 FPS Performance:** Instant GPU preview (`apply_ambient_preview`) without blocking disk I/O, coupled with a 400ms debounced disk save.
-- **Quick Access:** Toggle on the fly via hotkey `B` (`Off → Blur → Color → Off`), context menu (Right-Click), or the Settings panel.
+- **Quick Access:** Toggle on the fly via hotkey `B` (`Off → Blur → Off`), context menu (Right-Click), or the Settings panel.
 
 </details>
 
@@ -651,7 +650,7 @@ L-MPV/
 │   │   │   │   ├── OptionTile.tsx           # Reusable settings tiles: OptionCard, OptionBlock (segment grid + reset), OptionToggleRow
 │   │   │   │   └── optionCardStyles.ts       # Shared styling definitions for option cards
 │   │   │   ├── appearance/                # Appearance tab primitives:
-│   │   │   │   └── ambientPrimitives.tsx     # VerticalSlider, AmbientTuneRow, getAmbientPreviewColor (extracted from AppearanceSettingsTab)
+│   │   │   │   └── ambientPrimitives.tsx     # VerticalSlider (extracted from AppearanceSettingsTab)
 │   │   │   └── lib/                       # Settings infrastructure:
 │   │   │       ├── settingsViewSession.ts     # Shared state across layouts (active section, tab, scroll position, preset draft)
 │   │   │       ├── settingsTabPreload.ts     # Cold-data caching for heavy tabs (presets, upscale status)
@@ -748,7 +747,7 @@ L-MPV/
 │   │   │   ├── downloader.rs             # Asynchronous streaming downloader for DirectML/TensorRT, archive extraction
 │   │   │   ├── engine_builder.rs         # TensorRT (.engine) compiler, automatic FP32 to FP16 conversion, aji_harness & trtexec
 │   │   │   └── controller.rs             # libmpv filter management, background TensorRT engine compilation, hotkey actions
-│   │   ├── ambient.rs                    # Letterbox illumination controller (Blur / Color / Off)
+│   │   ├── ambient.rs                    # Letterbox blur controller (Blur / Off)
 │   │   ├── audio_capture.rs              # Low-latency WASAPI Loopback audio capture, fast Radix-2 FFT, 32 frequency bands
 │   │   ├── audio_filter.rs               # Modular lavfi audio filter builder and validator, normalization matrix & Night DRC
 │   │   ├── fonts_bundle.rs               # Self-extracting font installer, Win32 GDI registration, font enumeration IPC
@@ -823,7 +822,7 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 | | Rotate Video 90° | `Alt + R` |
 | | Zoom & Pan Video | `Ctrl` + Mouse Wheel |
 | | Reset Zoom to 100% | `0` |
-| | Toggle Letterbox Illumination | `B` (cycles: Off → Blur → Color) |
+| | Toggle Blur | `B` (cycles: Off → Blur → Off) |
 | | Copy Current Frame to Clipboard | `Ctrl + C` |
 | | Save Lossless Screenshot (PNG) | `S` |
 | | Show Compact Video Info | `I` (bitrate with live Sparkline graph, color space, true source bit depth) — closes only via `X`, `Escape` or `I` |
@@ -850,7 +849,7 @@ Communication between the React user interface and the MPV engine, neural upscal
 - **Chapters (2 commands):** `get_chapters`, `seek_chapter`.
 - **Metadata & Position Tracking (13 commands):** `get_position`, `get_duration`, `get_frame_number`, `get_frame_count`, `get_fps`, `get_media_info`, `get_playback_state`, `get_last_position`, `get_watch_history_batch`, `save_position`, `save_current_position`, `get_app_version`, `get_active_subtitle_lines`, `analyze_subtitle_track`.
 - **Windows System Integration (9 commands):** `register_file_associations`, `unregister_file_associations`, `open_default_apps_settings`, `register_explorer_context_menu`, `unregister_explorer_context_menu`, `is_explorer_context_menu_registered`, `get_windows_accent_color`, `get_multi_instance`, `set_multi_instance`.
-- **Letterbox Illumination / Ambient Light (5 commands):** `get_ambient_settings`, `get_ambient_palette`, `apply_ambient_preview`, `set_ambient_settings`, `toggle_ambient_mode`.
+- **Letterbox Blur (4 commands; legacy IPC names retained):** `get_ambient_settings`, `apply_ambient_preview`, `set_ambient_settings`, `toggle_ambient_mode`.
 - **Settings Presets & File I/O (8 commands):** `get_settings_presets`, `save_settings_presets`, `save_single_preset`, `delete_preset_file`, `rename_preset_file`, `open_presets_folder`, `write_text_file`, `read_text_file`.
 - **Audio Visualizer (2 commands):** `get_audio_spectrum`, `set_visualizer_active`.
 - **Activity Heatmap & Waveform (3 commands):** `get_media_heatmap_data`, `cancel_media_heatmap_analysis`, `clear_waveform_cache`.

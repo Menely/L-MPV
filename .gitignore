@@ -128,3 +128,7 @@ skills-lock.json
 *.tmp
 .updates/
 
+# Local design audits and agent implementation plans
+/docs/audits/
+/docs/superpowers/
+/docs/superpowers/plans/

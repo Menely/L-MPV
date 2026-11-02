@@ -50,6 +50,15 @@
   height: 42px;
   min-height: 42px;
   box-sizing: border-box;
+  transition: border-color var(--t-fast) var(--ease-smooth);
+}
+
+.controls-island--speed:hover {
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35);
+}
+
+.controls-island--speed:active {
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65);
 }
 
 .player-controls--capsule .controls-island--speed .control-btn {
@@ -178,6 +187,10 @@
   padding: 0 !important;
 }
 
+.track-popover--capsule.track-popover--speed .speed-popover__close-btn {
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
+}
+
 /* ─── Адаптация для стилей «Модерн» и «Классический» (монолитный) ──── */
 .track-popover:not(.track-popover--capsule).track-popover--speed {
   padding: 6px !important;
@@ -215,8 +228,7 @@
   box-sizing: border-box !important;
 }
 
-.track-popover--speed .track-popover__item,
-.track-popover--speed.track-popover--capsule .track-popover__item {
+.track-popover--speed .track-popover__item {
   min-height: 25px !important;
   height: 25px !important;
   padding: 0 8px !important;
@@ -226,6 +238,10 @@
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
+}
+
+.track-popover--speed.track-popover--capsule .track-popover__item {
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
 }
 
 .track-popover--speed .track-popover__item-title {

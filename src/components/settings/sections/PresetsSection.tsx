@@ -534,16 +534,14 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           </div>
         )}
 
-        {/* 4. Ambient Light */}
+        {/* 4. Blur */}
         {data.ambient && (
           <div className="preset-tag" title={dict.settings.presets.ambientTitle}>
             <Sun size={11} />
             <span>
-              {data.ambient.mode === "off"
-                ? dict.settings.presets.ambientOff
-                : data.ambient.mode === "blur"
+              {data.ambient.mode === "blur"
                 ? dict.settings.presets.ambientBlur
-                : dict.settings.presets.ambientColor}
+                : dict.settings.presets.ambientOff}
             </span>
 
           </div>

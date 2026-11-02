@@ -94,7 +94,7 @@
 .track-popover--capsule .track-popover__disable-sub-card .track-popover__item {
   min-height: 34px !important;
   padding: 6px 10px !important;
-  border-radius: var(--radius-list-row) !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
 }
 
 .track-popover--capsule .track-popover__disable-sub-card .track-popover__item:hover {
@@ -152,7 +152,7 @@
 .track-popover--capsule .track-popover__item {
   background: transparent !important;
   border: none !important;
-  border-radius: var(--radius-list-row) !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px)) !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -192,7 +192,7 @@
 .track-popover--capsule .track-download-btn {
   background: transparent !important;
   border: none !important;
-  border-radius: var(--radius-list-row) !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px)) !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;

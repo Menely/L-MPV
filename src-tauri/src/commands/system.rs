@@ -1,4 +1,4 @@
-//! Системная интеграция: скриншоты, Ambient Light, Windows Taskbar,
+//! Системная интеграция: скриншоты, Blur, Windows Taskbar,
 //! полноэкранный режим, обработка фокуса и аудио-визуализатор.
 
 use super::types::{
@@ -104,9 +104,9 @@ pub async fn copy_frame_to_clipboard(
     }
 }
 
-// ─── Подсветка полос (Ambient Light / GPU Blur) ─────────
+// ─── Подсветка полос (Blur / GPU Blur) ─────────
 
-/// Получение текущих настроек подсветки полос (Ambient Light) из оперативной памяти без дискового I/O.
+/// Получение текущих настроек подсветки полос (Blur) из оперативной памяти без дискового I/O.
 #[tauri::command]
 pub fn get_ambient_settings(
     state: State<'_, PlayerState>,
@@ -115,7 +115,7 @@ pub fn get_ambient_settings(
 }
 
 
-/// Мгновенное применение настроек подсветки полос (Ambient Light) на GPU без записи на диск.
+/// Мгновенное применение настроек подсветки полос (Blur) на GPU без записи на диск.
 /// Обеспечивает плавный 60fps отклик при перетаскивании ползунков в интерфейсе.
 #[tauri::command]
 pub fn apply_ambient_preview(
@@ -125,7 +125,7 @@ pub fn apply_ambient_preview(
     state.ambient_controller.apply(&settings)
 }
 
-/// Установка и сохранение настроек подсветки полос (Ambient Light).
+/// Установка и сохранение настроек подсветки полос (Blur).
 #[tauri::command]
 pub fn set_ambient_settings(
     state: State<'_, PlayerState>,
@@ -149,7 +149,7 @@ pub fn set_ambient_settings(
     Ok(())
 }
 
-/// Быстрое циклическое переключение режима подсветки полос (Off -> Blur -> Color -> Off).
+/// Быстрое циклическое переключение режима подсветки полос (Off -> Blur -> Off).
 #[tauri::command]
 pub fn toggle_ambient_mode(
     state: State<'_, PlayerState>,

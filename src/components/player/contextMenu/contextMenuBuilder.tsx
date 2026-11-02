@@ -472,13 +472,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
           indicator: "dot",
           action: () => handleSetAmbientMode("blur"),
         },
-        {
-          type: "item",
-          label: dict.settings.cmenuUI.ambColor,
-          active: ambientMode === "color",
-          indicator: "dot",
-          action: () => handleSetAmbientMode("color"),
-        },
+
       ],
     }),
 

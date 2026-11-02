@@ -91,6 +91,14 @@
   border-radius: var(--radius-sm);
 }
 
+.subtitles-search-card .subtitles-search-card__search-input:hover:not(:focus) {
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+}
+
+.subtitles-search-card .subtitles-search-card__search-input:focus {
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
+}
+
 .sub-search-mark {
   background: rgba(251, 191, 36, 0.35);
   color: #fbbf24;
@@ -153,6 +161,19 @@
 /* Кнопки действий шапки */
 .subtitles-search-card .modal__close {
   border-radius: var(--radius-control) !important;
+}
+
+/* Неоновая радио-точка активного выбора дорожки */
+.subtitles-search-card .track-radio-dot {
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  min-height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.8);
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 /* Пункты выпадающего списка дорожек */

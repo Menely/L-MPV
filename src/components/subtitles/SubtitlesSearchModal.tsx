@@ -482,7 +482,6 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
           className="subtitles-search-card__resize-handle"
           onMouseDown={handleResizeStart}
           onDoubleClick={handleResetWidth}
-          title={dict.subtitlesSearch.resizeTooltip}
         />
 
         {/* Шапка */}

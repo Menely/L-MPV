@@ -1,3 +1,4 @@
+import { CapsuleControlsPreview } from "../components/CapsuleControlsPreview";
 import { useState, useCallback, useEffect } from "react";
 import {
   Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, Clock, RotateCcw, PanelBottom, Timer, Zap, FolderOpen
@@ -10,7 +11,7 @@ import { VisualizerSettingsSection } from "../sections/VisualizerSettingsSection
 import { HeatmapSettingsSection } from "../sections/HeatmapSettingsSection";
 import { ControlButtonsPreviewCard } from "../components/ControlButtonsPreviewCard";
 import { optionCardStyle, optionResetBtnStyle, optionBtnStyle } from "../components/optionCardStyles";
-import { VerticalSlider, AmbientTuneRow } from "../appearance/ambientPrimitives";
+import { VerticalSlider } from "../appearance/ambientPrimitives";
 import {
   UiRadiusLevel,
   UiScaleMode,
@@ -33,8 +34,6 @@ import type { AmbientMode } from "../../../utils/ambientSettingsUtils";
 import type { AmbientSettings } from "../../modals/SettingsModal";
 
 interface AppearanceSettingsTabProps {
-  activeColor: string;
-  setActiveColor: (c: string) => void;
   uiRadius: { level: UiRadiusLevel, value: number };
   saveUiRadius: (level: UiRadiusLevel, value: number) => void;
   setUiRadius: (r: { level: UiRadiusLevel, value: number }) => void;
@@ -68,7 +67,6 @@ interface AppearanceSettingsTabProps {
   setAnimationsEnabled: (v: boolean) => void;
   openSections: Record<string, boolean>;
   onToggleSection: (id: string) => void;
-  getEffectiveAccentColor: (color?: string) => string;
 }
 
 import { useTranslation } from "../../../i18n/LanguageContext";
@@ -76,7 +74,6 @@ import { useTranslation } from "../../../i18n/LanguageContext";
 export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
   const { dict } = useTranslation();
   const {
-    activeColor, setActiveColor,
     uiRadius, saveUiRadius, setUiRadius,
     uiScale, saveUiScale, setUiScale,
     uiOpacity, saveUiOpacity, setUiOpacity,
@@ -90,7 +87,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
     seekStepSeconds, setSeekStepSeconds,
     animationsEnabled, setAnimationsEnabled,
     openSections, onToggleSection: toggleSection,
-    getEffectiveAccentColor
   } = props;
 
   // ── Пользовательские шрифты из папки fonts/ ─────────────────────────────
@@ -158,7 +154,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 icon={<Palette size={16} />}
                 title={dict.settings.appearance.appearanceSection}
                 >
-                <ColorSchemeSection onAccentChange={(color) => setActiveColor(color)} />
+                <ColorSchemeSection />
               </AccordionSection>
 
               {/* 2.1 Настройки интерфейса (Единая категория: скругление, масштаб, прозрачность) */}
@@ -771,7 +767,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
                           {/* Наглядные реалистичные превью плеера друг под другом */}
                           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", flex: 1, justifyContent: "center" }}>
-                            {/* 1: Капсула (3 островка + отдельный таймлайн) */}
+                            {/* Капсула: общий dock с группами и отдельной строкой таймлайна. */}
                             <div
                               className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "capsule" ? "visual-bar-card--active" : ""}`}
                               onClick={() => {
@@ -780,30 +776,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                               }}
                               >
                               {/* Мини-превью плеера */}
-                              <div className="visual-bar-preview">
-                                <div className="visual-bar-preview__screen">
-                                  <div className="visual-bar-preview__glow" />
-                                  <div className="visual-bar-preview__capsule-wrap">
-                                    <div className="visual-bar-preview__capsule-top">
-                                      <div className="visual-bar-preview__capsule-timeline">
-                                        <div className="visual-bar-preview__progress" style={{ width: "45%" }} />
-                                      </div>
-                                      <div className="visual-bar-preview__capsule-time" />
-                                    </div>
-                                    <div className="visual-bar-preview__capsule-islands">
-                                      <div className="visual-bar-preview__capsule-island visual-bar-preview__capsule-island--side">
-                                        <div className="visual-bar-preview__dot" />
-                                      </div>
-                                      <div className="visual-bar-preview__capsule-island visual-bar-preview__capsule-island--center">
-                                        <div className="visual-bar-preview__btn-play" />
-                                      </div>
-                                      <div className="visual-bar-preview__capsule-island visual-bar-preview__capsule-island--side">
-                                        <div className="visual-bar-preview__dot" />
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
+                              <CapsuleControlsPreview />
 
                               <div className="visual-bar-card__info">
                                 <span className="visual-bar-card__label">{dict.settings.appearance.styleCapsule}</span>
@@ -1232,7 +1205,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 </div>
               </AccordionSection>
 
-              {/* 6. Подсветка черных полос (Ambient Light) */}
+              {/* 6. Размытие черных полос (Blur) */}
               <AccordionSection
                 isOpen={!!openSections["app_ambient"]}
                 onToggle={() => toggleSection("app_ambient")}
@@ -1245,7 +1218,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     className="radius-segmented"
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                       gap: "var(--space-4)",
                       padding: "var(--segment-padding)",
                       background: "rgba(255, 255, 255, 0.03)",
@@ -1256,13 +1229,14 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     {[
                       { id: "off", label: dict.settings.appearance.ambientOff },
                       { id: "blur", label: dict.settings.appearance.ambientBlur },
-                      { id: "color", label: dict.settings.appearance.ambientColor },
                     ].map((item) => {
                       const isSel = ambientSettings.mode === item.id;
                       return (
                         <button
                           key={item.id}
                           onClick={() => updateAmbient({ mode: item.id as AmbientMode }, true)}
+                          type="button"
+                          aria-pressed={isSel}
                           style={{
                             display: "flex",
                             flexDirection: "column",
@@ -1344,126 +1318,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     );
                   })()}
 
-                  {/* Яркость/насыщенность (режим color) */}
-                  {ambientSettings.mode === "color" && (
-                    <div className="col col-gap-5">
-                      <AmbientTuneRow
-                        icon={<Sparkles size={15} />}
 
-                        label={dict.settings.appearance.ambientBrightness}
-                        value={ambientSettings.brightness ?? 100}
-                        min={20}
-                        max={150}
-                        step={5}
-                        def={100}
-                        unit="%"
-                        resetTitle={dict.settings.appearance.reset100pct}
-                        ariaLabel={dict.settings.appearance.ambientBrightnessAria}
-                        onChange={(v) => updateAmbient({ brightness: v }, false)}
-                        onReset={() => updateAmbient({ brightness: 100 }, true)}
-                      />
-                      <AmbientTuneRow
-                        icon={<Palette size={15} />}
-                        label={dict.settings.appearance.ambientSaturation}
-                        value={ambientSettings.saturation ?? 100}
-                        min={0}
-                        max={150}
-                        step={5}
-                        def={100}
-                        unit="%"
-                        resetTitle={dict.settings.appearance.reset100Percent}
-                        ariaLabel={dict.settings.appearance.ambientSaturationAria}
-                        onChange={(v) => updateAmbient({ saturation: v }, false)}
-                        onReset={() => updateAmbient({ saturation: 100 }, true)}
-                      />
-                    </div>
-                  )}
-
-                  {/* Настройка цвета (только для режима color) */}
-                  {ambientSettings.mode === "color" && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "var(--space-5)",
-                        padding: "12px 14px",
-                        borderRadius: "var(--radius-md)",
-                        background: "rgba(255, 255, 255, 0.03)",
-                        border: "1px solid var(--border)",
-                      }}
-                      >
-                      <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-secondary)", fontWeight: 500 }}>
-                        {dict.settings.appearance.ambientLight.color}
-                      </span>
-                      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-5)", flexWrap: "wrap" }}>
-                        {(() => {
-                          const isThemeMatch =
-                            ambientSettings.color.toLowerCase() ===
-                            getEffectiveAccentColor().toLowerCase();
-                          return (
-                            <button
-                              onClick={() => updateAmbient({ color: getEffectiveAccentColor() }, true)}
-                              title={dict.settings.appearance.ambientColorUseAccent}
-                              style={{
-                                padding: "6px 12px",
-                                borderRadius: "var(--radius-control)",
-                                border: isThemeMatch
-                                  ? "1.5px solid var(--accent)"
-                                  : "1px solid var(--border)",
-                                background: isThemeMatch
-                                  ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
-                                  : "var(--accent-glass)",
-                                color: isThemeMatch
-                                  ? "var(--text-primary)"
-                                  : "var(--accent)",
-                                boxShadow: isThemeMatch
-                                  ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
-                                  : "none",
-                                fontSize: "var(--fs-xs)",
-                                fontWeight: 600,
-                                cursor: "pointer",
-                                transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
-                              }}
-                              >
-                              {dict.settings.appearance.ambientColorAsTheme(activeColor === "windows" ? "Windows" : activeColor)}
-                            </button>
-                          );
-                        })()}
-
-                        {["#141923", "#1f2937", "#241e38", "#2d1c24", "#132a24", "#0a192f"].map((hex) => (
-                          <button
-                            key={hex}
-                            onClick={() => updateAmbient({ color: hex }, true)}
-                            style={{
-                              width: 26,
-                              height: 26,
-                              borderRadius: "var(--radius-control)",
-                              backgroundColor: hex,
-                              border: ambientSettings.color === hex ? "2px solid white" : "1px solid var(--border)",
-                              cursor: "pointer",
-                              boxShadow: ambientSettings.color === hex ? `0 0 10px ${hex}` : "none",
-                              transition: "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
-                            }}
-                          />
-                        ))}
-
-                        <input
-                          type="color"
-                          value={ambientSettings.color.startsWith("#") ? ambientSettings.color : "#7fc7ff"}
-                          onChange={(e) => updateAmbient({ color: e.target.value }, false)}
-                          title={dict.settings.appearance.ambientColorCustom}
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: "var(--radius-control)",
-                            border: "none",
-                            cursor: "pointer",
-                            background: "none",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               </AccordionSection>
             </div>

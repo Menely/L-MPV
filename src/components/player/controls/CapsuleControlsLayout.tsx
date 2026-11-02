@@ -41,6 +41,7 @@ export const CapsuleControlsLayout: React.FC<ControlsLayoutProps> = ({
 }) => {
   const { dict } = useTranslation();
   const speedButtonNode = renderSpeedButton?.();
+  const fullscreenButtonNode = renderFullscreenButton?.();
 
   return (
     <div
@@ -100,6 +101,18 @@ export const CapsuleControlsLayout: React.FC<ControlsLayoutProps> = ({
               speed={mediaInfo?.speed}
               isInteractive={false}
             />
+          </button>
+        )}
+        {timePosition === "volume_right" && (
+          <button
+            type="button"
+            className="controls-island controls-island--time controls-island--compact-time"
+            onClick={onCycleTimeFormat}
+            title={dict.controls.timeFormatHint}
+            aria-label={dict.controls.timeFormatHint}
+          >
+            <TimeDisplay timeFormat={timeFormat} onCycleFormat={onCycleTimeFormat}
+              speed={mediaInfo?.speed} isInteractive={false} />
           </button>
         )}
       </div>
@@ -162,9 +175,9 @@ export const CapsuleControlsLayout: React.FC<ControlsLayoutProps> = ({
           </div>
 
           {/* Островок 5: Отдельная карточка полноэкранного режима */}
-          {renderFullscreenButton && (
+          {fullscreenButtonNode && (
             <div className="controls-island controls-island--fullscreen">
-              {renderFullscreenButton()}
+              {fullscreenButtonNode}
             </div>
           )}
         </div>

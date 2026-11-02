@@ -475,7 +475,6 @@ export function ContextMenu({
       const labels: Record<AmbientMode, string> = {
         off: dict.settings.cmenuUI.ambientOff,
         blur: dict.settings.cmenuUI.ambientBlur,
-        color: dict.settings.cmenuUI.ambientColor,
       };
       showOsd(dict.settings.cmenuUI.osdAmbient(labels[updated.mode] || updated.mode));
       window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: updated }));

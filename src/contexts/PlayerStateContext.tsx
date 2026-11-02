@@ -324,7 +324,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
     idleTimer.current = window.setTimeout(() => {
       const currentUIOpen = !!document.querySelector(
-        ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+        ".track-popover, .controls-overflow, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
       const isDragging = !!document.querySelector(".timeline--dragging");
       if (!currentUIOpen && !isDragging) {
@@ -340,7 +340,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
       idleTimer.current = window.setTimeout(() => {
         const currentUIOpen = !!document.querySelector(
-          ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+          ".track-popover, .controls-overflow, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
         );
         const isDragging = !!document.querySelector(".timeline--dragging");
         if (!currentUIOpen && !isDragging) {
@@ -362,7 +362,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
       // Проверяем, открыты ли какие-либо модальные окна или всплывающие меню
       const isAnyUIOpen = !!document.querySelector(
-        ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+        ".track-popover, .controls-overflow, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
 
       // Если открыты меню или модалки, не запускаем таймер скрытия
@@ -387,7 +387,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
     const handleMouseLeave = () => {
       const isAnyUIOpen = !!document.querySelector(
-        ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+        ".track-popover, .controls-overflow, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
       if (!isAnyUIOpen) {
         // При уходе мыши за пределы окна в оконном режиме гасим контролы через 1.2 сек
