@@ -486,8 +486,8 @@ pub async fn precompile_model_engine_1080p_impl(
     // "--builderOptimizationLevel=5 --optShapes=input:1x3x1080x1920 --skipInference"
     // aji.dll загружает движок именно с таким хэшем для 1080p.
     let engine_filename = format!(
-        "aji-{:08x}.780037328.trt-11.3.0.gpu-{}-{}.engine",
-        crc, gpu_clean, sm_suffix
+        "aji-{:08x}.780037328.trt-{}.gpu-{}-{}.engine",
+        crc, super::config::TRT_CACHE_VERSION, gpu_clean, sm_suffix
     );
     let save_engine_path = models_dir.join(&engine_filename);
 

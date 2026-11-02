@@ -6,6 +6,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: deps-v1-publication
+  cancel-in-progress: false
+
 jobs:
   upload-deps:
     runs-on: windows-latest
@@ -14,60 +18,17 @@ jobs:
       - name: Проверка исходного кода
         uses: actions/checkout@v7
 
-      - name: Загрузка и архивация нативных библиотек
+      - name: Python для проверки версий нативных DLL
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          architecture: x64
+
+      - name: Свежие FFmpeg и MediaInfo, libmpv для AnimeJaNai 3.9.0
         shell: pwsh
-        run: |
-          Write-Host "1. Скачивание libmpv-2.dll от the-database (mpv-winbuild с vf_animejanai)..."
-          $mpvUrl = "https://github.com/the-database/mpv-winbuild/releases/download/2026-09-13-d4c06dd342/mpv-dev-x86_64-20260913-git-d4c06dd342.7z"
-          Invoke-WebRequest -Uri $mpvUrl -OutFile "mpv-dev.7z"
-          
-          Write-Host "2. Скачивание ffmpeg.exe от gyan.dev..."
-          $ffmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z"
-          Invoke-WebRequest -Uri $ffmpegUrl -OutFile "ffmpeg.7z"
-          
-          Write-Host "3. Скачивание MediaInfo.dll..."
-          $miUrl = "https://mediaarea.net/download/binary/libmediainfo0/26.05/MediaInfo_DLL_26.05_Windows_x64_WithoutInstaller.zip"
-          Invoke-WebRequest -Uri $miUrl -OutFile "mediainfo.zip"
-          
-          Write-Host "4. Распаковка..."
-          New-Item -ItemType Directory -Force -Path temp_ext
-          tar -xf mpv-dev.7z -C temp_ext
-          tar -xf ffmpeg.7z -C temp_ext
-          Expand-Archive -Path mediainfo.zip -DestinationPath temp_ext -Force
-          
-          Write-Host "5. Подготовка папки бинарников..."
-          $dll = Get-ChildItem -Path temp_ext -Recurse -Filter "libmpv-2.dll" | Select-Object -First 1
-          if (-not $dll) { $dll = Get-ChildItem -Path temp_ext -Recurse -Filter "mpv-2.dll" | Select-Object -First 1 }
-          if (-not $dll) { $dll = Get-ChildItem -Path temp_ext -Recurse -Filter "*mpv*.dll" | Select-Object -First 1 }
-          if (-not $dll) { throw "КРИТИЧЕСКАЯ ОШИБКА: libmpv-2.dll (с vf_animejanai) не найден в распакованном mpv-dev!" }
-          
-          $exe = Get-ChildItem -Path temp_ext -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
-          if (-not $exe) { throw "КРИТИЧЕСКАЯ ОШИБКА: ffmpeg.exe не найден в распакованном архиве ffmpeg!" }
-          
-          $miDll = Get-ChildItem -Path temp_ext -Recurse -Filter "MediaInfo.dll" | Select-Object -First 1
-          if (-not $miDll) { throw "КРИТИЧЕСКАЯ ОШИБКА: MediaInfo.dll не найден в распакованном архиве mediainfo!" }
-
-          Write-Host "5.1. Проверка наличия фильтра vf_animejanai в libmpv-2.dll..."
-          $dllBytes = [System.IO.File]::ReadAllBytes($dll.FullName)
-          $dllText = [System.Text.Encoding]::ASCII.GetString($dllBytes)
-          if ($dllText -notmatch 'animejanai') { throw "КРИТИЧЕСКАЯ ОШИБКА: в libmpv-2.dll отсутствует фильтр vf_animejanai — сборка mpv-winbuild не подходит!" }
-          Write-Host "Фильтр vf_animejanai найден в libmpv-2.dll."
-
-          Write-Host "5.2. Smoke-тест ffmpeg.exe..."
-          $ffOut = & $exe.FullName -version 2>&1 | Out-String
-          if ($LASTEXITCODE -ne 0 -or $ffOut -notmatch 'ffmpeg version') { throw "КРИТИЧЕСКАЯ ОШИБКА: ffmpeg.exe не запускается!" }
-          Write-Host "ffmpeg.exe запускается."
-          
-          New-Item -ItemType Directory -Force -Path dist_libs
-          Copy-Item -Path $dll.FullName -Destination "dist_libs/libmpv-2.dll" -Force
-          Copy-Item -Path $exe.FullName -Destination "dist_libs/ffmpeg.exe" -Force
-          Copy-Item -Path $miDll.FullName -Destination "dist_libs/mediainfo.dll" -Force
-          
-          Write-Host "Проверка содержимого dist_libs:"
-          Get-ChildItem -Path dist_libs | Select-Object Name, Length
-          
-          Write-Host "6. Создание mpv_libs.zip..."
-          Compress-Archive -Path "dist_libs/*" -DestinationPath "mpv_libs.zip" -Force
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/package-dependencies.ps1 -Kind Native
 
       - name: Публикация/Обновление релиза deps-v1 на GitHub
         uses: softprops/action-gh-release@v3
@@ -75,7 +36,12 @@ jobs:
           tag_name: deps-v1
           name: "L-MPV Build Dependencies v1"
           body: "Автоматически собранные нативные библиотеки libmpv-2.dll (от the-database/mpv-winbuild с vf_animejanai), ffmpeg.exe (от gyan.dev) и MediaInfo.dll для сборки L-MPV."
-          files: mpv_libs.zip
+          files: |
+            mpv_libs.zip
+            dependency-sources.json
+            dependency-versions.json
+          fail_on_unmatched_files: true
+          overwrite_files: true
           draft: false
           prerelease: false
         env:

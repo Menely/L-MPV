@@ -531,7 +531,7 @@ export const en: TranslationDict = {
       visSkipOpening: "Skip Opening",
       visSpeed: "Speed",
       secSuffix: "sec",
-      ambientSection: "Blur",
+      ambientSection: "Ambient",
       ambientDesc: "Fill black bars with GPU-blurred video edges.",
       ambientOff: "Off",
       ambientOffDesc: "Black bars",

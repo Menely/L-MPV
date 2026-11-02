@@ -534,7 +534,7 @@ export const ru: TranslationDict = {
       visSkipOpening: "Перемотка опенинга",
       visSpeed: "Скорость",
       secSuffix: "сек",
-      ambientSection: "Blur",
+      ambientSection: "Ambient",
       ambientDesc: "Заполнение чёрных полос размытыми краями кадра на GPU.",
       ambientOff: "Выключено",
       ambientOffDesc: "Черные полосы",

@@ -5,6 +5,21 @@ use super::types::{ModelFileItem, UpscaleStatus};
 use std::fs;
 use std::path::PathBuf;
 
+/// Version token used by aji v0.17.1 for the AnimeJaNai 3.9.0 runtime.
+pub const TRT_CACHE_VERSION: &str = "11.4.0";
+
+#[cfg(test)]
+mod dependency_tests {
+    #[test]
+    fn cache_version_matches_packaged_runtime() {
+        let pins: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../scripts/animejanai-dependencies.json"
+        )).unwrap();
+        assert_eq!(pins["tensorrt_cache"].as_str(), Some(super::TRT_CACHE_VERSION));
+        assert!(pins["tensorrt"].as_str().unwrap().starts_with(super::TRT_CACHE_VERSION));
+    }
+}
+
 /// Возвращает корневой каталог приложения
 pub fn get_app_root_dir() -> PathBuf {
     if let Ok(exe_path) = std::env::current_exe() {
@@ -138,7 +153,7 @@ pub fn has_compiled_engine_for_model(
     let crc = crc32_ieee(model_stem.as_bytes());
     let prefix = format!("aji-{:08x}.", crc);
     let target_suffix = match (gpu_clean, sm_suffix) {
-        (Some(g), Some(s)) => format!(".trt-11.3.0.gpu-{}-{}.engine", g, s),
+        (Some(g), Some(s)) => format!(".trt-{}.gpu-{}-{}.engine", TRT_CACHE_VERSION, g, s),
         _ => ".engine".to_string(),
     };
 
@@ -227,7 +242,7 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
         });
 
         let target_engine_suffix = match (gpu_clean.as_deref(), sm_suffix.as_deref()) {
-            (Some(g), Some(s)) => format!(".trt-11.3.0.gpu-{}-{}.engine", g, s),
+            (Some(g), Some(s)) => format!(".trt-{}.gpu-{}-{}.engine", TRT_CACHE_VERSION, g, s),
             _ => ".engine".to_string(),
         };
 
