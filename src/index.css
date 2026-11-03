@@ -59,3 +59,5 @@
 /* 14. Утилиты оформления — ПОСЛЕДНИМ, чтобы класс при равной
        специфичности побеждал обычные правила, как раньше инлайн-стиль */
 @import './styles/utilities.css';
+@import './styles/surface-opacity.css';
+@import './styles/surface-depth.css';

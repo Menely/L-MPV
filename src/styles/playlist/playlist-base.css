@@ -65,7 +65,7 @@
 .playlist-drawer__resize-handle:hover::after,
 .playlist-drawer--resizing .playlist-drawer__resize-handle::after {
   background: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glass, rgba(127, 199, 255, 0.4));
+  box-shadow: 0 0 8px var(--accent-glass, var(--surface-accent-glow));
   height: 56px;
 }
 
@@ -165,7 +165,7 @@
 
 .playlist-drawer__action-btn:hover {
   background: var(--bg-hover);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .playlist-drawer__action-btn:active {
@@ -247,11 +247,11 @@
 }
 
 .playlist-drawer__search-input:hover:not(:focus) {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35);
+  border-color: var(--focus-ring);
 }
 
 .playlist-drawer__search-input:focus {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65);
+  border-color: var(--focus-ring);
   box-shadow: none;
   background: var(--surface-level-3);
 }
@@ -395,7 +395,7 @@
 
 .playlist-item--current .playlist-item__num {
   background: var(--accent);
-  color: #0b0f14 !important;
+  color: var(--on-accent) !important;
   font-weight: 700;
   font-size: 11px;
   box-shadow: none;
@@ -419,11 +419,11 @@
 }
 
 .playlist-item--current .playlist-item__icon {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .playlist-item__watched-icon {
-  color: #4ade80;
+  color: var(--success-text);
 }
 
 .playlist-item__title {
@@ -458,7 +458,7 @@
 .playlist-item__progress-fill {
   height: 100%;
   background: var(--accent);
-  box-shadow: 0 0 6px var(--accent-glass, rgba(127, 199, 255, 0.5));
+  box-shadow: 0 0 6px var(--accent-glass, var(--surface-accent-glow));
   border-radius: 0 1.5px 1.5px 0;
   transition: width var(--t-fast) var(--ease-standard);
 }

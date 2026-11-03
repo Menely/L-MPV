@@ -93,7 +93,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-level-3);
   border: 1px solid var(--border-pill);
   border-radius: 999px;
   padding: var(--space-1) 10px;
@@ -111,8 +111,8 @@
 }
 
 .time-display--titlebar:hover {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: var(--accent);
+  background: var(--surface-level-3-hover);
+  border-color: var(--accent-text, var(--accent));
   color: #ffffff;
   box-shadow: var(--shadow-card-hover);
 }
@@ -149,7 +149,7 @@
 
 .titlebar__btn:hover {
   background: var(--bg-hover);
-  color: var(--accent-hover, var(--accent));
+  color: var(--accent-text);
 }
 
 .titlebar__btn:not(.titlebar__btn--close):hover svg {

@@ -118,18 +118,18 @@ const HotkeyConflictBanner = React.memo<HotkeyConflictBannerProps>(({
         background: "rgba(244, 67, 54, 0.08)",
         border: "1px solid rgba(244, 67, 54, 0.35)",
         borderRadius: "var(--radius-md)",
-        boxShadow: "0 0 12px rgba(244, 67, 54, 0.15)",
+        boxShadow: "0 0 12px var(--danger-glow)",
       }}
     >
       <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-primary)", lineHeight: 1.4 }}>
         {conflict.reserved ? (
           <>
-            <span style={{ color: "#f87171", fontWeight: 700 }}>{dict.settings.hotkeys.conflictReserved} </span>
+            <span style={{ color: "var(--danger-text)", fontWeight: 700 }}>{dict.settings.hotkeys.conflictReserved} </span>
             {dict.settings.hotkeys.conflictOnly(keyName || "", ownerTitle)}
           </>
         ) : (
           <>
-            <span style={{ color: "#f87171", fontWeight: 700 }}>{dict.settings.hotkeys.conflictTaken} </span>
+            <span style={{ color: "var(--danger-text)", fontWeight: 700 }}>{dict.settings.hotkeys.conflictTaken} </span>
             {keyName} — «{ownerTitle}»
           </>
         )}
@@ -354,7 +354,7 @@ export function HotkeysSettingsTab({
           borderRadius: "var(--radius-md)",
           background: "var(--accent-glass)",
           border: "1px solid var(--border-pill)",
-          color: "var(--accent)",
+          color: "var(--accent-text)",
           fontSize: "var(--fs-base)",
           lineHeight: "1.4",
           marginBottom: "var(--space-7)",
@@ -424,11 +424,11 @@ export function HotkeysSettingsTab({
                     <React.Fragment key={item.id}>
                     <div className="row-center row-gap-4">
                       <div
-                        className="modal__row"
+                        className="modal__row theme-card"
                         style={{
                           flex: 1,
                           padding: "10px 14px",
-                          background: "rgba(255, 255, 255, 0.03)",
+                          background: "var(--surface-card)",
                           border: "1px solid rgba(255, 255, 255, 0.04)",
                           borderRadius: "var(--radius-md)",
                           boxShadow: "var(--shadow-card)",
@@ -476,29 +476,29 @@ export function HotkeysSettingsTab({
                                   style={{
                                     padding: "4px 10px",
                                     background: isConflicted
-                                      ? "rgba(244, 67, 54, 0.14)"
+                                      ? "var(--danger-surface)"
                                       : isRecording
-                                      ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
-                                      : "rgba(127, 199, 255, 0.08)",
+                                      ? "var(--surface-accent-subtle)"
+                                      : "var(--surface-level-3)",
                                     border: isConflicted
-                                      ? "1.5px solid #f44336"
+                                      ? "1.5px solid var(--danger-text)"
                                       : isRecording
-                                      ? "1.5px solid var(--accent)"
-                                      : "1px solid rgba(127, 199, 255, 0.2)",
+                                      ? "1.5px solid var(--focus-ring)"
+                                      : "1px solid var(--border-subtle)",
                                     boxShadow: isConflicted
-                                      ? "0 0 8px rgba(244, 67, 54, 0.35), inset 0 0 0 1.5px #f44336"
+                                      ? "0 0 8px var(--danger-glow), inset 0 0 0 1px var(--danger-border)"
                                       : isRecording
-                                      ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                                      ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1px var(--focus-ring)"
                                       : "none",
                                     borderRadius: "var(--radius-control)",
                                     fontFamily: "monospace",
                                     fontSize: "var(--fs-sm)",
                                     fontWeight: 600,
                                     color: isConflicted
-                                      ? "#fca5a5"
+                                      ? "var(--danger-text)"
                                       : isRecording
                                       ? "var(--text-primary)"
-                                      : "var(--accent)",
+                                      : "var(--accent-text)",
                                     cursor: "pointer",
                                     outline: "none",
                                     borderTopRightRadius: 0,
@@ -549,9 +549,9 @@ export function HotkeysSettingsTab({
                                   onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                   style={{
                                     padding: "4px 10px",
-                                    background: "rgba(var(--accent-rgb, 127, 199, 255), 0.16)",
-                                    border: "1.5px solid var(--accent)",
-                                    boxShadow: "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)",
+                                    background: "var(--surface-accent-subtle)",
+                                    border: "1.5px solid var(--focus-ring)",
+                                    boxShadow: "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px var(--focus-ring)",
                                     borderRadius: "var(--radius-control)",
                                     fontFamily: "monospace",
                                     fontSize: "var(--fs-sm)",
@@ -580,7 +580,7 @@ export function HotkeysSettingsTab({
                                 title={dict.settings.hotkeys.btnAddTitle}
                                 style={{
                                   padding: "4px 8px",
-                                  background: "rgba(255, 255, 255, 0.05)",
+                                  background: "var(--surface-level-3)",
                                   border: "1px dashed rgba(255, 255, 255, 0.2)",
                                   borderRadius: "var(--radius-control)",
                                   color: "var(--text-secondary)",
@@ -597,13 +597,14 @@ export function HotkeysSettingsTab({
                       </div>
 
                       <button
+                        className="hotkey-reset-btn"
                         onClick={() => {
                           const updated = resetSingleHotkey(item.id, customHotkeys);
                           setCustomHotkeys(updated);
                         }}
                         style={{
                           padding: "var(--space-5)",
-                          background: "rgba(255, 255, 255, 0.03)",
+                          background: "var(--surface-level-2)",
                           border: "1px solid rgba(255, 255, 255, 0.04)",
                           borderRadius: "var(--radius-md)",
                           color: "var(--text-muted)",
@@ -613,14 +614,6 @@ export function HotkeysSettingsTab({
                           justifyContent: "center",
                           flexShrink: 0,
                           transition: "background-color 0.15s ease, color 0.15s ease",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.color = "var(--text-primary)";
-                          e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = "var(--text-muted)";
-                          e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
                         }}
                         >
                         <RotateCcw size={16} />

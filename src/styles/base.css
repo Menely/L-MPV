@@ -218,7 +218,7 @@ html, body, #root {
   border: 1px solid rgba(239, 68, 68, 0.45);
   border-left: 4px solid #ef4444;
   background: rgba(28, 10, 14, 0.94);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75), 0 0 20px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75), 0 0 20px var(--danger-glow);
   color: #fef2f2;
 }
 

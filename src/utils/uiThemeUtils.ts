@@ -342,7 +342,8 @@ export function applyUiOpacity(opacity: number): void {
   const themePillRgb = (root.style.getPropertyValue("--bg-pill-rgb") || computed.getPropertyValue("--bg-pill-rgb")).trim() || "14, 18, 26";
   root.style.setProperty("--bg-pill", `rgba(${themePillRgb}, ${clamped})`);
   root.style.setProperty("--bg-glass", `rgba(${themeGlassRgb}, ${clamped})`);
-  root.style.setProperty("--bg-elevated", `rgba(${themeGlassRgb}, ${clamped})`);
+  const elevatedRgb = (root.style.getPropertyValue("--bg-elevated-rgb") || computed.getPropertyValue("--bg-elevated-rgb")).trim() || themeGlassRgb;
+  root.style.setProperty("--bg-elevated", `rgba(${elevatedRgb}, ${clamped})`);
 
   // Масштабируем альфу теней пропорционально прозрачности интерфейса:
   // При ui-opacity = 1.0 -> мягкая естественная тень (0.35 / 0.18)

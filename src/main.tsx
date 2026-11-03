@@ -8,6 +8,7 @@ import "./styles/settings-panel.css";
 import { PlayerStateProvider } from "./contexts/PlayerStateContext";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import { applyPlayerTheme } from "./utils/colorUtils";
+import { initSurfaceHierarchy } from "./utils/surfaceHierarchy";
 import {
   hydrateUiSettingsFromDisk,
   initUiSettingsAutoSync,
@@ -48,6 +49,7 @@ if (typeof document !== "undefined") {
     __lMpvUiRuntimeCleanup?: () => void;
   };
   runtimeWindow.__lMpvUiRuntimeCleanup?.();
+  const cleanupSurfaceHierarchy = initSurfaceHierarchy();
 
   const handleStorage = () => applyAllVisualSettings();
   const handlePlayerThemeChanged = (event: Event) => {
@@ -80,6 +82,7 @@ if (typeof document !== "undefined") {
   }
 
   runtimeWindow.__lMpvUiRuntimeCleanup = () => {
+    cleanupSurfaceHierarchy();
     cleanupUiSync();
     window.removeEventListener("storage", handleStorage);
     window.removeEventListener("l-mpv-player-theme-changed", handlePlayerThemeChanged);

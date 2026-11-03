@@ -39,7 +39,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
     <div className="modal__section">
       <div
         className="modal__section-title"
-        style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", fontSize: "var(--fs-md)", color: "var(--accent)", fontWeight: 600, textTransform: "none", letterSpacing: "normal" }}
+        style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", fontSize: "var(--fs-md)", color: "var(--accent-text)", fontWeight: 600, textTransform: "none", letterSpacing: "normal" }}
         >
         <Link size={16} /> {dict.settings.integrationFields.fileAssocTitle}
       </div>
@@ -140,7 +140,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
             alignItems: "center",
             justifyContent: "space-between",
             fontSize: "var(--fs-md)",
-            color: "var(--accent)",
+            color: "var(--accent-text)",
             fontWeight: 600,
             textTransform: "none",
             letterSpacing: "normal",
@@ -156,7 +156,7 @@ export function IntegrationSettingsTab(): React.ReactElement {
                 padding: "2px 8px",
                 borderRadius: "var(--radius-sm)",
                 background: isContextMenuRegistered ? "rgba(34, 197, 94, 0.15)" : "rgba(148, 163, 184, 0.15)",
-                color: isContextMenuRegistered ? "#4ade80" : "var(--text-muted)",
+                color: isContextMenuRegistered ? "var(--success-text)" : "var(--text-muted)",
                 fontWeight: 500,
               }}
               >

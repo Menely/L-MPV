@@ -37,7 +37,7 @@
   border-radius: 50%;
   background: var(--accent-glass);
   border: 1px solid var(--border-pill);
-  color: var(--accent-dim);
+  color: var(--accent-text);
 }
 
 .video-area__placeholder-text {

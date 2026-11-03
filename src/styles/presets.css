@@ -4,21 +4,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
-  animation: presetsFadeIn 160ms var(--ease-out);
-}
-
-@keyframes presetsFadeIn {
-  from {
-    transform: translate(-50%, 14px) scale(0.95);
-  }
-  to {
-    transform: translate(-50%, 0) scale(1);
-  }
 }
 
 /* ─── Блок создания нового пресета ───────────────────────── */
 .presets-creator {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface-level-2);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-md);
   padding: var(--space-7);
@@ -70,9 +60,9 @@
 }
 
 .presets-creator__input:focus {
-  border-color: var(--accent);
+  border-color: var(--accent-text, var(--accent));
   box-shadow: none;
-  background: rgba(var(--accent-rgb), 0.12);
+  background: var(--surface-accent-subtle);
 }
 
 .presets-creator__btn-save {
@@ -81,7 +71,7 @@
   gap: var(--space-4);
   padding: var(--space-4) 18px;
   background: var(--accent);
-  color: #0c0f17;
+  color: var(--on-accent);
   font-weight: 600;
   font-size: var(--fs-base);
   border: none;
@@ -96,11 +86,12 @@
 
 .presets-creator__btn-save:hover {
   background: var(--accent-hover, var(--accent));
+  color: var(--on-accent-hover);
   box-shadow: none;
 }
 
 .presets-creator__btn-save:active {
-  filter: brightness(0.92);
+  filter: none;
 }
 
 /* ─── Списки пресетов ────────────────────────────────────── */
@@ -176,9 +167,9 @@
 }
 
 .presets-btn-text:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-level-3-hover);
   color: var(--text-primary);
-  border-color: var(--accent);
+  border-color: var(--accent-text, var(--accent));
 }
 
 .presets-list {
@@ -189,7 +180,7 @@
 
 /* ─── Карточка отдельного пресета ────────────────────────── */
 .preset-card {
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--surface-card);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-md);
   padding: var(--space-6) 14px;
@@ -204,9 +195,9 @@
   overflow: hidden;
 }
 
-.preset-card:hover {
-  background: rgba(255, 255, 255, 0.045);
-  border-color: rgba(255, 255, 255, 0.18);
+.preset-card:hover:not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)) {
+  background: var(--surface-level-3-hover);
+  border-color: var(--border-hover);
   box-shadow: var(--shadow-card-hover);
 }
 
@@ -216,15 +207,15 @@
 }
 
 .preset-card--active {
-  background: rgba(var(--accent-rgb), 0.16) !important;
-  border-color: var(--accent) !important;
-  box-shadow: inset 0 0 0 1.5px var(--accent) !important;
+  background: var(--surface-accent-subtle) !important;
+  border-color: var(--accent-text, var(--accent)) !important;
+  box-shadow: inset 0 0 0 1.5px var(--focus-ring) !important;
 }
 
-.preset-card--active:hover {
-  background: rgba(var(--accent-rgb), 0.20) !important;
-  border-color: var(--accent) !important;
-  box-shadow: inset 0 0 0 1.5px var(--accent) !important;
+.preset-card--active:hover:not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)) {
+  background: var(--surface-accent-subtle) !important;
+  border-color: var(--accent-text, var(--accent)) !important;
+  box-shadow: inset 0 0 0 1.5px var(--focus-ring) !important;
 }
 
 .preset-card__top {
@@ -276,7 +267,7 @@
   font-weight: 600;
   padding: var(--space-1) 7px;
   border-radius: var(--radius-xs, 4px);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-level-3-hover);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -338,7 +329,7 @@
   padding: var(--space-3) 12px;
   border-radius: var(--radius-control);
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-level-3);
   color: var(--text-secondary);
   font-size: var(--fs-sm);
   font-weight: 500;
@@ -355,15 +346,15 @@
   flex-shrink: 0;
 }
 
-.preset-action-btn:hover:not(.preset-action-btn--apply) {
-  background: rgba(255, 255, 255, 0.1);
+.preset-action-btn:hover:not(.preset-action-btn--apply):not(.preset-action-btn--danger) {
+  background: var(--surface-level-3-hover);
   color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: var(--border-hover);
 }
 
 .preset-action-btn--apply {
   background: var(--accent);
-  color: #0c0f17;
+  color: var(--on-accent);
   font-weight: 600;
   border-color: transparent;
   box-shadow: none;
@@ -371,26 +362,27 @@
 
 .preset-action-btn--apply:hover {
   background: var(--accent-hover, var(--accent));
-  color: #0c0f17;
+  color: var(--on-accent-hover);
   box-shadow: none;
   border-color: transparent;
 }
 
 .preset-action-btn--apply:active {
   background: var(--accent);
-  filter: brightness(0.92);
+  color: var(--on-accent);
+  filter: none;
 }
 
 .preset-action-btn--applied {
-  background: rgba(var(--accent-rgb), 0.16) !important;
+  background: var(--surface-accent-subtle) !important;
   color: var(--text-primary) !important;
-  border-color: var(--accent) !important;
-  box-shadow: inset 0 0 0 1.5px var(--accent) !important;
+  border-color: var(--accent-text, var(--accent)) !important;
+  box-shadow: inset 0 0 0 1.5px var(--focus-ring) !important;
 }
 
 .preset-action-btn--danger:hover {
   background: rgba(239, 68, 68, 0.2);
-  color: #f87171;
+  color: var(--danger-text);
   border-color: rgba(239, 68, 68, 0.4);
 }
 
@@ -400,7 +392,7 @@
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(15, 23, 42, 0.92);
+  background: var(--bg-elevated);
   border: 1px solid var(--accent);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
   border-radius: var(--radius-md);
@@ -451,7 +443,7 @@
 
 .preset-action-btn--apply {
   background: var(--accent);
-  color: #0c0f17;
+  color: var(--on-accent);
   font-weight: 600;
   border-color: transparent;
   box-shadow: none;
@@ -472,7 +464,7 @@
   width: 100%;
   height: 26px;
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-level-3);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -508,7 +500,7 @@
   padding: var(--space-5);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-surface);
-  background: var(--bg-modal-solid);
+  background: var(--bg-glass);
   box-shadow: var(--shadow-lg);
 }
 

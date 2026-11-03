@@ -437,7 +437,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             }
             onClick={handleToggleAlwaysOnTop}
           >
-            <Pin size={13} style={{ transform: isAlwaysOnTop ? "rotate(45deg)" : "none", color: isAlwaysOnTop ? "var(--accent)" : "inherit" }} />
+            <Pin size={13} style={{ transform: isAlwaysOnTop ? "rotate(45deg)" : "none", color: isAlwaysOnTop ? "var(--accent-text)" : "inherit" }} />
           </button>
           <button
             type="button"
@@ -516,7 +516,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             onClick={handleCopy}
             disabled={!baseReport.rawText}
           >
-            {copied ? <Check size={14} color="#4ade80" /> : <Copy size={14} />}
+            {copied ? <Check size={14} color="var(--success-text)" /> : <Copy size={14} />}
           </button>
 
           <button

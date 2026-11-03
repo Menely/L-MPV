@@ -10,7 +10,15 @@ export type HeatmapStyle = "bars" | "spline" | "blocks";
 
 export type HeatmapDataSource = "audio" | "video_bitrate";
 
-export type HeatmapPalette = "theme" | "thermal" | "cyberpunk" | "monochrome";
+export type HeatmapPalette =
+  | "theme"
+  | "thermal"
+  | "cyberpunk"
+  | "monochrome"
+  | "sunset"
+  | "aurora"
+  | "ocean"
+  | "plasma";
 
 export type HeatmapPlacement = "above_controls" | "above_timeline";
 
@@ -142,7 +150,7 @@ export function getHeatmapConfig(): HeatmapConfig {
       enabled: typeof parsed.enabled === "boolean" ? parsed.enabled : DEFAULT_HEATMAP_CONFIG.enabled,
       style,
       dataSource,
-      palette: ["theme", "thermal", "cyberpunk", "monochrome"].includes(parsed.palette)
+      palette: ["theme", "thermal", "cyberpunk", "monochrome", "sunset", "aurora", "ocean", "plasma"].includes(parsed.palette)
         ? (parsed.palette as HeatmapPalette)
         : DEFAULT_HEATMAP_CONFIG.palette,
       placement,

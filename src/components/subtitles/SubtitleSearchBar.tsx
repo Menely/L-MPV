@@ -316,7 +316,7 @@ export function SubtitleSearchBar({
                 alignItems: "center",
                 gap: "var(--space-2)",
                 fontSize: "var(--fs-xs)",
-                color: "var(--accent)",
+                color: "var(--accent-text)",
               }}
               >
               <Loader2 size={11} className="spin-animation" />

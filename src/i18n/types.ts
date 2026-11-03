@@ -486,6 +486,10 @@ export interface TranslationDict {
           thermal: string;
           cyberpunk: string;
           monochrome: string;
+          sunset: string;
+          aurora: string;
+          ocean: string;
+          plasma: string;
         };
         geometryTitle: string;
         placementLabel: string;

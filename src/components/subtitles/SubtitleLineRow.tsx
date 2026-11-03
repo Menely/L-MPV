@@ -75,17 +75,17 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
         background: isActive
           ? "var(--bg-active)"
           : isNavTarget
-          ? "rgba(59, 130, 246, 0.12)"
-          : "rgba(255, 255, 255, 0.02)",
+          ? "var(--surface-accent-subtle)"
+          : "var(--surface-level-2)",
         border: "1px solid",
         borderColor: isActive
-          ? "var(--accent)"
+          ? "var(--focus-ring)"
           : isNavTarget
-          ? "var(--accent)"
+          ? "var(--focus-ring)"
           : "transparent",
         boxShadow:
           isNavTarget && !isActive
-            ? "0 0 10px rgba(59, 130, 246, 0.25)"
+            ? "0 0 10px var(--surface-accent-glow)"
             : "none",
         borderRadius: "var(--radius-xs)",
         cursor: "pointer",
@@ -123,7 +123,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
                 gap: "var(--space-2)",
                 fontSize: isTech ? "0.74rem" : "0.72rem",
                 fontWeight: 600,
-                color: isActive ? "var(--accent)" : "var(--text-muted)",
+                color: isActive ? "var(--accent-text)" : "var(--text-muted)",
                 fontVariantNumeric: "tabular-nums",
               }}
               >
@@ -161,9 +161,9 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
                   fontWeight: 600,
                   padding: "1px 5px",
                   borderRadius: "var(--radius-xs)",
-                  background: "rgba(59, 130, 246, 0.2)",
-                  color: "var(--accent)",
-                  border: "1px solid var(--accent)",
+                  background: "var(--surface-accent-subtle)",
+                  color: "var(--accent-text)",
+                  border: "1px solid var(--focus-ring)",
                 }}
                 >
                 {dict.subtitlesSearch.matchBadge}
@@ -198,7 +198,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
           style={{
             background: "transparent",
             border: "none",
-            color: isCopied ? "var(--accent)" : "var(--text-muted)",
+            color: isCopied ? "var(--accent-text)" : "var(--text-muted)",
             cursor: "pointer",
             padding: "var(--space-2)",
             borderRadius: "var(--radius-xs)",

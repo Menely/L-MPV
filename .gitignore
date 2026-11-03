@@ -132,3 +132,8 @@ skills-lock.json
 /docs/audits/
 /docs/superpowers/
 /docs/superpowers/plans/
+
+# Local dependency notes and generated design-audit artifacts
+/docs/dependencies.md
+/docs/color-audit-*/
+/docs/interaction-audit-*/

@@ -29,6 +29,10 @@ export const THEME_ITEMS = [
   { id: "mint" as const, label: "Mint Wave", desc: "Mint & Teal" },
   { id: "violet" as const, label: "Ultraviolet", desc: "Violet & Magenta" },
   { id: "gold" as const, label: "Golden Sand", desc: "Gold & Amber" },
+  { id: "fire" as const, label: "Inferno", desc: "Fire & Flame" },
+  { id: "ice" as const, label: "Arctic Ice", desc: "Azure & Crystal" },
+  { id: "matrix" as const, label: "Matrix", desc: "Neon & Terminal" },
+  { id: "plasma" as const, label: "Cosmic Plasma", desc: "Fuchsia & Blue" },
 ];
 
 /** Градиент-индикатор палитры для кнопок выбора темы. */
@@ -43,4 +47,8 @@ export const THEME_SWATCH: Record<VisualizerTheme, string> = {
   mint: "linear-gradient(135deg, #5EEAD4 0%, #10B981 55%, #065F46 100%)",
   violet: "linear-gradient(135deg, #A78BFA 0%, #8B5CF6 55%, #5B21B6 100%)",
   gold: "linear-gradient(135deg, #FDE68A 0%, #F59E0B 55%, #92400E 100%)",
+  fire: "linear-gradient(135deg, #FF3B00 0%, #FF8800 55%, #FFE600 100%)",
+  ice: "linear-gradient(135deg, #A5F3FC 0%, #38BDF8 55%, #1D4ED8 100%)",
+  matrix: "linear-gradient(135deg, #00FF66 0%, #10B981 55%, #022C22 100%)",
+  plasma: "linear-gradient(135deg, #F472B6 0%, #A855F7 55%, #3B82F6 100%)",
 };

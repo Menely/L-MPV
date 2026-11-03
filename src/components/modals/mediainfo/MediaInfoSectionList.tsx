@@ -54,7 +54,7 @@ export const MediaInfoSectionItem: React.FC<MediaInfoSectionItemProps> = React.m
         >
           {isCopied ? (
 
-              <Check size={13} color="#4ade80" />
+              <Check size={13} color="var(--success-text)" />
 
 
           ) : (

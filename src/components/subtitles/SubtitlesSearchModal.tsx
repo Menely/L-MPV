@@ -586,7 +586,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                     : "var(--border-pill)",
                   borderRadius: "var(--radius-xs)",
                   color: followPlayback
-                    ? "var(--accent)"
+                    ? "var(--accent-text)"
                     : "var(--text-secondary)",
                   fontSize: "var(--fs-sm)",
                   fontWeight: 600,

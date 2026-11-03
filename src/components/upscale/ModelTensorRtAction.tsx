@@ -64,10 +64,10 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
             justifyContent: "space-between",
             fontSize: "var(--fs-2xs)",
             color: isCompileError
-              ? "#e74c3c"
+              ? "var(--danger-text)"
               : isCompileFinished
-              ? "#2ecc71"
-              : "var(--accent)",
+              ? "var(--success-text)"
+              : "var(--accent-text)",
             fontWeight: 600,
             lineHeight: 1,
           }}
@@ -116,8 +116,8 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
               borderRadius: 2,
               transition: "width 0.25s ease-out",
               boxShadow: isCompileFinished
-                ? "0 0 6px rgba(46, 204, 113, 0.4)"
-                : "0 0 6px rgba(127, 199, 255, 0.4)",
+                ? "0 0 6px var(--success-glow)"
+                : "0 0 6px var(--surface-accent-glow)",
             }}
           />
         </div>
@@ -196,7 +196,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
         cursor: "pointer",
       }}
       >
-      <Zap size={12} color="var(--accent)" />
+      <Zap size={12} color="var(--accent-text, var(--accent))" />
       <span>{dict.settings.upscaling.trtCompileBadge}</span>
     </button>
   );

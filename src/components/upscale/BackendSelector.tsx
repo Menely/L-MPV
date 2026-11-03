@@ -94,7 +94,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               whiteSpace: "nowrap",
             }}
             >
-            <Cpu size={17} color="var(--accent)" /> {dict.settings.upscaling.backendTitle}
+            <Cpu size={17} color="var(--accent-text, var(--accent))" /> {dict.settings.upscaling.backendTitle}
           </h3>
           <p
             style={{
@@ -153,7 +153,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: "50%",
-                color: "#2ecc71",
+                color: "var(--success-text)",
                 background: "rgba(46, 204, 113, 0.12)",
                 border: "1px solid rgba(46, 204, 113, 0.28)",
                 flexShrink: 0,
@@ -217,16 +217,16 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             padding: "12px 16px",
             borderRadius: "var(--radius-md)",
             background: isError
-              ? "rgba(231, 76, 60, 0.08)"
+              ? "var(--danger-surface)"
               : isFinished
-              ? "rgba(46, 204, 113, 0.08)"
-              : "rgba(127, 199, 255, 0.08)",
+              ? "var(--success-surface)"
+              : "var(--surface-accent-subtle)",
             border: `1px solid ${
               isError
-                ? "rgba(231, 76, 60, 0.35)"
+                ? "var(--danger-border)"
                 : isFinished
-                ? "rgba(46, 204, 113, 0.35)"
-                : "rgba(127, 199, 255, 0.3)"
+                ? "var(--success-border)"
+                : "var(--border-pill)"
             }`,
             display: "flex",
             flexDirection: "column",
@@ -254,11 +254,11 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               }}
               >
               {isError ? (
-                <X size={15} color="#e74c3c" className="no-shrink" />
+                <X size={15} color="var(--danger-text)" className="no-shrink" />
               ) : isFinished ? (
-                <CheckCircle2 size={15} color="#2ecc71" className="no-shrink" />
+                <CheckCircle2 size={15} color="var(--success-text)" className="no-shrink" />
               ) : (
-                <RefreshCw size={14} className="spin no-shrink" color="var(--accent)"  />
+                <RefreshCw size={14} className="spin no-shrink" color="var(--accent-text, var(--accent))"  />
               )}
               <span
                 style={{
@@ -266,9 +266,9 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                   color: isError
-                    ? "#e74c3c"
+                    ? "var(--danger-text)"
                     : isFinished
-                    ? "#2ecc71"
+                    ? "var(--success-text)"
                     : "var(--text-primary)",
                   fontWeight: isFinished ? 600 : 500,
                 }}
@@ -284,7 +284,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 gap: "var(--space-4)",
                 fontSize: "var(--fs-sm)",
                 fontWeight: 700,
-                color: isError ? "#e74c3c" : isFinished ? "#2ecc71" : "var(--accent)",
+                color: isError ? "var(--danger-text)" : isFinished ? "var(--success-text)" : "var(--accent-text)",
                 fontVariantNumeric: "tabular-nums",
                 flexShrink: 0,
               }}
@@ -321,7 +321,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             style={{
               width: "100%",
               height: 7,
-              background: "rgba(255, 255, 255, 0.08)",
+              background: "var(--surface-level-3-hover)",
               borderRadius: "var(--radius-xs, 4px)",
               overflow: "hidden",
               position: "relative",
@@ -339,10 +339,10 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                   : "linear-gradient(90deg, #3498db, var(--accent), #2ecc71)",
                 borderRadius: "var(--radius-xs, 4px)",
                 boxShadow: isError
-                  ? "0 0 8px rgba(231, 76, 60, 0.4)"
+                  ? "0 0 8px var(--danger-glow)"
                   : isFinished
-                  ? "0 0 10px rgba(46, 204, 113, 0.4)"
-                  : "0 0 8px rgba(127, 199, 255, 0.5)",
+                  ? "0 0 10px var(--success-glow)"
+                  : "0 0 8px var(--surface-accent-glow)",
                 transition: "width 0.25s ease-out, border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
             />
@@ -421,7 +421,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               )}
             </div>
             {settings.backend === "DirectML" && (
-              <CheckCircle2 size={16} color="var(--accent)" />
+              <CheckCircle2 size={16} color="var(--accent-text, var(--accent))" />
             )}
           </div>
           <p
@@ -496,7 +496,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               )}
             </div>
             {settings.backend === "TensorRT" && (
-              <CheckCircle2 size={16} color="var(--accent)" />
+              <CheckCircle2 size={16} color="var(--accent-text, var(--accent))" />
             )}
           </div>
           <p

@@ -1,0 +1,96 @@
+/* Card states use depth N; uncounted child controls use N+1.
+   Palette tones and alpha response are separate. Independent glass roots reset
+   depth; siblings do not affect each other. The scale saturates at four. */
+[data-surface-depth="0"] {
+  --bg-hover: var(--surface-level-3-hover);
+  --bg-active: var(--surface-accent-hover);
+  --accent-glass: var(--surface-accent-subtle);
+  --surface-card: var(--surface-fill-0);
+  --surface-card-hover: var(--surface-fill-hover-0);
+  --surface-card-selected: var(--surface-fill-selected-0);
+  --surface-card-selected-hover: var(--surface-fill-selected-hover-0);
+  --surface-child: var(--surface-fill-1);
+  --surface-level-2: var(--surface-fill-1);
+  --surface-level-3: var(--surface-fill-1);
+  --surface-level-3-hover: var(--surface-fill-hover-1);
+  --surface-accent-subtle: var(--surface-fill-selected-1);
+  --surface-accent-hover: var(--surface-fill-selected-hover-1);
+  --bg-glass: var(--surface-root-glass);
+}
+
+/* Dropdowns contain choices/text and retain more density than outer panels.
+   Redeclare at each independent root so inherited, pre-resolved glass aliases
+   cannot restore the full-strength global response inside capsule islands. */
+.track-popover,
+.context-menu,
+.context-menu__submenu,
+.controls-overflow,
+.subtitles-search-card__track-picker-menu,
+.confirm-dialog,
+.version-picker-popover {
+  --surface-root-glass: rgba(var(--bg-glass-rgb), var(--ui-popover-opacity));
+  --bg-glass: var(--surface-root-glass);
+  --bg-pill: rgba(var(--bg-pill-rgb), var(--ui-popover-opacity));
+  --bg-elevated: rgba(var(--bg-elevated-rgb), var(--ui-popover-opacity));
+}
+[data-surface-depth="1"] {
+  --bg-hover: var(--surface-level-3-hover);
+  --bg-active: var(--surface-accent-hover);
+  --accent-glass: var(--surface-accent-subtle);
+  --surface-card: var(--surface-fill-1);
+  --surface-card-hover: var(--surface-fill-hover-1);
+  --surface-card-selected: var(--surface-fill-selected-1);
+  --surface-card-selected-hover: var(--surface-fill-selected-hover-1);
+  --surface-child: var(--surface-fill-2);
+  --surface-level-2: var(--surface-fill-2);
+  --surface-level-3: var(--surface-fill-2);
+  --surface-level-3-hover: var(--surface-fill-hover-2);
+  --surface-accent-subtle: var(--surface-fill-selected-2);
+  --surface-accent-hover: var(--surface-fill-selected-hover-2);
+}
+[data-surface-depth="2"] {
+  --bg-hover: var(--surface-level-3-hover);
+  --bg-active: var(--surface-accent-hover);
+  --accent-glass: var(--surface-accent-subtle);
+  --surface-card: var(--surface-fill-2);
+  --surface-card-hover: var(--surface-fill-hover-2);
+  --surface-card-selected: var(--surface-fill-selected-2);
+  --surface-card-selected-hover: var(--surface-fill-selected-hover-2);
+  --surface-child: var(--surface-fill-3);
+  --surface-level-2: var(--surface-fill-3);
+  --surface-level-3: var(--surface-fill-3);
+  --surface-level-3-hover: var(--surface-fill-hover-3);
+  --surface-accent-subtle: var(--surface-fill-selected-3);
+  --surface-accent-hover: var(--surface-fill-selected-hover-3);
+}
+[data-surface-depth="3"] {
+  --bg-hover: var(--surface-level-3-hover);
+  --bg-active: var(--surface-accent-hover);
+  --accent-glass: var(--surface-accent-subtle);
+  --surface-card: var(--surface-fill-3);
+  --surface-card-hover: var(--surface-fill-hover-3);
+  --surface-card-selected: var(--surface-fill-selected-3);
+  --surface-card-selected-hover: var(--surface-fill-selected-hover-3);
+  --surface-child: var(--surface-fill-4);
+  --surface-level-2: var(--surface-fill-4);
+  --surface-level-3: var(--surface-fill-4);
+  --surface-level-3-hover: var(--surface-fill-hover-4);
+  --surface-accent-subtle: var(--surface-fill-selected-4);
+  --surface-accent-hover: var(--surface-fill-selected-hover-4);
+}
+[data-surface-depth="4"] {
+  --bg-hover: var(--surface-level-3-hover);
+  --bg-active: var(--surface-accent-hover);
+  --accent-glass: var(--surface-accent-subtle);
+  --surface-card: var(--surface-fill-4);
+  --surface-card-hover: var(--surface-fill-hover-4);
+  --surface-card-selected: var(--surface-fill-selected-4);
+  --surface-card-selected-hover: var(--surface-fill-selected-hover-4);
+  --surface-child: var(--surface-fill-4);
+  --surface-level-2: var(--surface-fill-4);
+  --surface-level-3: var(--surface-fill-4);
+  --surface-level-3-hover: var(--surface-fill-hover-4);
+  --surface-accent-subtle: var(--surface-fill-selected-4);
+  --surface-accent-hover: var(--surface-fill-selected-hover-4);
+}
+.theme-card { background: var(--surface-card); }

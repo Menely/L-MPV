@@ -86,7 +86,7 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  color: var(--accent) !important;
+  color: var(--accent-text) !important;
   flex-shrink: 0 !important;
 }
 
@@ -144,9 +144,16 @@
 
 /* Активное состояние кнопки Always on Top */
 .mediainfo-standalone--capsule .mediainfo-standalone__control-btn--active {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
-  color: var(--accent) !important;
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+  background: var(--surface-accent-subtle) !important;
+  color: var(--accent-text) !important;
+  border-color: var(--focus-ring) !important;
+}
+
+/* Кнопка закрытия окна */
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn--active:hover {
+  background: var(--surface-accent-hover) !important;
+  color: var(--accent-text) !important;
+  border-color: var(--focus-ring) !important;
 }
 
 /* Кнопка закрытия окна */
@@ -183,31 +190,19 @@
 }
 
 .mediainfo-standalone--capsule .mediainfo-standalone__titlebar-left:hover {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+  border-color: var(--border-pill-hover) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-standalone__titlebar-left:active {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
-}
-
-.mediainfo-standalone--capsule .mediainfo-standalone__window-controls:hover {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
-}
-
-.mediainfo-standalone--capsule .mediainfo-standalone__actions:hover {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
-}
-
-.mediainfo-standalone--capsule .mediainfo-standalone__tabs-bar:hover {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+  border-color: var(--border-pill-hover) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-standalone__search-wrapper:hover {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+  border-color: var(--border-pill-hover) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-standalone__search-wrapper:focus-within {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
+  border-color: var(--focus-ring) !important;
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.05) !important;
 }
 
@@ -235,7 +230,7 @@
 
 .mediainfo-standalone--capsule .mediainfo-standalone__search-count {
   font-size: var(--fs-2xs, 11px) !important;
-  color: var(--accent) !important;
+  color: var(--accent-text) !important;
   font-weight: 600 !important;
   padding: 2px 8px !important;
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.14) !important;
@@ -275,7 +270,7 @@
   font-weight: 500 !important;
   border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
   border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.1)) !important;
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--surface-level-3) !important;
   color: var(--text-secondary, #cbd5e1) !important;
   cursor: pointer !important;
   display: inline-flex !important;
@@ -307,16 +302,22 @@
 }
 
 .mediainfo-standalone--capsule .mediainfo-standalone__action-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.09) !important;
+  background: var(--surface-level-3-hover) !important;
   color: var(--text-primary, #ffffff) !important;
-  border-color: rgba(255, 255, 255, 0.22) !important;
+  border-color: var(--border-hover) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-standalone__action-btn--active {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
-  color: var(--accent) !important;
-  border-color: var(--accent) !important;
+  background: var(--surface-accent-subtle) !important;
+  color: var(--accent-text) !important;
+  border-color: var(--accent-text, var(--accent)) !important;
   font-weight: 600 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn--active:hover:not(:disabled) {
+  background: var(--surface-accent-hover) !important;
+  color: var(--accent-text) !important;
+  border-color: var(--focus-ring) !important;
 }
 
 /* ── Ряд 3: Островок чипов категорий (Tabs Bar) ───────────────────────────── */
@@ -336,7 +337,7 @@
   padding: 0 10px !important;
   border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
   border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.1)) !important;
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--surface-level-3) !important;
   color: var(--text-secondary, #cbd5e1) !important;
   font-size: var(--fs-2xs, 11px) !important;
   font-weight: 500 !important;
@@ -345,30 +346,36 @@
 }
 
 .mediainfo-standalone--capsule .mediainfo-tab-chip:hover {
-  background: rgba(255, 255, 255, 0.09) !important;
+  background: var(--surface-level-3-hover) !important;
   color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.22) !important;
+  border-color: var(--border-hover) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-tab-chip--active {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  background: var(--surface-accent-subtle) !important;
   color: var(--text-primary, #ffffff) !important;
-  border-color: var(--accent) !important;
+  border-color: var(--accent-text, var(--accent)) !important;
   box-shadow: none !important;
   font-weight: 600 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip--active:hover:not(:disabled) {
+  background: var(--surface-accent-hover) !important;
+  color: var(--accent-text) !important;
+  border-color: var(--focus-ring) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-tab-chip__badge {
   font-size: var(--fs-3xs, 9px) !important;
   padding: 1px 5px !important;
   border-radius: var(--radius-xs) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: var(--surface-level-3-hover) !important;
   color: var(--text-muted, #94a3b8) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-tab-chip--active .mediainfo-tab-chip__badge {
   background: var(--accent) !important;
-  color: #0b0d12 !important;
+  color: var(--on-accent) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-tab-action-btn {
@@ -376,16 +383,16 @@
   padding: 0 10px !important;
   border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
   border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.1)) !important;
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--surface-level-3) !important;
   color: var(--text-secondary, #94a3b8) !important;
   font-size: var(--fs-2xs, 11px) !important;
   font-weight: 500 !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-tab-action-btn:hover {
-  background: rgba(255, 255, 255, 0.09) !important;
+  background: var(--surface-level-3-hover) !important;
   color: var(--text-primary, #ffffff) !important;
-  border-color: rgba(255, 255, 255, 0.22) !important;
+  border-color: var(--border-hover) !important;
 }
 
 /* ── Ряд 4: Островок контента (Тело отчёта) ───────────────────────────────── */
@@ -419,7 +426,7 @@
 
 /* Интерактивный триггер сворачивания секции */
 .mediainfo-standalone--capsule .mediainfo-section__collapse-trigger {
-  background: rgba(255, 255, 255, 0.035) !important;
+  background: var(--surface-level-2) !important;
   border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08)) !important;
   border-radius: var(--radius-control) !important;
   padding: 5px 10px !important;
@@ -429,18 +436,18 @@
 }
 
 .mediainfo-standalone--capsule .mediainfo-section__collapse-trigger:hover {
-  background: rgba(255, 255, 255, 0.07) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
+  background: var(--surface-level-3-hover) !important;
+  border-color: var(--border-hover) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-section__title {
-  color: var(--accent) !important;
+  color: var(--accent-text) !important;
   font-size: var(--fs-xs, 12px) !important;
   font-weight: 700 !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-section__count-badge {
-  background: rgba(255, 255, 255, 0.06) !important;
+  background: var(--surface-level-3) !important;
   border-radius: var(--radius-xs) !important;
   color: var(--text-muted, #94a3b8) !important;
   font-size: var(--fs-2xs, 10px) !important;
@@ -448,7 +455,7 @@
 
 .mediainfo-standalone--capsule .mediainfo-section__match-badge {
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.25) !important;
-  color: var(--accent) !important;
+  color: var(--accent-text) !important;
   border-radius: var(--radius-xs) !important;
   font-size: var(--fs-3xs, 9px) !important;
   font-weight: 600 !important;
@@ -464,20 +471,20 @@
   justify-content: center !important;
   border-radius: var(--radius-control) !important;
   border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08)) !important;
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--surface-level-3) !important;
   color: var(--text-secondary, #94a3b8) !important;
   transition: all var(--t-fast) var(--ease-smooth) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-section__copy-btn:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: var(--surface-level-3-hover) !important;
   color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: var(--border-hover) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-section__copy-btn--copied {
   background: rgba(74, 222, 128, 0.16) !important;
-  color: #4ade80 !important;
+  color: var(--success-text) !important;
   border-color: rgba(74, 222, 128, 0.4) !important;
 }
 
@@ -490,16 +497,16 @@
 }
 
 .mediainfo-standalone--capsule .mediainfo-row:hover {
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: var(--surface-level-3-hover) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-row__colon {
-  color: var(--accent) !important;
+  color: var(--accent-text) !important;
   opacity: 0.65 !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-row--match {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.18) !important;
+  background: var(--surface-accent-subtle) !important;
   color: #ffffff !important;
   border-radius: var(--radius-xs) !important;
 }
@@ -567,7 +574,7 @@
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  color: var(--accent) !important;
+  color: var(--accent-text) !important;
 }
 
 .mediainfo-floating-window--capsule .mediainfo-floating-window__actions {

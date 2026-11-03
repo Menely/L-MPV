@@ -364,7 +364,7 @@ export function DetailedMediaInfoModal({
             aria-label={dict.detailedMediaInfoModal.copyReport}
             disabled={!baseReport.rawText}
             >
-            {copied ? <Check size={14} color="#4ade80" /> : <Copy size={14} />}
+            {copied ? <Check size={14} color="var(--success-text)" /> : <Copy size={14} />}
           </button>
 
           {/* Экспорт в TXT */}
@@ -410,7 +410,7 @@ export function DetailedMediaInfoModal({
           <span
             style={{
               fontSize: "var(--fs-2xs)",
-              color: matchCount> 0 ? "var(--accent)" : "#f87171",
+              color: matchCount> 0 ? "var(--accent-text)" : "var(--danger-text)",
               padding: "0 4px",
               whiteSpace: "nowrap",
             }}
@@ -454,7 +454,7 @@ export function DetailedMediaInfoModal({
 
         {error && !loading && (
           <div className="mediainfo-floating-window__error">
-            <AlertCircle size={28} color="#f87171" />
+            <AlertCircle size={28} color="var(--danger-text)" />
             <div className="mediainfo-floating-window__error-msg">{error}</div>
           </div>
         )}

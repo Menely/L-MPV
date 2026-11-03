@@ -201,6 +201,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   }, [onClose]);
 
   useEffect(() => {
+    preloadPresetsSettings();
+    preloadUpscaleSettings();
     returnFocusRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
@@ -776,9 +778,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       )}
 
       {activeTab === "presets" && (
-        <div className="modal__section col">
-          <MemoizedPresetsSection onPresetApplied={handlePresetApplied} />
-        </div>
+        <MemoizedPresetsSection onPresetApplied={handlePresetApplied} />
       )}
 
       {activeTab === "upscaling" && (
@@ -870,7 +870,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             <span
               style={{
                 fontSize: "var(--fs-xs)",
-                color: isUpdateFound ? "var(--accent)" : "var(--text-muted)",
+                color: isUpdateFound ? "var(--accent-text)" : "var(--text-muted)",
                 marginLeft: "var(--space-2)",
               }}
             >
@@ -914,7 +914,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 fontSize: "var(--fs-xl)",
               }}
             >
-              <Settings size={20} color="var(--accent)" /> {dict.settings.title}
+              <Settings size={20} color="var(--accent-text, var(--accent))" /> {dict.settings.title}
             </h2>
             <button
               ref={closeButtonRef}
@@ -986,7 +986,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               className="settings-card settings-card--gear"
               aria-label={dict.settings.title}
             >
-              <Settings size={20} color="var(--accent)" />
+              <Settings size={20} color="var(--accent-text, var(--accent))" />
             </div>
 
             {/* Карточка 2: Вкладки */}
@@ -998,6 +998,10 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
+                    onMouseEnter={() => {
+                      if (tab.id === "presets") preloadPresetsSettings();
+                      if (tab.id === "upscaling") preloadUpscaleSettings();
+                    }}
                     className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
                     aria-label={tab.label}
                   >

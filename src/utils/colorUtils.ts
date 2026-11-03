@@ -4,256 +4,11 @@
  * палитры акцентных цветов, адаптивное неоновое свечение и динамическая гармонизация.
  */
 
-// ─── Темы оформления плеера (Цвет фона и поверхностей) ───────────────────────
+import { buildThemeRoles, colorRgb, mixColor, normalizeHex, onColor, readableColor, shiftLightness } from "./colorMath";
 
-export type PlayerThemeId =
-  | "graphite"
-  | "discord"
-  | "oled"
-  | "sapphire"
-  | "nord"
-  | "indigo"
-  | "emerald"
-  | "pine"
-  | "mint"
-  | "amethyst"
-  | "ruby";
-
-export interface PlayerThemeTokens {
-  bgPrimary: string;
-  bgSurface: string;
-  bgGlassRgb: string; // R, G, B для подложек со стеклом
-  bgPillRgb: string;   // R, G, B для нижней плавающей панели
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  border: string;
-  borderHover: string;
-}
-
-export interface PlayerThemeConfig {
-  id: PlayerThemeId;
-  name: string;
-  badge?: string;
-  desc: string;
-  dotColor: string;
-  surfaceColor: string;
-  tokens: PlayerThemeTokens;
-  recommendedAccents: string[];
-}
-
-export const PLAYER_THEMES: Record<PlayerThemeId, PlayerThemeConfig> = {
-  graphite: {
-    id: "graphite",
-    name: "Тёмный графит",
-    badge: "Стандарт",
-    desc: "Фирменный нейтральный графитовый стиль L-MPV",
-    dotColor: "#383f4c",
-    surfaceColor: "#13161d",
-    tokens: {
-      bgPrimary: "#0b0d12",
-      bgSurface: "#13161d",
-      bgGlassRgb: "19, 22, 29",
-      bgPillRgb: "19, 22, 29",
-      textPrimary: "rgba(255, 255, 255, 0.96)",
-      textSecondary: "rgba(255, 255, 255, 0.82)",
-      textMuted: "rgba(255, 255, 255, 0.55)",
-      border: "rgba(255, 255, 255, 0.07)",
-      borderHover: "rgba(255, 255, 255, 0.14)",
-    },
-    recommendedAccents: ["#7fc7ff", "#00FF9D", "#e8a236", "#6ee7b7", "#93c5fd", "#EAB308"],
-  },
-  oled: {
-    id: "oled",
-    name: "Глубокий OLED",
-    desc: "Абсолютно чёрный фон для максимальной контрастности и HDR",
-    dotColor: "#08080a",
-    surfaceColor: "#08080a",
-    tokens: {
-      bgPrimary: "#000000",
-      bgSurface: "#09090b",
-      bgGlassRgb: "9, 9, 11",
-      bgPillRgb: "9, 9, 11",
-      textPrimary: "rgba(255, 255, 255, 0.98)",
-      textSecondary: "rgba(255, 255, 255, 0.84)",
-      textMuted: "rgba(255, 255, 255, 0.55)",
-      border: "rgba(255, 255, 255, 0.09)",
-      borderHover: "rgba(255, 255, 255, 0.18)",
-    },
-    recommendedAccents: ["#00E5FF", "#00FF9D", "#FF2A5F", "#06B6D4", "#F43F5E", "#EAB308"],
-  },
-  sapphire: {
-    id: "sapphire",
-    name: "Сапфировая полночь",
-    desc: "Глубокий тёмно-синий океанский оттенок с кристальным текстом",
-    dotColor: "#223b68",
-    surfaceColor: "#0d1629",
-    tokens: {
-      bgPrimary: "#070c18",
-      bgSurface: "#0c1527",
-      bgGlassRgb: "13, 22, 41",
-      bgPillRgb: "13, 22, 41",
-      textPrimary: "rgba(240, 246, 255, 0.96)",
-      textSecondary: "rgba(205, 222, 250, 0.82)",
-      textMuted: "rgba(165, 190, 225, 0.55)",
-      border: "rgba(127, 199, 255, 0.09)",
-      borderHover: "rgba(127, 199, 255, 0.18)",
-    },
-    recommendedAccents: ["#7fc7ff", "#00E5FF", "#3B82F6", "#93c5fd", "#06B6D4", "#fed7aa"],
-  },
-  emerald: {
-    id: "emerald",
-    name: "Тёмный изумруд",
-    desc: "Благородный хвойно-нефритовый тон с чистой палитрой",
-    dotColor: "#1b5844",
-    surfaceColor: "#0b1f17",
-    tokens: {
-      bgPrimary: "#06130e",
-      bgSurface: "#0a1d15",
-      bgGlassRgb: "11, 31, 23",
-      bgPillRgb: "11, 31, 23",
-      textPrimary: "rgba(240, 255, 248, 0.96)",
-      textSecondary: "rgba(200, 240, 222, 0.82)",
-      textMuted: "rgba(155, 210, 185, 0.55)",
-      border: "rgba(110, 231, 183, 0.09)",
-      borderHover: "rgba(110, 231, 183, 0.18)",
-    },
-    recommendedAccents: ["#00FF9D", "#6ee7b7", "#10B981", "#a7f3d0", "#14B8A6", "#EAB308"],
-  },
-  amethyst: {
-    id: "amethyst",
-    name: "Аметист",
-    desc: "Благородный глубокий пурпурный стиль с лавандовым сиянием",
-    dotColor: "#552b7e",
-    surfaceColor: "#231338",
-    tokens: {
-      bgPrimary: "#160b24",
-      bgSurface: "#201133",
-      bgGlassRgb: "35, 19, 56",
-      bgPillRgb: "35, 19, 56",
-      textPrimary: "rgba(250, 244, 255, 0.96)",
-      textSecondary: "rgba(230, 212, 250, 0.82)",
-      textMuted: "rgba(195, 172, 225, 0.55)",
-      border: "rgba(196, 181, 253, 0.12)",
-      borderHover: "rgba(196, 181, 253, 0.22)",
-    },
-    recommendedAccents: ["#c4b5fd", "#8B5CF6", "#D946EF", "#f0abfc", "#fda4af", "#F43F5E"],
-  },
-  nord: {
-    id: "nord",
-    name: "Холодный Норд",
-    desc: "Арктический сланцево-стальной стиль с выверенным контрастом",
-    dotColor: "#354a66",
-    surfaceColor: "#151c27",
-    tokens: {
-      bgPrimary: "#0c1117",
-      bgSurface: "#131a24",
-      bgGlassRgb: "21, 28, 39",
-      bgPillRgb: "21, 28, 39",
-      textPrimary: "rgba(245, 249, 255, 0.96)",
-      textSecondary: "rgba(208, 224, 242, 0.82)",
-      textMuted: "rgba(162, 185, 212, 0.55)",
-      border: "rgba(125, 211, 252, 0.09)",
-      borderHover: "rgba(125, 211, 252, 0.18)",
-    },
-    recommendedAccents: ["#7dd3fc", "#5eead4", "#93c5fd", "#06B6D4", "#a7f3d0", "#A3E635"],
-  },
-  discord: {
-    id: "discord",
-    name: "Discord Gray",
-    desc: "Узнаваемый матовый тёмно-серый стиль Discord с фирменной палитрой",
-    dotColor: "#4e535e",
-    surfaceColor: "#2e3035",
-    tokens: {
-      bgPrimary: "#202225",
-      bgSurface: "#2e3035",
-      bgGlassRgb: "46, 48, 53",
-      bgPillRgb: "46, 48, 53",
-      textPrimary: "rgba(242, 243, 245, 0.96)",
-      textSecondary: "rgba(195, 200, 208, 0.82)",
-      textMuted: "rgba(155, 162, 172, 0.55)",
-      border: "rgba(255, 255, 255, 0.09)",
-      borderHover: "rgba(255, 255, 255, 0.18)",
-    },
-    recommendedAccents: ["#6366F1", "#00FF9D", "#7fc7ff", "#93c5fd", "#EAB308", "#8B5CF6"],
-  },
-  pine: {
-    id: "pine",
-    name: "Лесной шалфей",
-    desc: "Свежий природный шалфейно-хвойный стиль с мягким чистым контрастом",
-    dotColor: "#335e4c",
-    surfaceColor: "#1c352b",
-    tokens: {
-      bgPrimary: "#14261f",
-      bgSurface: "#1c352b",
-      bgGlassRgb: "28, 53, 43",
-      bgPillRgb: "28, 53, 43",
-      textPrimary: "rgba(242, 253, 247, 0.96)",
-      textSecondary: "rgba(198, 235, 216, 0.82)",
-      textMuted: "rgba(152, 200, 178, 0.55)",
-      border: "rgba(110, 231, 183, 0.13)",
-      borderHover: "rgba(110, 231, 183, 0.25)",
-    },
-    recommendedAccents: ["#00FF9D", "#6ee7b7", "#a7f3d0", "#10B981", "#bef264", "#fed7aa"],
-  },
-  mint: {
-    id: "mint",
-    name: "Мятный нефрит",
-    desc: "Прохладный бирюзово-мятный стиль с чистым неоновым сиянием",
-    dotColor: "#2c6563",
-    surfaceColor: "#1a3837",
-    tokens: {
-      bgPrimary: "#122827",
-      bgSurface: "#1a3837",
-      bgGlassRgb: "26, 56, 55",
-      bgPillRgb: "26, 56, 55",
-      textPrimary: "rgba(240, 255, 253, 0.96)",
-      textSecondary: "rgba(190, 242, 236, 0.82)",
-      textMuted: "rgba(145, 208, 202, 0.55)",
-      border: "rgba(94, 234, 212, 0.13)",
-      borderHover: "rgba(94, 234, 212, 0.25)",
-    },
-    recommendedAccents: ["#5eead4", "#14B8A6", "#00E5FF", "#06B6D4", "#a7f3d0", "#10B981"],
-  },
-  ruby: {
-    id: "ruby",
-    name: "Коралловый закат",
-    desc: "Тёплый пастельно-коралловый закатный стиль с мягким гармоничным светом",
-    dotColor: "#6b3240",
-    surfaceColor: "#341b22",
-    tokens: {
-      bgPrimary: "#241318",
-      bgSurface: "#341b22",
-      bgGlassRgb: "52, 27, 34",
-      bgPillRgb: "52, 27, 34",
-      textPrimary: "rgba(255, 245, 247, 0.96)",
-      textSecondary: "rgba(250, 214, 222, 0.82)",
-      textMuted: "rgba(225, 176, 186, 0.55)",
-      border: "rgba(251, 113, 133, 0.13)",
-      borderHover: "rgba(251, 113, 133, 0.25)",
-    },
-    recommendedAccents: ["#FF2A5F", "#F43F5E", "#fda4af", "#fca5a5", "#fed7aa", "#fdba74"],
-  },
-  indigo: {
-    id: "indigo",
-    name: "Лавандовый индиго",
-    desc: "Элегантный лавандово-индиговый вечерний стиль с бархатной глубиной",
-    dotColor: "#43477e",
-    surfaceColor: "#242646",
-    tokens: {
-      bgPrimary: "#181932",
-      bgSurface: "#242646",
-      bgGlassRgb: "36, 38, 70",
-      bgPillRgb: "36, 38, 70",
-      textPrimary: "rgba(248, 248, 255, 0.96)",
-      textSecondary: "rgba(218, 218, 252, 0.82)",
-      textMuted: "rgba(178, 178, 228, 0.55)",
-      border: "rgba(129, 140, 248, 0.13)",
-      borderHover: "rgba(129, 140, 248, 0.25)",
-    },
-    recommendedAccents: ["#6366F1", "#c4b5fd", "#8B5CF6", "#93c5fd", "#06B6D4", "#f0abfc"],
-  },
-};
+import { PLAYER_THEMES, type PlayerThemeId } from "./playerPalettes";
+export { PLAYER_THEMES, PASTEL_PRESETS, STANDARD_PRESETS } from "./playerPalettes";
+export type { PlayerThemeId, PlayerThemeConfig, PlayerThemeTokens } from "./playerPalettes";
 
 export const PLAYER_THEME_STORAGE_KEY = "l-mpv-player-theme";
 export const DEFAULT_PLAYER_THEME: PlayerThemeId = "graphite";
@@ -370,44 +125,6 @@ export function savePlayerTheme(themeId: string): void {
 }
 
 // ─── Пресеты акцентных цветов ───────────────────────────────────────────────
-
-export const PASTEL_PRESETS = [
-  "#7fc7ff", // 1. Original Soft Blue (Default)
-  "#e8a236", // 2. Warm Amber / Gold
-  "#f9a8d4", // 3. Soft Pink
-  "#c4b5fd", // 4. Soft Lavender
-  "#6ee7b7", // 5. Soft Mint
-  "#fde047", // 6. Soft Cream Yellow
-  "#fca5a5", // 7. Soft Coral Pink
-  "#7dd3fc", // 8. Soft Sky
-  "#fdba74", // 9. Soft Peach
-  "#5eead4", // 10. Soft Turquoise Teal
-  "#f0abfc", // 11. Soft Lilac Magenta
-  "#bef264", // 12. Soft Pastel Lime
-  "#a7f3d0", // 13. Soft Jade Mint
-  "#fed7aa", // 14. Soft Warm Apricot
-  "#93c5fd", // 15. Soft Cornflower Ice
-  "#fda4af", // 16. Soft Sakura Rose
-];
-
-export const STANDARD_PRESETS = [
-  "#00FF9D", // Cyber Emerald / Neon Green
-  "#00E5FF", // Cyber Cyan / Electric Blue
-  "#3B82F6", // Deep Royal Blue
-  "#8B5CF6", // Electric Violet
-  "#D946EF", // Vivid Fuchsia
-  "#FF2A5F", // Crimson / Neon Red
-  "#FF5722", // Electric Orange
-  "#FFB300", // Bright Sun / Amber
-  "#A3E635", // Lime Punch
-  "#14B8A6", // Rich Teal
-  "#EC4899", // Deep Pink / Rose
-  "#6366F1", // Indigo
-  "#F43F5E", // Radiant Coral Rose
-  "#06B6D4", // Ocean Blue Cyan
-  "#EAB308", // Pure Amber Gold
-  "#10B981", // Pure Mint Emerald
-];
 
 export const MAX_CUSTOM_COLORS = 15;
 const CUSTOM_COLORS_STORAGE_KEY = "l-mpv-custom-accent-colors";
@@ -540,10 +257,7 @@ export function rgbToHsl(r: number, g: number, b: number): { h: number; s: numbe
 
 // Изменение яркости цвета
 export function adjustBrightness(hex: string, percent: number): string {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return hex;
-  const factor = 1 + percent / 100;
-  return rgbToHex(rgb.r * factor, rgb.g * factor, rgb.b * factor);
+  return normalizeHex(hex) ? shiftLightness(hex, percent / 250) : hex;
 }
 
 // ─── Интенсивность неонового свечения (Glow Intensity) ───────────────────────
@@ -623,14 +337,64 @@ export function applyAccentColor(value: string): void {
   isApplyingAccent = true;
   try {
     const root = document.documentElement;
-    const hex = value === "windows" || !value.startsWith("#") ? getEffectiveAccentColor() : value;
+    const hex = normalizeHex(value === "windows" ? getEffectiveAccentColor() : value) || "#7fc7ff";
 
     const hover = adjustBrightness(hex, 15);
     const dim = adjustBrightness(hex, -25);
     const dark = adjustBrightness(hex, -45);
 
     const intensity = getGlowIntensity();
-    const isOled = getSavedPlayerTheme() === "oled";
+    const activeTheme = root.getAttribute("data-player-theme") as PlayerThemeId | null;
+    const theme = PLAYER_THEMES[activeTheme || getSavedPlayerTheme()] || PLAYER_THEMES.graphite;
+    const isOled = theme.id === "oled";
+    const roles = buildThemeRoles(theme.tokens.bgSurface, theme.tokens.bgGlassRgb, hex);
+    const borderRgb = colorRgb(mixColor("#c6d0dd", hex, 0.12)).join(", ");
+
+    roles.levels.forEach((color, depth) => {
+      root.style.setProperty(`--surface-tone-${depth}`, color);
+      root.style.setProperty(`--surface-hover-${depth}`, roles.hoverLevels[depth]);
+      root.style.setProperty(`--surface-inset-${depth}`, roles.insetLevels[depth]);
+      root.style.setProperty(`--surface-selected-${depth}`, roles.selectedLevels[depth]);
+      root.style.setProperty(`--surface-selected-hover-${depth}`, roles.selectedHoverLevels[depth]);
+    });
+    root.style.setProperty("--surface-root-glass", "rgba(var(--bg-glass-rgb), var(--ui-opacity, 0.88))");
+    root.style.setProperty("--surface-card", "var(--surface-fill-1)");
+    root.style.setProperty("--surface-card-hover", "var(--surface-fill-hover-1)");
+    root.style.setProperty("--surface-card-selected", "var(--surface-fill-selected-1)");
+    root.style.setProperty("--surface-card-selected-hover", "var(--surface-fill-selected-hover-1)");
+    root.style.setProperty("--surface-child", "var(--surface-fill-2)");
+
+    root.style.setProperty("--bg-elevated-rgb", colorRgb(roles.elevated).join(", "));
+    root.style.setProperty("--bg-elevated", `rgba(${colorRgb(roles.elevated).join(", ")}, var(--ui-opacity, 0.88))`);
+    root.style.setProperty("--bg-surface-elevated", "var(--bg-elevated)");
+    root.style.setProperty("--surface-level-2", "var(--surface-fill-1)");
+    root.style.setProperty("--surface-level-3", "var(--surface-fill-2)");
+    root.style.setProperty("--surface-level-3-hover", "var(--surface-fill-hover-2)");
+    root.style.setProperty("--bg-card", "var(--surface-level-3)");
+    root.style.setProperty("--text-primary", roles.primary);
+    root.style.setProperty("--text-secondary", roles.secondary);
+    root.style.setProperty("--text-muted", roles.muted);
+    root.style.setProperty("--text", "var(--text-primary)");
+    root.style.setProperty("--text-tertiary", "var(--text-muted)");
+    root.style.setProperty("--accent-text", roles.accentText);
+    root.style.setProperty("--on-accent", onColor(hex));
+    root.style.setProperty("--on-accent-hover", onColor(hover));
+    root.style.setProperty("--focus-ring", readableColor(hex, roles.backgrounds, 3));
+    root.style.setProperty("--border", `rgba(${borderRgb}, 0.16)`);
+    root.style.setProperty("--border-default", "var(--border)");
+    root.style.setProperty("--border-subtle", `rgba(${borderRgb}, 0.10)`);
+    root.style.setProperty("--border-hover", `rgba(${borderRgb}, 0.28)`);
+    root.style.setProperty("--surface-accent-subtle", "var(--surface-fill-selected-1)");
+    root.style.setProperty("--surface-accent-hover", "var(--surface-fill-selected-hover-1)");
+    root.style.setProperty("--surface-accent-border", "var(--focus-ring)");
+    for (const [name, color] of Object.entries({ success: "#8dcbb2", warning: "#e0b77e", danger: "#e6a0aa", info: "#8ebce6" })) {
+      const statusRgb = colorRgb(color).join(", ");
+      const statusBackgrounds = roles.backgrounds.map(bg => mixColor(bg, color, 0.10));
+      root.style.setProperty(`--${name}-text`, readableColor(color, statusBackgrounds));
+      root.style.setProperty(`--${name}-surface`, `rgba(${statusRgb}, 0.10)`);
+      root.style.setProperty(`--${name}-border`, `rgba(${statusRgb}, 0.32)`);
+      root.style.setProperty(`--${name}-glow`, intensity === "off" ? "transparent" : `rgba(${statusRgb}, 0.20)`);
+    }
 
     const rgb = hexToRgb(hex) || { r: 127, g: 199, b: 255 };
     const rgbString = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
@@ -642,11 +406,13 @@ export function applyAccentColor(value: string): void {
     root.style.setProperty("--glow-intensity", intensity);
     root.style.setProperty("--accent-rgb", rgbString);
     root.style.setProperty("--accent-glow", glowAlpha > 0 ? `rgba(${rgbString}, ${glowAlpha})` : "transparent");
-    root.style.setProperty("--accent-glass", `rgba(${rgbString}, 0.10)`);
-    root.style.setProperty("--border-pill", `rgba(${rgbString}, 0.16)`);
-    root.style.setProperty("--border-pill-hover", `rgba(${rgbString}, 0.35)`);
-    root.style.setProperty("--bg-hover", `rgba(${rgbString}, 0.09)`);
-    root.style.setProperty("--bg-active", `rgba(${rgbString}, 0.15)`);
+    root.style.setProperty("--surface-accent-glow", glowAlpha > 0 ? `rgba(${rgbString}, ${glowAlpha * 0.45})` : "transparent");
+    root.style.setProperty("--accent-glass", "var(--surface-accent-subtle)");
+    const interactionRgb = colorRgb(readableColor(hex, roles.backgrounds, 3)).join(", ");
+    root.style.setProperty("--border-pill", `rgba(${interactionRgb}, 0.18)`);
+    root.style.setProperty("--border-pill-hover", `rgba(${interactionRgb}, 0.45)`);
+    root.style.setProperty("--bg-hover", "var(--surface-level-3-hover)");
+    root.style.setProperty("--bg-active", "var(--surface-accent-hover)");
 
     root.style.setProperty("--shadow-glow", profile ? profile.shadow(rgbString) : "none");
     root.style.setProperty("--thumb-glow", profile ? profile.thumb(rgbString) : "none");

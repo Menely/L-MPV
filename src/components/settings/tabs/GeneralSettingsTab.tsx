@@ -241,13 +241,13 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
     [audioLatencyFix, runSetting],
   );
 
-  // Стиль карточки подблока с парящей тенью и полупрозрачным фоном темы
+  // Собственный тон карточки определяется её глубиной в текущей теме.
   const cardStyle: React.CSSProperties = {
     display: "flex",
     flexDirection: "column",
     gap: 8,
     padding: "12px 14px",
-    background: "rgba(255, 255, 255, 0.025)",
+    background: "var(--surface-card)",
     borderRadius: "var(--radius-md)",
     border: "1px solid var(--border)",
     boxShadow: "var(--shadow-card)",
@@ -265,7 +265,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         title={dict.settings.general.languageSection}
         >
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
-          <div style={cardStyle}>
+          <div style={cardStyle} className="theme-card">
             <SectionHeader
               icon={<Globe size={14} />}
               title={dict.settings.general.languageTitle}
@@ -293,7 +293,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                     padding: "2px 5px",
                     borderRadius: "4px",
                     background: locale === "ru" ? "var(--accent)" : "rgba(255, 255, 255, 0.08)",
-                    color: locale === "ru" ? "#000" : "var(--text-muted)",
+                    color: locale === "ru" ? "var(--on-accent)" : "var(--text-muted)",
                     lineHeight: 1,
                   }}
                   >
@@ -330,7 +330,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                     padding: "2px 5px",
                     borderRadius: "4px",
                     background: locale === "en" ? "var(--accent)" : "rgba(255, 255, 255, 0.08)",
-                    color: locale === "en" ? "#000" : "var(--text-muted)",
+                    color: locale === "en" ? "var(--on-accent)" : "var(--text-muted)",
                     lineHeight: 1,
                   }}
                   >
@@ -359,7 +359,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         title={dict.settings.general.screenshotsSection}
         >
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
-          <div style={cardStyle}>
+          <div style={cardStyle} className="theme-card">
             <SectionHeader
               icon={<Camera size={14} />}
               title={dict.settings.general.screenshotFolder}
@@ -445,7 +445,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
           
           {/* 1.1 Поведение по окончании видео (Сегментный селектор) */}
-          <div style={cardStyle}>
+          <div style={cardStyle} className="theme-card">
             <SectionHeader
               icon={<Film size={14} />}
               title={dict.settings.general.endOfVideoTitle}
@@ -500,7 +500,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
           </div>
 
           {/* 1.2 Режим нескольких окон (Multi-instance) */}
-          <div style={cardStyle}>
+          <div style={cardStyle} className="theme-card">
             <label className="option-row">
               <input
                 type="checkbox"
@@ -527,7 +527,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 </div>
                 <span className="t-label-xs">
                   {dict.settings.general.multiInstanceDesc}
-                  <span style={{ color: "var(--accent)", marginLeft: "var(--space-2)" }}>
+                  <span style={{ color: "var(--accent-text)", marginLeft: "var(--space-2)" }}>
                     {dict.settings.general.multiInstanceRestart}
                   </span>
                 </span>
@@ -536,7 +536,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
           </div>
 
           {/* 1.3 Скрытие интерфейса в полноэкранном режиме */}
-          <div style={cardStyle}>
+          <div style={cardStyle} className="theme-card">
             <label className="option-row">
               <input
                 type="checkbox"
@@ -577,7 +577,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
           
           {/* 2.1 Автоматический подхват внешних дорожек */}
-          <div style={cardStyle}>
+          <div style={cardStyle} className="theme-card">
             <label className="option-row">
               <input
                 type="checkbox"
@@ -655,7 +655,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
           </div>
 
           {/* 2.2 Хотлоад дорожек перетаскиванием (Drag & Drop) */}
-          <div style={cardStyle}>
+          <div style={cardStyle} className="theme-card">
             <label className="option-row">
               <input
                 type="checkbox"
@@ -684,7 +684,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
           </div>
 
           {/* 2.3 Названия дорожек на панели управления */}
-          <div style={cardStyle}>
+          <div style={cardStyle} className="theme-card">
             <label className="option-row">
               <input
                 type="checkbox"
@@ -713,7 +713,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
           </div>
 
           {/* 2.4 Привязка субтитров к интерфейсу */}
-          <div style={cardStyle}>
+          <div style={cardStyle} className="theme-card">
             <label className="option-row">
               <input
                 type="checkbox"
@@ -757,7 +757,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
           </div>
 
           {/* 2.5 Папка для извлечения аудио и субтитров */}
-          <div style={cardStyle}>
+          <div style={cardStyle} className="theme-card">
             <label className="option-row">
               <input
                 type="checkbox"
@@ -791,7 +791,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
           </div>
 
           {/* 2.6 Звуковая тепловая карта (Waveform Activity Strip) */}
-          <div style={cardStyle}>
+          <div style={cardStyle} className="theme-card">
             <label className="option-row">
               <input
                 type="checkbox"

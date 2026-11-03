@@ -103,7 +103,7 @@
 
 .time-display--floating-center:hover {
   background: var(--bg-elevated);
-  border-color: var(--accent);
+  border-color: var(--accent-text, var(--accent));
   color: #ffffff;
   box-shadow: var(--shadow-card-hover);
   transform: translateY(-1px);
@@ -248,7 +248,7 @@
   border-radius: 50%;
   background: transparent;
   border: 1.5px solid var(--accent);
-  box-shadow: 0 0 6px var(--accent-glow, var(--accent));
+  box-shadow: 0 0 6px var(--accent-glow, var(--surface-accent-glow));
   pointer-events: none;
   z-index: var(--z-in-pulse);
   will-change: transform, opacity;
@@ -367,7 +367,7 @@ html.no-animations .timeline__pulse {
 
 .control-btn:hover {
   background: transparent;
-  color: var(--accent-hover, var(--accent));
+  color: var(--accent-text);
   transform: translateZ(0) scale(1.08);
   box-shadow: none;
 }
@@ -407,7 +407,7 @@ html.no-animations .timeline__pulse {
   position: relative;
   width: 38px;
   height: 38px;
-  color: var(--accent);
+  color: var(--accent-text);
   background: transparent;
   box-shadow: none;
   transform-origin: center center;
@@ -447,7 +447,7 @@ html.no-animations .timeline__pulse {
 }
 
 .control-btn--play:hover {
-  color: var(--accent-hover, var(--accent));
+  color: var(--accent-text);
   background: transparent;
   transform: translateZ(0) scale(1.08);
   box-shadow: none;
@@ -486,14 +486,14 @@ html.no-animations .timeline__pulse {
 }
 
 .control-btn--active {
-  color: var(--accent);
+  color: var(--accent-text);
   background: transparent;
   box-shadow: none;
 }
 
 .control-btn--active:hover {
   background: transparent;
-  color: var(--accent-hover, var(--accent));
+  color: var(--accent-text);
 }
 
 .control-btn--active svg {
@@ -508,7 +508,7 @@ html.no-animations .timeline__pulse {
 /* ─── Текстовые метки (время, кадры) ─────────────────── */
 .time-display {
   font-size: var(--fs-sm, 0.78rem);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
@@ -528,8 +528,8 @@ html.no-animations .timeline__pulse {
 }
 
 .time-display:hover {
-  background: rgba(var(--accent-rgb), 0.14);
-  color: var(--accent-hover, var(--accent));
+  background: var(--surface-accent-hover);
+  color: var(--accent-text);
 }
 
 .time-display:active {
@@ -638,7 +638,7 @@ html.no-animations .timeline__pulse {
 
 /* Видимое кольцо фокуса для клавиатурной навигации */
 .volume-slider__input:focus-visible {
-  outline: 2px solid var(--accent) !important;
+  outline: 2px solid var(--focus-ring) !important;
   outline-offset: 2px !important;
   border-radius: var(--radius-xs, 4px);
 }
@@ -846,7 +846,7 @@ html[data-glow="off"] .timeline__thumb {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent, #00e5a3);
+  color: var(--accent-text);
   flex-shrink: 0;
   transition: transform 0.15s ease;
 }
@@ -1023,7 +1023,7 @@ html[data-glow="off"] .timeline__thumb {
 
 .waveform-activity-strip__badge-metric {
   font-weight: 600;
-  color: var(--accent, #3b82f6);
+  color: var(--accent-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1036,7 +1036,7 @@ html[data-glow="off"] .timeline__thumb {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-surface-elevated, rgba(15, 23, 42, 0.88));
+  background: var(--surface-level-3);
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -1083,6 +1083,7 @@ html[data-glow="off"] .timeline__thumb {
 .waveform-activity-strip__retry-btn:hover {
   background: var(--accent, #3b82f6);
   border-color: var(--accent, #3b82f6);
+  color: var(--on-accent, #101216);
 }
 
 

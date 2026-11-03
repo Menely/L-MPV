@@ -24,7 +24,11 @@ export type VisualizerTheme =
   | "crimson"
   | "mint"
   | "violet"
-  | "gold";
+  | "gold"
+  | "fire"
+  | "ice"
+  | "matrix"
+  | "plasma";
 
 export interface VisualizerConfig {
   enabled: boolean;
@@ -177,6 +181,34 @@ export function getVisualizerThemeColors(theme: VisualizerTheme): {
       secondary: "#F59E0B",
       tertiary: "#92400E",
       glow: "rgba(251, 191, 36, 0.55)",
+    };
+  } else if (theme === "fire") {
+    return {
+      primary: "#FF3B00",
+      secondary: "#FF8800",
+      tertiary: "#FFE600",
+      glow: "rgba(255, 59, 0, 0.55)",
+    };
+  } else if (theme === "ice") {
+    return {
+      primary: "#A5F3FC",
+      secondary: "#38BDF8",
+      tertiary: "#1D4ED8",
+      glow: "rgba(165, 243, 252, 0.55)",
+    };
+  } else if (theme === "matrix") {
+    return {
+      primary: "#00FF66",
+      secondary: "#10B981",
+      tertiary: "#064E3B",
+      glow: "rgba(0, 255, 102, 0.55)",
+    };
+  } else if (theme === "plasma") {
+    return {
+      primary: "#F472B6",
+      secondary: "#A855F7",
+      tertiary: "#3B82F6",
+      glow: "rgba(244, 114, 182, 0.55)",
     };
   } else {
     let primary = "#7fc7ff";

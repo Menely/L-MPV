@@ -15,7 +15,7 @@ export const optionCardStyle: React.CSSProperties = {
   position: "relative",
   gap: 8,
   padding: "10px 12px",
-  background: "rgba(255, 255, 255, 0.025)",
+  background: "var(--surface-card)",
   borderRadius: "var(--radius-md)",
   border: "1px solid var(--border)",
   boxShadow: "var(--shadow-card)",
@@ -46,13 +46,13 @@ export const optionBtnStyle = (isSel: boolean, padding = "6px 4px"): React.CSSPr
   gap: 3,
   padding,
   borderRadius: "var(--radius-control)",
-  border: isSel ? "1.5px solid var(--accent)" : "1.5px solid rgba(255, 255, 255, 0.06)",
+  border: isSel ? "1.5px solid var(--focus-ring)" : "1.5px solid var(--border-subtle)",
   cursor: "pointer",
-  background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
+  background: isSel ? "var(--surface-accent-subtle)" : "var(--surface-level-3)",
   color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
   fontWeight: 500,
   boxShadow: isSel
-    ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+    ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1px var(--focus-ring)"
     : "0 1px 3px rgba(0, 0, 0, 0.2)",
   transition:
     "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",

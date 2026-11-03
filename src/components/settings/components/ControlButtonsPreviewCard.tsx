@@ -57,8 +57,8 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             display: "flex",
             alignItems: "center",
             gap: "var(--space-0)",
-            color: "var(--accent)",
-            background: "rgba(255, 255, 255, 0.06)",
+            color: "var(--accent-text)",
+            background: "var(--surface-level-3)",
             borderRadius: "var(--radius-xs, 4px)",
             fontSize: "var(--fs-3xs)",
             fontWeight: 600,
@@ -83,8 +83,8 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             display: "flex",
             alignItems: "center",
             gap: "var(--space-0)",
-            color: "var(--accent)",
-            background: "rgba(255, 255, 255, 0.06)",
+            color: "var(--accent-text)",
+            background: "var(--surface-level-3)",
             borderRadius: "var(--radius-xs, 4px)",
             fontSize: "var(--fs-3xs)",
             fontWeight: 600,
@@ -139,7 +139,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             style={{
               fontSize: "var(--fs-sm)",
               fontWeight: 700,
-              color: "var(--accent)",
+              color: "var(--accent-text)",
               textShadow: "0 0 10px var(--accent-glow)",
             }}
             >
@@ -242,7 +242,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             {isBtnVisible("repeat", true) && (
               <div
                 title={dict.settings.appearance.controlButtons.repeat}
-                style={{ ...roundIconBtnStyle, color: "var(--accent)" }}
+                style={{ ...roundIconBtnStyle, color: "var(--accent-text)" }}
                 >
                 <Repeat size={12} />
               </div>
@@ -268,7 +268,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "var(--accent)",
+                color: "var(--accent-text)",
                 filter: "drop-shadow(0 0 6px var(--accent-glow))",
                 borderRadius: "var(--radius-control)",
               }}

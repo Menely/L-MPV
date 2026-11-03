@@ -148,9 +148,9 @@ export const VerticalSlider = memo(function VerticalSlider({
           borderRadius: 999,
           background: "var(--accent)",
           boxShadow: isDragging
-            ? "0 0 8px var(--accent)"
+            ? "var(--timeline-glow)"
             : isHovered
-            ? "0 0 6px rgba(var(--accent-rgb, 127, 199, 255), 0.5)"
+            ? "var(--timeline-glow)"
             : "none",
           filter: isHovered || isDragging ? "brightness(1.15)" : "none",
           transition: isDragging ? "none" : "height 0.08s ease, box-shadow var(--t-fast, 0.15s) ease, filter var(--t-fast, 0.15s) ease",
@@ -166,11 +166,7 @@ export const VerticalSlider = memo(function VerticalSlider({
           height: 12,
           borderRadius: "50%",
           background: "var(--accent)",
-          boxShadow: isDragging
-            ? "0 0 12px var(--accent), 0 0 2px #fff"
-            : isHovered
-            ? "0 0 12px var(--accent)"
-            : "0 0 6px rgba(var(--accent-rgb, 127, 199, 255), 0.45)",
+          boxShadow: "var(--thumb-glow)",
           transform: isDragging
             ? "translateX(-50%) scale(1.1)"
             : isHovered

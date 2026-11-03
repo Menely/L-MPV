@@ -20,12 +20,16 @@
   --accent-hover:    #99d4ff;
   --accent-dim:      #5ba8e6;
   --accent-dark:     #3a7cb8;
+  --accent-text:     #7fc7ff;
+  --on-accent:       #101216;
+  --on-accent-hover: #101216;
+  --focus-ring:      #7fc7ff;
   --accent-glow:     rgba(127, 199, 255, 0.30);
   --accent-glass:    rgba(127, 199, 255, 0.08);
 
   /* Токены поверхностей с перцептивной прозрачностью (CSS Color 4) */
-  --surface-accent-subtle: color-mix(in srgb, var(--accent) 16%, transparent);
-  --surface-accent-hover:  color-mix(in srgb, var(--accent) 22%, transparent);
+  --surface-accent-subtle: color-mix(in srgb, var(--accent) 10%, transparent);
+  --surface-accent-hover:  color-mix(in srgb, var(--accent) 12%, transparent);
   --surface-accent-glow:   color-mix(in srgb, var(--accent) 35%, transparent);
   --surface-accent-border: color-mix(in srgb, var(--accent) 40%, transparent);
 
@@ -37,16 +41,44 @@
   --bg-modal-solid: #11141c;
   --bg-pill-rgb:    19, 22, 29;
   --bg-glass-rgb:   19, 22, 29;
+  --surface-root-glass: rgba(var(--bg-glass-rgb), var(--ui-opacity, 0.88));
+  --surface-tone-0: #13161d;
+  --surface-tone-1: #1b1f28;
+  --surface-tone-2: #232833;
+  --surface-tone-3: #2c323e;
+  --surface-tone-4: #353d4a;
+  --surface-hover-0: #191c24;
+  --surface-hover-1: #202530;
+  --surface-hover-2: #292f3a;
+  --surface-hover-3: #323947;
+  --surface-hover-4: #3b4352;
+  --surface-selected-0: #1b2430;
+  --surface-selected-1: #232d3a;
+  --surface-selected-2: #2c3745;
+  --surface-selected-3: #354151;
+  --surface-selected-4: #3f4c5e;
+  --surface-selected-hover-0: #202936;
+  --surface-selected-hover-1: #283340;
+  --surface-selected-hover-2: #313d4c;
+  --surface-selected-hover-3: #3a4758;
+  --surface-selected-hover-4: #445264;
+  --surface-card: var(--surface-fill-1);
+  --surface-child: var(--surface-fill-2);
+  --bg-elevated-rgb: 25, 28, 35;
   --bg-pill:        rgba(var(--bg-pill-rgb, 14, 18, 26), var(--ui-opacity, 0.88));
   --bg-glass:       rgba(var(--bg-glass-rgb, 18, 22, 32), var(--ui-opacity, 0.88));
-  --bg-elevated:    rgba(var(--bg-glass-rgb, 18, 22, 32), var(--ui-opacity, 0.88));
+  --bg-elevated:    rgba(var(--bg-elevated-rgb), var(--ui-opacity, 0.88));
+  --bg-surface-elevated: var(--bg-elevated);
+  --bg-card: var(--surface-level-3);
   --bg-hover:       rgba(127, 199, 255, 0.08);
   --bg-active:      rgba(127, 199, 255, 0.14);
 
   /* Текст (калибровка контраста под 96 DPI мониторы Full HD) */
-  --text-primary:   rgba(255, 255, 255, 0.96);
-  --text-secondary: rgba(255, 255, 255, 0.82);
-  --text-muted:     rgba(255, 255, 255, 0.55);
+  --text-primary:   #e8ebf0;
+  --text-secondary: #b8c2cf;
+  --text-muted:     #9da8b7;
+  --text: var(--text-primary);
+  --text-tertiary: var(--text-muted);
 
   /* Бордеры и Контуры */
   --border:         rgba(255, 255, 255, 0.08);
@@ -203,6 +235,22 @@
      парой в проекте. Теперь шаг осмысленный и повторяемый. */
 
   /* ─── Служебные цвета ─────────────────────────────────────────────── */
+  --success-text: #8dcbb2;
+  --success-glow: rgba(141, 203, 178, 0.20);
+  --success-surface: rgba(141, 203, 178, 0.10);
+  --success-border: rgba(141, 203, 178, 0.32);
+  --warning-text: #e0b77e;
+  --warning-glow: rgba(224, 183, 126, 0.20);
+  --warning-surface: rgba(224, 183, 126, 0.10);
+  --warning-border: rgba(224, 183, 126, 0.32);
+  --danger-text: #e6a0aa;
+  --danger-glow: rgba(230, 160, 170, 0.20);
+  --danger-surface: rgba(230, 160, 170, 0.10);
+  --danger-border: rgba(230, 160, 170, 0.32);
+  --info-text: #8ebce6;
+  --info-glow: rgba(142, 188, 230, 0.20);
+  --info-surface: rgba(142, 188, 230, 0.10);
+  --info-border: rgba(142, 188, 230, 0.32);
 
   /* ─── Слои наложения (z-index) ───────────────────────────────────────
      Каждый токен сохраняет ТОЧНО то число, которое стояло в коде до его

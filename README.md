@@ -110,6 +110,24 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 
 ---
 
+## Appearance and color system
+
+- 15 player themes, 16 pastel accents and 16 saturated standard accents, with recommendation dots for matching colors. Custom and Windows accents remain supported.
+- Nested cards use five coordinated surface tones. Text, focus rings and text on filled buttons have separate contrast-aware roles.
+- Hover and selection follow the theme and nesting depth. Disabling decorative glow preserves selection and keyboard focus rings.
+- Global opacity affects panel backgrounds; nested cards, dropdowns and interaction highlights respond more gently to retain readability. Text and icons stay opaque.
+- Heatmap palettes include Sunset, Aurora, Ocean and Plasma, with matching settings previews and localized labels.
+
+Color-system regression checks (after `npm ci`):
+
+```sh
+node scripts/check-color-system.cjs
+node scripts/check-interaction-states.cjs
+node scripts/check-surface-opacity.cjs
+```
+
+Contrast checks use reference surface colors; readability over video also depends on the frame and chosen opacity.
+
 ## ✨ Key Features
 
 <details>

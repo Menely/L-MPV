@@ -133,7 +133,7 @@ export const SubtitleMetaBadges = memo(function SubtitleMetaBadges({
           style={
             speechMetrics.isTooFast
               ? {
-                  color: "#f87171",
+                  color: "var(--danger-text)",
                   borderColor: "rgba(239, 68, 68, 0.45)",
                   background: "rgba(239, 68, 68, 0.12)",
                 }

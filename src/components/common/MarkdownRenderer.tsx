@@ -361,7 +361,7 @@ const MarkdownDetails: React.FC<MarkdownDetailsProps> = ({ summary, innerBlocks,
     <div
       style={{
         margin: "8px 0",
-        background: "rgba(255, 255, 255, 0.025)",
+        background: "var(--surface-level-2)",
         border: "1px solid rgba(255, 255, 255, 0.09)",
         borderRadius: "var(--radius-sm, 6px)",
         overflow: "hidden",
@@ -394,7 +394,7 @@ const MarkdownDetails: React.FC<MarkdownDetailsProps> = ({ summary, innerBlocks,
           style={{
             transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
             transition: "transform 0.18s ease",
-            color: "var(--accent, #60a5fa)",
+            color: "var(--accent-text)",
             flexShrink: 0,
           }}
         />
@@ -492,7 +492,7 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
             margin: "10px 0",
             padding: "8px 14px",
             borderLeft: "3px solid var(--accent, #3b82f6)",
-            background: "rgba(255, 255, 255, 0.03)",
+            background: "var(--surface-level-2)",
             borderRadius: "0 var(--radius-xs) var(--radius-xs) 0",
             color: "var(--text-secondary, #d1d5db)",
             fontStyle: "italic",
@@ -526,7 +526,7 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
             }}
             >
             <thead>
-              <tr style={{ background: "rgba(255, 255, 255, 0.06)" }}>
+              <tr style={{ background: "var(--surface-level-3)" }}>
                 {block.headers.map((h, hIdx) => (
                   <th
                     key={hIdx}
@@ -604,7 +604,7 @@ function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | 
                 ) : block.ordered ? (
                   <span
                     style={{
-                      color: "var(--accent, #60a5fa)",
+                      color: "var(--accent-text)",
                       fontWeight: 600,
                       minWidth: "16px",
                       flexShrink: 0,
@@ -675,7 +675,7 @@ const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = 
         style={{
           margin: "8px 0",
           padding: "8px 12px",
-          background: "rgba(255, 255, 255, 0.04)",
+          background: "var(--surface-level-3)",
           border: "1px dashed rgba(255, 255, 255, 0.15)",
           borderRadius: "var(--radius-sm)",
           display: "inline-flex",
@@ -794,7 +794,7 @@ const renderLink = (url: string, label: string | React.ReactNode, key: string, h
       openUrl(url).catch((err) => console.error("Ошибка открытия ссылки:", err));
     }}
     style={{
-      color: "var(--accent, #60a5fa)",
+      color: "var(--accent-text)",
       textDecoration: "underline",
       textUnderlineOffset: "3px",
       cursor: "pointer",
@@ -904,7 +904,7 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
         <code
           key={key}
           style={{
-            background: "rgba(255, 255, 255, 0.08)",
+            background: "var(--surface-level-3-hover)",
             padding: "2px 6px",
             borderRadius: "var(--radius-xs)",
             fontSize: "0.85em",

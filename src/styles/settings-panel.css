@@ -51,7 +51,7 @@
 /* ─── Карточки опций в панели настроек ─── */
 .option-card {
   position: relative;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
@@ -60,10 +60,7 @@
               background var(--t-fast) var(--ease-smooth);
 }
 
-.option-card:hover {
-  border-color: var(--border-hover);
-  box-shadow: var(--shadow-card-hover) !important;
-}
+/* Options inside a card carry their own hover/focus, not its outer frame. */
 
 
 @keyframes settingsPanelIn {
@@ -141,10 +138,15 @@
 }
 
 .settings-side-panel__nav-btn--active {
-  background: rgba(var(--accent-rgb), 0.15);
-  color: var(--accent);
-  border-color: var(--accent);
-  box-shadow: 0 0 7px rgba(var(--accent-rgb), 0.3);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-text);
+  border-color: var(--accent-text, var(--accent));
+  box-shadow: 0 0 7px var(--surface-accent-glow);
+}
+
+.settings-side-panel__nav-btn--active:hover {
+  background: var(--surface-accent-hover);
+  color: var(--accent-text);
 }
 
 .settings-side-panel__nav-btn svg {
@@ -234,7 +236,7 @@
   min-height: 0;
   margin: 0 0 12px;
   padding: 0 2px 10px;
-  color: var(--accent);
+  color: var(--accent-text);
   background: transparent;
   border: 0;
   border-bottom: 1px solid rgba(var(--accent-rgb), 0.28);
@@ -261,7 +263,7 @@
 
 .settings-section-anchor > svg {
   flex-shrink: 0;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .settings-section-placeholder {
@@ -352,7 +354,7 @@ body.settings-open .player-controls-wrapper--docked {
 
 .settings-window-choice.visual-bar-card--active {
   border-width: 1.5px !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  box-shadow: 0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px var(--focus-ring) !important;
 }
 
 .settings-window-choice__note {
@@ -383,6 +385,7 @@ body.settings-open .player-controls-wrapper--docked {
     margin-left: auto;
   }
 
+  .settings-window-compact-grid,
   .time-pos-compact-grid,
   .time-format-compact-grid {
     grid-template-columns: minmax(0, 1fr);

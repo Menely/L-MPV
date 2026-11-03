@@ -236,7 +236,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
                 position: "relative",
                 width: "100%",
                 height: 32,
-                background: "rgba(255, 255, 255, 0.08)",
+                background: "var(--surface-level-3-hover)",
                 borderRadius: "var(--radius-control)",
                 overflow: "hidden",
               }}

@@ -28,7 +28,7 @@ export const GpuHardwareCard: React.FC<GpuHardwareCardProps> = ({ gpuInfo }) => 
       }}
       >
       <div className="row-center row-gap-4">
-        <Cpu size={16} color="var(--accent)" />
+        <Cpu size={16} color="var(--accent-text, var(--accent))" />
         <span className="t-primary">
           <strong>{dict.settings.upscaling.gpuLabel}</strong> {gpuInfo.name}
           {vramGb && (

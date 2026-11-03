@@ -66,18 +66,18 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
         padding: "0 8px",
         borderRadius: "var(--radius-sm, 6px)",
         background: isRecording
-          ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
-          : "rgba(127, 199, 255, 0.08)",
+          ? "var(--surface-accent-subtle)"
+          : "var(--surface-level-3)",
         border: isRecording
-          ? "1.5px solid var(--accent)"
-          : "1px solid rgba(127, 199, 255, 0.2)",
+          ? "1.5px solid var(--focus-ring)"
+          : "1px solid var(--border-subtle)",
         boxShadow: isRecording
-          ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+          ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px var(--focus-ring)"
           : "none",
         fontFamily: "var(--font-mono, monospace)",
         fontSize: "var(--fs-xs)",
         fontWeight: 600,
-        color: isRecording ? "var(--text-primary)" : "var(--accent)",
+        color: isRecording ? "var(--text-primary)" : "var(--accent-text)",
         cursor: "pointer",
         outline: "none",
         display: "inline-flex",

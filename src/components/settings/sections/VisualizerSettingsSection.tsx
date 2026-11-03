@@ -22,6 +22,7 @@ import {
 } from "../components/optionCardStyles";
 import {
   VisualizerConfig,
+  DEFAULT_VISUALIZER_CONFIG,
   getVisualizerConfig,
   saveVisualizerConfig,
 } from "../../player/AudioVisualizer";
@@ -106,91 +107,94 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
               <div
                 style={{ ...optionCardStyle, padding: "8px 12px", gap: "var(--space-3)", ...lockedStyle }}
                 inert={controlsLocked}
-                aria-disabled={controlsLocked}
+                aria-disabled={controlsLocked} className="theme-card"
                 >
                 <div style={{ ...optionBlockHeaderStyle, marginBottom: "var(--space-2)" }}>
                   <div style={optionBlockTitleStyle}>
                     <Palette size={14} className="t-accent" />
                     <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.palette}</span>
                   </div>
-                  <span style={optionValueBadgeStyle}>
-                    {dict.settings.appearance.visualizer.themes[visualizerConfig.theme]?.desc || ""}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={optionValueBadgeStyle}>
+                      {dict.settings.appearance.visualizer.themes[visualizerConfig.theme]?.label ||
+                        THEME_ITEMS.find((t) => t.id === visualizerConfig.theme)?.label ||
+                        "Тема плеера"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateVisualizer({
+                          theme: DEFAULT_VISUALIZER_CONFIG.theme,
+                        })
+                      }
+                      className="btn btn--secondary btn--sm"
+                      style={{
+                        ...optionResetBtnStyle,
+                        opacity:
+                          visualizerConfig.theme !==
+                          DEFAULT_VISUALIZER_CONFIG.theme
+                            ? 1
+                            : 0,
+                        visibility:
+                          visualizerConfig.theme !==
+                          DEFAULT_VISUALIZER_CONFIG.theme
+                            ? "visible"
+                            : "hidden",
+                        pointerEvents:
+                          visualizerConfig.theme !==
+                          DEFAULT_VISUALIZER_CONFIG.theme
+                            ? "auto"
+                            : "none",
+                        transform:
+                          visualizerConfig.theme !==
+                          DEFAULT_VISUALIZER_CONFIG.theme
+                            ? "scale(1)"
+                            : "scale(0.85)",
+                        transition:
+                          "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                      }}
+                      tabIndex={
+                        visualizerConfig.theme !==
+                        DEFAULT_VISUALIZER_CONFIG.theme
+                          ? 0
+                          : -1
+                      }
+                      aria-label="Сбросить палитру спектра"
+                    >
+                      <RotateCcw size={11} />
+                    </button>
+                  </div>
                 </div>
-                <div className="player-themes-selector" style={{ padding: "var(--space-1)" }}>
+                <div className="player-themes-selector" style={{ padding: "var(--space-2) 2px" }}>
                   {THEME_ITEMS.map((item) => {
                     const isSel = visualizerConfig.theme === item.id;
-                    const itemLabel = dict.settings.appearance.visualizer.themes[item.id]?.label || item.label;
+                    const itemLabel =
+                      dict.settings.appearance.visualizer.themes[item.id]?.label || item.label;
                     return (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => updateVisualizer({ theme: item.id })}
-                        className="player-theme-btn"
+                        className={`color-circle ${isSel ? "color-circle--active" : ""}`}
+                        title={itemLabel}
                         aria-label={itemLabel}
                         style={{
-                          width: isSel ? "auto" : 32,
-                          minWidth: 32,
-                          height: 32,
-                          padding: isSel ? "0 10px 0 6px" : "0",
-                          justifyContent: "center",
-                          borderRadius: "var(--radius-control)",
+                          background: THEME_SWATCH[item.id],
                           border: isSel
-                            ? "1.5px solid var(--accent)"
-                            : "1.5px solid rgba(255, 255, 255, 0.10)",
-                          background: isSel
-                            ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
-                            : "rgba(255, 255, 255, 0.04)",
-                          color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+                            ? "2px solid #ffffff"
+                            : "1.5px solid rgba(255, 255, 255, 0.18)",
                           boxShadow: isSel
-                            ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+                            ? "0 0 14px rgba(255, 255, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.4)"
                             : "none",
                         }}
-                        >
-                        <span
-                          style={{
-                            width: 20,
-                            height: 20,
-                            borderRadius: "var(--radius-sm)",
-                            background: THEME_SWATCH[item.id],
-                            border: isSel
-                              ? "1.5px solid rgba(255, 255, 255, 0.40)"
-                              : "1.5px solid rgba(255, 255, 255, 0.22)",
-                            boxShadow: isSel
-                              ? "0 0 8px rgba(255, 255, 255, 0.25), 0 1px 4px rgba(0, 0, 0, 0.45)"
-                              : "0 1px 3px rgba(0, 0, 0, 0.35)",
-                            flexShrink: 0,
-                            transition:
-                              "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
-                          }}
-                        />
-                        <span
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            overflow: "hidden",
-                            whiteSpace: "nowrap",
-                            maxWidth: isSel ? 140 : 0,
-                            opacity: isSel ? 1 : 0,
-                            marginLeft: isSel ? 7 : 0,
-                            transform: isSel ? "translateX(0)" : "translateX(-6px)",
-                            transition:
-                              "max-width 0.25s cubic-bezier(0.2, 1.15, 0.3, 1), opacity 0.2s ease, transform 0.25s cubic-bezier(0.2, 1.15, 0.3, 1), margin-left 0.25s cubic-bezier(0.2, 1.15, 0.3, 1)",
-                            pointerEvents: isSel ? "auto" : "none",
-                          }}
-                          >
-                          <span style={{ fontSize: "var(--fs-xs)", fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
-                            {itemLabel}
-                          </span>
-                        </span>
-                      </button>
+                      />
                     );
                   })}
                 </div>
               </div>
 
               {/* Карточка переключения: кликабельная иконка вкл/выкл */}
-              <div style={{ ...optionCardStyle, alignItems: "center", justifyContent: "center", height: "100%", boxSizing: "border-box", padding: "6px 10px" }}>
+              <div style={{ ...optionCardStyle, alignItems: "center", justifyContent: "center", height: "100%", boxSizing: "border-box", padding: "6px 10px" }} className="theme-card">
                 <button
                   type="button"
                   onClick={() => updateVisualizer({ enabled: !visualizerConfig.enabled })}
@@ -199,7 +203,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                   aria-label={visualizerConfig.enabled ? dict.settings.appearance.visualizer.toggleOff : dict.settings.appearance.visualizer.toggleOn}
                   aria-pressed={visualizerConfig.enabled}
                   style={{
-                    color: visualizerConfig.enabled ? "var(--accent)" : "var(--text-muted)",
+                    color: visualizerConfig.enabled ? "var(--accent-text)" : "var(--text-muted)",
                     transition: "color var(--t-fast) var(--ease-smooth)",
                   }}
                   >
@@ -215,7 +219,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
               inert={controlsLocked}
               aria-disabled={controlsLocked}
               >
-              <div style={{ ...optionCardStyle, height: "100%", boxSizing: "border-box" }}>
+              <div style={{ ...optionCardStyle, height: "100%", boxSizing: "border-box" }} className="theme-card">
                 <div style={optionBlockHeaderStyle}>
                   <div style={optionBlockTitleStyle}>
                     <Monitor size={14} className="t-accent" />
@@ -244,7 +248,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                 </div>
               </div>
 
-              <div style={{ ...optionCardStyle, height: "100%", boxSizing: "border-box" }}>
+              <div style={{ ...optionCardStyle, height: "100%", boxSizing: "border-box" }} className="theme-card">
                 <div style={optionBlockHeaderStyle}>
                   <div style={optionBlockTitleStyle}>
                     <Layers size={14} className="t-accent" />
@@ -301,7 +305,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                     transition: "opacity var(--t-fast) var(--ease-smooth), filter var(--t-fast) var(--ease-smooth)",
                   }}
                   inert={!heightActive}
-                  aria-disabled={!heightActive}
+                  aria-disabled={!heightActive} className="theme-card"
                   >
                   <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0, lineHeight: 1 }}>
                     <Ruler size={15} className="t-accent" />
@@ -325,7 +329,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                     />
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexShrink: 0, lineHeight: 1 }}>
-                    <span style={{ fontSize: "var(--fs-sm)", fontWeight: 700, color: "var(--accent)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                    <span style={{ fontSize: "var(--fs-sm)", fontWeight: 700, color: "var(--accent-text)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
                       {hVal} px
                     </span>
                     <button

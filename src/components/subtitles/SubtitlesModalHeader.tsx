@@ -83,7 +83,7 @@ export function SubtitlesModalHeader({
               size={12}
               style={{
                 color:
-                  viewMode === "technical" ? "var(--accent)" : "currentColor",
+                  viewMode === "technical" ? "var(--accent-text)" : "currentColor",
               }}
             />
             <span>{dict.subtitlesSearch.modeTech}</span>
@@ -108,7 +108,7 @@ export function SubtitlesModalHeader({
             style={{
               width: 28,
               height: 28,
-              color: isOpaque ? "var(--accent)" : "var(--text-secondary)",
+              color: isOpaque ? "var(--accent-text)" : "var(--text-secondary)",
             }}
           >
             {isOpaque ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -219,7 +219,7 @@ export function SubtitlesModalHeader({
               size={12}
               style={{
                 color:
-                  viewMode === "technical" ? "var(--accent)" : "currentColor",
+                  viewMode === "technical" ? "var(--accent-text)" : "currentColor",
               }}
             />
             <span>{dict.subtitlesSearch.modeTech}</span>
@@ -243,7 +243,7 @@ export function SubtitlesModalHeader({
           style={{
             width: 28,
             height: 28,
-            color: isOpaque ? "var(--accent)" : "var(--text-secondary)",
+            color: isOpaque ? "var(--accent-text)" : "var(--text-secondary)",
           }}
         >
           {isOpaque ? <EyeOff size={15} /> : <Eye size={15} />}

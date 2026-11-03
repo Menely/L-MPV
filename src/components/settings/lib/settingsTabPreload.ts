@@ -49,8 +49,23 @@ export function preloadUpscaleSettings(): void {
   void loadPreloadedUpscaleStatus().catch(() => {});
 }
 
+const PRESETS_STORAGE_KEY = "l-mpv-settings-presets";
+
 export function getPreloadedUserPresets(): SettingsPreset[] | null {
-  return presetsCache;
+  if (presetsCache) return presetsCache;
+  try {
+    const raw = localStorage.getItem(PRESETS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        presetsCache = parsed;
+        return parsed;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
 
 export function storeUserPresets(presets: SettingsPreset[]): void {

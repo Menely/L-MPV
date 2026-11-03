@@ -598,7 +598,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <h3 style={{ fontSize: "var(--fs-lg)", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "var(--space-4)" }}>
-              <Zap size={18} color="var(--accent)" /> {dict.settings.upscaling.modeTitle}
+              <Zap size={18} color="var(--accent-text, var(--accent))" /> {dict.settings.upscaling.modeTitle}
             </h3>
             <p style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)", marginTop: "var(--space-1)" }}>
               {dict.settings.upscaling.modeDesc}
@@ -618,8 +618,8 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                 width: 8,
                 height: 8,
                 borderRadius: "50%",
-                background: isAiActive ? "var(--accent)" : "rgba(255, 255, 255, 0.3)",
-                boxShadow: isAiActive ? "0 0 8px var(--accent)" : "none",
+                background: "currentColor",
+                boxShadow: "none",
                 display: "inline-block",
               }}
             />

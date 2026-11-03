@@ -1,0 +1,45 @@
+/* Solid palette tones stay separate from rendered alpha. Background-only curves;
+   text/icons and focus rings are unaffected. Every fill reaches 1 at global 1. */
+:root {
+  --surface-level-2: var(--surface-fill-1);
+  --surface-level-3: var(--surface-fill-2);
+  --surface-level-3-hover: var(--surface-fill-hover-2);
+  --surface-accent-subtle: var(--surface-fill-selected-1);
+  --surface-accent-hover: var(--surface-fill-selected-hover-1);
+  --ui-popover-opacity: calc(0.45 + var(--ui-opacity) * 0.55);
+  --surface-opacity-0: calc(0.40 + var(--ui-opacity) * 0.60);
+  --surface-state-opacity-0: calc(0.72 + var(--ui-opacity) * 0.28);
+  --surface-selection-opacity-0: calc(0.78 + var(--ui-opacity) * 0.22);
+  --surface-fill-0: color-mix(in srgb, var(--surface-tone-0) calc(var(--surface-opacity-0) * 100%), transparent);
+  --surface-fill-hover-0: color-mix(in srgb, var(--surface-hover-0) calc(var(--surface-state-opacity-0) * 100%), transparent);
+  --surface-fill-selected-0: color-mix(in srgb, var(--surface-selected-0) calc(var(--surface-selection-opacity-0) * 100%), transparent);
+  --surface-fill-selected-hover-0: color-mix(in srgb, var(--surface-selected-hover-0) calc(var(--surface-selection-opacity-0) * 100%), transparent);
+  --surface-opacity-1: calc(0.46 + var(--ui-opacity) * 0.54);
+  --surface-state-opacity-1: calc(0.74 + var(--ui-opacity) * 0.26);
+  --surface-selection-opacity-1: calc(0.80 + var(--ui-opacity) * 0.20);
+  --surface-fill-1: color-mix(in srgb, var(--surface-tone-1) calc(var(--surface-opacity-1) * 100%), transparent);
+  --surface-fill-hover-1: color-mix(in srgb, var(--surface-hover-1) calc(var(--surface-state-opacity-1) * 100%), transparent);
+  --surface-fill-selected-1: color-mix(in srgb, var(--surface-selected-1) calc(var(--surface-selection-opacity-1) * 100%), transparent);
+  --surface-fill-selected-hover-1: color-mix(in srgb, var(--surface-selected-hover-1) calc(var(--surface-selection-opacity-1) * 100%), transparent);
+  --surface-opacity-2: calc(0.52 + var(--ui-opacity) * 0.48);
+  --surface-state-opacity-2: calc(0.77 + var(--ui-opacity) * 0.23);
+  --surface-selection-opacity-2: calc(0.82 + var(--ui-opacity) * 0.18);
+  --surface-fill-2: color-mix(in srgb, var(--surface-tone-2) calc(var(--surface-opacity-2) * 100%), transparent);
+  --surface-fill-hover-2: color-mix(in srgb, var(--surface-hover-2) calc(var(--surface-state-opacity-2) * 100%), transparent);
+  --surface-fill-selected-2: color-mix(in srgb, var(--surface-selected-2) calc(var(--surface-selection-opacity-2) * 100%), transparent);
+  --surface-fill-selected-hover-2: color-mix(in srgb, var(--surface-selected-hover-2) calc(var(--surface-selection-opacity-2) * 100%), transparent);
+  --surface-opacity-3: calc(0.58 + var(--ui-opacity) * 0.42);
+  --surface-state-opacity-3: calc(0.79 + var(--ui-opacity) * 0.21);
+  --surface-selection-opacity-3: calc(0.84 + var(--ui-opacity) * 0.16);
+  --surface-fill-3: color-mix(in srgb, var(--surface-tone-3) calc(var(--surface-opacity-3) * 100%), transparent);
+  --surface-fill-hover-3: color-mix(in srgb, var(--surface-hover-3) calc(var(--surface-state-opacity-3) * 100%), transparent);
+  --surface-fill-selected-3: color-mix(in srgb, var(--surface-selected-3) calc(var(--surface-selection-opacity-3) * 100%), transparent);
+  --surface-fill-selected-hover-3: color-mix(in srgb, var(--surface-selected-hover-3) calc(var(--surface-selection-opacity-3) * 100%), transparent);
+  --surface-opacity-4: calc(0.64 + var(--ui-opacity) * 0.36);
+  --surface-state-opacity-4: calc(0.82 + var(--ui-opacity) * 0.18);
+  --surface-selection-opacity-4: calc(0.86 + var(--ui-opacity) * 0.14);
+  --surface-fill-4: color-mix(in srgb, var(--surface-tone-4) calc(var(--surface-opacity-4) * 100%), transparent);
+  --surface-fill-hover-4: color-mix(in srgb, var(--surface-hover-4) calc(var(--surface-state-opacity-4) * 100%), transparent);
+  --surface-fill-selected-4: color-mix(in srgb, var(--surface-selected-4) calc(var(--surface-selection-opacity-4) * 100%), transparent);
+  --surface-fill-selected-hover-4: color-mix(in srgb, var(--surface-selected-hover-4) calc(var(--surface-selection-opacity-4) * 100%), transparent);
+}

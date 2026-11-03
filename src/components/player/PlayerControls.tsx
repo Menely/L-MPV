@@ -752,7 +752,7 @@ export function PlayerControls({
           <span className="control-btn__label">{audioLabel}</span>
         )}
         {isAudioDownloading && (
-          <Loader2 size={13} className="spin-animation" style={{ flexShrink: 0, color: "var(--accent)" }} />
+          <Loader2 size={13} className="spin-animation" style={{ flexShrink: 0, color: "var(--accent-text)" }} />
         )}
       </button>
 
@@ -773,7 +773,7 @@ export function PlayerControls({
           <span className="control-btn__label">{subLabel}</span>
         )}
         {isSubDownloading && (
-          <Loader2 size={13} className="spin-animation" style={{ flexShrink: 0, color: "var(--accent)" }} />
+          <Loader2 size={13} className="spin-animation" style={{ flexShrink: 0, color: "var(--accent-text)" }} />
         )}
       </button>
     </>

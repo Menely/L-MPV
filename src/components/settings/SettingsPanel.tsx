@@ -1004,7 +1004,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
             <span
               style={{
                 fontSize: "var(--fs-xs)",
-                color: isUpdateFound ? "var(--accent)" : "var(--text-muted)",
+                color: isUpdateFound ? "var(--accent-text)" : "var(--text-muted)",
                 marginLeft: "var(--space-2)",
               }}
             >
@@ -1039,7 +1039,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
                 className="settings-card settings-card--gear"
                 aria-label={dict.settings.title}
               >
-                <Settings size={20} color="var(--accent)" />
+                <Settings size={20} color="var(--accent-text, var(--accent))" />
               </div>
 
               {/* Карточка 2: Вкладки-навигация по разделам */}
@@ -1090,7 +1090,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
           <>
             <div className="settings-side-panel__nav">
               <h2 className="settings-side-panel__nav-title" data-tauri-drag-region>
-                <SlidersHorizontal size={19} color="var(--accent)" />
+                <SlidersHorizontal size={19} color="var(--accent-text, var(--accent))" />
                 {dict.settings.title}
               </h2>
 

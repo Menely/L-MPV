@@ -6,13 +6,13 @@
    Правило: класс описывает повторяющийся паттерн, а не единичку. */
 
 /* ── Текст ───────────────────────────────────────────────────────────── */
-.t-accent      { color: var(--accent); }
+.t-accent      { color: var(--accent-text); }
 .t-primary     { color: var(--text-primary); }
 .t-muted       { color: var(--text-muted); }
 
 .t-label       { font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary); }
 .t-label-xs    { font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.35; }
-.t-label-accent{ font-size: var(--fs-xs); font-weight: 700; color: var(--accent); }
+.t-label-accent{ font-size: var(--fs-xs); font-weight: 700; color: var(--accent-text); }
 .t-sub        { font-size: var(--fs-xs); font-weight: 600; }
 .t-hint        { font-size: var(--fs-xs); color: var(--text-muted); }
 

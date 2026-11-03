@@ -75,12 +75,12 @@
 
 
 .subtitles-search-card--capsule .subtitles-card--icon:hover {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+  border-color: var(--border-pill-hover) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--icon:active {
   cursor: grabbing !important;
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
+  border-color: var(--border-pill-hover) !important;
 }
 
 /* Карточка 2: Самостоятельный переключатель режимов: Обычный / Инспектор (без вложенной подложки) */
@@ -94,10 +94,6 @@
   padding: 3px !important;
   gap: 3px !important;
   box-sizing: border-box !important;
-}
-
-.subtitles-search-card--capsule .subtitles-card--mode-switch:hover {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--mode-switch .subtitles-search-card__mode-switch {
@@ -125,7 +121,7 @@
 }
 
 .subtitles-search-card--capsule .subtitles-card--mode-switch .subtitles-search-card__mode-btn:hover:not(.subtitles-search-card__mode-btn--active) {
-  background: rgba(255, 255, 255, 0.06) !important;
+  background: var(--surface-level-3-hover) !important;
   color: var(--text-primary) !important;
 }
 
@@ -147,10 +143,6 @@
   justify-content: space-evenly !important;
   padding: 0 6px !important;
   flex-shrink: 0 !important;
-}
-
-.subtitles-search-card--capsule .subtitles-card--actions:hover {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--actions .modal__close {
@@ -197,12 +189,12 @@
 }
 
 .subtitles-search-card--capsule .subtitles-card--track-picker:hover {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+  border-color: var(--border-pill-hover) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--track-picker:focus-within,
 .subtitles-search-card--capsule .subtitles-card--track-picker:active {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
+  border-color: var(--focus-ring) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--track-picker .subtitles-search-card__track-picker {
@@ -293,18 +285,24 @@
 .subtitles-search-card--capsule .subtitles-card--follow-btn:hover {
   background: var(--bg-hover) !important;
   color: var(--text-primary) !important;
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+  border-color: var(--border-pill-hover) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--follow-btn:active {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
+  border-color: var(--border-pill-hover) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--follow-btn--active {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
-  color: var(--accent) !important;
+  background: var(--surface-accent-subtle) !important;
+  border-color: var(--focus-ring) !important;
+  color: var(--accent-text) !important;
   box-shadow: none !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--follow-btn--active:hover:not(:disabled) {
+  background: var(--surface-accent-hover) !important;
+  color: var(--accent-text) !important;
+  border-color: var(--focus-ring) !important;
 }
 
 /* Островок отсутствия дорожек */
@@ -340,11 +338,11 @@
 /* Акцентное свечение всего островка при фокусе на поиске */
 /* При фокусе на поиске карточка сохраняет спокойный вид, без кричащего свечения */
 .subtitles-search-card--capsule .subtitles-search-card__bar:hover {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35) !important;
+  border-color: var(--border-pill-hover) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-search-card__bar:focus-within {
-  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
+  border-color: var(--focus-ring) !important;
   box-shadow: var(--shadow-elevated) !important;
 }
 

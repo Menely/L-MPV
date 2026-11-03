@@ -38,7 +38,7 @@ export function SectionHeader({ icon, title, right, desc }: SectionHeaderProps) 
           }}
           >
           {icon && (
-            <span style={{ display: "flex", color: "var(--accent)", flexShrink: 0 }}>
+            <span style={{ display: "flex", color: "var(--accent-text)", flexShrink: 0 }}>
               {icon}
             </span>
           )}

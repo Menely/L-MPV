@@ -136,7 +136,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
           style={{
             fontSize: "var(--fs-xs)",
             fontWeight: 600,
-            color: isSelected ? "var(--accent)" : "var(--text-muted)",
+            color: isSelected ? "var(--accent-text)" : "var(--text-muted)",
             background: isSelected
               ? "rgba(var(--accent-rgb, 127, 199, 255), 0.14)"
               : "rgba(255, 255, 255, 0.05)",
@@ -154,7 +154,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
 
         {/* Индикатор выбора */}
         {isSelected ? (
-          <CheckCircle2 size={18} color="var(--accent)" className="no-shrink" />
+          <CheckCircle2 size={18} color="var(--accent-text, var(--accent))" className="no-shrink" />
         ) : (
           <div
             style={{

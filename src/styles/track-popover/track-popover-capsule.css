@@ -213,7 +213,7 @@
 
 .track-popover--capsule .track-download-btn:hover:not(:disabled) {
   background: var(--bg-hover) !important;
-  color: var(--accent) !important;
+  color: var(--accent-text) !important;
 }
 
 /* Разделитель между «Выключить» и списком в монолитном режиме скрывается */

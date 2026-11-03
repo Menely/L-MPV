@@ -363,7 +363,7 @@ const DownloadProgressBar: React.FC<DownloadProgressProps> = React.memo(({
         width: "100%",
         height: 8,
         borderRadius: "var(--radius-xs)",
-        background: "rgba(255, 255, 255, 0.08)",
+        background: "var(--surface-level-3-hover)",
         overflow: "hidden",
         position: "relative",
         transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
@@ -599,7 +599,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                   transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
                 }}
               >
-                <AppLogoIcon size={24} color="var(--accent)" />
+                <AppLogoIcon size={24} color="var(--accent-text, var(--accent))" />
               </div>
               <div>
                 <h3 id="update-modal-title" style={{ margin: "var(--space-0)", fontSize: "var(--fs-xl)", fontWeight: 700, letterSpacing: "-0.01em" }}>
@@ -682,12 +682,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "var(--space-2)",
-                    background: "rgba(255, 255, 255, 0.05)",
+                    background: "var(--surface-level-3)",
                     border: "1px solid rgba(255, 255, 255, 0.1)",
                     borderRadius: "var(--radius-control, 8px)",
                     padding: "4px 10px",
                     fontSize: "var(--fs-xs)",
-                    color: "var(--accent, #60a5fa)",
+                    color: "var(--accent-text)",
                     cursor: "pointer",
                     transition: "all var(--t-fast) var(--ease-smooth)",
                   }}
@@ -811,7 +811,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               onDoubleClick={() => setIsExpanded((prev) => !prev)}
             >
               <div className="update-card__logo-badge">
-                <AppLogoIcon size={20} color="var(--accent)" />
+                <AppLogoIcon size={20} color="var(--accent-text, var(--accent))" />
               </div>
               <div className="update-card__title-group">
                 <h3 id="update-modal-title" className="update-card__title">

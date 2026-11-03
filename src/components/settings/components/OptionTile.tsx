@@ -206,7 +206,7 @@ const cardHeaderStyle: React.CSSProperties = {
 
 const cardIconStyle: React.CSSProperties = {
   display: "flex",
-  color: "var(--accent)",
+  color: "var(--accent-text)",
   flexShrink: 0,
 };
 

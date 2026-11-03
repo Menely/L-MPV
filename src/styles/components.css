@@ -17,7 +17,7 @@
   background: var(--bg-glass);
   border: 1px solid var(--border-default, rgba(255, 255, 255, 0.08));
   border-radius: var(--radius-controls, 16px);
-  box-shadow: var(--shadow-lg), 0 0 30px rgba(127, 199, 255, 0.05);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   transition: border-radius var(--t-spring) var(--ease-spring-smooth),
               border-color var(--t-fast) var(--ease-smooth),
@@ -26,7 +26,7 @@
 
 /* Level 2: Контейнеры секций и родительские карточки */
 .glass-section {
-  background: var(--surface-level-2, rgba(255, 255, 255, 0.025));
+  background: var(--surface-card);
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
   border-radius: var(--radius-lg, 12px);
   padding: var(--space-7) 18px;
@@ -55,14 +55,11 @@
   padding-top: var(--space-4);
 }
 
-.glass-section:hover {
-  border-color: var(--border-default, rgba(255, 255, 255, 0.10));
-  box-shadow: var(--shadow-card-hover);
-}
+/* Structural sections stay neutral while their child controls are used. */
 
 /* Level 3: Интерактивные плитки, подблоки, карточки моделей/опций */
 .glass-tile {
-  background: var(--surface-level-3, rgba(255, 255, 255, 0.04));
+  background: var(--surface-card);
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
   border-radius: var(--radius-md, 10px);
   padding: var(--space-6) 14px;
@@ -79,51 +76,46 @@
   cursor: pointer;
 }
 
-.glass-tile--clickable:hover {
-  background: var(--surface-level-3-hover, rgba(255, 255, 255, 0.075));
+.glass-tile--clickable:hover:not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)) {
+  background: var(--surface-card-hover);
   border-color: var(--border-hover, rgba(255, 255, 255, 0.16));
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32);
 }
 
 .glass-tile--clickable:active {
-  background: rgba(255, 255, 255, 0.09);
+  background: var(--surface-card-selected);
 }
 
 /* Активная выбранная плитка (Selected). Ширина рамки НЕ меняется (1px как
    в базе) — иначе контент сжимается; акцент несёт цвет + inset-кольцо. */
 .glass-tile--active {
-  background: var(--surface-accent-subtle, rgba(var(--accent-rgb), 0.16)) !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.35)), inset 0 0 0 1.5px var(--accent) !important;
+  background: var(--surface-card-selected) !important;
+  border-color: var(--accent-text, var(--accent)) !important;
+  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.35)), inset 0 0 0 1.5px var(--focus-ring) !important;
   color: var(--text-primary);
 }
 
-.glass-tile--active:hover {
-  background: var(--surface-accent-hover, rgba(var(--accent-rgb), 0.20)) !important;
-  border-color: var(--accent-hover, var(--accent)) !important;
-  box-shadow: 0 0 12px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.45)), inset 0 0 0 1.5px var(--accent) !important;
+.glass-tile--active:hover:not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)) {
+  background: var(--surface-card-selected-hover) !important;
+  border-color: var(--accent-text, var(--accent)) !important;
+  box-shadow: 0 0 12px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.45)), inset 0 0 0 1.5px var(--focus-ring) !important;
 }
 
-/* ─── Псевдокласс :has() (Chromium 105+): Реактивность родителей без React-стейта ─── */
-.glass-tile:has(:focus-visible),
-.glass-section:has(:focus-visible) {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 1px var(--accent), 0 4px 16px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.28)) !important;
+/* Focus belongs to the control itself. Checked-state may mark only its owning
+   tile; a nested card or popup must not select every ancestor tile. */
+.glass-tile:has(input[type="checkbox"]:checked):not(:has([data-surface-depth] input:checked)),
+.glass-tile:has(input[type="radio"]:checked):not(:has([data-surface-depth] input:checked)) {
+  background: var(--surface-card-selected);
+  border-color: var(--accent-text, var(--accent));
+  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.25)), inset 0 0 0 1px var(--focus-ring);
 }
 
-.glass-tile:has(input[type="checkbox"]:checked),
-.glass-tile:has(input[type="radio"]:checked) {
-  background: var(--surface-accent-subtle, rgba(var(--accent-rgb), 0.12));
-  border-color: var(--accent);
-  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.25)), inset 0 0 0 1px var(--accent);
-}
-
-.glass-tile:has(input:disabled) {
+.glass-tile[aria-disabled="true"] {
   opacity: 0.62;
   cursor: not-allowed;
 }
 
-.glass-section:has(input:disabled:only-child) {
+.glass-section[aria-disabled="true"] {
   opacity: 0.62;
 }
 
@@ -161,7 +153,7 @@
 }
 
 .btn:active:not(:disabled) {
-  filter: brightness(0.92);
+  filter: none;
 }
 
 .btn:disabled {
@@ -188,24 +180,26 @@
 /* Primary (Главное действие / Акцент) */
 .btn--primary {
   background: var(--accent);
-  color: #05070a;
+  color: var(--on-accent, #101216);
   border: 1px solid transparent;
 }
 
 .btn--primary:hover:not(:disabled) {
-  filter: brightness(1.08);
+  background: var(--accent-hover);
+  color: var(--on-accent-hover, var(--on-accent));
+  filter: none;
   box-shadow: var(--btn-glow), 0 0 12px var(--accent-glow);
 }
 
 /* Secondary / Surface (Стандартная светлая кнопка интерфейса) */
 .btn--secondary {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-level-3);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
 }
 
 .btn--secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--surface-level-3-hover);
   border-color: var(--border-hover, rgba(255, 255, 255, 0.18));
   color: #fff;
 }
@@ -224,15 +218,15 @@
 
 /* Danger (Удаление / Опасное действие) */
 .btn--danger {
-  background: rgba(231, 76, 60, 0.12);
-  color: #e74c3c;
-  border: 1px solid rgba(231, 76, 60, 0.25);
+  background: var(--danger-surface);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
 }
 
 .btn--danger:hover:not(:disabled) {
-  background: rgba(231, 76, 60, 0.22);
-  border-color: rgba(231, 76, 60, 0.45);
-  box-shadow: 0 0 12px rgba(231, 76, 60, 0.25);
+  background: var(--danger-surface);
+  border-color: var(--danger-text);
+  box-shadow: inset 0 0 0 1px var(--danger-border);
 }
 
 /* Квадратная иконочная кнопка (Icon-only) */
@@ -273,31 +267,31 @@
 }
 
 .badge--success {
-  background: rgba(46, 204, 113, 0.15);
-  color: #2ecc71;
-  border: 1px solid rgba(46, 204, 113, 0.25);
+  background: var(--success-surface);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
 }
 
 .badge--warning {
-  background: rgba(230, 126, 34, 0.15);
-  color: #e67e22;
-  border: 1px solid rgba(230, 126, 34, 0.25);
+  background: var(--warning-surface);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
 }
 
 .badge--danger {
-  background: rgba(231, 76, 60, 0.15);
-  color: #e74c3c;
-  border: 1px solid rgba(231, 76, 60, 0.25);
+  background: var(--danger-surface);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
 }
 
 .badge--accent {
   background: var(--surface-accent-subtle, var(--accent-glass, rgba(127, 199, 255, 0.12)));
-  color: var(--accent);
+  color: var(--accent-text);
   border: 1px solid var(--surface-accent-border, var(--border-pill, rgba(127, 199, 255, 0.25)));
 }
 
 .badge--neutral {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-level-3);
   color: var(--text-secondary);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -315,7 +309,7 @@
   font-size: var(--fs-2xs);
   font-weight: 600;
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--surface-level-3-hover);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--radius-xs, 4px);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
@@ -324,10 +318,10 @@
 }
 
 .kbd-chip--recording {
-  background: rgba(var(--accent-rgb), 0.16) !important;
-  border-color: var(--accent) !important;
+  background: var(--surface-accent-subtle) !important;
+  border-color: var(--accent-text, var(--accent)) !important;
   color: var(--text-primary) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  box-shadow: 0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px var(--focus-ring) !important;
 }
 
 /* ─── 5. Унифицированные Чекбоксы (UI Checkboxes) ─────────────────── */
@@ -343,7 +337,7 @@
   max-height: 18px !important;
   border-radius: var(--radius-xs, 4px);
   border: 1.5px solid var(--border-pill, rgba(255, 255, 255, 0.22));
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-level-3);
   cursor: pointer;
   display: inline-grid;
   place-content: center;
@@ -360,13 +354,13 @@
 }
 
 .ui-checkbox:hover {
-  border-color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.10);
+  border-color: var(--accent-text, var(--accent));
+  background: var(--surface-accent-hover);
 }
 
 .ui-checkbox:checked {
   background: var(--accent);
-  border-color: var(--accent);
+  border-color: var(--accent-text, var(--accent));
   box-shadow: 0 0 10px var(--accent-glow);
 }
 
@@ -374,14 +368,14 @@
   content: "";
   width: 5px;
   height: 9px;
-  border: solid #05070a;
+  border: solid var(--on-accent, #101216);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
   margin-bottom: var(--space-1);
 }
 
 :where(button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--accent) !important;
+  outline: 2px solid var(--focus-ring, var(--accent)) !important;
   outline-offset: 2px !important;
 }
 

@@ -194,6 +194,94 @@ export function resolveHeatmapColor(
       break;
     }
 
+    case "sunset": {
+      if (norm < 0.35) {
+        const t = norm / 0.35;
+        const r = Math.round(123 + t * 71);
+        const g = Math.round(31 + t * 26);
+        const b = Math.round(162 - t * 109);
+        baseColor = `rgba(${r}, ${g}, ${b}, 0.88)`;
+      } else if (norm < 0.70) {
+        const t = (norm - 0.35) / 0.35;
+        const r = Math.round(194 + t * 47);
+        const g = Math.round(57 + t * 71);
+        const b = Math.round(53 - t * 53);
+        baseColor = `rgba(${r}, ${g}, ${b}, 0.94)`;
+      } else {
+        const t = (norm - 0.70) / 0.30;
+        const r = 255;
+        const g = Math.round(179 + t * 45);
+        const b = Math.round(t * 88);
+        baseColor = `rgba(${r}, ${g}, ${b}, 0.98)`;
+      }
+      break;
+    }
+
+    case "aurora": {
+      if (norm < 0.35) {
+        const t = norm / 0.35;
+        const r = Math.round(13 - t * 13);
+        const g = Math.round(71 + t * 120);
+        const b = Math.round(161 + t * 4);
+        baseColor = `rgba(${r}, ${g}, ${b}, 0.88)`;
+      } else if (norm < 0.70) {
+        const t = (norm - 0.35) / 0.35;
+        const r = Math.round(t * 105);
+        const g = Math.round(191 + t * 49);
+        const b = Math.round(165 + t * 9);
+        baseColor = `rgba(${r}, ${g}, ${b}, 0.94)`;
+      } else {
+        const t = (norm - 0.70) / 0.30;
+        const r = Math.round(105 + t * 150);
+        const g = 255;
+        const b = Math.round(174 + t * 81);
+        baseColor = `rgba(${r}, ${g}, ${b}, 0.98)`;
+      }
+      break;
+    }
+
+    case "ocean": {
+      if (norm < 0.35) {
+        const t = norm / 0.35;
+        const r = Math.round(26 - t * 24);
+        const g = Math.round(35 + t * 101);
+        const b = Math.round(126 + t * 83);
+        baseColor = `rgba(${r}, ${g}, ${b}, 0.88)`;
+      } else if (norm < 0.70) {
+        const t = (norm - 0.35) / 0.35;
+        const r = Math.round(2 + t * 126);
+        const g = Math.round(136 + t * 80);
+        const b = Math.round(209 + t * 46);
+        baseColor = `rgba(${r}, ${g}, ${b}, 0.94)`;
+      } else {
+        const t = (norm - 0.70) / 0.30;
+        const r = Math.round(128 + t * 127);
+        const g = Math.round(216 + t * 39);
+        const b = 255;
+        baseColor = `rgba(${r}, ${g}, ${b}, 0.98)`;
+      }
+      break;
+    }
+
+    case "plasma": {
+      if (norm < 0.35) {
+        const t = norm / 0.35;
+        const r = Math.round(74 + t * 139);
+        const g = Math.round(20 - t * 20);
+        const b = Math.round(140 + t * 109);
+        baseColor = `rgba(${r}, ${g}, ${b}, 0.88)`;
+      } else if (norm < 0.70) {
+        const t = (norm - 0.35) / 0.35;
+        const r = Math.round(213 - t * 213);
+        const g = Math.round(t * 229);
+        const b = 255;
+        baseColor = `rgba(${r}, ${g}, ${b}, 0.94)`;
+      } else {
+        baseColor = "rgba(0, 240, 255, 0.98)";
+      }
+      break;
+    }
+
     case "theme":
     default: {
       if (norm < 0.38) {

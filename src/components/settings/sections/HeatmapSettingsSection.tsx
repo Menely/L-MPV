@@ -262,6 +262,26 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
       label: dict.settings.appearance.heatmap?.palettes?.monochrome || "Монохром",
       swatch: "linear-gradient(135deg, rgba(255,255,255,0.4), #ffffff)",
     },
+    {
+      id: "sunset",
+      label: dict.settings.appearance.heatmap?.palettes?.sunset || "Огненный закат",
+      swatch: "linear-gradient(135deg, #7b1fa2, #e53935, #ffb300)",
+    },
+    {
+      id: "aurora",
+      label: dict.settings.appearance.heatmap?.palettes?.aurora || "Северное сияние",
+      swatch: "linear-gradient(135deg, #0d47a1, #00bfa5, #69f0ae)",
+    },
+    {
+      id: "ocean",
+      label: dict.settings.appearance.heatmap?.palettes?.ocean || "Морская глубина",
+      swatch: "linear-gradient(135deg, #1a237e, #0288d1, #80d8ff)",
+    },
+    {
+      id: "plasma",
+      label: dict.settings.appearance.heatmap?.palettes?.plasma || "Электро-плазма",
+      swatch: "linear-gradient(135deg, #4a148c, #d500f9, #00e5ff)",
+    },
   ];
 
   const placementItems: Array<{ id: HeatmapPlacement; label: string }> = [
@@ -376,7 +396,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             style={{
               fontSize: "var(--fs-sm)",
               fontWeight: 700,
-              color: "var(--accent)",
+              color: "var(--accent-text)",
               minWidth: 42,
               textAlign: "right",
               fontVariantNumeric: "tabular-nums",
@@ -458,7 +478,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
               width: "100%",
               height: 26,
               borderRadius: "var(--radius-sm, 6px)",
-              background: "rgba(255, 255, 255, 0.025)",
+              background: "var(--surface-level-2)",
               border: "1px solid rgba(255, 255, 255, 0.06)",
               overflow: "hidden",
               position: "relative",
@@ -539,11 +559,8 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             </div>
 
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                gap: "var(--space-2)",
-              }}
+              className="player-themes-selector"
+              style={{ padding: "var(--space-2) 2px" }}
             >
               {paletteItems.map((item) => {
                 const isSel = config.palette === item.id;
@@ -552,36 +569,19 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                     key={item.id}
                     type="button"
                     onClick={() => updateConfig({ palette: item.id })}
-                    className={`compact-segment-btn ${
-                      isSel ? "compact-segment-btn--active" : ""
-                    }`}
+                    className={`color-circle ${isSel ? "color-circle--active" : ""}`}
                     title={item.label}
+                    aria-label={item.label}
                     style={{
-                      height: 30,
-                      padding: "0 8px",
-                      gap: 6,
+                      background: item.swatch,
+                      border: isSel
+                        ? "2px solid #ffffff"
+                        : "1.5px solid rgba(255, 255, 255, 0.18)",
+                      boxShadow: isSel
+                        ? "0 0 14px rgba(255, 255, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.4)"
+                        : "none",
                     }}
-                  >
-                    <span
-                      style={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: "var(--radius-sm)",
-                        background: item.swatch,
-                        boxShadow: "0 0 4px rgba(0,0,0,0.45)",
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span
-                      style={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                  </button>
+                  />
                 );
               })}
             </div>
@@ -616,7 +616,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
               }
               aria-pressed={config.enabled}
               style={{
-                color: config.enabled ? "var(--accent)" : "var(--text-muted)",
+                color: config.enabled ? "var(--accent-text)" : "var(--text-muted)",
                 borderColor: config.enabled
                   ? "var(--accent)"
                   : "rgba(255, 255, 255, 0.16)",
@@ -732,7 +732,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                         style={{
                           display: "flex",
                           color: isSel
-                            ? "var(--accent)"
+                            ? "var(--accent-text)"
                             : "var(--text-secondary)",
                           flexShrink: 0,
                         }}
@@ -918,7 +918,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                         style={{
                           display: "flex",
                           color: isSel
-                            ? "var(--accent)"
+                            ? "var(--accent-text)"
                             : "var(--text-secondary)",
                           flexShrink: 0,
                         }}

@@ -15,7 +15,7 @@ button.controls-island--compact-time,
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 8px;
-  background: var(--bg-modal-solid);
+  background: var(--bg-glass);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-surface);
   box-shadow: var(--shadow-elevated);
@@ -54,7 +54,7 @@ button.controls-island--compact-time,
 .controls-overflow__action > span { flex: 1; }
 .controls-overflow__action > svg { flex-shrink: 0; }
 .controls-overflow__action:hover { background: var(--bg-hover); }
-.controls-overflow__action[aria-pressed="true"] { color: var(--accent); }
+.controls-overflow__action[aria-pressed="true"] { color: var(--accent-text); }
 
 .controls-overflow__speed,
 .controls-overflow__volume {
@@ -75,7 +75,7 @@ button.controls-island--compact-time,
   min-height: 32px;
   padding: 2px 8px;
   color: var(--text-primary);
-  background: var(--bg-surface);
+  background: var(--surface-level-3);
   border: 1px solid var(--border-hover);
   border-radius: var(--radius-control);
 }

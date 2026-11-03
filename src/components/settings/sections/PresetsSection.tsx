@@ -96,7 +96,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   const [editingName, setEditingName] = useState<string>("");
   const [pendingDelete, setPendingDelete] = useState<SettingsPreset | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [activePresetId, setActivePresetId] = useState<string | null>(
+    () => getSavedActivePresetId(),
+  );
   // Группы по умолчанию свёрнуты: высота вкладки стабильна с первого paint,
   // выбор запоминается и переживает перезапуски.
   const [isUserPresetsOpen, setIsUserPresetsOpen] = useState<boolean>(() => readGroupOpen(PRESETS_USER_OPEN_KEY, false));
@@ -167,7 +169,15 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         if (isMountedRef.current) {
           storeUserPresets(presets);
           setUserPresets(presets);
-          detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
+          if (detectTimerRef.current !== null) {
+            window.clearTimeout(detectTimerRef.current);
+          }
+          detectTimerRef.current = window.setTimeout(() => {
+            detectTimerRef.current = null;
+            if (isMountedRef.current) {
+              detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
+            }
+          }, 260);
         }
       })
       .catch((err) => {
@@ -175,11 +185,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       });
 
     const handleFocus = () => {
-      loadPreloadedUserPresets(true)
+      // Загрузка без форсирования повторного чтения диска
+      loadPreloadedUserPresets(false)
         .then((presets) => {
           if (isMountedRef.current) {
             setUserPresets(presets);
-            detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
           }
         })
         .catch(() => {});
@@ -523,7 +533,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 3. Интенсивность неонового свечения */}
         {data.glowIntensity && data.glowIntensity !== "off" && (
           <div className="preset-tag" title={dict.settings.presets.neonTitle}>
-            <Sparkles size={11} color="var(--accent)" />
+            <Sparkles size={11} color="var(--accent-text, var(--accent))" />
             <span>
               {data.glowIntensity === "soft"
                 ? dict.settings.presets.neonSoft
@@ -736,7 +746,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       <div className="presets-creator">
         <div className="presets-creator__header">
           <div className="presets-creator__title">
-            <Sparkles size={16} color="var(--accent)" />
+            <Sparkles size={16} color="var(--accent-text, var(--accent))" />
             <span>{dict.settings.presets.saveCurrentTitle}</span>
           </div>
           <button
@@ -775,7 +785,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           style={{
             padding: "8px 14px",
             borderRadius: "var(--radius-sm)",
-            background: "rgba(var(--accent-rgb, 127, 199, 255), 0.18)",
+            background: "var(--surface-accent-subtle)",
             border: "1px solid var(--accent)",
             color: "var(--text-primary)",
             fontSize: "var(--fs-sm)",

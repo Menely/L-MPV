@@ -130,7 +130,7 @@
 
 .track-popover__icon-btn:hover:not(:disabled) {
   background: var(--bg-hover);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .track-popover__icon-btn:focus-visible {
@@ -251,8 +251,8 @@
   min-width: 7px;
   min-height: 7px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.8);
+  background: var(--focus-ring);
+  box-shadow: 0 0 6px var(--surface-accent-glow);
   display: inline-block;
   flex-shrink: 0;
 }
@@ -268,7 +268,7 @@
   min-height: 28px;
   border-radius: var(--radius-list-row);
   border: 1px solid var(--border-pill);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-level-3);
   color: var(--text-secondary);
   cursor: pointer;
   flex-shrink: 0;
@@ -287,8 +287,8 @@
 
 .track-download-btn:hover:not(:disabled) {
   background: var(--bg-hover);
-  color: var(--accent);
-  border-color: rgba(var(--accent-rgb), 0.4);
+  color: var(--accent-text);
+  border-color: var(--border-pill-hover);
 }
 
 .track-download-btn:active:not(:disabled) {
@@ -304,7 +304,7 @@
   height: 1px;
   margin: 4px 8px;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-level-3-hover);
 }
 
 .track-popover__empty {
