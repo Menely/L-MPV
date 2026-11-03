@@ -345,7 +345,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                     ? "2px solid #ffffff"
                     : "1.5px solid rgba(255, 255, 255, 0.18)",
                   boxShadow: isSel
-                    ? "0 0 0 2px var(--bg-surface), 0 0 0 4px var(--focus-ring)"
+                    ? "0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent)"
                     : "none",
                 }}
               />
@@ -392,7 +392,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                       className={`color-circle ${isActive ? "color-circle--active" : ""}`}
                       style={{
                         backgroundColor: hex,
-                        boxShadow: isActive ? "0 0 0 2px var(--bg-surface), 0 0 0 4px var(--focus-ring)" : "none",
+                        boxShadow: isActive ? "0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent)" : "none",
                         position: "relative",
                       }}
                       >
@@ -440,7 +440,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                     className={`color-circle ${activeColor === hex ? "color-circle--active" : ""}`}
                     style={{
                       backgroundColor: hex,
-                      boxShadow: activeColor.toLowerCase() === hex.toLowerCase() ? "0 0 0 2px var(--bg-surface), 0 0 0 4px var(--focus-ring)" : "none",
+                      boxShadow: activeColor.toLowerCase() === hex.toLowerCase() ? "0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent)" : "none",
                     }}
                     >
                     <span

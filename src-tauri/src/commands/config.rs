@@ -193,9 +193,9 @@ pub fn update_subtitles_avoid_ui(
         // мы вычисляем процент sub-pos исходя из реальной высоты окна, удерживая субтитры
         // строго на фиксированном отступе ~104px от нижней границы.
         let height = window_height.unwrap_or(720.0).max(300.0);
-        let target_bottom_offset = 104.0;
+        let target_bottom_offset = 65.0;
         let sub_pos = (100.0 - (target_bottom_offset / height * 100.0))
-            .clamp(78.0, 96.0)
+            .clamp(89.0, 97.0)
             .round() as i64;
 
         let _ = state
@@ -203,7 +203,13 @@ pub fn update_subtitles_avoid_ui(
             .set_property_string("sub-pos", &sub_pos.to_string());
         let _ = state
             .mpv
-            .set_property_string("sub-margin-y", "26");
+            .set_property_string("sub-margin-y", "22");
+        let _ = state
+            .mpv
+            .set_property_string("sub-ass-force-margins", "no");
+        let _ = state
+            .mpv
+            .set_property_string("sub-use-margins", "no");
     } else {
         // Возвращаем субтитры к стандартной нижней позиции
         let _ = state
@@ -212,6 +218,12 @@ pub fn update_subtitles_avoid_ui(
         let _ = state
             .mpv
             .set_property_string("sub-margin-y", "22");
+        let _ = state
+            .mpv
+            .set_property_string("sub-ass-force-margins", "no");
+        let _ = state
+            .mpv
+            .set_property_string("sub-use-margins", "no");
     }
     Ok(())
 }

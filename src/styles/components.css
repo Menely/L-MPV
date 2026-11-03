@@ -90,15 +90,15 @@
    в базе) — иначе контент сжимается; акцент несёт цвет + inset-кольцо. */
 .glass-tile--active {
   background: var(--surface-card-selected) !important;
-  border-color: var(--accent-text, var(--accent)) !important;
-  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.35)), inset 0 0 0 1.5px var(--focus-ring) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.35)), inset 0 0 0 1.5px transparent !important;
   color: var(--text-primary);
 }
 
 .glass-tile--active:hover:not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)) {
   background: var(--surface-card-selected-hover) !important;
-  border-color: var(--accent-text, var(--accent)) !important;
-  box-shadow: 0 0 12px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.45)), inset 0 0 0 1.5px var(--focus-ring) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.45)), inset 0 0 0 1.5px transparent !important;
 }
 
 /* Focus belongs to the control itself. Checked-state may mark only its owning
@@ -106,8 +106,8 @@
 .glass-tile:has(input[type="checkbox"]:checked):not(:has([data-surface-depth] input:checked)),
 .glass-tile:has(input[type="radio"]:checked):not(:has([data-surface-depth] input:checked)) {
   background: var(--surface-card-selected);
-  border-color: var(--accent-text, var(--accent));
-  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.25)), inset 0 0 0 1px var(--focus-ring);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.25)), inset 0 0 0 1px transparent;
 }
 
 .glass-tile[aria-disabled="true"] {
@@ -319,9 +319,9 @@
 
 .kbd-chip--recording {
   background: var(--surface-accent-subtle) !important;
-  border-color: var(--accent-text, var(--accent)) !important;
+  border-color: var(--accent) !important;
   color: var(--text-primary) !important;
-  box-shadow: 0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px var(--focus-ring) !important;
+  box-shadow: 0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent !important;
 }
 
 /* ─── 5. Унифицированные Чекбоксы (UI Checkboxes) ─────────────────── */
@@ -336,7 +336,7 @@
   max-width: 18px !important;
   max-height: 18px !important;
   border-radius: var(--radius-xs, 4px);
-  border: 1.5px solid var(--border-pill, rgba(255, 255, 255, 0.22));
+  border: 0;
   background: var(--surface-level-3);
   cursor: pointer;
   display: inline-grid;
@@ -354,13 +354,11 @@
 }
 
 .ui-checkbox:hover {
-  border-color: var(--accent-text, var(--accent));
   background: var(--surface-accent-hover);
 }
 
 .ui-checkbox:checked {
   background: var(--accent);
-  border-color: var(--accent-text, var(--accent));
   box-shadow: 0 0 10px var(--accent-glow);
 }
 

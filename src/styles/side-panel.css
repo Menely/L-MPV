@@ -129,8 +129,8 @@
 .side-panel__item--active {
   background: var(--surface-accent-subtle) !important;
   color: var(--text-primary) !important;
-  border-color: var(--accent-text, var(--accent)) !important;
-  box-shadow: 0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px var(--focus-ring) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent !important;
 }
 
 .side-panel__item--active svg {

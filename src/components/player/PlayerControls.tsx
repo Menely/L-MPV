@@ -840,7 +840,7 @@ export function PlayerControls({
           title={repeatMode === 1 ? dict.controls.repeatOne : repeatMode === 2 ? dict.controls.repeatAll : dict.controls.repeatOff}
           aria-label={repeatMode === 1 ? dict.controls.repeatOne : repeatMode === 2 ? dict.controls.repeatAll : dict.controls.repeatOff}
         >
-          {repeatMode === 1 ? <Repeat1 size={16} /> : <Repeat size={16} />}
+          {repeatMode === 1 ? <Repeat1 size={18} /> : <Repeat size={18} />}
         </button>
       )}
 
@@ -910,7 +910,7 @@ export function PlayerControls({
           title={dict.controls.shuffle}
           aria-label={dict.controls.shuffle}
         >
-          <Shuffle size={16} />
+          <Shuffle size={18} />
         </button>
       )}
     </>
@@ -1021,7 +1021,6 @@ export function PlayerControls({
           id="btn-skip-opening"
           title={dict.controls.skipOpening(skipOpeningSeconds)}
           aria-label={dict.controls.skipOpening(skipOpeningSeconds)}
-          style={{ padding: "0 8px", gap: "var(--space-1)" }}
         >
           <FastForward size={16} />
           <span className="control-btn__label t-sub">

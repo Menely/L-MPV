@@ -512,11 +512,27 @@ impl MpvManager {
             Self::set_option(&api, handle, "video-sync", "audio"); // Видео синхронизируется по аудиочасам
             Self::set_option(&api, handle, "hr-seek", "yes"); // Точный seek для идеальной синхронизации аудио и видео после перемотки (и при старте с позиции)
 
-            // ─── Субтитры ───────────────────────────────
+            // ─── Субтитры и экранные надписи (Pristine Subtitle & Signs Rendering) ───
+            // Гарантируем 100% аутентичное, неискажённое отображение авторских субтитров,
+            // экранных надписей (signs), караоке и векторных элементов тайпсеттинга:
             Self::set_option(&api, handle, "demuxer-mkv-subtitle-preroll", "yes");
             Self::set_option(&api, handle, "sub-auto", "fuzzy");
-            Self::set_option(&api, handle, "sub-ass-force-margins", "yes");
-            Self::set_option(&api, handle, "sub-use-margins", "yes");
+            // 1. Ограничение границами кадра: исключает вылезание на поля леттербокса/пилларбокса и блюр
+            Self::set_option(&api, handle, "sub-ass-force-margins", "no");
+            Self::set_option(&api, handle, "sub-use-margins", "no");
+            // 2. Запрет искажающих оверрайдов: отображать субтитры ровно так, как задал автор/тайпсеттер
+            Self::set_option(&api, handle, "sub-ass-override", "no");
+            // 3. Защита экранных надписей: надписи сохраняют оригинальный масштаб 1:1 с объектами в кадре
+            Self::set_option(&api, handle, "sub-scale-signs", "no");
+            // 4. Субпиксельная точность без искажения глифов: отключение хинтинга для векторной графики
+            Self::set_option(&api, handle, "sub-ass-hinting", "none");
+            // 5. Использование оригинальных встроенных шрифтов из контейнера MKV
+            Self::set_option(&api, handle, "embeddedfonts", "yes");
+            // 6. Продвинутый шейпер HarfBuzz для лигатур, кернинга и сложных скриптов
+            Self::set_option(&api, handle, "sub-ass-shaper", "harfbuzz");
+            // 7. Защита графических субтитров (PGS/VobSub) от геометрического растяжения
+            Self::set_option(&api, handle, "stretch-image-subs-to-screen", "no");
+            Self::set_option(&api, handle, "stretch-dvd-subs", "no");
 
             // ─── Поведение при конце файла ──────────────
             Self::set_option(&api, handle, "keep-open", "yes");

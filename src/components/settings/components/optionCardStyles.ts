@@ -14,7 +14,7 @@ export const optionCardStyle: React.CSSProperties = {
   minWidth: 0,
   position: "relative",
   gap: 8,
-  padding: "10px 12px",
+  padding: "var(--padding-card)",
   background: "var(--surface-card)",
   borderRadius: "var(--radius-md)",
   border: "1px solid var(--border)",
@@ -24,8 +24,8 @@ export const optionCardStyle: React.CSSProperties = {
 };
 
 export const optionResetBtnStyle: React.CSSProperties = {
-  height: 22,
-  width: 26,
+  height: "var(--size-action-compact)",
+  width: "var(--size-action-compact)",
   padding: 0,
   borderRadius: "var(--radius-control)",
   display: "flex",
@@ -46,13 +46,13 @@ export const optionBtnStyle = (isSel: boolean, padding = "6px 4px"): React.CSSPr
   gap: 3,
   padding,
   borderRadius: "var(--radius-control)",
-  border: isSel ? "1.5px solid var(--focus-ring)" : "1.5px solid var(--border-subtle)",
+  border: isSel ? "1.5px solid var(--accent)" : "1.5px solid var(--border-subtle)",
   cursor: "pointer",
   background: isSel ? "var(--surface-accent-subtle)" : "var(--surface-level-3)",
   color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
   fontWeight: 500,
   boxShadow: isSel
-    ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1px var(--focus-ring)"
+    ? "0 0 8px var(--surface-accent-glow)"
     : "0 1px 3px rgba(0, 0, 0, 0.2)",
   transition:
     "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",

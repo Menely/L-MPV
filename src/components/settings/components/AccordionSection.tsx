@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { ChevronDown } from "lucide-react";
+import { SettingsIcon } from "./SettingsIcon";
 
 export interface AccordionSectionProps {
   isOpen: boolean;
@@ -30,8 +31,8 @@ export function AccordionSection({
         aria-controls={contentId}
         >
         <div className="settings-accordion__title">
-          <span className="settings-accordion__icon">{icon}</span>
-          <span>{title}</span>
+          <span className="settings-accordion__icon"><SettingsIcon section>{icon}</SettingsIcon></span>
+          <span className="settings-accordion__label">{title}</span>
           {badge}
         </div>
         <ChevronDown size={18} className="settings-accordion__chevron" aria-hidden />

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState, useMemo } from "react";
 import {
   FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, AudioWaveform, Sparkles,
   MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles, Globe,
-  Volume2, Tv2, HardDrive
+  Volume2, Tv2, HardDrive, Clapperboard
 } from "lucide-react";
 import {
   isWaveformEnabled,
@@ -504,7 +504,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox mt-1"
+                className="ui-checkbox"
                 
                 checked={multiInstance}
                 onChange={async (e) => {
@@ -540,7 +540,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox mt-1"
+                className="ui-checkbox"
                 
                 checked={hideControlsInUpperHalf}
                 onChange={(e) => {
@@ -581,7 +581,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox mt-1"
+                className="ui-checkbox"
                 
                 checked={autoLoadTracks}
                 onChange={async (e) => {
@@ -624,7 +624,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 <label style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-4)", cursor: "pointer", userSelect: "none" }}>
                   <input
                     type="checkbox"
-                    className="ui-checkbox mt-1"
+                    className="ui-checkbox"
                     
                     checked={autoSelectExternalAudio}
                     onChange={async (e) => {
@@ -659,7 +659,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox mt-1"
+                className="ui-checkbox"
                 
                 checked={hotloadEnabled}
                 onChange={(e) => {
@@ -688,7 +688,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox mt-1"
+                className="ui-checkbox"
                 
                 checked={showTrackNames}
                 onChange={(e) => {
@@ -717,7 +717,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox mt-1"
+                className="ui-checkbox"
                 
                 checked={subtitlesAvoidUi}
                 onChange={async (e) => {
@@ -761,7 +761,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox mt-1"
+                className="ui-checkbox"
                 
                 checked={saveTracksToVideoDir}
                 onChange={(e) => {
@@ -795,7 +795,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
             <label className="option-row">
               <input
                 type="checkbox"
-                className="ui-checkbox mt-1"
+                className="ui-checkbox"
                 checked={waveformEnabled}
                 onChange={(e) => {
                   const val = e.target.checked;
@@ -824,7 +824,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
       <AccordionSection
         isOpen={openSections["gen_video_audio"] === true}
         onToggle={() => toggleSection("gen_video_audio")}
-        icon={<Sparkles size={16} />}
+        icon={<Clapperboard size={16} />}
         title={dict.settings.general.videoAudioSection}
         >
         <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", marginBottom: "var(--space-5)", lineHeight: 1.35 }}>

@@ -478,7 +478,7 @@ export const ru: TranslationDict = {
           abyss: 'Чернильный океан',
           slate: 'Тёплый титан',
         },
-        colorPickerTitle: "Выбор своего цвета",
+        colorPickerTitle: "Выбор цвета",
         colorPickerClose: "Закрыть (Esc)",
         brightness: "Яркость",
         cancel: "Отмена",

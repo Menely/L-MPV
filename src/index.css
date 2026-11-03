@@ -28,6 +28,7 @@
 /* 7. Модальные окна и кнопки действий */
 @import './styles/modals.css';
 @import './styles/mediainfo-modal.css';
+@import './styles/color-picker-modal.css';
 
 /* 8. Боковая панель (главы) */
 @import './styles/side-panel.css';
@@ -61,3 +62,4 @@
 @import './styles/utilities.css';
 @import './styles/surface-opacity.css';
 @import './styles/surface-depth.css';
+@import './styles/settings-alignment.css';

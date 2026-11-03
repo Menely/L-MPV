@@ -1,5 +1,6 @@
 import React from "react";
 import { Loader2 } from "lucide-react";
+import { SettingsIcon } from "./SettingsIcon";
 
 interface SectionHeaderProps {
   /** Иконка слева (цвет акцента проставляется внутри) */
@@ -21,6 +22,7 @@ export function SectionHeader({ icon, title, right, desc }: SectionHeaderProps) 
   return (
     <div style={{ minWidth: 0 }}>
       <div
+        className="settings-section-header__row"
         style={{
           display: "flex",
           alignItems: "center",
@@ -33,18 +35,18 @@ export function SectionHeader({ icon, title, right, desc }: SectionHeaderProps) 
             display: "flex",
             alignItems: "center",
             gap: "var(--space-3)",
+            minHeight: 20,
+            lineHeight: "20px",
             minWidth: 0,
             flex: 1,
           }}
           >
           {icon && (
-            <span style={{ display: "flex", color: "var(--accent-text)", flexShrink: 0 }}>
-              {icon}
-            </span>
+            <SettingsIcon>{icon}</SettingsIcon>
           )}
           <span
             style={{
-              fontSize: "var(--fs-sm)",
+              fontSize: "var(--section-title-size, var(--fs-sm))",
               fontWeight: 600,
               color: "var(--text-primary)",
               overflow: "hidden",

@@ -43,7 +43,7 @@ export const TrackPopoverHeader: React.FC<TrackPopoverHeaderProps> = ({
             onSearch();
           }}
         >
-          <Search size={15} />
+          <Search size={16} />
         </button>
       </div>
     )}

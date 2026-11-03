@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Flame,
+  ChartColumnIncreasing,
   BarChart3,
   Waves,
   LayoutGrid,
@@ -433,7 +433,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
     <AccordionSection
       isOpen={isOpen}
       onToggle={onToggle}
-      icon={<Flame size={16} />}
+      icon={<ChartColumnIncreasing size={16} />}
       title={
         dict.settings.appearance.heatmap?.sectionTitle ||
         "Тепловая карта таймлайна"
@@ -459,7 +459,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
         >
           <div style={optionBlockHeaderStyle}>
             <div style={optionBlockTitleStyle}>
-              <Flame size={14} className="t-accent no-shrink" />
+              <ChartColumnIncreasing size={14} className="t-accent no-shrink" />
               <span style={optionBlockTitleTextStyle}>
                 {dict.settings.appearance.heatmap?.previewTitle ||
                   "Интерактивный предпросмотр рельефа"}

@@ -19,7 +19,7 @@ export interface ModelTensorRtActionProps {
 /**
  * Компактный и визуально унифицированный блок управления компиляцией
  * TensorRT-движка (.engine) для разрешения 1080p.
- * Все элементы жестко выровнены по высоте 24px и имеют единый радиус скругления 6px.
+ * Все элементы жестко выровнены по высоте 28px и имеют единый радиус скругления 6px.
  */
 export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.memo(({
   model,
@@ -53,7 +53,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
           width: 150,
           minWidth: 150,
           maxWidth: 150,
-          height: 24,
+          height: "var(--size-action-compact)",
           boxSizing: "border-box",
         }}
         >
@@ -132,7 +132,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
         <span
           className="badge badge--success"
           style={{
-            height: 24,
+            height: "var(--size-action-compact)",
             padding: "0 8px",
             borderRadius: "var(--radius-sm, 6px)",
             fontSize: "var(--fs-xs)",
@@ -145,7 +145,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
           }}
           title={dict.settings.upscaling.trtReadyTitle}
           >
-          <CheckCircle2 size={13} />
+          <CheckCircle2 size={14} />
           <span>{dict.settings.upscaling.trtReadyBadge}</span>
         </span>
 
@@ -156,9 +156,9 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
           disabled={!!compilingModel}
           title={dict.settings.upscaling.trtRecompileTitle}
           style={{
-            width: 24,
-            height: 24,
-            minWidth: 24,
+            width: "var(--size-action-compact)",
+            height: "var(--size-action-compact)",
+            minWidth: "var(--size-action-compact)",
             padding: "var(--space-0)",
             borderRadius: "var(--radius-sm, 6px)",
             display: "inline-flex",
@@ -168,7 +168,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
             cursor: "pointer",
           }}
           >
-          <RefreshCw size={12} />
+          <RefreshCw size={14} />
         </button>
       </div>
     );
@@ -183,8 +183,8 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
       disabled={!!compilingModel}
       title={dict.settings.upscaling.trtCompileTitle}
       style={{
-        height: 24,
-        padding: "0 9px",
+        height: "var(--size-action-compact)",
+        padding: "0 8px",
         borderRadius: "var(--radius-sm, 6px)",
         fontSize: "var(--fs-xs)",
         fontWeight: 600,
@@ -196,7 +196,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
         cursor: "pointer",
       }}
       >
-      <Zap size={12} color="var(--accent-text, var(--accent))" />
+      <Zap size={14} color="var(--accent-text, var(--accent))" />
       <span>{dict.settings.upscaling.trtCompileBadge}</span>
     </button>
   );

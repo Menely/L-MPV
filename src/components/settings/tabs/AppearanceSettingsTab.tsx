@@ -1,7 +1,8 @@
 import { CapsuleControlsPreview } from "../components/CapsuleControlsPreview";
+import { SettingsIcon } from "../components/SettingsIcon";
 import { useState, useCallback, useEffect } from "react";
 import {
-  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, Clock, RotateCcw, PanelBottom, Timer, Zap, FolderOpen
+  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, Clock, RotateCcw, PanelBottom, Timer, Zap, FolderOpen, Eye, Sun
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { setAnimationsEnabled as applyAnimationsEnabledToDom } from "../../../utils/animationUtils";
@@ -218,7 +219,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     minWidth: 175,
                                   }}
                                   >
-                                  {icon}
+                                  <SettingsIcon>{icon}</SettingsIcon>
                                   <span
                                     style={{
                                       fontSize: "var(--fs-sm)",
@@ -304,7 +305,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             <div className="col col-gap-4">
                               {/* 1. Слайдер прозрачности */}
                               {renderSliderRow(
-                                <SlidersHorizontal size={15} className="t-accent" />,
+                                <SlidersHorizontal size={16} className="t-accent" />,
                                 dict.settings.appearance.opacityLabel,
                                 uiOpacity,
                                 0.10,
@@ -334,7 +335,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           <div className="option-card ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div className="block-head">
                               <div className="row-center row-gap-3">
-                                <Square size={14} className="t-accent" />
+                                <SettingsIcon><Square size={14} className="t-accent" /></SettingsIcon>
                                 <span className="t-label">
                                   {dict.settings.appearance.roundingLabel}
                                 </span>
@@ -388,7 +389,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                           style={{
                                             width: 46,
                                             height: 25,
-                                            border: `1.5px solid ${isSel ? "var(--focus-ring)" : "var(--border-hover)"}`,
+                                            border: `1.5px solid ${isSel ? "var(--accent)" : "var(--border-hover)"}`,
                                             borderRadius: visualRadius,
                                             background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.18)" : "rgba(255, 255, 255, 0.04)",
                                             display: "flex",
@@ -409,7 +410,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                             }}
                                           />
                                         </div>
-                                         <span style={{ fontSize: "var(--fs-2xs)", fontWeight: 600, lineHeight: 1.15, textAlign: "center", whiteSpace: "nowrap", letterSpacing: "-0.02em", padding: "0 1px", maxWidth: "100%" }}>
+                                         <span style={{ fontSize: "var(--fs-2xs)", fontWeight: 600, lineHeight: 1.15, textAlign: "center", whiteSpace: "nowrap", letterSpacing: "normal", padding: "0 1px", maxWidth: "100%" }}>
                                            {dict.settings.appearance.roundingPresets[level === "default" ? "standard" : level] || preset.label}
                                          </span>
                                       </button>
@@ -442,7 +443,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           <div className="option-card ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div className="block-head">
                               <div className="row-center row-gap-3">
-                                <Maximize2 size={14} className="t-accent" />
+                                <SettingsIcon><Maximize2 size={14} className="t-accent" /></SettingsIcon>
                                 <span className="t-label">
                                   {dict.settings.appearance.scaleLabel}
                                 </span>
@@ -516,7 +517,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                          lineHeight: 1.15,
                                          textAlign: "center",
                                          whiteSpace: "nowrap",
-                                         letterSpacing: "-0.02em",
+                                         letterSpacing: "normal",
                                          maxWidth: "100%",
                                         }}
                                         >
@@ -559,7 +560,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           <div className="option-card ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
                             <div className="block-head">
                               <div className="row-center row-gap-3">
-                                <Type size={14} className="t-accent" />
+                                <SettingsIcon><Type size={14} className="t-accent" /></SettingsIcon>
                                 <span className="t-label">
                                   {dict.settings.appearance.fontsLabel}
                                 </span>
@@ -593,11 +594,11 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                       justifyContent: "space-between",
                                       padding: "6px 8px",
                                       borderRadius: "var(--radius-control)",
-                                      border: isSel ? "1.5px solid var(--focus-ring)" : "1px solid rgba(255, 255, 255, 0.06)",
+                                      border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                                       background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                                       color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                                       boxShadow: isSel
-                                        ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px var(--focus-ring)"
+                                        ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent"
                                         : "0 1px 3px rgba(0, 0, 0, 0.2)",
                                       cursor: "pointer",
                                       fontFamily: `var(--font-${fontPreset.id})`,
@@ -637,11 +638,11 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                           justifyContent: "space-between",
                                           padding: "6px 8px",
                                           borderRadius: "var(--radius-control)",
-                                          border: isSel ? "1.5px solid var(--focus-ring)" : "1px solid rgba(255, 255, 255, 0.06)",
+                                          border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                                           background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                                           color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                                           boxShadow: isSel
-                                            ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px var(--focus-ring)"
+                                            ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent"
                                             : "0 1px 3px rgba(0, 0, 0, 0.2)",
                                           cursor: "pointer",
                                           fontFamily: `'${font.family}', sans-serif`,
@@ -681,7 +682,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                         <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                           <div className="block-head">
                             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
-                              <PanelBottom size={14} className="t-accent no-shrink" />
+                              <SettingsIcon><PanelBottom size={14} className="t-accent no-shrink" /></SettingsIcon>
                               <span className="t-label nowrap">
                                 {dict.settings.appearance.controlBarStyleTitle}
                               </span>
@@ -798,7 +799,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                             <div className="block-head">
                               <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
-                                <SlidersHorizontal size={14} className="t-accent no-shrink" />
+                                <SettingsIcon><SlidersHorizontal size={14} className="t-accent no-shrink" /></SettingsIcon>
                                 <span className="t-label nowrap">
                                   {dict.settings.appearance.settingsWindow.title}
                                 </span>
@@ -847,7 +848,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                             <div className="block-head">
                               <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
-                                <Clock size={14} className="t-accent no-shrink" />
+                                <SettingsIcon><Clock size={14} className="t-accent no-shrink" /></SettingsIcon>
                                 <span className="t-label nowrap">
                                   {dict.settings.appearance.timePositionTitle}
                                 </span>
@@ -912,7 +913,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                             <div className="block-head">
                               <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
-                                <Timer size={14} className="t-accent no-shrink" />
+                                <SettingsIcon><Timer size={14} className="t-accent no-shrink" /></SettingsIcon>
                                 <span className="t-label nowrap">
                                   {dict.settings.appearance.timeFormatTitle}
                                 </span>
@@ -981,7 +982,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     <label className="option-row" style={{ cursor: "pointer" }}>
                       <input
                         type="checkbox"
-                        className="ui-checkbox mt-1"
+                        className="ui-checkbox"
                         checked={animationsEnabled}
                         onChange={(e) => {
                           const val = e.target.checked;
@@ -1021,7 +1022,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
               <AccordionSection
                 isOpen={!!openSections["app_control_buttons"]}
                 onToggle={() => toggleSection("app_control_buttons")}
-                icon={<SlidersHorizontal size={16} />}
+                icon={<Eye size={16} />}
                 title={dict.settings.appearance.visibilitySection}
                 >
                 <div>
@@ -1203,7 +1204,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
               <AccordionSection
                 isOpen={!!openSections["app_ambient"]}
                 onToggle={() => toggleSection("app_ambient")}
-                icon={<Sparkles size={16} />}
+                icon={<Sun size={16} />}
                 title={dict.settings.appearance.ambientSection}
                 >
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
@@ -1239,12 +1240,12 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             gap: "var(--space-1)",
                             padding: "10px 6px",
                             borderRadius: "var(--segment-inner-radius)",
-                            border: isSel ? "1.5px solid var(--focus-ring)" : "1px solid rgba(255, 255, 255, 0.06)",
+                            border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                             cursor: "pointer",
                             background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "transparent",
                             color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                             boxShadow: isSel
-                              ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px var(--focus-ring)"
+                              ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent"
                               : "none",
                             transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                           }}
@@ -1266,7 +1267,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     return (
                       <div className="option-card" style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 14 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0, lineHeight: 1 }}>
-                          <Sparkles size={15} className="t-accent" />
+                          <SettingsIcon><Sparkles size={15} className="t-accent" /></SettingsIcon>
                           <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
                             {dict.settings.appearance.ambientLight.blurRadius}
                           </span>

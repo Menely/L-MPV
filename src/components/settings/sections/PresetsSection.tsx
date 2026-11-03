@@ -11,6 +11,8 @@ import {
   Download,
   Upload,
   Layers,
+  Scaling,
+  PanelsTopLeft,
   Palette,
   Eye,
   AudioWaveform,
@@ -533,7 +535,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 3. Интенсивность неонового свечения */}
         {data.glowIntensity && data.glowIntensity !== "off" && (
           <div className="preset-tag" title={dict.settings.presets.neonTitle}>
-            <Sparkles size={11} color="var(--accent-text, var(--accent))" />
+            <Sparkles size={12} color="var(--accent-text, var(--accent))" />
             <span>
               {data.glowIntensity === "soft"
                 ? dict.settings.presets.neonSoft
@@ -547,7 +549,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 4. Blur */}
         {data.ambient && (
           <div className="preset-tag" title={dict.settings.presets.ambientTitle}>
-            <Sun size={11} />
+            <Sun size={12} />
             <span>
               {data.ambient.mode === "blur"
                 ? dict.settings.presets.ambientBlur
@@ -560,7 +562,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 5. Аудио-визуалайзер */}
         {data.visualizer && (
           <div className="preset-tag" title={dict.settings.presets.visualizerTitle}>
-            <AudioWaveform size={11} />
+            <AudioWaveform size={12} />
             <span>
               {data.visualizer.enabled && data.visualizer.placement !== "off"
                 ? dict.settings.presets.visualizerMode(data.visualizer.mode)
@@ -572,7 +574,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 6. Прозрачность UI */}
         {typeof data.uiOpacity === "number" && data.uiOpacity < 1 && (
           <div className="preset-tag" title={dict.settings.presets.opacityTitle}>
-            <Eye size={11} />
+            <Eye size={12} />
             <span>{Math.round(data.uiOpacity * 100)}%</span>
           </div>
         )}
@@ -580,7 +582,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 7. Скругление углов */}
         {radiusText && (
           <div className="preset-tag" title={dict.settings.presets.radiusTitleTooltip}>
-            <SlidersHorizontal size={11} />
+            <SlidersHorizontal size={12} />
             <span>{radiusText}</span>
           </div>
         )}
@@ -588,7 +590,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 8. Масштаб интерфейса (если не 100%) */}
         {scaleText && (
           <div className="preset-tag" title={dict.settings.presets.scaleTitle}>
-            <Layers size={11} />
+            <Scaling size={12} />
             <span>{scaleText}</span>
           </div>
         )}
@@ -596,7 +598,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 9. Кастомные бинды (если есть) */}
         {hotkeyCount> 0 && (
           <div className="preset-tag" title={dict.settings.presets.hotkeysTitle}>
-            <Keyboard size={11} />
+            <Keyboard size={12} />
             <span>{dict.settings.presets.hotkeysLabel(hotkeyCount)}</span>
           </div>
         )}
@@ -604,7 +606,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 10. Язык интерфейса (если сохранён в пресете) */}
         {data.language && (
           <div className="preset-tag" title={`${dict.settings.general.languageTitle}: ${data.language.toUpperCase()}`}>
-            <Globe size={11} />
+            <Globe size={12} />
             <span>{data.language.toUpperCase()}</span>
           </div>
         )}
@@ -612,7 +614,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 11. Стиль меню настроек (если сохранён в пресете) */}
         {data.settingsStyle && (
           <div className="preset-tag" title={`${dict.settings.appearance.settingsWindow.title}: ${data.settingsStyle === "modal" ? dict.settings.appearance.settingsWindow.modal : dict.settings.appearance.settingsWindow.sidebar}`}>
-            <Layers size={11} />
+            <PanelsTopLeft size={12} />
             <span>{data.settingsStyle === "modal" ? dict.settings.appearance.settingsWindow.modal : dict.settings.appearance.settingsWindow.sidebar}</span>
           </div>
         )}
@@ -677,7 +679,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               {isApplied ? (
                 <Check size={14} strokeWidth={2.5} className="no-shrink" />
               ) : (
-                <Play size={13} className="no-shrink" />
+                <Play size={14} className="no-shrink" />
               )}
               <span>{isApplied ? dict.settings.presets.btnActive : dict.settings.presets.btnApply}</span>
             </button>
@@ -690,7 +692,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   onClick={() => handleOverwrite(preset)}
                   title={dict.settings.presets.btnUpdateTitle}
                   >
-                  <RotateCw size={13} />
+                  <RotateCw size={14} />
                 </button>
 
                 <button
@@ -702,7 +704,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   }}
                   title={dict.settings.presets.btnRenameTitle}
                   >
-                  <Edit2 size={13} />
+                  <Edit2 size={14} />
                 </button>
 
                 <button
@@ -711,7 +713,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   onClick={() => handleExportSingle(preset)}
                   title={dict.settings.presets.btnExportTitle}
                   >
-                  <Download size={13} />
+                  <Download size={14} />
                 </button>
 
                 <button
@@ -721,7 +723,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   title={dict.settings.presets.btnDeleteConfirm}
                   aria-label={dict.settings.presets.btnDeleteConfirm}
                   >
-                  <Trash2 size={13} />
+                  <Trash2 size={14} />
                 </button>
               </div>
             ) : (
@@ -755,7 +757,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             onClick={handleNativeImport}
             title={dict.settings.presets.importTitle}
             >
-            <Upload size={13} />
+            <Upload size={14} />
             <span>{dict.settings.presets.btnImport}</span>
           </button>
         </div>
@@ -826,7 +828,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               onClick={handleReload}
               title={dict.settings.presets.refreshTitle}
               >
-              <RotateCw size={13} />
+              <RotateCw size={14} />
               <span>{dict.settings.presets.btnRefresh}</span>
             </button>
             <button
@@ -835,7 +837,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               onClick={handleNativeImport}
               title={dict.settings.presets.importTitle}
               >
-              <Upload size={13} />
+              <Upload size={14} />
               <span>{dict.settings.presets.btnImport}</span>
             </button>
             {userPresets.length> 0 && (
@@ -846,7 +848,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   onClick={handleExportAll}
                   title={dict.settings.presets.exportAllTitle}
                   >
-                  <Download size={13} />
+                  <Download size={14} />
                   <span>{dict.settings.presets.btnExportAll}</span>
                 </button>
                 <button
@@ -855,7 +857,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   onClick={handleOpenFolder}
                   title={dict.settings.presets.folderTitle}
                   >
-                  <FolderOpen size={13} />
+                  <FolderOpen size={14} />
                   <span>{dict.settings.presets.btnFolder}</span>
                 </button>
               </>

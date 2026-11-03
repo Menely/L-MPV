@@ -112,7 +112,7 @@
 
 .time-display--titlebar:hover {
   background: var(--surface-level-3-hover);
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
   color: #ffffff;
   box-shadow: var(--shadow-card-hover);
 }

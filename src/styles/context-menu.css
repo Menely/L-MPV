@@ -379,7 +379,7 @@
 .context-menu .track-download-btn:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--accent-text);
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
 }
 
 .context-menu .track-download-btn:active:not(:disabled) {

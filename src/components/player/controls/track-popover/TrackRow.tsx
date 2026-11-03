@@ -64,9 +64,9 @@ export const TrackRow: React.FC<TrackRowProps> = ({
         }}
       >
         {isDownloading ? (
-          <Loader2 size={13} className="spin-animation" />
+          <Loader2 size={14} className="spin-animation" />
         ) : (
-          <Download size={13} />
+          <Download size={14} />
         )}
       </button>
     )}

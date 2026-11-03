@@ -179,7 +179,7 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
               : "rgba(255, 255, 255, 0.05)",
             border: "1px solid",
             borderColor: isCopied
-              ? "var(--focus-ring)"
+              ? "var(--accent)"
               : "rgba(255, 255, 255, 0.1)",
             color: isCopied ? "var(--accent-text)" : "var(--text-muted)",
             cursor: "pointer",

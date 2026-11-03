@@ -7,6 +7,8 @@
   --surface-accent-subtle: var(--surface-fill-selected-1);
   --surface-accent-hover: var(--surface-fill-selected-hover-1);
   --ui-popover-opacity: calc(0.45 + var(--ui-opacity) * 0.55);
+  --capsule-island-opacity: calc(0.20 + var(--ui-opacity) * 0.55);
+  --capsule-island-fill: color-mix(in srgb, var(--surface-tone-1) calc(var(--capsule-island-opacity) * 100%), transparent);
   --surface-opacity-0: calc(0.40 + var(--ui-opacity) * 0.60);
   --surface-state-opacity-0: calc(0.72 + var(--ui-opacity) * 0.28);
   --surface-selection-opacity-0: calc(0.78 + var(--ui-opacity) * 0.22);

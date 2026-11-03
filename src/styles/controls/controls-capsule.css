@@ -188,9 +188,10 @@ button.controls-island--time,
   display: inline-flex;
   align-items: center;
   height: 42px;
-  background: var(--surface-level-3);
+  background: var(--capsule-island-fill, var(--surface-level-3));
   border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: max(0px, calc(var(--radius-controls, 18px) - 7px));
+  /* Outer border (1px) + vertical dock padding (7px) = 8px inset. */
+  border-radius: max(0px, calc(var(--radius-controls, 18px) - 8px));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -208,7 +209,7 @@ button.controls-island--time,
 /* Островок 2: Звук (громкость) — математически выверенная зеркальная симметрия */
 .controls-island--volume {
   gap: var(--space-2);
-  padding: 0 12px;
+  padding: 0 8px;
   min-width: 0;
   display: inline-flex;
   align-items: center;
@@ -221,20 +222,20 @@ button.controls-island--time,
 }
 
 .player-controls--capsule .controls-island--volume .volume-slider #btn-volume {
-  width: auto;
-  min-width: 0;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   margin: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: var(--radius-control);
 }
 
 .player-controls--capsule .controls-island--volume .volume-slider__value {
   min-width: 0;
   padding: 0;
-  margin: 0 0 0 7px;
+  margin: 0 0 0 4px;
   text-align: center;
   display: inline-flex;
   align-items: center;
@@ -245,7 +246,7 @@ button.controls-island--time,
 
 .player-controls--capsule .controls-island--volume .volume-slider:hover .volume-slider__value,
 .player-controls--capsule .controls-island--volume .volume-slider:focus-within .volume-slider__value {
-  margin-left: 0;
+  margin-left: 6px;
 }
 
 /* Островок 3: Аудиовизуализатор (отдельная самостоятельная карточка) */

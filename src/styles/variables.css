@@ -126,6 +126,11 @@
   --radius-xl:       16px;
   --radius-pill:     50px;
   --radius-controls: 16px;
+  /* Geometry shared by settings, menus and utility actions (CSS px before UI scale). */
+  --size-action-compact: 28px;
+  --size-action: 32px;
+  --size-menu-row: 36px;
+  --padding-card: 12px;
 
   /* Самостоятельные элементы: компактная форма без превращения строк в капсулы.
      Круги, бегунки и индикаторы используют собственную геометрию. */

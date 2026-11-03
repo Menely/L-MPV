@@ -1,0 +1,63 @@
+/* Shared title geometry for every player style. Slots have no text baseline. */
+.glass-section.settings-group-card {
+  --section-title-size: var(--fs-base);
+  padding: 12px;
+}
+.settings-group-card .settings-section-header__row { min-height: 32px; }
+.settings-group-card .btn--icon { width: 32px; height: 32px; min-width: 32px; }
+.settings-icon {
+  --settings-glyph-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  line-height: 0;
+  vertical-align: middle;
+  color: var(--accent-text);
+}
+.settings-icon--section { --settings-glyph-size: 16px; }
+.settings-icon > svg {
+  display: block;
+  width: var(--settings-glyph-size);
+  height: var(--settings-glyph-size);
+  flex-shrink: 0;
+}
+/* The triangular Play glyph has less visual mass on its right side. */
+.settings-icon > .lucide-play { transform: translateX(1px); }
+/* Flame's rounded bowl carries more weight below its geometric center. */
+.settings-icon > .lucide-flame { transform: translateY(-0.5px); }
+.settings-accordion__label { min-width: 0; line-height: 20px; }
+/* Center the caption's cap-height, not font-specific invisible leading.
+   Older WebViews retain the regular line box without clipping any glyphs. */
+@supports (text-box-trim: trim-both) {
+  .settings-accordion__label {
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+  }
+}
+.settings-accordion__chevron { display: block; flex-shrink: 0; }
+
+/* Checkboxes align to the first title line, never the description below it. */
+.option-body > .row-center:first-child {
+  align-items: flex-start;
+  min-height: 20px;
+  line-height: 20px;
+}
+.option-body > .row-center:first-child > svg {
+  display: block;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  box-sizing: border-box;
+}
+.option-row > .ui-checkbox { margin-top: 1px; }
+.option-toggle-row__label { min-height: 20px; line-height: 20px; }
+
+/* SVG actions are centered by their box, not by inline text descenders. */
+:where(.option-card, .theme-card, .settings-accordion) button > svg {
+  display: block;
+  flex-shrink: 0;
+}

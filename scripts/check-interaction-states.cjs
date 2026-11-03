@@ -25,7 +25,11 @@ assert.equal(declaration('src/styles/controls/controls-base.css','.volume-slider
 // A solid zero-blur ring must survive Glow Off. Inspect CSS and inline JSX strings.
 let files=0,rings=0;
 function walk(dir){for(const e of fs.readdirSync(path.join(root,dir),{withFileTypes:true})){const p=dir+'/'+e.name;if(e.isDirectory())walk(p);else if(/\.(css|tsx)$/.test(p)){files++;const s=read(p);for(const m of s.matchAll(/(?:inset\s+)?0\s+0\s+0(?:px)?\s+[\d.]+px\s+var\(--([\w-]+)\)/g)){rings++;assert.ok(!/glow/.test(m[1]),`${p}: solid ring uses ${m[1]}`);}}}}
-walk('src/styles');walk('src/components');assert.ok(rings>15);
+walk('src/styles');walk('src/components');assert.ok(rings>0);
+// Ordinary selection must not borrow the contrast-corrected keyboard ring.
+assert.equal(declaration(modals,'.compact-segment-btn--active','border-color').value,'var(--accent)');
+assert.doesNotMatch(declaration(modals,'.compact-segment-btn--active','box-shadow').value,/--focus-ring/);
+assert.doesNotMatch(read('src/components/settings/components/optionCardStyles.ts'),/--focus-ring/);
 for(const file of ['src/components/upscale/ModelHotkeyButton.tsx','src/components/subtitles/SubtitleLineRow.tsx'])assert.doesNotMatch(read(file),/rgba\((?:59, 130, 246|127, 199, 255)/);
 assert.doesNotMatch(read('src/components/settings/tabs/HotkeysSettingsTab.tsx'),/currentTarget\.style\.background/);
 const depths=read('src/styles/surface-depth.css');

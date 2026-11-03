@@ -246,7 +246,7 @@
   background: var(--accent);
   color: var(--on-accent);
   box-shadow: none;
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
 }
 
 .settings-action-btn--secondary {
@@ -389,7 +389,7 @@
 
 .color-circle--add:hover {
   background: var(--accent-glass);
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
   color: var(--accent-text);
   box-shadow: none;
 }
@@ -465,28 +465,12 @@
   overflow: visible;
 }
 
-.player-theme-btn {
-  display: inline-flex;
-  align-items: center;
-  height: 32px;
-  border-radius: var(--radius-control);
-  cursor: pointer;
-  outline: none;
-  flex-shrink: 0;
-  font-weight: 500;
-  font-size: var(--fs-xs);
-  transition: background var(--t-fast) var(--ease-smooth),
-              border-color var(--t-fast) var(--ease-smooth),
-              box-shadow var(--t-fast) var(--ease-smooth),
-              padding 0.25s cubic-bezier(0.2, 1.15, 0.3, 1);
-}
-
 /* ─── Интерактивные карточки живого предпросмотра ────── */
 .settings-preview-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-5) 14px;
+  padding: var(--padding-card);
   margin-bottom: var(--space-6);
   background: var(--surface-card);
   border-radius: var(--radius-md);
@@ -626,7 +610,7 @@
 .visual-bar-card--active {
   background: var(--surface-accent-subtle) !important;
   border: 1.5px solid var(--accent) !important;
-  box-shadow: inset 0 0 0 1.5px var(--focus-ring) !important;
+  box-shadow: inset 0 0 0 1.5px transparent !important;
 }
 
 /* ─── Реалистичное мини-превью стиля панели плеера ─── */
@@ -652,7 +636,7 @@
 }
 
 .visual-bar-card--active .visual-bar-preview {
-  border-color: var(--focus-ring);
+  border-color: var(--accent);
 }
 
 .visual-bar-preview__screen {
@@ -730,7 +714,7 @@
 .visual-bar-preview__capsule-group--right { justify-self: end; }
 
 .visual-bar-card--active .visual-bar-preview__capsule-islands {
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
 }
 
 /* 2: Модерн (единый парящий остров) */
@@ -754,7 +738,7 @@
 }
 
 .visual-bar-card--active .visual-bar-preview__floating-island {
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
   background: var(--bg-elevated);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
 }
@@ -777,7 +761,7 @@
 }
 
 .visual-bar-card--active .visual-bar-preview__docked-bar {
-  border-top-color: var(--accent-text, var(--accent));
+  border-top-color: var(--accent);
   background: var(--bg-elevated);
   box-shadow: none;
 }
@@ -808,7 +792,7 @@
 }
 
 .visual-bar-card--active .visual-bar-preview__btn-play {
-  border-left-color: var(--accent-text, var(--accent));
+  border-left-color: var(--accent);
 }
 
 .visual-bar-preview__track {
@@ -1061,8 +1045,8 @@
 .compact-segment-btn--active {
   background: var(--surface-accent-subtle) !important;
   color: var(--text-primary) !important;
-  border-color: var(--accent-text, var(--accent)) !important;
-  box-shadow: inset 0 0 0 1.5px var(--focus-ring) !important;
+  border-color: var(--accent) !important;
+  box-shadow: inset 0 0 0 1.5px transparent !important;
 }
 
 .compact-segment-btn--mono {
@@ -1156,7 +1140,7 @@
 
 .settings-footer__btn--version:hover {
   background: var(--surface-accent-hover);
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
 }
 
 .settings-footer__btn--check {
@@ -1264,7 +1248,7 @@
 
 .update-modal-btn--primary:hover:not(:disabled) {
   background: var(--surface-accent-subtle);
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
   color: var(--accent-text);
 }
 
@@ -1427,6 +1411,9 @@
   width: 100%;
   display: flex;
   align-items: center;
+  min-height: 48px;
+  gap: 12px;
+  box-sizing: border-box;
   justify-content: space-between;
   padding: 12px 16px;
   background: transparent;
@@ -1452,6 +1439,8 @@
 .settings-accordion__title {
   display: flex;
   align-items: center;
+  min-width: 0;
+  line-height: 20px;
   gap: var(--space-5);
   font-size: var(--fs-md);
   font-weight: 600;
@@ -1613,10 +1602,10 @@
 .settings-tab-btn--active {
   color: var(--text-primary);
   background: var(--surface-accent-subtle);
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
   /* font-weight НЕ меняется (500): смена 500->600 расширяла подпись,
      отбирала ширину у соседних кнопок (flex:1) и сдвигала все иконки. */
-  box-shadow: inset 0 0 0 1px var(--focus-ring);
+  box-shadow: inset 0 0 0 1px transparent;
 }
 
 .settings-tab-btn--active svg {
@@ -1742,7 +1731,8 @@
   max-width: 42px;
   min-height: 42px;
   max-height: 42px;
-  display: flex;
+  display: grid;
+  place-items: center;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
@@ -1755,6 +1745,8 @@
 
 .modal--settings-capsule .settings-card--gear svg,
 .settings-side-panel--capsule .settings-card--gear svg {
+  width: 18px;
+  height: 18px;
   display: block;
   flex-shrink: 0;
   margin: 0;
@@ -1814,9 +1806,9 @@
 .settings-side-panel--capsule .settings-card--tabs .settings-tab-btn--active {
   border-radius: var(--tab-sub-radius);
   background: var(--surface-accent-subtle);
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
   color: var(--text-primary);
-  box-shadow: inset 0 0 0 1px var(--focus-ring);
+  box-shadow: inset 0 0 0 1px transparent;
 }
 
 .modal--settings-capsule .settings-card--tabs .settings-tab-btn--active:hover,
@@ -1842,7 +1834,8 @@
   max-width: 42px;
   min-height: 42px;
   max-height: 42px;
-  display: flex;
+  display: grid;
+  place-items: center;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
@@ -1867,6 +1860,8 @@
 
 .modal--settings-capsule .settings-card--close svg,
 .settings-side-panel--capsule .settings-card--close svg {
+  width: 18px;
+  height: 18px;
   display: block;
   flex-shrink: 0;
   transform-origin: center center;
@@ -2261,10 +2256,10 @@
   max-width: 100%;
   box-sizing: border-box;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5),
-              0 0 0 2px var(--focus-ring),
+              0 0 0 2px var(--accent),
               0 0 20px var(--surface-accent-glow);
   background: var(--bg-elevated) !important;
-  border-color: var(--accent-text, var(--accent)) !important;
+  border-color: var(--accent) !important;
   cursor: grabbing !important;
   transform: scale(1.02);
   pointer-events: none !important;
@@ -2438,7 +2433,7 @@
 }
 
 .cmenu-editor__add-divider-btn:hover {
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
   color: var(--accent-text);
   background: var(--accent-glass);
 }
@@ -2544,7 +2539,7 @@
 
 .cmenu-available-item__add:hover {
   color: var(--accent-text);
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
   background: var(--accent-glass);
 }
 
@@ -2851,7 +2846,7 @@
 .update-modal-capsule .update-card__btn--primary:hover,
 .update-modal-capsule .update-card__btn--downgrade:hover {
   background: var(--surface-accent-subtle);
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
   color: var(--accent-text);
   box-shadow: none !important;
   filter: none !important;
@@ -2879,7 +2874,7 @@
 .update-modal-capsule .version-picker-trigger:hover,
 .update-modal-capsule .version-picker-trigger--downgrade:hover {
   background: var(--surface-accent-subtle);
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
   color: var(--accent-text);
   box-shadow: none !important;
 }

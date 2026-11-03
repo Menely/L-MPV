@@ -594,16 +594,9 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-7)" }}>
       {/* 1. Выбор основного режима работы */}
-      <div className="glass-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <h3 style={{ fontSize: "var(--fs-lg)", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "var(--space-4)" }}>
-              <Zap size={18} color="var(--accent-text, var(--accent))" /> {dict.settings.upscaling.modeTitle}
-            </h3>
-            <p style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)", marginTop: "var(--space-1)" }}>
-              {dict.settings.upscaling.modeDesc}
-            </p>
-          </div>
+      <div className="glass-section settings-group-card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}><SectionHeader icon={<Zap size={16} />} title={dict.settings.upscaling.modeTitle} desc={dict.settings.upscaling.modeDesc} /></div>
 
           {/* Интерактивная кнопка-тумблер Включен / Выключен */}
           <button
@@ -646,7 +639,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       />
 
       {/* 3. Универсальная библиотека ONNX-моделей (`models/onnx/`) с биндом клавиш */}
-      <div className="glass-section glass-section--compact col col-gap-4">
+      <div className="glass-section glass-section--compact settings-group-card col col-gap-4">
         <div
           role="button"
           tabIndex={0}

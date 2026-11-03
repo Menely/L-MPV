@@ -79,9 +79,9 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
           : "var(--surface-level-2)",
         border: "1px solid",
         borderColor: isActive
-          ? "var(--focus-ring)"
+          ? "var(--accent)"
           : isNavTarget
-          ? "var(--focus-ring)"
+          ? "var(--accent)"
           : "transparent",
         boxShadow:
           isNavTarget && !isActive
@@ -163,7 +163,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
                   borderRadius: "var(--radius-xs)",
                   background: "var(--surface-accent-subtle)",
                   color: "var(--accent-text)",
-                  border: "1px solid var(--focus-ring)",
+                  border: "1px solid var(--accent)",
                 }}
                 >
                 {dict.subtitlesSearch.matchBadge}

@@ -127,8 +127,8 @@
 .mediainfo-floating-window__btn--active {
   background: var(--surface-accent-subtle) !important;
   color: var(--text-primary) !important;
-  border-color: var(--accent-text, var(--accent)) !important;
-  box-shadow: inset 0 0 0 1.5px var(--focus-ring) !important;
+  border-color: var(--accent) !important;
+  box-shadow: inset 0 0 0 1.5px transparent !important;
 }
 
 .mediainfo-floating-window__btn--close:hover {
@@ -597,8 +597,8 @@
 .mediainfo-standalone__action-btn--active {
   background: var(--surface-accent-subtle) !important;
   color: var(--text-primary) !important;
-  border-color: var(--accent-text, var(--accent)) !important;
-  box-shadow: inset 0 0 0 1.5px var(--focus-ring) !important;
+  border-color: var(--accent) !important;
+  box-shadow: inset 0 0 0 1.5px transparent !important;
 }
 
 .mediainfo-standalone__action-btn:disabled {
@@ -736,8 +736,8 @@
 .mediainfo-tab-chip--active {
   background: var(--surface-accent-subtle) !important;
   color: var(--text-primary) !important;
-  border-color: var(--accent-text, var(--accent)) !important;
-  box-shadow: inset 0 0 0 1px var(--focus-ring) !important;
+  border-color: var(--accent) !important;
+  box-shadow: inset 0 0 0 1px transparent !important;
 }
 
 .mediainfo-tab-chip__badge {

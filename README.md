@@ -276,6 +276,11 @@ Contrast checks use reference surface colors; readability over video also depend
   - Harmonized border-radius styling for the "Standard / Inspector" mode switcher.
 - **High-Performance DOM Virtualization:** Effortlessly scrolls through thousands of subtitle lines with silky-smooth frame rates and negligible CPU usage.
 - **Intelligent Speech Tokenizer & Tempo Metrics (Intl.Segmenter):** High-precision text segmentation with native support for spaceless CJK languages (Japanese, Chinese), automated ISO 639 to BCP-47 locale normalization, real-time speech rate analysis (WPM — words per minute, CPS — characters per second), and color-coded speech tempo badges in the ASS inspector (relaxed, brisk, rapid).
+- **Pristine Subtitle & Signs Rendering Engine:** 100% authentic, uncompromised rendering of stylized ASS/SSA subtitles, karaoke animations, and on-screen signs:
+  - *Strict Frame Bounding (`sub-ass-force-margins=no`, `sub-use-margins=no`)*: Guaranteed containment within the active video frame, completely eliminating text spilling into letterbox/pillarbox borders or blurred Ambient Light margins on ultrawide (21:9) monitors;
+  - *Author Style Integrity (`sub-ass-override=no`, `sub-scale-signs=no`)*: Strictly preserves author styling, positioning, and 1:1 scale for on-screen signs (signs on buildings, phones, posters);
+  - *Subpixel Precision & Typography (`sub-ass-hinting=none`, `sub-ass-shaper=harfbuzz`, `embeddedfonts=yes`)*: Unlocks HarfBuzz OpenType shaping, loads embedded MKV fonts, and disables FreeType hinting to eliminate jagged outlines and animation jitter;
+  - *Aspect Protection (`stretch-image-subs-to-screen=no`)*: Prevents PGS and VobSub bitmap subtitles from stretching during aspect ratio adjustments.
 
 </details>
 
@@ -299,7 +304,19 @@ Contrast checks use reference surface colors; readability over video also depend
   - Seamless switching under the "Appearance" tab with automatic persistence in `localStorage`, `config/settings.json`, and cross-window synchronization.
 - **Interactive Color Scheme Section:** Live authentic preview simulating player palette combinations, text contrast, and luminous element highlights.
 - **Adaptive Neon Glow (Glow Intensity):** 4 illumination intensity tiers (*Off*, *Soft*, *Medium*, *Cyber Intense*) with vector `drop-shadow` diffusion and timeline backlighting.
-- **Custom Color Picker & 4×4 Palette:** HSV/RGB/HEX color spectrum dialog with brightness sliders, 16 pastel presets, 16 classic presets, and a persistent user palette (up to 15 custom colors).
+- **Modular Color Picker Redesign & Precision Controls:**
+  - Complete architectural decomposition across all 3 interface styles (*Modern*, *Classic*, and floating island *Capsule*);
+  - High-performance Canvas spectral wheel with subpixel antialiasing and interactive hue ring accent;
+  - Linear lightness gradient slider with exact percentage readout;
+  - Quick-pick preset strip (10 curated shades) and dual comparison swatch (Current vs Original with 1-click revert);
+  - Monospace numeric inputs with 1-click clipboard copy for both HEX and RGB values;
+  - Persistent user palette (up to 15 custom colors) with seamless cross-tab synchronization.
+- **Mathematic Control Bar Rhythm & Optical Centering:**
+  - Strict 40px center-to-center grid rhythm and 22px visual gap across audio tracks, subtitles, and volume buttons;
+  - Micro-optical compensation for circular Play/Pause button (`transform: translateX(1px)`) aligning the triangle centroid;
+  - Standardized transport button scale (`size=18` for Repeat and Shuffle) and relaxed token spacing (`gap: var(--space-2)`) for Skip Opening;
+  - Enhanced nested card opacity differentiation for Capsule mode (`--capsule-island-fill`);
+  - Pixel-perfect first-line alignment for settings checkboxes and options with unified `SettingsIcon` slots.
 - **Multi-Position Time Display (6 Layout Options):**
   - Choose your ideal timestamp layout in Settings (`F2`) or the Right-Click menu:
     - *Left of Timeline* — Classic position before the seek bar.

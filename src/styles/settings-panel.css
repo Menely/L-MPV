@@ -140,7 +140,7 @@
 .settings-side-panel__nav-btn--active {
   background: var(--surface-accent-subtle);
   color: var(--accent-text);
-  border-color: var(--accent-text, var(--accent));
+  border-color: var(--accent);
   box-shadow: 0 0 7px var(--surface-accent-glow);
 }
 
@@ -330,7 +330,7 @@ body.settings-open .player-controls-wrapper--docked {
   align-items: stretch;
   min-width: 0;
   margin: 0;
-  padding: var(--space-5) 12px;
+  padding: var(--padding-card);
   overflow: hidden;
   font: inherit;
   color: inherit;
@@ -354,7 +354,7 @@ body.settings-open .player-controls-wrapper--docked {
 
 .settings-window-choice.visual-bar-card--active {
   border-width: 1.5px !important;
-  box-shadow: 0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px var(--focus-ring) !important;
+  box-shadow: 0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent !important;
 }
 
 .settings-window-choice__note {

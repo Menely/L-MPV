@@ -185,7 +185,7 @@
   gap: 10px;
   flex: 1;
   min-width: 0;
-  min-height: 34px;
+  min-height: var(--size-menu-row);
   padding: 6px 10px;
   box-sizing: border-box;
   background: transparent;
@@ -262,10 +262,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
+  width: var(--size-action-compact);
+  height: var(--size-action-compact);
+  min-width: var(--size-action-compact);
+  min-height: var(--size-action-compact);
   border-radius: var(--radius-list-row);
   border: 1px solid var(--border-pill);
   background: var(--surface-level-3);

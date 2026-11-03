@@ -294,7 +294,7 @@
 
 .subtitles-search-card--capsule .subtitles-card--follow-btn--active {
   background: var(--surface-accent-subtle) !important;
-  border-color: var(--focus-ring) !important;
+  border-color: var(--accent) !important;
   color: var(--accent-text) !important;
   box-shadow: none !important;
 }
@@ -302,7 +302,7 @@
 .subtitles-search-card--capsule .subtitles-card--follow-btn--active:hover:not(:disabled) {
   background: var(--surface-accent-hover) !important;
   color: var(--accent-text) !important;
-  border-color: var(--focus-ring) !important;
+  border-color: var(--accent) !important;
 }
 
 /* Островок отсутствия дорожек */

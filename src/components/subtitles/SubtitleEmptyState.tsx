@@ -109,7 +109,7 @@ export function SubtitleEmptyState({
           gap: "var(--space-3)",
           padding: "6px 12px",
           background: "var(--surface-accent-subtle)",
-          border: "1px solid var(--focus-ring)",
+          border: "1px solid var(--accent)",
           borderRadius: "var(--radius-xs)",
           color: "var(--accent-text)",
           fontSize: "var(--fs-xs)",

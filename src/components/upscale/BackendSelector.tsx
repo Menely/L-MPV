@@ -1,3 +1,4 @@
+import { SectionHeader } from "../settings/components/SettingBlocks";
 import React, { useState } from "react";
 import {
   Cpu,
@@ -61,7 +62,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
     : Math.min(100, Math.max(0, Math.round(downloadProgress?.percent || 0)));
 
   return (
-    <div className="glass-section glass-section--compact col col-gap-4">
+    <div className="glass-section glass-section--compact settings-group-card col col-gap-4">
       <div
         role="button"
         tabIndex={0}
@@ -75,40 +76,14 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
         }}
         style={{
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "space-between",
           flexWrap: "nowrap",
           gap: "var(--space-6)",
           cursor: "pointer",
         }}
         >
-        <div style={{ minWidth: 0 }}>
-          <h3
-            style={{
-              fontSize: "var(--fs-lg)",
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--space-4)",
-              whiteSpace: "nowrap",
-            }}
-            >
-            <Cpu size={17} color="var(--accent-text, var(--accent))" /> {dict.settings.upscaling.backendTitle}
-          </h3>
-          <p
-            style={{
-              fontSize: "var(--fs-sm)",
-              color: "var(--text-muted)",
-              marginTop: "var(--space-1)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-            >
-            {dict.settings.upscaling.backendDesc}
-          </p>
-        </div>
+        <div style={{ flex: 1, minWidth: 0 }}><SectionHeader icon={<Cpu size={16} />} title={dict.settings.upscaling.backendTitle} desc={dict.settings.upscaling.backendDesc} /></div>
 
         <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "center", flexShrink: 0 }}>
           <button

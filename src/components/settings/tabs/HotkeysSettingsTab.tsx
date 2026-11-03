@@ -3,6 +3,7 @@ import {
   Keyboard,
   RotateCcw,
   Trash2,
+  Play, FastForward, Volume2, Subtitles, Gauge, PanelsTopLeft, ListVideo, Scaling,
 } from "lucide-react";
 import {
   HOTKEY_ACTIONS,
@@ -384,7 +385,7 @@ export function HotkeysSettingsTab({
             flexShrink: 0,
           }}
           >
-          <RotateCcw size={12} /> {dict.settings.hotkeys.btnReset}
+          <RotateCcw size={14} /> {dict.settings.hotkeys.btnReset}
         </button>
       </div>
 
@@ -400,13 +401,15 @@ export function HotkeysSettingsTab({
           const secKey = `hk_${category}`;
           const isOpen = !!openSections[secKey];
           const categoryTitle = dict.settings.hotkeys.categories[category] || category;
+          const categoryIcons = { playback: Play, seeking: FastForward, audio: Volume2, subtitles: Subtitles, speed: Gauge, interface: PanelsTopLeft, playlist: ListVideo, upscaling: Scaling };
+          const CategoryIcon = categoryIcons[category as keyof typeof categoryIcons] || Keyboard;
 
           return (
             <AccordionSection
               key={category}
               isOpen={isOpen}
               onToggle={() => onToggleSection(secKey)}
-              icon={<Keyboard size={16} />}
+              icon={<CategoryIcon size={16} />}
               title={categoryTitle}
               badge={
                 <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", fontWeight: 500, marginLeft: "var(--space-2)" }}>
@@ -483,12 +486,12 @@ export function HotkeysSettingsTab({
                                     border: isConflicted
                                       ? "1.5px solid var(--danger-text)"
                                       : isRecording
-                                      ? "1.5px solid var(--focus-ring)"
+                                      ? "1.5px solid var(--accent)"
                                       : "1px solid var(--border-subtle)",
                                     boxShadow: isConflicted
                                       ? "0 0 8px var(--danger-glow), inset 0 0 0 1px var(--danger-border)"
                                       : isRecording
-                                      ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1px var(--focus-ring)"
+                                      ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1px transparent"
                                       : "none",
                                     borderRadius: "var(--radius-control)",
                                     fontFamily: "monospace",
@@ -529,7 +532,7 @@ export function HotkeysSettingsTab({
                                     justifyContent: "center",
                                   }}
                                   >
-                                  <Trash2 size={13} />
+                                  <Trash2 size={14} />
                                 </button>
                               </div>
                             );
@@ -550,8 +553,8 @@ export function HotkeysSettingsTab({
                                   style={{
                                     padding: "4px 10px",
                                     background: "var(--surface-accent-subtle)",
-                                    border: "1.5px solid var(--focus-ring)",
-                                    boxShadow: "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px var(--focus-ring)",
+                                    border: "1.5px solid var(--accent)",
+                                    boxShadow: "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent",
                                     borderRadius: "var(--radius-control)",
                                     fontFamily: "monospace",
                                     fontSize: "var(--fs-sm)",
