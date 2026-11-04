@@ -166,6 +166,8 @@ button.controls-island--time,
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
   box-sizing: border-box;
   background: transparent !important;
   border: none !important;
@@ -175,11 +177,15 @@ button.controls-island--time,
 /* Левая станция: дорожки, звук, визуализатор (прижаты к левому краю) */
 .controls-group--left {
   justify-self: start;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Правая станция: служебные утилиты и полный экран (прижаты к правому краю) */
 .controls-group--right {
   justify-self: end;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Все дочерние карточки-островки: уменьшенные, компактные, изящные на фоне крупной подложки */
@@ -203,7 +209,23 @@ button.controls-island--time,
   gap: var(--space-2);
   padding: 0 8px;
   min-width: 0;
-  flex-shrink: 0;
+  flex-shrink: 1;
+}
+
+.player-controls--capsule .controls-island--tracks .control-btn--with-label {
+  min-width: 32px;
+  max-width: 140px;
+  flex-shrink: 1;
+  border-radius: var(--radius-control) !important;
+}
+
+.player-controls--capsule .controls-island--tracks .control-btn__label {
+  min-width: 0;
+  flex-shrink: 1;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Островок 2: Звук (громкость) — математически выверенная зеркальная симметрия */
@@ -211,6 +233,7 @@ button.controls-island--time,
   gap: var(--space-2);
   padding: 0 8px;
   min-width: 0;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
 }
@@ -264,6 +287,9 @@ button.controls-island--time,
   box-shadow: none !important;
   height: 26px;
   padding: 0;
+  width: 64px;
+  min-width: 48px;
+  max-width: 80px;
 }
 
 /* Островок 4: Центральный транспорт (Play/Pause/Seek) — строго по центру */
@@ -283,6 +309,7 @@ button.controls-island--time,
   gap: var(--space-2);
   padding: 0 10px;
   min-width: 0;
+  flex-shrink: 1;
 }
 
 /* Островок 6: Отдельная карточка полноэкранного режима */
@@ -304,27 +331,96 @@ button.controls-island--time,
   border-radius: var(--radius-control);
 }
 
-@container controls (max-width: 960px) {
-  .controls-islands-row {
-    gap: 12px;
-  }
-}
+/* ─── Адаптивные медиа-правила стиля «Капсула» ─── */
 
-@container controls (max-width: 860px) {
+/* 1. Плавная адаптация при умеренном сужении окна (<= 1240px) */
+@container controls (max-width: 1240px) {
   .controls-islands-row {
     column-gap: 8px;
   }
-  .player-controls--capsule .control-btn__label {
-    max-width: 80px;
+  .player-controls--capsule .controls-island--tracks .control-btn__label {
+    max-width: 65px;
+  }
+  .controls-island--transport {
+    gap: 8px;
+    padding: 0 12px;
   }
 }
 
+/* 2. Компактный оконный режим (<= 1080px, стандартные окна 1024px и меньше) */
+@container controls (max-width: 1080px) {
+  .controls-islands-row {
+    column-gap: 8px;
+    padding: 6px 8px;
+  }
+  .controls-group {
+    gap: 5px;
+  }
+  .controls-island--transport {
+    gap: 6px;
+    padding: 0 10px;
+  }
+  /* Компактный режим кнопок дорожек: текстовые метки скрываются, остаются аккуратные иконки 32x32px */
+  .player-controls--capsule .controls-island--tracks .control-btn__label {
+    display: none !important;
+  }
+  .player-controls--capsule .controls-island--tracks .control-btn--with-label {
+    width: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  /* Компактная кнопка пропуска опенинга */
+  .player-controls--capsule #btn-skip-opening .control-btn__label {
+    display: none !important;
+  }
+  .player-controls--capsule #btn-skip-opening {
+    width: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  /* Компактный тулбарный спектроанализатор */
+  .player-controls--capsule .controls-island--visualizer .audio-visualizer--toolbar {
+    max-width: 52px;
+    width: 52px;
+  }
+}
+
+/* 3. Суб-оконный компактный режим (<= 880px) */
+@container controls (max-width: 880px) {
+  .controls-islands-row {
+    column-gap: 6px;
+  }
+  /* Скрытие тулбарного визуализатора для высвобождения места для громкости и дорожек */
+  .player-controls--capsule .controls-island--visualizer {
+    display: none !important;
+  }
+  /* Скрытие низкоприоритетных кнопок правой станции */
+  .player-controls--capsule .control-btn--priority-low {
+    display: none !important;
+  }
+  /* Индикатор громкости: скрыт в покое, раскрывается при наведении */
+  .player-controls--capsule .controls-island--volume .volume-slider__value {
+    display: none !important;
+  }
+  .player-controls--capsule .controls-island--volume .volume-slider:hover .volume-slider__value,
+  .player-controls--capsule .controls-island--volume .volume-slider:focus-within .volume-slider__value {
+    display: inline-flex !important;
+  }
+  .player-controls--capsule .volume-slider:hover .volume-slider__expandable,
+  .player-controls--capsule .volume-slider__expandable:focus-within {
+    max-width: 56px;
+  }
+}
+
+/* 4. Малый оконный режим (<= 760px) */
 @container controls (max-width: 760px) {
   .player-controls--capsule {
     max-width: 100%;
   }
   .controls-islands-row {
-    column-gap: 6px;
+    column-gap: 5px;
     padding: 4px;
     min-height: 44px;
   }
@@ -336,8 +432,8 @@ button.controls-island--time,
     gap: 4px;
   }
   .controls-island--transport {
-    padding: 0 8px;
-    gap: 6px;
+    padding: 0 6px;
+    gap: 4px;
   }
   .controls-timeline-wrap {
     gap: 6px;
@@ -354,7 +450,7 @@ button.controls-island--time,
     width: 28px;
     height: 28px;
   }
-  .player-controls--capsule .control-btn__label {
+  .player-controls--capsule .control-btn--priority-medium {
     display: none !important;
   }
   .player-controls--capsule .control-btn--with-label {

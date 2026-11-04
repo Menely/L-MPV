@@ -344,7 +344,7 @@ Contrast checks use reference surface colors; readability over video also depend
     - *Independent Functional Islands*: Dedicated cards for streams (audio + subtitles), volume slider, playback controls, utilities, and fullscreen toggle;
     - *Floating Timeline & Time Card*: Seekbar and time badge float independently with soft backlighting; clicking the time card instantly cycles time formats;
     - *Pixel-Perfect Center Alignment*: Play/pause and seek buttons stay strictly locked to the center of the window regardless of track label lengths;
-    - *Adaptive Layout*: Cards fluidly rearrange and never overlap even in compact window sizes.
+    - *Multi-Tier Adaptive Layout*: Flexible island stations with overflow guards (`min-width: 0`), guaranteed volume slider locking (`flex-shrink: 0`), automatic switching of track buttons to clean 32×32 px icon-only mode when scaling down (`≤ 1080px`), and compact scaling of the toolbar audio visualizer, preventing card overlap in windowed mode.
   - **Modern**: Elegant floating unified pill with integrated seekbar and comfortable window margins.
   - **Classic**: Familiar full-width edge-docked control panel pinned seamlessly to the bottom edge.
   - Interactive mini-previews under Settings (`F2` → "Appearance") for 1-click visual switching.
