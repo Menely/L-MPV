@@ -350,7 +350,7 @@ button.controls-island--time,
 /* 2. Компактный оконный режим (<= 1080px, стандартные окна 1024px и меньше) */
 @container controls (max-width: 1080px) {
   .controls-islands-row {
-    column-gap: 8px;
+    column-gap: 6px;
     padding: 6px 8px;
   }
   .controls-group {
@@ -370,7 +370,7 @@ button.controls-island--time,
     padding: 0 !important;
     justify-content: center !important;
   }
-  /* Компактная кнопка пропуска опенинга */
+  /* Компактная кнопка пропуска опенинга: подпись скрыта, иконка 32x32px сохраняется в панели */
   .player-controls--capsule #btn-skip-opening .control-btn__label {
     display: none !important;
   }
@@ -387,34 +387,7 @@ button.controls-island--time,
   }
 }
 
-/* 3. Суб-оконный компактный режим (<= 880px) */
-@container controls (max-width: 880px) {
-  .controls-islands-row {
-    column-gap: 6px;
-  }
-  /* Скрытие тулбарного визуализатора для высвобождения места для громкости и дорожек */
-  .player-controls--capsule .controls-island--visualizer {
-    display: none !important;
-  }
-  /* Скрытие низкоприоритетных кнопок правой станции */
-  .player-controls--capsule .control-btn--priority-low {
-    display: none !important;
-  }
-  /* Индикатор громкости: скрыт в покое, раскрывается при наведении */
-  .player-controls--capsule .controls-island--volume .volume-slider__value {
-    display: none !important;
-  }
-  .player-controls--capsule .controls-island--volume .volume-slider:hover .volume-slider__value,
-  .player-controls--capsule .controls-island--volume .volume-slider:focus-within .volume-slider__value {
-    display: inline-flex !important;
-  }
-  .player-controls--capsule .volume-slider:hover .volume-slider__expandable,
-  .player-controls--capsule .volume-slider__expandable:focus-within {
-    max-width: 56px;
-  }
-}
-
-/* 4. Малый оконный режим (<= 760px) */
+/* 3. Малый оконный режим (<= 760px) */
 @container controls (max-width: 760px) {
   .player-controls--capsule {
     max-width: 100%;
@@ -449,9 +422,6 @@ button.controls-island--time,
   .controls-island--fullscreen #btn-fullscreen {
     width: 28px;
     height: 28px;
-  }
-  .player-controls--capsule .control-btn--priority-medium {
-    display: none !important;
   }
   .player-controls--capsule .control-btn--with-label {
     padding: 0 !important;
