@@ -137,7 +137,7 @@ Contrast checks use reference surface colors; readability over video also depend
   <img src="./assets/ai-upscale.png" alt="Real-Time 4K AI Upscaling Before / After" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
 </p>
 
-- **Native In-Stream Video Inference:** Deep integration of the `vf_animejanai` filter powered by `the-database/mpv-AnimeJaNai` and the `aji.dll` bridge, outputting real-time hardware-accelerated 4K Ultra HD frames.
+- **Native In-Stream Video Inference:** Deep integration of the `vf_animejanai` filter powered by the updated `mpv-AnimeJaNai 3.9.0` stack (`aji` v0.17.1 bridge, NVIDIA TensorRT 11.4.0.106, and DirectML DirectX 12), outputting real-time hardware-accelerated 4K Ultra HD frames.
 - **Two Operational Modes:** A simple **"Off"** and **"AI Upscaling"** toggle in Settings (`F2`) — you decide when to engage neural enhancement.
 - **Dual Inference Backends:**
   - **DirectML:** Universal DirectX 12 inference compatible with virtually all modern GPUs (AMD Radeon, Intel Arc/Iris, NVIDIA GeForce) for rock-solid stability.
@@ -236,7 +236,7 @@ Contrast checks use reference surface colors; readability over video also depend
 
 - **Ergonomic Track Popover Menus:** Compact audio and subtitle popover on the bottom control bar; fixed **320px** width prevents layout shifts and size jumps when switching between tracks with short or long titles; displays up to 7 tracks cleanly without scrolling, features smooth vertical scrolling for long lists, and automatically centers on the active stream on open.
 - **Smart Middle Truncation & Compact Indicators:**
-  - `truncateMiddle` algorithm gracefully shortens oversized track names in the middle, keeping key beginning and ending identifiers intact (e.g., `Subtitles [Dubbing...FullHD].ass`), while full names remain accessible via hover tooltip;
+  - `truncateMiddle` algorithm (35-character threshold) gracefully shortens oversized track names in the middle, keeping key beginning and ending identifiers intact (e.g., `Subtitles [Dubbing...FullHD].ass`), preventing CSS ellipsis right-edge clipping while full names remain accessible via hover tooltip;
   - Sleek vector micro-icon `ExternalLink` with tooltip replaces the bulky `EXT` text badge for loaded external tracks;
   - Expanded track title width limit up to 260–280px in fullscreen mode for effortless legibility.
 - **Adaptive Style-Matching Design:**
@@ -301,7 +301,8 @@ Contrast checks use reference surface colors; readability over video also depend
   - **Interface Opacity (10..100%):** Precise opacity control for control bars, dialogs, and popovers while preserving pristine text contrast and legibility.
   - **Clean Borders & Card Elevation (v2.5.3 Architecture):** Sleek, consistent borders and deep natural shadows for option cards and accordions, completely eliminating artifacts or glare across translucent backgrounds.
   - **Zero Overhead:** Completely avoids heavy backdrop blur passes over video streams, providing zero GPU overhead and maximum responsiveness during 4K and HDR playback.
-- **11 Cinematic UI Themes:** *Dark Graphite*, *Discord Gray*, *Deep OLED*, *Sapphire Midnight*, *Nordic Frost*, *Lavender Indigo*, *Dark Emerald*, *Forest Sage*, *Mint Jade*, *Amethyst*, and *Sunset Coral* with interactive pill badges and harmonious palettes across backgrounds, text, surfaces, and accent glows.
+- **15 Cinematic UI Themes:** *Dark Graphite*, *Deep OLED*, *Night Cobalt*, *Dark Emerald*, *Black Orchid*, *Northern Mist*, *Discord Gray*, *Forest Sage*, *Mint Jade*, *Terracotta*, *Twilight Iris*, *Plum Velvet*, *Dark Bronze*, *Ink Ocean*, *Warm Titanium* with interactive sliding pill tags and dynamic harmony across surfaces, text, backgrounds, and accents.
+- **Visual Settings De-Cluttering & Flat Polish:** Eliminated stacked drop-shadows beneath color palette cards and option buttons for a cleaner frosted glass aesthetic; unified audio visualizer and activity heatmap power buttons under (`.viz-power-btn--active`) without blurry halos or scale distortion.
 - **Unified Elevation Surfaces System:**
   - *Level 1 (`.glass-panel`)*: Main floating bars, dropdown menus, and modal dialogs.
   - *Level 2 (`.glass-section`)*: Grouping sections and functional settings containers.
@@ -851,10 +852,10 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 | | Frame step backward / forward | `,` / `.` |
 | **Audio** | Volume ±5% | `↑` / `↓` or Mouse Wheel over video |
 | | Mute / Unmute | `M` |
-| | Cycle Audio Track | `A` or Left Click Audio button |
-| | Audio Track Popover & Export | Right Click Audio button |
-| **Subtitles** | Cycle Subtitle Track | `V` or Left Click Subtitles button |
-| | Subtitle Track Popover & Export | Right Click Subtitles button |
+| | Cycle Audio Track (Keyboard) | `A` |
+| | Audio Track Popover & Export | Left / Right Click Audio button |
+| **Subtitles** | Cycle Subtitle Track (Keyboard) | `V` |
+| | Subtitle Track Popover & Export | Left / Right Click Subtitles button |
 | | Interactive Subtitle Browser & Search | `Ctrl + F` |
 | **Playback Speed** | Decrease / Increase Speed (±0.25x) | `[` / `]` |
 | | Reset Speed to Normal (1.0x) | `Backspace` |
@@ -863,7 +864,7 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 | | Open Settings | `F2` |
 | | Chapters Navigation | `C` |
 | | Toggle Audio Visualizer | `W` |
-| | Cycle Visualizer Style | `Shift + W` (3 styles) |
+| | Cycle Visualizer Style | `Shift + W` (9 styles) |
 | | Rotate Video 90° | `Alt + R` |
 | | Zoom & Pan Video | `Ctrl` + Mouse Wheel |
 | | Reset Zoom to 100% | `0` |
@@ -892,7 +893,7 @@ Communication between the React user interface and the MPV engine, neural upscal
 - **MediaInfo Analysis (5 commands):** `get_detailed_media_info`, `is_standalone_mode`, `get_standalone_mediainfo_path`, `open_mediainfo_window`, `toggle_mediainfo_window`.
 - **Screenshots & Clipboard (4 commands):** `take_screenshot`, `copy_frame_to_clipboard`, `get_screenshot_dir`, `set_screenshot_dir`.
 - **Chapters (2 commands):** `get_chapters`, `seek_chapter`.
-- **Metadata & Position Tracking (13 commands):** `get_position`, `get_duration`, `get_frame_number`, `get_frame_count`, `get_fps`, `get_media_info`, `get_playback_state`, `get_last_position`, `get_watch_history_batch`, `save_position`, `save_current_position`, `get_app_version`, `get_active_subtitle_lines`, `analyze_subtitle_track`.
+- **Metadata & Position Tracking (14 commands):** `get_position`, `get_duration`, `get_frame_number`, `get_frame_count`, `get_fps`, `get_media_info`, `get_playback_state`, `get_last_position`, `get_watch_history_batch`, `save_position`, `save_current_position`, `get_app_version`, `get_active_subtitle_lines`, `analyze_subtitle_track`.
 - **Windows System Integration (9 commands):** `register_file_associations`, `unregister_file_associations`, `open_default_apps_settings`, `register_explorer_context_menu`, `unregister_explorer_context_menu`, `is_explorer_context_menu_registered`, `get_windows_accent_color`, `get_multi_instance`, `set_multi_instance`.
 - **Letterbox Blur (4 commands; legacy IPC names retained):** `get_ambient_settings`, `apply_ambient_preview`, `set_ambient_settings`, `toggle_ambient_mode`.
 - **Settings Presets & File I/O (8 commands):** `get_settings_presets`, `save_settings_presets`, `save_single_preset`, `delete_preset_file`, `rename_preset_file`, `open_presets_folder`, `write_text_file`, `read_text_file`.
