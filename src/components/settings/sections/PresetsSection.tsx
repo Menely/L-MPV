@@ -1,3 +1,4 @@
+import { SettingsIcon } from "../components/SettingsIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
@@ -748,7 +749,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       <div className="presets-creator">
         <div className="presets-creator__header">
           <div className="presets-creator__title">
-            <Sparkles size={16} color="var(--accent-text, var(--accent))" />
+            <SettingsIcon section><Sparkles size={18} color="var(--accent-text, var(--accent))" /></SettingsIcon>
             <span>{dict.settings.presets.saveCurrentTitle}</span>
           </div>
           <button
@@ -817,7 +818,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                 !isUserPresetsOpen ? "presets-section-heading__chevron--collapsed" : ""
               }`}
             />
-            <Layers size={15} />
+            <SettingsIcon section><Layers size={18} /></SettingsIcon>
             <span>{dict.settings.presets.myPresetsLabel(userPresets.length)}</span>
           </button>
 
@@ -906,7 +907,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                 !isBuiltInPresetsOpen ? "presets-section-heading__chevron--collapsed" : ""
               }`}
             />
-            <Sparkles size={15} />
+            <SettingsIcon section><Sparkles size={18} /></SettingsIcon>
             <span>{dict.settings.presets.builtinLabel(BUILT_IN_PRESETS.length)}</span>
           </button>
         </div>

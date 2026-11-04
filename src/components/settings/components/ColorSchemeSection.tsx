@@ -1,3 +1,4 @@
+import { SettingsIcon } from "./SettingsIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -293,7 +294,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       <div style={{ ...cardStyle, marginBottom: "var(--space-5)" }} className="theme-card">
         <div className="player-themes-header">
           <div className="row-center row-gap-3">
-            <Palette size={14} className="t-accent" />
+            <SettingsIcon><Palette size={14} className="t-accent" /></SettingsIcon>
             <span className="t-label">
               {dict.settings.appearance.colorScheme.playerThemeTitle}
             </span>
@@ -482,7 +483,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       <div style={cardStyle} className="theme-card">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div className="row-center row-gap-3">
-            <Sparkles size={14} className="t-accent" />
+            <SettingsIcon><Sparkles size={14} className="t-accent" /></SettingsIcon>
             <span className="t-label">
               {dict.settings.appearance.colorScheme.glowTitle}
             </span>

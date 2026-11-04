@@ -355,6 +355,24 @@ html.no-animations .timeline__pulse {
   transition: color var(--t-fast) var(--ease-smooth);
 }
 
+/* В полноэкранном режиме увеличиваем ограничение на названия дорожек */
+.player-controls--fullscreen .control-btn--with-label,
+.player-controls-wrapper--fullscreen .control-btn--with-label {
+  max-width: 340px !important;
+}
+
+.player-controls--fullscreen .control-btn__label,
+.player-controls-wrapper--fullscreen .control-btn__label {
+  max-width: 280px !important;
+  display: block !important;
+}
+
+@container controls (min-width: 1300px) {
+  .control-btn__label {
+    max-width: 280px;
+  }
+}
+
 .control-btn svg {
   width: 18px;
   height: 18px;

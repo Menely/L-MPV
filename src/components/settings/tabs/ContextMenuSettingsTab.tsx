@@ -1,3 +1,4 @@
+import { SettingsIcon } from "../components/SettingsIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
@@ -387,7 +388,7 @@ export function ContextMenuSettingsTab() {
       {/* ── Шапка с кнопками управления ── */}
       <div className="cmenu-editor__header">
         <span className="cmenu-editor__title">
-          <MousePointerClick size={14} className="t-accent" />
+          <SettingsIcon><MousePointerClick size={14} className="t-accent" /></SettingsIcon>
           {dict.settings.contextMenuConfig.cmenuConfigTitle}
         </span>
         <div className="cmenu-editor__actions">
@@ -415,7 +416,7 @@ export function ContextMenuSettingsTab() {
         {/* Левая колонка — текущее меню */}
         <div className="cmenu-editor__current">
           <div className="cmenu-editor__col-header">
-            <SlidersHorizontal size={14} className="t-accent" />
+            <SettingsIcon><SlidersHorizontal size={14} className="t-accent" /></SettingsIcon>
             <span>{dict.settings.contextMenuConfig.colCurrent}</span>
             <span className="cmenu-editor__count">{entries.length}</span>
           </div>
@@ -507,7 +508,7 @@ export function ContextMenuSettingsTab() {
         {/* Правая колонка — доступные пункты */}
         <div className="cmenu-editor__available">
           <div className="cmenu-editor__col-header">
-            <FolderOpen size={14} className="t-accent" />
+            <SettingsIcon><FolderOpen size={14} className="t-accent" /></SettingsIcon>
             <span>{dict.settings.contextMenuConfig.colAvailable}</span>
             <span className="cmenu-editor__count">{availableItems.length}</span>
           </div>

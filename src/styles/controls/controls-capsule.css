@@ -228,6 +228,27 @@ button.controls-island--time,
   white-space: nowrap;
 }
 
+/* В полноэкранном режиме или на широких экранах увеличиваем ограничение на названия дорожек */
+.player-controls--capsule.player-controls--fullscreen .controls-island--tracks .control-btn--with-label,
+.player-controls-wrapper--fullscreen .player-controls--capsule .controls-island--tracks .control-btn--with-label {
+  max-width: 260px !important;
+}
+
+.player-controls--capsule.player-controls--fullscreen .controls-island--tracks .control-btn__label,
+.player-controls-wrapper--fullscreen .player-controls--capsule .controls-island--tracks .control-btn__label {
+  max-width: 210px !important;
+  display: block !important;
+}
+
+@container controls (min-width: 1300px) {
+  .player-controls--capsule .controls-island--tracks .control-btn--with-label {
+    max-width: 260px;
+  }
+  .player-controls--capsule .controls-island--tracks .control-btn__label {
+    max-width: 210px;
+  }
+}
+
 /* Островок 2: Звук (громкость) — математически выверенная зеркальная симметрия */
 .controls-island--volume {
   gap: var(--space-2);

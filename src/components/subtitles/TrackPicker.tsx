@@ -1,7 +1,8 @@
 import type { RefObject } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import type { TrackInfo } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { truncateMiddle } from "../../utils/textUtils";
 
 interface TrackPickerProps {
   subTracks: TrackInfo[];
@@ -85,6 +86,14 @@ export function TrackPicker({
             {dict.subtitlesSearch.tracksCount(subTracks.length)}
           </span>
           <span
+            title={
+              currentDisplayedTrack
+                ? (currentDisplayedTrack.title?.trim() ||
+                   (currentDisplayedTrack.lang
+                     ? `${dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)} (${currentDisplayedTrack.lang.toUpperCase()})`
+                     : dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)))
+                : undefined
+            }
             style={{
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -93,9 +102,11 @@ export function TrackPicker({
             }}
             >
             {currentDisplayedTrack
-              ? `${currentDisplayedTrack.title || dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)} ${
-                  currentDisplayedTrack.lang ? `(${currentDisplayedTrack.lang})` : ""
-                }`
+              ? (currentDisplayedTrack.title?.trim()
+                  ? truncateMiddle(currentDisplayedTrack.title.trim(), 30)
+                  : (currentDisplayedTrack.lang
+                      ? `${dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)} (${currentDisplayedTrack.lang.toUpperCase()})`
+                      : dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)))
               : dict.subtitlesSearch.selectTrack}
           </span>
         </div>
@@ -166,6 +177,7 @@ export function TrackPicker({
                 type="button"
                 onClick={() => onSelect(t.id)}
                 className="subtitles-search-card__track-picker-item hover-bright"
+                title={t.title || dict.subtitlesSearch.defaultTrackName(t.id)}
                 style={{
                   width: "100%",
                   display: "flex",
@@ -207,7 +219,7 @@ export function TrackPicker({
                       whiteSpace: "nowrap",
                     }}
                     >
-                    {t.title || dict.subtitlesSearch.defaultTrackName(t.id)}
+                    {t.title ? truncateMiddle(t.title.trim(), 28) : dict.subtitlesSearch.defaultTrackName(t.id)}
                   </span>
                   {t.lang && (
                     <span
@@ -232,6 +244,15 @@ export function TrackPicker({
                       }}
                       >
                       {t.codec.toUpperCase()}
+                    </span>
+                  )}
+                  {t.external && (
+                    <span
+                      className="track-badge-ext"
+                      title={dict.controls.externalTrackTooltip}
+                      aria-label={dict.controls.externalTrackTooltip}
+                    >
+                      <ExternalLink size={10} strokeWidth={2.2} />
                     </span>
                   )}
                 </div>

@@ -2,6 +2,7 @@ import React from "react";
 import type { TrackInfo } from "../../../../contexts/PlayerStateContext";
 import type { ControlBarStyle } from "../../../../utils/controlBarStyleUtils";
 import { useTranslation } from "../../../../i18n/LanguageContext";
+import { truncateMiddle } from "../../../../utils/textUtils";
 import { TrackPopoverHeader } from "./TrackPopoverHeader";
 import { TrackRow } from "./TrackRow";
 
@@ -68,13 +69,19 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
   const kindTracks = tracks.filter((t) => t.type === displayedPopover);
   const isNoSubsActive = !isAudio && !kindTracks.some((t) => t.selected);
 
+  const getFullTitle = (t: TrackInfo): string => {
+    const trimmed = t.title?.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+    const defaultLabel = isAudio
+      ? dict.controls.trackLabel(t.id)
+      : dict.controls.subtitleLabel(t.id);
+    return t.lang ? `${defaultLabel} (${t.lang.toUpperCase()})` : defaultLabel;
+  };
+
   const getLabel = (t: TrackInfo): string => {
-    const base =
-      t.title ||
-      (isAudio
-        ? dict.controls.trackLabel(t.id)
-        : dict.controls.subtitleLabel(t.id));
-    return t.lang ? `${base} (${t.lang})` : base;
+    return truncateMiddle(getFullTitle(t), 32);
   };
 
   /**
@@ -139,7 +146,10 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
           <TrackRow
             key={t.id}
             label={getLabel(t)}
+            fullTitle={getFullTitle(t)}
             isActive={t.selected}
+            isExternal={Boolean(t.external)}
+            externalTooltip={dict.controls.externalTrackTooltip}
             itemRef={t.selected ? activeTrackItemRef : undefined}
             onSelect={() => select(t.id)}
             downloadLabel={

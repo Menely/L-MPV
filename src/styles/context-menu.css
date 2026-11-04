@@ -402,11 +402,24 @@
   box-shadow: none !important;
 }
 
+.context-menu__track-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
 .context-menu__track-title {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.context-menu__track-main .context-menu__track-title {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .context-menu__track-check {

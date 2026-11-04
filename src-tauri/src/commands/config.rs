@@ -91,14 +91,33 @@ pub fn get_auto_load_tracks() -> Result<bool, String> {
 }
 
 /// Установить статус настройки автоматического подхвата внешних дорожек с сохранением в settings.json.
+/// При включении на лету — немедленно сканирует папку и подхватывает внешние дорожки для текущего видео.
 #[tauri::command]
 pub fn set_auto_load_tracks(
+    state: State<'_, PlayerState>,
     enabled: bool,
 ) -> Result<(), String> {
     AppSettings::update_portable(|settings| {
         settings.auto_load_tracks = enabled;
-    })
-    .map(|_| ())
+    })?;
+
+    if enabled {
+        super::tracks::invalidate_external_scan_cache();
+        if let Ok(current_path) = state.mpv.get_property_string("path") {
+            if !current_path.is_empty() {
+                let settings = AppSettings::load_portable();
+                let _ = super::tracks::load_external_tracks_internal(
+                    &state.mpv,
+                    std::path::Path::new(&current_path),
+                    settings.auto_select_external_audio,
+                    None,
+                    "",
+                );
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Получить текущий статус настройки автоматического переключения звука на внешнюю аудиодорожку.

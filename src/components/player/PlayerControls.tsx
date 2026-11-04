@@ -1169,11 +1169,14 @@ export function PlayerControls({
     renderFullscreenButton,
     isStripHovered,
     setIsStripHovered,
+    isFullscreen,
   };
 
   return (
     <div
       className={`player-controls-wrapper ${
+        isFullscreen ? "player-controls-wrapper--fullscreen" : ""
+      } ${
         controlBarStyle === "docked" ? "player-controls-wrapper--docked" : ""
       } ${
         controlBarStyle === "capsule" ? "player-controls-wrapper--capsule" : ""

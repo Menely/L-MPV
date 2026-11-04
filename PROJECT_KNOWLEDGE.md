@@ -356,7 +356,7 @@ L-MPV/
 - **Оптимизация буферизации и кэширования:**
   - `demuxer-max-bytes=32MiB`, `demuxer-readahead-secs=2`.
   - `demuxer-max-back-bytes=16MiB` (**кэш обратной перемотки**: мгновенный возврат назад).
-  - `hr-seek-framedrop=yes`, `cache-pause=no`, `demuxer-mkv-subtitle-preroll=yes`, `sub-auto=fuzzy`.
+  - `hr-seek-framedrop=yes`, `cache-pause=no`, `demuxer-mkv-subtitle-preroll=yes`, `sub-auto=no`, `audio-file-auto=no` (внешние дорожки изолированы и подключаются строго через подсистему L-MPV с учётом настройки `auto_load_tracks`).
 - **Универсальное разрешение названий дорожек (Full Track Title Parity MKV ↔ MP4):**
   - Модульный каскадный механизм `resolve_track_title_raw` в методе `get_tracks_snapshot`:
     1. Базовое свойство `track-list/{i}/title` (для MKV и дорожек с прямым тегом title).
@@ -539,7 +539,7 @@ L-MPV/
 | | `get_sub_delay` | — | `Result<f64, String>` | Текущий сдвиг таймингов субтитров в секундах |
 | | `extract_track` | `video_path, track_type, track_index, ff_index, external_filename, target_path` | `Result<String, String>` | Извлечение аудио/субтитров (Direct Stream Copy `-c copy`, многопоточный fallback `-threads 0`) |
 | | `get_auto_load_tracks` | — | `Result<bool, String>` | Получение статуса автоподхвата внешних дорожек |
-| | `set_auto_load_tracks` | `enabled: bool` | `Result<(), String>` | Включение/выключение автоподхвата внешних дорожек |
+| | `set_auto_load_tracks` | `enabled: bool` | `Result<(), String>` | Включение/выключение автоподхвата внешних дорожек (при включении на лету сканирует и подхватывает дорожки для текущего видео) |
 | | `get_auto_select_external_audio`| — | `Result<bool, String>` | Чтение статуса автовыбора внешней русской аудиодорожки |
 | | `set_auto_select_external_audio`| `enabled: bool` | `Result<(), String>` | Настройка автовыбора внешней русской аудиодорожки |
 | | `load_external_tracks_for_file` | `path: String` | `Result<(), String>` | Сканирование и подключение внешних аудио и субтитров |

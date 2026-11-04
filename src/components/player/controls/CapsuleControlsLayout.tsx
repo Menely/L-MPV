@@ -38,6 +38,7 @@ export const CapsuleControlsLayout: React.FC<ControlsLayoutProps> = ({
   renderFullscreenButton,
   isStripHovered = false,
   setIsStripHovered,
+  isFullscreen = false,
 }) => {
   const { dict } = useTranslation();
   const speedButtonNode = renderSpeedButton?.();
@@ -47,6 +48,8 @@ export const CapsuleControlsLayout: React.FC<ControlsLayoutProps> = ({
     <div
       ref={controlsPillRef}
       className={`player-controls player-controls--capsule ${
+        isFullscreen ? "player-controls--fullscreen" : ""
+      } ${
         visualizerConfig.enabled && visualizerConfig.placement === "above_timeline"
           ? "player-controls--has-visualizer-above"
           : ""

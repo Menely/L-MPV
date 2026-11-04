@@ -1,3 +1,4 @@
+import { SettingsIcon } from "../components/SettingsIcon";
 /**
  * Модуль настроек кинематографичной тепловой карты таймлайна (Activity Heatmap).
  *
@@ -433,7 +434,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
     <AccordionSection
       isOpen={isOpen}
       onToggle={onToggle}
-      icon={<ChartColumnIncreasing size={16} />}
+      icon={<ChartColumnIncreasing size={18} />}
       title={
         dict.settings.appearance.heatmap?.sectionTitle ||
         "Тепловая карта таймлайна"
@@ -459,7 +460,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
         >
           <div style={optionBlockHeaderStyle}>
             <div style={optionBlockTitleStyle}>
-              <ChartColumnIncreasing size={14} className="t-accent no-shrink" />
+              <SettingsIcon><ChartColumnIncreasing size={14} className="t-accent no-shrink" /></SettingsIcon>
               <span style={optionBlockTitleTextStyle}>
                 {dict.settings.appearance.heatmap?.previewTitle ||
                   "Интерактивный предпросмотр рельефа"}
@@ -513,7 +514,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
           >
             <div style={optionBlockHeaderStyle}>
               <div style={optionBlockTitleStyle}>
-                <Palette size={14} className="t-accent no-shrink" />
+                <SettingsIcon><Palette size={14} className="t-accent no-shrink" /></SettingsIcon>
                 <span style={optionBlockTitleTextStyle}>
                   {dict.settings.appearance.heatmap?.paletteTitle ||
                     "Цветовая палитра спектра"}
@@ -658,7 +659,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
               <div style={optionBlockHeaderStyle}>
                 <div style={optionBlockTitleStyle}>
-                  <Film size={14} className="t-accent no-shrink" />
+                  <SettingsIcon><Film size={14} className="t-accent no-shrink" /></SettingsIcon>
                   <span style={optionBlockTitleTextStyle}>
                     {dict.settings.appearance.heatmap?.sourceTitle ||
                       "Источник данных"}
@@ -766,7 +767,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             >
               <div style={optionBlockHeaderStyle}>
                 <div style={optionBlockTitleStyle}>
-                  <PanelBottom size={14} className="t-accent no-shrink" />
+                  <SettingsIcon><PanelBottom size={14} className="t-accent no-shrink" /></SettingsIcon>
                   <span style={optionBlockTitleTextStyle}>
                     {dict.settings.appearance.heatmap?.placementLabel ||
                       "Расположение"}
@@ -850,7 +851,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
               <div style={optionBlockHeaderStyle}>
                 <div style={optionBlockTitleStyle}>
-                  <Waves size={14} className="t-accent no-shrink" />
+                  <SettingsIcon><Waves size={14} className="t-accent no-shrink" /></SettingsIcon>
                   <span style={optionBlockTitleTextStyle}>
                     {dict.settings.appearance.heatmap?.styleTitle ||
                       "Внешний вид рельефа (Стиль)"}

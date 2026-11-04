@@ -10,6 +10,7 @@ mod config;
 mod dir_scan;
 pub mod heatmap;
 mod history;
+pub mod matroska;
 mod playback;
 mod playlist;
 mod presets;
@@ -21,6 +22,8 @@ mod types;
 // ─── Реэкспорт типов ───────────────────────────────────
 #[allow(unused_imports)]
 pub use heatmap::*;
+#[allow(unused_imports)]
+pub use matroska::*;
 pub use types::*;
 
 // ─── Реэкспорт IPC-команд ──────────────────────────────

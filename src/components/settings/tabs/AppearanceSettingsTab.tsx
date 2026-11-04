@@ -152,7 +152,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
               <AccordionSection
                 isOpen={!!openSections["app_color_scheme"]}
                 onToggle={() => toggleSection("app_color_scheme")}
-                icon={<Palette size={16} />}
+                icon={<Palette size={18} />}
                 title={dict.settings.appearance.appearanceSection}
                 >
                 <ColorSchemeSection />
@@ -162,7 +162,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
               <AccordionSection
                 isOpen={!!openSections["app_interface"]}
                 onToggle={() => toggleSection("app_interface")}
-                icon={<SlidersHorizontal size={16} />}
+                icon={<SlidersHorizontal size={18} />}
                 title={dict.settings.appearance.interfaceSection}
                 >
                 <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", marginBottom: "var(--space-6)", lineHeight: 1.35 }}>
@@ -974,7 +974,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
               <AccordionSection
                 isOpen={!!openSections["app_animations"]}
                 onToggle={() => toggleSection("app_animations")}
-                icon={<Zap size={16} />}
+                icon={<Zap size={18} />}
                 title={dict.settings.appearance.animationsSection}
                 >
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
@@ -1022,7 +1022,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
               <AccordionSection
                 isOpen={!!openSections["app_control_buttons"]}
                 onToggle={() => toggleSection("app_control_buttons")}
-                icon={<Eye size={16} />}
+                icon={<Eye size={18} />}
                 title={dict.settings.appearance.visibilitySection}
                 >
                 <div>
@@ -1204,7 +1204,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
               <AccordionSection
                 isOpen={!!openSections["app_ambient"]}
                 onToggle={() => toggleSection("app_ambient")}
-                icon={<Sun size={16} />}
+                icon={<Sun size={18} />}
                 title={dict.settings.appearance.ambientSection}
                 >
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>

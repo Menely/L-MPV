@@ -409,7 +409,7 @@ export function HotkeysSettingsTab({
               key={category}
               isOpen={isOpen}
               onToggle={() => onToggleSection(secKey)}
-              icon={<CategoryIcon size={16} />}
+              icon={<CategoryIcon size={18} />}
               title={categoryTitle}
               badge={
                 <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", fontWeight: 500, marginLeft: "var(--space-2)" }}>

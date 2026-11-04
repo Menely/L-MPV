@@ -69,6 +69,11 @@ pub fn open_file_internal(
         .get_property_string("path")
         .unwrap_or_default();
 
+    // Отключаем встроенный автопоиск дорожек mpv: внешние файлы подключаются строго
+    // через L-MPV согласно пользовательской настройке auto_load_tracks.
+    let _ = state.mpv.set_property_string("sub-auto", "no");
+    let _ = state.mpv.set_property_string("audio-file-auto", "no");
+
     // 1. Мгновенно запускаем воспроизведение выбранного файла.
     state.mpv.command(&format!(
         "loadfile \"{}\" replace",

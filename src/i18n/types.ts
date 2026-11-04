@@ -36,6 +36,8 @@ export interface TranslationDict {
     volume: string;
     searchSubtitles: string;
     disableSubtitles: string;
+    externalTrackBadge: string;
+    externalTrackTooltip: string;
     downloadAudio: string;
     downloadSubtitle: string;
     downloadingAudio: string;

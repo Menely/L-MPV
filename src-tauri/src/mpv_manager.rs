@@ -516,7 +516,11 @@ impl MpvManager {
             // Гарантируем 100% аутентичное, неискажённое отображение авторских субтитров,
             // экранных надписей (signs), караоке и векторных элементов тайпсеттинга:
             Self::set_option(&api, handle, "demuxer-mkv-subtitle-preroll", "yes");
-            Self::set_option(&api, handle, "sub-auto", "fuzzy");
+            // Отключаем встроенный автопоиск дорожек mpv, чтобы исключить неконтролируемый
+            // подхват и автоматическую активацию внешних файлов субтитров и звука.
+            // Управление загрузкой внешних файлов осуществляется строго через L-MPV с учётом настройки auto_load_tracks.
+            Self::set_option(&api, handle, "sub-auto", "no");
+            Self::set_option(&api, handle, "audio-file-auto", "no");
             // 1. Ограничение границами кадра: исключает вылезание на поля леттербокса/пилларбокса и блюр
             Self::set_option(&api, handle, "sub-ass-force-margins", "no");
             Self::set_option(&api, handle, "sub-use-margins", "no");

@@ -1,3 +1,4 @@
+import { SettingsIcon } from "../components/SettingsIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -87,7 +88,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
     <AccordionSection
       isOpen={isOpen}
       onToggle={onToggle}
-      icon={<AudioWaveform size={16} />}
+      icon={<AudioWaveform size={18} />}
       title={dict.settings.appearance.controlButtons.visualizer}
     >
       <div className="col col-gap-5">
@@ -111,7 +112,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                 >
                 <div style={{ ...optionBlockHeaderStyle, marginBottom: "var(--space-2)" }}>
                   <div style={optionBlockTitleStyle}>
-                    <Palette size={14} className="t-accent" />
+                    <SettingsIcon><Palette size={14} className="t-accent" /></SettingsIcon>
                     <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.palette}</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -222,7 +223,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
               <div style={{ ...optionCardStyle, height: "100%", boxSizing: "border-box" }} className="theme-card">
                 <div style={optionBlockHeaderStyle}>
                   <div style={optionBlockTitleStyle}>
-                    <Monitor size={14} className="t-accent" />
+                    <SettingsIcon><Monitor size={14} className="t-accent" /></SettingsIcon>
                     <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.placement}</span>
                   </div>
                 </div>
@@ -251,7 +252,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
               <div style={{ ...optionCardStyle, height: "100%", boxSizing: "border-box" }} className="theme-card">
                 <div style={optionBlockHeaderStyle}>
                   <div style={optionBlockTitleStyle}>
-                    <Layers size={14} className="t-accent" />
+                    <SettingsIcon><Layers size={14} className="t-accent" /></SettingsIcon>
                     <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.style}</span>
                   </div>
                   <span style={optionValueBadgeStyle}>

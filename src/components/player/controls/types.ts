@@ -50,5 +50,7 @@ export interface ControlsLayoutProps {
   isStripHovered?: boolean;
   /** Обработчик смены наведения на тепловую полосу. */
   setIsStripHovered?: (hovered: boolean) => void;
+  /** Флаг полноэкранного режима плеера. */
+  isFullscreen?: boolean;
 }
 

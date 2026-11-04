@@ -19,6 +19,7 @@ import {
   OptionToggleRow,
 } from "../components/OptionTile";
 import { useTranslation } from "../../../i18n/LanguageContext";
+import { usePlayerState } from "../../../contexts/PlayerStateContext";
 import type { Locale } from "../../../i18n/types";
 
 /* ── Допустимые значения настроек видео/аудио ───────────────
@@ -80,6 +81,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   } = props;
 
   const { dict, locale, setLocale } = useTranslation();
+  const { loadTracks } = usePlayerState();
   const isRu = locale === "ru";
 
   const deinterlaceLabels = useMemo<Record<(typeof DEINTERLACE_OPTIONS)[number], string>>(() => ({
@@ -261,7 +263,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
       <AccordionSection
         isOpen={openSections["gen_language"] === true}
         onToggle={() => toggleSection("gen_language")}
-        icon={<Globe size={16} />}
+        icon={<Globe size={18} />}
         title={dict.settings.general.languageSection}
         >
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
@@ -355,7 +357,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
       <AccordionSection
         isOpen={openSections["gen_screenshots"] === true}
         onToggle={() => toggleSection("gen_screenshots")}
-        icon={<Camera size={16} />}
+        icon={<Camera size={18} />}
         title={dict.settings.general.screenshotsSection}
         >
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
@@ -439,7 +441,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
       <AccordionSection
         isOpen={openSections["gen_playback"] === true}
         onToggle={() => toggleSection("gen_playback")}
-        icon={<Play size={16} />}
+        icon={<Play size={18} />}
         title={dict.settings.general.playbackSection}
         >
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
@@ -571,7 +573,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
       <AccordionSection
         isOpen={openSections["gen_tracks"] === true}
         onToggle={() => toggleSection("gen_tracks")}
-        icon={<AudioLines size={16} />}
+        icon={<AudioLines size={18} />}
         title={dict.settings.general.tracksSection}
         >
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
@@ -589,6 +591,11 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                   setAutoLoadTracks(val);
                   try {
                     await invoke("set_auto_load_tracks", { enabled: val });
+                    if (val) {
+                      await loadTracks();
+                      setTimeout(() => { void loadTracks(); }, 200);
+                      setTimeout(() => { void loadTracks(); }, 600);
+                    }
                   } catch (err) {
                     setAutoLoadTracks(!val);
                     console.error("Ошибка сохранения настройки auto_load_tracks:", err);
@@ -824,7 +831,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
       <AccordionSection
         isOpen={openSections["gen_video_audio"] === true}
         onToggle={() => toggleSection("gen_video_audio")}
-        icon={<Clapperboard size={16} />}
+        icon={<Clapperboard size={18} />}
         title={dict.settings.general.videoAudioSection}
         >
         <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", marginBottom: "var(--space-5)", lineHeight: 1.35 }}>
@@ -972,7 +979,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
       <AccordionSection
         isOpen={openSections["gen_context_menu"] === true}
         onToggle={() => toggleSection("gen_context_menu")}
-        icon={<MousePointerClick size={16} />}
+        icon={<MousePointerClick size={18} />}
         title={dict.settings.general.contextMenuSection}
         >
         <div className="mt-4">

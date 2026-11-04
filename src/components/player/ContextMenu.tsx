@@ -6,7 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getSavedLayout, LAYOUT_CHANGED_EVENT, type LayoutEntry } from "../../utils/contextMenuLayout";
 import { open } from "@tauri-apps/plugin-dialog";
-import { ChevronRight, Download, Loader2 } from "lucide-react";
+import { ChevronRight, Download, Loader2, ExternalLink } from "lucide-react";
 import { getCustomHotkeys } from "../../utils/hotkeyUtils";
 import {
   type TimeDisplayPosition,
@@ -880,8 +880,20 @@ export function ContextMenu({
                 item.active ? "context-menu__track-btn--active" : ""
               }`}
               onClick={item.action}
+              title={item.title || item.label}
               >
-              <span className="context-menu__track-title">{item.label}</span>
+              <span className="context-menu__track-main">
+                <span className="context-menu__track-title">{item.label}</span>
+                {item.isExternal && (
+                  <span
+                    className="track-badge-ext"
+                    title={item.externalTooltip || dict.controls.externalTrackTooltip}
+                    aria-label={item.externalTooltip || dict.controls.externalTrackTooltip}
+                  >
+                    <ExternalLink size={10} strokeWidth={2.2} />
+                  </span>
+                )}
+              </span>
               <span className="context-menu__track-check">
                 {item.active && (
                   <span className="context-menu__radio-dot" aria-hidden="true" />

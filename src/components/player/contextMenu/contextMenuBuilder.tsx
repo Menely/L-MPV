@@ -46,6 +46,7 @@ import { TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
 import { TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
 import { CONTROL_BAR_STYLE_OPTIONS } from "../../../utils/controlBarStyleUtils";
 import { getKeyDisplay } from "../../../utils/hotkeyUtils";
+import { truncateMiddle } from "../../../utils/textUtils";
 
 export interface MenuItem {
   type: "item" | "divider" | "submenu" | "track" | "header";
@@ -64,6 +65,8 @@ export interface MenuItem {
   onDownload?: () => void;
   isDownloading?: boolean;
   downloadTitle?: string;
+  isExternal?: boolean;
+  externalTooltip?: string;
 }
 
 /** Список переключаемых кнопок нижней панели управления. */
@@ -311,19 +314,25 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       children: [
         { type: "header" as const, label: dict.settings.cmenuUI.groupAudioTracks },
         ...(audioTracks.length > 0
-          ? audioTracks.map((t) => ({
-              type: "track" as const,
-              track: t,
-              label: `${t.title || dict.settings.cmenuUI.trackLabel(t.id, "")} ${
-                t.lang ? `(${t.lang})` : ""
-              }`.trim(),
-              active: t.selected,
-              indicator: "dot" as const,
-              action: () => handleSelectAudio(t.id),
-              onDownload: () => handleDownloadTrack(t),
-              isDownloading: downloadingTrackKey === `audio-${t.id}`,
-              downloadTitle: dict.settings.cmenuUI.downloadAudio,
-            }))
+          ? audioTracks.map((t) => {
+              const trimmed = t.title?.trim();
+              const fullTitle = trimmed || (t.lang ? `${dict.settings.cmenuUI.trackLabel(t.id, "")} (${t.lang.toUpperCase()})` : dict.settings.cmenuUI.trackLabel(t.id, ""));
+              const label = trimmed ? truncateMiddle(trimmed, 30) : fullTitle;
+              return {
+                type: "track" as const,
+                track: t,
+                label,
+                title: fullTitle,
+                active: t.selected,
+                indicator: "dot" as const,
+                action: () => handleSelectAudio(t.id),
+                onDownload: () => handleDownloadTrack(t),
+                isDownloading: downloadingTrackKey === `audio-${t.id}`,
+                downloadTitle: dict.settings.cmenuUI.downloadAudio,
+                isExternal: Boolean(t.external),
+                externalTooltip: dict.controls.externalTrackTooltip,
+              };
+            })
           : [{ type: "item" as const, label: dict.settings.cmenuUI.noAudio, disabled: true }]),
       ],
     }),
@@ -342,19 +351,25 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
           indicator: "dot" as const,
           action: handleDisableSubs,
         },
-        ...subTracks.map((t) => ({
-          type: "track" as const,
-          track: t,
-          label: `${t.title || dict.settings.cmenuUI.subLabel(t.id, "")} ${
-            t.lang ? `(${t.lang})` : ""
-          }`.trim(),
-          active: t.selected,
-          indicator: "dot" as const,
-          action: () => handleSelectSub(t.id),
-          onDownload: () => handleDownloadTrack(t),
-          isDownloading: downloadingTrackKey === `sub-${t.id}`,
-          downloadTitle: dict.settings.cmenuUI.downloadSub,
-        })),
+        ...subTracks.map((t) => {
+          const trimmed = t.title?.trim();
+          const fullTitle = trimmed || (t.lang ? `${dict.settings.cmenuUI.subLabel(t.id, "")} (${t.lang.toUpperCase()})` : dict.settings.cmenuUI.subLabel(t.id, ""));
+          const label = trimmed ? truncateMiddle(trimmed, 30) : fullTitle;
+          return {
+            type: "track" as const,
+            track: t,
+            label,
+            title: fullTitle,
+            active: t.selected,
+            indicator: "dot" as const,
+            action: () => handleSelectSub(t.id),
+            onDownload: () => handleDownloadTrack(t),
+            isDownloading: downloadingTrackKey === `sub-${t.id}`,
+            downloadTitle: dict.settings.cmenuUI.downloadSub,
+            isExternal: Boolean(t.external),
+            externalTooltip: dict.controls.externalTrackTooltip,
+          };
+        }),
         { type: "header" as const, label: dict.settings.cmenuUI.groupSubTools },
         {
           type: "item" as const,

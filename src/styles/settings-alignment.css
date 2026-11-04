@@ -17,7 +17,12 @@
   vertical-align: middle;
   color: var(--accent-text);
 }
-.settings-icon--section { --settings-glyph-size: 16px; }
+.settings-icon--section {
+  --settings-glyph-size: 18px;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+}
 .settings-icon > svg {
   display: block;
   width: var(--settings-glyph-size);
@@ -28,6 +33,8 @@
 .settings-icon > .lucide-play { transform: translateX(1px); }
 /* Flame's rounded bowl carries more weight below its geometric center. */
 .settings-icon > .lucide-flame { transform: translateY(-0.5px); }
+/* Eye glyph is vertically compact (14/24 viewBox); small nudge matches cap-height center. */
+.settings-icon > .lucide-eye { transform: translateY(-0.5px); }
 .settings-accordion__label { min-width: 0; line-height: 20px; }
 /* Center the caption's cap-height, not font-specific invisible leading.
    Older WebViews retain the regular line box without clipping any glyphs. */

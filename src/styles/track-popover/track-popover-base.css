@@ -5,9 +5,9 @@
   position: absolute;
   bottom: calc(100% + 14px);
   left: 0;
+  width: 320px;
   min-width: 280px;
-  max-width: min(400px, 90vw);
-  width: max-content;
+  max-width: min(340px, calc(100vw - 32px));
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -226,12 +226,61 @@
   outline-offset: -2px;
 }
 
-.track-popover__item-title {
+.track-popover__item-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex: 1;
+  min-width: 0;
+}
+
+.track-popover__item-title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.track-popover__item-main .track-popover__item-title {
+  flex: 0 1 auto;
+}
+
+/* Компактный бейдж-иконка для внешних подключенных дорожек (аудио/субтитры) */
+.track-badge-ext {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  border-radius: var(--radius-xs, 4px);
+  background: var(--surface-level-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  user-select: none;
+  flex-shrink: 0;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
+}
+
+.track-badge-ext svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.track-popover__item:hover .track-badge-ext,
+.context-menu__track-btn:hover .track-badge-ext {
+  background: var(--surface-level-3);
+  color: var(--text-secondary);
+  border-color: var(--border-pill);
+}
+
+.track-popover__item--active .track-badge-ext,
+.context-menu__track-btn--active .track-badge-ext {
+  background: var(--surface-accent-subtle);
+  color: var(--accent-text);
+  border-color: var(--accent);
 }
 
 /* Контейнер индикатора активного выбора справа от названия */
