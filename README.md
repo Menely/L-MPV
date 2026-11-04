@@ -234,7 +234,11 @@ Contrast checks use reference surface colors; readability over video also depend
 <details>
 <summary><b>🎧 Track Management & 1-Click Export (Track Popover & FFmpeg)</b></summary>
 
-- **Ergonomic Track Popover Menus:** Compact audio and subtitle popover on the bottom control bar; displays up to 7 tracks cleanly without scrolling, features smooth vertical scrolling for long lists, and automatically centers on the active stream on open.
+- **Ergonomic Track Popover Menus:** Compact audio and subtitle popover on the bottom control bar; fixed **320px** width prevents layout shifts and size jumps when switching between tracks with short or long titles; displays up to 7 tracks cleanly without scrolling, features smooth vertical scrolling for long lists, and automatically centers on the active stream on open.
+- **Smart Middle Truncation & Compact Indicators:**
+  - `truncateMiddle` algorithm gracefully shortens oversized track names in the middle, keeping key beginning and ending identifiers intact (e.g., `Subtitles [Dubbing...FullHD].ass`), while full names remain accessible via hover tooltip;
+  - Sleek vector micro-icon `ExternalLink` with tooltip replaces the bulky `EXT` text badge for loaded external tracks;
+  - Expanded track title width limit up to 260–280px in fullscreen mode for effortless legibility.
 - **Adaptive Style-Matching Design:**
   - In **"Capsule"** style: Popovers feature floating cards: a header card with stream count badge and quick shortcut to Subtitle Search (`Ctrl+F`), a standalone card for quickly disabling subtitles, and a unified track list card;
   - In **"Modern"** and **"Classic"** styles: Elegant cohesive window with frosted glass backdrop;
@@ -247,7 +251,7 @@ Contrast checks use reference surface colors; readability over video also depend
 - **1-Click Audio & Subtitle Export:** Integrated download buttons within the bottom bar popover and context menu (Right-Click).
 - **Direct Stream Copy (`-c copy`):** Instant track extraction without re-encoding, preserving 100% of original quality in just seconds.
 - **Smart Multi-Threaded Fallback (`-threads 0`):** Automatic transcoding for incompatible container formats (e.g., `mov_text` subtitle streams convert seamlessly into `.srt`).
-- **Direct Copy for External Files:** Instantly duplicates loaded external subtitles without invoking FFmpeg.
+- **Direct Copy for External Files:** Instantly duplicates loaded external subtitles without invoking FFmpeg (with robust relative path resolution).
 - **Flexible Output Paths:** Save extracted files alongside the video or choose any custom destination via Windows Explorer.
 - **Animated Feedback:** Inline spinner inside the menu and a sleek progress status bar on the control panel.
 
@@ -260,6 +264,12 @@ Contrast checks use reference surface colors; readability over video also depend
   <img src="./assets/subtitled-window-player.png" alt="Searchable Subtitles Browser Interface" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
 </p>
 
+- **High-Performance Native Rust Matroska (MKV / WebM) Parser:**
+  - Instant embedded subtitle stream extraction (ASS/SSA/SRT) in single-digit milliseconds (**15–30 ms** vs previous 5–7 seconds via external FFmpeg) with zero video decoding overhead;
+  - Two-tier extraction architecture: ultra-fast index lookup via `Cues` table directly addressing subtitle clusters, and streaming seek-forward fallback over heavy video/audio blocks when `Cues` are absent;
+  - Full `ContentEncodings` compression support: `zlib` stream decompression for styles headers and subtitle frames via `flate2`, and `Header Stripping` prefix reconstruction;
+  - Authentic ASS/SSA document reconstruction preserving styles, coordinates, actors, layers, margins, and override tags, along with standard SRT;
+  - Versioned `l_mpv_sub_v4` disk cache for instant repeat lookups without re-parsing.
 - **Instant Full-Text Search:** Real-time searching across the entire subtitle track with instant match highlighting, match counters, and quick navigation via `Up` / `Down` / `Enter`.
 - **Interactive Jump to Timestamp:** Clicking any line immediately seeks playback to the exact dialogue timestamp.
 - **"Follow Playback" Mode:** Automatically tracks the active line during playback in real time with smooth, adaptive rAF-driven auto-scrolling.
@@ -451,7 +461,7 @@ Contrast checks use reference surface colors; readability over video also depend
 <summary><b>📋 Clipboard Integration & Clean Screenshots</b></summary>
 
 - **Frame to Clipboard via `Ctrl + C`:** Capture the current video frame without OSD directly into the Windows clipboard via native `copy_frame_to_clipboard` (zero temporary disk files).
-- **Lossless Screenshots:** Save high-quality PNG snapshots using hotkey `S` or the camera icon with instant OSD confirmation.
+- **Lossless Screenshots:** Save high-quality PNG snapshots using hotkey `S` or the camera icon with instant OSD confirmation. HDR and Dolby Vision frames are automatically tonemapped to sRGB, preventing overexposed or washed-out images in standard viewers.
 - **Custom Directory:** Set a custom screenshots directory in Settings or reset to the local `screenshots/` folder.
 
 </details>

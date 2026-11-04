@@ -199,16 +199,14 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                 <button
                   type="button"
                   onClick={() => updateVisualizer({ enabled: !visualizerConfig.enabled })}
-                  className="viz-power-btn"
+                  className={`viz-power-btn ${
+                    visualizerConfig.enabled ? "viz-power-btn--active" : ""
+                  }`}
                   title={visualizerConfig.enabled ? dict.settings.appearance.visualizer.toggleDisableTitle : dict.settings.appearance.visualizer.toggleEnableTitle}
                   aria-label={visualizerConfig.enabled ? dict.settings.appearance.visualizer.toggleOff : dict.settings.appearance.visualizer.toggleOn}
                   aria-pressed={visualizerConfig.enabled}
-                  style={{
-                    color: visualizerConfig.enabled ? "var(--accent-text)" : "var(--text-muted)",
-                    transition: "color var(--t-fast) var(--ease-smooth)",
-                  }}
-                  >
-                  <Power size={20} />
+                >
+                  <Power size={18} />
                 </button>
               </div>
             </div>

@@ -28,6 +28,7 @@ tokio = { version = "1", features = ["time", "fs", "io-util", "process"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 zip = "2"
 blake3 = "1.8.7"
+flate2 = "1"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"

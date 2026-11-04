@@ -506,11 +506,11 @@ pub fn generate_subtitles_cache_key(
     track_id: i64,
 ) -> String {
     let mut hasher1 = std::collections::hash_map::DefaultHasher::new();
-    (path, file_size, mtime, track_id, "l_mpv_sub_v3_a").hash(&mut hasher1);
+    (path, file_size, mtime, track_id, "l_mpv_sub_v4_a").hash(&mut hasher1);
     let h1 = hasher1.finish();
 
     let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
-    (path, file_size, mtime, track_id, "l_mpv_sub_v3_b").hash(&mut hasher2);
+    (path, file_size, mtime, track_id, "l_mpv_sub_v4_b").hash(&mut hasher2);
     let h2 = hasher2.finish();
 
     format!("{:016x}{:016x}", h1, h2)

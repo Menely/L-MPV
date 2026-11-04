@@ -330,10 +330,12 @@ pub async fn extract_track(
     // 1. Проверка внешнего файла: если дорожка уже из внешнего файла
     if let Some(ref ext_path) = external_filename {
         if !ext_path.is_empty() {
-            let src = std::path::Path::new(ext_path);
-            if src.exists() {
+            let resolved = resolve_external_subtitle_path(ext_path, &video_path)
+                .unwrap_or_else(|| std::path::PathBuf::from(ext_path));
+            if resolved.exists() {
+                let resolved_str = resolved.to_string_lossy().to_string();
                 // Если исходный файл aac, а целевой контейнер m4a — упаковываем через FFmpeg
-                if ext_path
+                if resolved_str
                     .to_lowercase()
                     .ends_with(".aac")
                     && effective_target_path
@@ -347,7 +349,7 @@ pub async fn extract_track(
                     cmd.args([
                         "-y",
                         "-i",
-                        ext_path,
+                        &resolved_str,
                         "-c",
                         "copy",
                         &effective_target_path,
@@ -384,7 +386,7 @@ pub async fn extract_track(
                     }
                 }
 
-                std::fs::copy(src, &effective_target_path)
+                std::fs::copy(&resolved, &effective_target_path)
                     .map_err(|e| {
                         format!(
                             "Ошибка копирования \
@@ -393,6 +395,11 @@ pub async fn extract_track(
                         )
                     })?;
                 return Ok(effective_target_path);
+            } else {
+                return Err(format!(
+                    "Файл внешней дорожки не найден: {}",
+                    ext_path
+                ));
             }
         }
     }
@@ -1311,13 +1318,25 @@ pub async fn analyze_subtitle_track(
             .position(|t| t.id == target.id)
             .unwrap_or(0);
 
-        match super::matroska::extract_matroska_subtitles(
-            vpath,
-            embedded_sub_index,
-            target.id,
-            &target.title,
-            &target.lang,
-        ) {
+        // Разбор выполняется в пуле блокирующих задач, чтобы дисковый
+        // ввод-вывод не занимал рабочие потоки асинхронного рантайма.
+        let mkv_path = vpath.to_path_buf();
+        let mkv_title = target.title.clone();
+        let mkv_lang = target.lang.clone();
+        let mkv_result = tauri::async_runtime::spawn_blocking(move || {
+            let query = super::matroska::MatroskaTrackQuery {
+                embedded_index: embedded_sub_index,
+                title: &mkv_title,
+                lang: &mkv_lang,
+            };
+            super::matroska::extract_matroska_subtitles(&mkv_path, &query)
+        })
+        .await
+        .unwrap_or_else(|e| {
+            Err(format!("Задача разбора Matroska аварийно завершилась: {}", e))
+        });
+
+        match mkv_result {
             Ok(lines) => {
                 if !lines.is_empty() {
                     if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
@@ -1440,20 +1459,16 @@ pub async fn analyze_subtitle_track(
         }
     }
 
-    // 6. Резервный источник: чтение sub-lines из памяти mpv (для стриминга или сетевых URL)
+    // 7. Резервный источник: чтение sub-lines из памяти mpv (для стриминга или сетевых URL).
+    // Не сохраняем этот фрагмент в дисковый кэш, так как sub-lines содержит
+    // только реплики вокруг текущей позиции воспроизведения.
     if let Ok(lines) = state.mpv.get_sub_lines("sub-lines") {
         if !lines.is_empty() {
-            if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
-                write_subtitles_cache(cache_dir, key, &lines);
-            }
             return Ok(lines);
         }
     }
     if let Ok(lines) = state.mpv.get_sub_lines("secondary-sub-lines") {
         if !lines.is_empty() {
-            if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
-                write_subtitles_cache(cache_dir, key, &lines);
-            }
             return Ok(lines);
         }
     }

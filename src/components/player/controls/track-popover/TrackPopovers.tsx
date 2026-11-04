@@ -81,7 +81,7 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
   };
 
   const getLabel = (t: TrackInfo): string => {
-    return truncateMiddle(getFullTitle(t), 32);
+    return truncateMiddle(getFullTitle(t), 35);
   };
 
   /**

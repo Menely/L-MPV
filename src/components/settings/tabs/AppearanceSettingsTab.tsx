@@ -599,7 +599,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                       color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                                       boxShadow: isSel
                                         ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent"
-                                        : "0 1px 3px rgba(0, 0, 0, 0.2)",
+                                        : "none",
                                       cursor: "pointer",
                                       fontFamily: `var(--font-${fontPreset.id})`,
                                       transition: "all var(--t-fast) var(--ease-smooth)",
@@ -643,7 +643,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                           color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                                           boxShadow: isSel
                                             ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent"
-                                            : "0 1px 3px rgba(0, 0, 0, 0.2)",
+                                            : "none",
                                           cursor: "pointer",
                                           fontFamily: `'${font.family}', sans-serif`,
                                           transition: "all var(--t-fast) var(--ease-smooth)",

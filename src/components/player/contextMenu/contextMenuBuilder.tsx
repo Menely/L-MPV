@@ -317,7 +317,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
           ? audioTracks.map((t) => {
               const trimmed = t.title?.trim();
               const fullTitle = trimmed || (t.lang ? `${dict.settings.cmenuUI.trackLabel(t.id, "")} (${t.lang.toUpperCase()})` : dict.settings.cmenuUI.trackLabel(t.id, ""));
-              const label = trimmed ? truncateMiddle(trimmed, 30) : fullTitle;
+              const label = trimmed ? truncateMiddle(trimmed, 38) : fullTitle;
               return {
                 type: "track" as const,
                 track: t,
@@ -354,7 +354,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
         ...subTracks.map((t) => {
           const trimmed = t.title?.trim();
           const fullTitle = trimmed || (t.lang ? `${dict.settings.cmenuUI.subLabel(t.id, "")} (${t.lang.toUpperCase()})` : dict.settings.cmenuUI.subLabel(t.id, ""));
-          const label = trimmed ? truncateMiddle(trimmed, 30) : fullTitle;
+          const label = trimmed ? truncateMiddle(trimmed, 38) : fullTitle;
           return {
             type: "track" as const,
             track: t,

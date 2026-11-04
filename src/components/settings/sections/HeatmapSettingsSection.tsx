@@ -603,7 +603,9 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             <button
               type="button"
               onClick={() => updateConfig({ enabled: !config.enabled })}
-              className="viz-power-btn"
+              className={`viz-power-btn ${
+                config.enabled ? "viz-power-btn--active" : ""
+              }`}
               title={
                 config.enabled
                   ? dict.settings.appearance.heatmap?.enableTitle ||
@@ -616,22 +618,8 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                 "Включить тепловую карту таймлайна"
               }
               aria-pressed={config.enabled}
-              style={{
-                color: config.enabled ? "var(--accent-text)" : "var(--text-muted)",
-                borderColor: config.enabled
-                  ? "var(--accent)"
-                  : "rgba(255, 255, 255, 0.16)",
-                background: config.enabled
-                  ? "rgba(var(--accent-rgb, 127, 199, 255), 0.14)"
-                  : "rgba(255, 255, 255, 0.04)",
-                filter: config.enabled
-                  ? "drop-shadow(0 0 6px var(--accent-glow))"
-                  : "none",
-                transition:
-                  "color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), background-color var(--t-fast) var(--ease-smooth), filter var(--t-fast) var(--ease-smooth)",
-              }}
             >
-              <Power size={20} />
+              <Power size={18} />
             </button>
           </div>
         </div>
