@@ -456,6 +456,10 @@ impl MpvManager {
                 });
             Self::set_option(&api, handle, "screenshot-directory", &screenshots_dir);
             Self::set_option(&api, handle, "screenshot-format", "png");
+            // Скриншоты HDR/Dolby Vision: конвертировать в sRGB с тонмаппингом
+            // вместо сохранения native BT.2020/ST.2084 (иначе в SDR-просмотрщиках
+            // кадр выглядит пересвеченным). Полное разрешение кадра сохраняется.
+            Self::set_option(&api, handle, "screenshot-tag-colorspace", "no");
 
 
             Self::set_option(&api, handle, "vo", "gpu-next");
