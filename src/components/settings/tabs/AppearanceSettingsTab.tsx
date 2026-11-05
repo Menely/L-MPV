@@ -594,7 +594,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                       justifyContent: "space-between",
                                       padding: "6px 8px",
                                       borderRadius: "var(--radius-control)",
-                                      border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
+                                      border: isSel ? "1px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                                       background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                                       color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                                       boxShadow: isSel
@@ -638,7 +638,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                           justifyContent: "space-between",
                                           padding: "6px 8px",
                                           borderRadius: "var(--radius-control)",
-                                          border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
+                                          border: isSel ? "1px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                                           background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                                           color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                                           boxShadow: isSel
@@ -1240,7 +1240,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             gap: "var(--space-1)",
                             padding: "10px 6px",
                             borderRadius: "var(--segment-inner-radius)",
-                            border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
+                            border: isSel ? "1px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
                             cursor: "pointer",
                             background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "transparent",
                             color: isSel ? "var(--text-primary)" : "var(--text-secondary)",

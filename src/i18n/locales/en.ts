@@ -690,19 +690,23 @@ export const en: TranslationDict = {
       builtinPresets: {
         builtin_classic: {
           name: "Classic L-MPV",
-          description: "Signature sky-blue style with soft edge blur and waveform",
+          description: "Dark graphite, sky-blue accents, and a unified Modern toolbar",
         },
         builtin_cyberpunk: {
-          name: "Cyberpunk Neon",
-          description: "Vibrant neon pink accent with intense glow and spectrum bars",
+          name: "Twilight Iris",
+          description: "Inky indigo, rose accents, and capsules with a matching spectrum",
         },
         builtin_cinema: {
           name: "Midnight Cinema",
-          description: "Warm amber tone, deep background blur, and subdued interface",
+          description: "Deep OLED, amber details, and a quiet classic toolbar",
         },
         builtin_minimal: {
-          name: "Pure Minimalism",
-          description: "Strict neutral style without superfluous buttons or glow",
+          name: "Quiet Titanium",
+          description: "Warm mineral grey, silver accents, and crisp geometry",
+        },
+        builtin_forest: {
+          name: "Forest Jade",
+          description: "Forest sage, mint jade accents, and soft floating capsules",
         },
       },
     },

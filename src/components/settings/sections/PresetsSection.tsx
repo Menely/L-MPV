@@ -662,7 +662,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             </div>
 
             {isBuiltIn && (preset.description || dict.settings.presets.builtinPresets[preset.id]?.description) && (
-              <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)" }}>
+              <span className="preset-card__desc">
                 {dict.settings.presets.builtinPresets[preset.id]?.description || preset.description}
               </span>
             )}
@@ -686,14 +686,15 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             </button>
 
             {!isBuiltIn ? (
-              <div className="preset-card__actions-grid">
+              <div className="preset-card__actions-row">
                 <button
                   type="button"
                   className="preset-action-btn preset-action-btn--icon"
                   onClick={() => handleOverwrite(preset)}
                   title={dict.settings.presets.btnUpdateTitle}
+                  aria-label={dict.settings.presets.btnUpdateTitle}
                   >
-                  <RotateCw size={14} />
+                  <RotateCw size={12} />
                 </button>
 
                 <button
@@ -704,8 +705,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                     setEditingName(preset.name);
                   }}
                   title={dict.settings.presets.btnRenameTitle}
+                  aria-label={dict.settings.presets.btnRenameTitle}
                   >
-                  <Edit2 size={14} />
+                  <Edit2 size={12} />
                 </button>
 
                 <button
@@ -713,8 +715,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   className="preset-action-btn preset-action-btn--icon"
                   onClick={() => handleExportSingle(preset)}
                   title={dict.settings.presets.btnExportTitle}
+                  aria-label={dict.settings.presets.btnExportTitle}
                   >
-                  <Download size={14} />
+                  <Download size={12} />
                 </button>
 
                 <button
@@ -724,7 +727,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   title={dict.settings.presets.btnDeleteConfirm}
                   aria-label={dict.settings.presets.btnDeleteConfirm}
                   >
-                  <Trash2 size={14} />
+                  <Trash2 size={12} />
                 </button>
               </div>
             ) : (
@@ -733,8 +736,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                 className="preset-action-btn preset-action-btn--icon"
                 onClick={() => handleExportSingle(preset)}
                 title={dict.settings.presets.btnExportTitle}
+                aria-label={dict.settings.presets.btnExportTitle}
                 >
-                <Download size={15} />
+                <Download size={13} />
               </button>
             )}
           </div>
@@ -914,8 +918,10 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
         <div className={`collapse-fold ${isBuiltInPresetsOpen ? "collapse-fold--open" : ""}`}>
           <div className="collapse-fold__inner">
-            <div className="collapse-fold__body presets-list mt-4">
-              {BUILT_IN_PRESETS.map((preset) => renderPresetCard(preset))}
+            <div className="collapse-fold__body mt-4">
+              <div className="presets-list">
+                {BUILT_IN_PRESETS.map((preset) => renderPresetCard(preset))}
+              </div>
             </div>
           </div>
         </div>

@@ -81,6 +81,23 @@
   bottom: calc(100% + var(--visualizer-height, 22px) + 8px);
 }
 
+/* Позиционирование всплывающей плашки времени над таймлайном в стиле «Капсула» */
+.player-controls--capsule .timeline-preview-card,
+.controls-island--timeline .timeline-preview-card,
+.timeline-col--capsule .timeline-preview-card {
+  bottom: calc(100% + 15px);
+}
+
+.player-controls--capsule:has(.waveform-activity-strip--visible) .timeline-preview-card,
+.controls-island--timeline:has(.waveform-activity-strip--visible) .timeline-preview-card {
+  bottom: calc(100% + var(--heatmap-strip-height, 34px) + 16px);
+}
+
+.player-controls--capsule.player-controls--has-visualizer-above:has(.waveform-activity-strip--visible) .timeline-preview-card,
+.controls-island--timeline.player-controls--has-visualizer-above:has(.waveform-activity-strip--visible) .timeline-preview-card {
+  bottom: calc(100% + var(--visualizer-height, 22px) + var(--heatmap-strip-height, 34px) + 16px);
+}
+
 /* Карточка времени — полноценный интерактивный элемент <button> с кликом по всей площади */
 button.controls-island--time,
 .controls-island--time {

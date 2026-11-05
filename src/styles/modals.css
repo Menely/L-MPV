@@ -1026,8 +1026,8 @@
   text-align: center;
   white-space: nowrap;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  box-sizing: border-box;
+  background-clip: padding-box;
   transition: background-color var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
@@ -1559,9 +1559,11 @@
   gap: var(--space-3);
   padding: var(--space-3) 8px;
   background: transparent;
-  /* Рамка всегда 1.5px (прозрачная по умолчанию): переключение active
-     больше не меняет геометрию и не сдвигает иконки соседних вкладок. */
-  border: 1.5px solid transparent;
+  /* Рамка всегда целочисленная 1px: переключение active
+     не меняет геометрию и обеспечивает четкое субпиксельное сглаживание углов. */
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  box-sizing: border-box;
   color: var(--text-secondary);
   font-size: var(--fs-sm);
   font-weight: 500;
@@ -1605,7 +1607,7 @@
   border-color: var(--accent);
   /* font-weight НЕ меняется (500): смена 500->600 расширяла подпись,
      отбирала ширину у соседних кнопок (flex:1) и сдвигала все иконки. */
-  box-shadow: inset 0 0 0 1px transparent;
+  box-shadow: none;
 }
 
 .settings-tab-btn--active svg {

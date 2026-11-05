@@ -125,15 +125,16 @@ interface TimelinePreviewProps {
 
 const TimelinePreview = React.memo<TimelinePreviewProps>(({ hoverInfo, segments, mediaPath }) => {
   const active =
-    segments.find((s) => hoverInfo.time>= s.start && hoverInfo.time <= s.end) ||
+    segments.find((s) => hoverInfo.time >= s.start && hoverInfo.time <= s.end) ||
     segments[segments.length - 1];
   const showChapter = Boolean(active?.title && active.title !== mediaPath);
+  const clampOffset = showChapter ? "64px" : "44px";
 
   return (
     <div
-      className="timeline-preview-card"
-      style={{ left: `clamp(48px, ${hoverInfo.ratio * 100}%, calc(100% - 48px))` }}
-      >
+      className={`timeline-preview-card ${showChapter ? "timeline-preview-card--with-chapter" : ""}`}
+      style={{ left: `clamp(${clampOffset}, ${hoverInfo.ratio * 100}%, calc(100% - ${clampOffset}))` }}
+    >
       <div className="timeline-preview-card__time">{formatTime(hoverInfo.time)}</div>
       {showChapter && <div className="timeline-preview-card__chapter">{active.title}</div>}
     </div>

@@ -181,14 +181,21 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
   useEffect(() => {
     const handleSettingsChange = (e?: Event) => {
       const custom = e as CustomEvent<HeatmapConfig> | undefined;
-      if (custom?.detail) {
-        setHeatmapConfig(custom.detail);
-      } else {
-        setHeatmapConfig(getHeatmapConfig());
-      }
+      const nextConfig = custom?.detail || getHeatmapConfig();
+      setHeatmapConfig(nextConfig);
+      document.documentElement.style.setProperty(
+        "--heatmap-strip-height",
+        `${nextConfig.height || 34}px`
+      );
       const cfg = getVisualizerConfig();
       setIsVisualizerAbove(cfg.enabled && cfg.placement === "above_timeline");
     };
+
+    // Первичная синхронизация высоты в CSS-токен
+    document.documentElement.style.setProperty(
+      "--heatmap-strip-height",
+      `${heatmapConfig.height || 34}px`
+    );
 
     const handleCacheCleared = () => {
       setRetryCount((c) => c + 1);
@@ -202,7 +209,7 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChange);
       window.removeEventListener("l-mpv-waveform-cache-cleared", handleCacheCleared);
     };
-  }, []);
+  }, [heatmapConfig.height]);
 
   // 2. Управляемая загрузка профиля данных с защитой от поздних ответов и гонок отмены
   useEffect(() => {

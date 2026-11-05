@@ -4,6 +4,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
+  padding-bottom: var(--space-6);
 }
 
 /* ─── Блок создания нового пресета ───────────────────────── */
@@ -175,22 +176,23 @@
 .presets-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: 10px;
+  padding: 4px 2px 14px 2px;
 }
 
 /* ─── Карточка отдельного пресета ────────────────────────── */
 .preset-card {
   background: var(--surface-card);
-  border: 1px solid var(--border-pill);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: var(--space-6) 14px;
+  padding: 13px 15px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  box-shadow: var(--shadow-card);
-  transition: background-color var(--t-base) var(--ease-smooth),
-              border-color var(--t-base) var(--ease-smooth),
-              box-shadow var(--t-base) var(--ease-smooth);
+  gap: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
   position: relative;
   overflow: hidden;
 }
@@ -198,50 +200,51 @@
 .preset-card:hover:not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)) {
   background: var(--surface-level-3-hover);
   border-color: var(--border-hover);
-  box-shadow: var(--shadow-card-hover);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .preset-card--builtin {
-  background: rgba(255, 255, 255, 0.015);
-  border-style: dashed;
+  background: var(--surface-card);
 }
 
 .preset-card--active {
   background: var(--surface-accent-subtle) !important;
   border-color: var(--accent) !important;
-  box-shadow: inset 0 0 0 1.5px transparent !important;
+  box-shadow: 0 0 14px var(--surface-accent-glow, rgba(var(--accent-rgb, 127, 199, 255), 0.22)),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
 }
 
 .preset-card--active:hover:not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)) {
-  background: var(--surface-accent-subtle) !important;
+  background: var(--surface-accent-hover) !important;
   border-color: var(--accent) !important;
-  box-shadow: inset 0 0 0 1.5px transparent !important;
+  box-shadow: 0 0 18px var(--surface-accent-glow, rgba(var(--accent-rgb, 127, 199, 255), 0.3)),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
 }
 
 .preset-card__top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-7);
+  gap: var(--space-6);
 }
 
 .preset-card__info {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 8px;
   flex: 1;
   min-width: 0;
 }
 
 .preset-card__name-row {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-5);
+  align-items: center;
+  gap: 8px;
   line-height: 1.2;
 }
 
 .preset-card__name {
-  font-size: var(--fs-lg);
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
@@ -263,28 +266,37 @@
 }
 
 .preset-card__badge-builtin {
-  font-size: var(--fs-2xs);
+  font-size: 10px;
   font-weight: 600;
-  padding: var(--space-1) 7px;
+  padding: 2px 7px;
   border-radius: var(--radius-xs, 4px);
-  background: var(--surface-level-3-hover);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  transition: border-radius var(--t-spring) var(--ease-spring-smooth);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .preset-card__meta {
   font-size: var(--fs-xs);
   color: var(--text-muted);
   opacity: 0.75;
+  white-space: nowrap;
+}
+
+.preset-card__desc {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.35;
 }
 
 /* Бейджи параметров в карточке */
 .preset-card__tags {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 6px;
   flex-wrap: wrap;
   line-height: 1.2;
 }
@@ -292,24 +304,42 @@
 .preset-tag {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  font-size: var(--fs-xs);
-  padding: var(--space-1) 8px;
-  border-radius: var(--radius-xs, 4px);
-  background: rgba(0, 0, 0, 0.28);
+  gap: 5px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(255, 255, 255, 0.035);
   border: 1px solid rgba(255, 255, 255, 0.07);
   color: var(--text-secondary);
-  height: 24px;
+  height: 22px;
   box-sizing: border-box;
-  transition: border-radius var(--t-spring) var(--ease-spring-smooth);
+  white-space: nowrap;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
+}
+
+.preset-tag:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.preset-tag svg {
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.preset-tag:hover svg {
+  opacity: 1;
 }
 
 .preset-tag__color-dot {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
   flex-shrink: 0;
 }
 
@@ -356,14 +386,14 @@
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 600;
-  border-color: transparent;
+  border: 1px solid transparent;
   box-shadow: none;
 }
 
 .preset-action-btn--apply:hover {
   background: var(--accent-hover, var(--accent));
   color: var(--on-accent-hover);
-  box-shadow: none;
+  box-shadow: 0 2px 10px var(--surface-accent-glow, rgba(var(--accent-rgb, 127, 199, 255), 0.3));
   border-color: transparent;
 }
 
@@ -376,8 +406,8 @@
 .preset-action-btn--applied {
   background: var(--surface-accent-subtle) !important;
   color: var(--text-primary) !important;
-  border-color: var(--accent) !important;
-  box-shadow: inset 0 0 0 1.5px transparent !important;
+  border: 1px solid var(--accent) !important;
+  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb, 127, 199, 255), 0.2)) !important;
 }
 
 .preset-action-btn--danger:hover {
@@ -416,15 +446,15 @@
   }
 }
 
-/* Кнопки действий карточки (аккуратный блок справа: «Применить» сверху, сетка 2x2 мини-иконок снизу) */
+/* Кнопки действий карточки (аккуратный блок справа: «Применить» сверху, тулбар снизу) */
 .preset-card__actions-col {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: var(--space-3);
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
   flex-shrink: 0;
-  width: 90px;
+  width: 96px;
   align-self: center;
 }
 
@@ -434,19 +464,22 @@
 
 .preset-action-btn--apply,
 .preset-action-btn--applied {
-  height: 28px;
+  width: 100%;
+  height: 30px;
   font-size: var(--fs-xs);
-  padding: 0 8px;
-  gap: var(--space-2);
+  font-weight: 600;
+  padding: 0 10px;
+  gap: 6px;
+  border-radius: var(--radius-control);
   box-sizing: border-box;
 }
 
-.preset-action-btn--apply {
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
-  border-color: transparent;
-  box-shadow: none;
+.preset-card__actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 3px;
 }
 
 .preset-card__actions-grid {
@@ -461,17 +494,34 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  width: 100%;
-  height: 26px;
+  width: 22px;
+  height: 24px;
   border-radius: var(--radius-sm);
-  background: var(--surface-level-3);
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
+}
+
+.preset-card__actions-col > .preset-action-btn--icon {
+  width: 28px;
+  height: 24px;
+  align-self: flex-end;
 }
 
 .preset-action-btn--icon svg {
   width: 13px;
   height: 13px;
   opacity: 0.85;
+}
+
+.preset-action-btn--icon:hover {
+  background: var(--surface-level-3-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
 }
 
 .preset-action-btn--icon:hover svg {

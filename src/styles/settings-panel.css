@@ -125,7 +125,9 @@
   flex-shrink: 0;
   padding: 0;
   background: transparent;
-  border: 1.5px solid transparent;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  box-sizing: border-box;
   border-radius: var(--radius-control);
   color: var(--text-muted);
   cursor: pointer;

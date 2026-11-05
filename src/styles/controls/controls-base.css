@@ -1001,7 +1001,7 @@ html[data-glow="off"] .timeline__thumb {
   pointer-events: none;
 }
 
-/* Парящий информационный бейдж над тепловой картой при наведении (стиль timeline-preview-card) */
+/* Парящий информационный бейдж над тепловой картой при наведении (Zero-Blur DirectWrite ClearType) */
 .waveform-activity-strip__badge {
   position: absolute;
   bottom: calc(100% + 8px);
@@ -1009,14 +1009,16 @@ html[data-glow="off"] .timeline__thumb {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-elevated);
+  background: var(--bg-modal-solid, #11141c);
   border: 1px solid var(--border-pill);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) 10px;
-  box-shadow: var(--shadow-card-hover);
-  font-size: var(--fs-xs);
+  border-radius: var(--radius-md);
+  padding: 5px 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65),
+              0 1px 3px rgba(0, 0, 0, 0.45),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--text-primary);
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
   letter-spacing: 0.4px;
@@ -1025,10 +1027,11 @@ html[data-glow="off"] .timeline__thumb {
   white-space: nowrap;
   user-select: none;
   z-index: var(--z-float);
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
   opacity: 1;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  will-change: transform;
 }
 
 .waveform-activity-strip__badge-time {
