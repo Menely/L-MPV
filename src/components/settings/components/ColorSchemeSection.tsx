@@ -1,4 +1,5 @@
 import { SettingsIcon } from "./SettingsIcon";
+import { optionResetBtnStyle } from "./optionCardStyles";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -303,24 +304,18 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
             <span className="t-label-accent">
               {dict.settings.appearance.colorScheme.playerThemes[playerTheme] || PLAYER_THEMES[playerTheme]?.name || "Dark Graphite"}
             </span>
-            <button
-              type="button"
-              onClick={() => handleSelectTheme(DEFAULT_PLAYER_THEME)}
-              className="btn btn--secondary btn--sm"
-              style={{
-                height: 22,
-                padding: "0 8px",
-                borderRadius: "var(--radius-control)",
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--space-2)",
-                fontSize: "var(--fs-xs)",
-                cursor: "pointer",
-              }}
+            {playerTheme !== DEFAULT_PLAYER_THEME && (
+              <button
+                type="button"
+                onClick={() => handleSelectTheme(DEFAULT_PLAYER_THEME)}
+                className="btn btn--secondary btn--sm"
+                title={dict.settings.appearance.colorScheme.resetTheme}
+                aria-label={dict.settings.appearance.colorScheme.resetTheme}
+                style={optionResetBtnStyle}
               >
-              <RotateCcw size={11} />
-              <span>{dict.settings.appearance.colorScheme.resetTheme}</span>
-            </button>
+                <RotateCcw size={11} />
+              </button>
+            )}
           </div>
         </div>
 

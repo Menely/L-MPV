@@ -25,26 +25,31 @@ export const MediaInfoAudioSection: React.FC<MediaInfoAudioSectionProps> = ({
 }) => {
   const { dict } = useTranslation();
 
+  const audioText = mediaInfo?.audio_codec
+    ? `${mediaInfo.audio_codec}${
+        mediaInfo.audio_channels
+          ? ` (${mediaInfo.audio_channels} ${dict.mediaInfoModal.ch})`
+          : ""
+      }`
+    : "—";
+
   return (
     <div className="media-info__section">
       <div className="media-info__row">
         <span className="media-info__label">{dict.mediaInfoModal.audio}</span>
-        <span className="media-info__value">
-          {mediaInfo?.audio_codec || "—"}{" "}
-          ({mediaInfo?.audio_channels || "—"} {dict.mediaInfoModal.ch})
-        </span>
+        <span className="media-info__value">{audioText}</span>
       </div>
       <div className="media-info__row">
         <span className="media-info__label">{dict.mediaInfoModal.bitrate}</span>
         <span className="media-info__value">
           {audioBitrate > 0
-            ? `${Math.round(audioBitrate / 1000).toLocaleString()} ${dict.mediaInfoModal.kbps}`
+            ? `${Math.round(audioBitrate / 1000).toLocaleString("ru-RU")} ${dict.mediaInfoModal.kbps}`
             : "—"}
         </span>
       </div>
       <div className="media-info__row">
         <span className="media-info__label">{dict.mediaInfoModal.volume}</span>
-        <span className="media-info__value">{currentVolume}%</span>
+        <span className="media-info__value">{Math.round(currentVolume)}%</span>
       </div>
     </div>
   );

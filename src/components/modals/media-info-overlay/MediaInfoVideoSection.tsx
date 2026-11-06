@@ -32,26 +32,52 @@ export const MediaInfoVideoSection: React.FC<MediaInfoVideoSectionProps> = ({
 }) => {
   const { dict } = useTranslation();
 
+  const hasVideo = Boolean(
+    mediaInfo?.has_video ||
+      mediaInfo?.video_codec ||
+      (mediaInfo && mediaInfo.width > 0 && mediaInfo.height > 0)
+  );
+
+  const videoText = hasVideo
+    ? mediaInfo?.video_codec
+      ? `${mediaInfo.video_codec}${
+          mediaInfo.width > 0 && mediaInfo.height > 0
+            ? ` (${mediaInfo.width}x${mediaInfo.height})`
+            : ""
+        }`
+      : mediaInfo && mediaInfo.width > 0 && mediaInfo.height > 0
+      ? `${mediaInfo.width}x${mediaInfo.height}`
+      : "—"
+    : "—";
+
+  const framesText =
+    mediaInfo && mediaInfo.frame_count > 0
+      ? `${currentFrame} / ${mediaInfo.frame_count}`
+      : currentFrame > 0
+      ? `${currentFrame}`
+      : "—";
+
+  const fpsHdrText = hasVideo
+    ? mediaInfo?.fps && mediaInfo.fps > 0
+      ? `${mediaInfo.fps.toFixed(3)} / ${mediaInfo.hdr_info || "SDR"}`
+      : mediaInfo?.hdr_info
+      ? mediaInfo.hdr_info
+      : "—"
+    : "—";
+
   return (
     <div className="media-info__section">
       <div className="media-info__row">
         <span className="media-info__label">{dict.mediaInfoModal.video}</span>
-        <span className="media-info__value">
-          {mediaInfo?.video_codec || "—"}{" "}
-          ({mediaInfo ? `${mediaInfo.width}x${mediaInfo.height}` : "—"})
-        </span>
+        <span className="media-info__value">{videoText}</span>
       </div>
       <div className="media-info__row">
         <span className="media-info__label">{dict.mediaInfoModal.frames}</span>
-        <span className="media-info__value">
-          {mediaInfo ? `${currentFrame} / ${mediaInfo.frame_count}` : "—"}
-        </span>
+        <span className="media-info__value">{framesText}</span>
       </div>
       <div className="media-info__row">
         <span className="media-info__label">{dict.mediaInfoModal.fpsHdr}</span>
-        <span className="media-info__value">
-          {mediaInfo?.fps ? mediaInfo.fps.toFixed(3) : "—"} / {mediaInfo?.hdr_info || "—"}
-        </span>
+        <span className="media-info__value">{fpsHdrText}</span>
       </div>
       <div className="media-info__row">
         <span className="media-info__label">{dict.mediaInfoModal.colorSpace}</span>
@@ -67,7 +93,7 @@ export const MediaInfoVideoSection: React.FC<MediaInfoVideoSectionProps> = ({
           <BitrateSparkline data={bitrateHistory} />
           <span className="media-info__value">
             {currentVideoBitrate > 0
-              ? `${Math.round(currentVideoBitrate / 1000).toLocaleString()} ${dict.mediaInfoModal.kbps}`
+              ? `${Math.round(currentVideoBitrate / 1000).toLocaleString("ru-RU")} ${dict.mediaInfoModal.kbps}`
               : "—"}
           </span>
         </div>
@@ -75,8 +101,8 @@ export const MediaInfoVideoSection: React.FC<MediaInfoVideoSectionProps> = ({
       <div className="media-info__row">
         <span className="media-info__label">{dict.mediaInfoModal.totalBitrate}</span>
         <span className="media-info__value">
-          {mediaInfo?.total_bitrate
-            ? `${Math.round(mediaInfo.total_bitrate / 1000).toLocaleString()} ${dict.mediaInfoModal.kbps}`
+          {mediaInfo?.total_bitrate && mediaInfo.total_bitrate > 0
+            ? `${Math.round(mediaInfo.total_bitrate / 1000).toLocaleString("ru-RU")} ${dict.mediaInfoModal.kbps}`
             : "—"}
         </span>
       </div>

@@ -39,18 +39,18 @@ export const MediaInfoGeneralSection: React.FC<MediaInfoGeneralSectionProps> = (
       <div className="media-info__row">
         <span className="media-info__label">{dict.mediaInfoModal.size}</span>
         <span className="media-info__value">
-          {mediaInfo ? formatBytes(mediaInfo.file_size) : "—"}
+          {mediaInfo && mediaInfo.file_size > 0 ? formatBytes(mediaInfo.file_size) : "—"}
         </span>
       </div>
       <div className="media-info__row">
         <span className="media-info__label">{dict.mediaInfoModal.duration}</span>
         <span className="media-info__value">
-          {mediaInfo ? formatTime(mediaInfo.duration) : "—"}
+          {mediaInfo && mediaInfo.duration > 0 ? formatTime(mediaInfo.duration) : "—"}
         </span>
       </div>
       <div className="media-info__row">
         <span className="media-info__label">{dict.mediaInfoModal.currentPosition}</span>
-        <span className="media-info__value">{formatTime(currentPosition)}</span>
+        <span className="media-info__value">{currentPosition > 0 ? formatTime(currentPosition) : "00:00"}</span>
       </div>
     </div>
   );

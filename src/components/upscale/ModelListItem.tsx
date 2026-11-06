@@ -3,7 +3,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import { toLocalDragTransform } from "../../utils/dndCoordinates";
-import { CheckCircle2, GripVertical } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { ModelFileItem, UpscaleCompileProgress } from "./types";
 import { ModelTensorRtAction } from "./ModelTensorRtAction";
 import { ModelHotkeyButton } from "./ModelHotkeyButton";
@@ -106,7 +106,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
     <div
       style={cardStyle}
       onClick={onSelect}
-      className={`glass-tile glass-tile--clickable ${isSelected ? "glass-tile--active" : ""}`}
+      className="glass-tile glass-tile--clickable"
       >
       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flex: 1, minWidth: 0 }}>
         {/* Ручка захвата для перетаскивания мышкой */}
@@ -133,49 +133,38 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
           <GripVertical size={16} />
         </div>
 
-        {/* Порядковый номер модели в списке */}
-        <span
+        {/* Порядковый номер модели в стиле плейлиста */}
+        <div
           style={{
-            fontSize: "var(--fs-xs)",
-            fontWeight: 600,
-            color: isSelected ? "var(--accent-text)" : "var(--text-muted)",
-            background: isSelected
-              ? "rgba(var(--accent-rgb, 127, 199, 255), 0.14)"
-              : "rgba(255, 255, 255, 0.05)",
-            border: `1px solid ${isSelected ? "var(--accent)" : "var(--border-subtle)"}`,
-            borderRadius: 4,
-            padding: "1px 6px",
-            fontVariantNumeric: "tabular-nums",
+            width: 22,
+            minWidth: 22,
+            height: 22,
+            borderRadius: "50%",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            fontSize: isSelected ? 11 : "var(--fs-xs)",
+            fontWeight: isSelected ? 700 : 600,
+            color: isSelected ? "var(--on-accent, #000)" : "var(--text-secondary)",
+            background: isSelected ? "var(--accent)" : "rgba(255, 255, 255, 0.06)",
+            border: isSelected ? "none" : "1px solid rgba(255, 255, 255, 0.08)",
             flexShrink: 0,
-            lineHeight: 1.4,
+            lineHeight: 1,
+            fontVariantNumeric: "tabular-nums",
+            transition: "background-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth)",
           }}
           title={dict.settings.upscaling.modelNumberTip(idx + 1)}
           >
-          #{idx + 1}
-        </span>
-
-        {/* Индикатор выбора */}
-        {isSelected ? (
-          <CheckCircle2 size={18} color="var(--accent-text, var(--accent))" className="no-shrink" />
-        ) : (
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              border: "1px solid var(--border-pill)",
-              flexShrink: 0,
-              boxSizing: "border-box",
-            }}
-          />
-        )}
+          {idx + 1}
+        </div>
 
         <div style={{ minWidth: 0, flex: 1 }}>
           <div
             style={{
               fontSize: "var(--fs-base)",
-              fontWeight: 500,
-              color: hideModelNames ? "var(--text-muted)" : "var(--text-primary)",
+              fontWeight: isSelected ? 600 : 500,
+              color: isSelected ? "#ffffff" : hideModelNames ? "var(--text-muted)" : "var(--text-primary)",
               letterSpacing: hideModelNames ? "0.15em" : "normal",
               whiteSpace: "nowrap",
               overflow: "hidden",

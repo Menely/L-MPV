@@ -59,9 +59,11 @@ export const MediaInfoRenderingSection: React.FC<MediaInfoRenderingSectionProps>
       : "—";
 
   const hwdecLabel = stats?.hwdec_current
-    ? `${stats.hwdec_current.toUpperCase()} ${
-        stats.hwdec_active ? "(HW)" : "(SW)"
-      }`
+    ? stats.hwdec_active
+      ? `${stats.hwdec_current.toUpperCase()} (HW)`
+      : stats.hwdec_current.toLowerCase() === "no" || !stats.hwdec_current
+      ? "Software (CPU)"
+      : `${stats.hwdec_current.toUpperCase()} (SW)`
     : "—";
 
   const cllFallText =

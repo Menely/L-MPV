@@ -469,7 +469,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Interactive Stream Filter Tabs (Quick Filter):** Filter tracks (*"All"*, *"General"*, *"Video"*, *"Audio"*, *"Subtitles"*, *"Chapters"*) with informative stream count badges and 6px rounded pills matching the design system.
 - **Collapsible Stream Accordions:** Collapse or expand individual streams or all at once ("Expand/Collapse All"), with auto-expansion during `Ctrl+F` search.
 - **Native Drag-and-Drop:** Drop any media file straight into the open MediaInfo window with a translucent overlay (`FileUp`) for analysis.
-- **Compact playback information:** The `I` overlay shows playback data and a video bitrate graph. The displayed bitrate is smoothed, may use metadata as a fallback and includes illustrative fluctuations; it is not a raw packet measurement.
+- **Compact overlay (`I`):** Three tabs — Summary, Rendering and Tracks — selected by clicking or pressing `1` / `2` / `3`. Rendering shows process/system CPU and RAM, GPU and VRAM information, decoder, color, display refresh rate and A/V sync. Metric availability depends on the system and file; GPU utilization is not measured. Tracks lets you select audio and subtitles, disable the active track by clicking it again, and jump to chapters. The Summary video bitrate graph is smoothed, may fall back to metadata and includes illustrative fluctuations; it is not a raw packet measurement.
 - **Productivity Features:** Property search with highlighting (`Ctrl+F`), export to `.txt`, copy to clipboard, and bilingual interface (EN/RU). Action buttons feature clean minimalist vector icons without redundant borders or text.
 
 </details>
@@ -477,6 +477,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>📁 Modular Presets System & Configuration Files</b></summary>
 
+- **Five built-in styles:** Classic L-MPV (graphite / sky blue), Twilight Iris (indigo / pink), Midnight Cinema (OLED / amber), Quiet Titanium (titanium / silver) and Forest Jade (forest sage / mint). Each sets the theme, accent, toolbar style, font, corner radius, opacity and effects. The heatmap is disabled in all five.
 - **Individual Preset Files (`config/presets/<name>.json`):** Every user preset is stored as an independent JSON file in the portable directory, preventing configuration collisions. Easily share, copy, and back up presets via Explorer.
 - **Native Export & Import:** Windows Explorer system dialogs (`save` / `open`) to export presets anywhere on your drive or import shared community styles.
 - **Quick Explorer Access:** The "Open Folder" button opens `config/presets/` in Windows Explorer with one click.

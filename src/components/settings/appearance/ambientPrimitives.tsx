@@ -166,7 +166,11 @@ export const VerticalSlider = memo(function VerticalSlider({
           height: 12,
           borderRadius: "50%",
           background: "var(--accent)",
-          boxShadow: "var(--thumb-glow)",
+          boxShadow: isDragging
+            ? "0 0 12px var(--surface-accent-glow)"
+            : isHovered
+            ? "0 0 10px var(--surface-accent-glow)"
+            : "none",
           transform: isDragging
             ? "translateX(-50%) scale(1.1)"
             : isHovered

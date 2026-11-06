@@ -121,49 +121,22 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                         THEME_ITEMS.find((t) => t.id === visualizerConfig.theme)?.label ||
                         "Тема плеера"}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateVisualizer({
-                          theme: DEFAULT_VISUALIZER_CONFIG.theme,
-                        })
-                      }
-                      className="btn btn--secondary btn--sm"
-                      style={{
-                        ...optionResetBtnStyle,
-                        opacity:
-                          visualizerConfig.theme !==
-                          DEFAULT_VISUALIZER_CONFIG.theme
-                            ? 1
-                            : 0,
-                        visibility:
-                          visualizerConfig.theme !==
-                          DEFAULT_VISUALIZER_CONFIG.theme
-                            ? "visible"
-                            : "hidden",
-                        pointerEvents:
-                          visualizerConfig.theme !==
-                          DEFAULT_VISUALIZER_CONFIG.theme
-                            ? "auto"
-                            : "none",
-                        transform:
-                          visualizerConfig.theme !==
-                          DEFAULT_VISUALIZER_CONFIG.theme
-                            ? "scale(1)"
-                            : "scale(0.85)",
-                        transition:
-                          "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                      }}
-                      tabIndex={
-                        visualizerConfig.theme !==
-                        DEFAULT_VISUALIZER_CONFIG.theme
-                          ? 0
-                          : -1
-                      }
-                      aria-label="Сбросить палитру спектра"
-                    >
-                      <RotateCcw size={11} />
-                    </button>
+                    {visualizerConfig.theme !== DEFAULT_VISUALIZER_CONFIG.theme && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateVisualizer({
+                            theme: DEFAULT_VISUALIZER_CONFIG.theme,
+                          })
+                        }
+                        className="btn btn--secondary btn--sm"
+                        style={optionResetBtnStyle}
+                        title={dict.settings.appearance.colorScheme.resetTheme}
+                        aria-label="Сбросить палитру спектра"
+                      >
+                        <RotateCcw size={11} />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="player-themes-selector" style={{ padding: "var(--space-2) 2px" }}>

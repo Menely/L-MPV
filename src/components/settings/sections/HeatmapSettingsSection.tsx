@@ -524,38 +524,19 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                 <span style={optionValueBadgeStyle}>
                   {paletteItems.find((p) => p.id === config.palette)?.label}
                 </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateConfig({ palette: DEFAULT_HEATMAP_CONFIG.palette })
-                  }
-                  className="btn btn--secondary btn--sm"
-                  style={{
-                    ...optionResetBtnStyle,
-                    opacity:
-                      config.palette !== DEFAULT_HEATMAP_CONFIG.palette ? 1 : 0,
-                    visibility:
-                      config.palette !== DEFAULT_HEATMAP_CONFIG.palette
-                        ? "visible"
-                        : "hidden",
-                    pointerEvents:
-                      config.palette !== DEFAULT_HEATMAP_CONFIG.palette
-                        ? "auto"
-                        : "none",
-                    transform:
-                      config.palette !== DEFAULT_HEATMAP_CONFIG.palette
-                        ? "scale(1)"
-                        : "scale(0.85)",
-                    transition:
-                      "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                  }}
-
-                  tabIndex={
-                    config.palette !== DEFAULT_HEATMAP_CONFIG.palette ? 0 : -1
-                  }
-                >
-                  <RotateCcw size={11} />
-                </button>
+                {config.palette !== DEFAULT_HEATMAP_CONFIG.palette && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateConfig({ palette: DEFAULT_HEATMAP_CONFIG.palette })
+                    }
+                    className="btn btn--secondary btn--sm"
+                    style={optionResetBtnStyle}
+                    aria-label="Сбросить палитру спектра"
+                  >
+                    <RotateCcw size={11} />
+                  </button>
+                )}
               </div>
             </div>
 

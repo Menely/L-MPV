@@ -202,24 +202,11 @@
   height: 0 !important;
 }
 
-/* ─── Scroll-Driven Animation: Плавная тень шапки навигации без JS (Chromium 115+) ─── */
-@supports (animation-timeline: scroll()) {
-  .settings-side-panel {
-    timeline-scope: --settings-scroll;
-  }
-
-  .settings-side-panel__scroll {
-    scroll-timeline-name: --settings-scroll;
-    scroll-timeline-axis: block;
-  }
-
-  .settings-side-panel__nav {
-    position: relative;
-    z-index: 2;
-    animation: headerScrollElevation linear both;
-    animation-timeline: --settings-scroll;
-    animation-range: 0px 32px;
-  }
+/* ─── Шапка навигации боковой панели: чистая компоновка без темной тени при скролле ─── */
+.settings-side-panel__nav {
+  position: relative;
+  z-index: 2;
+  box-shadow: none !important;
 }
 
 .settings-section-block {

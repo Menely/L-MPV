@@ -168,6 +168,14 @@
     animation-timeline: --modal-body-scroll;
     animation-range: 0px 32px;
   }
+
+  /* В окне настроек (стили Модерн и Классический) тень элевации отключена,
+     чтобы под шапкой и вкладками не возникало затемнения при листании контента */
+  .modal--settings .modal__header,
+  .modal--settings .settings-tabs {
+    animation: none !important;
+    box-shadow: none !important;
+  }
 }
 
 .modal__section {
@@ -2085,7 +2093,7 @@
   border-radius: 50%;
   background: var(--accent);
   margin-top: -4.5px;
-  box-shadow: 0 0 6px var(--surface-accent-glow);
+  box-shadow: none;
   cursor: pointer;
   border: none;
   transition: transform var(--t-spring) var(--ease-spring-bounce),
@@ -2094,11 +2102,12 @@
 
 .ui-premium-slider:hover::-webkit-slider-thumb {
   transform: scale(1.25);
-  box-shadow: 0 0 12px var(--surface-accent-glow);
+  box-shadow: 0 0 10px var(--surface-accent-glow);
 }
 
 .ui-premium-slider:active::-webkit-slider-thumb {
   transform: scale(1.1);
+  box-shadow: 0 0 12px var(--surface-accent-glow);
 }
 
 .ui-premium-slider::-moz-range-track {
@@ -2113,9 +2122,21 @@
   height: 12px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 6px var(--surface-accent-glow);
+  box-shadow: none;
   cursor: pointer;
   border: none;
+  transition: transform var(--t-spring) var(--ease-spring-bounce),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.ui-premium-slider:hover::-moz-range-thumb {
+  transform: scale(1.25);
+  box-shadow: 0 0 10px var(--surface-accent-glow);
+}
+
+.ui-premium-slider:active::-moz-range-thumb {
+  transform: scale(1.1);
+  box-shadow: 0 0 12px var(--surface-accent-glow);
 }
 
 /* ─── Конфигуратор ПКМ-меню ──────────────────────────────────────────────── */
