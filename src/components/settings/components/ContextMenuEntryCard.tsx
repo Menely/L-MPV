@@ -1,6 +1,8 @@
 import React, { memo, useCallback } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { getActiveUiScale } from "../../../utils/uiThemeUtils";
+import { toLocalDragTransform } from "../../../utils/dndCoordinates";
 import {
   GripVertical,
   X,
@@ -92,9 +94,8 @@ export const SortableCard = memo(function SortableCard({
   } = useSortable({ id });
 
   const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Translate.toString(isDragging ? null : toLocalDragTransform(transform, getActiveUiScale())),
     transition,
-    opacity: isDragging ? 0.35 : 1,
     zIndex: isDragging ? 999 : undefined,
   };
 
@@ -110,8 +111,8 @@ export const SortableCard = memo(function SortableCard({
 
   if (entry.type === "divider") {
     return (
+      <div ref={setNodeRef} className="cmenu-entry-slot">
       <div
-        ref={setNodeRef}
         style={style}
         className={`cmenu-entry cmenu-entry--divider ${isDragging ? "cmenu-entry--dragging" : ""}`}
         {...attributes}
@@ -135,12 +136,13 @@ export const SortableCard = memo(function SortableCard({
           <X size={12} />
         </button>
       </div>
+      </div>
     );
   }
 
   return (
+    <div ref={setNodeRef} className="cmenu-entry-slot">
     <div
-      ref={setNodeRef}
       style={style}
       className={`cmenu-entry ${isDragging ? "cmenu-entry--dragging" : ""}`}
       {...attributes}
@@ -185,6 +187,7 @@ export const SortableCard = memo(function SortableCard({
         >
         <X size={12} />
       </button>
+    </div>
     </div>
   );
 });

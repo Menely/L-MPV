@@ -387,7 +387,7 @@ export function DetailedMediaInfoModal({
 
             aria-label={dict.detailedMediaInfoModal.close}
             >
-            <X size={15} />
+            <X size={16} strokeWidth={2} />
           </button>
         </div>
       </div>

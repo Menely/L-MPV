@@ -27,6 +27,7 @@ import {
 import {
   DndContext,
   closestCenter,
+  MeasuringStrategy,
   KeyboardSensor,
   MouseSensor,
   useSensor,
@@ -725,6 +726,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
+                    measuring={{ droppable: { strategy: MeasuringStrategy.WhileDragging, frequency: 32 } }}
                     onDragEnd={handleDragEnd}
                     >
                     <SortableContext

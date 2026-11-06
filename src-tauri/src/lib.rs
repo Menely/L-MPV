@@ -251,6 +251,7 @@ pub fn run() {
             commands::get_frame_count,
             commands::get_fps,
             commands::get_media_info,
+            commands::get_rendering_and_system_stats,
             mediainfo::get_detailed_media_info,
             mediainfo::is_standalone_mode,
             mediainfo::get_standalone_mediainfo_path,

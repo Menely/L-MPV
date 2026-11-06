@@ -986,11 +986,14 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       });
       await invoke("set_audio_track", { trackId });
       const t = tracksRef.current.find(x => x.type === "audio" && x.id === trackId);
+      const curLoc = getEffectiveLocale();
       if (t) {
-        const curLoc = getEffectiveLocale();
         const prefix = curLoc === "en" ? "Audio: " : "Аудио: ";
         const fallback = curLoc === "en" ? `Track ${t.id}` : `Дорожка ${t.id}`;
         invoke("show_osd", { text: `${prefix}${t.title || t.lang || fallback}` }).catch(() => {});
+      } else if (trackId <= 0) {
+        const offText = curLoc === "en" ? "Audio: Off" : "Аудио: Выкл";
+        invoke("show_osd", { text: offText }).catch(() => {});
       }
       await loadTracks();
     } catch (e) {

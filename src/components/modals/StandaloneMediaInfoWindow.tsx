@@ -461,7 +461,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             aria-label={useRussian ? "Закрыть" : "Close"}
             onClick={handleClose}
           >
-            <X size={14} />
+            <X size={16} strokeWidth={2} />
           </button>
         </div>
       </div>

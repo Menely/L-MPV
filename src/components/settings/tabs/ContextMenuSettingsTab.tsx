@@ -1,3 +1,6 @@
+import { createPortal } from "react-dom";
+import { getActiveUiScale } from "../../../utils/uiThemeUtils";
+import { ContextMenuDragPreview } from "../components/ContextMenuDragPreview";
 import { SettingsIcon } from "../components/SettingsIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
@@ -48,7 +51,6 @@ import {
 } from "../../../utils/contextMenuRegistry";
 import {
   SortableCard,
-  OverlayCard,
   MENU_ICON_MAP,
 } from "../components/ContextMenuEntryCard";
 
@@ -129,7 +131,7 @@ export function ContextMenuSettingsTab() {
   );
   const [saved, setSaved] = useState(true);
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
-  const [activeOverlaySize, setActiveOverlaySize] = useState<{ width: number; height: number } | null>(null);
+  const dragScaleRef = useRef(1);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isSelfUpdateRef = useRef(false);
   const entriesRef = useRef(entries);
@@ -182,8 +184,8 @@ export function ContextMenuSettingsTab() {
 
   /**
    * Прецизионный 1D-алгоритм определения коллизий для вертикального списка меню.
-   * Читает реальные физические границы DOM-узлов (с учетом текущего скролла контейнера
-   * и без артефактов временных CSS transform анимаций).
+   * Использует границы неподвижных слотов dnd-kit с учётом скролла.
+   * Визуальные transform дочерних карточек не участвуют в измерениях.
    * Исключает рассинхронизацию между курсором мыши и местом раздвигания пунктов (gap)
    * даже при непрерывном авто-скроллинге контейнера вверх или вниз.
    */
@@ -210,25 +212,13 @@ export function ContextMenuSettingsTab() {
 
     for (const container of droppableContainers) {
       if (container.disabled) continue;
+      // Slots never transform. Read viewport bounds directly, including CSS zoom
+      // and nested scrolling, without trying to invert an animated child matrix.
       const node = container.node.current;
-      let top: number;
-      let bottom: number;
-      let centerY: number;
-
-      if (node) {
-        // Получаем реальные экранные координаты DOM-узла карточки,
-        // игнорируя временный смещающий transform анимации раздвигания
-        const rect = getClientRect(node, { ignoreTransform: true });
-        top = rect.top;
-        bottom = rect.bottom;
-        centerY = rect.top + rect.height / 2;
-      } else {
-        const cached = droppableRects.get(container.id);
-        if (!cached) continue;
-        top = cached.top;
-        bottom = cached.bottom;
-        centerY = cached.top + cached.height / 2;
-      }
+      const rect = node ? getClientRect(node) : droppableRects.get(container.id);
+      if (!rect) continue;
+      const { top, bottom } = rect;
+      const centerY = top + rect.height / 2;
 
       bounds.push({ id: container.id, top, bottom, centerY });
 
@@ -293,20 +283,15 @@ export function ContextMenuSettingsTab() {
   // ── Обработчики перетаскивания ──────────────────────────────────────────
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    const initialRect = event.active.rect.current.initial;
-    const width = initialRect?.width || 0;
-    const height = initialRect?.height || 0;
-    setActiveOverlaySize(width> 0 && height> 0 ? { width, height } : null);
+    dragScaleRef.current = getActiveUiScale();
     setActiveId(event.active.id);
   }, []);
 
   const handleDragCancel = useCallback(() => {
-    setActiveOverlaySize(null);
     setActiveId(null);
   }, []);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
-    setActiveOverlaySize(null);
     setActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -427,7 +412,6 @@ export function ContextMenuSettingsTab() {
             measuring={{
               droppable: {
                 strategy: MeasuringStrategy.WhileDragging,
-                frequency: 32,
               },
             }}
             autoScroll={{
@@ -442,10 +426,7 @@ export function ContextMenuSettingsTab() {
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
             >
-            <ScrollSync
-              containerRef={scrollContainerRef}
-              isDragging={activeId !== null}
-            />
+            <ScrollSync containerRef={scrollContainerRef} isDragging={activeId !== null} />
             <SortableContext
               items={itemKeys}
               strategy={verticalListSortingStrategy}
@@ -476,23 +457,16 @@ export function ContextMenuSettingsTab() {
               </div>
             </SortableContext>
 
-            <DragOverlay dropAnimation={null}>
-              {activeEntry && activeOverlaySize ? (
-                <div
-                  className="cmenu-editor__drag-overlay"
-                  style={{
-                    pointerEvents: "none",
-                    cursor: "grabbing",
-                    width: activeOverlaySize.width,
-                    minHeight: activeOverlaySize.height,
-                    maxWidth: activeOverlaySize.width,
-                    boxSizing: "border-box",
-                  }}
-                  >
-                  <OverlayCard entry={activeEntry.entry} descriptor={activeDescriptor} />
-                </div>
-              ) : null}
-            </DragOverlay>
+            {createPortal(
+              <DragOverlay dropAnimation={null} zIndex={10001}>
+                {activeEntry ? (
+                  <ContextMenuDragPreview
+                    entry={activeEntry.entry}
+                    descriptor={activeDescriptor}
+                    scale={dragScaleRef.current}
+                  />
+                ) : null}
+              </DragOverlay>, document.body)}
           </DndContext>
 
           {/* Кнопка добавления разделителя в конец */}

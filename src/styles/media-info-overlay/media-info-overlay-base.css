@@ -6,9 +6,9 @@
   bottom: var(--bottom-overlays-bottom, 94px);
   left: 14px;
   max-height: calc(100% - var(--bottom-overlays-bottom, 94px) - 60px);
-  min-width: min(280px, calc(100vw - 28px));
-  max-width: min(380px, calc(100vw - 28px));
-  width: min(380px, calc(100vw - 28px));
+  min-width: min(300px, calc(100vw - 28px));
+  max-width: min(400px, calc(100vw - 28px));
+  width: min(400px, calc(100vw - 28px));
   background: var(--bg-glass);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-controls, 16px);
@@ -71,8 +71,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 6px;
   padding-bottom: 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
 /* Контейнер секций информации */
@@ -85,6 +87,7 @@
 .media-info__header-left {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .media-info__title {
@@ -94,11 +97,62 @@
   text-transform: uppercase;
   letter-spacing: 0.8px;
   margin: 0;
+  white-space: nowrap;
 }
 
 .media-info__header-actions {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
+}
+
+/* ─── Вкладки оверлея (Сводка, Рендеринг, Дорожки) ────────────────── */
+.media-info__tabs {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border-bottom: none;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.media-info__tab-btn {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: var(--radius-controls, 16px);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs, 11px);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--t-fast) var(--ease-smooth);
+  min-width: 0;
+}
+
+.media-info__tab-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.media-info__tab-btn--active {
+  background: var(--surface-accent-subtle) !important;
+  color: var(--accent-text) !important;
+  border-color: var(--accent) !important;
+  font-weight: 600 !important;
+}
+
+.media-info__tab-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 
 .media-info__close {
@@ -108,14 +162,23 @@
   background: transparent;
   border: none;
   color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   cursor: pointer;
   padding: 0;
+  margin: 0;
+  line-height: 0;
   outline: none;
   transition: color var(--t-fast) var(--ease-smooth),
               background-color var(--t-fast) var(--ease-smooth);
+}
+
+.media-info__close svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  margin: auto;
+  transform-origin: 50% 50%;
 }
 
 .media-info__close:hover {
@@ -163,7 +226,6 @@
 
 .media-info__row:hover .media-info__value {
   color: var(--accent-text);
-  text-shadow: 0 0 8px var(--accent-glow);
 }
 
 .media-info__label {
@@ -210,5 +272,222 @@
 
 .media-info__sparkline-dot {
   opacity: 0.9;
+}
+
+/* ─── Заголовки секций во вкладках 2 и 3 ─────────────────────────── */
+.media-info__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 6px 4px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 4px;
+}
+
+.media-info__section-title {
+  font-size: var(--fs-2xs, 11px);
+  font-weight: 700;
+  color: var(--accent-text);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.media-info__value--accent {
+  color: var(--accent-text) !important;
+  font-weight: 600;
+}
+
+.media-info__value--muted {
+  color: var(--text-muted) !important;
+  font-style: italic;
+}
+
+/* ─── Списки потоков (Аудио, Субтитры, Главы) ─────────────────────── */
+.media-info__stream-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.media-info__stream-list--scroll {
+  max-height: 140px;
+}
+
+.media-info__stream-list::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+  display: block;
+}
+
+.media-info__stream-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.media-info__stream-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+  transition: background var(--t-fast) var(--ease-smooth);
+}
+
+.media-info__stream-list::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+.media-info__stream-list::-webkit-scrollbar-button,
+.media-info__stream-list::-webkit-scrollbar-button:single-button,
+.media-info__stream-list::-webkit-scrollbar-button:vertical:decrement,
+.media-info__stream-list::-webkit-scrollbar-button:vertical:increment,
+.media-info__stream-list::-webkit-scrollbar-button:vertical:start:decrement,
+.media-info__stream-list::-webkit-scrollbar-button:vertical:end:increment,
+.media-info__stream-list::-webkit-scrollbar-button:horizontal:decrement,
+.media-info__stream-list::-webkit-scrollbar-button:horizontal:increment {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.media-info__stream-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-radius: var(--radius-list-row);
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs, 12px);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--t-fast) var(--ease-smooth);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.media-info__stream-item:hover {
+  background: var(--surface-level-3-hover);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.media-info__stream-item--active {
+  background: var(--surface-accent-subtle) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--accent) !important;
+  font-weight: 600;
+}
+
+.media-info__stream-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.media-info__stream-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+
+.media-info__stream-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ─── Бейджи характеристик дорожек ───────────────────────────────── */
+.media-info__badge-lang {
+  font-size: var(--fs-3xs, 9px);
+  font-weight: 700;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+}
+
+.media-info__badge-codec {
+  font-size: var(--fs-3xs, 10px);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  font-weight: 500;
+}
+
+.media-info__badge-active {
+  font-size: var(--fs-3xs, 9px);
+  font-weight: 700;
+  color: var(--on-accent, #000);
+  background: var(--accent);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+}
+
+/* ─── Блок текущей главы ─────────────────────────────────────────── */
+.media-info__chapters-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.media-info__current-chapter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-list-row);
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.08);
+  border: 1px solid rgba(var(--accent-rgb, 127, 199, 255), 0.2);
+}
+
+.media-info__chapter-count {
+  font-size: var(--fs-2xs, 10px);
+  font-weight: 700;
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
+.media-info__chapter-name {
+  font-size: var(--fs-xs, 11px);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.media-info__chapter-idx {
+  font-size: var(--fs-2xs, 11px);
+  color: var(--text-muted);
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.media-info__chapter-time {
+  font-size: var(--fs-2xs, 11px);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.media-info__empty-text {
+  padding: 8px 6px;
+  font-size: var(--fs-xs, 11px);
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
 }
 

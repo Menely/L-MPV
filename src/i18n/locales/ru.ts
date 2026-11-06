@@ -96,7 +96,7 @@ export const ru: TranslationDict = {
 
   // ─── Медиаинфо ─────────────────────────────────────────────────
   mediaInfo: {
-    title: "Медиаинформация",
+    title: "Медиаинфо",
     close: "Закрыть",
     loading: "Загрузка…",
     noInfo: "Нет данных",
@@ -1110,7 +1110,36 @@ export const ru: TranslationDict = {
     bitrate: "Битрейт:",
     volume: "Громкость:",
     kbps: "kbps",
-    ch: "ch"
+    ch: "ch",
+    // Вкладки оверлея
+    tabSummary: "Сводка",
+    tabRendering: "Рендеринг",
+    tabTracks: "Дорожки",
+    // Секция рендеринга и железа
+    hardwareTitle: "Оборудование (Hardware)",
+    decoderTitle: "Декодер и цвет",
+    displaySyncTitle: "Синхронизация и дисплей",
+    cpu: "CPU:",
+    ram: "RAM:",
+    gpu: "GPU:",
+    vram: "VRAM:",
+    hwdec: "Декодер:",
+    pixelFormat: "Формат пикселей:",
+    colorRange: "Цветовой диапазон:",
+    colorTransfer: "Гамма / Transfer:",
+    maxCllFall: "MaxCLL / MaxFALL:",
+    displayFps: "Частота дисплея:",
+    avSync: "A/V Sync:",
+    voDelayed: "Задержки / сбои:",
+    // Секция дорожек и глав
+    audioTracksTitle: "Аудиодорожки",
+    subTracksTitle: "Субтитры",
+    chaptersTitle: "Главы",
+    activeBadge: "Активна",
+    noAudioTracks: "Аудиодорожки не найдены",
+    noSubTracks: "Субтитры отсутствуют",
+    noChapters: "В файле нет глав",
+    chapterCount: (current: number, total: number) => `Глава ${current} из ${total}`
   },
   subtitlesSearch: {
     title: "Поиск по субтитрам",

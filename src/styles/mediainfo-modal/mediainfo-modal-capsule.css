@@ -157,6 +157,21 @@
 }
 
 /* Кнопка закрытия окна */
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn--close {
+  display: grid !important;
+  place-items: center !important;
+  line-height: 0 !important;
+  padding: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn--close svg {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  margin: auto !important;
+  transform-origin: 50% 50% !important;
+}
+
 .mediainfo-standalone--capsule .mediainfo-standalone__control-btn--close:hover {
   background: rgba(239, 68, 68, 0.22) !important;
   color: #fca5a5 !important;
@@ -589,6 +604,21 @@
   width: 32px !important;
   height: 32px !important;
   border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__btn--close {
+  display: grid !important;
+  place-items: center !important;
+  line-height: 0 !important;
+  padding: 0 !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__btn--close svg {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  margin: auto !important;
+  transform-origin: 50% 50% !important;
 }
 
 .mediainfo-floating-window--capsule .mediainfo-floating-window__search-bar {

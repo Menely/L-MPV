@@ -2236,6 +2236,12 @@
   background: var(--accent);
 }
 
+/* Stable measuring slots: only their children animate during sorting. */
+.cmenu-entry-slot {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
 /* Карточка пункта */
 .cmenu-entry {
   display: flex;
@@ -2265,8 +2271,7 @@
 }
 
 .cmenu-entry--dragging {
-  opacity: 0.35 !important;
-  border-style: dashed;
+  visibility: hidden;
 }
 
 /* Карточка-оверлей при перетаскивании */
@@ -2275,12 +2280,11 @@
   max-width: 100%;
   box-sizing: border-box;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5),
-              0 0 0 2px var(--accent),
               0 0 20px var(--surface-accent-glow);
   background: var(--bg-elevated) !important;
   border-color: var(--accent) !important;
   cursor: grabbing !important;
-  transform: scale(1.02);
+  height: 100%;
   pointer-events: none !important;
   user-select: none !important;
   z-index: var(--z-window);

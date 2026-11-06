@@ -1,6 +1,8 @@
 import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { getActiveUiScale } from "../../utils/uiThemeUtils";
+import { toLocalDragTransform } from "../../utils/dndCoordinates";
 import { CheckCircle2, GripVertical } from "lucide-react";
 import { ModelFileItem, UpscaleCompileProgress } from "./types";
 import { ModelTensorRtAction } from "./ModelTensorRtAction";
@@ -86,9 +88,8 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
   const isRecording = recordingActionId === actionId;
 
   const cardStyle: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Translate.toString(toLocalDragTransform(transform, getActiveUiScale())),
     transition,
-    opacity: isDragging ? 0.35 : 1,
     zIndex: isDragging ? 999 : undefined,
     padding: "8px 12px",
     display: "flex",
@@ -100,8 +101,9 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
   };
 
   return (
+    // Measure a stationary slot; only the card inside it is translated.
+    <div ref={setNodeRef} style={{ flex: "0 0 auto", minWidth: 0, position: "relative", zIndex: isDragging ? 999 : undefined }}>
     <div
-      ref={setNodeRef}
       style={cardStyle}
       onClick={onSelect}
       className={`glass-tile glass-tile--clickable ${isSelected ? "glass-tile--active" : ""}`}
@@ -229,6 +231,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
           onMouseRecord={onMouseRecord}
         />
       </div>
+    </div>
     </div>
   );
 });

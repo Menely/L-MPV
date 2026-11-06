@@ -1106,7 +1106,36 @@ export const en: TranslationDict = {
     bitrate: "Bitrate:",
     volume: "Volume:",
     kbps: "kbps",
-    ch: "ch"
+    ch: "ch",
+    // Overlay tabs
+    tabSummary: "Summary",
+    tabRendering: "Rendering",
+    tabTracks: "Tracks",
+    // Rendering & hardware section
+    hardwareTitle: "Hardware Monitor",
+    decoderTitle: "Decoder & Color",
+    displaySyncTitle: "Display & Sync",
+    cpu: "CPU:",
+    ram: "RAM:",
+    gpu: "GPU:",
+    vram: "VRAM:",
+    hwdec: "Decoder:",
+    pixelFormat: "Pixel format:",
+    colorRange: "Color range:",
+    colorTransfer: "Gamma / Transfer:",
+    maxCllFall: "MaxCLL / MaxFALL:",
+    displayFps: "Display refresh:",
+    avSync: "A/V Sync:",
+    voDelayed: "Delayed / Mistimed:",
+    // Tracks & chapters section
+    audioTracksTitle: "Audio Tracks",
+    subTracksTitle: "Subtitles",
+    chaptersTitle: "Chapters",
+    activeBadge: "Active",
+    noAudioTracks: "No audio tracks found",
+    noSubTracks: "No subtitles available",
+    noChapters: "No chapters in file",
+    chapterCount: (current: number, total: number) => `Chapter ${current} of ${total}`
   },
   subtitlesSearch: {
     title: "Subtitle Search",

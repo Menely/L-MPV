@@ -932,6 +932,35 @@ export interface TranslationDict {
     volume: string;
     kbps: string;
     ch: string;
+    // Вкладки оверлея
+    tabSummary: string;
+    tabRendering: string;
+    tabTracks: string;
+    // Секция рендеринга и железа
+    hardwareTitle: string;
+    decoderTitle: string;
+    displaySyncTitle: string;
+    cpu: string;
+    ram: string;
+    gpu: string;
+    vram: string;
+    hwdec: string;
+    pixelFormat: string;
+    colorRange: string;
+    colorTransfer: string;
+    maxCllFall: string;
+    displayFps: string;
+    avSync: string;
+    voDelayed: string;
+    // Секция дорожек и глав
+    audioTracksTitle: string;
+    subTracksTitle: string;
+    chaptersTitle: string;
+    activeBadge: string;
+    noAudioTracks: string;
+    noSubTracks: string;
+    noChapters: string;
+    chapterCount: (current: number, total: number) => string;
   };
 
   // ─── Окно поиска по субтитрам (SubtitlesSearchModal) ───────────
