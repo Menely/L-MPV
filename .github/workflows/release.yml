@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
+      version_tag:
+        description: 'Тег версии (например, v2.7.0). Если пусто — берётся из package.json'
+        required: false
+        default: ''
       include_ffmpeg:
         description: 'Прикрепить отдельный ffmpeg.exe (для обновления у пользователей)'
         type: boolean
@@ -66,7 +70,8 @@ jobs:
       - name: Синхронизация версии из Git-тега в package.json и Cargo.toml
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
+          $inputTag = "${{ github.event.inputs.version_tag }}"
+          $tag = if ($inputTag) { $inputTag } else { "${{ github.ref_name }}" }
           $ver = $tag -replace '^v', ''
           if ($ver -match '^\d+\.\d+\.\d+') {
             Write-Host "Установка версии $ver из тега $tag..."
@@ -91,7 +96,8 @@ jobs:
       - name: Публикация портативного архива и выбранных компонентов
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
+          $inputTag = "${{ github.event.inputs.version_tag }}"
+          $tag = if ($inputTag) { $inputTag } else { "${{ github.ref_name }}" }
           if (-not $tag -or $tag -notmatch '^v\d+') {
             $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
             $tag = "v$ver"
