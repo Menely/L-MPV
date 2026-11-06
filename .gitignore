@@ -110,6 +110,7 @@ agents/rules/
 .codebase-memory/*
 SKILL.md
 docs/skills-system-requirements.md
+AGENTS.md
 
 # ==============================================================================
 # Скилы агентов (устанавливаются локально через `npx skills add`, в репо не хранятся)
