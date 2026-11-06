@@ -107,7 +107,7 @@
 .glass-tile:has(input[type="radio"]:checked):not(:has([data-surface-depth] input:checked)) {
   background: var(--surface-card-selected);
   border-color: var(--accent);
-  box-shadow: 0 0 8px var(--surface-accent-glow, rgba(var(--accent-rgb), 0.25)), inset 0 0 0 1px transparent;
+  box-shadow: none !important;
 }
 
 .glass-tile[aria-disabled="true"] {
@@ -351,15 +351,17 @@
   position: relative;
   outline: none;
   box-sizing: border-box;
+  box-shadow: none !important;
 }
 
 .ui-checkbox:hover {
   background: var(--surface-accent-hover);
+  box-shadow: none !important;
 }
 
 .ui-checkbox:checked {
   background: var(--accent);
-  box-shadow: 0 0 10px var(--accent-glow);
+  box-shadow: none !important;
 }
 
 .ui-checkbox:checked::after {

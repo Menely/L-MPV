@@ -108,44 +108,58 @@
 
 /* ─── Вкладки оверлея (Сводка, Рендеринг, Дорожки) ────────────────── */
 .media-info__tabs {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  --segment-padding: 3px;
+  --segment-border: 1px;
+  --segment-inner-radius: max(0px, calc(var(--radius-controls, 16px) - var(--segment-padding) - var(--segment-border)));
+  padding: var(--segment-padding);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, var(--radius-md));
   gap: 3px;
-  padding: 0;
-  border-bottom: none;
+  box-sizing: border-box;
   flex: 1 1 auto;
   min-width: 0;
 }
 
 .media-info__tab-btn {
-  flex: 1 1 0;
-  display: flex;
+  flex: 1 1 0%;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 26px;
-  padding: 0 4px;
-  border-radius: var(--radius-controls, 16px);
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-secondary);
+  gap: var(--space-2);
+  height: 24px;
+  padding: 0 8px;
   font-size: var(--fs-2xs, 11px);
   font-weight: 500;
+  line-height: 1.2;
   cursor: pointer;
-  user-select: none;
-  transition: all var(--t-fast) var(--ease-smooth);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--segment-inner-radius);
+  box-sizing: border-box;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
   min-width: 0;
+  user-select: none;
 }
 
-.media-info__tab-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+.media-info__tab-btn:hover:not(.media-info__tab-btn--active) {
+  background: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+  border-color: transparent !important;
 }
 
 .media-info__tab-btn--active {
-  background: var(--surface-accent-subtle) !important;
-  color: var(--accent-text) !important;
-  border-color: var(--accent) !important;
+  background: var(--bg-hover, rgba(255, 255, 255, 0.12)) !important;
+  color: var(--text-primary) !important;
   font-weight: 600 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
 }
 
 .media-info__tab-text {
