@@ -5,6 +5,19 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      include_ffmpeg:
+        description: 'Прикрепить отдельный ffmpeg.exe (для обновления у пользователей)'
+        type: boolean
+        default: false
+      include_mediainfo:
+        description: 'Прикрепить отдельный mediainfo.dll (для обновления у пользователей)'
+        type: boolean
+        default: false
+      include_libmpv:
+        description: 'Прикрепить отдельный libmpv-2.dll (для обновления у пользователей)'
+        type: boolean
+        default: false
 
 jobs:
   publish-tauri:
@@ -75,7 +88,7 @@ jobs:
           releaseDraft: false
           prerelease: false
 
-      - name: Публикация портативного архива, автономного l-mpv.exe и манифеста целостности
+      - name: Публикация портативного архива и выбранных компонентов
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
@@ -95,11 +108,26 @@ jobs:
           Copy-Item "src-tauri/binaries/libmpv-2.dll" -Destination "Portable-L-MPV/libmpv-2.dll" -Force
           Copy-Item "src-tauri/binaries/ffmpeg.exe" -Destination "Portable-L-MPV/ffmpeg.exe" -Force
           Copy-Item "src-tauri/binaries/mediainfo.dll" -Destination "Portable-L-MPV/mediainfo.dll" -Force
-          
+
+          # Определение выбранных чекбоксами компонентов для отдельного обновления
+          $includeFfmpeg = ("${{ github.event.inputs.include_ffmpeg }}" -eq "true")
+          $includeMediainfo = ("${{ github.event.inputs.include_mediainfo }}" -eq "true")
+          $includeLibmpv = ("${{ github.event.inputs.include_libmpv }}" -eq "true")
+
+          # Формирование списка файлов для манифеста checksums.json и загрузки в релиз
+          $publishAssets = @("Portable-L-MPV/l-mpv.exe")
+          if ($includeFfmpeg) { $publishAssets += "Portable-L-MPV/ffmpeg.exe" }
+          if ($includeMediainfo) { $publishAssets += "Portable-L-MPV/mediainfo.dll" }
+          if ($includeLibmpv) { $publishAssets += "Portable-L-MPV/libmpv-2.dll" }
+
+          Write-Host "Файлы, выбранные для автообновления: $($publishAssets -join ', ')"
+
           Write-Host "Генерация манифеста целостности checksums.json..."
           Push-Location src-tauri
-          cargo run --release -q --example gen_checksums -- -o ../checksums.json ../Portable-L-MPV
+          $argsList = @("run", "--release", "-q", "--example", "gen_checksums", "--", "-o", "../checksums.json") + ($publishAssets | ForEach-Object { "../$_" })
+          & cargo $argsList
           Pop-Location
+
           Copy-Item "checksums.json" -Destination "Portable-L-MPV/checksums.json" -Force
 
           $portableZip = "L-MPV-$tag-portable.zip"
@@ -108,8 +136,13 @@ jobs:
           
           Write-Host "Загрузка артефактов в релиз $tag..."
           gh release upload $tag $portableZip --clobber
-          gh release upload $tag "src-tauri/target/release/l-mpv.exe#l-mpv.exe" --clobber
           gh release upload $tag "checksums.json#checksums.json" --clobber
+
+          foreach ($assetPath in $publishAssets) {
+            $fileName = Split-Path -Leaf $assetPath
+            Write-Host "Загрузка $fileName в релиз..."
+            gh release upload $tag "${assetPath}#${fileName}" --clobber
+          }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
