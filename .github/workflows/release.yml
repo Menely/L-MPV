@@ -1,4 +1,5 @@
 name: "Автоматический релиз L-MPV"
+run-name: "Релиз ${{ inputs.version_tag != '' && inputs.version_tag || github.ref_name }}"
 
 on:
   push:
