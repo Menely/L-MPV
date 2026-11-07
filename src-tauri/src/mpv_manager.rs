@@ -441,7 +441,10 @@ impl MpvManager {
                 .to_string_lossy()
                 .to_string();
             Self::set_option(&api, handle, "log-file", &log_file);
-            Self::set_option(&api, handle, "msg-level", "all=error");
+            // Фильтр апскейлинга пишет диагностику на уровне verbose ([v][animejanai]):
+            // без этого отказ/бездействие фильтра невидимы («в логах пусто»).
+            // Остальные модули по-прежнему только ошибки, чтобы лог не пух.
+            Self::set_option(&api, handle, "msg-level", "all=error,vf=v,animejanai=v,aji=v");
 
             // Путь к скриншотам (восстановление из config/settings.json)
             let saved_settings = crate::commands::AppSettings::load_portable();
@@ -1766,12 +1769,20 @@ impl MpvManager {
                 r#"vf add "@aji:animejanai=lib=\"{}\":conf=\"{}\":model-dir=\"{}\":rife-model-dir=\"{}\":trtexec=\"{}\":stats=\"{}\":slot={}""#,
                 aji_lib, norm_conf, norm_models_dir, rife_dir, trtexec, stats_path, slot
             );
-            let _ = self.command(&cmd_add);
+            // Ошибку НЕ глушим: иначе OSD показывает «Включен», а фильтр в mpv не встаёт
+            // и диагностика невозможна (симптом: в логах пусто, картинки нет).
+            if let Err(e) = self.command(&cmd_add) {
+                eprintln!("[L-MPV][Upscale] Ошибка добавления фильтра animejanai: {}", e);
+                return Err(format!("Не удалось добавить фильтр апскейлинга в mpv: {}", e));
+            }
         }
 
         // Мгновенное переключение активного слота в AnimeJaNai
         let cmd_slot = format!("vf-command aji slot {}", slot);
-        let _ = self.command(&cmd_slot);
+        if let Err(e) = self.command(&cmd_slot) {
+            eprintln!("[L-MPV][Upscale] Ошибка переключения слота {}: {}", slot, e);
+            return Err(format!("Не удалось переключить слот апскейлинга на {}: {}", slot, e));
+        }
         Ok(())
     }
 

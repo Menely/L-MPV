@@ -29,6 +29,7 @@ import {
   isKeyboardEventMatch,
   VIDEO_MOUSE_ACTIONS,
 } from "./utils/hotkeyUtils";
+import { getFavoriteModel } from "./utils/favoriteModel";
 import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
@@ -968,8 +969,53 @@ function App() {
           localStorage.setItem("l-mpv-upscale-mode", "off");
           triggerOsd(dict.osd.upscaleOff, 2000);
           window.dispatchEvent(new Event("l-mpv-settings-changed"));
-        } catch (e) { console.error("Ошибка отключения апскейлинга:", e); }
+        } catch (e) { console.error("Ошибка отключения апскейлинга:", e); triggerOsd(dict.osd.upscaleError(String(e)), 3000, true); }
         break;
+      case "upscaleFavorite": {
+        try {
+          const favorite = getFavoriteModel();
+          if (!favorite) {
+            triggerOsd(dict.osd.upscaleNoFavorite, 2500);
+            break;
+          }
+          const models = await invoke<Array<{ slot: number; display_name: string; filename: string }>>("scan_onnx_models").catch(() => []);
+          const targetModel = models.find((m) => m.filename === favorite);
+
+          if (!targetModel) {
+            triggerOsd(dict.osd.upscaleFavoriteNotFound(favorite), 2500);
+            break;
+          }
+
+          const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+          const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
+          const curSlot = Number(localStorage.getItem("l-mpv-upscale-slot") || 1001);
+          const curModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
+          const isFavoriteActive = mode === "ai" && (curModel === targetModel.filename || curSlot === targetModel.slot);
+
+          if (isFavoriteActive) {
+            await invoke("switch_upscale_network_hotkey", { slot: 0, backend });
+            localStorage.setItem("l-mpv-upscale-mode", "off");
+            triggerOsd(dict.osd.upscaleOff, 2000);
+          } else {
+            localStorage.setItem("l-mpv-upscale-mode", "ai");
+            localStorage.setItem("l-mpv-upscale-slot", String(targetModel.slot));
+            localStorage.setItem("l-mpv-upscale-selected-model", targetModel.filename);
+            await invoke("switch_upscale_network_hotkey", { slot: targetModel.slot, backend });
+
+            const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
+            const modelTitle = isHideModelNames
+              ? (curLocale === "en" ? "Favorite model" : "Избранная модель")
+              : targetModel.display_name;
+            triggerOsd(dict.osd.upscaleModel(modelTitle), 2000);
+          }
+
+          window.dispatchEvent(new Event("l-mpv-settings-changed"));
+        } catch (e) {
+          console.error("Ошибка переключения избранной модели по хоткею:", e);
+          triggerOsd(dict.osd.upscaleError(String(e)), 3000, true);
+        }
+        break;
+      }
       case "upscaleNet1":
       case "upscaleNet2":
       case "upscaleNet3":
@@ -1006,6 +1052,7 @@ function App() {
           }
         } catch (e) {
           console.error("Ошибка переключения нейросети по хоткею:", e);
+          triggerOsd(dict.osd.upscaleError(String(e)), 3000, true);
         }
         break;
       }

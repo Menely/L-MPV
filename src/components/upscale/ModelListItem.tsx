@@ -3,7 +3,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import { toLocalDragTransform } from "../../utils/dndCoordinates";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Star } from "lucide-react";
 import { ModelFileItem, UpscaleCompileProgress } from "./types";
 import { ModelTensorRtAction } from "./ModelTensorRtAction";
 import { ModelHotkeyButton } from "./ModelHotkeyButton";
@@ -16,6 +16,10 @@ export interface ModelListItemProps {
   idx: number;
   /** Выбрана ли модель в данный момент */
   isSelected: boolean;
+  /** Отмечена ли модель звездочкой как избранная (по умолчанию) */
+  isFavorite: boolean;
+  /** Переключение звездочки избранной модели */
+  onToggleFavorite: () => void;
   /** Скрывать ли детальные имена моделей */
   hideModelNames: boolean;
   /** Текущие привязки горячих клавиш */
@@ -61,6 +65,8 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
   model,
   idx,
   isSelected,
+  isFavorite,
+  onToggleFavorite,
   hideModelNames,
   customHotkeys,
   recordingActionId,
@@ -158,6 +164,40 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
           >
           {idx + 1}
         </div>
+
+        {/* Звездочка избранной модели: контур по умолчанию, золотая при выборе */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFavorite();
+          }}
+          className="hover-bright"
+          title={isFavorite ? dict.settings.upscaling.favoriteUnsetTitle : dict.settings.upscaling.favoriteSetTitle}
+          aria-pressed={isFavorite}
+          aria-label={isFavorite ? dict.settings.upscaling.favoriteUnsetTitle : dict.settings.upscaling.favoriteSetTitle}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 4,
+            margin: 0,
+            background: "transparent",
+            border: "none",
+            borderRadius: "var(--radius-xs, 4px)",
+            cursor: "pointer",
+            flexShrink: 0,
+            color: isFavorite ? "var(--warning-text)" : "var(--text-muted)",
+            opacity: isFavorite ? 1 : 0.6,
+            transition: "opacity 0.15s ease, color 0.15s ease",
+          }}
+          >
+          <Star
+            size={16}
+            fill={isFavorite ? "currentColor" : "none"}
+            strokeWidth={isFavorite ? 0 : 1.8}
+          />
+        </button>
 
         <div style={{ minWidth: 0, flex: 1 }}>
           <div

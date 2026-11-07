@@ -67,13 +67,18 @@ pub fn apply_upscale_settings_impl(
 
         ensure_inference_environment();
         let models_dir = get_models_dir();
-        let _ = state.mpv.set_hwdec_for_backend(&settings.backend);
-        let _ = state.mpv.enable_ai_upscale(
-            &conf_str,
-            &models_dir.to_string_lossy(),
-            active_slot,
-            backend_changed,
-        );
+        if let Err(e) = state.mpv.set_hwdec_for_backend(&settings.backend) {
+            eprintln!("[L-MPV][Upscale] Не удалось установить hwdec: {}", e);
+        }
+        state
+            .mpv
+            .enable_ai_upscale(
+                &conf_str,
+                &models_dir.to_string_lossy(),
+                active_slot,
+                backend_changed,
+            )
+            .map_err(|e| format!("Включение апскейлинга не удалось: {}", e))?;
         force_frame_refresh(&state.mpv);
     } else {
         let _ = state.mpv.disable_ai_upscale();
@@ -119,13 +124,18 @@ pub fn switch_upscale_network_hotkey_impl(
         let models_dir = get_models_dir();
         let conf_path = write_upscale_conf(&chosen_backend, slot)?;
         let conf_str = conf_path.to_string_lossy();
-        let _ = state.mpv.set_hwdec_for_backend(&chosen_backend);
-        let _ = state.mpv.enable_ai_upscale(
-            &conf_str,
-            &models_dir.to_string_lossy(),
-            slot,
-            backend_changed,
-        );
+        if let Err(e) = state.mpv.set_hwdec_for_backend(&chosen_backend) {
+            eprintln!("[L-MPV][Upscale] Не удалось установить hwdec: {}", e);
+        }
+        state
+            .mpv
+            .enable_ai_upscale(
+                &conf_str,
+                &models_dir.to_string_lossy(),
+                slot,
+                backend_changed,
+            )
+            .map_err(|e| format!("Включение апскейлинга не удалось: {}", e))?;
     }
 
     force_frame_refresh(&state.mpv);

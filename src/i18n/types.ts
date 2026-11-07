@@ -673,6 +673,8 @@ export interface TranslationDict {
       trtCompileTitle: string;
       trtCompileBadge: string;
       compilingProgress: string;
+      favoriteSetTitle: string;
+      favoriteUnsetTitle: string;
     };
     hotkeys: {
       hotkeysSection: string;
@@ -1060,6 +1062,9 @@ export interface TranslationDict {
     upscaleOff: string;
     upscaleModel: (name: string) => string;
     upscaleModelNotFound: (index: number) => string;
+    upscaleNoFavorite: string;
+    upscaleFavoriteNotFound: (name: string) => string;
+    upscaleError: (err: string) => string;
     upscaleStatsAi: (slot: number, name: string, engine: string, stats: string) => string;
     upscaleStatsOff: (gpuHint: string) => string;
     visualizerStatus: (enabled: boolean) => string;

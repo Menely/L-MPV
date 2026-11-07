@@ -48,6 +48,7 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   rotateVideo: ["Alt+KeyR"],
   upscaleStats: ["Ctrl+KeyJ"],
   upscaleOff: ["Shift+Digit1"],
+  upscaleFavorite: ["KeyU"],
   upscaleNet1: ["Shift+Digit2"],
   upscaleNet2: ["Shift+Digit3"],
   upscaleNet3: ["Shift+Digit4"],
@@ -117,6 +118,7 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   // Апскейлинг 4K (до 9 моделей)
   { id: "upscaleStats", label: "Статус и статистика 4K AI", defaultKeys: DEFAULT_HOTKEYS["upscaleStats"], category: "upscaling" },
   { id: "upscaleOff", label: "Апскейлинг: Выключить", defaultKeys: DEFAULT_HOTKEYS["upscaleOff"], category: "upscaling" },
+  { id: "upscaleFavorite", label: "Апскейлинг: Избранная модель (вкл/выкл)", defaultKeys: DEFAULT_HOTKEYS["upscaleFavorite"], category: "upscaling" },
   { id: "upscaleNet1", label: "Апскейлинг: Нейросеть #1", defaultKeys: DEFAULT_HOTKEYS["upscaleNet1"], category: "upscaling" },
   { id: "upscaleNet2", label: "Апскейлинг: Нейросеть #2", defaultKeys: DEFAULT_HOTKEYS["upscaleNet2"], category: "upscaling" },
   { id: "upscaleNet3", label: "Апскейлинг: Нейросеть #3", defaultKeys: DEFAULT_HOTKEYS["upscaleNet3"], category: "upscaling" },

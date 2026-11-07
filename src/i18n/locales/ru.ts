@@ -790,7 +790,9 @@ export const ru: TranslationDict = {
       trtRecompileTitle: "Перекомпилировать движок TensorRT под 1080p",
       trtCompileTitle: "Скомпилировать TensorRT движок под 1080p заранее, чтобы исключить задержку при воспроизведении",
       trtCompileBadge: "1080p сборка",
-      compilingProgress: "Сборка…"
+      compilingProgress: "Сборка…",
+      favoriteSetTitle: "Сделать моделью по умолчанию (избранная)",
+      favoriteUnsetTitle: "Убрать модель по умолчанию",
     },
     hotkeys: {
       hotkeysSection: "Горячие клавиши",
@@ -861,6 +863,7 @@ export const ru: TranslationDict = {
         openFile: "Открыть файл",
         upscaleStats: "Статус и статистика 4K AI",
         upscaleOff: "Апскейлинг: Выключить",
+        upscaleFavorite: "Апскейлинг: Избранная модель (вкл/выкл)",
         upscaleNet1: "Апскейлинг: Нейросеть #1",
         upscaleNet2: "Апскейлинг: Нейросеть #2",
         upscaleNet3: "Апскейлинг: Нейросеть #3",
@@ -1240,10 +1243,13 @@ export const ru: TranslationDict = {
     upscaleOff: "4K AI Апскейлинг: Выключен",
     upscaleModel: (name: string) => `4K AI: ${name} (Включен)`,
     upscaleModelNotFound: (index: number) => `Модель #${index} не найдена в models/onnx/`,
+    upscaleNoFavorite: "Избранная модель не выбрана — отметьте её звездочкой в списке моделей",
+    upscaleFavoriteNotFound: (name: string) => `Избранная модель ${name} не найдена в models/onnx/`,
+    upscaleError: (err: string) => `Ошибка апскейлинга: ${err}`,
     upscaleStatsAi: (slot: number, name: string, engine: string, stats: string) =>
       `✨ 4K AI Upscaling: Включен (Слот ${slot})\nМодель: ${name}\nДвижок: ${engine}${stats}`,
     upscaleStatsOff: (gpuHint: string) =>
-      `✨ 4K AI Upscaling: Выключен (Исходное видео)${gpuHint}\nБыстрое включение: Shift+1 (Выкл), Shift+2..0 (Модели 1–9)`,
+      `✨ 4K AI Upscaling: Выключен (Исходное видео)${gpuHint}\nБыстрое включение: Shift+1 (Выкл), Shift+2..0 (Модели 1–9), U (Избранная)`,
     visualizerStatus: (enabled: boolean) => `Визуализатор: ${enabled ? "Включен" : "Выключен"}`,
     visualizerMode: (mode: string) => `Визуализатор: ${mode}`,
     rotation: (degrees: number) => `Поворот: ${degrees}°`,
