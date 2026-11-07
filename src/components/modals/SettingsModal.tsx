@@ -1013,16 +1013,18 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             </div>
 
             {/* Карточка 3: Крестик */}
-            <button
-              ref={closeButtonRef}
-              type="button"
-              className="settings-card settings-card--close"
-              onClick={handleClose}
-              id="btn-settings-close"
-              aria-label={dict.settings.close}
-            >
-              <X size={20} />
-            </button>
+            <div className="settings-card settings-card--close">
+              <button
+                ref={closeButtonRef}
+                type="button"
+                className="island-action"
+                onClick={handleClose}
+                id="btn-settings-close"
+                aria-label={dict.settings.close}
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
 
           {/* Карточка 2: Основное тело настроек */}

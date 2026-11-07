@@ -248,15 +248,17 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
                 {dict.settings.appearance.colorScheme.colorPickerTitle}
               </span>
             </div>
-            <button
-              ref={closeButtonRef}
-              type="button"
-              onClick={handleClose}
-              className="color-picker-card color-picker-capsule-card--close"
-              aria-label={dict.settings.appearance.colorScheme.colorPickerClose}
-            >
-              <X size={16} />
-            </button>
+            <div className="color-picker-card color-picker-capsule-card--close">
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={handleClose}
+                className="island-action"
+                aria-label={dict.settings.appearance.colorScheme.colorPickerClose}
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           {/* Центральный остров: Контролы выбора цвета */}

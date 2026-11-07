@@ -13,7 +13,7 @@ for(const [file,selector] of [
   [mi,'.mediainfo-standalone--capsule .mediainfo-standalone__control-btn--active:hover'],
   [mi,'.mediainfo-standalone--capsule .mediainfo-standalone__action-btn--active:hover:not(:disabled)'],
   [mi,'.mediainfo-standalone--capsule .mediainfo-tab-chip--active:hover:not(:disabled)'],
-])assert.equal(declaration(file,selector,'background').value,'var(--surface-accent-hover)');
+])assert.equal(declaration(file,selector,'background').value,selector.includes('settings-tab-btn--active') ? 'var(--bg-hover)' : 'var(--surface-accent-hover)');
 const components='src/styles/components.css';
 assert.ok(!rules(components).some(r=>r.selector==='.glass-section:hover'||r.selector.includes('.glass-section:has(:focus-visible)')));
 for(const base of ['.glass-tile--clickable:hover','.glass-tile--active:hover'])assert.ok(rules(components).some(r=>r.selector.startsWith(base+':not(:has(button:hover')));

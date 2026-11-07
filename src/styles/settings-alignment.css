@@ -68,3 +68,48 @@
   display: block;
   flex-shrink: 0;
 }
+
+/* A lone glyph must not use the text baseline or the browser's button layout.
+   Keep dimensions, padding and line-height here: some buttons also have a
+   direct text node, which does not affect the CSS :only-child selector. */
+button:has(> svg:only-child) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+button > svg:only-child {
+  display: block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Dedicated icon actions have no caption and need no typographic leading. */
+:is(.btn--icon, .btn--icon-sm, .titlebar__btn, .control-btn:not(.control-btn--with-label),
+    .playlist-drawer__action-btn, .track-popover__icon-btn,
+    .mediainfo-floating-window__btn, .mediainfo-standalone__control-btn,
+    .mediainfo-standalone__btn-icon, .mediainfo-standalone__action-btn--icon,
+    .preset-action-btn--icon, .settings-footer__icon-btn):has(> svg:only-child) {
+  padding: 0;
+  line-height: 0;
+}
+
+/* Equal slots keep the icon column stable in both context-menu lists. */
+.cmenu-entry__icon,
+.cmenu-available-item__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  line-height: 0;
+}
+
+:is(.cmenu-entry__icon, .cmenu-available-item__icon, .settings-tab-icon,
+    .mediainfo-floating-window__icon, .mediainfo-standalone__icon,
+    .update-toast__icon) > svg {
+  display: block;
+  flex-shrink: 0;
+}

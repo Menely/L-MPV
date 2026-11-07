@@ -124,16 +124,6 @@
   transition: all var(--t-fast) var(--ease-smooth);
 }
 
-.color-picker-capsule-card--close:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  border-color: var(--border-hover);
-}
-
-.color-picker-capsule-card--close:active {
-  transform: scale(0.94);
-}
-
 /* Тело капсулы */
 .color-picker-capsule-card--body {
   padding: 14px 16px;

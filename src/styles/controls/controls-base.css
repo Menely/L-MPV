@@ -444,28 +444,10 @@ html.no-animations .timeline__pulse {
   flex-shrink: 0;
   filter: none;
   transform-origin: center center;
-  animation: playPausePop var(--t-spring) var(--ease-spring-smooth);
+  /* Keep both states on the same centre; the button handles press feedback. */
+  transform: none;
   transition: color var(--t-fast) var(--ease-smooth),
               filter var(--t-fast) var(--ease-smooth);
-}
-
-.control-btn--play svg.lucide-play {
-  transform: translateX(1px);
-}
-
-@keyframes playPausePop {
-  0% {
-    opacity: 0.5;
-    transform: scale(0.92);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1.04);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
 .control-btn--play:hover {
