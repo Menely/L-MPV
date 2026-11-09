@@ -96,6 +96,7 @@ pub async fn stream_video_bitrate_heatmap(
     .arg("framecrc")
     .arg("-");
 
+    task_manager.wait_for_read(generation_id).await?;
     let mut child = cmd.spawn().map_err(|e| {
         format!(
             "Не удалось запустить процесс FFmpeg анализа видеобитрейта: {}",
@@ -119,6 +120,7 @@ pub async fn stream_video_bitrate_heatmap(
     let mut accumulator = VideoProfileAccumulator::default();
 
     loop {
+        task_manager.wait_for_read(generation_id).await?;
         line.clear();
         let bytes_read = match reader.read_line(&mut line).await {
             Ok(n) => n,

@@ -1,0 +1,16 @@
+const assert = require('node:assert/strict');
+const esbuild = require('esbuild');
+const mod = { exports: {} };
+const compiled = esbuild.buildSync({ entryPoints: ['src/utils/playbackPolling.ts'], bundle: true, write: false, platform: 'node', format: 'cjs' });
+new Function('module', 'exports', compiled.outputFiles[0].text)(mod, mod.exports);
+const delay = mod.exports.playbackPollDelay;
+const video = { path: 'movie.mkv', paused: true, video_track: true, has_video: true, video_ready: false };
+assert.equal(delay(video, true), 100, 'Temporary startup pause must not add a second');
+assert.equal(delay({ ...video, video_ready: true }, true), 1000, 'Ready paused playback retains low overhead');
+assert.equal(delay({ ...video, video_track: undefined, has_video: false }, true), 100, 'Unknown track list remains responsive');
+assert.equal(delay({ ...video, video_track: false, has_video: false }, true), 1000, 'Audio-only pause needs no frame polling');
+assert.equal(delay({ ...video, has_video: false }, true), 1000, 'Explicitly disabled video needs no frame polling');
+assert.equal(delay({ ...video, path: '' }, false), 150, 'First file still loading must not use paused idle delay');
+assert.equal(delay({ ...video, path: '' }, true), 1000);
+assert.equal(delay({ ...video, paused: false, video_ready: true }, true), 100);
+console.log('PASS playback polling: startup, unknown tracks, audio, disabled video, ready pause and idle');

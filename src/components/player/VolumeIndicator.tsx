@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "../../i18n/LanguageContext";
-import { VOLUME_FEEDBACK_EVENT, isVolumeIndicatorEnabled } from "../../utils/volumeFeedback";
+import { VOLUME_FEEDBACK_EVENT, isVolumeIndicatorEnabled, isVolumeOsdEnabled } from "../../utils/volumeFeedback";
 
 /** Isolated trial. Rollback: docs/audits/volume-ruler-experiment-2026-11-08. */
 export function VolumeIndicator() {
   const { dict } = useTranslation();
   const [feedback, setFeedback] = useState<{ volume: number; closing: boolean } | null>(null);
+  const [osd, setOsd] = useState(isVolumeOsdEnabled);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const removeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -26,6 +27,7 @@ export function VolumeIndicator() {
       }, 900);
     };
     const onSettingsChanged = () => {
+      setOsd(isVolumeOsdEnabled());
       if (!isVolumeIndicatorEnabled()) {
         clearTimers();
         setFeedback(null);
@@ -44,6 +46,12 @@ export function VolumeIndicator() {
 
   if (!feedback) return null;
   const { volume, closing } = feedback;
+  if (osd) return (
+    <div className={`volume-feedback-osd${closing ? " volume-feedback-osd--closing" : ""}`}
+      role="status" aria-live="polite" aria-atomic="true">
+      {dict.controls.volume}: <strong>{Math.round(volume)}%</strong>
+    </div>
+  );
   // Keep shadow and foreground as direct geometry to avoid <use> repaint
   // differences when the volume updates in Chromium.
   const ticks = <>

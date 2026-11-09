@@ -26,6 +26,7 @@
       },
       {
         "label": "mediainfo",
+        "create": false,
         "title": "L-MPV MediaInfo",
         "width": 655,
         "height": 685,

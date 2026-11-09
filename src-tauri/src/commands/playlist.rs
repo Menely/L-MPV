@@ -4,7 +4,7 @@
 //! навигацию между элементами и принудительное обновление списка.
 
 use super::dir_scan::{
-    current_open_generation, list_folder,
+    current_open_generation, list_folder_while,
     next_open_generation,
 };
 use super::history::{
@@ -26,6 +26,7 @@ pub fn playlist_prev(
     super::startup::cancel_startup_playback(&state, true)?;
     save_current_playback_position(&state);
     save_history_to_disk();
+    let _transition = super::dir_scan::lock_open_transition()?;
     let (pos, _) = playlist_position(&state.mpv);
     if let Some(target) =
         playlist_filename_at(&state.mpv, pos - 1)
@@ -46,6 +47,7 @@ pub fn playlist_next(
     super::startup::cancel_startup_playback(&state, true)?;
     save_current_playback_position(&state);
     save_history_to_disk();
+    let _transition = super::dir_scan::lock_open_transition()?;
     let (pos, _) = playlist_position(&state.mpv);
     if let Some(target) =
         playlist_filename_at(&state.mpv, pos + 1)
@@ -153,6 +155,7 @@ pub fn play_playlist_item(
                 .to_string(),
         );
     }
+    let _transition = super::dir_scan::lock_open_transition()?;
     let current_pos = state
         .mpv
         .get_property_double("playlist-pos")
@@ -184,6 +187,7 @@ pub fn reload_folder_playlist(
     app: tauri::AppHandle,
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    let transition = super::dir_scan::lock_open_transition()?;
     let current_path = state
         .mpv
         .get_property_string("path")
@@ -193,15 +197,18 @@ pub fn reload_folder_playlist(
     }
     // Новое поколение: устаревшая фоновая достройка из open_file
     // обязана остановиться и не дублировать записи.
-    next_open_generation();
+    let generation = next_open_generation();
     // Очищаем остальные файлы плейлиста в mpv кроме текущего файла
     let _ = state.mpv.command("playlist-clear");
+    drop(transition);
     let target_path =
         std::path::PathBuf::from(&current_path);
     populate_folder_playlist(
         &state.mpv,
         &target_path,
         Some(&app),
+        generation,
+        false,
     )
 }
 
@@ -214,14 +221,18 @@ pub fn populate_folder_playlist(
     mpv: &MpvManager,
     target_path: &std::path::Path,
     app: Option<&tauri::AppHandle>,
+    generation: u64,
+    defer_io: bool,
 ) -> Result<(), String> {
     let parent = match target_path.parent() {
         Some(p) if !p.as_os_str().is_empty() => p,
         _ => std::path::Path::new("."),
     };
 
-    let generation = current_open_generation();
-    let listing = list_folder(parent);
+    let target = target_path.to_string_lossy();
+    let mut scan_gate = defer_io.then(|| super::background_io::ScanGate::new(mpv, &target, "", generation));
+    let mut keep_reading = || scan_gate.as_mut().is_none_or(|gate| gate.keep_reading());
+    let Some(listing) = list_folder_while(parent, &mut keep_reading) else { return Ok(()); };
 
     let mut video_files: Vec<std::path::PathBuf> =
         listing
@@ -277,6 +288,7 @@ pub fn populate_folder_playlist(
             for (k, f) in
                 video_files[..idx].iter().enumerate()
             {
+                let _transition = super::dir_scan::lock_open_transition()?;
                 if current_open_generation() != generation {
                     return Ok(());
                 }
@@ -300,6 +312,7 @@ pub fn populate_folder_playlist(
 
             // Файлы, идущие ПОСЛЕ текущего по алфавиту, добавляем в конец плейлиста
             for f in &video_files[(idx + 1)..] {
+                let _transition = super::dir_scan::lock_open_transition()?;
                 if current_open_generation() != generation {
                     return Ok(());
                 }

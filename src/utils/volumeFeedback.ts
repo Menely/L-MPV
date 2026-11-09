@@ -21,3 +21,11 @@ export function triggerVolumeFeedback(volume: number): void {
     detail: Math.max(0, Math.min(150, volume)),
   }));
 }
+
+export function isVolumeOsdEnabled(): boolean {
+  try { return localStorage.getItem("l-mpv-volume-osd") === "true"; } catch { return false; }
+}
+export function setVolumeOsdEnabled(enabled: boolean): void {
+  localStorage.setItem("l-mpv-volume-osd", String(enabled));
+  window.dispatchEvent(new Event("l-mpv-settings-changed"));
+}

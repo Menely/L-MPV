@@ -748,7 +748,7 @@ export const ru: TranslationDict = {
       successOptimized: (res) => res || "Модель успешно оптимизирована для 1080p!",
       errModelCompile: "Ошибка компиляции модели",
       errModelCompileDetail: (err) => `Ошибка компиляции модели: ${err}`,
-      errShift1: "Shift+1 зарезервировано за выключением апскейлинга. Выберите другую комбинацию.",
+      errShift1: "Shift+` зарезервировано за выключением апскейлинга. Выберите другую комбинацию.",
       modeTitle: "Режим апскейлинга",
       modeDesc: "Нейросетевой AI-апскейл видео высокого разрешения в реальном времени",
       toggleOn: "Нажмите, чтобы включить апскейлинг",
@@ -1256,7 +1256,7 @@ export const ru: TranslationDict = {
     upscaleStatsAi: (slot: number, name: string, engine: string, stats: string) =>
       `✨ 4K AI Upscaling: Включен (Слот ${slot})\nМодель: ${name}\nДвижок: ${engine}${stats}`,
     upscaleStatsOff: (gpuHint: string) =>
-      `✨ 4K AI Upscaling: Выключен (Исходное видео)${gpuHint}\nБыстрое включение: Shift+1 (Выкл), Shift+2..0 (Модели 1–9), U (Избранная)`,
+      `✨ 4K AI Upscaling: Выключен (Исходное видео)${gpuHint}\nБыстрое включение: Shift+\` (Выкл), Shift+1..9 (Модели 1–9), U (Избранная)`,
     visualizerStatus: (enabled: boolean) => `Визуализатор: ${enabled ? "Включен" : "Выключен"}`,
     visualizerMode: (mode: string) => `Визуализатор: ${mode}`,
     rotation: (degrees: number) => `Поворот: ${degrees}°`,

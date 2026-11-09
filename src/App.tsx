@@ -397,6 +397,15 @@ function App() {
   }, [mediaInfo?.path]);
 
   const isWindowRevealedRef = useRef(false);
+  const startupRetryRef = useRef<number | null>(null);
+  const startupRetryActiveRef = useRef(true);
+  useEffect(() => {
+    startupRetryActiveRef.current = true;
+    return () => {
+      startupRetryActiveRef.current = false;
+      if (startupRetryRef.current !== null) window.clearTimeout(startupRetryRef.current);
+    };
+  }, []);
 
   const revealWindow = useCallback(async () => {
     if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
@@ -410,7 +419,15 @@ function App() {
       await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       try {
         if (await invoke<boolean>("complete_startup_playback")) {
+          if (startupRetryRef.current !== null) window.clearTimeout(startupRetryRef.current);
+          startupRetryRef.current = null;
           window.dispatchEvent(new Event("l-mpv-force-poll"));
+        } else if (startupRetryRef.current === null && startupRetryActiveRef.current) {
+          // Track auto-selection may finish without changing video dimensions.
+          startupRetryRef.current = window.setTimeout(() => {
+            startupRetryRef.current = null;
+            void revealWindow();
+          }, 100);
         }
       } catch (error) { console.error("Startup playback completion failed:", error); }
     }

@@ -744,7 +744,7 @@ export const en: TranslationDict = {
       successOptimized: (res) => res || "Model successfully optimized for 1080p!",
       errModelCompile: "Model compilation error",
       errModelCompileDetail: (err) => `Model compilation error: ${err}`,
-      errShift1: "Shift+1 is reserved for turning off upscaling. Choose a different combination.",
+      errShift1: "Shift+` is reserved for turning off upscaling. Choose a different combination.",
       modeTitle: "Upscaling Mode",
       modeDesc: "Real-time AI upscaling of high-resolution video",
       toggleOn: "Click to enable upscaling",
@@ -1246,7 +1246,7 @@ export const en: TranslationDict = {
     upscaleStatsAi: (slot: number, name: string, engine: string, stats: string) =>
       `✨ 4K AI Upscaling: Enabled (Slot ${slot})\nModel: ${name}\nEngine: ${engine}${stats}`,
     upscaleStatsOff: (gpuHint: string) =>
-      `✨ 4K AI Upscaling: Off (Original video)${gpuHint}\nQuick switch: Shift+1 (Off), Shift+2..0 (Models 1–9), U (Favorite)`,
+      `✨ 4K AI Upscaling: Off (Original video)${gpuHint}\nQuick switch: Shift+\` (Off), Shift+1..9 (Models 1–9), U (Favorite)`,
     visualizerStatus: (enabled: boolean) => `Visualizer: ${enabled ? "Enabled" : "Disabled"}`,
     visualizerMode: (mode: string) => `Visualizer: ${mode}`,
     rotation: (degrees: number) => `Rotation: ${degrees}°`,

@@ -32,6 +32,7 @@ pub struct WatchHistoryItem {
 static WATCH_HISTORY: OnceLock<
     Mutex<HashMap<String, WatchHistoryItem>>,
 > = OnceLock::new();
+static RESUME_START_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static LAST_DISK_SAVE: OnceLock<Mutex<u64>> =
     OnceLock::new();
 
@@ -258,43 +259,41 @@ pub fn schedule_clear_start(
     mpv: Arc<MpvManager>,
     target_path: String,
     start_value: String,
+    resume_generation: u64,
 ) {
     if start_value == "none" {
         return;
     }
+    let playback = Arc::downgrade(&mpv);
     std::thread::Builder::new()
         .name("lmpv-clear-start".to_string())
         .spawn(move || {
             let norm_target = normalize_history_path(&target_path);
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            let began = std::time::Instant::now();
             let mut file_matched = false;
-
-            while std::time::Instant::now() < deadline {
-                if let Ok(cur_path) = mpv.get_property_string("path") {
-                    if !cur_path.trim().is_empty() {
-                        let norm_cur = normalize_history_path(&cur_path);
-                        if norm_cur == norm_target {
-                            file_matched = true;
-                            if mpv.get_property_double("time-pos").is_ok() {
-                                break;
-                            }
-                        } else if file_matched {
-                            // Файл уже успел смениться на другой — завершаем работу потока
-                            return;
+            loop {
+                let Some(mpv) = playback.upgrade() else { return; };
+                {
+                    // Validate and clear under the same lock as setting start/loadfile.
+                    let Ok(_transition) = super::dir_scan::lock_open_transition() else { return; };
+                    if RESUME_START_GENERATION.load(std::sync::atomic::Ordering::SeqCst) != resume_generation { return; }
+                    if let Ok(cur_path) = mpv.get_property_string("path") {
+                        if !cur_path.trim().is_empty() {
+                            if normalize_history_path(&cur_path) == norm_target {
+                                file_matched = true;
+                                if mpv.get_property_double("time-pos").is_ok() {
+                                    if mpv.get_property_string("start").is_ok_and(|value| value == start_value) {
+                                        let _ = mpv.set_property_string("start", "none");
+                                    }
+                                    return;
+                                }
+                            } else if file_matched { return; }
                         }
                     }
                 }
-                std::thread::sleep(std::time::Duration::from_millis(50));
-            }
-
-            if file_matched {
-                let still_ours = mpv
-                    .get_property_string("start")
-                    .map(|v| v == start_value)
-                    .unwrap_or(false);
-                if still_ours {
-                    let _ = mpv.set_property_string("start", "none");
-                }
+                drop(mpv);
+                let delay = if began.elapsed().as_secs() < 60 { 50 } else { 1000 };
+                std::thread::sleep(std::time::Duration::from_millis(delay));
             }
         })
         .ok();
@@ -307,6 +306,7 @@ pub fn apply_resume_start(
     state: &PlayerState,
     path: &str,
 ) -> bool {
+    let resume_generation = RESUME_START_GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
     let key = normalize_history_path(path);
     let position = get_history_map()
         .lock()
@@ -329,6 +329,7 @@ pub fn apply_resume_start(
             state.mpv.clone(),
             path.to_string(),
             start_value,
+            resume_generation,
         );
     }
 

@@ -134,7 +134,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
           style={{
             height: "var(--size-action-compact)",
             padding: "0 8px",
-            borderRadius: "var(--radius-sm, 6px)",
+            borderRadius: "var(--radius-control)",
             fontSize: "var(--fs-xs)",
             fontWeight: 600,
             display: "inline-flex",
@@ -151,9 +151,10 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
 
         <button
           type="button"
-          className="btn btn--secondary"
+          className="btn btn--secondary model-compile-action"
           onClick={onPrecompile}
           disabled={!!compilingModel}
+          aria-label={dict.settings.upscaling.trtRecompileTitle}
           title={dict.settings.upscaling.trtRecompileTitle}
           style={{
             width: "var(--size-action-compact)",
@@ -178,7 +179,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
   return (
     <button
       type="button"
-      className="btn btn--secondary"
+      className="btn btn--secondary model-compile-action"
       onClick={onPrecompile}
       disabled={!!compilingModel}
       title={dict.settings.upscaling.trtCompileTitle}

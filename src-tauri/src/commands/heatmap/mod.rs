@@ -86,6 +86,7 @@ pub async fn get_media_heatmap_data(
     external_track_path: Option<String>,
     duration_hint: Option<f64>,
     task_manager: State<'_, HeatmapTaskManager>,
+    state: State<'_, crate::commands::PlayerState>,
 ) -> Result<HeatmapDataResponse, String> {
     let media_path = PathBuf::from(&path);
     if !media_path.exists() {
@@ -119,6 +120,7 @@ pub async fn get_media_heatmap_data(
     let cache_file = resolve_waveform_cache_path(&cache_key, normalized_mode)?;
 
     let current_gen = task_manager.start_request().await;
+    task_manager.set_playback_source(&state.mpv);
 
     // Чтение кэша с проверкой поколения, идентичности и структуры профиля.
     if cache_file.exists() {
@@ -147,6 +149,7 @@ pub async fn get_media_heatmap_data(
         }
     }
 
+    task_manager.wait_for_read(current_gen).await?;
     let ffmpeg_bin = resolve_ffmpeg_path();
     let duration = duration_hint.unwrap_or(0.0);
 

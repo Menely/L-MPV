@@ -15,9 +15,7 @@ pub fn read_video_profile(
     manager: &HeatmapTaskManager,
     generation: u64,
 ) -> Result<VideoProfile, String> {
-    if !manager.is_generation_current(generation) {
-        return Err("TaskCancelled".into());
-    }
+    manager.wait_for_read_blocking(generation)?;
     let file = File::open(path).map_err(|e| e.to_string())?;
     let source = MediaSourceStream::new(Box::new(file), Default::default());
     let mut hint = Hint::new();
@@ -63,9 +61,7 @@ pub fn read_video_profile(
     let mut zero_origin_observed = false;
     let mut accumulator = VideoProfileAccumulator::default();
     loop {
-        if !manager.is_generation_current(generation) {
-            return Err("TaskCancelled".into());
-        }
+        manager.wait_for_read_blocking(generation)?;
         let Some(packet) = format.next_packet().map_err(|e| e.to_string())? else {
             break;
         };

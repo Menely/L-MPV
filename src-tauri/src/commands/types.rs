@@ -70,6 +70,8 @@ pub struct UiSettings {
     pub show_track_names: Option<bool>,
     #[serde(default)]
     pub volume_indicator_enabled: Option<bool>,
+    #[serde(default)]
+    pub volume_indicator_osd: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub favorite_upscale_model: Option<String>,
     #[serde(default)]
@@ -80,6 +82,8 @@ pub struct UiSettings {
     pub visible_buttons: Option<HashMap<String, bool>>,
     #[serde(default)]
     pub custom_hotkeys: Option<HashMap<String, Vec<String>>>,
+    #[serde(default)]
+    pub hotkeys_schema_version: Option<u32>,
     #[serde(default)]
     pub language: Option<String>,
     #[serde(default)]
@@ -482,7 +486,12 @@ pub fn clean_stale_temp_files(dir: &Path) {
             if path.is_file() {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                     if name.starts_with('.') && name.ends_with(".tmp") {
-                        let _ = std::fs::remove_file(path);
+                        // Maintenance may run alongside active writes/other windows.
+                        // Only remove old crash leftovers, never a fresh atomic temp.
+                        let stale = entry.metadata().and_then(|m| m.modified()).ok()
+                            .and_then(|time| time.elapsed().ok())
+                            .is_some_and(|age| age >= std::time::Duration::from_secs(24 * 60 * 60));
+                        if stale { let _ = std::fs::remove_file(path); }
                     }
                 }
             }
@@ -1209,5 +1218,26 @@ mod settings_tests {
         assert_eq!(loaded.deband_preset.as_deref(), Some("strong"));
         assert_eq!(loaded.audio_latency_fix, Some(true));
         let _ = std::fs::remove_dir_all(root);
+    }
+}
+
+#[cfg(test)]
+mod temp_cleanup_tests {
+    use super::*;
+    #[test]
+    fn deferred_cleanup_preserves_fresh_atomic_writes() {
+        let root = std::env::temp_dir().join(format!("lmpv-stale-temp-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let fresh = root.join(".settings.fresh.tmp");
+        let old = root.join(".settings.old.tmp");
+        std::fs::write(&fresh, "active").unwrap();
+        std::fs::write(&old, "abandoned").unwrap();
+        let old_time = std::time::SystemTime::now() - std::time::Duration::from_secs(48 * 60 * 60);
+        std::fs::File::options().write(true).open(&old).unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(old_time)).unwrap();
+        clean_stale_temp_files(&root);
+        assert_eq!(std::fs::read_to_string(&fresh).unwrap(), "active");
+        assert!(!old.exists());
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

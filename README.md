@@ -31,7 +31,7 @@
 
 ## 🌟 About the Project
 
-<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** is a modern desktop media player for Windows that brings together the playback capabilities of the native **MPV** video engine (`vo=gpu-next`, Direct3D 11, HDR tone-mapping, WASAPI, sinc resampling) and hardware-accelerated **Real-Time 4K AI Upscaling** (ONNX inference via DirectML and TensorRT) with a customizable **Glassmorphic** interface crafted in **React 19** and **TypeScript**.
+<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** is a Windows desktop media player based on **mpv**. It supports audio and subtitle selection, playlists, chapters, HDR and interface customization. Optional AI upscaling uses DirectML or TensorRT; results and performance depend on the model and GPU.
 
 L-MPV keeps its settings, cache, screenshots, ONNX models and native libraries in the application folder. WebView2 Runtime is required; AI components are downloaded separately. File associations and Explorer integration are optional.
 
@@ -140,15 +140,16 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - **"Open Models Folder"** button to open the folder in Windows Explorer.
   - Toggle to hide or reveal model names (privacy dot masking).
   - Interactive drag-and-drop model reordering (`@dnd-kit/sortable`) via grab handles, automatically persisted in `config/models_order.json`.
-  - Unified compact 24px action controls with hovering drop shadows across model cards.
-  - Dedicated hotkey and mouse button assignments matching the hotkey settings tab styling with Esc cancel and click-outside dismissal.
+  - TensorRT compilation and recompilation buttons follow the selected player style.
+  - Model keyboard and mouse bindings are edited in the Hotkeys tab; model cards do not contain binding controls.
 - **On-the-Fly Neural Network Switching via Hotkeys (up to 9 models):**
   - `Ctrl+J` — Informative OSD overlay displaying upscale status and statistics (active backend, selected model, slot index, video resolution -> 4K);
   - **Favorite upscaling model:** Mark one model with a star and toggle it with `U`. The selection is saved with the portable settings and follows the model filename when the list is reordered. If no favorite is selected or its file is missing, the player shows a message.
-  - `Shift+1` — Disable upscaling;
-  - `Shift+2` .. `Shift+0` — Enable Neural Network #1 .. #9 (the first 9 models have hotkey slots);
+  - `Shift+Backquote` — Disable upscaling (the key below Esc, also marked Ё on Russian layouts);
+  - `Shift+1` .. `Shift+9` — Enable Neural Network #1 .. #9 (the first 9 models have hotkey slots);
   - OSD notification showing the actual name of the activated model;
   - Forced frame redrawing on pause when switching models.
+  - Updates migrate the previous default shortcuts while preserving custom assignments and disabled actions.
 
 </details>
 
@@ -208,6 +209,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - Windows WASAPI output with a configured 0.2-second audio buffer.
 - Volume adjustment up to 150% and an optional peak limiter. Limiting and gain changes can alter the signal; bit-perfect output is not guaranteed.
 - Audio device latency options to reduce missing audio at startup on some devices.
+- **Volume indicator:** An optional scale below the screen center or a text OSD in the upper-left corner. Disabled by default; enable it under Video & Audio Settings → Audio Path, then use the OSD checkbox to select its appearance.
 - Configured sinc resampling, normalized multichannel downmixing and pitch correction when changing playback speed.
 
 </details>
@@ -291,7 +293,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Self-Contained Font Ecosystem & Custom Fonts (UI Font):**
   - **Local fonts:** Bundled fonts load without requests to Google Fonts.
   - **5 Built-in Font Families:** *Inter*, *Outfit*, *Plus Jakarta Sans*, *Manrope*, *JetBrains Mono*, plus the Windows *System Default* font.
-  - **Custom User Font Support:** Dedicated `fonts/` folder located right next to `l-mpv.exe`, automatically extracted on first launch or update. Simply drop in your `.ttf`, `.otf`, `.woff`, or `.woff2` files.
+  - **Custom fonts:** Add `.ttf`, `.otf`, `.woff` or `.woff2` files to the `fonts/` folder next to `l-mpv.exe`.
   - **"Open Fonts Folder" Shortcut:** The folder icon button in the Fonts header opens the directory in Windows Explorer, and the available font list refreshes automatically upon regaining window focus.
   - Switch fonts under “Appearance”; the choice is saved and synchronized between windows.
 - **Interactive Color Scheme Section:** Live authentic preview simulating player palette combinations, text contrast, and luminous element highlights.
@@ -406,7 +408,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Cursor-Centered Zoom:** Cursor-centered zooming via `Ctrl` + Mouse Wheel at up to 60 FPS.
 - **Magnetic Snap:** Automatically snaps to native scale (100%) when approaching zero zoom.
 - **Reset Zoom:** Return to 100% scale and center position with `0`.
-- **Volume Wheel Control:** The wheel over video without Ctrl adjusts volume in 5% steps, up to 150%, and saves the level. Wheel and keyboard changes show a temporary volume scale with a 100% reference and mute indication.
+- **Volume wheel control:** The wheel over video without Ctrl adjusts volume in 5% steps, up to 150%, and saves the level. When the indicator is enabled, wheel and keyboard changes display either a scale with 50/100% references or a text OSD.
 
 </details>
 
@@ -434,6 +436,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>📑 Playlist & File Navigation</b></summary>
 
+- **Startup and buffering:** Playback starts without waiting for the entire buffer to fill. Read-ahead helps absorb brief storage slowdowns; if data runs out, the player waits for more and resumes. Background scanning and full heatmap analysis are deferred during file opening and yield to video reads during seeking or low-buffer conditions. Startup speed depends on the file and storage device.
 - **Auto-Playlist with Natural Sort:** Opening a file automatically populates the playlist with all sibling media in the directory, ordered by natural human numerical sorting.
 - **Slide-out Playlist Drawer (`L` / `P`):** Search, file filtering, active track highlighting, and one-click playback switching.
 - **Adaptive Style-Matching Design:**
@@ -466,7 +469,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 
 - **Native In-Memory Inspection:** Direct C-FFI binding to `mediainfo.dll` via `libloading` for extraction of video, audio, and subtitle streams without external command-line shells.
 - **Independent Desktop Window (655×685 px):** The MediaInfo window moves freely across monitors beyond the main player; launches over the player (`Shift+F10`) with an Always-on-Top pin button (`alwaysOnTop`).
-- **Standalone File Inspection ("Open with L-MPV MediaInfo"):** Inspect media metadata straight from the Windows Explorer context menu without launching the video player.
+- **Standalone inspection ("Open with L-MPV MediaInfo"):** View file metadata from the Windows Explorer context menu without showing the main window or starting playback.
 - **Style & Color Theme Harmonization:** MediaInfo fully adapts to the selected player style (Capsule, Modern, Classic) and automatically inherits the active color theme, even when opened directly from Windows Explorer. In Capsule mode, elements are organized into floating cards with balanced symmetry.
 - **Interactive Stream Filter Tabs (Quick Filter):** Filter tracks (*"All"*, *"General"*, *"Video"*, *"Audio"*, *"Subtitles"*, *"Chapters"*) with informative stream count badges and 6px rounded pills matching the design system.
 - **Collapsible Stream Accordions:** Collapse or expand individual streams or all at once ("Expand/Collapse All"), with auto-expansion during `Ctrl+F` search.
@@ -585,9 +588,9 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 
 | Category | Action | Default Hotkey |
 | :--- | :--- | :--- |
-| **4K AI Upscaling** | Disable Upscaling | `Shift + 1` |
+| **4K AI Upscaling** | Disable Upscaling | `Shift + Backquote` (key below Esc) |
 | | Toggle the favorite model | `U` |
-| | Enable Neural Model #1 .. #9 | `Shift + 2` .. `Shift + 0` (up to 9 models) |
+| | Enable Neural Model #1 .. #9 | `Shift + 1` .. `Shift + 9` (up to 9 models) |
 | **Playback** | Play / Pause | `Space` or Left Click on video |
 | | Repeat Mode (Loop) | `R` |
 | | Shuffle Mode | Bottom bar shuffle button |

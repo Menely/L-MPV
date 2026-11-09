@@ -1126,3 +1126,6 @@ html[data-glow="off"] .timeline__thumb {
 }
 
 
+
+/* Fullscreen remains legible in both normal and compact toolbars. */
+#btn-fullscreen > svg { width: 24px; height: 24px; }

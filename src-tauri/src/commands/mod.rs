@@ -7,6 +7,7 @@
 //! каждый подмодуль фокусируется на конкретном домене функциональности.
 
 mod config;
+pub(crate) mod background_io;
 mod dir_scan;
 pub mod heatmap;
 mod history;

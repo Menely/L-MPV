@@ -1056,7 +1056,8 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                       <label
                         key={btn.id}
                         style={{
-                          display: "inline-flex",
+                          display: "flex",
+                          flexWrap: "wrap",
                           alignItems: "center",
                           gap: "var(--space-4)",
                           minHeight: 24,
@@ -1079,7 +1080,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             window.dispatchEvent(new Event('l-mpv-settings-changed'));
                           }}
                         />
-                        <span style={{ fontSize: "var(--fs-base)", color: "var(--text-primary)", fontWeight: 500, lineHeight: 1.2, minWidth: 0, whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-primary)", fontWeight: 500, lineHeight: 1.3, minWidth: 0, whiteSpace: "normal", overflowWrap: "anywhere" }}>
                           {btn.label}
                         </span>
                         {btn.id === 'seekButtons' && (

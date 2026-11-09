@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
 import { getDict, getEffectiveLocale } from "../i18n";
+import { playbackPollDelay } from "../utils/playbackPolling";
 
 export interface PlaylistItem {
   index: number;
@@ -452,11 +453,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       try {
         const dynState = await invoke<PlaybackState>("get_playback_state");
         if (isCancelled) return;
-        if (dynState.paused) {
-          nextDelay = 1000;
-        } else if (dynState.path === "") {
-          nextDelay = hasMediaInfoRef.current ? 1000 : 150;
-        }
+        nextDelay = playbackPollDelay(dynState, hasMediaInfoRef.current);
         
         if (!hasMediaInfoRef.current || dynState.path !== currentPathRef.current) {
           const fullInfo = await invoke<MediaInfo>("get_media_info");
@@ -505,7 +502,6 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             if (isCancelled) return;
             setChapters(chaps);
             refreshPlaylist();
-            if (fullInfo.paused) nextDelay = 1000;
 
             // Resume выполняет бэкенд (mpv `start` в open_file/playlist_next/prev/play_index):
             // второй seek здесь приводил к повторной буферизации. Локально лишь

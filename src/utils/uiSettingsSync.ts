@@ -9,7 +9,7 @@ import { getFavoriteModel, setFavoriteModel } from "./favoriteModel";
 
 import { invoke } from "@tauri-apps/api/core";
 import { applyAnimationsFlagToDom } from "./animationUtils";
-import { isVolumeIndicatorEnabled, setVolumeIndicatorEnabled } from "./volumeFeedback";
+import { isVolumeIndicatorEnabled, setVolumeIndicatorEnabled, isVolumeOsdEnabled, setVolumeOsdEnabled } from "./volumeFeedback";
 import {
   getSavedPlayerTheme,
   savePlayerTheme,
@@ -90,11 +90,13 @@ export interface UiSettings {
   animations_enabled?: boolean;
   show_track_names?: boolean;
   volume_indicator_enabled?: boolean;
+  volume_indicator_osd?: boolean;
   favorite_upscale_model?: string;
   playlist_width?: number;
   custom_colors?: string[];
   visible_buttons?: Record<string, boolean>;
   custom_hotkeys?: Record<string, string[]>;
+  hotkeys_schema_version?: number;
   language?: string;
   settings_style?: string;
   hide_controls_in_upper_half?: boolean;
@@ -245,11 +247,13 @@ export function collectCurrentUiSettings(): UiSettings {
     animations_enabled: localStorage.getItem("l-mpv-animations-enabled") !== "false",
     show_track_names: localStorage.getItem("l-mpv-show-track-names") !== "false",
     volume_indicator_enabled: isVolumeIndicatorEnabled(),
+    volume_indicator_osd: isVolumeOsdEnabled(),
     favorite_upscale_model: getFavoriteModel(),
     playlist_width: playlistWidth,
     custom_colors: getCustomColors(),
     visible_buttons: visibleButtons,
     custom_hotkeys: getCustomHotkeys(),
+    hotkeys_schema_version: 3,
     language: getEffectiveLocale(),
     settings_style: getSavedUiSettingsStyle(),
     hide_controls_in_upper_half: localStorage.getItem("l-mpv-hide-controls-upper-half") === "true",
@@ -379,6 +383,10 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
     setFavoriteModel(ui.favorite_upscale_model);
     restored = true;
   }
+  if (typeof ui.volume_indicator_osd === "boolean") {
+    setVolumeOsdEnabled(ui.volume_indicator_osd);
+    restored = true;
+  }
   if (typeof ui.volume_indicator_enabled === "boolean") {
     setVolumeIndicatorEnabled(ui.volume_indicator_enabled);
     restored = true;
@@ -396,7 +404,7 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
     restored = true;
   }
   if (ui.custom_hotkeys && typeof ui.custom_hotkeys === "object") {
-    saveCustomHotkeys(ui.custom_hotkeys);
+    saveCustomHotkeys(ui.custom_hotkeys, ui.hotkeys_schema_version ?? 0);
     restored = true;
   }
   if (ui.language === "ru" || ui.language === "en") {

@@ -47,17 +47,17 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   cycleVisualizerMode: ["Shift+KeyW"],
   rotateVideo: ["Alt+KeyR"],
   upscaleStats: ["Ctrl+KeyJ"],
-  upscaleOff: ["Shift+Digit1"],
+  upscaleOff: ["Shift+Backquote"],
   upscaleFavorite: ["KeyU"],
-  upscaleNet1: ["Shift+Digit2"],
-  upscaleNet2: ["Shift+Digit3"],
-  upscaleNet3: ["Shift+Digit4"],
-  upscaleNet4: ["Shift+Digit5"],
-  upscaleNet5: ["Shift+Digit6"],
-  upscaleNet6: ["Shift+Digit7"],
-  upscaleNet7: ["Shift+Digit8"],
-  upscaleNet8: ["Shift+Digit9"],
-  upscaleNet9: ["Shift+Digit0"],
+  upscaleNet1: ["Shift+Digit1"],
+  upscaleNet2: ["Shift+Digit2"],
+  upscaleNet3: ["Shift+Digit3"],
+  upscaleNet4: ["Shift+Digit4"],
+  upscaleNet5: ["Shift+Digit5"],
+  upscaleNet6: ["Shift+Digit6"],
+  upscaleNet7: ["Shift+Digit7"],
+  upscaleNet8: ["Shift+Digit8"],
+  upscaleNet9: ["Shift+Digit9"],
 };
 
 export const HOTKEY_ACTIONS: HotkeyAction[] = [
@@ -243,11 +243,25 @@ function migrateLegacyHotkeys(migrated: Record<string, string[]>): Record<string
   return migrated;
 }
 
+/** Migrate only exact old defaults; keep custom/disabled bindings and avoid their keys. */
+export function migrateUpscaleHotkeys(raw: Record<string, string | string[]>): Record<string, string | string[]> {
+  const result = { ...raw };
+  const old = Object.fromEntries([['upscaleOff','Shift+Digit1'], ...Array.from({length:9},(_,i)=>['upscaleNet'+(i+1),'Shift+Digit'+((i+2)%10)])]);
+  const candidates = Object.keys(old).filter(id => JSON.stringify(typeof raw[id] === 'string' ? [raw[id]] : raw[id]) === JSON.stringify([old[id]]));
+  for (const id of candidates) delete result[id];
+  const taken = new Set(Object.values(result).flatMap(value => typeof value === 'string' ? [value] : value));
+  for (const id of candidates) result[id] = DEFAULT_HOTKEYS[id].filter(code => !taken.has(code));
+  return result;
+}
+
 export function getCustomHotkeys(): Record<string, string[]> {
   try {
     const saved = localStorage.getItem("l-mpv-custom-hotkeys");
     if (saved) {
-      const parsed = JSON.parse(saved);
+      const raw = JSON.parse(saved);
+      const parsed = localStorage.getItem("l-mpv-hotkeys-schema") === "3" ? raw : migrateUpscaleHotkeys(raw);
+      localStorage.setItem("l-mpv-custom-hotkeys", JSON.stringify(parsed));
+      localStorage.setItem("l-mpv-hotkeys-schema", "3");
       const migrated: Record<string, string[]> = {};
       
       // Считываем сохранённые пользователем настройки горячих клавиш.
@@ -334,10 +348,12 @@ export function getCustomHotkeys(): Record<string, string[]> {
   return copy;
 }
 
-export function saveCustomHotkeys(hotkeys: Record<string, string[]>) {
+export function saveCustomHotkeys(hotkeys: Record<string, string[]>, schemaVersion = 3) {
+  if (schemaVersion < 3) hotkeys = migrateUpscaleHotkeys(hotkeys) as Record<string, string[]>;
   try {
     localStorage.setItem("l-mpv-custom-hotkeys", JSON.stringify(hotkeys));
     localStorage.setItem(HOTKEYS_MIGRATION_V2_KEY, "true");
+    localStorage.setItem("l-mpv-hotkeys-schema", "3");
     window.dispatchEvent(new Event("l-mpv-settings-changed"));
   } catch (e) {
     console.error("Ошибка сохранения горячих клавиш:", e);
@@ -348,6 +364,7 @@ export function resetCustomHotkeys() {
   try {
     localStorage.removeItem("l-mpv-custom-hotkeys");
     localStorage.setItem(HOTKEYS_MIGRATION_V2_KEY, "true");
+    localStorage.setItem("l-mpv-hotkeys-schema", "3");
     window.dispatchEvent(new Event("l-mpv-settings-changed"));
   } catch (e) {
     console.error("Ошибка сброса горячих клавиш:", e);
@@ -375,10 +392,10 @@ export function resetSingleHotkey(actionId: string, currentHotkeys: Record<strin
 }
 
 /**
- * Shift+1 зарезервировано за выключением апскейлинга (upscaleOff).
+ * Shift+` зарезервировано за выключением апскейлинга (upscaleOff).
  * AI-моделям (upscaleNet*) и остальным действиям его назначать нельзя.
  */
-export const RESERVED_UPSCALE_OFF_CODE = "Shift+Digit1";
+export const RESERVED_UPSCALE_OFF_CODE = "Shift+Backquote";
 export const UPSCALE_OFF_ACTION_ID = "upscaleOff";
 
 export function isCodeReservedForUpscaleOff(code: string, actionId: string): boolean {

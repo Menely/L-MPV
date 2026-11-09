@@ -6,7 +6,6 @@ import { toLocalDragTransform } from "../../utils/dndCoordinates";
 import { GripVertical, Star } from "lucide-react";
 import { ModelFileItem, UpscaleCompileProgress } from "./types";
 import { ModelTensorRtAction } from "./ModelTensorRtAction";
-import { ModelHotkeyButton } from "./ModelHotkeyButton";
 import { useTranslation } from "../../i18n/LanguageContext";
 
 export interface ModelListItemProps {
@@ -68,16 +67,11 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
   isFavorite,
   onToggleFavorite,
   hideModelNames,
-  customHotkeys,
-  recordingActionId,
   supportsTensorrt,
   compilingModel,
   compileProgressItem,
   onSelect,
   onPrecompile,
-  onStartRecordKey,
-  onKeyRecord,
-  onMouseRecord,
 }) => {
   const { dict } = useTranslation();
   const {
@@ -88,10 +82,6 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
     transition,
     isDragging,
   } = useSortable({ id: model.filename });
-
-  const actionId = `upscaleNet${idx + 1}`;
-  const bindCodes = customHotkeys[actionId] || [];
-  const isRecording = recordingActionId === actionId;
 
   const cardStyle: React.CSSProperties = {
     transform: CSS.Translate.toString(toLocalDragTransform(transform, getActiveUiScale())),
@@ -252,13 +242,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
           onPrecompile={onPrecompile}
         />
 
-        <ModelHotkeyButton
-          bindCodes={bindCodes}
-          isRecording={isRecording}
-          onStartRecordKey={onStartRecordKey}
-          onKeyRecord={onKeyRecord}
-          onMouseRecord={onMouseRecord}
-        />
+
       </div>
     </div>
     </div>

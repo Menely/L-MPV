@@ -395,7 +395,7 @@ impl MpvManager {
     }
 
     /// Создание нового экземпляра менеджера mpv.
-    pub fn new(portable_dir: &Path) -> Result<Self, String> {
+    pub fn new(portable_dir: &Path, saved_settings: &crate::commands::AppSettings) -> Result<Self, String> {
         unsafe {
             let api = Self::load_mpv_api()?;
 
@@ -447,7 +447,6 @@ impl MpvManager {
             Self::set_option(&api, handle, "msg-level", "all=error,vf=v,animejanai=v,aji=v");
 
             // Путь к скриншотам (восстановление из config/settings.json)
-            let saved_settings = crate::commands::AppSettings::load_portable();
             let screenshots_dir = saved_settings
                 .screenshot_directory
                 .clone()
@@ -482,11 +481,19 @@ impl MpvManager {
             Self::set_option(&api, handle, "background-color", "#000000");
             Self::set_option(&api, handle, "border-background", "color");
             Self::set_option(&api, handle, "demuxer-max-bytes", "64MiB");
-            Self::set_option(&api, handle, "demuxer-readahead-secs", "5");
+            // Start on the first decodable data, then prefetch within the byte cap.
+            // mpv owns underrun recovery; user pause and the frontend startup hold
+            // must never be toggled by a second, application-level buffer controller.
+            Self::set_option(&api, handle, "cache", "yes");
+            Self::set_option(&api, handle, "cache-secs", "20");
+            Self::set_option(&api, handle, "demuxer-readahead-secs", "20");
+            Self::set_option(&api, handle, "demuxer-cache-wait", "no");
+            Self::set_option(&api, handle, "cache-pause-initial", "no");
+            Self::set_option(&api, handle, "cache-pause-wait", "1");
             Self::set_option(&api, handle, "demuxer-max-back-bytes", "32MiB");
             // Разрешаем пропуск промежуточных кадров при перемотке
             Self::set_option(&api, handle, "hr-seek-framedrop", "yes");
-            Self::set_option(&api, handle, "cache-pause", "no"); // Не ставить на паузу при буферизации локальных файлов
+            Self::set_option(&api, handle, "cache-pause", "yes");
 
             // ─── Качественный отзывчивый звук (WASAPI) ───
             Self::set_option(&api, handle, "ao", "wasapi"); // Высококачественный драйвер Windows WASAPI

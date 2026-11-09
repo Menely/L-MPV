@@ -1575,10 +1575,11 @@ html.no-animations .color-circle--palette { will-change: auto; }
 
 /* ─── Вкладки и анимация переключения категорий в настройках ─── */
 .settings-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   align-items: center;
   border-bottom: 1px solid var(--border);
-  padding: var(--space-3) 10px;
+  padding: 5px 6px;
   background: rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
   gap: var(--space-2);
@@ -1589,10 +1590,10 @@ html.no-animations .color-circle--palette { will-change: auto; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 1 0 auto;
-  min-width: max-content;
-  gap: var(--space-3);
-  padding: var(--space-3) 8px;
+  flex: 1 1 0;
+  min-width: 0;
+  gap: 4px;
+  padding: 5px 3px;
   background: transparent;
   /* Рамка всегда целочисленная 1px: переключение active
      не меняет геометрию и обеспечивает четкое субпиксельное сглаживание углов. */
@@ -1622,7 +1623,11 @@ html.no-animations .color-circle--palette { will-change: auto; }
 }
 
 .settings-tab-label {
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+  text-align: center;
 }
 
 /* Вкладки — исключение из hover-контракта: только фон, без рамки.
@@ -1801,14 +1806,15 @@ html.no-animations .color-circle--palette { will-change: auto; }
   --tab-sub-radius: max(0px, calc(var(--radius-controls, 16px) - var(--tabs-card-padding) - var(--tabs-card-border)));
   flex: 1;
   min-width: 0;
-  height: 42px;
+  height: auto;
   min-height: 42px;
-  padding: var(--tabs-card-padding) 6px;
-  display: flex;
+  padding: var(--tabs-card-padding);
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  overflow-x: auto;
+  overflow: visible;
   scrollbar-width: none;
 }
 
@@ -1819,12 +1825,12 @@ html.no-animations .color-circle--palette { will-change: auto; }
 
 .modal--settings-capsule .settings-card--tabs .settings-tab-btn,
 .settings-side-panel--capsule .settings-card--tabs .settings-tab-btn {
-  flex: 1 0 auto;
-  min-width: max-content;
-  height: 32px;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
   min-height: 32px;
-  padding: 4px 8px;
-  gap: 5px;
+  padding: 4px 3px;
+  gap: 3px;
   font-size: var(--fs-xs, 12px);
   border-radius: var(--tab-sub-radius);
   border: 1px solid transparent;
@@ -2985,4 +2991,15 @@ html.no-animations .color-circle--palette { will-change: auto; }
   box-shadow: var(--shadow-elevated, 0 10px 30px rgba(0, 0, 0, 0.5));
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+}
+
+/* Fit equal tabs inside narrow settings without scrolling or omitted labels. */
+@container settings-shell (max-width: 620px) {
+  .settings-tab-btn,
+  .settings-card--tabs .settings-tab-btn {
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 2px;
+    font-size: var(--fs-2xs);
+  }
 }

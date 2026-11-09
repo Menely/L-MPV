@@ -396,3 +396,7 @@
   text-wrap: balance;
 }
 
+
+/* Compilation controls use the same tokens in every player/settings style. */
+.model-compile-action { min-height: 30px; font-size: var(--fs-xs); white-space: nowrap; flex-shrink: 0; }
+.model-compile-action:disabled { cursor: not-allowed; opacity: .45; }

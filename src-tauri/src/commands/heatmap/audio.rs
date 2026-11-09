@@ -166,9 +166,7 @@ pub async fn stream_audio_heatmap(
 ) -> Result<HeatmapDataResponse, String> {
     let mut cmd = build_ffmpeg_command(ffmpeg_bin);
 
-    cmd.arg("-probesize")
-        .arg("2097152")
-        .arg("-threads")
+    cmd.arg("-threads")
         .arg("2");
 
     let audio_map = match track_idx {
@@ -193,6 +191,7 @@ pub async fn stream_audio_heatmap(
         .arg(SAMPLE_RATE_HZ.to_string())
         .arg("-");
 
+    task_manager.wait_for_read(generation_id).await?;
     let mut child = cmd.spawn().map_err(|e| {
         format!("Не удалось запустить процесс FFmpeg аудиоанализа: {}", e)
     })?;
@@ -212,6 +211,7 @@ pub async fn stream_audio_heatmap(
     let mut buffer = vec![0u8; 65536];
 
     loop {
+        task_manager.wait_for_read(generation_id).await?;
         let bytes_read = match reader.read(&mut buffer).await {
             Ok(n) => n,
             Err(e) => {

@@ -3,7 +3,8 @@ use super::types::PlayerState;
 use tauri::{Manager, State};
 
 fn same_path(a: &str, b: &str) -> bool {
-    a.replace('\\', "/").eq_ignore_ascii_case(&b.replace('\\', "/"))
+    a.replace('\\', "/")
+        .eq_ignore_ascii_case(&b.replace('\\', "/"))
 }
 
 pub fn arm_startup_playback(state: &PlayerState, path: &str) -> Result<(), String> {
@@ -22,7 +23,9 @@ pub fn arm_startup_playback(state: &PlayerState, path: &str) -> Result<(), Strin
 pub fn cancel_startup_playback(state: &PlayerState, resume: bool) -> Result<(), String> {
     let mut pending = state.startup_playback.lock().map_err(|e| e.to_string())?;
     if pending.is_some() {
-        if resume { state.mpv.set_property_string("pause", "no")?; }
+        if resume {
+            state.mpv.set_property_string("pause", "no")?;
+        }
         *pending = None;
     }
     Ok(())
@@ -30,7 +33,10 @@ pub fn cancel_startup_playback(state: &PlayerState, resume: bool) -> Result<(), 
 
 pub fn cancel_startup_for_other_file(state: &PlayerState, path: &str) -> Result<(), String> {
     let mut pending = state.startup_playback.lock().map_err(|e| e.to_string())?;
-    if pending.as_deref().is_some_and(|target| !same_path(target, path)) {
+    if pending
+        .as_deref()
+        .is_some_and(|target| !same_path(target, path))
+    {
         state.mpv.set_property_string("pause", "no")?;
         *pending = None;
     }
@@ -39,14 +45,26 @@ pub fn cancel_startup_for_other_file(state: &PlayerState, path: &str) -> Result<
 
 /// true = completed or no pending startup; false = still waiting for this file.
 #[tauri::command]
-pub fn complete_startup_playback(app: tauri::AppHandle, state: State<'_, PlayerState>) -> Result<bool, String> {
+pub fn complete_startup_playback(
+    app: tauri::AppHandle,
+    state: State<'_, PlayerState>,
+) -> Result<bool, String> {
+    crate::startup_runtime::schedule_maintenance(&app);
     let mut pending = state.startup_playback.lock().map_err(|e| e.to_string())?;
-    let Some(target) = pending.as_deref() else { return Ok(true); };
-    let visible = app.get_webview_window("main").is_some_and(|window| window.is_visible().unwrap_or(false));
+    let Some(target) = pending.as_deref() else {
+        return Ok(true);
+    };
+    let visible = app
+        .get_webview_window("main")
+        .is_some_and(|window| window.is_visible().unwrap_or(false));
     let current = state.mpv.get_property_string("path").unwrap_or_default();
     let output = state.mpv.video_output_status_for(target);
     let audio_only = output.video_track.is_some() && !output.has_video;
-    if !visible || !same_path(target, &current) || !(output.ready || audio_only) {
+    if !visible
+        || !same_path(target, &current)
+        || !(output.ready || audio_only)
+        || super::background_io::selecting_startup_audio()
+    {
         return Ok(false);
     }
     state.mpv.set_property_string("pause", "no")?;

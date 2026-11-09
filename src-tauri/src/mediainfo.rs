@@ -242,31 +242,39 @@ pub fn get_standalone_mediainfo_path() -> Option<String> {
     STANDALONE_PATH.lock().ok().and_then(|lock| lock.clone())
 }
 
-/// Отображение и передача пути в предварительно инициализированное окно MediaInfo.
+/// Create the window on first use, then retain/reuse it on subsequent opens.
+/// Call from setup or an async command, never a synchronous Windows event handler.
 pub fn open_or_update_mediainfo_window(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     use tauri::{Emitter, Manager};
     set_standalone_target_path(path);
 
-    if let Some(win) = app.get_webview_window("mediainfo") {
+    let win = if let Some(win) = app.get_webview_window("mediainfo") {
+        win
+    } else {
+        let config = app.config().app.windows.iter().find(|config| config.label == "mediainfo")
+            .ok_or_else(|| "Окно 'mediainfo' не найдено в конфигурации приложения".to_string())?;
+        tauri::WebviewWindowBuilder::from_config(app, config).map_err(|e| e.to_string())?
+            .build().map_err(|e| e.to_string())?
+    };
         let _ = win.set_always_on_top(true);
         let _ = win.show();
         let _ = win.unminimize();
         let _ = win.set_focus();
         let _ = win.emit("load-mediainfo-path", path);
         let _ = app.emit("mediainfo-window-opened", ());
-        return Ok(());
-    }
-
-    Err("Окно 'mediainfo' не найдено в конфигурации приложения".to_string())
+    Ok(())
 }
+
+static MEDIAINFO_OPEN_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Команда открытия автономного окна MediaInfo из интерфейса плеера.
 #[tauri::command]
-pub fn open_mediainfo_window(
+pub async fn open_mediainfo_window(
     app: tauri::AppHandle,
     path: Option<String>,
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    let _opening = MEDIAINFO_OPEN_LOCK.lock().await;
     let file_path = match path {
         Some(p) if !p.trim().is_empty() => p,
         _ => {
@@ -282,11 +290,12 @@ pub fn open_mediainfo_window(
 
 /// Команда переключения (показать/скрыть) независимого окна MediaInfo.
 #[tauri::command]
-pub fn toggle_mediainfo_window(
+pub async fn toggle_mediainfo_window(
     app: tauri::AppHandle,
     path: Option<String>,
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    let _opening = MEDIAINFO_OPEN_LOCK.lock().await;
     use tauri::{Emitter, Manager};
 
     let file_path = match path {

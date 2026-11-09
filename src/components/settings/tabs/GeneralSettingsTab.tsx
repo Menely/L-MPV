@@ -21,7 +21,7 @@ import {
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { usePlayerState } from "../../../contexts/PlayerStateContext";
 import type { Locale } from "../../../i18n/types";
-import { isVolumeIndicatorEnabled, setVolumeIndicatorEnabled } from "../../../utils/volumeFeedback";
+import { isVolumeIndicatorEnabled, setVolumeIndicatorEnabled, isVolumeOsdEnabled, setVolumeOsdEnabled } from "../../../utils/volumeFeedback";
 
 /* ── Допустимые значения настроек видео/аудио ───────────────
    Держатся здесь, а не внутри разметки: и кнопки, и сравнение
@@ -105,6 +105,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   }), [isRu]);
 
   // ── Состояние настроек оптимизации видео/аудио ──
+  const [volumeOsd, setVolumeOsdState] = useState(isVolumeOsdEnabled);
   const [audioLimiter, setAudioLimiter] = useState(true);
   const [volumeIndicatorEnabled, setVolumeIndicatorEnabledState] = useState(isVolumeIndicatorEnabled);
   const [debandEnabled, setDebandEnabled] = useState(false);
@@ -120,6 +121,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
     const handleSettingsChanged = () => {
       setWaveformEnabledState(isWaveformEnabled());
       setVolumeIndicatorEnabledState(isVolumeIndicatorEnabled());
+      setVolumeOsdState(isVolumeOsdEnabled());
     };
     window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
     return () => {
@@ -461,7 +463,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
               <button
                 type="button"
                 className={`compact-segment-btn ${playNextOnEnd ? "compact-segment-btn--active" : ""}`}
-                style={{ height: 42, padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: "var(--space-1)" }}
+                style={{ minHeight: 48, height: "auto", whiteSpace: "normal", overflowWrap: "anywhere", padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: "var(--space-1)" }}
                 onClick={async () => {
                   setPlayNextOnEnd(true);
                   try {
@@ -483,7 +485,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
               <button
                 type="button"
                 className={`compact-segment-btn ${!playNextOnEnd ? "compact-segment-btn--active" : ""}`}
-                style={{ height: 42, padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: "var(--space-1)" }}
+                style={{ minHeight: 48, height: "auto", whiteSpace: "normal", overflowWrap: "anywhere", padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: "var(--space-1)" }}
                 onClick={async () => {
                   setPlayNextOnEnd(false);
                   try {
@@ -916,12 +918,19 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
               label={dict.settings.general.audioLatencyFixTitle}
               title={dict.settings.general.audioLatencyFixDesc}
             />
+            <div className="volume-indicator-options">
             <OptionToggleRow
               checked={volumeIndicatorEnabled}
               onChange={setVolumeIndicatorEnabled}
               label={dict.settings.general.volumeIndicatorTitle}
               title={dict.settings.general.volumeIndicatorDesc}
             />
+              <label className="volume-indicator-options__osd">
+                <input type="checkbox" className="ui-checkbox" checked={volumeOsd}
+                  disabled={!volumeIndicatorEnabled} onChange={e => setVolumeOsdEnabled(e.target.checked)} />
+                <span>OSD</span>
+              </label>
+            </div>
           </OptionCard>
 
           {/* 4.3 Устранение артефактов (дебандинг) */}

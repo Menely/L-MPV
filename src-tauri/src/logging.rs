@@ -176,6 +176,11 @@ pub fn setup_panic_hook(logs_dir: &Path) {
 /// 2. Ротирует `logs/error.log`, если он превышает 2 МБ.
 /// 3. Ограничивает количество логов компиляции TensorRT (`compile_*.log`) до `MAX_TRT_BUILD_LOGS`.
 pub fn cleanup_logs_on_startup(logs_dir: &Path) {
+    prepare_session_logs(logs_dir);
+    prune_build_logs(logs_dir);
+}
+
+pub fn prepare_session_logs(logs_dir: &Path) {
     let _ = fs::create_dir_all(logs_dir);
 
     // Ротация mpv.log
@@ -185,7 +190,9 @@ pub fn cleanup_logs_on_startup(logs_dir: &Path) {
     // Ротация error.log
     let error_log = logs_dir.join("error.log");
     rotate_log_file(&error_log, MAX_ERROR_LOG_SIZE);
+}
 
+pub fn prune_build_logs(logs_dir: &Path) {
     // Очистка старых логов сборки TensorRT (compile_*.log)
     if let Ok(entries) = fs::read_dir(logs_dir) {
         let mut compile_logs: Vec<PathBuf> = entries

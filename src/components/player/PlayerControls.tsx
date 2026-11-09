@@ -925,9 +925,9 @@ export function PlayerControls({
         aria-label={isFullscreen ? dict.controls.exitFullscreen : dict.controls.fullscreen}
       >
         {isFullscreen ? (
-          <MinimizeIcon size={18} />
+          <MinimizeIcon size={24} />
         ) : (
-          <Maximize size={18} />
+          <Maximize size={24} />
         )}
       </button>
     ) : null
