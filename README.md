@@ -31,7 +31,7 @@
 
 ## 🌟 About the Project
 
-<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** is a Windows desktop media player based on **mpv**. It supports audio and subtitle selection, playlists, chapters, HDR and interface customization. Optional AI upscaling uses DirectML or TensorRT; results and performance depend on the model and GPU.
+<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** is a modern desktop media player for Windows that brings together the playback capabilities of the native **MPV** video engine (`vo=gpu-next`, Direct3D 11, HDR tone-mapping, WASAPI, sinc resampling) and hardware-accelerated **Real-Time 4K AI Upscaling** (ONNX inference via DirectML and TensorRT) with a customizable **Glassmorphic** interface crafted in **React 19** and **TypeScript**.
 
 L-MPV keeps its settings, cache, screenshots, ONNX models and native libraries in the application folder. WebView2 Runtime is required; AI components are downloaded separately. File associations and Explorer integration are optional.
 
@@ -140,7 +140,6 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - **"Open Models Folder"** button to open the folder in Windows Explorer.
   - Toggle to hide or reveal model names (privacy dot masking).
   - Interactive drag-and-drop model reordering (`@dnd-kit/sortable`) via grab handles, automatically persisted in `config/models_order.json`.
-  - TensorRT compilation and recompilation buttons follow the selected player style.
   - Model keyboard and mouse bindings are edited in the Hotkeys tab; model cards do not contain binding controls.
 - **On-the-Fly Neural Network Switching via Hotkeys (up to 9 models):**
   - `Ctrl+J` — Informative OSD overlay displaying upscale status and statistics (active backend, selected model, slot index, video resolution -> 4K);
