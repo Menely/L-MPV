@@ -160,7 +160,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
             height: "var(--size-action-compact)",
             minWidth: "var(--size-action-compact)",
             padding: "var(--space-0)",
-            borderRadius: "var(--radius-sm, 6px)",
+            borderRadius: "var(--radius-control)",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
@@ -185,7 +185,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
       style={{
         height: "var(--size-action-compact)",
         padding: "0 8px",
-        borderRadius: "var(--radius-sm, 6px)",
+        borderRadius: "var(--radius-control)",
         fontSize: "var(--fs-xs)",
         fontWeight: 600,
         display: "inline-flex",

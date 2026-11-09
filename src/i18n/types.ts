@@ -194,6 +194,8 @@ export interface TranslationDict {
       contextMenuSection: string;
       // Качество видео и аудио
       videoAudioSection: string;
+      volumeIndicatorTitle: string;
+      volumeIndicatorDesc: string;
       // Блок 1: Лимитер
       audioLimiterTitle: string;
       audioLimiterDesc: string;
@@ -468,8 +470,12 @@ export interface TranslationDict {
           splineDesc: string;
           blocks: string;
           blocksDesc: string;
-          mirrored?: string;
-          mirroredDesc?: string;
+          area: string;
+          areaDesc: string;
+          steps: string;
+          stepsDesc: string;
+          dots: string;
+          dotsDesc: string;
         };
         sourceTitle: string;
         sources: {
@@ -502,7 +508,6 @@ export interface TranslationDict {
         heightDesc: string;
         opacityLabel: string;
         opacityDesc: string;
-        showCrestLabel: string;
         loadingText: string;
         errorText: string;
         noVideoStream: string;
@@ -673,6 +678,8 @@ export interface TranslationDict {
       trtCompileTitle: string;
       trtCompileBadge: string;
       compilingProgress: string;
+      favoriteSetTitle: string;
+      favoriteUnsetTitle: string;
     };
     hotkeys: {
       hotkeysSection: string;
@@ -1060,6 +1067,9 @@ export interface TranslationDict {
     upscaleOff: string;
     upscaleModel: (name: string) => string;
     upscaleModelNotFound: (index: number) => string;
+    upscaleNoFavorite: string;
+    upscaleFavoriteNotFound: (name: string) => string;
+    upscaleError: (err: string) => string;
     upscaleStatsAi: (slot: number, name: string, engine: string, stats: string) => string;
     upscaleStatsOff: (gpuHint: string) => string;
     visualizerStatus: (enabled: boolean) => string;

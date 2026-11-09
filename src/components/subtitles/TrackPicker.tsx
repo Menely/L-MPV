@@ -55,7 +55,7 @@ export function TrackPicker({
           padding: "7px 10px",
           background: "var(--surface-level-3)",
           border: "1px solid var(--border-pill)",
-          borderRadius: "var(--radius-xs)",
+          borderRadius: "var(--radius-control)",
           color: "var(--text-primary)",
           fontSize: "var(--fs-sm)",
           cursor: "pointer",
@@ -75,7 +75,7 @@ export function TrackPicker({
           <span
             style={{
               padding: "1px 6px",
-              borderRadius: "3px",
+              borderRadius: "var(--radius-xs)",
               background: "var(--surface-accent-subtle)",
               color: "var(--accent-text)",
               fontSize: "var(--fs-2xs)",
@@ -154,7 +154,7 @@ export function TrackPicker({
               alignItems: "center",
               justifyContent: "space-between",
               padding: "6px 8px",
-              background: !activeTrack ? "var(--bg-active)" : "transparent",
+              background: "transparent",
               border: "none",
               color: !activeTrack ? "var(--accent-text)" : "var(--text-secondary)",
               fontSize: "var(--fs-sm)",
@@ -184,7 +184,9 @@ export function TrackPicker({
                   alignItems: "center",
                   justifyContent: "space-between",
                   padding: "6px 8px",
-                  background: isSelected ? "var(--bg-active)" : "transparent",
+                  // Выделенная дорожка обозначается ТОЛЬКО точкой: фон остаётся
+                  // нейтральным, заливка появляется лишь при наведении.
+                  background: "transparent",
                   border: "none",
                   color: isSelected ? "var(--accent-text)" : "var(--text-primary)",
                   fontSize: "var(--fs-sm)",
@@ -202,15 +204,15 @@ export function TrackPicker({
                     minWidth: 0,
                   }}
                   >
+                  {/* Номер — как в плейлисте: круглый бейдж с tabular-nums. */}
                   <span
+                    className="playlist-item__num"
                     style={{
-                      fontSize: "var(--fs-xs)",
-                      fontWeight: 700,
-                      opacity: 0.6,
-                      flexShrink: 0,
+                      color: isSelected ? "var(--accent-text)" : "var(--text-secondary)",
+                      fontSize: "var(--fs-2xs)",
                     }}
                     >
-                    #{t.id}
+                    {t.id}
                   </span>
                   <span
                     style={{
@@ -221,28 +223,32 @@ export function TrackPicker({
                     >
                     {t.title ? truncateMiddle(t.title.trim(), 28) : dict.subtitlesSearch.defaultTrackName(t.id)}
                   </span>
+                  {/* Язык — тем же приёмом, что и кодек SUBRIP: верхний регистр. */}
                   {t.lang && (
                     <span
                       style={{
-                        fontSize: "var(--fs-2xs)",
-                        opacity: 0.7,
+                        fontSize: "var(--fs-3xs)",
+                        fontWeight: 600,
+                        letterSpacing: "0.02em",
+                        color: "var(--text-muted)",
                         flexShrink: 0,
                       }}
-                      >
-                      [{t.lang}]
+                    >
+                      {t.lang.toUpperCase()}
                     </span>
                   )}
                   {t.codec && (
                     <span
                       style={{
                         fontSize: "var(--fs-3xs)",
+                        fontWeight: 600,
                         padding: "1px 4px",
-                        borderRadius: "2px",
+                        borderRadius: "var(--radius-xs)",
                         background: "var(--surface-level-3-hover)",
                         color: "var(--text-muted)",
                         flexShrink: 0,
                       }}
-                      >
+                    >
                       {t.codec.toUpperCase()}
                     </span>
                   )}

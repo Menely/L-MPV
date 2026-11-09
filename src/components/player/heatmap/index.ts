@@ -5,7 +5,8 @@
  * - `heatmapTypes.ts` — типы данных, контракты IPC и персистентность конфигурации;
  * - `heatmapHoverUtils.ts` — чистый расчёт метрик в точке наведения курсора;
  * - `waveformPalette.ts` — термодинамические палитры, метрики Canvas и LRU-кэш в памяти;
- * - `waveformDrawer.ts` — аппаратно-ускоренный рендеринг стилей (Столбики, Сплайн, Блоки);
+ * - `heatmapDisplay.ts` — адаптивная агрегация аудиоэнергии и битрейта;
+ * - `waveformDrawer.ts` / `waveformShapes.ts` — шесть стилей Canvas;
  * - `waveformCacheClient.ts` — клиентский кэш, дедупликация in-flight запросов и предзагрузка;
  * - `WaveformActivityStrip.tsx` — React-компонент полосы тепловой карты.
  */

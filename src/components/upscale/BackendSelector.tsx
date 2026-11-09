@@ -317,7 +317,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                   ? "0 0 8px var(--danger-glow)"
                   : isFinished
                   ? "0 0 10px var(--success-glow)"
-                  : "0 0 8px var(--surface-accent-glow)",
+                  : "var(--selection-shadow)",
                 transition: "width 0.25s ease-out, border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
             />

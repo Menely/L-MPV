@@ -4,8 +4,8 @@
   --surface-level-2: var(--surface-fill-1);
   --surface-level-3: var(--surface-fill-2);
   --surface-level-3-hover: var(--surface-fill-hover-2);
-  --surface-accent-subtle: var(--surface-fill-selected-1);
-  --surface-accent-hover: var(--surface-fill-selected-hover-1);
+  --surface-accent-subtle: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-accent-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
   --ui-popover-opacity: calc(0.45 + var(--ui-opacity) * 0.55);
   --capsule-island-opacity: calc(0.20 + var(--ui-opacity) * 0.55);
   --capsule-island-fill: color-mix(in srgb, var(--surface-tone-1) calc(var(--capsule-island-opacity) * 100%), transparent);

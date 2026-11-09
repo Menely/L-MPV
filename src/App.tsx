@@ -21,6 +21,8 @@ import { PlayerControls } from "./components/player/PlayerControls";
 import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
 import { SeekIndicator } from "./components/player/SeekIndicator";
+import { VolumeIndicator } from "./components/player/VolumeIndicator";
+import { triggerVolumeFeedback } from "./utils/volumeFeedback";
 import { UpdateInfo } from "./components/modals/UpdateModal";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
 import { applyAccentColor } from "./utils/colorUtils";
@@ -29,6 +31,7 @@ import {
   isKeyboardEventMatch,
   VIDEO_MOUSE_ACTIONS,
 } from "./utils/hotkeyUtils";
+import { getFavoriteModel } from "./utils/favoriteModel";
 import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
@@ -397,10 +400,19 @@ function App() {
 
   const revealWindow = useCallback(async () => {
     if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-      isWindowRevealedRef.current = true;
       try {
         await getCurrentWindow().show();
-      } catch {}
+        isWindowRevealedRef.current = true;
+      } catch { return; }
+    }
+    if (isWindowRevealedRef.current && hasMediaRef.current && !isStandaloneModeRef.current) {
+      // Let React's transparent video surface commit before releasing initial audio.
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      try {
+        if (await invoke<boolean>("complete_startup_playback")) {
+          window.dispatchEvent(new Event("l-mpv-force-poll"));
+        }
+      } catch (error) { console.error("Startup playback completion failed:", error); }
     }
   }, []);
 
@@ -502,6 +514,7 @@ function App() {
     mediaInfo?.width,
     mediaInfo?.height,
     mediaInfo?.video_track,
+    mediaInfo?.video_ready,
     resizeWindowForVideo,
     revealWindow,
   ]);
@@ -614,6 +627,7 @@ function App() {
               "avi",
               "mov",
               "webm",
+              "yuv",
             ],
           },
         ],
@@ -693,14 +707,26 @@ function App() {
       }
       case "volumeUp":
         curProlongControlsIfActive();
-        if (curMediaInfo) curSetVolume(Math.min(150, (curMediaInfo.volume ?? 100) + 5));
+        if (curMediaInfo) {
+          const volume = Math.min(150, (curMediaInfo.volume ?? 100) + 5);
+          curSetVolume(volume);
+          triggerVolumeFeedback(volume);
+        }
         break;
       case "volumeDown":
         curProlongControlsIfActive();
-        if (curMediaInfo) curSetVolume(Math.max(0, (curMediaInfo.volume ?? 100) - 5));
+        if (curMediaInfo) {
+          const volume = Math.max(0, (curMediaInfo.volume ?? 100) - 5);
+          curSetVolume(volume);
+          triggerVolumeFeedback(volume);
+        }
         break;
       case "toggleMute":
-        if (curMediaInfo) curSetVolume(curMediaInfo.volume === 0 ? 100 : 0);
+        if (curMediaInfo) {
+          const volume = curMediaInfo.volume === 0 ? 100 : 0;
+          curSetVolume(volume);
+          triggerVolumeFeedback(volume);
+        }
         break;
       case "fullscreen":
         curToggleFullscreen();
@@ -968,8 +994,53 @@ function App() {
           localStorage.setItem("l-mpv-upscale-mode", "off");
           triggerOsd(dict.osd.upscaleOff, 2000);
           window.dispatchEvent(new Event("l-mpv-settings-changed"));
-        } catch (e) { console.error("Ошибка отключения апскейлинга:", e); }
+        } catch (e) { console.error("Ошибка отключения апскейлинга:", e); triggerOsd(dict.osd.upscaleError(String(e)), 3000, true); }
         break;
+      case "upscaleFavorite": {
+        try {
+          const favorite = getFavoriteModel();
+          if (!favorite) {
+            triggerOsd(dict.osd.upscaleNoFavorite, 2500);
+            break;
+          }
+          const models = await invoke<Array<{ slot: number; display_name: string; filename: string }>>("scan_onnx_models").catch(() => []);
+          const targetModel = models.find((m) => m.filename === favorite);
+
+          if (!targetModel) {
+            triggerOsd(dict.osd.upscaleFavoriteNotFound(favorite), 2500);
+            break;
+          }
+
+          const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+          const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
+          const curSlot = Number(localStorage.getItem("l-mpv-upscale-slot") || 1001);
+          const curModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
+          const isFavoriteActive = mode === "ai" && (curModel ? curModel === targetModel.filename : curSlot === targetModel.slot);
+
+          if (isFavoriteActive) {
+            await invoke("switch_upscale_network_hotkey", { slot: 0, backend });
+            localStorage.setItem("l-mpv-upscale-mode", "off");
+            triggerOsd(dict.osd.upscaleOff, 2000);
+          } else {
+            await invoke("switch_upscale_network_hotkey", { slot: targetModel.slot, backend });
+            localStorage.setItem("l-mpv-upscale-mode", "ai");
+            localStorage.setItem("l-mpv-upscale-slot", String(targetModel.slot));
+            localStorage.setItem("l-mpv-upscale-selected-model", targetModel.filename);
+
+            const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
+            const modelTitle = isHideModelNames
+              ? (curLocale === "en" ? "Favorite model" : "Избранная модель")
+              : targetModel.display_name;
+            triggerOsd(dict.osd.upscaleModel(modelTitle), 2000);
+          }
+
+          window.dispatchEvent(new Event("l-mpv-settings-changed"));
+        } catch (e) {
+          console.error("Ошибка переключения избранной модели по хоткею:", e);
+          triggerOsd(dict.osd.upscaleError(String(e)), 3000, true);
+        }
+        break;
+      }
       case "upscaleNet1":
       case "upscaleNet2":
       case "upscaleNet3":
@@ -989,11 +1060,10 @@ function App() {
             const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
 
             // При выборе любой модели по хоткею гарантированно активируем режим "ai"
+            await invoke("switch_upscale_network_hotkey", { slot, backend });
             localStorage.setItem("l-mpv-upscale-mode", "ai");
             localStorage.setItem("l-mpv-upscale-slot", String(slot));
             localStorage.setItem("l-mpv-upscale-selected-model", targetModel.filename);
-
-            await invoke("switch_upscale_network_hotkey", { slot, backend });
 
             const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
             const modelTitle = isHideModelNames ? (curLocale === "en" ? `Model #${index + 1}` : `Модель #${index + 1}`) : targetModel.display_name;
@@ -1006,6 +1076,7 @@ function App() {
           }
         } catch (e) {
           console.error("Ошибка переключения нейросети по хоткею:", e);
+          triggerOsd(dict.osd.upscaleError(String(e)), 3000, true);
         }
         break;
       }
@@ -1366,6 +1437,7 @@ function App() {
               const delta = e.deltaY < 0 ? 5 : -5;
               const newVol = Math.max(0, Math.min(150, currentVol + delta));
               setVolume(newVol);
+              triggerVolumeFeedback(newVol);
             }
           }
         }}
@@ -1419,6 +1491,7 @@ function App() {
 
       {/* Всплывающий оверлей быстрой перемотки в стиле YouTube */}
       <SeekIndicator />
+      <VolumeIndicator />
 
       {contextMenu && (
         <ContextMenu

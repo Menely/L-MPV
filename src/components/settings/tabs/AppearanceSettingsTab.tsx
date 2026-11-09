@@ -11,7 +11,7 @@ import { ColorSchemeSection } from "../components/ColorSchemeSection";
 import { VisualizerSettingsSection } from "../sections/VisualizerSettingsSection";
 import { HeatmapSettingsSection } from "../sections/HeatmapSettingsSection";
 import { ControlButtonsPreviewCard } from "../components/ControlButtonsPreviewCard";
-import { optionCardStyle, optionResetBtnStyle, optionBtnStyle } from "../components/optionCardStyles";
+import { optionCardStyle, optionResetBtnStyle, optionBtnStyle, optionBtnClassName } from "../components/optionCardStyles";
 import { VerticalSlider } from "../appearance/ambientPrimitives";
 import {
   UiRadiusLevel,
@@ -165,9 +165,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 icon={<SlidersHorizontal size={18} />}
                 title={dict.settings.appearance.interfaceSection}
                 >
-                <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", marginBottom: "var(--space-6)", lineHeight: 1.35 }}>
-                  {dict.settings.appearance.interfaceDesc}
-                </div>
+
 
                 {/* ── Вспомогательные стили для подблоков настроек интерфейса ── */}
                 {(() => {
@@ -375,6 +373,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                       <button
                                         key={level}
                                         type="button"
+                                        className={optionBtnClassName(isSel)}
                                         onClick={() => {
                                           setUiRadius({ level, value: preset.controlsRadius });
                                           saveUiRadius(level, preset.controlsRadius);
@@ -389,14 +388,14 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                           style={{
                                             width: 46,
                                             height: 25,
-                                            border: `1.5px solid ${isSel ? "var(--accent)" : "var(--border-hover)"}`,
+                                            border: `1.5px solid ${isSel ? "var(--selection-frame)" : "var(--border-hover)"}`,
                                             borderRadius: visualRadius,
                                             background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.18)" : "rgba(255, 255, 255, 0.04)",
                                             display: "flex",
                                             alignItems: "center",
                                             justifyContent: "center",
-                                            boxShadow: isSel ? "0 0 10px var(--surface-accent-glow)" : "none",
-                                            transition: "all var(--t-fast) var(--ease-smooth)",
+                                            boxShadow: isSel ? "var(--selection-shadow)" : "none",
+                                            transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                                             flexShrink: 0,
                                           }}
                                           >
@@ -406,7 +405,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                               height: 3,
                                               borderRadius: visualRadius === "1.5px" ? "1px" : "999px",
                                               background: isSel ? "var(--accent)" : "rgba(255, 255, 255, 0.25)",
-                                              transition: "all var(--t-fast) var(--ease-smooth)",
+                                              transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                                             }}
                                           />
                                         </div>
@@ -462,7 +461,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     background: uiScale.mode === "auto" ? "var(--accent)" : "rgba(255,255,255,0.08)",
                                     color: uiScale.mode === "auto" ? "var(--on-accent)" : "var(--text-secondary)",
                                     border: "none",
-                                    borderRadius: "4px",
+                                    borderRadius: "var(--radius-xs)",
                                     width: 18,
                                     height: 18,
                                     display: "flex",
@@ -471,7 +470,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     fontSize: "var(--fs-2xs)",
                                     fontWeight: "bold",
                                     cursor: "pointer",
-                                    transition: "all var(--t-fast) var(--ease-smooth)",
+                                    transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                                   }}
 
                                   >
@@ -499,6 +498,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     <button
                                       key={preset.id}
                                       type="button"
+                                      className={optionBtnClassName(isSel)}
                                       onClick={() => {
                                         const nextVal = preset.value !== null ? preset.value : 1.0;
                                         setUiScale({ mode: preset.id, value: nextVal });
@@ -582,7 +582,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                 return (
                                   <button
                                     key={fontPreset.id}
-                                    className="ui-font-choice"
+                                    className={`ui-font-choice${isSel ? " ui-font-choice--active" : ""}`}
                                     type="button"
                                     onClick={() => {
                                       setUiFont(fontPreset.id);
@@ -594,15 +594,15 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                       justifyContent: "space-between",
                                       padding: "6px 8px",
                                       borderRadius: "var(--radius-control)",
-                                      border: isSel ? "1px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
+                            border: isSel ? "1px solid var(--selection-frame)" : "1px solid rgba(255, 255, 255, 0.06)",
                                       background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                                       color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                                       boxShadow: isSel
-                                        ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent"
+                                        ? "var(--selection-shadow)"
                                         : "none",
                                       cursor: "pointer",
                                       fontFamily: `var(--font-${fontPreset.id})`,
-                                      transition: "all var(--t-fast) var(--ease-smooth)",
+                                      transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                                       flexShrink: 0,
                                     }}
                                     >
@@ -626,7 +626,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                     return (
                                     <button
                                       key={font.id}
-                                      className="ui-font-choice"
+                                      className={`ui-font-choice${isSel ? " ui-font-choice--active" : ""}`}
                                         type="button"
                                         onClick={() => {
                                           setUiFont(font.id);
@@ -638,15 +638,15 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                                           justifyContent: "space-between",
                                           padding: "6px 8px",
                                           borderRadius: "var(--radius-control)",
-                                          border: isSel ? "1px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
+                                      border: isSel ? "1px solid var(--selection-frame)" : "1px solid rgba(255, 255, 255, 0.06)",
                                           background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
                                           color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                                           boxShadow: isSel
-                                            ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent"
+                                            ? "var(--selection-shadow)"
                                             : "none",
                                           cursor: "pointer",
                                           fontFamily: `'${font.family}', sans-serif`,
-                                          transition: "all var(--t-fast) var(--ease-smooth)",
+                                          transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                                           flexShrink: 0,
                                         }}
                                         >
@@ -997,7 +997,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             {dict.settings.appearance.animationsDesc1}
                           </span>
                         </div>
-                        <span className="text-xs text-muted" style={{ lineHeight: 1.45 }}>
+                        <span className="t-label-xs" style={{ fontWeight: 400, lineHeight: 1.45 }}>
                           {dict.settings.appearance.animationsDesc2}
                         </span>
                       </div>
@@ -1227,11 +1227,12 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                     ].map((item) => {
                       const isSel = ambientSettings.mode === item.id;
                       return (
-                        <button
-                          key={item.id}
-                          onClick={() => updateAmbient({ mode: item.id as AmbientMode }, true)}
-                          type="button"
-                          aria-pressed={isSel}
+                          <button
+                            key={item.id}
+                            onClick={() => updateAmbient({ mode: item.id as AmbientMode }, true)}
+                            type="button"
+                            aria-pressed={isSel}
+                            className={`ambient-choice${isSel ? " ambient-choice--active" : ""}`}
                           style={{
                             display: "flex",
                             flexDirection: "column",
@@ -1240,12 +1241,12 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                             gap: "var(--space-1)",
                             padding: "10px 6px",
                             borderRadius: "var(--segment-inner-radius)",
-                            border: isSel ? "1px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
+                            border: isSel ? "1px solid var(--selection-frame)" : "1px solid rgba(255, 255, 255, 0.06)",
                             cursor: "pointer",
                             background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "transparent",
                             color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                             boxShadow: isSel
-                              ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent"
+                              ? "var(--selection-shadow)"
                               : "none",
                             transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                           }}

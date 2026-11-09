@@ -2,19 +2,19 @@
    Palette tones and alpha response are separate. Independent glass roots reset
    depth; siblings do not affect each other. The scale saturates at four. */
 [data-surface-depth="0"] {
-  --bg-hover: var(--surface-level-3-hover);
+  --bg-hover: var(--hover-veil);
   --bg-active: var(--surface-accent-hover);
   --accent-glass: var(--surface-accent-subtle);
   --surface-card: var(--surface-fill-0);
   --surface-card-hover: var(--surface-fill-hover-0);
-  --surface-card-selected: var(--surface-fill-selected-0);
-  --surface-card-selected-hover: var(--surface-fill-selected-hover-0);
+  --surface-card-selected: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-card-selected-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
   --surface-child: var(--surface-fill-1);
   --surface-level-2: var(--surface-fill-1);
   --surface-level-3: var(--surface-fill-1);
   --surface-level-3-hover: var(--surface-fill-hover-1);
-  --surface-accent-subtle: var(--surface-fill-selected-1);
-  --surface-accent-hover: var(--surface-fill-selected-hover-1);
+  --surface-accent-subtle: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-accent-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
   --bg-glass: var(--surface-root-glass);
 }
 
@@ -34,63 +34,63 @@
   --bg-elevated: rgba(var(--bg-elevated-rgb), var(--ui-popover-opacity));
 }
 [data-surface-depth="1"] {
-  --bg-hover: var(--surface-level-3-hover);
+  --bg-hover: var(--hover-veil);
   --bg-active: var(--surface-accent-hover);
   --accent-glass: var(--surface-accent-subtle);
   --surface-card: var(--surface-fill-1);
   --surface-card-hover: var(--surface-fill-hover-1);
-  --surface-card-selected: var(--surface-fill-selected-1);
-  --surface-card-selected-hover: var(--surface-fill-selected-hover-1);
+  --surface-card-selected: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-card-selected-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
   --surface-child: var(--surface-fill-2);
   --surface-level-2: var(--surface-fill-2);
   --surface-level-3: var(--surface-fill-2);
   --surface-level-3-hover: var(--surface-fill-hover-2);
-  --surface-accent-subtle: var(--surface-fill-selected-2);
-  --surface-accent-hover: var(--surface-fill-selected-hover-2);
+  --surface-accent-subtle: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-accent-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
 }
 [data-surface-depth="2"] {
-  --bg-hover: var(--surface-level-3-hover);
+  --bg-hover: var(--hover-veil);
   --bg-active: var(--surface-accent-hover);
   --accent-glass: var(--surface-accent-subtle);
   --surface-card: var(--surface-fill-2);
   --surface-card-hover: var(--surface-fill-hover-2);
-  --surface-card-selected: var(--surface-fill-selected-2);
-  --surface-card-selected-hover: var(--surface-fill-selected-hover-2);
+  --surface-card-selected: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-card-selected-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
   --surface-child: var(--surface-fill-3);
   --surface-level-2: var(--surface-fill-3);
   --surface-level-3: var(--surface-fill-3);
   --surface-level-3-hover: var(--surface-fill-hover-3);
-  --surface-accent-subtle: var(--surface-fill-selected-3);
-  --surface-accent-hover: var(--surface-fill-selected-hover-3);
+  --surface-accent-subtle: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-accent-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
 }
 [data-surface-depth="3"] {
-  --bg-hover: var(--surface-level-3-hover);
+  --bg-hover: var(--hover-veil);
   --bg-active: var(--surface-accent-hover);
   --accent-glass: var(--surface-accent-subtle);
   --surface-card: var(--surface-fill-3);
   --surface-card-hover: var(--surface-fill-hover-3);
-  --surface-card-selected: var(--surface-fill-selected-3);
-  --surface-card-selected-hover: var(--surface-fill-selected-hover-3);
+  --surface-card-selected: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-card-selected-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
   --surface-child: var(--surface-fill-4);
   --surface-level-2: var(--surface-fill-4);
   --surface-level-3: var(--surface-fill-4);
   --surface-level-3-hover: var(--surface-fill-hover-4);
-  --surface-accent-subtle: var(--surface-fill-selected-4);
-  --surface-accent-hover: var(--surface-fill-selected-hover-4);
+  --surface-accent-subtle: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-accent-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
 }
 [data-surface-depth="4"] {
-  --bg-hover: var(--surface-level-3-hover);
+  --bg-hover: var(--hover-veil);
   --bg-active: var(--surface-accent-hover);
   --accent-glass: var(--surface-accent-subtle);
   --surface-card: var(--surface-fill-4);
   --surface-card-hover: var(--surface-fill-hover-4);
-  --surface-card-selected: var(--surface-fill-selected-4);
-  --surface-card-selected-hover: var(--surface-fill-selected-hover-4);
+  --surface-card-selected: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-card-selected-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
   --surface-child: var(--surface-fill-4);
   --surface-level-2: var(--surface-fill-4);
   --surface-level-3: var(--surface-fill-4);
   --surface-level-3-hover: var(--surface-fill-hover-4);
-  --surface-accent-subtle: var(--surface-fill-selected-4);
-  --surface-accent-hover: var(--surface-fill-selected-hover-4);
+  --surface-accent-subtle: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-accent-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
 }
 .theme-card { background: var(--surface-card); }

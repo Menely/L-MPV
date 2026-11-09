@@ -90,7 +90,7 @@
   font-weight: 600;
   line-height: 1.4;
   padding: 0 8px;
-  background: var(--bg-hover);
+  background: var(--surface-level-3-hover);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   color: var(--text-secondary);
@@ -114,7 +114,7 @@
   flex-shrink: 0;
   background: transparent;
   border: none;
-  border-radius: var(--radius-list-row);
+  border-radius: var(--radius-control);
   color: var(--text-secondary);
   cursor: pointer;
   outline: none;
@@ -129,7 +129,7 @@
 }
 
 .track-popover__icon-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
+  background: var(--action-hover-veil);
   color: var(--accent-text);
 }
 
@@ -204,7 +204,7 @@
 
 /* При наведении — подсветка var(--bg-hover), как в контекстном меню и плейлисте */
 .track-popover__item:hover {
-  background: var(--bg-hover) !important;
+  background: var(--hover-veil-float) !important;
   color: var(--text-primary) !important;
 }
 
@@ -217,7 +217,7 @@
 }
 
 .track-popover__item--active:hover {
-  background: var(--bg-hover) !important;
+  background: var(--hover-veil-float) !important;
   color: var(--text-primary) !important;
 }
 
@@ -280,7 +280,7 @@
 .context-menu__track-btn--active .track-badge-ext {
   background: var(--surface-accent-subtle);
   color: var(--accent-text);
-  border-color: var(--accent);
+  border-color: var(--selection-frame);
 }
 
 /* Контейнер индикатора активного выбора справа от названия */
@@ -300,13 +300,17 @@
   min-width: 7px;
   min-height: 7px;
   border-radius: 50%;
-  background: var(--focus-ring);
+  background: var(--accent);
   box-shadow: 0 0 6px var(--surface-accent-glow);
   display: inline-block;
   flex-shrink: 0;
 }
 
-/* ─── Кнопка скачивания дорожки (всегда видна) ─────────────────── */
+/* ─── Кнопка скачивания дорожки (всегда видна) ───────────────────────────
+   Единый дизайн для всех стилей (Модерн / Классический / Капсула):
+   «голая» иконка без карточки и рамки — она вторична по отношению
+   к самой дорожке, но всегда доступна. Выделение — только цветом
+   и акцентной вуалью при наведении. */
 .track-download-btn {
   display: inline-flex;
   align-items: center;
@@ -316,9 +320,9 @@
   min-width: var(--size-action-compact);
   min-height: var(--size-action-compact);
   border-radius: var(--radius-list-row);
-  border: 1px solid var(--border-pill);
-  background: var(--surface-level-3);
-  color: var(--text-secondary);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
   cursor: pointer;
   flex-shrink: 0;
   padding: 0;
@@ -335,9 +339,9 @@
 }
 
 .track-download-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
+  background: var(--hover-veil-float);
   color: var(--accent-text);
-  border-color: var(--border-pill-hover);
+  border-color: transparent;
 }
 
 .track-download-btn:active:not(:disabled) {

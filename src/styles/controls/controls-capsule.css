@@ -65,37 +65,11 @@
   justify-content: flex-end;
 }
 
-/* Тепловая карта над таймлайном в капсуле */
-.player-controls--capsule .waveform-activity-strip--above-controls {
-  position: absolute;
-  left: 0;
-  right: 0;
-  width: 100%;
-  bottom: calc(100% + 8px);
-  z-index: 15;
-}
-
-/* Адаптивный сдвиг тепловой карты при наличии активного аудио-визуализатора над таймлайном */
-.player-controls--capsule.player-controls--has-visualizer-above .waveform-activity-strip--above-controls,
-.player-controls--capsule .waveform-activity-strip--above-controls.waveform-activity-strip--above-visualizer {
-  bottom: calc(100% + var(--visualizer-height, 22px) + 8px);
-}
-
 /* Позиционирование всплывающей плашки времени над таймлайном в стиле «Капсула» */
 .player-controls--capsule .timeline-preview-card,
 .controls-island--timeline .timeline-preview-card,
 .timeline-col--capsule .timeline-preview-card {
   bottom: calc(100% + 15px);
-}
-
-.player-controls--capsule:has(.waveform-activity-strip--visible) .timeline-preview-card,
-.controls-island--timeline:has(.waveform-activity-strip--visible) .timeline-preview-card {
-  bottom: calc(100% + var(--heatmap-strip-height, 34px) + 16px);
-}
-
-.player-controls--capsule.player-controls--has-visualizer-above:has(.waveform-activity-strip--visible) .timeline-preview-card,
-.controls-island--timeline.player-controls--has-visualizer-above:has(.waveform-activity-strip--visible) .timeline-preview-card {
-  bottom: calc(100% + var(--visualizer-height, 22px) + var(--heatmap-strip-height, 34px) + 16px);
 }
 
 /* Карточка времени — полноценный интерактивный элемент <button> с кликом по всей площади */
@@ -168,7 +142,10 @@ button.controls-island--time,
   column-gap: 12px;
   width: 100%;
   min-height: 58px;
-  padding: 7px 10px;
+  --dock-padding-y: 7px;
+  --dock-padding-x: 10px;
+  --dock-border: 1px;
+  padding: var(--dock-padding-y) var(--dock-padding-x);
   background: var(--bg-pill);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-controls, 18px);
@@ -205,7 +182,11 @@ button.controls-island--time,
   max-width: 100%;
 }
 
-/* Все дочерние карточки-островки: уменьшенные, компактные, изящные на фоне крупной подложки */
+/* Все дочерние карточки-островки: уменьшенные, компактные, изящные на фоне крупной подложки.
+   Концентрическое скругление: внутренний радиус = внешний радиус − отступы − рамка.
+   Радиус берётся у РЕАЛЬНОГО внешнего контейнера (--radius-controls), а не у
+   --radius-surface: иначе внутренние карточки «схлопывались» в почти прямые
+   углы (5×8px) и кнопка во всю ширину превращалась в квадрат. */
 .controls-islands-row .controls-island {
   position: relative;
   display: inline-flex;
@@ -213,8 +194,10 @@ button.controls-island--time,
   height: 42px;
   background: var(--capsule-island-fill, var(--surface-level-3));
   border: 1px solid rgba(255, 255, 255, 0.10);
-  /* Outer border (1px) + vertical dock padding (7px) = 8px inset. */
-  border-radius: max(0px, calc(var(--radius-controls, 18px) - 8px));
+  --island-radius-x: max(var(--radius-control), calc(var(--radius-controls, 16px) - var(--dock-padding-x) - var(--dock-border)));
+  --island-radius-y: max(var(--radius-control), calc(var(--radius-controls, 16px) - var(--dock-padding-y) - var(--dock-border)));
+  /* Each axis includes the current dock padding and its outer border. */
+  border-radius: var(--island-radius-x) / var(--island-radius-y);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -389,7 +372,8 @@ button.controls-island--time,
 @container controls (max-width: 1080px) {
   .controls-islands-row {
     column-gap: 6px;
-    padding: 6px 8px;
+    --dock-padding-y: 6px;
+    --dock-padding-x: 8px;
   }
   .controls-group {
     gap: 5px;
@@ -432,12 +416,13 @@ button.controls-island--time,
   }
   .controls-islands-row {
     column-gap: 5px;
-    padding: 4px;
+    --dock-padding-y: 4px;
+    --dock-padding-x: 4px;
     min-height: 44px;
   }
   .controls-islands-row .controls-island {
     height: 36px;
-    border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px));
+    /* Radius follows dock padding and border from the shared island rule. */
   }
   .controls-group {
     gap: 4px;
@@ -525,4 +510,33 @@ button.controls-island--time,
 /* Кнопки в группе — самостоятельные действия; их форма не зависит от padding группы. */
 .player-controls--capsule .control-btn {
   border-radius: var(--radius-control);
+}
+
+/* Fullscreen hover fill follows the actual inset inside its island. */
+.controls-islands-row .controls-island--fullscreen {
+  --fullscreen-island-size: 42px;
+  --fullscreen-button-size: 32px;
+  width: var(--fullscreen-island-size);
+  min-width: var(--fullscreen-island-size);
+  height: var(--fullscreen-island-size);
+}
+.controls-islands-row .controls-island--fullscreen #btn-fullscreen {
+  --fullscreen-inset: calc((var(--fullscreen-island-size) - var(--fullscreen-button-size)) / 2);
+  width: var(--fullscreen-button-size);
+  height: var(--fullscreen-button-size);
+  /* Радиус кнопки не может стать нулевым (иначе кнопка в островке
+     выглядит квадратом) и не может превышать радиус самого островка. */
+  border-radius: min(var(--radius-control), max(6px, calc(var(--island-radius-x) - var(--fullscreen-inset)))) / min(var(--radius-control), max(6px, calc(var(--island-radius-y) - var(--fullscreen-inset))));
+}
+@container controls (max-width: 760px) {
+  .controls-islands-row .controls-island--fullscreen {
+    --fullscreen-island-size: 36px;
+    --fullscreen-button-size: 28px;
+  }
+}
+@container controls (max-width: 600px) {
+  .controls-islands-row .controls-island--fullscreen {
+    --fullscreen-island-size: 44px;
+    --fullscreen-button-size: 30px;
+  }
 }

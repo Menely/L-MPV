@@ -7,7 +7,7 @@
 }
 
 .player-controls-wrapper--docked .player-controls {
-  border-radius: 0 !important;
+  border-radius: var(--radius-surface) var(--radius-surface) 0 0 !important;
   border-left: none;
   border-right: none;
   border-bottom: none;

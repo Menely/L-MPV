@@ -195,6 +195,8 @@ export const en: TranslationDict = {
       contextMenuSection: "Context Menu (RMB)",
       // Video & Audio Settings
       videoAudioSection: "Video & Audio Settings",
+      volumeIndicatorTitle: "Volume indicator",
+      volumeIndicatorDesc: "Show an on-screen scale when changing volume with keyboard shortcuts or the mouse wheel.",
       // Block 1: Limiter
       audioLimiterTitle: "Audio Overload Protection",
       audioLimiterDesc:
@@ -567,6 +569,12 @@ export const en: TranslationDict = {
           splineDesc: "Pure luminescent Bezier line without gradient",
           blocks: "Digital Blocks",
           blocksDesc: "Digital Hi-Fi matrix",
+          area: "Filled Relief",
+          areaDesc: "A smooth contour with a soft fill",
+          steps: "Stepped Contour",
+          stepsDesc: "A sharp interval contour without smoothing or fill",
+          dots: "Dotted Relief",
+          dotsDesc: "Separate points at the level of each interval",
         },
         sourceTitle: "Relief Data Source",
         sources: {
@@ -595,7 +603,6 @@ export const en: TranslationDict = {
         heightDesc: "Optimal 34px for a balanced HUD",
         opacityLabel: "Opacity",
         opacityDesc: "Smooth cinematic blending with frames",
-        showCrestLabel: "Luminescent wave crest line",
         loadingText: "Analyzing media...",
         errorText: "Metric unavailable",
         noVideoStream: "No video stream",
@@ -786,7 +793,9 @@ export const en: TranslationDict = {
       trtRecompileTitle: "Recompile TensorRT engine for 1080p",
       trtCompileTitle: "Compile TensorRT engine for 1080p in advance to eliminate playback lag",
       trtCompileBadge: "1080p compile",
-      compilingProgress: "Compiling…"
+      compilingProgress: "Compiling…",
+      favoriteSetTitle: "Set as default (favorite) model",
+      favoriteUnsetTitle: "Remove default model",
     },
     hotkeys: {
       hotkeysSection: "Hotkeys",
@@ -857,6 +866,7 @@ export const en: TranslationDict = {
         openFile: "Open file",
         upscaleStats: "4K AI status & stats",
         upscaleOff: "Upscaling: Turn off",
+        upscaleFavorite: "Upscaling: Favorite model (on/off)",
         upscaleNet1: "Upscaling: Neural network #1",
         upscaleNet2: "Upscaling: Neural network #2",
         upscaleNet3: "Upscaling: Neural network #3",
@@ -1230,10 +1240,13 @@ export const en: TranslationDict = {
     upscaleOff: "4K AI Upscaling: Off",
     upscaleModel: (name: string) => `4K AI: ${name} (Enabled)`,
     upscaleModelNotFound: (index: number) => `Model #${index} not found in models/onnx/`,
+    upscaleNoFavorite: "No favorite model selected — mark one with the star in the model list",
+    upscaleFavoriteNotFound: (name: string) => `Favorite model ${name} not found in models/onnx/`,
+    upscaleError: (err: string) => `Upscaling error: ${err}`,
     upscaleStatsAi: (slot: number, name: string, engine: string, stats: string) =>
       `✨ 4K AI Upscaling: Enabled (Slot ${slot})\nModel: ${name}\nEngine: ${engine}${stats}`,
     upscaleStatsOff: (gpuHint: string) =>
-      `✨ 4K AI Upscaling: Off (Original video)${gpuHint}\nQuick switch: Shift+1 (Off), Shift+2..0 (Models 1–9)`,
+      `✨ 4K AI Upscaling: Off (Original video)${gpuHint}\nQuick switch: Shift+1 (Off), Shift+2..0 (Models 1–9), U (Favorite)`,
     visualizerStatus: (enabled: boolean) => `Visualizer: ${enabled ? "Enabled" : "Disabled"}`,
     visualizerMode: (mode: string) => `Visualizer: ${mode}`,
     rotation: (degrees: number) => `Rotation: ${degrees}°`,

@@ -12,11 +12,12 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 
-/// Количество интервалов (столбцов) тепловой карты для таймлайна (высокая детализация).
-pub const WAVEFORM_SAMPLES_COUNT: usize = 512;
+/// Количество интервалов аудиопрофиля; видеопрофиль использует секундный шаг.
+pub const WAVEFORM_SAMPLES_COUNT: usize = 2048;
 
 /// Версия формата кэша для автоматической инвалидации устаревших или неполных профилей.
-const CACHE_ALGORITHM_VERSION: &str = "v6";
+const AUDIO_CACHE_VERSION: &str = "v9-audio-detail";
+const VIDEO_CACHE_VERSION: &str = "v8-video-duration";
 
 /// Максимальное количество файлов в дисковом кэше тепловых карт.
 const MAX_WAVEFORM_CACHE_FILES: usize = 200;
@@ -27,12 +28,96 @@ const MAX_WAVEFORM_CACHE_BYTES: u64 = 50 * 1024 * 1024;
 /// Атомарный счётчик для генерации уникальных имён временных файлов кэша.
 static TMP_FILE_NONCE: AtomicU64 = AtomicU64::new(0);
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestCache(PathBuf);
+    impl TestCache {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "l-mpv-profile-cache-{}-{}",
+                std::process::id(),
+                TMP_FILE_NONCE.fetch_add(1, Ordering::Relaxed)
+            ));
+            std::fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+    }
+    impl Drop for TestCache {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn separated_profiles_persist_migrate_and_clear() {
+        tauri::async_runtime::block_on(async {
+            let root = TestCache::new();
+            std::fs::write(root.0.join("legacy.json"), "cached-video").unwrap();
+            let video = profile_cache_path(&root.0, "legacy", "video_bitrate").unwrap();
+            let audio = profile_cache_path(&root.0, "audio-key", "audio").unwrap();
+            assert_eq!(video.parent().unwrap(), root.0.join("video_bitrate"));
+            assert_eq!(audio.parent().unwrap(), root.0.join("audio"));
+            assert_eq!(std::fs::read_to_string(&video).unwrap(), "cached-video");
+            assert!(!root.0.join("legacy.json").exists());
+            let manager = HeatmapTaskManager::new();
+            let generation = manager.start_request().await;
+            save_cache_atomically(&audio, "cached-audio", &manager, generation)
+                .await
+                .unwrap();
+            let reopened = profile_cache_path(&root.0, "audio-key", "audio").unwrap();
+            assert_eq!(std::fs::read_to_string(reopened).unwrap(), "cached-audio");
+            std::fs::write(root.0.join("old.json"), "old-layout").unwrap();
+            std::fs::create_dir(root.0.join("unrelated")).unwrap();
+            std::fs::write(root.0.join("unrelated/keep.txt"), "keep").unwrap();
+            assert_eq!(clear_profile_cache(&root.0).await.unwrap(), 3);
+            assert!(root.0.join("audio").is_dir());
+            assert!(root.0.join("video_bitrate").is_dir());
+            assert!(root.0.join("unrelated/keep.txt").exists());
+            assert!(profile_cache_path(&root.0, "key", "../invalid").is_err());
+        });
+    }
+
+    #[test]
+    fn cache_rotation_is_independent_for_each_source() {
+        tauri::async_runtime::block_on(async {
+            let root = TestCache::new();
+            let video = profile_cache_path(&root.0, "video", "video_bitrate").unwrap();
+            let audio = profile_cache_path(&root.0, "audio", "audio").unwrap();
+            std::fs::write(&video, "video").unwrap();
+            for i in 0..=MAX_WAVEFORM_CACHE_FILES {
+                std::fs::write(audio.parent().unwrap().join(format!("{}.json", i)), "audio")
+                    .unwrap();
+            }
+            prune_waveform_cache(audio.parent().unwrap()).await;
+            assert_eq!(
+                std::fs::read_dir(audio.parent().unwrap()).unwrap().count(),
+                MAX_WAVEFORM_CACHE_FILES
+            );
+            assert!(video.exists());
+        });
+    }
+
+    #[test]
+    fn cache_identity_includes_duration_and_source() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands/heatmap/cache.rs");
+        let key =
+            |mode, duration| calculate_file_cache_key(&path, mode, None, None, duration).unwrap();
+        assert_ne!(key("video_bitrate", 0.0), key("video_bitrate", 120.0));
+        assert_ne!(key("video_bitrate", 120.0), key("video_bitrate", 121.0));
+        assert_ne!(key("video_bitrate", 120.0), key("audio", 120.0));
+        assert_eq!(key("video_bitrate", 120.0), key("video_bitrate", 120.001));
+    }
+}
+
 /// Вычисление уникального BLAKE3-хэша для файла на основе пути, размера, времени изменения, дорожки и режима.
 pub fn calculate_file_cache_key(
     path: &Path,
     mode: &str,
     track_idx: Option<usize>,
     external_track_path: Option<&str>,
+    duration_hint: f64,
 ) -> Result<String, String> {
     let metadata = std::fs::metadata(path)
         .map_err(|e| format!("Не удалось прочитать метаданные файла: {}", e))?;
@@ -46,12 +131,25 @@ pub fn calculate_file_cache_key(
         .as_millis();
 
     let mut hasher = blake3::Hasher::new();
-    hasher.update(CACHE_ALGORITHM_VERSION.as_bytes());
+    let (version, samples) = if mode == "audio" {
+        (AUDIO_CACHE_VERSION, WAVEFORM_SAMPLES_COUNT)
+    } else {
+        // Preserve video keys from the previous flat cache layout.
+        (VIDEO_CACHE_VERSION, 512)
+    };
+    hasher.update(version.as_bytes());
     hasher.update(path.to_string_lossy().as_bytes());
     hasher.update(&file_size.to_le_bytes());
     hasher.update(&mtime.to_le_bytes());
-    hasher.update(&WAVEFORM_SAMPLES_COUNT.to_le_bytes());
+    hasher.update(&samples.to_le_bytes());
     hasher.update(mode.as_bytes());
+    // A profile built with an unknown/wrong duration must not shadow a corrected request.
+    let duration_key = if duration_hint.is_finite() && duration_hint > 0.0 {
+        (duration_hint * 10.0).round() as u64
+    } else {
+        0
+    };
+    hasher.update(&duration_key.to_le_bytes());
 
     if let Some(track) = track_idx {
         hasher.update(&track.to_le_bytes());
@@ -76,14 +174,57 @@ pub fn calculate_file_cache_key(
 }
 
 /// Получение пути к файлу кэша тепловой карты.
-pub fn resolve_waveform_cache_path(cache_key: &str) -> Result<PathBuf, String> {
-    let waveforms_dir = get_data_dir()?.join("waveforms");
-    if !waveforms_dir.exists() {
-        std::fs::create_dir_all(&waveforms_dir).map_err(|e| {
-            format!("Не удалось создать директорию кэша звуковых карт: {}", e)
-        })?;
+pub fn resolve_waveform_cache_path(cache_key: &str, mode: &str) -> Result<PathBuf, String> {
+    profile_cache_path(&get_data_dir()?.join("waveforms"), cache_key, mode)
+}
+
+fn profile_cache_path(root: &Path, cache_key: &str, mode: &str) -> Result<PathBuf, String> {
+    let folder = match mode {
+        "audio" => "audio",
+        "video_bitrate" => "video_bitrate",
+        _ => return Err("Неизвестный источник тепловой карты".into()),
+    };
+    for name in ["audio", "video_bitrate"] {
+        std::fs::create_dir_all(root.join(name))
+            .map_err(|e| format!("Не удалось создать папку кэша тепловой карты: {}", e))?;
     }
-    Ok(waveforms_dir.join(format!("{}.json", cache_key)))
+    let target = root.join(folder).join(format!("{}.json", cache_key));
+    // Flat profiles of the current algorithm can be reused without rescanning media.
+    let legacy = root.join(format!("{}.json", cache_key));
+    if !target.exists() && legacy.is_file() {
+        let _ = std::fs::rename(legacy, &target);
+    }
+    Ok(target)
+}
+
+/// Clear only known cache locations, including the former flat layout.
+pub async fn clear_profile_cache(root: &Path) -> Result<usize, String> {
+    let mut removed = 0;
+    for dir in [
+        root.to_path_buf(),
+        root.join("audio"),
+        root.join("video_bitrate"),
+    ] {
+        let mut entries = match tokio::fs::read_dir(&dir).await {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(format!("Не удалось прочитать кэш: {}", e)),
+        };
+        while let Some(entry) = entries.next_entry().await.map_err(|e| e.to_string())? {
+            if entry
+                .file_type()
+                .await
+                .map_err(|e| e.to_string())?
+                .is_file()
+            {
+                tokio::fs::remove_file(entry.path())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                removed += 1;
+            }
+        }
+    }
+    Ok(removed)
 }
 
 /// Атомарная запись данных кэша на диск с проверкой актуальности поколения и ротацией.
@@ -175,4 +316,3 @@ pub async fn prune_waveform_cache(waveforms_dir: &Path) {
         }
     }
 }
-

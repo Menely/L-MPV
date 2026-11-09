@@ -15,7 +15,7 @@ import {
   optionCardStyle,
   optionResetBtnStyle,
   optionBtnStyle,
-  optionSectionDescStyle,
+  optionBtnClassName,
   optionBlockHeaderStyle,
   optionBlockTitleStyle,
   optionBlockTitleTextStyle,
@@ -92,10 +92,6 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
       title={dict.settings.appearance.controlButtons.visualizer}
     >
       <div className="col col-gap-5">
-        <span style={optionSectionDescStyle}>
-          {dict.settings.appearance.visualizer.desc}
-        </span>
-
         {/* Интерактивный предпросмотр аудио-визуализатора */}
         <VisualizerPreviewCard config={visualizerConfig} isVisible={isOpen} />
 
@@ -156,7 +152,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                           background: THEME_SWATCH[item.id],
                           border: isSel
                             ? "2px solid #ffffff"
-                            : "1.5px solid rgba(255, 255, 255, 0.18)",
+                            : "none",
                           boxShadow: isSel
                             ? "0 0 14px rgba(255, 255, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.4)"
                             : "none",
@@ -207,6 +203,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                       <button
                         key={item.id}
                         type="button"
+                        className={optionBtnClassName(isSel)}
                         onClick={() => updateVisualizer({ placement: item.id })}
                         style={{ ...optionBtnStyle(isSel, "6px 8px"), height: "100%", minHeight: 38, boxSizing: "border-box" }}
                         title={itemDesc}
@@ -239,6 +236,7 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                       <button
                         key={item.id}
                         type="button"
+                        className={optionBtnClassName(isSel)}
                         onClick={() => updateVisualizer({ mode: item.id })}
                         style={{ ...optionBtnStyle(isSel, "6px 6px"), height: "100%", minHeight: 38, boxSizing: "border-box" }}
                         title={itemDesc}

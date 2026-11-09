@@ -1,0 +1,45 @@
+/* Independent time control: generic time labels must not override this surface. */
+.player-controls .timeline-floating-time {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+.timeline-floating-time .time-display--floating-center {
+  min-height: 28px;
+  height: auto;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border-pill);
+  background: var(--bg-pill);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+  transform: none;
+  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth);
+}
+.timeline-floating-time .time-display--floating-center:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border-color: var(--hover-frame);
+  transform: none;
+}
+.timeline-floating-time .time-display--floating-center:focus-visible { outline-color: var(--focus-ring); }
+.timeline-floating-time .time-display__full { display: inline-flex; }
+.timeline-floating-time .time-display__compact { display: none; }
+.player-controls--capsule .timeline-floating-time .time-display--floating-center {
+  min-height: 32px;
+  padding-inline: 14px;
+  box-shadow: var(--shadow-pill);
+}
+.player-controls-wrapper--docked .timeline-floating-time .time-display--floating-center {
+  min-height: 26px;
+  padding-inline: 10px;
+  background: var(--bg-elevated);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+}
+@container controls (max-width: 600px) {
+  .timeline-floating-time .time-display--floating-center { min-height: 28px; font-size: var(--fs-xs); }
+}

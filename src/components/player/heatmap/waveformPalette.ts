@@ -27,32 +27,40 @@ export interface WaveformMetrics {
  * LRU-кэш для хранения сэмплов в памяти с ограничением размера для предотвращения утечек.
  */
 export class WaveformMemoryCache<T = number[]> {
-  private cache = new Map<string, T>();
+  private cache = new Map<string, { value: T; weight: number }>();
   private readonly maxSize: number;
+  private totalWeight = 0;
 
-  constructor(maxSize: number = 64) {
+  constructor(maxSize: number = 64, private readonly maxWeight = Infinity, private readonly weigh: (value: T) => number = () => 1) {
     this.maxSize = maxSize;
   }
 
   public get(key: string): T | undefined {
-    const value = this.cache.get(key);
-    if (value) {
+    const entry = this.cache.get(key);
+    if (entry) {
       this.cache.delete(key);
-      this.cache.set(key, value);
+      this.cache.set(key, entry);
     }
-    return value;
+    return entry?.value;
   }
 
   public set(key: string, value: T): void {
-    if (this.cache.has(key)) {
+    const previous = this.cache.get(key);
+    if (previous) {
+      this.totalWeight -= previous.weight;
       this.cache.delete(key);
-    } else if (this.cache.size >= this.maxSize) {
+    }
+    const weight = Math.max(0, this.weigh(value));
+    if (weight > this.maxWeight) return;
+    while (this.cache.size > 0 && (this.cache.size >= this.maxSize || this.totalWeight + weight > this.maxWeight)) {
       const oldestKey = this.cache.keys().next().value;
-      if (oldestKey) {
+      if (oldestKey !== undefined) {
+        this.totalWeight -= this.cache.get(oldestKey)!.weight;
         this.cache.delete(oldestKey);
       }
     }
-    this.cache.set(key, value);
+    this.cache.set(key, { value, weight });
+    this.totalWeight += weight;
   }
 
   public has(key: string): boolean {
@@ -61,6 +69,7 @@ export class WaveformMemoryCache<T = number[]> {
 
   public clear(): void {
     this.cache.clear();
+    this.totalWeight = 0;
   }
 }
 

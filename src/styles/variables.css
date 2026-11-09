@@ -28,8 +28,38 @@
   --accent-glass:    rgba(127, 199, 255, 0.08);
 
   /* Токены поверхностей с перцептивной прозрачностью (CSS Color 4) */
-  --surface-accent-subtle: color-mix(in srgb, var(--accent) 10%, transparent);
-  --surface-accent-hover:  color-mix(in srgb, var(--accent) 12%, transparent);
+  --window-control-hover: color-mix(in srgb, var(--accent) 14%, transparent);
+  --surface-accent-subtle: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  --surface-accent-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.22);
+
+  /* ─── ЕДИНЫЙ ВЫКЛЮЧАТЕЛЬ ВЫДЕЛЕНИЯ (selected) ──────────────────────
+     Все выделенные элементы (табы, сегменты, карточки, строки, чипы)
+     берут рамку и тень ОТСЮДА. Чтобы включить/выключить эффект —
+     править только эти две строки:
+       --selection-frame  — цвет рамки выделения;
+       --selection-shadow — тень выделения (внешний ореол + внутреннее кольцо).
+     Текущий режим: БЕЗ РАМОК и БЕЗ ДЫМКИ (чёткие края, выделение читается
+     вуалью --surface-accent-subtle). Откат: вернуть значения в комментарии.
+     --selection-frame: var(--accent);
+     --selection-shadow: 0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent; */
+  --selection-frame: transparent;
+  --selection-shadow: none;
+
+  /* ─── ВУАЛЬ НАВЕДЕНИЯ ──────────────────────────────────────────────
+     Наведение всегда несёт акцент. --hover-veil — на плотных поверхностях
+     (настройки), --hover-veil-float — на стекле поверх видео, где
+     полупрозрачный 8% тон не читается.
+     --hover-frame — рамка наведения: 1px акцентная. Наведение в окне
+     настроек показывает И фон, И рамку (единый контракт), иначе часть
+     кнопок выглядит «живой», а часть — нет. */
+  --hover-veil: rgba(var(--accent-rgb, 127, 199, 255), 0.08);
+  --hover-veil-float: rgba(var(--accent-rgb, 127, 199, 255), 0.18);
+  /* Кнопки ДЕЙСТВИЙ окон (крестик, развернуть, обновить, очистить) —
+     единый фон наведения во всех окнах. Раньше крестик ловил отдельное
+     правило :has(> svg.lucide-x) с более плотной вуалью, а соседние
+     стрелки — более слабую, и в одном островке фон выглядел разным. */
+  --action-hover-veil: var(--hover-veil-float);
+  --hover-frame: rgba(var(--accent-rgb, 127, 199, 255), 0.45);
   --surface-accent-glow:   color-mix(in srgb, var(--accent) 35%, transparent);
   --surface-accent-border: color-mix(in srgb, var(--accent) 40%, transparent);
 
@@ -70,7 +100,7 @@
   --bg-elevated:    rgba(var(--bg-elevated-rgb), var(--ui-opacity, 0.88));
   --bg-surface-elevated: var(--bg-elevated);
   --bg-card: var(--surface-level-3);
-  --bg-hover:       rgba(127, 199, 255, 0.08);
+  --bg-hover:       var(--hover-veil);
   --bg-active:      rgba(127, 199, 255, 0.14);
 
   /* Текст (калибровка контраста под 96 DPI мониторы Full HD) */
@@ -122,9 +152,9 @@
   --radius-xs:       4px;
   --radius-sm:       6px;
   --radius-md:       10px;
-  --radius-lg:       12px;
-  --radius-xl:       16px;
-  --radius-pill:     50px;
+  --radius-lg:       14px;
+  --radius-xl:       20px;
+  --radius-pill:     32px;
   --radius-controls: 16px;
   /* Geometry shared by settings, menus and utility actions (CSS px before UI scale). */
   --size-action-compact: 28px;

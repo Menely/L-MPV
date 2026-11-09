@@ -95,7 +95,7 @@
   justify-content: center;
   background: var(--surface-level-3);
   border: 1px solid var(--border-pill);
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   padding: var(--space-1) 10px;
   font-size: var(--fs-xs);
   font-weight: 600;
@@ -111,8 +111,8 @@
 }
 
 .time-display--titlebar:hover {
-  background: var(--surface-level-3-hover);
-  border-color: var(--accent);
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
   color: #ffffff;
   box-shadow: var(--shadow-card-hover);
 }
@@ -137,7 +137,7 @@
   border: none;
   color: #ffffff;
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   transform-origin: center center;
   transform: translateZ(0) scale(1);
   will-change: transform;
@@ -148,7 +148,7 @@
 }
 
 .titlebar__btn:hover {
-  background: var(--bg-hover);
+  background: var(--window-control-hover);
   color: var(--accent-text);
 }
 

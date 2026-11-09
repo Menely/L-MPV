@@ -60,3 +60,62 @@
 .mt-1 { margin-top: var(--space-1); }
 .mt-2 { margin-top: var(--space-2); }
 .mt-4 { margin-top: var(--space-4); }
+
+/* ─── Выделение и наведение: правила по КЛАССАМ ─────────────────────────
+   Выделение (selected) описывается двумя токенами-переключателями
+   (--selection-frame, --selection-shadow) в variables.css. Правила ниже
+   лишь подключают элементы к этим токенам; жёсткого var(--accent)
+   в рамках выделения нет нигде — иначе «эксперимент без рамок» снова
+   разъезжается по стилям.
+
+   Исключения (рамка/ореол остаются): focus-visible outline 2px (a11y),
+   danger-конфликт 1.5px, кольца свотчей/точек ≤24px (единственный маркер),
+   transient-сигналы записи хоткеев, инпуты/поиск :focus-within,
+   primary-кнопки с solid-заливкой, drag-оверлей, тосты. */
+.ui-option-btn {
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.ui-option-btn:hover:not(.ui-option-btn--selected) {
+  background: var(--hover-veil) !important;
+  border-color: var(--border-pill-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.ui-option-btn--selected {
+  background: var(--surface-accent-subtle) !important;
+  border-color: var(--selection-frame) !important;
+  box-shadow: var(--selection-shadow) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Selection stays frameless at rest; hovering the selected control restores
+   the same frame as any other enabled option. Never affect its descendants. */
+:is(.ui-option-btn--selected, .compact-segment-btn--active,
+    .ui-font-choice--active, .ambient-choice--active, .glow-choice--active,
+    .visual-bar-card--active, .viz-power-btn--active,
+    .settings-tab-btn--active, .settings-side-panel__nav-btn--active,
+    .preset-action-btn--applied):hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--surface-accent-hover) !important;
+  border-color: var(--hover-frame) !important;
+}
+
+:is(.glass-tile--active, .preset-card--active):hover:not([aria-disabled="true"]):not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)) {
+  border-color: var(--hover-frame) !important;
+}
+
+/* Hover-вуаль для кнопок без собственных классов состояний
+   (инлайн-стили всегда побеждают обычный CSS, поэтому !important;
+   :not() охраняет выбранное и записывающее состояния).
+   Контракт наведения одинаковый везде: ФОН + РАМКА. */
+.ui-font-choice:hover:not(.ui-font-choice--active),
+.ambient-choice:hover:not(.ambient-choice--active),
+.glow-choice:hover:not(.glow-choice--active),
+.hotkey-chip:hover:not([data-hotkey-recorder]),
+.model-hotkey-btn:hover:not(.is-recording) {
+  background: var(--hover-veil) !important;
+  border-color: var(--border-pill-hover) !important;
+}

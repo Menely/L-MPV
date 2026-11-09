@@ -34,6 +34,7 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
   return (
     <button
       type="button"
+      className={`model-hotkey-btn${isRecording ? " is-recording" : ""}`}
       tabIndex={0}
       data-hotkey-recording={isRecording ? "true" : undefined}
       onClick={(e) => {
@@ -64,15 +65,15 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
       style={{
         height: 24,
         padding: "0 8px",
-        borderRadius: "var(--radius-sm, 6px)",
+        borderRadius: "var(--radius-control)",
         background: isRecording
           ? "var(--surface-accent-subtle)"
           : "var(--surface-level-3)",
         border: isRecording
-          ? "1.5px solid var(--accent)"
+          ? "1px solid var(--accent)"
           : "1px solid var(--border-subtle)",
         boxShadow: isRecording
-          ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent"
+          ? "none"
           : "none",
         fontFamily: "var(--font-mono, monospace)",
         fontSize: "var(--fs-xs)",

@@ -142,7 +142,7 @@
   color: var(--text-muted) !important;
   background: transparent !important;
   border: none !important;
-  border-radius: var(--radius-controls, 16px) !important;
+  border-radius: var(--radius-control) !important;
   cursor: pointer !important;
   flex-shrink: 0 !important;
   transition: background var(--t-fast) var(--ease-smooth),
@@ -150,7 +150,7 @@
 }
 
 .track-popover--speed .speed-popover__close-btn:hover {
-  background: var(--bg-hover) !important;
+  background: var(--action-hover-veil) !important;
   color: var(--text-primary) !important;
 }
 
@@ -188,7 +188,7 @@
 }
 
 .track-popover--capsule.track-popover--speed .speed-popover__close-btn {
-  border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
+  border-radius: var(--radius-control) !important;
 }
 
 /* ─── Адаптация для стилей «Модерн» и «Классический» (монолитный) ──── */
@@ -233,7 +233,7 @@
   height: 25px !important;
   padding: 0 8px !important;
   box-sizing: border-box !important;
-  border-radius: var(--radius-sm, 6px) !important;
+  border-radius: var(--radius-list-row) !important;
   font-size: 12px !important;
   display: flex !important;
   align-items: center !important;
@@ -241,7 +241,7 @@
 }
 
 .track-popover--speed.track-popover--capsule .track-popover__item {
-  border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
+  border-radius: min(var(--radius-list-row), max(0px, calc(var(--radius-surface) - 5px))) !important;
 }
 
 .track-popover--speed .track-popover__item-title {
@@ -254,7 +254,7 @@
 }
 
 .track-popover--speed .track-popover__item:hover {
-  background: var(--bg-hover) !important;
+  background: var(--hover-veil-float) !important;
   color: #ffffff !important;
 }
 

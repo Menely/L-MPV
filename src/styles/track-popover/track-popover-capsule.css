@@ -83,7 +83,7 @@
   box-shadow: var(--shadow-elevated) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  padding: 4px 6px !important;
+  padding: 6px !important;
   margin: 0 0 6px 0 !important;
   box-sizing: border-box !important;
   transition: background var(--t-fast) var(--ease-smooth),
@@ -94,12 +94,12 @@
 .track-popover--capsule .track-popover__disable-sub-card .track-popover__item {
   min-height: var(--size-menu-row) !important;
   padding: 6px 10px !important;
-  /* Insets: 6px horizontal / 4px vertical padding + 1px outer border. */
-  border-radius: max(0px, calc(var(--radius-controls, 16px) - 7px)) / max(0px, calc(var(--radius-controls, 16px) - 5px)) !important;
+  /* Symmetric 6px inset plus the outer 1px border. */
+  border-radius: min(var(--radius-list-row), max(0px, calc(var(--radius-surface) - 7px))) !important;
 }
 
 .track-popover--capsule .track-popover__disable-sub-card .track-popover__item:hover {
-  background: var(--bg-hover) !important;
+  background: var(--hover-veil-float) !important;
 }
 
 /* Скролл-контейнер списка дорожек:
@@ -153,7 +153,7 @@
 .track-popover--capsule .track-popover__item {
   background: transparent !important;
   border: none !important;
-  border-radius: max(0px, calc(var(--radius-controls, 16px) - 7px)) !important;
+  border-radius: min(var(--radius-list-row), max(0px, calc(var(--radius-surface) - 7px))) !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -168,7 +168,7 @@
 }
 
 .track-popover--capsule .track-popover__item:hover {
-  background: var(--bg-hover) !important;
+  background: var(--hover-veil-float) !important;
   color: #ffffff !important;
 }
 
@@ -181,40 +181,31 @@
 }
 
 .track-popover--capsule .track-popover__item--active:hover {
-  background: var(--bg-hover) !important;
+  background: var(--hover-veil-float) !important;
   color: #ffffff !important;
 }
 
-/* Кнопка скачивания:
-   - Отдельный интерактивный элемент справа от дорожки
-   - Не имеет фонов и рамок в обычном состоянии
-   - Не выделяется вместе с активной дорожкой
-   - При наведении на неё мягко подсвечивается */
+/* Кнопка скачивания: тот же «голый» дизайн, что и в остальных стилях
+   (базовое правило .track-download-btn), в «Капсуле» — крупнее на 4px. */
 .track-popover--capsule .track-download-btn {
-  background: transparent !important;
-  border: none !important;
-  border-radius: max(0px, calc(var(--radius-controls, 16px) - 7px)) !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  border-radius: min(var(--radius-list-row), max(0px, calc(var(--radius-controls, 16px) - 7px))) !important;
   width: 32px !important;
   height: 32px !important;
   min-width: 32px !important;
   min-height: 32px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
   flex-shrink: 0;
   box-sizing: border-box;
   color: var(--text-muted) !important;
   cursor: pointer !important;
   transition: color var(--t-fast) var(--ease-smooth),
-              background var(--t-fast) var(--ease-smooth);
+              background-color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-spring-smooth);
 }
 
 .track-popover--capsule .track-download-btn:hover:not(:disabled) {
-  background: var(--bg-hover) !important;
+  background: var(--hover-veil-float) !important;
   color: var(--accent-text) !important;
+  border-color: transparent !important;
 }
 
 /* Разделитель между «Выключить» и списком в монолитном режиме скрывается */
@@ -235,5 +226,5 @@
 
 /* Концентрическое скругление кнопки поиска в шапке окна дорожек */
 .track-popover--capsule .track-popover__icon-btn {
-  border-radius: max(0px, calc(var(--radius-surface) - var(--track-action-padding) - var(--track-action-border))) !important;
+  border-radius: min(var(--radius-control), max(0px, calc(var(--radius-surface) - var(--track-action-padding, 0px) - var(--track-action-border, 0px)))) !important;
 }

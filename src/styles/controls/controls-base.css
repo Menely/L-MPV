@@ -86,7 +86,7 @@
   pointer-events: auto;
   background: var(--bg-pill);
   border: 1px solid var(--border-pill);
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   padding: var(--space-1) 11px;
   font-size: var(--fs-xs);
   font-weight: 600;
@@ -103,7 +103,7 @@
 
 .time-display--floating-center:hover {
   background: var(--bg-elevated);
-  border-color: var(--accent);
+  border-color: var(--border-pill-hover);
   color: #ffffff;
   box-shadow: var(--shadow-card-hover);
   transform: translateY(-1px);
@@ -944,27 +944,47 @@ html[data-glow="off"] .timeline__thumb {
 }
 
 /* 1. Режим: «Над панелью» (above_controls) — парящий HUD строго по ширине таймлайна над пилюлей */
+.player-controls-wrapper {
+  --heatmap-controls-gap: 2px;
+  --heatmap-timeline-gap: 2px;
+  --heatmap-panel-inset: calc(var(--space-2) + 1px);
+  --heatmap-visualizer-offset: 0px;
+}
+
+.player-controls-wrapper--docked {
+  --heatmap-controls-gap: 4px;
+  --heatmap-panel-inset: 9px;
+}
+
+.player-controls-wrapper--capsule {
+  --heatmap-controls-gap: 3px;
+  --heatmap-timeline-gap: 3px;
+  --heatmap-panel-inset: 6px;
+}
+
+.player-controls--has-visualizer-above {
+  --heatmap-visualizer-offset: calc(var(--visualizer-height, 22px) + var(--space-1));
+}
+
 .waveform-activity-strip--above-controls {
   position: absolute;
   left: 0;
   right: 0;
   width: 100%;
-  bottom: calc(100% + 10px);
+  bottom: calc(100% + var(--heatmap-panel-inset) + var(--heatmap-controls-gap) + var(--heatmap-visualizer-offset));
   z-index: 15;
   overflow: visible;
 }
 
-/* Адаптация вертикального положения при наличии аудио-визуализатора над таймлайном */
-.waveform-activity-strip--above-controls.waveform-activity-strip--above-visualizer,
-.player-controls--has-visualizer-above .waveform-activity-strip--above-controls {
-  bottom: calc(100% + var(--visualizer-height, 22px) + 10px);
+.waveform-activity-strip--above-controls.waveform-activity-strip--above-visualizer {
+  --heatmap-visualizer-offset: calc(var(--visualizer-height, 22px) + var(--space-1));
 }
 
 /* 2. Режим: «Над таймлайном» (above_timeline) — внутри панели прямо над таймлайном */
 .waveform-activity-strip--above-timeline {
   position: relative;
   width: 100%;
-  margin-bottom: 4px;
+  margin-bottom: var(--heatmap-timeline-gap);
   border-radius: var(--radius-sm, 6px);
   overflow: visible;
   z-index: 10;
@@ -981,6 +1001,17 @@ html[data-glow="off"] .timeline__thumb {
   display: block;
   border-radius: var(--radius-sm, 6px);
   pointer-events: none;
+}
+
+/* Preview is anchored to the timeline; floating time is anchored to its panel. */
+.player-controls:has(.waveform-activity-strip--above-controls.waveform-activity-strip--visible) .timeline-preview-card {
+  bottom: calc(100% + var(--heatmap-strip-height, 34px) + var(--heatmap-panel-inset) + var(--heatmap-controls-gap) + var(--heatmap-visualizer-offset) + 8px);
+}
+.player-controls:has(.waveform-activity-strip--above-timeline.waveform-activity-strip--visible) .timeline-preview-card {
+  bottom: calc(100% + var(--heatmap-strip-height, 34px) + var(--heatmap-timeline-gap) + var(--heatmap-visualizer-offset) + 8px);
+}
+.player-controls:has(.waveform-activity-strip--above-controls.waveform-activity-strip--visible) .timeline-floating-time {
+  bottom: calc(100% + var(--heatmap-strip-height, 34px) + var(--heatmap-controls-gap) + 8px);
 }
 
 /* Парящий информационный бейдж над тепловой картой при наведении (Zero-Blur DirectWrite ClearType) */
@@ -1080,7 +1111,7 @@ html[data-glow="off"] .timeline__thumb {
 .waveform-activity-strip__retry-btn {
   background: var(--bg-card, rgba(255, 255, 255, 0.1));
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.18));
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   color: var(--text-primary, #fff);
   padding: 1px 6px;
   font-size: 9px;

@@ -36,8 +36,8 @@ impl HeatmapTaskManager {
 
     /// Начало нового запроса анализа: увеличивает счетчик поколения и убивает предыдущий процесс.
     pub async fn start_request(&self) -> u64 {
-        let next_gen = self.generation_id.fetch_add(1, Ordering::SeqCst) + 1;
         let mut guard = self.active_child.lock().await;
+        let next_gen = self.generation_id.fetch_add(1, Ordering::SeqCst) + 1;
         if let Some((_, mut prev_child)) = guard.take() {
             let _ = prev_child.kill().await;
             let _ = prev_child.wait().await;
@@ -47,8 +47,8 @@ impl HeatmapTaskManager {
 
     /// Принудительная отмена текущего активного анализа (при закрытии файла или выключении карты).
     pub async fn abort_current(&self) {
-        self.generation_id.fetch_add(1, Ordering::SeqCst);
         let mut guard = self.active_child.lock().await;
+        self.generation_id.fetch_add(1, Ordering::SeqCst);
         if let Some((_, mut prev_child)) = guard.take() {
             let _ = prev_child.kill().await;
             let _ = prev_child.wait().await;
@@ -84,6 +84,8 @@ impl HeatmapTaskManager {
         if let Some((active_gen, _)) = guard.as_ref() {
             if *active_gen == expected_gen {
                 if let Some((_, mut finished_child)) = guard.take() {
+                    // Error cleanup may run before EOF while the stdout pipe is full.
+                    let _ = finished_child.start_kill();
                     let _ = finished_child.wait().await;
                 }
             }
@@ -139,6 +141,34 @@ impl HeatmapTaskManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generation_and_child_removal_are_serialized() {
+        tauri::async_runtime::block_on(async {
+            let manager = HeatmapTaskManager::new();
+            let guard = manager.active_child.lock().await;
+            let mut start = Box::pin(manager.start_request());
+            assert!(
+                tokio::time::timeout(std::time::Duration::from_millis(5), &mut start)
+                    .await
+                    .is_err()
+            );
+            assert!(manager.is_generation_current(0));
+            drop(guard);
+            let generation = start.await;
+            let guard = manager.active_child.lock().await;
+            let mut abort = Box::pin(manager.abort_current());
+            assert!(
+                tokio::time::timeout(std::time::Duration::from_millis(5), &mut abort)
+                    .await
+                    .is_err()
+            );
+            assert!(manager.is_generation_current(generation));
+            drop(guard);
+            abort.await;
+            assert!(!manager.is_generation_current(generation));
+        });
+    }
 
     #[test]
     fn test_generation_increment_and_cancellation() {

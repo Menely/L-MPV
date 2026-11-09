@@ -52,6 +52,7 @@ pub fn open_file_internal(
     path: &str,
     app: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_for_other_file(state, path)?;
     // Сохранение позиции предыдущего файла перед открытием нового
     save_current_playback_position(state);
     save_history_to_disk();
@@ -143,6 +144,7 @@ pub fn open_file_internal(
 pub fn toggle_pause(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, false)?;
     // Если достигнут конец воспроизведения, перезапускаем видео с самого начала
     let dur = state
         .mpv
@@ -178,6 +180,7 @@ pub fn set_pause(
     state: State<'_, PlayerState>,
     paused: bool,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, false)?;
     let mut restart = false;
     if !paused {
         let dur = state
@@ -278,6 +281,7 @@ pub fn seek_preview(
 pub fn frame_step(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, false)?;
     let result = state.mpv.command("frame-step");
     invalidate_ambient_result(&state, result)
 }
@@ -287,6 +291,7 @@ pub fn frame_step(
 pub fn frame_back_step(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, false)?;
     let result = state.mpv.command("frame-back-step");
     invalidate_ambient_result(&state, result)
 }

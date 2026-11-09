@@ -1,12 +1,12 @@
 /**
  * Модуль типов и конфигурации продвинутой тепловой карты таймлайна (Waveform / Activity Strip).
  *
- * Предоставляет гибкое управление визуальным стилем отображения (столбики, сплайн, блоки),
+ * Предоставляет управление шестью визуальными стилями,
  * источниками данных (громкость звука, битрейт видеопотока),
  * цветовыми палитрами и геометрическим позиционированием в интерфейсе L-MPV.
  */
 
-export type HeatmapStyle = "bars" | "spline" | "blocks";
+export type HeatmapStyle = "bars" | "spline" | "blocks" | "area" | "steps" | "dots";
 
 export type HeatmapDataSource = "audio" | "video_bitrate";
 
@@ -77,95 +77,60 @@ export interface HeatmapConfig {
   placement: HeatmapPlacement;
   /** Высота полосы в пикселях (16..36) */
   height: number;
-  /** Непрозрачность полосы (0.4..1.0) */
+  /** Непрозрачность полосы (0.2..1.0) */
   opacity: number;
-  /** Отображение светящейся линии гребня волны */
-  showCrestLine: boolean;
 }
 
 export const HEATMAP_STORAGE_KEY = "l-mpv-heatmap-config";
 export const HEATMAP_CONFIG_CHANGED_EVENT = "l-mpv-heatmap-config-changed";
 
 export const DEFAULT_HEATMAP_CONFIG: HeatmapConfig = {
-  enabled: true,
+  enabled: false,
   style: "bars",
   dataSource: "audio",
   palette: "theme",
   placement: "above_controls",
   height: 34,
   opacity: 0.9,
-  showCrestLine: true,
 };
 
 /**
  * Получение текущей конфигурации тепловой карты из localStorage с валидацией и миграцией.
  */
+export const MIN_HEATMAP_HEIGHT = 16;
+export const MAX_HEATMAP_HEIGHT = 36;
+
+function pick<T extends string>(value: unknown, options: readonly T[], fallback: T): T {
+  return options.includes(value as T) ? value as T : fallback;
+}
+
+/** Canonical settings strip retired fields from old presets and disk snapshots. */
+export function normalizeHeatmapConfig(value: unknown): HeatmapConfig {
+  const data = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const oldHeight = typeof data.height === "number" && Number.isFinite(data.height) ? data.height : DEFAULT_HEATMAP_CONFIG.height;
+  const height = data._schemaVersion !== 2 && data._schemaVersion !== 3 && oldHeight === 24
+    ? DEFAULT_HEATMAP_CONFIG.height : oldHeight;
+  return {
+    enabled: typeof data.enabled === "boolean" ? data.enabled : DEFAULT_HEATMAP_CONFIG.enabled,
+    style: data.style === "mirrored" ? "steps"
+      : pick(data.style, ["bars", "spline", "blocks", "area", "steps", "dots"], DEFAULT_HEATMAP_CONFIG.style),
+    dataSource: pick(data.dataSource, ["audio", "video_bitrate"], DEFAULT_HEATMAP_CONFIG.dataSource),
+    palette: pick(data.palette, ["theme", "thermal", "cyberpunk", "monochrome", "sunset", "aurora", "ocean", "plasma"], DEFAULT_HEATMAP_CONFIG.palette),
+    placement: data.placement === "inside_timeline" ? "above_timeline"
+      : pick(data.placement, ["above_controls", "above_timeline"], DEFAULT_HEATMAP_CONFIG.placement),
+    height: Math.min(MAX_HEATMAP_HEIGHT, Math.max(MIN_HEATMAP_HEIGHT, height)),
+    opacity: typeof data.opacity === "number" && Number.isFinite(data.opacity)
+      ? Math.min(1, Math.max(0.2, data.opacity)) : DEFAULT_HEATMAP_CONFIG.opacity,
+  };
+}
+
 export function getHeatmapConfig(): HeatmapConfig {
   try {
     const raw = localStorage.getItem(HEATMAP_STORAGE_KEY);
-    if (!raw) {
-      // Поддержка миграции со старого простого ключа l-mpv-waveform-enabled
-      const legacyEnabled = localStorage.getItem("l-mpv-waveform-enabled");
-      if (legacyEnabled !== null) {
-        return {
-          ...DEFAULT_HEATMAP_CONFIG,
-          enabled: legacyEnabled === "true",
-        };
-      }
-      return { ...DEFAULT_HEATMAP_CONFIG };
-    }
-    const parsed = JSON.parse(raw);
-
-    // Миграция устаревшего режима inside_timeline в above_timeline
-    let placement: HeatmapPlacement = DEFAULT_HEATMAP_CONFIG.placement;
-    if (parsed.placement === "inside_timeline" || parsed.placement === "above_timeline") {
-      placement = "above_timeline";
-    } else if (parsed.placement === "above_controls") {
-      placement = "above_controls";
-    }
-
-    // Валидация стиля (зеркальный переводится в столбики)
-    let style: HeatmapStyle = DEFAULT_HEATMAP_CONFIG.style;
-    if (["bars", "spline", "blocks"].includes(parsed.style)) {
-      style = parsed.style as HeatmapStyle;
-    }
-
-    // Валидация источника данных (оставлены только audio и video_bitrate)
-    let dataSource: HeatmapDataSource = DEFAULT_HEATMAP_CONFIG.dataSource;
-    if (["audio", "video_bitrate"].includes(parsed.dataSource)) {
-      dataSource = parsed.dataSource as HeatmapDataSource;
-    }
-
-    // Однократная миграция старой высоты по умолчанию (24px -> 34px)
-    const rawHeight =
-      typeof parsed.height === "number" && parsed.height >= 16 && parsed.height <= 48
-        ? parsed.height
-        : DEFAULT_HEATMAP_CONFIG.height;
-    const height =
-      parsed._schemaVersion !== 2 && rawHeight === 24
-        ? DEFAULT_HEATMAP_CONFIG.height
-        : rawHeight;
-
-    return {
-      enabled: typeof parsed.enabled === "boolean" ? parsed.enabled : DEFAULT_HEATMAP_CONFIG.enabled,
-      style,
-      dataSource,
-      palette: ["theme", "thermal", "cyberpunk", "monochrome", "sunset", "aurora", "ocean", "plasma"].includes(parsed.palette)
-        ? (parsed.palette as HeatmapPalette)
-        : DEFAULT_HEATMAP_CONFIG.palette,
-      placement,
-      height,
-      opacity:
-        typeof parsed.opacity === "number" && parsed.opacity >= 0.2 && parsed.opacity <= 1
-          ? parsed.opacity
-          : DEFAULT_HEATMAP_CONFIG.opacity,
-      showCrestLine:
-        typeof parsed.showCrestLine === "boolean"
-          ? parsed.showCrestLine
-          : DEFAULT_HEATMAP_CONFIG.showCrestLine,
-    };
-  } catch (e) {
-    console.error("Ошибка считывания конфигурации тепловой карты:", e);
+    if (raw) return normalizeHeatmapConfig(JSON.parse(raw));
+    const legacy = localStorage.getItem("l-mpv-waveform-enabled");
+    return { ...DEFAULT_HEATMAP_CONFIG, enabled: legacy === null ? false : legacy === "true" };
+  } catch {
     return { ...DEFAULT_HEATMAP_CONFIG };
   }
 }
@@ -176,10 +141,10 @@ export function getHeatmapConfig(): HeatmapConfig {
 export function saveHeatmapConfig(patch: Partial<HeatmapConfig>): HeatmapConfig {
   try {
     const current = getHeatmapConfig();
-    const updated: HeatmapConfig = { ...current, ...patch };
+    const updated = normalizeHeatmapConfig({ ...current, ...patch, _schemaVersion: 3 });
     localStorage.setItem(
       HEATMAP_STORAGE_KEY,
-      JSON.stringify({ ...updated, _schemaVersion: 2 })
+      JSON.stringify({ ...updated, _schemaVersion: 3 })
     );
     // Обратная совместимость со старым флагом
     localStorage.setItem("l-mpv-waveform-enabled", String(updated.enabled));

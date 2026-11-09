@@ -82,7 +82,7 @@
 
 .context-menu__item:hover,
 .context-menu__item--submenu-open {
-  background: var(--bg-hover);
+  background: var(--hover-veil-float);
 }
 
 /* Невидимый улавливающий мост наведения у открытого пункта подменю:
@@ -278,7 +278,7 @@
   min-width: 7px;
   min-height: 7px;
   border-radius: 50%;
-  background: var(--focus-ring);
+  background: var(--accent);
   box-shadow: 0 0 6px var(--surface-accent-glow);
   display: inline-block;
   flex-shrink: 0;
@@ -350,7 +350,8 @@
               color var(--t-fast) var(--ease-smooth);
 }
 
-/* Кнопка скачивания дорожки в подменю контекстного меню */
+/* Кнопка скачивания дорожки в подменю контекстного меню.
+   Тот же «голый» дизайн, что и в окнах дорожек: без карточки и рамки. */
 .context-menu .track-download-btn {
   display: inline-flex;
   align-items: center;
@@ -360,9 +361,9 @@
   padding: 0;
   flex-shrink: 0;
   border-radius: var(--menu-item-radius);
-  border: 1px solid var(--border-pill);
-  background: var(--surface-level-3);
-  color: var(--text-secondary);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
   cursor: pointer;
   outline: none;
   transition: background-color var(--t-fast) var(--ease-smooth),
@@ -377,9 +378,9 @@
 }
 
 .context-menu .track-download-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
+  background: var(--hover-veil-float);
   color: var(--accent-text);
-  border-color: var(--accent);
+  border-color: transparent;
 }
 
 .context-menu .track-download-btn:active:not(:disabled) {
@@ -392,7 +393,7 @@
 }
 
 .context-menu__track-btn:hover {
-  background: var(--bg-hover);
+  background: var(--hover-veil-float);
   color: var(--text-primary);
 }
 

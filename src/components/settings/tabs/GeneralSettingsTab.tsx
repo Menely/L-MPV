@@ -21,6 +21,7 @@ import {
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { usePlayerState } from "../../../contexts/PlayerStateContext";
 import type { Locale } from "../../../i18n/types";
+import { isVolumeIndicatorEnabled, setVolumeIndicatorEnabled } from "../../../utils/volumeFeedback";
 
 /* ── Допустимые значения настроек видео/аудио ───────────────
    Держатся здесь, а не внутри разметки: и кнопки, и сравнение
@@ -105,6 +106,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
 
   // ── Состояние настроек оптимизации видео/аудио ──
   const [audioLimiter, setAudioLimiter] = useState(true);
+  const [volumeIndicatorEnabled, setVolumeIndicatorEnabledState] = useState(isVolumeIndicatorEnabled);
   const [debandEnabled, setDebandEnabled] = useState(false);
   const [debandPreset, setDebandPreset] = useState("balanced");
   const [audioLatencyFix, setAudioLatencyFix] = useState(true);
@@ -117,6 +119,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   useEffect(() => {
     const handleSettingsChanged = () => {
       setWaveformEnabledState(isWaveformEnabled());
+      setVolumeIndicatorEnabledState(isVolumeIndicatorEnabled());
     };
     window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
     return () => {
@@ -293,7 +296,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                     fontWeight: 700,
                     letterSpacing: "0.5px",
                     padding: "2px 5px",
-                    borderRadius: "4px",
+                    borderRadius: "var(--radius-xs)",
                     background: locale === "ru" ? "var(--accent)" : "rgba(255, 255, 255, 0.08)",
                     color: locale === "ru" ? "var(--on-accent)" : "var(--text-muted)",
                     lineHeight: 1,
@@ -330,7 +333,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                     fontWeight: 700,
                     letterSpacing: "0.5px",
                     padding: "2px 5px",
-                    borderRadius: "4px",
+                    borderRadius: "var(--radius-xs)",
                     background: locale === "en" ? "var(--accent)" : "rgba(255, 255, 255, 0.08)",
                     color: locale === "en" ? "var(--on-accent)" : "var(--text-muted)",
                     lineHeight: 1,
@@ -834,10 +837,6 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
         icon={<Clapperboard size={18} />}
         title={dict.settings.general.videoAudioSection}
         >
-        <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", marginBottom: "var(--space-5)", lineHeight: 1.35 }}>
-          {dict.settings.general.videoAudioDesc}
-        </div>
-
         <div className="option-tiles-grid">
           {/* 4.1 Обработка кадра */}
           <OptionCard
@@ -916,6 +915,12 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
               onChange={(v) => setAudioLatencyFixSafe(v)}
               label={dict.settings.general.audioLatencyFixTitle}
               title={dict.settings.general.audioLatencyFixDesc}
+            />
+            <OptionToggleRow
+              checked={volumeIndicatorEnabled}
+              onChange={setVolumeIndicatorEnabled}
+              label={dict.settings.general.volumeIndicatorTitle}
+              title={dict.settings.general.volumeIndicatorDesc}
             />
           </OptionCard>
 

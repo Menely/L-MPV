@@ -135,15 +135,15 @@
 }
 
 .settings-side-panel__nav-btn:hover {
-  background: var(--bg-hover);
+  background: var(--hover-veil);
   color: var(--text-primary);
 }
 
 .settings-side-panel__nav-btn--active {
   background: var(--surface-accent-subtle);
   color: var(--accent-text);
-  border-color: var(--accent);
-  box-shadow: 0 0 7px var(--surface-accent-glow);
+  border-color: var(--selection-frame);
+  box-shadow: var(--selection-shadow);
 }
 
 .settings-side-panel__nav-btn--active:hover {
@@ -174,7 +174,8 @@
 }
 
 .settings-side-panel__close:hover {
-  background: var(--bg-hover);
+  background: var(--action-hover-veil);
+  border-color: var(--border-pill-hover);
   color: var(--text-primary);
 }
 
@@ -342,8 +343,8 @@ body.settings-open .player-controls-wrapper--docked {
 }
 
 .settings-window-choice.visual-bar-card--active {
-  border-width: 1.5px !important;
-  box-shadow: 0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent !important;
+  border-width: 1px !important;
+  box-shadow: inset 0 0 0 1.5px transparent !important;
 }
 
 .settings-window-choice__note {

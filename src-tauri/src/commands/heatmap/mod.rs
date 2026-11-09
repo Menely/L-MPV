@@ -13,6 +13,8 @@ pub mod cache;
 pub mod manager;
 pub mod types;
 pub mod video_bitrate;
+pub mod video_native;
+pub mod video_profile;
 
 pub use audio::stream_audio_heatmap;
 pub use cache::{calculate_file_cache_key, resolve_waveform_cache_path, save_cache_atomically};
@@ -112,23 +114,32 @@ pub async fn get_media_heatmap_data(
         normalized_mode,
         effective_track_idx,
         effective_ext_path,
+        duration_hint.unwrap_or(0.0),
     )?;
-    let cache_file = resolve_waveform_cache_path(&cache_key)?;
+    let cache_file = resolve_waveform_cache_path(&cache_key, normalized_mode)?;
 
     let current_gen = task_manager.start_request().await;
 
-    // Считывание из дискового кэша (0-1 мс) с проверкой актуальности поколения и валидности JSON
+    // Чтение кэша с проверкой поколения, идентичности и структуры профиля.
     if cache_file.exists() {
         if let Ok(content) = tokio::fs::read_to_string(&cache_file).await {
             if !task_manager.is_generation_current(current_gen) {
                 return Err("TaskCancelled".to_string());
             }
             match serde_json::from_str::<HeatmapDataResponse>(&content) {
-                Ok(mut cached_resp) => {
+                Ok(mut cached_resp)
+                    if valid_cached_profile(
+                        &cached_resp,
+                        &path,
+                        normalized_mode,
+                        effective_track_idx,
+                        effective_ext_path,
+                    ) =>
+                {
                     cached_resp.generation_id = current_gen;
                     return Ok(cached_resp);
                 }
-                Err(_) => {
+                _ => {
                     // Повреждённый файл кэша автоматически удаляется
                     let _ = tokio::fs::remove_file(&cache_file).await;
                 }
@@ -170,11 +181,146 @@ pub async fn get_media_heatmap_data(
 
     // Атомарное сохранение в кэш с проверкой актуальности поколения и ротацией старых файлов
     if let Ok(json_content) = serde_json::to_string(&response) {
-        let _ =
-            save_cache_atomically(&cache_file, &json_content, &task_manager, current_gen).await;
+        let _ = save_cache_atomically(&cache_file, &json_content, &task_manager, current_gen).await;
     }
 
     Ok(response)
+}
+
+fn valid_cached_profile(
+    data: &HeatmapDataResponse,
+    path: &str,
+    mode: &str,
+    track: Option<usize>,
+    external_path: Option<&str>,
+) -> bool {
+    let count = data.visual_bins.len();
+    if data.media_path != path
+        || data.stream_mode != mode
+        || data.track_idx != track
+        || data.external_track_path.as_deref() != external_path
+        || !data.duration_sec.is_finite()
+        || data.duration_sec <= 0.0
+        || !data.step_duration_sec.is_finite()
+        || data.step_duration_sec <= 0.0
+        || !data.start_time_offset.is_finite()
+        || count == 0
+        || count > video_profile::MAX_VIDEO_DURATION as usize
+    {
+        return false;
+    }
+    match &data.metrics {
+        types::HeatmapMetricsData::VideoBitrate {
+            bitrate_kbps,
+            packet_counts,
+        } => {
+            mode == "video_bitrate"
+                && data.step_duration_sec == video_profile::VIDEO_BIN_SECONDS
+                && count == data.duration_sec.ceil() as usize
+                && bitrate_kbps.len() == count
+                && packet_counts.len() == count
+                && bitrate_kbps.iter().all(|x| x.is_finite() && *x >= 0.0)
+        }
+        types::HeatmapMetricsData::Audio { rms_db, peak_db } => {
+            mode == "audio"
+                && count == cache::WAVEFORM_SAMPLES_COUNT
+                && rms_db.len() == count
+                && peak_db.len() == count
+                && rms_db.iter().chain(peak_db).all(|x| x.is_finite())
+        }
+    }
+}
+
+#[cfg(test)]
+mod profile_cache_tests {
+    use super::*;
+
+    fn profile() -> HeatmapDataResponse {
+        HeatmapDataResponse {
+            media_path: "video.mkv".into(),
+            stream_mode: "video_bitrate".into(),
+            track_idx: None,
+            external_track_path: None,
+            duration_sec: 1.5,
+            step_duration_sec: 1.0,
+            start_time_offset: 0.0,
+            visual_bins: vec![100, 255],
+            metrics: types::HeatmapMetricsData::VideoBitrate {
+                bitrate_kbps: vec![1000.0, 2000.0],
+                packet_counts: vec![24, 12],
+            },
+            generation_id: 1,
+        }
+    }
+
+    #[test]
+    fn cached_profiles_require_matching_identity_and_interval_layout() {
+        let mut data = profile();
+        assert!(valid_cached_profile(
+            &data,
+            "video.mkv",
+            "video_bitrate",
+            None,
+            None
+        ));
+        assert!(!valid_cached_profile(
+            &data,
+            "other.mkv",
+            "video_bitrate",
+            None,
+            None
+        ));
+        assert!(!valid_cached_profile(
+            &data,
+            "video.mkv",
+            "audio",
+            None,
+            None
+        ));
+        data.step_duration_sec = 2.0;
+        assert!(!valid_cached_profile(
+            &data,
+            "video.mkv",
+            "video_bitrate",
+            None,
+            None
+        ));
+        data.step_duration_sec = 1.0;
+        data.duration_sec = 20.0;
+        assert!(!valid_cached_profile(
+            &data,
+            "video.mkv",
+            "video_bitrate",
+            None,
+            None
+        ));
+    }
+
+    #[test]
+    fn truncated_or_nonfinite_cached_metrics_are_rejected() {
+        let mut data = profile();
+        if let types::HeatmapMetricsData::VideoBitrate { bitrate_kbps, .. } = &mut data.metrics {
+            bitrate_kbps[1] = f32::NAN;
+        }
+        assert!(!valid_cached_profile(
+            &data,
+            "video.mkv",
+            "video_bitrate",
+            None,
+            None
+        ));
+        data = profile();
+        if let types::HeatmapMetricsData::VideoBitrate { packet_counts, .. } = &mut data.metrics {
+            packet_counts.pop();
+        }
+        assert!(!valid_cached_profile(
+            &data,
+            "video.mkv",
+            "video_bitrate",
+            None,
+            None
+        ));
+    }
 }
 
 /// Принудительная отмена активного фонового анализа тепловой карты.
@@ -194,22 +340,5 @@ pub async fn clear_waveform_cache(
     // Сначала прерываем активный анализ и инвалидируем поколение, чтобы фоновая задача не записала файл после очистки
     task_manager.abort_current().await;
 
-    let waveforms_dir = get_data_dir()?.join("waveforms");
-    if !waveforms_dir.exists() {
-        return Ok(0);
-    }
-
-    let mut removed_count = 0;
-    if let Ok(mut entries) = tokio::fs::read_dir(&waveforms_dir).await {
-        while let Ok(Some(entry)) = entries.next_entry().await {
-            let path = entry.path();
-            if path.is_file() {
-                if tokio::fs::remove_file(path).await.is_ok() {
-                    removed_count += 1;
-                }
-            }
-        }
-    }
-
-    Ok(removed_count)
+    cache::clear_profile_cache(&get_data_dir()?.join("waveforms")).await
 }

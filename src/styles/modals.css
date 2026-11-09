@@ -133,7 +133,7 @@
 }
 
 .modal__close:hover {
-  background: var(--bg-hover);
+  background: var(--action-hover-veil);
   color: var(--text-primary);
 }
 
@@ -254,7 +254,7 @@
   background: var(--accent);
   color: var(--on-accent);
   box-shadow: none;
-  border-color: var(--accent);
+  border-color: var(--border-pill-hover);
 }
 
 .settings-action-btn--secondary {
@@ -264,8 +264,8 @@
 }
 
 .settings-action-btn--secondary:hover:not(:disabled) {
-  background: var(--surface-level-3-hover);
-  border-color: var(--border-hover);
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
   color: #ffffff;
 }
 
@@ -336,7 +336,7 @@
   color: var(--accent-text);
   background: var(--accent-glass);
   padding: 1px 5px;
-  border-radius: 9999px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--border-pill);
 }
 
@@ -357,7 +357,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
   transition: transform var(--t-spring) var(--ease-spring-bounce),
               box-shadow var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth);
@@ -365,18 +365,37 @@
   box-sizing: border-box;
 }
 
-.color-circle:hover {
+/* Keep only these small palette buttons on the same compositing path at rest
+   and during scaling. Demoting the layer after transition rerasterizes a
+   fractional-zoom edge at a different pixel boundary. */
+.color-circle--palette {
+  transform: scale(1);
+  will-change: transform;
+  transition-timing-function: var(--ease-smooth);
+}
+
+.color-circle--palette:hover:not(:disabled) {
+  transition-timing-function: var(--ease-spring-bounce), var(--ease-smooth), var(--ease-smooth);
+}
+
+.color-circle:hover:not(:disabled):not(.color-circle--empty) {
   transform: scale(1.18);
 }
 
-.color-circle:active {
+.color-circle:active:not(:disabled):not(.color-circle--empty) {
   transform: scale(0.92);
 }
 
 .color-circle--active {
+  border-width: 2px;
   border-color: #ffffff !important;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
   transform: scale(1.12);
+}
+
+html.no-animations .color-circle--palette { will-change: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .color-circle--palette { transition: none; will-change: auto; }
 }
 
 .color-circle--windows {
@@ -397,7 +416,7 @@
 
 .color-circle--add:hover {
   background: var(--accent-glass);
-  border-color: var(--accent);
+  border-color: var(--border-pill-hover);
   color: var(--accent-text);
   box-shadow: none;
 }
@@ -443,9 +462,7 @@
     grid-template-columns: 1fr;
     gap: var(--space-5);
   }
-  .color-column-card__grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
+  .color-column-card__grid { grid-template-columns: repeat(6, 1fr); }
 }
 
 /* ─── Селектор тем оформления плеера ─────────────────── */
@@ -472,6 +489,8 @@
   padding: var(--space-3) 2px;
   overflow: visible;
 }
+
+.player-themes-selector .color-circle { flex-shrink: 0; }
 
 /* ─── Интерактивные карточки живого предпросмотра ────── */
 .settings-preview-card {
@@ -611,14 +630,14 @@
 }
 
 .visual-bar-card:hover {
-  background: var(--surface-level-3-hover);
+  background: var(--hover-veil);
   border-color: var(--border-pill-hover);
 }
 
 .visual-bar-card--active {
-  background: var(--surface-accent-subtle) !important;
-  border: 1.5px solid var(--accent) !important;
-  box-shadow: none !important;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  border: 1px solid var(--selection-frame) !important;
+  box-shadow: inset 0 0 0 1.5px transparent !important;
 }
 
 /* ─── Реалистичное мини-превью стиля панели плеера ─── */
@@ -644,7 +663,7 @@
 }
 
 .visual-bar-card--active .visual-bar-preview {
-  border-color: var(--accent);
+  border-color: var(--selection-frame);
 }
 
 .visual-bar-preview__screen {
@@ -722,7 +741,7 @@
 .visual-bar-preview__capsule-group--right { justify-self: end; }
 
 .visual-bar-card--active .visual-bar-preview__capsule-islands {
-  border-color: var(--accent);
+  border-color: var(--selection-frame);
 }
 
 /* 2: Модерн (единый парящий остров) */
@@ -746,7 +765,7 @@
 }
 
 .visual-bar-card--active .visual-bar-preview__floating-island {
-  border-color: var(--accent);
+  border-color: var(--selection-frame);
   background: var(--bg-elevated);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
 }
@@ -958,6 +977,7 @@
 }
 
 .option-toggle-row {
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1002,7 +1022,6 @@
 .option-toggle-row:has(:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
-  border-radius: var(--radius-xs);
 }
 
 
@@ -1045,16 +1064,23 @@
 }
 
 .compact-segment-btn:hover {
-  background: var(--surface-level-3-hover);
+  background: var(--hover-veil);
   color: var(--text-primary);
   border-color: var(--border-pill-hover);
 }
 
+.option-block .compact-segment-btn {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+  padding-block: 5px;
+}
+
 .compact-segment-btn--active {
-  background: var(--surface-accent-subtle) !important;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
   color: var(--text-primary) !important;
-  border-color: var(--accent) !important;
-  box-shadow: none !important;
+  border-color: var(--selection-frame) !important;
+  box-shadow: inset 0 0 0 1.5px transparent !important;
 }
 
 .compact-segment-btn--mono {
@@ -1148,7 +1174,7 @@
 
 .settings-footer__btn--version:hover {
   background: var(--surface-accent-hover);
-  border-color: var(--accent);
+  border-color: var(--border-pill-hover);
 }
 
 .settings-footer__btn--check {
@@ -1160,8 +1186,8 @@
 }
 
 .settings-footer__btn--check:hover {
-  background: var(--surface-level-3-hover);
-  border-color: var(--border-hover);
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
   color: #ffffff;
 }
 
@@ -1212,7 +1238,7 @@
 }
 
 .version-picker-trigger:hover {
-  background: rgba(var(--accent-rgb, 59, 130, 246), 0.28);
+  background: var(--hover-veil-float);
   border-color: var(--accent, #60a5fa);
   color: var(--accent-text);
 }
@@ -1224,7 +1250,7 @@
 }
 
 .version-picker-trigger--downgrade:hover {
-  background: rgba(var(--accent-rgb, 59, 130, 246), 0.28);
+  background: var(--hover-veil-float);
   border-color: var(--accent, #60a5fa);
 }
 
@@ -1256,7 +1282,7 @@
 
 .update-modal-btn--primary:hover:not(:disabled) {
   background: var(--surface-accent-subtle);
-  border-color: var(--accent);
+  border-color: var(--border-pill-hover);
   color: var(--accent-text);
 }
 
@@ -1272,8 +1298,8 @@
 }
 
 .update-modal-btn--secondary:hover:not(:disabled) {
-  background: var(--surface-level-3-hover);
-  border-color: var(--border-hover);
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
   color: var(--text-primary);
 }
 
@@ -1322,7 +1348,7 @@
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-3) 10px;
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--radius-list-row);
   cursor: pointer;
   user-select: none;
   transition: background-color var(--t-fast) var(--ease-smooth);
@@ -1330,7 +1356,7 @@
 }
 
 .version-picker-item:hover {
-  background: var(--surface-level-3-hover);
+  background: var(--hover-veil);
 }
 
 .version-picker-item--active {
@@ -1362,7 +1388,7 @@
 .version-picker-badge {
   font-size: var(--fs-2xs);
   padding: 1px 5px;
-  border-radius: 9999px;
+  border-radius: var(--radius-xs);
   font-weight: 600;
 }
 
@@ -1381,9 +1407,9 @@
 /* ─── Сворачиваемые секции (Аккордеон) ────────────────── */
 .hotkey-reset-btn:hover:not(:disabled),
 .hotkey-reset-btn:focus-visible {
-  background: var(--surface-level-3-hover) !important;
+  background: var(--hover-veil) !important;
   color: var(--text-primary) !important;
-  border-color: var(--border-hover) !important;
+  border-color: var(--border-pill-hover) !important;
 }
 
 .settings-accordion {
@@ -1399,7 +1425,7 @@
 }
 
 .settings-accordion:has(> .settings-accordion__header:hover) {
-  border-color: var(--border-hover);
+  border-color: var(--border-pill-hover);
   background: var(--surface-card-hover);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.38), 0 2px 5px rgba(0, 0, 0, 0.26);
 }
@@ -1435,7 +1461,7 @@
 }
 
 .settings-accordion__header:hover {
-  background: var(--bg-hover);
+  background: var(--hover-veil);
 }
 
 .settings-accordion--open .settings-accordion__header {
@@ -1556,14 +1582,15 @@
   background: rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
   gap: var(--space-2);
+  overflow-x: auto;
 }
 
 .settings-tab-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 0 auto;
+  min-width: max-content;
   gap: var(--space-3);
   padding: var(--space-3) 8px;
   background: transparent;
@@ -1595,14 +1622,16 @@
 }
 
 .settings-tab-label {
-  text-overflow: ellipsis;
-  overflow: hidden;
   white-space: nowrap;
 }
 
+/* Вкладки — исключение из hover-контракта: только фон, без рамки.
+   Рамка вкладки читалась как «выделение» и путалась с активной вкладкой
+   (как в окне MediaInfo, где так и сделано). */
 .settings-tab-btn:hover {
   color: var(--text-primary);
-  background: var(--surface-level-3-hover);
+  background: var(--hover-veil);
+  border-color: transparent;
 }
 
 .settings-tab-btn:active {
@@ -1611,19 +1640,19 @@
 
 .settings-tab-btn--active {
   color: var(--text-primary);
-  background: var(--bg-hover);
-  border-color: transparent;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  border-color: var(--selection-frame);
   /* font-weight НЕ меняется (500): смена 500->600 расширяла подпись,
      отбирала ширину у соседних кнопок (flex:1) и сдвигала все иконки. */
-  box-shadow: none;
+  box-shadow: inset 0 0 0 1.5px transparent;
 }
 
 .settings-tab-btn--active svg {
-  color: var(--text-primary);
+  color: var(--accent-text);
 }
 
 .settings-tab-btn--active:hover {
-  background: var(--bg-hover);
+  background: var(--surface-accent-hover);
   color: var(--text-primary);
 }
 
@@ -1790,8 +1819,8 @@
 
 .modal--settings-capsule .settings-card--tabs .settings-tab-btn,
 .settings-side-panel--capsule .settings-card--tabs .settings-tab-btn {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 0 auto;
+  min-width: max-content;
   height: 32px;
   min-height: 32px;
   padding: 4px 8px;
@@ -1809,21 +1838,22 @@
 .modal--settings-capsule .settings-card--tabs .settings-tab-btn:hover,
 .settings-side-panel--capsule .settings-card--tabs .settings-tab-btn:hover {
   color: var(--text-primary);
-  background: var(--surface-level-3-hover);
+  background: var(--hover-veil);
+  border-color: transparent;
 }
 
 .modal--settings-capsule .settings-card--tabs .settings-tab-btn--active,
 .settings-side-panel--capsule .settings-card--tabs .settings-tab-btn--active {
   border-radius: var(--tab-sub-radius);
-  background: var(--bg-hover);
-  border-color: transparent;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16);
+  border-color: var(--selection-frame);
   color: var(--text-primary);
-  box-shadow: none;
+  box-shadow: inset 0 0 0 1.5px transparent;
 }
 
 .modal--settings-capsule .settings-card--tabs .settings-tab-btn--active:hover,
 .settings-side-panel--capsule .settings-card--tabs .settings-tab-btn--active:hover {
-  background: var(--bg-hover);
+  background: var(--surface-accent-hover);
   color: var(--text-primary);
 }
 
@@ -2051,7 +2081,7 @@
 }
 
 .viz-power-btn:hover {
-  background: var(--surface-level-3-hover);
+  background: var(--hover-veil);
   border-color: var(--border-pill-hover);
   color: var(--text-primary);
 }
@@ -2062,13 +2092,13 @@
 
 .viz-power-btn--active {
   background: var(--surface-accent-subtle) !important;
-  border-color: var(--accent) !important;
+  border-color: var(--selection-frame) !important;
   color: var(--accent-text) !important;
 }
 
 .viz-power-btn--active:hover {
   background: var(--surface-accent-subtle) !important;
-  border-color: var(--accent) !important;
+  border-color: var(--selection-frame) !important;
   color: var(--accent-text) !important;
   filter: brightness(1.12);
 }
@@ -2274,8 +2304,8 @@
 }
 
 .cmenu-entry:hover:not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)) {
-  background: var(--surface-level-3-hover);
-  border-color: var(--border-hover);
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
 }
 
@@ -2295,7 +2325,7 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5),
               0 0 20px var(--surface-accent-glow);
   background: var(--bg-elevated) !important;
-  border-color: var(--accent) !important;
+  border-color: var(--selection-frame) !important;
   cursor: grabbing !important;
   height: 100%;
   pointer-events: none !important;
@@ -2312,7 +2342,7 @@
 
 .cmenu-entry--divider:hover:not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)) {
   background: var(--surface-level-2);
-  border-color: var(--border-hover);
+  border-color: var(--border-pill-hover);
 }
 
 .cmenu-entry__divider-line {
@@ -2357,7 +2387,7 @@
 .cmenu-entry--overlay .cmenu-entry__grip {
   opacity: 0.95;
   color: var(--text-primary);
-  background: var(--surface-level-3-hover);
+  background: var(--hover-veil);
 }
 
 .cmenu-entry__grip:active {
@@ -2469,7 +2499,7 @@
 }
 
 .cmenu-editor__add-divider-btn:hover {
-  border-color: var(--accent);
+  border-color: var(--border-pill-hover);
   color: var(--accent-text);
   background: var(--accent-glass);
 }
@@ -2524,8 +2554,8 @@
 }
 
 .cmenu-available-item:hover {
-  background: var(--surface-level-3-hover);
-  border-color: var(--border-hover);
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
 }
 
 .cmenu-available-item__icon {
@@ -2575,7 +2605,7 @@
 
 .cmenu-available-item__add:hover {
   color: var(--accent-text);
-  border-color: var(--accent);
+  border-color: var(--border-pill-hover);
   background: var(--accent-glass);
 }
 
@@ -2617,7 +2647,10 @@
 
 .update-modal-capsule .update-card {
   background: var(--bg-glass, var(--bg-modal-solid, #11141c));
-  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08));
+  /* Нейтральная рамка: --border-pill тонирован акцентом, из-за чего окно
+     обновления выглядело «обведённым» без наведения. Акцент приходит
+     на hover и в выделенных элементах, а не в рамке контейнера. */
+  border: 1px solid var(--border);
   border-radius: var(--radius-controls, var(--radius-lg, 16px));
   box-shadow: var(--shadow-elevated, 0 8px 32px rgba(0, 0, 0, 0.35));
   backdrop-filter: blur(16px);
@@ -2645,6 +2678,34 @@
   min-height: 52px;
   cursor: default;
   user-select: none;
+}
+
+/* Островок-логотип окна обновления: самостоятельная карточка рядом с
+   инфо-островком (как иконка настроек в окне настроек). Фон и контур —
+   как у соседних карточек, без отдельной «плашки» внутри инфо-карточки. */
+.update-modal-capsule .update-card--logo {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  line-height: 0;
+  border-radius: var(--radius-controls, var(--radius-lg, 16px));
+}
+
+.update-modal-capsule .update-card--logo svg {
+  width: 28px;
+  height: 28px;
+  display: block;
+  margin: 0;
+  padding: 0;
 }
 
 .update-modal-capsule .update-card__logo-badge {
@@ -2716,18 +2777,21 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px));
+  border-radius: var(--radius-control);
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth);
 }
 
 .update-modal-capsule .update-card__action-btn:hover {
-  background: var(--surface-level-3-hover);
-  border-color: var(--border-hover);
-  color: var(--text-primary);
+  background: var(--action-hover-veil);
+  border-color: transparent;
+  color: var(--accent-text);
+  box-shadow: none;
 }
 
 .update-modal-capsule .update-card__action-btn svg {
@@ -2768,19 +2832,21 @@
   align-items: center;
   gap: 6px;
   background: var(--surface-level-3);
-  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.1));
-  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
   padding: 4px 10px;
   font-size: var(--fs-xs, 12px);
   color: var(--accent-text);
   cursor: pointer;
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth);
 }
 
 .update-modal-capsule .update-card__github-btn:hover {
-  background: var(--surface-level-3-hover);
-  border-color: var(--border-hover);
-  color: #ffffff;
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
+  color: var(--accent-text);
 }
 
 /* Контейнер заметок со скроллом */
@@ -2791,7 +2857,7 @@
   overflow-x: hidden;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px));
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   position: relative;
 }
@@ -2841,7 +2907,7 @@
   padding: 0 16px;
   font-size: var(--fs-sm, 13px);
   font-weight: 500;
-  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px));
+  border-radius: var(--radius-control);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -2858,15 +2924,17 @@
 }
 
 .update-modal-capsule .update-card__btn--secondary:hover {
-  background: var(--surface-level-3-hover);
-  border-color: var(--border-hover);
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
   color: var(--text-primary);
 }
 
 .update-modal-capsule .update-card__btn--primary,
 .update-modal-capsule .update-card__btn--downgrade {
   background: var(--surface-accent-subtle);
-  border: 1px solid var(--accent);
+  /* Рамки в покое нет: акцентную заливку и так видно, а постоянная
+     обводка читалась как «элемент в рамке» даже без наведения. */
+  border: 1px solid transparent;
   color: var(--accent-text);
   font-weight: 600;
   box-shadow: none !important;
@@ -2874,8 +2942,8 @@
 
 .update-modal-capsule .update-card__btn--primary:hover,
 .update-modal-capsule .update-card__btn--downgrade:hover {
-  background: var(--surface-accent-subtle);
-  border-color: var(--accent);
+  background: var(--surface-accent-hover);
+  border-color: var(--border-pill-hover);
   color: var(--accent-text);
   box-shadow: none !important;
   filter: none !important;
@@ -2891,19 +2959,21 @@
 /* Концентрическое скругление и стиль поповера версий в стиле Капсула */
 .update-modal-capsule .version-picker-trigger,
 .update-modal-capsule .version-picker-trigger--downgrade {
-  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px));
+  border-radius: var(--radius-control);
   height: 32px;
   box-shadow: none !important;
   background: var(--accent-glass, rgba(var(--accent-rgb, 127, 199, 255), 0.12));
-  border: 1px solid var(--border-pill, rgba(var(--accent-rgb, 127, 199, 255), 0.22));
+  border: 1px solid transparent;
   color: var(--accent-text);
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth);
 }
 
 .update-modal-capsule .version-picker-trigger:hover,
 .update-modal-capsule .version-picker-trigger--downgrade:hover {
-  background: var(--surface-accent-subtle);
-  border-color: var(--accent);
+  background: var(--surface-accent-hover);
+  border-color: var(--border-pill-hover);
   color: var(--accent-text);
   box-shadow: none !important;
 }

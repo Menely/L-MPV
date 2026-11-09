@@ -51,8 +51,8 @@
 }
 
 .audio-visualizer--toolbar:hover {
-  background: var(--surface-level-3-hover);
-  border-color: var(--border-hover);
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
   box-shadow: 0 0 10px var(--accent-glow, var(--surface-accent-glow));
 }
 

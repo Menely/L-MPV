@@ -454,6 +454,7 @@ export function HotkeysSettingsTab({
                               <div key={idx} style={{ display: "flex", alignItems: "center" }}>
                                 <button
                                   type="button"
+                                  className="hotkey-chip"
                                   data-hotkey-recorder={isRecording ? "" : undefined}
                                   onClick={(e) => {
                                     if (Date.now() < ignoreClickUntilRef.current) {
@@ -486,12 +487,12 @@ export function HotkeysSettingsTab({
                                     border: isConflicted
                                       ? "1.5px solid var(--danger-text)"
                                       : isRecording
-                                      ? "1.5px solid var(--accent)"
+                                      ? "1px solid var(--accent)"
                                       : "1px solid var(--border-subtle)",
                                     boxShadow: isConflicted
                                       ? "0 0 8px var(--danger-glow), inset 0 0 0 1px var(--danger-border)"
                                       : isRecording
-                                      ? "0 0 8px var(--surface-accent-glow), inset 0 0 0 1px transparent"
+                                      ? "none"
                                       : "none",
                                     borderRadius: "var(--radius-control)",
                                     fontFamily: "monospace",
@@ -553,8 +554,8 @@ export function HotkeysSettingsTab({
                                   style={{
                                     padding: "4px 10px",
                                     background: "var(--surface-accent-subtle)",
-                                    border: "1.5px solid var(--accent)",
-                                    boxShadow: "0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent",
+                                    border: "1px solid var(--accent)",
+                                    boxShadow: "none",
                                     borderRadius: "var(--radius-control)",
                                     fontFamily: "monospace",
                                     fontSize: "var(--fs-sm)",

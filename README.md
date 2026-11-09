@@ -144,6 +144,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Dedicated hotkey and mouse button assignments matching the hotkey settings tab styling with Esc cancel and click-outside dismissal.
 - **On-the-Fly Neural Network Switching via Hotkeys (up to 9 models):**
   - `Ctrl+J` — Informative OSD overlay displaying upscale status and statistics (active backend, selected model, slot index, video resolution -> 4K);
+  - **Favorite upscaling model:** Mark one model with a star and toggle it with `U`. The selection is saved with the portable settings and follows the model filename when the list is reordered. If no favorite is selected or its file is missing, the player shows a message.
   - `Shift+1` — Disable upscaling;
   - `Shift+2` .. `Shift+0` — Enable Neural Network #1 .. #9 (the first 9 models have hotkey slots);
   - OSD notification showing the actual name of the activated model;
@@ -170,8 +171,9 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Dithering & Debanding:** Adaptive spatial-temporal blue-noise dithering (`dither-depth=auto`) matched to your monitor bit-depth, and an optional GPU debanding shader (`deband`) with balanced strength presets to reduce visible gradient bands in anime and web rips.
 - **Automatic window sizing:** Adapts window geometry to the video aspect ratio and monitor scaling. Fit mode, fullscreen and size constraints can still leave black bars.
 - **Automatic zoom and pan reset:** Resets video zoom and pan when opening a new media file.
-- **Startup window sizing:** The window starts hidden, adapts to media geometry and is then shown. Startup time depends on the file and system.
+- **Startup:** When launched with a file, the player prepares it on pause, sizes and shows the window, then starts playback. An explicitly configured pause is preserved. Startup time depends on the file and system.
 - **Native video output:** mpv renders to a Windows HWND beneath the transparent WebView2 interface.
+- **YUV file recognition:** `.yuv` files appear in file selection and folder playlists and can use optional Windows associations. Raw-video parameters are not configured automatically.
 
 </details>
 
@@ -280,12 +282,12 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - **Interface Opacity (10..100%):** Precise opacity control for control bars, dialogs, and popovers while preserving text contrast and legibility.
   - **Borders and shadows:** Panel borders and shadows distinguish interface surfaces.
   - **Transparent panels:** The interface overlays native mpv output. CSS backdrop blur does not provide video-aware blur of that separate native layer.
-- **15 UI Themes:** *Dark Graphite*, *Deep OLED*, *Night Cobalt*, *Dark Emerald*, *Black Orchid*, *Northern Mist*, *Discord Gray*, *Forest Sage*, *Mint Jade*, *Terracotta*, *Twilight Iris*, *Plum Velvet*, *Dark Bronze*, *Ink Ocean*, *Warm Titanium* with interactive sliding pill tags and dynamic harmony across surfaces, text, backgrounds, and accents.
-- **Settings controls:** Palette cards, option buttons, visualizer and heatmap switches share interface styles.
+- **15 UI Themes:** *Dark Graphite*, *Deep OLED*, *Night Cobalt*, *Dark Emerald*, *Black Orchid*, *Northern Mist*, *Discord Gray*, *Forest Sage*, *Mint Jade*, *Terracotta*, *Twilight Iris*, *Plum Velvet*, *Dark Bronze*, *Ink Ocean*, *Warm Titanium* with matching surface and text colors and customizable accents.
+- **Settings controls:** Options share theme-aware highlights and corner styles. Selected options use an accent tint; hovering adds feedback without changing their size.
 - **Unified Elevation Surfaces System:**
   - *Level 1 (`.glass-panel`)*: Main floating bars, dropdown menus, and modal dialogs.
   - *Level 2 (`.glass-section`)*: Grouping sections and functional settings containers.
-  - *Level 3 (`.glass-tile`)*: Interactive option cards and neural network tiles featuring tactile hover feedback and neon active borders (`.glass-tile--active`).
+  - *Level 3 (`.glass-tile`)*: Interactive option cards and model tiles with accent selection and hover feedback.
 - **Self-Contained Font Ecosystem & Custom Fonts (UI Font):**
   - **Local fonts:** Bundled fonts load without requests to Google Fonts.
   - **5 Built-in Font Families:** *Inter*, *Outfit*, *Plus Jakarta Sans*, *Manrope*, *JetBrains Mono*, plus the Windows *System Default* font.
@@ -313,7 +315,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
     - *Right of Timeline* — Standard placement after the seek bar.
     - *Right of Volume Slider* — Grouped in the left toolbar next to the audio visualizer.
     - *Right Toolbar Cluster* — Placed in the right button group before utility icons (expands timeline to full width).
-    - *Centered Over Timeline* — Floating neon pill centered above the seek bar (expands timeline to full width).
+    - *Centered Over Timeline* — A separate time badge above the seek bar, styled for Modern, Classic or Capsule.
     - *Window Titlebar* — Interactive time badge inside the top window header to the left of window controls; leaves the bottom control bar uncluttered.
   - Selecting any off-timeline position automatically expands the seek bar to span the full bar width (`.timeline-row--full`).
 - **Playback Speed Control & Popover (v2.7.0):**
@@ -327,7 +329,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - *Luminous Radio-Dots*: Selected speed is indicated by an elegant neon dot matching the audio and subtitle track popover design language.
   - *Positioning & HiDPI Scaling*: Popover floats precisely centered above the speed button with mathematical zoom scaling normalization on 2K/4K and Fullscreen displays.
 - **4 Interactive Time Formats with 1-Click Toggle:**
-  - Supports: *Elapsed / Total*, *Remaining Only*, *Estimated End Time* (adjusted for playback `speed`), and *High-Precision Milliseconds*.
+  - Supports: *Elapsed / Total*, *Elapsed / Remaining*, *Remaining Only*, and *Estimated End Time* (adjusted for playback speed).
   - Click directly on the timestamp anywhere in the UI to cycle through formats with an OSD confirmation.
 - **Three Distinct Player Styles:**
   - **Capsule**: Modular interface built from independent floating cards:
@@ -379,21 +381,21 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Release Position Calculation:** The final seek position is computed from a freshly measured track rectangle (invalidated on window resize), so auto window resizing can no longer misplace the playhead.
 - **No Stray Focus Ring:** Clicking the timeline no longer leaves a green `:focus-visible` outline floating over the video; keyboard focus indication is preserved via the progress track growing from 5px to 8px.
 - **Synchronized & Customizable Seek Step:** Control bar buttons and keyboard arrow keys (`←` / `→`) share a unified seek step (default 10 seconds; customizable between 1–300 seconds in Settings).
-- **Seek overlay:** Displays the seek direction and duration using text and chevrons with shadows.
+- **Seek overlay:** Shows the direction and configured duration with signed text and a directional ruler. Quick repeats in the same direction add up on screen.
 - **Reliable Navigation Ergonomics:** Clicking the timeline no longer steals spacebar focus (resuming/pausing video works immediately on first press), and seeking via arrow keys avoids unwanted popup of hidden controls.
-- **Centered Floating Time:** In "Centered Over Timeline" mode, the timestamp is absolutely positioned and no longer inflates the height of the bottom control pill.
+- **Centered Floating Time:** The badge matches the selected player style and keeps the full time format without increasing the control bar height.
 
 </details>
 
 <details>
 <summary><b>📊 Timeline activity heatmap</b></summary>
 
-- Audio RMS and peak levels in dBFS, or average video bitrate, across 512 time intervals.
-- Audio is decoded with FFmpeg and analyzed in Rust; video packet sizes are read with FFmpeg without decoding video frames.
-- Three graph styles: bars, spline and blocks. Eight palettes: Theme, Thermal, Cyberpunk, Monochrome, Sunset, Aurora, Ocean and Plasma.
-- Adjustable height, opacity and placement above the timeline or control bar, with an optional peak line.
-- Hover to see RMS/peak levels or average bitrate for the selected interval. Interval duration depends on the file length.
-- Profiles are cached in `data/waveforms/` using BLAKE3 keys that account for file metadata and track selection. Switching the source cancels outdated analysis.
+- Audio RMS and peak levels in dBFS, or video bitrate with one-second detail.
+- Audio is decoded with FFmpeg and analyzed in Rust. Video packets are analyzed without decoding frames, using a Rust reader for supported Matroska/WebM files and FFmpeg as a fallback.
+- Six graph styles: bars, spline, blocks, filled relief, stepped contour and dotted relief. Eight palettes: Theme, Thermal, Cyberpunk, Monochrome, Sunset, Aurora, Ocean and Plasma.
+- Adjustable height, opacity and placement above the timeline or control bar. Disabled by default; available in settings.
+- Hover to see RMS/peak levels or average bitrate for the selected interval. Video bitrate uses a balanced scale and adapts the number of visible columns to the window width.
+- Audio and video profiles are cached separately in `data/waveforms/audio/` and `data/waveforms/video_bitrate/`. BLAKE3 keys account for file metadata and track selection. Switching the source cancels outdated analysis.
 - Settings include a preview and a cache-clearing button.
 
 </details>
@@ -404,7 +406,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Cursor-Centered Zoom:** Cursor-centered zooming via `Ctrl` + Mouse Wheel at up to 60 FPS.
 - **Magnetic Snap:** Automatically snaps to native scale (100%) when approaching zero zoom.
 - **Reset Zoom:** Return to 100% scale and center position with `0`.
-- **Volume Wheel Control:** Scrolling the wheel over video without holding `Ctrl` adjusts volume smoothly (up to 150%) in 5% increments with automatic persistence.
+- **Volume Wheel Control:** The wheel over video without Ctrl adjusts volume in 5% steps, up to 150%, and saves the level. Wheel and keyboard changes show a temporary volume scale with a 100% reference and mute indication.
 
 </details>
 
@@ -584,6 +586,7 @@ Every keyboard shortcut and mouse button action can be customized to your prefer
 | Category | Action | Default Hotkey |
 | :--- | :--- | :--- |
 | **4K AI Upscaling** | Disable Upscaling | `Shift + 1` |
+| | Toggle the favorite model | `U` |
 | | Enable Neural Model #1 .. #9 | `Shift + 2` .. `Shift + 0` (up to 9 models) |
 | **Playback** | Play / Pause | `Space` or Left Click on video |
 | | Repeat Mode (Loop) | `R` |

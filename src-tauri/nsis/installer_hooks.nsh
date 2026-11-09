@@ -57,6 +57,7 @@
   !insertmacro REGISTER_EXT ".3gp" "L-MPV.Video"
   !insertmacro REGISTER_EXT ".mpeg" "L-MPV.Video"
   !insertmacro REGISTER_EXT ".mpg" "L-MPV.Video"
+  !insertmacro REGISTER_EXT ".yuv" "L-MPV.Video"
 
   ; Оповещение Проводника Windows об обновлении ассоциаций и иконок
   System::Call 'Shell32::SHChangeNotify(i 0x08000000, i 0, i 0, i 0)'
@@ -87,6 +88,7 @@
   !insertmacro UNREGISTER_EXT ".3gp" "L-MPV.Video"
   !insertmacro UNREGISTER_EXT ".mpeg" "L-MPV.Video"
   !insertmacro UNREGISTER_EXT ".mpg" "L-MPV.Video"
+  !insertmacro UNREGISTER_EXT ".yuv" "L-MPV.Video"
 
   ; Очистка аудиоформатов
   !insertmacro UNREGISTER_EXT ".mp3" "L-MPV.Audio"

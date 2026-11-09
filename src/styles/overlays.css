@@ -120,13 +120,13 @@
 }
 
 .chapter-item:hover:not(.chapter-item--active) {
-  background: var(--bg-hover);
+  background: var(--hover-veil);
 }
 
 .chapter-item--active {
   background: var(--bg-active, rgba(127, 199, 255, 0.16)) !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 8px var(--surface-accent-glow);
+  border-color: var(--selection-frame) !important;
+  box-shadow: var(--selection-shadow);
 }
 
 .chapter-item__title {
@@ -189,8 +189,8 @@
 }
 
 .sub-tech-tag--actor {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.28);
+  background: var(--surface-accent-subtle);
+  border-color: var(--border-pill-hover);
   color: var(--accent-text);
 }
 
@@ -198,12 +198,16 @@
   color: var(--accent-text);
 }
 
+/* Карточка строки субтитров: собственный слой над подложкой, чтобы строка
+   читалась как карточка, а не сливалась с фоном панели. */
 .sub-line-row--tech {
-  background: rgba(255, 255, 255, 0.022);
+  background: var(--surface-level-3);
+  border-color: var(--border-subtle);
 }
 
 .sub-line-row--tech:hover {
-  background: var(--surface-level-3-hover);
+  background: var(--hover-veil);
+  border-color: var(--border-hover);
 }
 
 .sub-line-row {
@@ -271,12 +275,12 @@
 }
 
 .hover-bright:hover {
-  background: var(--surface-level-3-hover) !important;
+  background: var(--hover-veil) !important;
   color: #ffffff !important;
 }
 
 .hover-subtle:hover {
-  background: var(--surface-level-3-hover) !important;
+  background: var(--hover-veil) !important;
   color: #ffffff !important;
 }
 
@@ -392,7 +396,7 @@
 }
 
 .update-toast__close:hover {
-  background: var(--surface-level-3-hover);
+  background: var(--action-hover-veil);
   color: var(--text-primary, #ffffff);
 }
 
@@ -404,7 +408,7 @@
 
 .update-toast__btn {
   padding: var(--space-3) 14px;
-  border-radius: max(0px, calc(var(--radius-controls, 16px) - 6px));
+  border-radius: var(--radius-control);
   font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
@@ -422,7 +426,7 @@
 }
 
 .update-toast__btn--secondary:hover {
-  background: var(--surface-level-3-hover);
+  background: var(--hover-veil);
   color: var(--text-primary, #ffffff);
 }
 

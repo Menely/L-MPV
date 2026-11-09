@@ -15,6 +15,7 @@ export type LayoutEntry =
   | { type: "divider" };
 
 const STORAGE_KEY = "l-mpv-context-menu-layout";
+const DEFAULT_LAYOUT_MIGRATION_KEY = "l-mpv-heatmap-menu-default-migrated";
 
 /** Событие, диспатчится при изменении раскладки меню. */
 export const LAYOUT_CHANGED_EVENT = "l-mpv-context-menu-layout-changed";
@@ -36,7 +37,6 @@ export const DEFAULT_LAYOUT: LayoutEntry[] = [
   { type: "item", id: "presets" },
   { type: "divider" },
   { type: "item", id: "detailed_media_info" },
-  { type: "item", id: "heatmap" },
   { type: "item", id: "settings" },
 ];
 
@@ -57,6 +57,11 @@ function validateLayout(raw: unknown): LayoutEntry[] {
     } else if (entry.type === "item" && isMenuItemId(entry.id)) {
       valid.push({ type: "item", id: entry.id });
     }
+  }
+  // Migrate only the old standard layout; keep deliberately customized menus.
+  const legacyDefault = [...DEFAULT_LAYOUT.slice(0, -1), { type: "item", id: "heatmap" }, DEFAULT_LAYOUT[DEFAULT_LAYOUT.length - 1]];
+  if (localStorage.getItem(DEFAULT_LAYOUT_MIGRATION_KEY) !== "true" && JSON.stringify(valid) === JSON.stringify(legacyDefault)) {
+    return [...DEFAULT_LAYOUT];
   }
   return valid.some((e) => e.type === "item") ? valid : [...DEFAULT_LAYOUT];
 }
@@ -89,8 +94,16 @@ export async function initLayoutFromBackend(): Promise<LayoutEntry[]> {
     if (json && json.trim().length > 0) {
       const parsed = JSON.parse(json);
       const validated = validateLayout(parsed);
+      // Complete migration only after the portable file has been updated.
+      // The synchronous local-cache reader must not mark it complete first.
+      if (JSON.stringify(validated) !== JSON.stringify(parsed)) {
+        await invoke("save_context_menu_layout", {
+          layoutJson: JSON.stringify(validated, null, 2),
+        });
+      }
       cachedLayout = validated;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(validated));
+      localStorage.setItem(DEFAULT_LAYOUT_MIGRATION_KEY, "true");
       window.dispatchEvent(new Event(LAYOUT_CHANGED_EVENT));
       return [...validated];
     }
@@ -112,6 +125,7 @@ if (typeof window !== "undefined") {
 export function saveLayout(layout: LayoutEntry[]): void {
   cachedLayout = [...layout];
   try {
+    localStorage.setItem(DEFAULT_LAYOUT_MIGRATION_KEY, "true");
     localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
   } catch {
     // Игнорируем ошибку локального кэша

@@ -115,12 +115,17 @@ textarea {
   overscroll-behavior: contain;
 }
 
+/* Keep rem tokens based on the browser's default (normally 16px).
+   Applying --fs-base to html would shrink the entire rem scale to 87.5%. */
+html {
+  font-size: 100%;
+}
+
 html, body, #root {
   width: 100%;
   height: 100%;
   overflow: hidden;
   font-family: var(--font-family);
-  font-size: var(--fs-base);
   color: var(--text-primary);
   background: transparent;
   -webkit-font-smoothing: subpixel-antialiased;
@@ -130,6 +135,10 @@ html, body, #root {
   font-synthesis: none;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   user-select: none;
+}
+
+body, #root {
+  font-size: var(--fs-base);
 }
 
 /* ─── Контейнер приложения ───────────────────────────── */

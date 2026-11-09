@@ -17,6 +17,7 @@ mod presets;
 mod rendering_stats;
 mod subtitles;
 mod system;
+mod startup;
 mod tracks;
 mod types;
 
@@ -36,4 +37,5 @@ pub use presets::*;
 pub use rendering_stats::*;
 pub use subtitles::*;
 pub use system::*;
+pub use startup::*;
 pub use tracks::*;

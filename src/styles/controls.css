@@ -5,3 +5,7 @@
 @import "./controls/controls-capsule.css";
 @import "./controls/speed-control.css";
 @import "./controls/controls-overflow.css";
+
+@import "./controls/seek-indicator.css";
+@import "./controls/volume-indicator.css";
+@import "./controls/center-time.css";

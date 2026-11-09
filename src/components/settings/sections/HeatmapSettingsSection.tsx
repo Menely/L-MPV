@@ -5,7 +5,7 @@ import { SettingsIcon } from "../components/SettingsIcon";
  * Спроектирован в едином компактном дизайн-коде с «Настройками интерфейса» и «Аудио-визуалайзером»:
  * - Компактная карточка интерактивного живого превью рельефа.
  * - Верхний ряд (.viz-grid-top): цветовая палитра спектра + круглая кнопка питания (Power).
- * - Двухколоночная сетка: источник данных и расположение слева, стиль рельефа и гребень волны справа.
+ * - Двухколоночная сетка: источник данных и расположение слева, стиль рельефа справа.
  * - Однострочные премиальные ползунки (.ui-premium-slider) с градиентным заполнением и сбросом.
  * - Компактная однострочная панель очистки дискового кэша.
  */
@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { AccordionSection } from "../components/AccordionSection";
-import { OptionToggleRow } from "../components/OptionTile";
+import { prepareVideoDisplay } from "../../player/heatmap/heatmapDisplay";
 import {
   optionCardStyle,
   optionBlockHeaderStyle,
@@ -39,6 +39,9 @@ import {
 } from "../components/optionCardStyles";
 import {
   HeatmapConfig,
+  MIN_HEATMAP_HEIGHT,
+  MAX_HEATMAP_HEIGHT,
+  HeatmapDataResponse,
   HeatmapStyle,
   HeatmapDataSource,
   HeatmapPalette,
@@ -67,6 +70,15 @@ const PREVIEW_SAMPLES: number[] = Array.from({ length: 96 }, (_, i) => {
   const raw = 0.25 + 0.35 * Math.abs(sin1) + 0.2 * Math.abs(sin2) + 0.4 * peak;
   return Math.round(Math.min(255, Math.max(15, raw * 160)));
 });
+
+const PREVIEW_VIDEO_DATA: HeatmapDataResponse = {
+  media_path: "preview", stream_mode: "video_bitrate", track_idx: null, external_track_path: null,
+  duration_sec: 96, step_duration_sec: 1, start_time_offset: 0, generation_id: 0,
+  visual_bins: PREVIEW_SAMPLES,
+  metrics: { type: "video_bitrate", payload: {
+    bitrate_kbps: PREVIEW_SAMPLES.map(value => value * 100), packet_counts: PREVIEW_SAMPLES.map(() => 24),
+  } },
+};
 
 export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
   isOpen,
@@ -145,7 +157,9 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
     renderWaveformToCanvas(
       ctx,
       metrics,
-      PREVIEW_SAMPLES,
+      config.dataSource === "video_bitrate"
+        ? prepareVideoDisplay(PREVIEW_VIDEO_DATA, metrics.width, 96)
+        : PREVIEW_SAMPLES,
       48,
       96,
       hoverRatioRef.current,
@@ -209,6 +223,24 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
       desc:
         dict.settings.appearance.heatmap?.styles?.blocksDesc ||
         "Дигитальная Hi-Fi матрица",
+      icon: <LayoutGrid size={13} />,
+    },
+    {
+      id: "area",
+      label: dict.settings.appearance.heatmap.styles.area,
+      desc: dict.settings.appearance.heatmap.styles.areaDesc,
+      icon: <ChartColumnIncreasing size={13} />,
+    },
+    {
+      id: "steps",
+      label: dict.settings.appearance.heatmap.styles.steps,
+      desc: dict.settings.appearance.heatmap.styles.stepsDesc,
+      icon: <Waves size={13} />,
+    },
+    {
+      id: "dots",
+      label: dict.settings.appearance.heatmap.styles.dots,
+      desc: dict.settings.appearance.heatmap.styles.dotsDesc,
       icon: <LayoutGrid size={13} />,
     },
   ];
@@ -477,7 +509,8 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             onMouseLeave={handlePreviewMouseLeave}
             style={{
               width: "100%",
-              height: 26,
+              // Keep the drawable area equal to the player; account for the frame.
+              height: config.height + 2,
               borderRadius: "var(--radius-sm, 6px)",
               background: "var(--surface-level-2)",
               border: "1px solid rgba(255, 255, 255, 0.06)",
@@ -558,7 +591,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                       background: item.swatch,
                       border: isSel
                         ? "2px solid #ffffff"
-                        : "1.5px solid rgba(255, 255, 255, 0.18)",
+                        : "none",
                       boxShadow: isSel
                         ? "0 0 14px rgba(255, 255, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.4)"
                         : "none",
@@ -605,7 +638,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
           </div>
         </div>
 
-        {/* ── Основной двухколоночный ряд: Источник и Расположение (слева) + Стиль и Гребень (справа) ── */}
+        {/* ── Основной двухколоночный ряд: Источник и Расположение (слева) + Стили рельефа (справа) ── */}
         <div
           className="controls-and-time-grid"
           style={{
@@ -693,8 +726,9 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                       }`}
                       title={`${item.label} — ${item.desc}`}
                       style={{
-                        height: 28,
-                        padding: "0 6px",
+                        minHeight: 32,
+                        height: "auto",
+                        padding: "5px 6px",
                         gap: 5,
                       }}
                     >
@@ -711,9 +745,9 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                       </span>
                       <span
                         style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
+                          whiteSpace: "normal",
+                          overflowWrap: "anywhere",
+                          lineHeight: 1.3,
                         }}
                       >
                         {item.label}
@@ -809,7 +843,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             </div>
           </div>
 
-          {/* Правая карточка: Внешний вид рельефа (Стиль) + Светящаяся линия гребня */}
+          {/* Правая карточка: Внешний вид рельефа */}
           <div
             className="option-card"
             style={{
@@ -863,7 +897,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                   gap: "var(--space-2)",
                 }}
               >
@@ -879,8 +913,9 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                       }`}
                       title={`${item.label} — ${item.desc}`}
                       style={{
-                        height: 28,
-                        padding: "0 6px",
+                        minHeight: 32,
+                        height: "auto",
+                        padding: "5px 6px",
                         gap: 4,
                       }}
                     >
@@ -897,9 +932,9 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                       </span>
                       <span
                         style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
+                          whiteSpace: "normal",
+                          overflowWrap: "anywhere",
+                          lineHeight: 1.3,
                         }}
                       >
                         {item.label}
@@ -910,30 +945,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
               </div>
             </div>
 
-            <div
-              style={{
-                borderTop: "1px solid rgba(255, 255, 255, 0.06)",
-                paddingTop: "var(--space-3)",
-              }}
-            >
-              <OptionToggleRow
-                label={
-                  dict.settings.appearance.heatmap?.showCrestLabel ||
-                  "Светящаяся неоновая линия гребня волны"
-                }
-                title="Подсвечивает верхнюю кромку рельефа контрастной неоновой линией"
-                checked={config.showCrestLine}
-                resetValue={DEFAULT_HEATMAP_CONFIG.showCrestLine}
 
-                onReset={() =>
-                  updateConfig({
-                    showCrestLine: DEFAULT_HEATMAP_CONFIG.showCrestLine,
-                  })
-                }
-                onChange={(next) => updateConfig({ showCrestLine: next })}
-                disabled={controlsLocked}
-              />
-            </div>
           </div>
         </div>
 
@@ -946,8 +958,8 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             dict.settings.appearance.heatmap?.heightDesc ||
             "Оптимально 34px для сбалансированного HUD",
           value: config.height,
-          min: 16,
-          max: 36,
+          min: MIN_HEATMAP_HEIGHT,
+          max: MAX_HEATMAP_HEIGHT,
           step: 2,
           defaultValue: DEFAULT_HEATMAP_CONFIG.height,
           displayValue: `${config.height} px`,

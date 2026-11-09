@@ -149,17 +149,17 @@
 }
 
 .media-info__tab-btn:hover:not(.media-info__tab-btn--active) {
-  background: var(--bg-hover) !important;
+  background: var(--hover-veil-float) !important;
   color: var(--text-primary) !important;
   border-color: transparent !important;
 }
 
 .media-info__tab-btn--active {
-  background: var(--bg-hover, rgba(255, 255, 255, 0.12)) !important;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
   color: var(--text-primary) !important;
   font-weight: 600 !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  box-shadow: none !important;
+  border-color: var(--selection-frame) !important;
+  box-shadow: inset 0 0 0 1.5px transparent !important;
 }
 
 .media-info__tab-text {
@@ -196,8 +196,8 @@
 }
 
 .media-info__close:hover {
-  color: #ffffff;
-  background: var(--bg-hover);
+  color: var(--accent-text);
+  background: var(--action-hover-veil);
 }
 
 .media-info__close:focus-visible {
@@ -231,7 +231,7 @@
 }
 
 .media-info__row:hover {
-  background: var(--surface-level-3-hover);
+  background: var(--hover-veil-float);
 }
 
 .media-info__row:hover .media-info__label {
@@ -378,13 +378,13 @@
   font-size: var(--fs-xs, 12px);
   cursor: pointer;
   text-align: left;
-  transition: all var(--t-fast) var(--ease-smooth);
+  transition: background-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth);
   width: 100%;
   box-sizing: border-box;
 }
 
 .media-info__stream-item:hover {
-  background: var(--surface-level-3-hover);
+  background: var(--hover-veil-float);
   color: var(--text-primary);
   border-color: rgba(255, 255, 255, 0.08);
 }
@@ -392,7 +392,7 @@
 .media-info__stream-item--active {
   background: var(--surface-accent-subtle) !important;
   color: var(--text-primary) !important;
-  border-color: var(--accent) !important;
+  border-color: var(--selection-frame) !important;
   font-weight: 600;
 }
 
@@ -463,7 +463,7 @@
   gap: 8px;
   padding: 4px 8px;
   border-radius: var(--radius-list-row);
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.08);
+  background: var(--hover-veil-float);
   border: 1px solid rgba(var(--accent-rgb, 127, 199, 255), 0.2);
 }
 

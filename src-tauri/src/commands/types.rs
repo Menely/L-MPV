@@ -69,6 +69,10 @@ pub struct UiSettings {
     #[serde(default)]
     pub show_track_names: Option<bool>,
     #[serde(default)]
+    pub volume_indicator_enabled: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub favorite_upscale_model: Option<String>,
+    #[serde(default)]
     pub playlist_width: Option<u32>,
     #[serde(default)]
     pub custom_colors: Option<Vec<String>>,
@@ -619,6 +623,8 @@ pub fn write_atomic(target_path: &Path, data: &[u8], create_backup: bool) -> Res
 
 /// Состояние плеера, передаваемое через Tauri State.
 pub struct PlayerState {
+    /// Only the first CLI file is held until the visible frontend is ready.
+    pub startup_playback: Mutex<Option<String>>,
     /// Главный контекст mpv.
     pub mpv: Arc<MpvManager>,
     /// Контроллер подсветки полос (Ambient Light).
@@ -894,6 +900,7 @@ pub fn is_video_extension(ext: &str) -> bool {
             | "3gp"
             | "ogv"
             | "vob"
+            | "yuv"
     )
 }
 

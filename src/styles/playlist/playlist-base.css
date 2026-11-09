@@ -125,7 +125,7 @@
   font-weight: 600;
   line-height: 1.4;
   padding: 0 8px;
-  background: var(--bg-hover);
+  background: var(--surface-level-3-hover);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   color: var(--text-secondary);
@@ -150,7 +150,7 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   outline: none;
   transition: background-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
@@ -164,7 +164,7 @@
 }
 
 .playlist-drawer__action-btn:hover {
-  background: var(--bg-hover);
+  background: var(--action-hover-veil);
   color: var(--accent-text);
 }
 
@@ -196,7 +196,7 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   outline: none;
   transition: background-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
@@ -204,7 +204,7 @@
 }
 
 .playlist-drawer__close:hover {
-  background: var(--bg-hover);
+  background: var(--action-hover-veil);
   color: #ffffff;
 }
 
@@ -235,7 +235,7 @@
   height: 30px;
   background: var(--surface-level-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   padding: 0 28px 0 30px;
   font-size: var(--fs-sm);
   color: var(--text-primary);
@@ -247,11 +247,11 @@
 }
 
 .playlist-drawer__search-input:hover:not(:focus) {
-  border-color: var(--focus-ring);
+  border-color: var(--border-pill-hover);
 }
 
 .playlist-drawer__search-input:focus {
-  border-color: var(--focus-ring);
+  border-color: var(--selection-frame);
   box-shadow: none;
   background: var(--surface-level-3);
 }
@@ -271,7 +271,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   outline: none;
   transition: color var(--t-fast) var(--ease-smooth);
 }
@@ -345,7 +345,7 @@
 }
 
 .playlist-item:hover {
-  background: var(--bg-hover);
+  background: var(--hover-veil);
 }
 
 .playlist-item:active {
@@ -361,7 +361,7 @@
 }
 
 .playlist-item--current:hover {
-  background: var(--bg-hover) !important;
+  background: var(--hover-veil-float) !important;
 }
 
 .playlist-item--watched {

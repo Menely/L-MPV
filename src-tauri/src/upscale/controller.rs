@@ -1,6 +1,8 @@
 //! Контроллер взаимодействия с медиа-движком libmpv и OSD при апскейлинге.
 
-use super::config::{ensure_inference_environment, get_inference_dir, get_models_dir, write_upscale_conf};
+use super::config::{
+    ensure_inference_environment, get_inference_dir, get_models_dir, write_upscale_conf,
+};
 use super::types::UpscaleSettings;
 use crate::commands::PlayerState;
 use crate::mpv_manager::MpvManager;
@@ -29,11 +31,14 @@ pub fn apply_upscale_settings_impl(
     settings: UpscaleSettings,
 ) -> Result<(), String> {
     let mut active_slot = settings.active_slot;
-    
+
     // Миграция старых CRC-слотов (2000-9999) на новые 1-9
     if active_slot >= 2000 {
         let models = super::config::scan_onnx_models_internal();
-        if let Some(m) = models.iter().find(|m| m.filename == settings.selected_model) {
+        if let Some(m) = models
+            .iter()
+            .find(|m| m.filename == settings.selected_model)
+        {
             active_slot = m.slot;
         } else {
             active_slot = 1001; // Сброс на встроенный Balanced слот, если модель не найдена
@@ -44,10 +49,8 @@ pub fn apply_upscale_settings_impl(
     let conf_str = conf_path.to_string_lossy();
 
     let backend_changed = {
-        let mut last = LAST_APPLIED_BACKEND.lock().unwrap();
-        let changed = last.as_deref() != Some(&settings.backend);
-        *last = Some(settings.backend.clone());
-        changed
+        let last = LAST_APPLIED_BACKEND.lock().unwrap();
+        last.as_deref() != Some(&settings.backend)
     };
 
     if settings.mode == "ai" {
@@ -67,18 +70,24 @@ pub fn apply_upscale_settings_impl(
 
         ensure_inference_environment();
         let models_dir = get_models_dir();
-        let _ = state.mpv.set_hwdec_for_backend(&settings.backend);
-        let _ = state.mpv.enable_ai_upscale(
-            &conf_str,
-            &models_dir.to_string_lossy(),
-            active_slot,
-            backend_changed,
-        );
+        if let Err(e) = state.mpv.set_hwdec_for_backend(&settings.backend) {
+            eprintln!("[L-MPV][Upscale] Не удалось установить hwdec: {}", e);
+        }
+        state
+            .mpv
+            .enable_ai_upscale(
+                &conf_str,
+                &models_dir.to_string_lossy(),
+                active_slot,
+                backend_changed,
+            )
+            .map_err(|e| format!("Включение апскейлинга не удалось: {}", e))?;
         force_frame_refresh(&state.mpv);
     } else {
-        let _ = state.mpv.disable_ai_upscale();
+        state.mpv.disable_ai_upscale()?;
     }
 
+    *LAST_APPLIED_BACKEND.lock().unwrap() = Some(settings.backend);
     Ok(())
 }
 
@@ -93,14 +102,12 @@ pub fn switch_upscale_network_hotkey_impl(
         last.clone().unwrap_or_else(|| "DirectML".to_string())
     });
     let backend_changed = {
-        let mut last = LAST_APPLIED_BACKEND.lock().unwrap();
-        let changed = last.as_deref() != Some(&chosen_backend);
-        *last = Some(chosen_backend.clone());
-        changed
+        let last = LAST_APPLIED_BACKEND.lock().unwrap();
+        last.as_deref() != Some(&chosen_backend)
     };
 
     if slot == 0 {
-        let _ = state.mpv.disable_ai_upscale();
+        state.mpv.disable_ai_upscale()?;
     } else {
         // Проверяем, установлены ли необходимые библиотеки выбранного движка
         let status = super::config::check_upscale_status_internal();
@@ -119,15 +126,21 @@ pub fn switch_upscale_network_hotkey_impl(
         let models_dir = get_models_dir();
         let conf_path = write_upscale_conf(&chosen_backend, slot)?;
         let conf_str = conf_path.to_string_lossy();
-        let _ = state.mpv.set_hwdec_for_backend(&chosen_backend);
-        let _ = state.mpv.enable_ai_upscale(
-            &conf_str,
-            &models_dir.to_string_lossy(),
-            slot,
-            backend_changed,
-        );
+        if let Err(e) = state.mpv.set_hwdec_for_backend(&chosen_backend) {
+            eprintln!("[L-MPV][Upscale] Не удалось установить hwdec: {}", e);
+        }
+        state
+            .mpv
+            .enable_ai_upscale(
+                &conf_str,
+                &models_dir.to_string_lossy(),
+                slot,
+                backend_changed,
+            )
+            .map_err(|e| format!("Включение апскейлинга не удалось: {}", e))?;
     }
 
+    *LAST_APPLIED_BACKEND.lock().unwrap() = Some(chosen_backend);
     force_frame_refresh(&state.mpv);
     Ok(())
 }

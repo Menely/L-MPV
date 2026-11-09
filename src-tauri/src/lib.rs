@@ -159,6 +159,7 @@ pub fn run() {
     let cli_initial = parse_cli_args(std::env::args());
     let audio_capture = Arc::new(crate::audio_capture::AudioCaptureManager::new());
     let player_state = commands::PlayerState {
+        startup_playback: std::sync::Mutex::new(None),
         mpv: mpv_arc,
         ambient_controller,
         startup_open_mediainfo: std::sync::atomic::AtomicBool::new(cli_initial.open_mediainfo),
@@ -207,6 +208,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // Управление воспроизведением
             commands::open_file,
+            commands::complete_startup_playback,
             commands::toggle_pause,
             commands::set_pause,
             commands::seek,
@@ -449,7 +451,10 @@ pub fn run() {
             } else if let Some(ref path) = cli.file_path {
                 let state = app.state::<PlayerState>();
                 let app_h = app.handle().clone();
+                commands::arm_startup_playback(&state, path)
+                    .map_err(std::io::Error::other)?;
                 if let Err(e) = commands::open_file_internal(&state, path, Some(&app_h)) {
+                    let _ = commands::cancel_startup_playback(&state, true);
                     eprintln!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
                     window.show().ok();
                 }

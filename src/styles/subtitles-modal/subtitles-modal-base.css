@@ -26,8 +26,8 @@
 }
 
 .subtitles-search-card:not(.subtitles-search-card--capsule).subtitles-search-card--opaque {
-  background: #0b0f15;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--surface-tone-1, var(--bg-surface, #0b0f15));
+  border: 1px solid var(--border-pill);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
@@ -92,18 +92,18 @@
 }
 
 .subtitles-search-card .subtitles-search-card__search-input:hover:not(:focus) {
-  border-color: var(--focus-ring) !important;
+  border-color: var(--border-pill-hover) !important;
 }
 
 .subtitles-search-card .subtitles-search-card__search-input:focus {
-  border-color: var(--focus-ring) !important;
+  border-color: var(--selection-frame) !important;
 }
 
 .sub-search-mark {
   background: rgba(251, 191, 36, 0.35);
   color: #fbbf24;
   padding: 0 3px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   font-weight: 600;
 }
 
@@ -145,16 +145,16 @@
 }
 
 .subtitles-search-card__mode-btn:hover:not(.subtitles-search-card__mode-btn--active) {
-  background: var(--bg-hover) !important;
+  background: var(--hover-veil-float) !important;
   color: var(--text-primary) !important;
   border-color: transparent !important;
 }
 
 .subtitles-search-card__mode-btn--active {
   background: var(--surface-accent-subtle) !important;
-  color: #ffffff !important;
+  color: var(--accent-text) !important;
   font-weight: 600 !important;
-  border-color: var(--accent) !important;
+  border-color: var(--selection-frame) !important;
   box-shadow: none !important;
 }
 
@@ -170,15 +170,23 @@
   min-width: 7px;
   min-height: 7px;
   border-radius: 50%;
-  background: var(--focus-ring);
+  background: var(--accent);
   box-shadow: 0 0 6px var(--surface-accent-glow);
   display: inline-block;
   flex-shrink: 0;
 }
 
-/* Пункты выпадающего списка дорожек */
+/* Пункты выпадающего списка дорожек.
+   Выбранная дорожка обозначается ТОЛЬКО точкой (--track-radio-dot),
+   фон в покое прозрачный; заливка появляется при наведении.
+   Поповер живёт над видео, поэтому вуаль наведения плотная. */
 .subtitles-search-card .subtitles-search-card__track-picker-item {
-  border-radius: var(--radius-control) !important;
+  border-radius: var(--radius-list-row) !important;
+}
+
+.subtitles-search-card .subtitles-search-card__track-picker-item:hover {
+  background: var(--hover-veil-float) !important;
+  color: var(--text-primary) !important;
 }
 
 /* Кнопки навигации и сдвига задержки в поиске */

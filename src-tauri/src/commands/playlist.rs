@@ -23,6 +23,7 @@ use tauri::State;
 pub fn playlist_prev(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, true)?;
     save_current_playback_position(&state);
     save_history_to_disk();
     let (pos, _) = playlist_position(&state.mpv);
@@ -42,6 +43,7 @@ pub fn playlist_prev(
 pub fn playlist_next(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, true)?;
     save_current_playback_position(&state);
     save_history_to_disk();
     let (pos, _) = playlist_position(&state.mpv);
@@ -143,6 +145,7 @@ pub fn play_playlist_item(
     state: State<'_, PlayerState>,
     index: i64,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, true)?;
     if index < 0 {
         return Err(
             "Недопустимый отрицательный индекс \

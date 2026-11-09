@@ -48,7 +48,7 @@ for(const selector of ['.glass-section','.glass-tile']) {
   assert.ok(start>=0);
   assert.match(componentsCss.slice(start,componentsCss.indexOf('}',start)),/background:\s*var\(--surface-card\)/,`${selector} must use its own tone, not the child tone`);
 }
-const refLum=c=>rgb(c).slice(0,3).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+const refLum=c=>(Array.isArray(c)?c:rgb(c)).slice(0,3).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
 let pairs=0, minimumText=Infinity, minimumFill=Infinity;
 for(const theme of Object.values(colors.PLAYER_THEMES)) {
   storage.set(colors.PLAYER_THEME_STORAGE_KEY,theme.id);
@@ -77,11 +77,17 @@ for(const theme of Object.values(colors.PLAYER_THEMES)) {
       assert.equal(own,levels[depth],`${theme.id}: CSS depth does not match semantic depth`);
       assert.equal(child,levels[Math.min(4,depth+1)]);
       assert.ok(refLum(resolve('--surface-card-hover'))>refLum(own),'A card must not darken on hover');
-      assert.ok(refLum(resolve('--surface-card-selected'))>refLum(own),'A selected card must not darken');
+      // Вуаль selected полупрозрачна: браузер блендит её с подложкой,
+      // поэтому сравниваем именно сбленденный цвет (blend over base),
+      // а не сырой rgba. Для глухих тонов blend возвращает их как есть.
+      assert.ok(refLum(blend(resolve('--surface-card-selected'),own))>refLum(own),'A selected card must not darken');
       assert.ok(refLum(resolve('--surface-level-3-hover'))>refLum(child),'Child control must not darken on hover');
-      assert.ok(refLum(resolve('--surface-accent-subtle'))>refLum(child),'Child control must not darken on selection');
+      assert.ok(refLum(blend(resolve('--surface-accent-subtle'),child))>refLum(child),'Child control must not darken on selection');
     }
-    const backgrounds=[rgb(theme.tokens.bgSurface),glass,...levels,...selected,...hovered];
+    // Текст проверяем и на реально отрендеренных вуалях (сбленденных с подложкой).
+    const backgrounds=[rgb(theme.tokens.bgSurface),glass,...levels,...selected,...hovered,
+      blend(properties.get('--surface-card-selected'),levels[1]),
+      blend(properties.get('--surface-accent-subtle'),levels[2])];
     for(const token of ['--text-primary','--text-secondary','--text-muted','--accent-text'])for(const bg of backgrounds) {
       const r=ratio(properties.get(token),bg);minimumText=Math.min(minimumText,r);
       assert.ok(r>=4.5,`${theme.id}/${accent} ${token}: ${r.toFixed(3)}`);

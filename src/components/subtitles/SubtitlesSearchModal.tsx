@@ -534,10 +534,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                 }`}
                 title={dict.subtitlesSearch.followTooltip}
               >
-                <Radio
-                  size={14}
-                  className={followPlayback ? "pulse-subtle" : ""}
-                />
+                <Radio size={14} />
                 <span>{dict.subtitlesSearch.tracking}</span>
               </button>
             </div>
@@ -578,13 +575,13 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                   gap: "var(--space-3)",
                   padding: "7px 12px",
                   background: followPlayback
-                    ? "rgba(var(--accent-rgb, 127, 199, 255), 0.20)"
-                    : "rgba(255, 255, 255, 0.05)",
+                    ? "var(--surface-accent-subtle)"
+                    : "var(--surface-level-3)",
                   border: "1px solid",
                   borderColor: followPlayback
                     ? "var(--accent)"
                     : "var(--border-pill)",
-                  borderRadius: "var(--radius-xs)",
+                  borderRadius: "var(--radius-control)",
                   color: followPlayback
                     ? "var(--accent-text)"
                     : "var(--text-secondary)",
@@ -599,10 +596,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                 }`}
                 title={dict.subtitlesSearch.followTooltip}
               >
-                <Radio
-                  size={13}
-                  className={followPlayback ? "pulse-subtle" : ""}
-                />
+                <Radio size={13} />
                 <span>{dict.subtitlesSearch.tracking}</span>
               </button>
             </div>
@@ -613,7 +607,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
             style={{
               padding: "8px 12px",
               background: isCapsule ? undefined : "rgba(255, 255, 255, 0.03)",
-              borderRadius: isCapsule ? undefined : "var(--radius-xs)",
+              borderRadius: isCapsule ? undefined : "var(--radius-control)",
               color: "var(--text-muted)",
               fontSize: "var(--fs-sm)",
               marginBottom: isCapsule ? 0 : "var(--space-5)",

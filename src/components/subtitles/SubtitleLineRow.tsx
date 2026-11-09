@@ -72,22 +72,25 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
         flexDirection: "column",
         gap: "var(--space-3)",
         padding: isTech ? "8px 11px" : "7px 10px",
+        // Строка — самостоятельная карточка: свой слой и рамка, чтобы она
+        // читалась отдельным элементом, а не сливалась с подложкой панели.
         background: isActive
           ? "var(--bg-active)"
           : isNavTarget
           ? "var(--surface-accent-subtle)"
-          : "var(--surface-level-2)",
+          : "var(--surface-level-3)",
         border: "1px solid",
         borderColor: isActive
-          ? "var(--accent)"
+          ? "var(--selection-frame)"
           : isNavTarget
-          ? "var(--accent)"
-          : "transparent",
+          ? "var(--selection-frame)"
+          : "var(--border-subtle)",
         boxShadow:
           isNavTarget && !isActive
-            ? "0 0 10px var(--surface-accent-glow)"
+            ? "var(--selection-shadow)"
             : "none",
-        borderRadius: "var(--radius-xs)",
+        // Строка списка — свой радиус (--radius-list-row), как в плейлисте.
+        borderRadius: "var(--radius-list-row)",
         cursor: "pointer",
         transition:
           "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",

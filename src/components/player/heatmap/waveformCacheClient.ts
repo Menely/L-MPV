@@ -21,7 +21,13 @@ export const WAVEFORM_STORAGE_KEY = "l-mpv-waveform-enabled";
 /**
  * Глобальный LRU-кэш сессии для хранения полных структур ответов тепловых карт.
  */
-const waveformMemoryCache = new WaveformMemoryCache<HeatmapDataResponse>(128);
+const waveformMemoryCache = new WaveformMemoryCache<HeatmapDataResponse>(128, 32 * 1024 * 1024, response => {
+  const payload = response.metrics.payload;
+  const metricLength = "bitrate_kbps" in payload
+    ? payload.bitrate_kbps.length + payload.packet_counts.length
+    : payload.rms_db.length + payload.peak_db.length;
+  return (response.visual_bins.length + metricLength) * 8;
+});
 
 /**
  * Реестр активных in-flight промисов для объединения одинаковых запросов к бэкенду.
@@ -58,7 +64,7 @@ export async function preloadWaveform(
   externalTrackPath?: string
 ): Promise<HeatmapDataResponse | null> {
   if (!path) return null;
-  if (typeof durationHint === "number" && durationHint <= 0) {
+  if ((dataSource || getHeatmapConfig().dataSource) === "audio" && typeof durationHint === "number" && durationHint <= 0) {
     return null;
   }
 

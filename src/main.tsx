@@ -141,7 +141,7 @@ class GlobalErrorBoundary extends React.Component<
               background: "rgba(255,255,255,0.1)",
               border: "1px solid rgba(255,255,255,0.2)",
               color: "#fff",
-              borderRadius: 6,
+              borderRadius: "var(--radius-xs)",
               cursor: "pointer",
             }}
             >

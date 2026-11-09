@@ -55,12 +55,17 @@ impl Drop for VramGuard {
                 let conf_path = get_upscale_conf_path();
                 let conf_str = conf_path.to_string_lossy();
                 let models_dir = get_models_dir();
-                let _ = player_state.mpv.enable_ai_upscale(
+                if let Err(e) = player_state.mpv.enable_ai_upscale(
                     &conf_str,
                     &models_dir.to_string_lossy(),
                     target_slot,
                     false,
-                );
+                ) {
+                    eprintln!(
+                        "[L-MPV][Upscale] Не удалось восстановить фильтр после компиляции: {}",
+                        e
+                    );
+                }
                 super::controller::force_frame_refresh(&player_state.mpv);
             }
 

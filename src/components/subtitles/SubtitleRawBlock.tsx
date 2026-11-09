@@ -144,12 +144,12 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
               style={{
                 background:
                   currentFormat === fmt
-                    ? "var(--focus-ring)"
+                    ? "var(--accent)"
                     : "transparent",
                 color:
-                  currentFormat === fmt ? "#ffffff" : "var(--text-muted)",
+                  currentFormat === fmt ? "var(--on-accent)" : "var(--text-muted)",
                 border: "none",
-                borderRadius: "2px",
+                borderRadius: "var(--radius-xs)",
                 padding: "1px 4px",
                 fontSize: "var(--fs-3xs)",
                 fontWeight: 600,

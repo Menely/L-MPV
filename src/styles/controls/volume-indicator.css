@@ -1,0 +1,79 @@
+/* Volume ruler trial: shares typography and linework with the seek ruler. */
+.volume-feedback {
+  position: absolute;
+  top: 76%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-widget);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(564px, calc(100% - 48px));
+  color: #fff;
+  pointer-events: none;
+  user-select: none;
+  animation: volume-feedback-appear 120ms ease-out;
+  transition: opacity 180ms ease-out;
+}
+.volume-feedback--closing { opacity: 0; }
+.volume-feedback__value {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-size: 27px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+  -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.65);
+  paint-order: stroke fill;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.volume-feedback__value span { font-size: 12px; }
+.volume-feedback__ruler { position: relative; width: 100%; }
+.volume-feedback__scale {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  filter: none;
+}
+.volume-feedback__cursor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+}
+.volume-feedback__scale-shadow { filter: brightness(0) blur(1.5px) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8)); }
+.volume-feedback__tick { fill: rgba(255, 255, 255, 0.55); shape-rendering: crispEdges; }
+.volume-feedback__tick--filled { fill: rgba(255, 255, 255, 0.85); }
+.volume-feedback__tick--boost { fill: currentColor; fill-opacity: 0.55; }
+.volume-feedback__tick--boost.volume-feedback__tick--filled { fill: currentColor; fill-opacity: 0.85; }
+.volume-feedback__reference { fill: #fff; font-size: 10px; font-variant-numeric: tabular-nums; }
+.volume-feedback__marker { transition: transform 140ms ease-out; }
+.volume-feedback__marker path { stroke: var(--accent-text, #fff); stroke-width: 2; }
+.volume-feedback__marker circle { fill: var(--accent-text, #fff); }
+.volume-feedback__icon {
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: none;
+}
+.volume-feedback__icon-shadow { stroke: rgba(0, 0, 0, 0.75); stroke-width: 4; filter: none; }
+.volume-feedback__icon-front { stroke: #fff; stroke-width: 2; filter: none; }
+@keyframes volume-feedback-appear { from { opacity: 0; } to { opacity: 1; } }
+@media (max-height: 360px) {
+  .volume-feedback { row-gap: 3px; }
+}
+html.no-animations .volume-feedback,
+html.no-animations .volume-feedback__marker { animation: none; transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .volume-feedback, .volume-feedback__marker { animation: none; transition: none; }
+}

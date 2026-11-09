@@ -338,6 +338,11 @@ export function applyAccentColor(value: string): void {
   try {
     const root = document.documentElement;
     const hex = normalizeHex(value === "windows" ? getEffectiveAccentColor() : value) || "#7fc7ff";
+    // Единая вуаль эталона (строка шрифтов): все selected-заливки плеера —
+    // 16% сырого акцента, hover 22%. Тон один везде, для ярких и пастели.
+    const accentVeil = colorRgb(hex).join(", ");
+    const accentVeilSubtle = `rgba(${accentVeil}, 0.16)`;
+    const accentVeilHover = `rgba(${accentVeil}, 0.22)`;
 
     const hover = adjustBrightness(hex, 15);
     const dim = adjustBrightness(hex, -25);
@@ -360,8 +365,8 @@ export function applyAccentColor(value: string): void {
     root.style.setProperty("--surface-root-glass", "rgba(var(--bg-glass-rgb), var(--ui-opacity, 0.88))");
     root.style.setProperty("--surface-card", "var(--surface-fill-1)");
     root.style.setProperty("--surface-card-hover", "var(--surface-fill-hover-1)");
-    root.style.setProperty("--surface-card-selected", "var(--surface-fill-selected-1)");
-    root.style.setProperty("--surface-card-selected-hover", "var(--surface-fill-selected-hover-1)");
+    root.style.setProperty("--surface-card-selected", accentVeilSubtle);
+    root.style.setProperty("--surface-card-selected-hover", accentVeilHover);
     root.style.setProperty("--surface-child", "var(--surface-fill-2)");
 
     root.style.setProperty("--bg-elevated-rgb", colorRgb(roles.elevated).join(", "));
@@ -384,8 +389,8 @@ export function applyAccentColor(value: string): void {
     root.style.setProperty("--border-default", "var(--border)");
     root.style.setProperty("--border-subtle", `rgba(${borderRgb}, 0.10)`);
     root.style.setProperty("--border-hover", `rgba(${borderRgb}, 0.28)`);
-    root.style.setProperty("--surface-accent-subtle", "var(--surface-fill-selected-1)");
-    root.style.setProperty("--surface-accent-hover", "var(--surface-fill-selected-hover-1)");
+    root.style.setProperty("--surface-accent-subtle", accentVeilSubtle);
+    root.style.setProperty("--surface-accent-hover", accentVeilHover);
     root.style.setProperty("--surface-accent-border", "var(--focus-ring)");
     for (const [name, color] of Object.entries({ success: "#8dcbb2", warning: "#e0b77e", danger: "#e6a0aa", info: "#8ebce6" })) {
       const statusRgb = colorRgb(color).join(", ");
@@ -413,6 +418,7 @@ export function applyAccentColor(value: string): void {
     root.style.setProperty("--border-pill-hover", `rgba(${interactionRgb}, 0.45)`);
     root.style.setProperty("--bg-hover", "var(--surface-level-3-hover)");
     root.style.setProperty("--bg-active", "var(--surface-accent-hover)");
+    root.style.setProperty("--window-control-hover", "color-mix(in srgb, var(--accent) 14%, transparent)");
 
     root.style.setProperty("--shadow-glow", profile ? profile.shadow(rgbString) : "none");
     root.style.setProperty("--thumb-glow", profile ? profile.thumb(rgbString) : "none");

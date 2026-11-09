@@ -1,4 +1,5 @@
 import { SettingsIcon } from "./SettingsIcon";
+import { ColorSwatch, ColorSwatchGrid } from "./ColorSwatch";
 import { optionResetBtnStyle } from "./optionCardStyles";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback } from "react";
@@ -49,29 +50,29 @@ const GLOW_OPTIONS = [
     id: "off" as const,
     label: "Off",
     desc: "Off",
-    selectedBg: "rgba(255, 255, 255, 0.08)",
-    selectedShadow: "inset 0 0 0 1.5px var(--accent)",
+    selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.16)",
+    selectedShadow: "none",
   },
   {
     id: "soft" as const,
     label: "Soft",
     desc: "Subtle",
-    selectedBg: "var(--surface-accent-subtle)",
-    selectedShadow: "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.40), inset 0 0 0 1.5px var(--accent)",
+    selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.16)",
+    selectedShadow: "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.25), inset 0 0 0 1.5px transparent",
   },
   {
     id: "medium" as const,
     label: "Medium",
     desc: "Balanced",
-    selectedBg: "var(--surface-accent-subtle)",
-    selectedShadow: "0 0 16px rgba(var(--accent-rgb, 127, 199, 255), 0.65), 0 0 4px var(--accent), inset 0 0 0 1.5px var(--accent)",
+    selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.16)",
+    selectedShadow: "0 0 12px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px transparent",
   },
   {
     id: "intense" as const,
     label: "High",
     desc: "Vibrant",
-    selectedBg: "var(--surface-accent-subtle)",
-    selectedShadow: "0 0 28px rgba(var(--accent-rgb, 127, 199, 255), 0.95), 0 0 8px var(--accent), inset 0 0 0 2px var(--accent)",
+    selectedBg: "rgba(var(--accent-rgb, 127, 199, 255), 0.16)",
+    selectedShadow: "0 0 16px rgba(var(--accent-rgb, 127, 199, 255), 0.50), inset 0 0 0 1.5px transparent",
   },
 ] as const;
 
@@ -206,9 +207,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
 
   return (
     <>
-      <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-secondary)", marginBottom: "var(--space-6)", lineHeight: 1.35 }}>
-        {dict.settings.appearance.colorScheme.sectionDesc}
-      </div>
+
 
       {/* Живой аутентичный предпросмотр цветовой темы и акцента */}
       <div className="settings-preview-card">
@@ -328,22 +327,14 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               dict.settings.appearance.colorScheme.playerThemes[themeKey] ||
               theme.name;
             return (
-              <button
+              <ColorSwatch
                 key={themeKey}
                 type="button"
                 onClick={() => handleSelectTheme(themeKey)}
-                className={`color-circle ${isSel ? "color-circle--active" : ""}`}
+                selected={isSel}
+                color={theme.dotColor}
                 title={themeName}
                 aria-label={themeName}
-                style={{
-                  background: theme.dotColor,
-                  border: isSel
-                    ? "2px solid #ffffff"
-                    : "1.5px solid rgba(255, 255, 255, 0.18)",
-                  boxShadow: isSel
-                    ? "0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent)"
-                    : "none",
-                }}
               />
             );
           })}
@@ -371,26 +362,22 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               <div className="color-column-card__header">
                 <span className="color-column-card__title">{title}</span>
               </div>
-              <div className="color-column-card__grid">
+              <ColorSwatchGrid>
                 {presets.map((hex) => {
                   const isActive = activeColor.toLowerCase() === hex.toLowerCase();
                   const isRec = PLAYER_THEMES[playerTheme]?.recommendedAccents?.some(
                     (recHex) => recHex.toLowerCase() === hex.toLowerCase()
                   );
                   return (
-                    <button
+                    <ColorSwatch
                       key={hex}
                       type="button"
                       aria-label={hex}
                       aria-pressed={isActive}
                       title={hex}
                       onClick={() => handleSelectAccentColor(hex)}
-                      className={`color-circle ${isActive ? "color-circle--active" : ""}`}
-                      style={{
-                        backgroundColor: hex,
-                        boxShadow: isActive ? "0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent)" : "none",
-                        position: "relative",
-                      }}
+                      selected={isActive}
+                      color={hex}
                       >
                       {isRec && !isActive && (
                         <span
@@ -406,10 +393,10 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                           }}
                         />
                       )}
-                    </button>
+                    </ColorSwatch>
                   );
                 })}
-              </div>
+              </ColorSwatchGrid>
             </div>
           ))}
 
@@ -419,25 +406,23 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               <span className="color-column-card__title">{dict.settings.appearance.colorScheme.myColors}</span>
               <span className="color-column-card__badge">{customColors.length}/{MAX_CUSTOM_COLORS}</span>
             </div>
-            <div className="color-column-card__grid">
+            <ColorSwatchGrid>
               {/* 1. Кнопка «Цвет темы Windows» */}
-              <button
+              <ColorSwatch
                 onClick={handleSelectWindowsColor}
-                className={`color-circle color-circle--windows ${activeColor === "windows" ? "color-circle--active" : ""}`}
+                className="color-circle--windows"
+                selected={activeColor === "windows"}
                 >
                 <Monitor size={15} />
-              </button>
+              </ColorSwatch>
 
               {/* 2. Список добавленных пользователем цветов */}
               {customColors.map((hex, idx) => (
                 <div key={`${hex}-${idx}`} style={{ position: "relative" }}>
-                  <button
+                  <ColorSwatch
                     onClick={() => handleSelectAccentColor(hex)}
-                    className={`color-circle ${activeColor === hex ? "color-circle--active" : ""}`}
-                    style={{
-                      backgroundColor: hex,
-                      boxShadow: activeColor.toLowerCase() === hex.toLowerCase() ? "0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent)" : "none",
-                    }}
+                    selected={activeColor.toLowerCase() === hex.toLowerCase()}
+                    color={hex}
                     >
                     <span
                       className="color-circle__remove-btn"
@@ -448,19 +433,19 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                       >
                       <X size={10} />
                     </span>
-                  </button>
+                  </ColorSwatch>
                 </div>
               ))}
 
               {/* 3. Кнопка добавления нового цвета + */}
               {customColors.length < MAX_CUSTOM_COLORS && (
-                <button
+                <ColorSwatch
                   onClick={() => setShowColorPicker(true)}
                   className="color-circle color-circle--add"
                   title={dict.settings.appearance.colorScheme.addColor}
                   >
                   <Plus size={16} />
-                </button>
+                </ColorSwatch>
               )}
 
               {/* 4. Пустые слоты-заполнители для ровной матрицы 4х4 */}
@@ -469,7 +454,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               }).map((_, i) => (
                 <div key={`empty-${i}`} className="color-circle color-circle--empty" />
               ))}
-            </div>
+            </ColorSwatchGrid>
           </div>
         </div>
       </div>
@@ -493,6 +478,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                 key={mode.id}
                 type="button"
                 onClick={() => handleSelectGlow(mode.id)}
+                className={`glow-choice${isSel ? " glow-choice--active" : ""}`}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -501,12 +487,12 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                   gap: "var(--space-1)",
                   padding: "6px 4px",
                   borderRadius: "var(--radius-control)",
-                  border: isSel ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.06)",
+                  border: isSel ? "1px solid var(--selection-frame)" : "1px solid rgba(255, 255, 255, 0.06)",
                   cursor: "pointer",
                   background: isSel ? mode.selectedBg : "rgba(255, 255, 255, 0.03)",
                   color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
                   boxShadow: isSel ? mode.selectedShadow : "none",
-                  transition: "all var(--t-fast) var(--ease-smooth)",
+                  transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
                 }}
                 >
                 <span className="t-sub">{mode.label}</span>

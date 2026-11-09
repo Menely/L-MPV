@@ -92,7 +92,7 @@ export function SubtitleSearchBar({
             padding: `8px ${hasResults && searchQuery ? "96px" : searchQuery ? "40px" : "14px"} 8px 32px`,
             background: "rgba(0, 0, 0, 0.3)",
             border: "1px solid var(--border-pill)",
-            borderRadius: "var(--radius-sm)",
+            borderRadius: "var(--radius-control)",
             color: "var(--text-primary)",
             fontSize: "var(--fs-sm)",
             outline: "none",
@@ -135,7 +135,7 @@ export function SubtitleSearchBar({
                     minWidth: 26,
                     minHeight: 26,
                     padding: 0,
-                    borderRadius: "var(--radius-xs)",
+                    borderRadius: "var(--radius-control)",
                   }}
                   title={dict.subtitlesSearch.prevMatch}
                   aria-label={dict.subtitlesSearch.prevMatch}
@@ -157,7 +157,7 @@ export function SubtitleSearchBar({
                     minWidth: 26,
                     minHeight: 26,
                     padding: 0,
-                    borderRadius: "var(--radius-xs)",
+                    borderRadius: "var(--radius-control)",
                   }}
                   title={dict.subtitlesSearch.nextMatch}
                   aria-label={dict.subtitlesSearch.nextMatch}
@@ -183,7 +183,7 @@ export function SubtitleSearchBar({
                   minWidth: 26,
                   minHeight: 26,
                   padding: 0,
-                  borderRadius: "var(--radius-xs)",
+                  borderRadius: "var(--radius-control)",
                 }}
                 aria-label={dict.subtitlesSearch.clearSearch}
               >
@@ -263,7 +263,7 @@ export function SubtitleSearchBar({
                 minWidth: 28,
                 minHeight: 26,
                 padding: "2px 4px",
-                borderRadius: "var(--radius-xs)",
+                borderRadius: "var(--radius-control)",
                 fontSize: "var(--fs-xs)",
                 fontWeight: 700,
                 lineHeight: 1,
@@ -298,7 +298,7 @@ export function SubtitleSearchBar({
                 minWidth: 28,
                 minHeight: 26,
                 padding: "2px 4px",
-                borderRadius: "var(--radius-xs)",
+                borderRadius: "var(--radius-control)",
                 fontSize: "var(--fs-xs)",
                 fontWeight: 700,
                 lineHeight: 1,

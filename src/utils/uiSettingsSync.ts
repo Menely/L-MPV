@@ -1,3 +1,4 @@
+import { getFavoriteModel, setFavoriteModel } from "./favoriteModel";
 /**
  * Модуль двусторонней синхронизации визуальных настроек L-MPV с портативным файлом config/settings.json.
  * 
@@ -8,6 +9,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { applyAnimationsFlagToDom } from "./animationUtils";
+import { isVolumeIndicatorEnabled, setVolumeIndicatorEnabled } from "./volumeFeedback";
 import {
   getSavedPlayerTheme,
   savePlayerTheme,
@@ -87,6 +89,8 @@ export interface UiSettings {
   time_format?: string;
   animations_enabled?: boolean;
   show_track_names?: boolean;
+  volume_indicator_enabled?: boolean;
+  favorite_upscale_model?: string;
   playlist_width?: number;
   custom_colors?: string[];
   visible_buttons?: Record<string, boolean>;
@@ -240,6 +244,8 @@ export function collectCurrentUiSettings(): UiSettings {
     time_format: getSavedTimeFormat(),
     animations_enabled: localStorage.getItem("l-mpv-animations-enabled") !== "false",
     show_track_names: localStorage.getItem("l-mpv-show-track-names") !== "false",
+    volume_indicator_enabled: isVolumeIndicatorEnabled(),
+    favorite_upscale_model: getFavoriteModel(),
     playlist_width: playlistWidth,
     custom_colors: getCustomColors(),
     visible_buttons: visibleButtons,
@@ -367,6 +373,14 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
   }
   if (typeof ui.show_track_names === "boolean") {
     localStorage.setItem("l-mpv-show-track-names", ui.show_track_names ? "true" : "false");
+    restored = true;
+  }
+  if (typeof ui.favorite_upscale_model === "string" && getFavoriteModel() !== ui.favorite_upscale_model) {
+    setFavoriteModel(ui.favorite_upscale_model);
+    restored = true;
+  }
+  if (typeof ui.volume_indicator_enabled === "boolean") {
+    setVolumeIndicatorEnabled(ui.volume_indicator_enabled);
     restored = true;
   }
   if (typeof ui.playlist_width === "number" && ui.playlist_width >= 360) {

@@ -16,6 +16,7 @@ import {
   isCodeReservedForUpscaleOff,
   isMouseScopeCompatible,
 } from "../../../utils/hotkeyUtils";
+import { getFavoriteModel, toggleFavoriteModel } from "../../../utils/favoriteModel";
 import {
   ModelFileItem,
   GpuHardwareInfo,
@@ -97,6 +98,14 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     }
   });
   const [isModelsListOpen, setIsModelsListOpen] = useState(false);
+
+  // Избранная модель по умолчанию (звездочка, issue #7): хранится по имени файла,
+  // поэтому переживает переупорядочивание списка.
+  const [favoriteModel, setFavoriteModelState] = useState<string>(() => getFavoriteModel());
+
+  const handleToggleFavorite = (filename: string) => {
+    setFavoriteModelState(toggleFavoriteModel(filename));
+  };
 
   const toggleHideModelNames = () => {
     const next = !hideModelNames;
@@ -292,6 +301,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     const handleSettingsChanged = () => {
       if (isMountedRef.current) {
         setCustomHotkeys(getCustomHotkeys());
+        setFavoriteModelState(getFavoriteModel());
         const savedMode = (localStorage.getItem("l-mpv-upscale-mode") as "off" | "ai") || "off";
         const savedBackend = (localStorage.getItem("l-mpv-upscale-backend") as "DirectML" | "TensorRT") || "DirectML";
         const savedSlot = Number(localStorage.getItem("l-mpv-upscale-slot") || 1001);
@@ -741,6 +751,8 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                             model={model}
                             idx={idx}
                             isSelected={settings.active_slot === model.slot || settings.selected_model === model.filename}
+                            isFavorite={favoriteModel === model.filename}
+                            onToggleFavorite={() => handleToggleFavorite(model.filename)}
                             hideModelNames={hideModelNames}
                             customHotkeys={customHotkeys}
                             recordingActionId={recordingActionId}

@@ -53,7 +53,7 @@ button.controls-island--compact-time,
 
 .controls-overflow__action > span { flex: 1; }
 .controls-overflow__action > svg { flex-shrink: 0; }
-.controls-overflow__action:hover { background: var(--bg-hover); }
+.controls-overflow__action:hover { background: var(--hover-veil); }
 .controls-overflow__action[aria-pressed="true"] { color: var(--accent-text); }
 
 .controls-overflow__speed,
@@ -91,7 +91,7 @@ button.controls-island--compact-time,
   flex-shrink: 0;
   border: 0;
   border-radius: var(--radius-control);
-  background: var(--bg-hover);
+  background: var(--surface-level-3-hover);
   color: var(--text-primary);
   cursor: pointer;
 }

@@ -82,7 +82,9 @@ export function resolveHeatmapHoverMetrics({
 
   const sampleIndex = Math.min(
     effectiveSamples.length - 1,
-    Math.max(0, Math.floor(hoverRatio * effectiveSamples.length))
+    Math.max(0, Math.floor(response && response.step_duration_sec > 0
+      ? timeSeconds / response.step_duration_sec
+      : hoverRatio * effectiveSamples.length))
   );
   const rawValue = effectiveSamples[sampleIndex] ?? 0;
   const intensityPercent = Math.round((rawValue / 255) * 100);

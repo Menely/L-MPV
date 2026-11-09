@@ -6,7 +6,7 @@ const ts = require('typescript');
 const root = path.resolve(__dirname, '..');
 const calls = new Map();
 const storage = new Map();
-const heatmapDefaults = { enabled: true, style: 'bars', dataSource: 'audio', palette: 'theme', placement: 'above_controls', height: 34, opacity: .9, showCrestLine: true };
+const heatmapDefaults = { enabled: false, style: 'bars', dataSource: 'audio', palette: 'theme', placement: 'above_controls', height: 34, opacity: .9 };
 const exportsObject = {};
 const source = fs.readFileSync(path.join(root, 'src/utils/presetsUtils.ts'), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
@@ -33,7 +33,7 @@ const paletteSource = fs.readFileSync(path.join(root, 'src/utils/playerPalettes.
   // Apply in both directions, starting with a previously enabled heatmap.
   for (const preset of [...BUILT_IN_PRESETS, ...[...BUILT_IN_PRESETS].reverse()]) {
     calls.clear();
-    calls.set('saveHeatmapConfig', [{ ...heatmapDefaults }]);
+    calls.set('saveHeatmapConfig', [{ ...heatmapDefaults, enabled: true }]);
     await applySettingsPreset(preset);
     const data = preset.data;
     assert.equal(calls.get('saveHeatmapConfig')[0].enabled, false, `${preset.id}: disable an existing heatmap`);
