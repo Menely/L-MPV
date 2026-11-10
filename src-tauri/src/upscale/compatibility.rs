@@ -3,12 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     fs,
-    io::Read,
     path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Mutex, OnceLock,
-    },
+    sync::atomic::{AtomicBool, Ordering},
     time::UNIX_EPOCH,
 };
 
@@ -21,60 +17,9 @@ pub fn runtime_used() -> bool {
     RUNTIME_USED.load(Ordering::SeqCst)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct Identity {
-    size: u64,
-    modified: u128,
-}
-fn identity(path: &Path) -> Result<Identity, String> {
-    let m = path.metadata().map_err(|e| e.to_string())?;
-    if !m.is_file() || m.len() == 0 {
-        return Err(format!("Missing or empty file: {}", path.display()));
-    }
-    Ok(Identity {
-        size: m.len(),
-        modified: m
-            .modified()
-            .map_err(|e| e.to_string())?
-            .duration_since(UNIX_EPOCH)
-            .map_err(|e| e.to_string())?
-            .as_nanos(),
-    })
-}
-
-fn content_hash(path: &Path) -> Result<String, String> {
-    type HashCache = BTreeMap<PathBuf, (Identity, String)>;
-    static CACHE: OnceLock<Mutex<HashCache>> = OnceLock::new();
-    let path = path.to_path_buf();
-    let before = identity(&path)?;
-    let mut cache = CACHE
-        .get_or_init(|| Mutex::new(BTreeMap::new()))
-        .lock()
-        .map_err(|e| e.to_string())?;
-    if let Some((stored, hash)) = cache.get(&path) {
-        if *stored == before {
-            return Ok(hash.clone());
-        }
-    }
-    let mut file = fs::File::open(&path).map_err(|e| e.to_string())?;
-    let mut hasher = blake3::Hasher::new();
-    let mut buffer = [0u8; 256 * 1024];
-    loop {
-        let n = file.read(&mut buffer).map_err(|e| e.to_string())?;
-        if n == 0 {
-            break;
-        }
-        hasher.update(&buffer[..n]);
-    }
-    if identity(&path)? != before {
-        return Err("libmpv changed during verification".into());
-    }
-    let hash = hasher.finalize().to_hex().to_string();
-    cache.insert(path, (before, hash.clone()));
-    Ok(hash)
-}
 fn native_hash(root: &Path) -> Result<String, String> {
-    content_hash(&root.join("libmpv-2.dll"))
+    super::verification_cache::fingerprint(root, &root.join("libmpv-2.dll"))
+        .map(|(_, hash)| hash)
 }
 
 pub fn native_matches_package(root: &Path) -> bool {
@@ -104,10 +49,9 @@ struct RuntimeStamp {
     files: BTreeMap<String, String>,
 }
 
-fn file_fingerprint(path: &Path) -> Result<String, String> {
-    let id = identity(path)?;
-    let hash = content_hash(path)?;
-    Ok(format!("{}:{}", id.size, hash))
+fn file_fingerprint(root: &Path, path: &Path) -> Result<String, String> {
+    let (size, hash) = super::verification_cache::fingerprint(root, path)?;
+    Ok(format!("{size}:{hash}"))
 }
 
 fn current_runtime(root: &Path, backend: &str) -> Result<RuntimeStamp, String> {
@@ -116,8 +60,11 @@ fn current_runtime(root: &Path, backend: &str) -> Result<RuntimeStamp, String> {
             "aji.dll",
             "aji_trt.dll",
             "nvinfer_11.dll",
+            "nvinfer_plugin_11.dll",
+            "nvonnxparser_11.dll",
             "cudart64_13.dll",
             "trtexec.exe",
+            "l-mpv_convert_fp16.exe",
         ]
     } else {
         &["aji.dll", "aji_dml.dll", "onnxruntime.dll", "DirectML.dll"]
@@ -129,14 +76,14 @@ fn current_runtime(root: &Path, backend: &str) -> Result<RuntimeStamp, String> {
             return Err("Legacy runtime DLL in executable directory".into());
         }
         let path = dir.join(name);
-        files.insert((*name).to_owned(), file_fingerprint(&path)?);
+        files.insert((*name).to_owned(), file_fingerprint(root, &path)?);
     }
     if backend_key(backend)? == "tensorrt" {
         for entry in fs::read_dir(&dir).map_err(|e| e.to_string())? {
             let entry = entry.map_err(|e| e.to_string())?;
             let name = entry.file_name().to_string_lossy().to_string();
             if name.starts_with("nvinfer_builder_resource_") && name.ends_with(".dll") {
-                files.insert(name, file_fingerprint(&entry.path())?);
+                files.insert(name, file_fingerprint(root, &entry.path())?);
             }
         }
         if !files
@@ -147,7 +94,7 @@ fn current_runtime(root: &Path, backend: &str) -> Result<RuntimeStamp, String> {
         }
     }
     Ok(RuntimeStamp {
-        schema: 2,
+        schema: 3,
         contract: blake3::hash(include_bytes!(
             "../../../scripts/animejanai-dependencies.json"
         ))
@@ -191,16 +138,31 @@ fn write_record(path: &Path, value: &impl Serialize) -> Result<(), String> {
     crate::commands::write_atomic(path, &bytes, false)
 }
 pub fn runtime_current(root: &Path, backend: &str) -> bool {
-    let Some(saved) = runtime_path(root, backend)
-        .ok()
-        .and_then(|p| read_record::<RuntimeStamp>(&p))
-    else {
+    let Ok(path) = runtime_path(root, backend) else {
+        return false;
+    };
+    let Some(saved) = read_record::<RuntimeStamp>(&path) else {
         return false;
     };
     let Ok(current) = current_runtime(root, backend) else {
         return false;
     };
-    saved == current
+    if saved == current {
+        return true;
+    }
+    // Если плеер обновился вместе с libmpv-2.dll (native_matches_package(root) == true),
+    // а все DLL самого рантайма (files) и схема штампа идентичны тем, что записаны в lmpv-*.json,
+    // автоматически перепривязываем штамп к новому libmpv-2.dll, чтобы не заставлять пользователя
+    // перекачивать 660 МБ TensorRT / DirectML, когда они уже соответствуют контракту.
+    if saved.schema == current.schema
+        && saved.contract == current.contract
+        && saved.files == current.files
+        && native_matches_package(root)
+    {
+        let _ = write_record(&path, &current);
+        return true;
+    }
+    false
 }
 pub fn invalidate_runtime(root: &Path, backend: &str) -> Result<(), String> {
     let path = runtime_path(root, backend)?;
@@ -370,6 +332,13 @@ pub fn verify_download_contract(value: &serde_json::Value) -> Result<(), String>
     if value["libmpv"].as_str() != Some(expected.as_str()) {
         return Err("UPSCALE_DOWNLOAD_MISMATCH".into());
     }
+    validate_contract_archives(value)
+}
+
+fn validate_contract_archives(value: &serde_json::Value) -> Result<(), String> {
+    if value.get("archives").is_none() {
+        return Err("UPSCALE_DOWNLOAD_MISMATCH".into());
+    }
     if let Some(archives) = value.get("archives") {
         let Some(map) = archives.as_object() else {
             return Err("UPSCALE_DOWNLOAD_MISMATCH".into());
@@ -378,14 +347,16 @@ pub fn verify_download_contract(value: &serde_json::Value) -> Result<(), String>
             return Err("UPSCALE_DOWNLOAD_MISMATCH".into());
         }
         for (_, entry) in map {
-            let valid_hash = entry
-                .get("sha256")
-                .and_then(|v| v.as_str())
-                .is_some_and(|h| h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit()))
-                || entry
-                    .get("blake3")
-                    .and_then(|v| v.as_str())
-                    .is_some_and(|h| h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit()));
+            let declared: Vec<_> = ["sha256", "blake3"]
+                .iter()
+                .filter_map(|name| entry.get(*name))
+                .collect();
+            let valid_hash = !declared.is_empty()
+                && declared.iter().all(|value| {
+                    value.as_str().is_some_and(|h| {
+                        h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit())
+                    })
+                });
             if !valid_hash {
                 return Err("UPSCALE_DOWNLOAD_MISMATCH".into());
             }
@@ -425,21 +396,23 @@ pub fn verify_downloaded_archive(
             if !actual_sha256.eq_ignore_ascii_case(expected_sha256.trim()) {
                 return Err(format!("UPSCALE_ARCHIVE_HASH_MISMATCH:{archive_name}"));
             }
-            return Ok(());
         }
 
         if let Some(expected_blake3) = entry.get("blake3").and_then(|v| v.as_str()) {
-            let actual_blake3 = content_hash(archive_path)?;
+            let actual_blake3 = super::verification_cache::hash_uncached(archive_path)?;
             if !actual_blake3.eq_ignore_ascii_case(expected_blake3.trim()) {
                 return Err(format!("UPSCALE_ARCHIVE_HASH_MISMATCH:{archive_name}"));
             }
-            return Ok(());
         }
 
-        return Err(format!("UPSCALE_ARCHIVE_UNVERIFIED:{archive_name}"));
+        if entry.get("sha256").and_then(|v| v.as_str()).is_some()
+            || entry.get("blake3").and_then(|v| v.as_str()).is_some()
+        {
+            return Ok(());
+        }
     }
 
-    Ok(())
+    Err(format!("UPSCALE_ARCHIVE_UNVERIFIED:{archive_name}"))
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -454,18 +427,63 @@ fn context(root: &Path, model: &Path, gpu: &str) -> Result<ModelContext, String>
     }
     Ok(ModelContext {
         runtime: current_runtime(root, "TensorRT")?,
-        model: file_fingerprint(model)?,
+        model: file_fingerprint(root, model)?,
         gpu: gpu.to_owned(),
     })
 }
 fn model_record(model: &Path) -> PathBuf {
     model.with_extension("lmpv-cache.json")
 }
+/// Сравнивает рантайм TensorRT, в котором был скомпилирован `.engine` модели, с текущим рантаймом:
+/// ядра TensorRT (`nvinfer_11.dll`, `nvinfer_plugin_11.dll`, `cudart64_13.dll`, `trtexec.exe`
+/// и архитектурные билдеры `nvinfer_builder_resource_*`)
+/// обязаны совпадать побайтно, однако обновление обвязки `libmpv-2.dll`, `aji.dll`, `aji_trt.dll` или `contract`
+/// при неизменном TensorRT 11 не делает скомпилированный `.engine` устаревшим.
+fn model_runtime_compatible(saved: &RuntimeStamp, current: &RuntimeStamp) -> bool {
+    if saved.schema != current.schema {
+        return false;
+    }
+    let is_core_trt_file = |name: &str| -> bool {
+        name == "nvinfer_11.dll"
+            || name == "nvinfer_plugin_11.dll"
+            || name == "cudart64_13.dll"
+            || name == "trtexec.exe"
+            || name.starts_with("nvinfer_builder_resource_")
+    };
+    for (name, cur_fp) in &current.files {
+        if is_core_trt_file(name) && saved.files.get(name) != Some(cur_fp) {
+            return false;
+        }
+    }
+    for (name, sav_fp) in &saved.files {
+        if is_core_trt_file(name) && current.files.get(name) != Some(sav_fp) {
+            return false;
+        }
+    }
+    true
+}
+
 pub fn model_current(root: &Path, model: &Path, gpu: &str) -> bool {
     let Ok(current) = context(root, model, gpu) else {
         return false;
     };
-    read_record::<ModelContext>(&model_record(model)).is_some_and(|saved| saved == current)
+    let path = model_record(model);
+    let Some(saved) = read_record::<ModelContext>(&path) else {
+        return false;
+    };
+    if saved == current {
+        return true;
+    }
+    if saved.model == current.model
+        && saved.gpu == current.gpu
+        && model_runtime_compatible(&saved.runtime, &current.runtime)
+    {
+        // Автоматически обновляем штамп кэша модели под новый мост aji/libmpv,
+        // так как сам компилятор TensorRT и ONNX-модель не изменились.
+        let _ = write_record(&path, &current);
+        return true;
+    }
+    false
 }
 pub fn record_model(root: &Path, model: &Path, gpu: &str) -> Result<(), String> {
     write_record(&model_record(model), &context(root, model, gpu)?)
@@ -637,8 +655,11 @@ mod tests {
                 "onnxruntime.dll",
                 "DirectML.dll",
                 "nvinfer_11.dll",
+                "nvinfer_plugin_11.dll",
+                "nvonnxparser_11.dll",
                 "cudart64_13.dll",
                 "trtexec.exe",
+                "l-mpv_convert_fp16.exe",
                 "nvinfer_builder_resource_sm120.dll",
             ] {
                 fs::write(root.join("inference").join(name), name.as_bytes()).unwrap();
@@ -662,6 +683,19 @@ mod tests {
         fs::write(f.0.join("libmpv-2.dll"), b"different mpv build").unwrap();
         assert!(!runtime_current(&f.0, "DirectML"));
         assert!(!runtime_current(&f.0, "TensorRT"));
+    }
+
+    #[test]
+    fn retained_trt_auxiliary_binaries_are_part_of_provenance() {
+        let fixture = Fixture::new();
+        for name in ["nvinfer_plugin_11.dll", "nvonnxparser_11.dll", "l-mpv_convert_fp16.exe"] {
+            record_runtime(&fixture.0, "TensorRT").unwrap();
+            assert!(runtime_current(&fixture.0, "TensorRT"));
+            let path = fixture.0.join("inference").join(name);
+            fs::write(&path, b"corrupted nonempty component").unwrap();
+            assert!(!runtime_current(&fixture.0, "TensorRT"), "{name} must not be reused");
+            fs::write(path, name.as_bytes()).unwrap();
+        }
     }
     #[test]
     fn backend_records_are_independent_and_partial_installs_never_become_ready() {
@@ -724,6 +758,7 @@ mod tests {
         ))
         .unwrap();
         let mut remote = serde_json::json!({"animejanai":pins["animejanai"],"aji":pins["aji"],"tensorrt":pins["tensorrt"],"libmpv":format!("https://github.com/the-database/mpv-winbuild/releases/download/{}/{}",pins["mpv_release"].as_str().unwrap(),pins["mpv_asset"].as_str().unwrap())});
+        remote["archives"] = serde_json::json!({"aji-windows-x64.zip":{"sha256":"0".repeat(64)}});
         assert!(verify_download_contract(&remote).is_ok());
         remote["aji"] = "old bridge".into();
         assert!(verify_download_contract(&remote).is_err());
@@ -827,12 +862,81 @@ mod tests {
         fs::write(&archive, b"tampered-archive-content-for-sha").unwrap();
         assert!(verify_downloaded_archive(&contract, "aji-windows-x64.zip", &archive).is_err());
 
-        // Контракт без секции archives (формат текущего релиза inference-v1) не блокирует загрузку
+        // Old contracts without archive digests cannot verify downloads.
         let legacy_contract = serde_json::json!({
             "animejanai": "3.9.0",
             "aji": "v0.17.1",
             "tensorrt": "11.4.0.106"
         });
-        assert!(verify_downloaded_archive(&legacy_contract, "aji-windows-x64.zip", &archive).is_ok());
+        assert!(verify_downloaded_archive(&legacy_contract, "aji-windows-x64.zip", &archive).is_err());
+    }
+
+    #[test]
+    fn archive_must_match_every_declared_hash() {
+        let fixture = Fixture::new();
+        let archive = fixture.0.join("dual-hash.zip");
+        let bytes = b"archive with two independent integrity digests";
+        fs::write(&archive, bytes).unwrap();
+        let mut contract = serde_json::json!({"archives": {"dual-hash.zip": {
+            "sha256": sha256_bytes(bytes),
+            "blake3": blake3::hash(bytes).to_hex().to_string(),
+            "size": bytes.len()
+        }}});
+        assert!(verify_downloaded_archive(&contract, "dual-hash.zip", &archive).is_ok());
+        contract["archives"]["dual-hash.zip"]["blake3"] = "0".repeat(64).into();
+        assert!(verify_downloaded_archive(&contract, "dual-hash.zip", &archive).is_err());
+        contract["archives"]["dual-hash.zip"]["blake3"] = blake3::hash(bytes).to_hex().to_string().into();
+        contract["archives"]["dual-hash.zip"]["sha256"] = "0".repeat(64).into();
+        assert!(verify_downloaded_archive(&contract, "dual-hash.zip", &archive).is_err());
+    }
+
+    #[test]
+    fn changed_trt_plugin_invalidates_existing_model_engine() {
+        let fixture = Fixture::new();
+        let model = fixture.0.join("models/plugin-model.onnx");
+        fs::write(&model, b"unchanged ONNX").unwrap();
+        record_runtime(&fixture.0, "TensorRT").unwrap();
+        record_model(&fixture.0, &model, "same-gpu").unwrap();
+        assert!(model_current(&fixture.0, &model, "same-gpu"));
+        fs::write(fixture.0.join("inference/nvinfer_plugin_11.dll"), b"new plugin implementation").unwrap();
+        record_runtime(&fixture.0, "TensorRT").unwrap();
+        assert!(!model_current(&fixture.0, &model, "same-gpu"));
+    }
+
+    #[test]
+    fn archives_without_integrity_records_are_not_verified() {
+        let fixture = Fixture::new();
+        let archive = fixture.0.join("unknown.zip");
+        fs::write(&archive, b"unverified bytes").unwrap();
+        assert!(verify_downloaded_archive(&serde_json::json!({}), "unknown.zip", &archive).is_err());
+        assert!(validate_contract_archives(&serde_json::json!({})).is_err());
+        let invalid = serde_json::json!({"archives":{"unknown.zip":{
+            "sha256":"broken", "blake3":"0".repeat(64)
+        }}});
+        assert!(validate_contract_archives(&invalid).is_err());
+    }
+
+    #[test]
+    fn model_cache_survives_aji_bridge_and_libmpv_update_when_trt_core_is_unchanged() {
+        let f = Fixture::new();
+        let model = f.0.join("models/a.onnx");
+        fs::write(&model, b"onnx-v1").unwrap();
+        record_runtime(&f.0, "TensorRT").unwrap();
+        record_model(&f.0, &model, "gpu1").unwrap();
+        assert!(model_current(&f.0, &model, "gpu1"));
+
+        // Обновляем libmpv-2.dll и мост aji.dll + aji_trt.dll (но НЕ трогаем nvinfer_11.dll/trtexec.exe)
+        fs::write(f.0.join("libmpv-2.dll"), b"mpv-updated-v042").unwrap();
+        fs::write(f.0.join("inference/aji.dll"), b"aji-v025").unwrap();
+        fs::write(f.0.join("inference/aji_trt.dll"), b"aji-trt-v025").unwrap();
+        record_runtime(&f.0, "TensorRT").unwrap();
+
+        // Кэш .engine остаётся валидным и автоматически обновляет свой штамп
+        assert!(model_current(&f.0, &model, "gpu1"));
+
+        // Однако если обновился сам компилятор/рантайм TensorRT (nvinfer_11.dll), кэш становится устаревшим
+        fs::write(f.0.join("inference/nvinfer_11.dll"), b"nvinfer-12-new").unwrap();
+        record_runtime(&f.0, "TensorRT").unwrap();
+        assert!(!model_current(&f.0, &model, "gpu1"));
     }
 }

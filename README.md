@@ -119,7 +119,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   <img src="./assets/ai-upscale.png" alt="Real-Time 4K AI Upscaling Before / After" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
 </p>
 
-- **Native In-Stream Video Inference:** Deep integration of the `vf_animejanai` filter powered by the updated `mpv-AnimeJaNai 3.10.0` stack (`aji` v0.17.1 bridge, NVIDIA TensorRT 11.4.0.106, and DirectML DirectX 12), outputting real-time hardware-accelerated 4K Ultra HD frames.
+- **Native In-Stream Video Inference:** Deep integration of the `vf_animejanai` filter powered by the updated `mpv-AnimeJaNai 3.10.0` stack (`aji` v0.25.0 bridge, NVIDIA TensorRT 11.4.0.106, and DirectML DirectX 12), outputting real-time hardware-accelerated 4K Ultra HD frames.
 - **Two Operational Modes:** A simple **"Off"** and **"AI Upscaling"** toggle in Settings (`F2`) — you decide when to engage neural enhancement.
 - **Dual Inference Backends:**
   - **DirectML:** DirectX 12 inference for compatible AMD, Intel and NVIDIA GPUs. Model support and speed depend on the hardware.
@@ -255,7 +255,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Versioned `l_mpv_sub_v4` disk cache for repeat lookups without re-parsing.
 - **Full-Text Search:** Real-time searching across the entire subtitle track with match highlighting, match counters, and quick navigation via `Up` / `Down` / `Enter`.
 - **Interactive Jump to Timestamp:** Clicking any line immediately seeks playback to the exact dialogue timestamp.
-- **"Follow Playback" Mode:** Automatically tracks the active line during playback in real time with smooth, adaptive rAF-driven auto-scrolling.
+- **"Follow Playback" Mode:** Automatically tracks the active line during playback in real time with adaptive auto-scrolling. The animation loop pauses once the active line is centered (`|delta| <= 2px`), reducing DOM layout queries while developer tools are active.
 - **Dual Inspection Modes:**
   - *Standard (Text)*: Clean, formatted dialogue text free of formatting tags, showing start timestamp, duration, and character/actor name.
   - *Technical (ASS Inspector)*: In-depth parsing of Advanced SubStation Alpha tags (`[Ht]` HTML preview, `[Ae]` Raw ASS), complete style badges (style name, actor, font family, font size, HEX/BGR color, MarginV/Layer, coordinates, and override tags).
@@ -267,7 +267,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Organized into 4 distinct floating surface islands ("Header", "Search & Timing", "Transcript List", "Inspector");
   - Enlarged click hitboxes (28px minimum) for match navigation arrows (`∧`, `∨`), search reset (`X`), and timing delay adjusters (`−`, `+`);
   - Harmonized border-radius styling for the "Standard / Inspector" mode switcher.
-- **Subtitle virtualization:** Renders a window of subtitle rows to reduce the number of DOM elements in long tracks.
+- **Subtitle Virtualization:** Renders a window of visible lines (activated when a track exceeds 50 dialogue lines), reducing the number of simultaneously mounted DOM elements for long tracks.
 - **Speech Tokenizer & Tempo Metrics (Intl.Segmenter):** Text segmentation with native support for spaceless CJK languages (Japanese, Chinese), automated ISO 639 to BCP-47 locale normalization, real-time speech rate analysis (WPM — words per minute, CPS — characters per second), and color-coded speech tempo badges in the ASS inspector (relaxed, brisk, rapid).
 - **Subtitle and Sign Rendering:** Rendering of stylized ASS/SSA subtitles, karaoke animations, and on-screen signs:
   - *Video-frame placement*: Subtitle margin settings keep rendering aligned with the video frame.
@@ -458,8 +458,8 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>💻 System Components, Diagnostics & Windows Integration</b></summary>
 
-- **Native Runtime Diagnostics Dashboard:** Compact card-based overview of L-MPV Core (version, architecture, portable mode), `libmpv` (mpv version and `vf_animejanai` filter status), `FFmpeg` utility, and `MediaInfo` C-API library.
-- **Neural Inference Monitoring (AnimeJaNai / aji):** Accurately surfaces installed runtimes (`TensorRT 11`, `DirectML`, `aji v0.17.1`), along with ONNX model and compiled `.engine` counters, avoiding false "Not installed" noise.
+- **Native Runtime Diagnostics Dashboard:** Compact card-based overview of L-MPV Core (version, architecture, portable mode), `libmpv` (mpv version and `vf_animejanai` filter status), `FFmpeg` utility, and `MediaInfo` C-API library, with preloaded diagnostics data on tab hover.
+- **Neural Inference Monitoring (AnimeJaNai / aji):** Accurately surfaces installed runtimes (`TensorRT 11`, `DirectML`, `aji v0.25.0`), along with ONNX model and compiled `.engine` counters, avoiding false "Not installed" noise.
 - **Hardware Acceleration (GPU):** Displays detected graphics hardware, dedicated video memory (VRAM), and compute microarchitecture (`sm120`, `sm89`, `sm86`, etc.).
 - **Windows File Associations:** One-click registration for video and audio formats in the Windows Registry, safe unlinking, and shortcut to Windows Default Apps settings.
 - **Explorer Context Menu:** Integrates “L-MPV MediaInfo” into the Windows Explorer right-click context menu for instant media analysis without launching playback.

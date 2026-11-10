@@ -12,6 +12,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { usePlayerState } from "./contexts/PlayerStateContext";
 import { useOsd, showOsd } from "./hooks/useOsd";
+import { useAutoUpscale } from "./hooks/useAutoUpscale";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -41,14 +42,12 @@ import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUt
 import { getSavedSeekStepSeconds, triggerSeekIndicator } from "./utils/seekUtils";
 import { subtitleControlsOffset } from "./utils/subtitleUiGeometry";
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
-// Тяжёлые модалки и панели настроек грузятся лениво: в стартовый бандл не попадают,
-// парсятся только при первом открытии (dnd-kit едет вместе с настройками).
-const SettingsModal = lazy(() =>
-  import("./components/modals/SettingsModal").then((m) => ({ default: m.SettingsModal }))
-);
-const SettingsPanel = lazy(() =>
-  import("./components/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel }))
-);
+import {
+  SettingsModalView as SettingsModal,
+  SettingsPanelView as SettingsPanel,
+  useSettingsModulePreload,
+} from "./components/settings/lib/settingsModulePreload";
+// Settings stay out of the startup bundle; warm the selected view after the first frame.
 const MediaInfoModal = lazy(() =>
   import("./components/modals/MediaInfoModal").then((m) => ({ default: m.MediaInfoModal }))
 );
@@ -120,6 +119,10 @@ function App() {
   });
   
   const [settingsStyle, setSettingsStyle] = useState<UiSettingsStyle>(getSavedUiSettingsStyle);
+  useSettingsModulePreload(
+    hasMedia && Boolean(mediaInfo?.video_ready || mediaInfo?.video_track === false),
+    settingsStyle,
+  );
   const settingsWasOpenRef = useRef(false);
 
   const openSettings = useCallback(() => {
@@ -547,20 +550,7 @@ function App() {
     revealWindow,
   ]);
 
-  // Автоматическое применение AI Upscaling при загрузке нового файла
-  useEffect(() => {
-    if (mediaInfo?.path) {
-      const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
-      if (mode === "ai") {
-        const slot = parseInt(localStorage.getItem("l-mpv-upscale-slot") || "1001", 10);
-        const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
-        const selectedModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
-        invoke("apply_upscale_settings", { 
-          settings: { mode, active_slot: slot, backend, selected_model: selectedModel }
-        }).catch(console.error);
-      }
-    }
-  }, [mediaInfo?.path]);
+  useAutoUpscale(mediaInfo?.path);
 
   // Защитный таймер безопасности (на случай долгого ответа декодера или ошибок)
   useEffect(() => {
@@ -1590,17 +1580,10 @@ function App() {
               setPendingUpdate(info);
               setShowUpdateModal(true);
             };
-            return settingsStyle === "modal" ? (
-              <SettingsModal
-                onClose={closeSettings}
-                onShowUpdate={handleShowUpdateFromSettings}
-              />
-            ) : (
-              <SettingsPanel
-                onClose={closeSettings}
-                onShowUpdate={handleShowUpdateFromSettings}
-              />
-            );
+            const SettingsView = settingsStyle === "modal"
+              ? SettingsModal
+              : SettingsPanel;
+            return <SettingsView onClose={closeSettings} onShowUpdate={handleShowUpdateFromSettings} />;
           })()}
         </Suspense>
       )}

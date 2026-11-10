@@ -51,6 +51,12 @@ jobs:
       - name: Установка npm-зависимостей
         run: npm ci
 
+      - name: Python для проверки полученного комплекта deps-v1
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          architecture: x64
+
       - name: Загрузка и распаковка внешних библиотек (libmpv-2.dll, ffmpeg.exe, mediainfo.dll)
         shell: pwsh
         run: |
@@ -60,12 +66,25 @@ jobs:
           Expand-Archive -Path mpv_libs.zip -DestinationPath src-tauri/binaries/ -Force
           Remove-Item mpv_libs.zip -Force
 
-          # Проверка наличия и целостности всех трех нативных компонентов
+          # Проверка наличия, целостности и обновление LastWriteTime всех трех нативных компонентов
           $binFiles = @("src-tauri/binaries/libmpv-2.dll", "src-tauri/binaries/ffmpeg.exe", "src-tauri/binaries/mediainfo.dll")
           foreach ($f in $binFiles) {
             if (-not (Test-Path $f)) { throw "КРИТИЧЕСКАЯ ОШИБКА: Нативные зависимости отсутствуют в каталоге src-tauri/binaries! Нет файла: $f" }
-            if ((Get-Item $f).Length -eq 0) { throw "КРИТИЧЕСКАЯ ОШИБКА: файл $f пуст!" }
+            $item = Get-Item $f
+            if ($item.Length -eq 0) { throw "КРИТИЧЕСКАЯ ОШИБКА: файл $f пуст!" }
+            $item.LastWriteTime = Get-Date
           }
+          Invoke-WebRequest -Uri "https://github.com/Menely/L-MPV/releases/download/deps-v1/dependency-sources.json" -OutFile "deps-sources.json"
+          $sources = Get-Content deps-sources.json -Raw | ConvertFrom-Json
+          $pins = Get-Content scripts/animejanai-dependencies.json -Raw | ConvertFrom-Json
+          $expectedMpv = "https://github.com/the-database/mpv-winbuild/releases/download/$($pins.mpv_release)/$($pins.mpv_asset)"
+          if ($sources.libmpv -ne $expectedMpv) { throw "deps-v1 содержит другой libmpv. Сначала обновите deps-v1." }
+          if ($sources.ffmpeg -notmatch '/ffmpeg-(\d{4}-\d{2}-\d{2}-git-[a-f0-9]+)-essentials_build\.7z$') { throw "Неверный источник FFmpeg в deps-v1" }
+          $ffmpegTag = $Matches[1]
+          if ($sources.mediainfo -notmatch '/libmediainfo0/(\d+\.\d+(?:\.\d+)?)/') { throw "Неверный источник MediaInfo в deps-v1" }
+          $mediaInfoVersion = $Matches[1]
+          python scripts/verify-native-dependencies.py src-tauri/binaries --ffmpeg-tag $ffmpegTag --mediainfo-version $mediaInfoVersion
+          if ($LASTEXITCODE -ne 0) { throw "deps-v1 не соответствует версиям/архитектуре текущей сборки" }
           Write-Host "Все нативные зависимости успешно проверены (libmpv-2.dll с vf_animejanai, ffmpeg.exe, mediainfo.dll)."
 
       - name: Синхронизация версии из Git-тега в package.json и Cargo.toml
@@ -117,9 +136,21 @@ jobs:
           Copy-Item "src-tauri/binaries/mediainfo.dll" -Destination "Portable-L-MPV/mediainfo.dll" -Force
 
           # Определение выбранных чекбоксами компонентов для отдельного обновления
-          $includeFfmpeg = ("${{ github.event.inputs.include_ffmpeg }}" -eq "true")
-          $includeMediainfo = ("${{ github.event.inputs.include_mediainfo }}" -eq "true")
-          $includeLibmpv = ("${{ github.event.inputs.include_libmpv }}" -eq "true")
+          $isTagPush = ("${{ github.event_name }}" -eq "push")
+          $includeFfmpeg = $isTagPush -or ("${{ github.event.inputs.include_ffmpeg }}" -eq "true")
+          $includeMediainfo = $isTagPush -or ("${{ github.event.inputs.include_mediainfo }}" -eq "true")
+          $includeLibmpv = $isTagPush -or ("${{ github.event.inputs.include_libmpv }}" -eq "true")
+
+          # Верификация того, что скомпилированный l-mpv.exe содержит точный BLAKE3-хэш упакованного libmpv-2.dll
+          Push-Location src-tauri
+          $libmpvJson = & cargo run --release -q --example gen_checksums -- "../Portable-L-MPV/libmpv-2.dll" | Out-String | ConvertFrom-Json
+          Pop-Location
+          $expectedMpvHash = $libmpvJson.files."libmpv-2.dll"
+          $exeAscii = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes("Portable-L-MPV/l-mpv.exe"))
+          if (-not $exeAscii.Contains($expectedMpvHash)) {
+            throw "КРИТИЧЕСКАЯ ОШИБКА ЦЕЛОСТНОСТИ: В скомпилированном l-mpv.exe отсутствует BLAKE3-хэш ($expectedMpvHash) текущего libmpv-2.dll!"
+          }
+          Write-Host "Проверка целостности пройдена: l-mpv.exe содержит актуальный хэш libmpv-2.dll ($expectedMpvHash)."
 
           # Формирование списка файлов для манифеста checksums.json и загрузки в релиз
           $publishAssets = @("Portable-L-MPV/l-mpv.exe")

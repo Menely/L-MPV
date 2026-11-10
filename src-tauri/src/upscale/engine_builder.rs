@@ -558,7 +558,9 @@ pub async fn precompile_model_engine_1080p_impl(
     filename: String,
 ) -> Result<String, String> {
     let _operation = super::compatibility::OPERATION.try_lock().map_err(|_| "UPSCALE_BUSY".to_owned())?;
-    super::compatibility::ensure_runtime("TensorRT")?;
+    tokio::task::spawn_blocking(|| super::compatibility::ensure_runtime("TensorRT"))
+        .await
+        .map_err(|e| format!("Runtime verification failed: {e}"))??;
     if std::path::Path::new(&filename).file_name().and_then(|s| s.to_str()) != Some(filename.as_str())
         || !filename.to_lowercase().ends_with(".onnx") {
         return Err("Invalid ONNX model filename".into());
@@ -749,7 +751,16 @@ pub async fn precompile_model_engine_1080p_impl(
     let tcache_lock = models_dir.join(format!("{}.timing.cache.lock", model_stem));
     let root = super::config::get_app_root_dir();
     let gpu_key = super::compatibility::gpu_key(&gpu);
-    let build_context = super::compatibility::model_context_token(&root, &onnx_path, &gpu_key)?;
+    let build_context = {
+        let root = root.clone();
+        let onnx_path = onnx_path.clone();
+        let gpu_key = gpu_key.clone();
+        tokio::task::spawn_blocking(move || {
+            super::compatibility::model_context_token(&root, &onnx_path, &gpu_key)
+        })
+        .await
+        .map_err(|e| format!("Model verification failed: {e}"))??
+    };
     // Only the explicit rebuild action archives old artifacts. A failed rebuild
     // of the active TensorRT slot must not silently fall back to compiling it in mpv.
     if slot == prev_slot && prev_backend.eq_ignore_ascii_case("TensorRT") {
@@ -927,10 +938,14 @@ pub async fn precompile_model_engine_1080p_impl(
         return Err(format!("Ошибка компиляции TensorRT: {}", err_detail));
     }
 
-    if super::compatibility::model_context_token(&root, &onnx_path, &gpu_key)? != build_context {
-        return Err("UPSCALE_RUNTIME_UPDATE:TensorRT".into());
-    }
-    super::compatibility::record_model(&root, &onnx_path, &gpu_key)?;
+    tokio::task::spawn_blocking(move || {
+        if super::compatibility::model_context_token(&root, &onnx_path, &gpu_key)? != build_context {
+            return Err("UPSCALE_RUNTIME_UPDATE:TensorRT".into());
+        }
+        super::compatibility::record_model(&root, &onnx_path, &gpu_key)
+    })
+    .await
+    .map_err(|e| format!("Compiled model verification failed: {e}"))??;
     vram_guard.had_active_ai = had_active_ai;
     vram_guard.compile_succeeded = true;
 

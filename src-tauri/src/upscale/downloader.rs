@@ -324,10 +324,35 @@ pub async fn download_inference_engine_impl(
         .timeout(Duration::from_secs(30)).send().await.map_err(|e| e.to_string())?
         .error_for_status().map_err(|e| e.to_string())?.text().await.map_err(|e| e.to_string())?;
     let contract: serde_json::Value = serde_json::from_str(published.trim_start_matches('\u{feff}')).map_err(|e| e.to_string())?;
+    let pins: serde_json::Value = serde_json::from_str(include_str!("../../../scripts/animejanai-dependencies.json")).map_err(|e| e.to_string())?;
     super::compatibility::verify_download_contract(&contract)?;
-    super::compatibility::invalidate_runtime(&root, &engine)?;
     let _ = fs::create_dir_all(&inf_dir);
     let gpu_info = detect_system_gpu();
+
+    // Определяем, нужно ли перекачивать 660 МБ базового рантайма и билдера TensorRT:
+    // если в существующей папке inference/ уже лежат trtexec.exe, nvinfer_11.dll, cudart64_13.dll
+    // и билдер nvinfer_builder_resource_<sm>*.dll, и их размер/BLAKE3 в точности совпадают с предыдущим
+    // проверенным штампом lmpv-tensorrt.json, а версия tensorrt в контракте не менялась —
+    // клонируем проверенные DLL рантайма TensorRT в staging и обновляем только мост aji.
+    let existing_inf = root.join("inference");
+    let can_reuse_trt_core = engine.eq_ignore_ascii_case("TensorRT") && {
+        let sm = if gpu_info.supports_tensorrt {
+            gpu_info.sm_architecture.as_str()
+        } else {
+            "ptx"
+        };
+        let core_present = ["trtexec.exe", "nvinfer_11.dll", "cudart64_13.dll", "l-mpv_convert_fp16.exe"]
+            .iter()
+            .all(|name| {
+                let p = existing_inf.join(name);
+                p.is_file() && fs::metadata(&p).map(|m| m.len() > 0).unwrap_or(false)
+            });
+        core_present
+            && super::compatibility::runtime_current(&root, "TensorRT")
+            && super::compatibility::runtime_supports_gpu_sm(&root, sm)
+    };
+    // Reuse is decided while the previous provenance record still exists.
+    super::compatibility::invalidate_runtime(&root, &engine)?;
 
     let result: Result<String, String> = async {
         // 1. Загрузка и распаковка базовых мостов aji (aji.dll, aji_dml.dll, aji_trt.dll)
@@ -519,147 +544,78 @@ pub async fn download_inference_engine_impl(
             Ok(msg)
         } else {
             // TensorRT (NVIDIA)
-            let trt_runtime_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-runtime.7z";
-            let trt_runtime_path = inf_dir.join("component-trt-runtime.7z");
-
-            download_file_with_progress(
-                &client,
-                &app,
-                &engine,
-                trt_runtime_url,
-                &trt_runtime_path,
-                "Скачивание рантайма NVIDIA TensorRT 11 (2/4)...",
-                3.0,
-                45.0,
-            )
-            .await?;
-            super::compatibility::verify_downloaded_archive(
-                &contract,
-                "component-trt-runtime.7z",
-                &trt_runtime_path,
-            )?;
-
-            let _ = app.emit(
-                "upscale-download-progress",
-                &UpscaleDownloadProgress {
-                    engine: engine.clone(),
-                    stage: "Распаковка component-trt-runtime.7z с помощью tar.exe...".to_string(),
-                    percent: 48.0,
-                    downloaded_bytes: 0,
-                    total_bytes: 0,
-                    is_finished: false,
-                    error: None,
-                },
-            );
-
-            extract_7z_and_cleanup(trt_runtime_path, inf_dir.clone()).await?;
-
-            move_nested_animejanai_files(&inf_dir);
-            println!("[L-MPV][Upscale] Базовый рантайм TensorRT 11 успешно установлен.");
-
-            // L-MPV Нативный конвертер FP16
-            let conv_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/l-mpv_convert_fp16.zip";
-            let conv_zip = inf_dir.join("temp_conv.zip");
-            
-            download_file_with_progress(
-                &client,
-                &app,
-                &engine,
-                conv_url,
-                &conv_zip,
-                "Скачивание нативного конвертера FP16 (3/4)...",
-                45.0,
-                50.0,
-            ).await?;
-            super::compatibility::verify_downloaded_archive(
-                &contract,
-                "l-mpv_convert_fp16.zip",
-                &conv_zip,
-            )?;
-
-            let _ = app.emit(
-                "upscale-download-progress",
-                &UpscaleDownloadProgress {
-                    engine: engine.clone(),
-                    stage: "Распаковка конвертера FP16...".to_string(),
-                    percent: 50.0,
-                    downloaded_bytes: 0,
-                    total_bytes: 0,
-                    is_finished: false,
-                    error: None,
-                },
-            );
-
-            let conv_zip_clone = conv_zip.clone();
-            let inf_dir_clone = inf_dir.clone();
-            tokio::task::spawn_blocking(move || {
-                extract_zip_file(&conv_zip_clone, &inf_dir_clone)
-            }).await.map_err(|e| format!("Ошибка потока распаковки конвертера: {}", e))??;
-            
-            let _ = fs::remove_file(&conv_zip);
-
-            // SM Architecture
             let sm = if gpu_info.supports_tensorrt {
                 gpu_info.sm_architecture.as_str()
             } else {
                 "ptx"
             };
 
-            let sm_archive_name = format!("component-trt-{}.7z", sm);
-            let sm_url = format!(
-                "https://github.com/Menely/L-MPV/releases/download/inference-v1/{}",
-                sm_archive_name
-            );
-            let sm_path = inf_dir.join(&sm_archive_name);
-            let sm_stage = format!("Скачивание билдера TensorRT ({}) (4/4)...", sm);
-
-            let download_sm_res = download_file_with_progress(
-                &client,
-                &app,
-                &engine,
-                &sm_url,
-                &sm_path,
-                &sm_stage,
-                52.0,
-                95.0,
-            )
-            .await;
-
-            if let Err(e) = download_sm_res {
-                println!("[L-MPV][Upscale] Архитектура {} не найдена ({}), пробуем универсальный ptx...", sm, e);
-                let ptx_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-ptx.7z";
-                let _ = fs::remove_file(&sm_path); // Удаляем возможный пустой/битый файл
-                let ptx_path = inf_dir.join("component-trt-ptx.7z");
-                download_file_with_progress(
-                    &client,
-                    &app,
-                    &engine,
-                    ptx_url,
-                    &ptx_path,
-                    "Скачивание универсального билдера TensorRT (ptx) (4/4)...",
-                    52.0,
-                    95.0,
-                )
-                .await?;
-                super::compatibility::verify_downloaded_archive(
-                    &contract,
-                    "component-trt-ptx.7z",
-                    &ptx_path,
-                )?;
-
-                extract_7z_and_cleanup(ptx_path, inf_dir.clone()).await?;
-            } else {
-                super::compatibility::verify_downloaded_archive(
-                    &contract,
-                    &sm_archive_name,
-                    &sm_path,
-                )?;
+            if can_reuse_trt_core {
+                // Дельта-обновление: TensorRT 11, CUDA 13, trtexec.exe, l-mpv_convert_fp16.exe и архитектурный билдер
+                // уже установлены в inference/ и не менялись — переносим их в staging без повторного скачивания 660 МБ.
+                println!(
+                    "[L-MPV][Upscale] Дельта-обновление TensorRT: базовые библиотеки TensorRT 11 и билдер {} уже установлены, обновляется только мост aji ({}).",
+                    sm,
+                    pins["aji"].as_str().unwrap_or("v0.25.0")
+                );
                 let _ = app.emit(
                     "upscale-download-progress",
                     &UpscaleDownloadProgress {
                         engine: engine.clone(),
-                        stage: format!("Распаковка билдера TensorRT ({})...", sm),
-                        percent: 95.0,
+                        stage: "Проверка установленного рантайма TensorRT 11 (дельта-обновление)...".to_string(),
+                        percent: 85.0,
+                        downloaded_bytes: 0,
+                        total_bytes: 0,
+                        is_finished: false,
+                        error: None,
+                    },
+                );
+                if let Ok(entries) = fs::read_dir(&existing_inf) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        if path.is_file()
+                            && (name == "trtexec.exe"
+                                || name == "l-mpv_convert_fp16.exe"
+                                || name == "cudart64_13.dll"
+                                || name == "nvinfer_11.dll"
+                                || name == "nvinfer_plugin_11.dll"
+                                || name == "nvonnxparser_11.dll"
+                                || (name.starts_with("nvinfer_builder_resource_") && name.ends_with(".dll")))
+                        {
+                            fs::copy(&path, inf_dir.join(&name)).map_err(|e| {
+                                format!("Не удалось скопировать существующий компонент {}: {}", name, e)
+                            })?;
+                        }
+                    }
+                }
+            } else {
+                let trt_runtime_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-runtime.7z";
+                let trt_runtime_path = inf_dir.join("component-trt-runtime.7z");
+
+                download_file_with_progress(
+                    &client,
+                    &app,
+                    &engine,
+                    trt_runtime_url,
+                    &trt_runtime_path,
+                    "Скачивание рантайма NVIDIA TensorRT 11 (2/4)...",
+                    3.0,
+                    45.0,
+                )
+                .await?;
+                super::compatibility::verify_downloaded_archive(
+                    &contract,
+                    "component-trt-runtime.7z",
+                    &trt_runtime_path,
+                )?;
+
+                let _ = app.emit(
+                    "upscale-download-progress",
+                    &UpscaleDownloadProgress {
+                        engine: engine.clone(),
+                        stage: "Распаковка component-trt-runtime.7z с помощью tar.exe...".to_string(),
+                        percent: 48.0,
                         downloaded_bytes: 0,
                         total_bytes: 0,
                         is_finished: false,
@@ -667,10 +623,125 @@ pub async fn download_inference_engine_impl(
                     },
                 );
 
-                extract_7z_and_cleanup(sm_path, inf_dir.clone()).await?;
-            }
+                extract_7z_and_cleanup(trt_runtime_path, inf_dir.clone()).await?;
 
-            move_nested_animejanai_files(&inf_dir);
+                move_nested_animejanai_files(&inf_dir);
+                println!("[L-MPV][Upscale] Базовый рантайм TensorRT 11 успешно установлен.");
+
+                // L-MPV Нативный конвертер FP16
+                let conv_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/l-mpv_convert_fp16.zip";
+                let conv_zip = inf_dir.join("temp_conv.zip");
+
+                download_file_with_progress(
+                    &client,
+                    &app,
+                    &engine,
+                    conv_url,
+                    &conv_zip,
+                    "Скачивание нативного конвертера FP16 (3/4)...",
+                    45.0,
+                    50.0,
+                )
+                .await?;
+                super::compatibility::verify_downloaded_archive(
+                    &contract,
+                    "l-mpv_convert_fp16.zip",
+                    &conv_zip,
+                )?;
+
+                let _ = app.emit(
+                    "upscale-download-progress",
+                    &UpscaleDownloadProgress {
+                        engine: engine.clone(),
+                        stage: "Распаковка конвертера FP16...".to_string(),
+                        percent: 50.0,
+                        downloaded_bytes: 0,
+                        total_bytes: 0,
+                        is_finished: false,
+                        error: None,
+                    },
+                );
+
+                let conv_zip_clone = conv_zip.clone();
+                let inf_dir_clone = inf_dir.clone();
+                tokio::task::spawn_blocking(move || {
+                    extract_zip_file(&conv_zip_clone, &inf_dir_clone)
+                })
+                .await
+                .map_err(|e| format!("Ошибка потока распаковки конвертера: {}", e))??;
+
+                let _ = fs::remove_file(&conv_zip);
+
+                let sm_archive_name = format!("component-trt-{}.7z", sm);
+                let sm_url = format!(
+                    "https://github.com/Menely/L-MPV/releases/download/inference-v1/{}",
+                    sm_archive_name
+                );
+                let sm_path = inf_dir.join(&sm_archive_name);
+                let sm_stage = format!("Скачивание билдера TensorRT ({}) (4/4)...", sm);
+
+                let download_sm_res = download_file_with_progress(
+                    &client,
+                    &app,
+                    &engine,
+                    &sm_url,
+                    &sm_path,
+                    &sm_stage,
+                    52.0,
+                    95.0,
+                )
+                .await;
+
+                if let Err(e) = download_sm_res {
+                    println!(
+                        "[L-MPV][Upscale] Архитектура {} не найдена ({}), пробуем универсальный ptx...",
+                        sm, e
+                    );
+                    let ptx_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-ptx.7z";
+                    let _ = fs::remove_file(&sm_path); // Удаляем возможный пустой/битый файл
+                    let ptx_path = inf_dir.join("component-trt-ptx.7z");
+                    download_file_with_progress(
+                        &client,
+                        &app,
+                        &engine,
+                        ptx_url,
+                        &ptx_path,
+                        "Скачивание универсального билдера TensorRT (ptx) (4/4)...",
+                        52.0,
+                        95.0,
+                    )
+                    .await?;
+                    super::compatibility::verify_downloaded_archive(
+                        &contract,
+                        "component-trt-ptx.7z",
+                        &ptx_path,
+                    )?;
+
+                    extract_7z_and_cleanup(ptx_path, inf_dir.clone()).await?;
+                } else {
+                    super::compatibility::verify_downloaded_archive(
+                        &contract,
+                        &sm_archive_name,
+                        &sm_path,
+                    )?;
+                    let _ = app.emit(
+                        "upscale-download-progress",
+                        &UpscaleDownloadProgress {
+                            engine: engine.clone(),
+                            stage: format!("Распаковка билдера TensorRT ({})...", sm),
+                            percent: 95.0,
+                            downloaded_bytes: 0,
+                            total_bytes: 0,
+                            is_finished: false,
+                            error: None,
+                        },
+                    );
+
+                    extract_7z_and_cleanup(sm_path, inf_dir.clone()).await?;
+                }
+
+                move_nested_animejanai_files(&inf_dir);
+            }
 
             // Строгая верификация наличия абсолютно всех необходимых библиотек TensorRT
             let required_trt = ["aji.dll", "aji_trt.dll", "trtexec.exe", "nvinfer_11.dll", "cudart64_13.dll"];

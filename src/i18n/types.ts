@@ -749,6 +749,7 @@ export interface TranslationDict {
       btnRemoveCmenu: string;
       btnRemoveCmenuShort: string;
       logPlaceholder: string;
+      operationLogTitle: string;
     };
     systemFields: {
       title: string;

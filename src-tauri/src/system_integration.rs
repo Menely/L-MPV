@@ -494,7 +494,7 @@ fn check_libmpv_has_animejanai(dll_path: Option<&Path>) -> bool {
 /// Сбор диагностической информации о библиотеке libmpv.
 fn collect_libmpv_diagnostics(
     root: &Path,
-    state: &State<'_, PlayerState>,
+    mpv: &crate::mpv_manager::MpvManager,
 ) -> (bool, String, bool, String) {
     let libmpv_found = find_libmpv_dll(root);
     let libmpv_available = libmpv_found.is_some();
@@ -503,8 +503,7 @@ fn collect_libmpv_diagnostics(
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| "Отсутствует".to_string());
     let libmpv_has_animejanai = check_libmpv_has_animejanai(libmpv_found.as_deref());
-    let libmpv_version = state
-        .mpv
+    let libmpv_version = mpv
         .get_property_string("mpv-version")
         .unwrap_or_else(|_| {
             if libmpv_available {
@@ -621,8 +620,17 @@ fn get_ffmpeg_diagnostics(root: &Path) -> (bool, String, String) {
 
 /// Команда получения полной системной диагностики плеера, компонентов и окружения.
 #[tauri::command]
-pub fn get_system_diagnostics(
+pub async fn get_system_diagnostics(
     state: State<'_, PlayerState>,
+) -> Result<SystemDiagnosticsInfo, String> {
+    let mpv = state.mpv.clone();
+    tauri::async_runtime::spawn_blocking(move || collect_system_diagnostics(&mpv))
+        .await
+        .map_err(|e| format!("System diagnostics failed: {e}"))?
+}
+
+fn collect_system_diagnostics(
+    mpv: &crate::mpv_manager::MpvManager,
 ) -> Result<SystemDiagnosticsInfo, String> {
     let root = crate::upscale::get_app_root_dir();
     let app_version = env!("CARGO_PKG_VERSION").to_string();
@@ -631,7 +639,7 @@ pub fn get_system_diagnostics(
     let is_portable = true;
 
     let (libmpv_available, libmpv_version, libmpv_has_animejanai, libmpv_path) =
-        collect_libmpv_diagnostics(&root, &state);
+        collect_libmpv_diagnostics(&root, mpv);
 
     let (ffmpeg_available, ffmpeg_version, ffmpeg_path) = get_ffmpeg_diagnostics(&root);
 

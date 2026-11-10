@@ -87,6 +87,7 @@ import {
   preloadPresetsSettings,
   preloadUpscaleSettings,
 } from "../settings/lib/settingsTabPreload";
+import { preloadSystemDiagnostics } from "../settings/lib/systemDiagnostics";
 import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { SettingsPreset } from "../../utils/presetsUtils";
 import {
@@ -202,7 +203,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   useEffect(() => {
     preloadPresetsSettings();
-    preloadUpscaleSettings();
     returnFocusRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
@@ -937,6 +937,11 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
+                  onMouseEnter={() => {
+                    if (tab.id === "presets") preloadPresetsSettings();
+                    if (tab.id === "upscaling") preloadUpscaleSettings();
+                    if (tab.id === "integration") preloadSystemDiagnostics();
+                  }}
                   className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
                 >
                   <Icon size={16} className="settings-tab-icon" />
@@ -1001,6 +1006,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     onMouseEnter={() => {
                       if (tab.id === "presets") preloadPresetsSettings();
                       if (tab.id === "upscaling") preloadUpscaleSettings();
+                      if (tab.id === "integration") preloadSystemDiagnostics();
                     }}
                     className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
                     aria-label={tab.label}

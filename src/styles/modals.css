@@ -1447,6 +1447,20 @@ html.no-animations .color-circle--palette { will-change: auto; }
               box-shadow var(--t-fast) var(--ease-smooth);
 }
 
+/* В flex-контейнерах с gap убираем margin-bottom аккордеонов, чтобы отступы не удваивались */
+.col > .settings-accordion,
+.system-settings > .settings-accordion {
+  margin-bottom: 0;
+}
+
+/* У последнего аккордеона в любой секции или вкладке отступ обнуляется,
+   чтобы нижнее поле окна было строго симметрично верхнему (16px) */
+.settings-tab-panel .settings-accordion:last-child,
+.modal__section > .settings-accordion:last-child,
+.settings-card__scroll-container .settings-accordion:last-child {
+  margin-bottom: 0 !important;
+}
+
 .settings-accordion:has(> .settings-accordion__header:hover) {
   border-color: var(--border-pill-hover);
   background: var(--surface-card-hover);

@@ -86,6 +86,7 @@ $command = Get-Command 7z -ErrorAction SilentlyContinue
 $script:sevenZip = if ($command) { $command.Source } elseif (Test-Path 'C:/Program Files/7-Zip/7z.exe') { 'C:/Program Files/7-Zip/7z.exe' } else { throw '7-Zip is required' }
 
 if ($Kind -eq 'Inference') {
+    Require-File 'l-mpv_convert_fp16.zip'
     Receive-Asset $aji 'aji-windows-x64.zip'
     Invoke-Archive @('t', 'aji-windows-x64.zip')
     Invoke-Archive @('x', '-y', 'aji-windows-x64.zip', '-oaji-check')
@@ -120,15 +121,15 @@ if ($Kind -eq 'Inference') {
     Receive-File "https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/$dmlVer/$dmlName" $dmlName
     Require-File $dmlName
 
+    python (Join-Path $PSScriptRoot 'verify-inference-dependencies.py') (Get-Location).Path
+    if ($LASTEXITCODE -ne 0) { throw 'Inference binary architecture/version/layout verification failed' }
+
     Write-Host "Resolving AnimeJaNai target tag: $($pins.animejanai) (from animejanai-dependencies.json)" -ForegroundColor Cyan
     Write-Host "Resolving aji bridge target tag: $($pins.aji) (from animejanai-dependencies.json)" -ForegroundColor Cyan
     Write-Host "Resolving TensorRT target version: $($pins.tensorrt)" -ForegroundColor Cyan
 
     $archives = [ordered]@{}
-    $archiveList = @('aji-windows-x64.zip', $ortName, $dmlName) + @($components | ForEach-Object { "component-trt-$_.7z" })
-    if (Test-Path -LiteralPath 'l-mpv_convert_fp16.zip' -PathType Leaf) {
-        $archiveList += 'l-mpv_convert_fp16.zip'
-    }
+    $archiveList = @('aji-windows-x64.zip', $ortName, $dmlName, 'l-mpv_convert_fp16.zip') + @($components | ForEach-Object { "component-trt-$_.7z" })
     foreach ($archName in $archiveList) {
         Require-File $archName
         $item = Get-Item -LiteralPath $archName
@@ -195,7 +196,9 @@ if ($Kind -eq 'Inference') {
     foreach ($archive in $targets.Keys) {
         $files = @(Get-ChildItem -LiteralPath "extract-$archive" -Recurse -File -Filter $targets[$archive])
         if ($files.Count -ne 1) { throw "Expected exactly one $($targets[$archive]) in $archive, found $($files.Count)" }
-        Copy-Item -LiteralPath $files[0].FullName -Destination (Join-Path 'dist_libs' $targets[$archive]) -Force
+        $destFile = Join-Path 'dist_libs' $targets[$archive]
+        Copy-Item -LiteralPath $files[0].FullName -Destination $destFile -Force
+        (Get-Item -LiteralPath $destFile).LastWriteTime = Get-Date
     }
     $dllText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes((Resolve-Path 'dist_libs/libmpv-2.dll')))
     if ($dllText -notmatch 'animejanai') { throw 'libmpv has no animejanai filter marker' }

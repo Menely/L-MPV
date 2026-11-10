@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { SettingsIcon } from "./SettingsIcon";
 
@@ -20,6 +20,10 @@ export function AccordionSection({
   children,
 }: AccordionSectionProps) {
   const contentId = useId();
+  const [hasOpened, setHasOpened] = useState(isOpen);
+  useEffect(() => {
+    if (isOpen) setHasOpened(true);
+  }, [isOpen]);
 
   return (
     <div className={`settings-accordion ${isOpen ? "settings-accordion--open" : ""}`}>
@@ -45,7 +49,7 @@ export function AccordionSection({
         >
         <div className="settings-accordion__inner">
           <div className="settings-accordion__body">
-            {children}
+            {(isOpen || hasOpened) ? children : null}
           </div>
         </div>
       </div>

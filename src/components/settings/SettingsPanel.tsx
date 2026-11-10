@@ -46,6 +46,7 @@ import {
   preloadPresetsSettings,
   preloadUpscaleSettings,
 } from "./lib/settingsTabPreload";
+import { preloadSystemDiagnostics } from "./lib/systemDiagnostics";
 import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import {
   getSettingsViewSession,
@@ -316,6 +317,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     });
     if (id === "section-presets") preloadPresetsSettings();
     if (id === "section-upscaling") preloadUpscaleSettings();
+    if (id === "section-system") preloadSystemDiagnostics();
   }, []);
 
   useEffect(() => {
@@ -353,17 +355,33 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
       },
     );
 
+    // These sections start native verification/diagnostics on mount. Prefetching
+    // them outside the viewport would turn opening General into a full probe.
+    const visibleObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) markSectionMounted(entry.target.id as SectionId);
+        });
+      },
+      { root, threshold: 0 },
+    );
+
     SECTION_DEFS.forEach(({ id }) => {
       const element = document.getElementById(id);
       if (element) {
         activeObserver.observe(element);
-        preloadObserver.observe(element);
+        if (id === "section-upscaling" || id === "section-system") {
+          visibleObserver.observe(element);
+        } else {
+          preloadObserver.observe(element);
+        }
       }
     });
 
     return () => {
       activeObserver.disconnect();
       preloadObserver.disconnect();
+      visibleObserver.disconnect();
     };
   }, [markSectionMounted]);
 

@@ -927,7 +927,8 @@ export const en: TranslationDict = {
       errCmenuUnreg: (err) => `[ERROR] Failed to remove menu: ${err}`,
       btnRemoveCmenu: "Remove from menu",
       btnRemoveCmenuShort: "Remove",
-      logPlaceholder: "Process output will appear here…"
+      logPlaceholder: "Process output will appear here…",
+      operationLogTitle: "Operation log"
     },
     systemFields: {
       title: "System Components",

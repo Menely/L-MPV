@@ -931,7 +931,8 @@ export const ru: TranslationDict = {
       errCmenuUnreg: (err) => `[ERROR] Не удалось удалить меню: ${err}`,
       btnRemoveCmenu: "Удалить из меню",
       btnRemoveCmenuShort: "Удалить",
-      logPlaceholder: "Здесь появится вывод процесса…"
+      logPlaceholder: "Здесь появится вывод процесса…",
+      operationLogTitle: "Журнал операций"
     },
     systemFields: {
       title: "Системные компоненты",

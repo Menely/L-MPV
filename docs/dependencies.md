@@ -1,8 +1,8 @@
 # Updating packaged dependencies
 
 `scripts/animejanai-dependencies.json` pins the compatible AnimeJaNai set:
-3.9.0, aji v0.17.1, TensorRT 11.4.0.106, and the AnimeJaNai libmpv build
-2026-10-24-b4f9f5bfed. Do not update only one of these components.
+3.10.0, aji v0.25.0, TensorRT 11.4.0.106, and the AnimeJaNai libmpv build
+2026-11-09-484611bce0. Do not update only one of these components.
 
 The two manually dispatched workflows call `scripts/package-dependencies.ps1`:
 
