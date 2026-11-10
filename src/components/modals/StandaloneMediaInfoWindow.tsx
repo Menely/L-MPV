@@ -54,6 +54,9 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   const [data, setData] = useState<DetailedMediaInfoResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const reportRequestRef = useRef(0);
+  const pendingPathRef = useRef<string | null>(null);
+  const completedPathRef = useRef<string | null>(null);
 
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -109,23 +112,39 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
       return;
     }
 
+    if (pendingPathRef.current === path) return;
+    const request = ++reportRequestRef.current;
+    pendingPathRef.current = path;
+    const sameReport = completedPathRef.current === path;
+
     setFilePath(path);
-    setLoading(true);
     setError(null);
-    setData(null);
-    setActiveCategory("all");
-    setCollapsedSections(new Set());
-    setSearchQuery("");
+    if (!sameReport) {
+      setLoading(true);
+      setData(null);
+      completedPathRef.current = null;
+      setActiveCategory("all");
+      setCollapsedSections(new Set());
+      setSearchQuery("");
+    }
 
     invoke<DetailedMediaInfoResponse>("get_detailed_media_info", { path })
       .then((res) => {
+        if (request !== reportRequestRef.current) return;
+        completedPathRef.current = path;
         setData(res);
         setLoading(false);
       })
       .catch((err) => {
+        if (request !== reportRequestRef.current) return;
         console.error("Ошибка получения MediaInfo:", err);
+        completedPathRef.current = null;
+        setData(null);
         setError(typeof err === "string" ? err : "DLL_ERROR");
         setLoading(false);
+      })
+      .finally(() => {
+        if (request === reportRequestRef.current) pendingPathRef.current = null;
       });
   }, []);
 
@@ -137,8 +156,10 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   // Первоначальное получение пути файла и подписка на события обновления
   useEffect(() => {
     // 1. Запрос пути, сохранённого в Tauri State при старте
+    const initialRequest = reportRequestRef.current;
     invoke<string | null>("get_standalone_mediainfo_path")
       .then((initialPath) => {
+        if (reportRequestRef.current !== initialRequest) return;
         if (initialPath) {
           loadMediaInfoForPath(initialPath);
         } else {
@@ -147,13 +168,24 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
         }
       })
       .catch((e) => {
+        if (reportRequestRef.current !== initialRequest) return;
         console.error("Ошибка вызова get_standalone_mediainfo_path:", e);
         setLoading(false);
         setError("INIT_ERROR");
       });
 
     // 2. Слушатель события обновления пути (если окно уже открыто и выбран другой файл)
+    const syncAlwaysOnTopState = async () => {
+      try {
+        setIsAlwaysOnTop(await appWindow.isAlwaysOnTop());
+      } catch {
+        // Игнорируем ошибки опроса состояния закрепления окна
+      }
+    };
+    syncAlwaysOnTopState();
+
     const unlistenPromise = listen<string>("load-mediainfo-path", (event) => {
+      syncAlwaysOnTopState();
       if (event.payload) {
         loadMediaInfoForPath(event.payload);
       }

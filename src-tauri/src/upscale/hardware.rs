@@ -89,7 +89,7 @@ pub fn determine_nvidia_sm_major(name: &str, sm_arch: &str) -> String {
 }
 
 /// Запуск внешней команды с таймаутом и принудительным уничтожением при зависании
-fn run_command_with_timeout(
+pub fn run_command_with_timeout(
     mut cmd: std::process::Command,
     timeout: std::time::Duration,
 ) -> Result<std::process::Output, String> {

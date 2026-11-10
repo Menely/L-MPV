@@ -184,18 +184,11 @@ pub fn set_subtitles_avoid_ui_setting(
     enabled: bool,
 ) -> Result<(), String> {
     if !enabled {
-        state.mpv.set_property_string("sub-pos", "100")?;
-        state.mpv.set_property_string("sub-margin-y", "22")?;
+        crate::subtitle_position::update(&state.mpv, false, 0.0, 0.0)?;
     }
-    if let Err(error) = AppSettings::update_portable(|settings| {
+    AppSettings::update_portable(|settings| {
         settings.subtitles_avoid_ui = enabled;
-    }) {
-        if !enabled {
-            let _ = state.mpv.set_property_string("sub-pos", "100");
-            let _ = state.mpv.set_property_string("sub-margin-y", "22");
-        }
-        return Err(error);
-    }
+    })?;
     Ok(())
 }
 
@@ -205,46 +198,14 @@ pub fn update_subtitles_avoid_ui(
     state: State<'_, PlayerState>,
     controls_visible: bool,
     window_height: Option<f64>,
+    controls_bottom: Option<f64>,
 ) -> Result<(), String> {
-    if controls_visible {
-        // Динамический адаптивный расчет: высота панели управления составляет ~78px от низа окна.
-        // Чтобы субтитры гарантированно не перекрывались панелью и не улетали слишком высоко на 4K/2K,
-        // мы вычисляем процент sub-pos исходя из реальной высоты окна, удерживая субтитры
-        // строго на фиксированном отступе ~104px от нижней границы.
-        let height = window_height.unwrap_or(720.0).max(300.0);
-        let target_bottom_offset = 65.0;
-        let sub_pos = (100.0 - (target_bottom_offset / height * 100.0))
-            .clamp(89.0, 97.0)
-            .round() as i64;
-
-        let _ = state
-            .mpv
-            .set_property_string("sub-pos", &sub_pos.to_string());
-        let _ = state
-            .mpv
-            .set_property_string("sub-margin-y", "22");
-        let _ = state
-            .mpv
-            .set_property_string("sub-ass-force-margins", "no");
-        let _ = state
-            .mpv
-            .set_property_string("sub-use-margins", "no");
-    } else {
-        // Возвращаем субтитры к стандартной нижней позиции
-        let _ = state
-            .mpv
-            .set_property_string("sub-pos", "100");
-        let _ = state
-            .mpv
-            .set_property_string("sub-margin-y", "22");
-        let _ = state
-            .mpv
-            .set_property_string("sub-ass-force-margins", "no");
-        let _ = state
-            .mpv
-            .set_property_string("sub-use-margins", "no");
-    }
-    Ok(())
+    crate::subtitle_position::update(
+        &state.mpv,
+        controls_visible,
+        window_height.unwrap_or(720.0),
+        controls_bottom.unwrap_or(104.0),
+    )
 }
 
 /// Получить сохранённые настройки пользовательского интерфейса из config/settings.json.

@@ -112,6 +112,7 @@ pub fn schedule_maintenance<R: Runtime>(app: &tauri::AppHandle<R>) {
             fonts_bundle::ensure_fonts_installed(&exe_dir);
             commands::clean_stale_temp_files(&exe_dir.join("config"));
             logging::prune_build_logs(&exe_dir.join("logs"));
+            crate::upscale::compatibility::prune_all_stale_dirs(&exe_dir);
         })
         .is_err()
     {

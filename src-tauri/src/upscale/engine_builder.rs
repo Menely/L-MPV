@@ -6,7 +6,168 @@ use super::config::{
 };
 use super::hardware::detect_system_gpu;
 use super::types::UpscaleCompileProgress;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex, OnceLock,
+};
 use tauri::{Emitter, Manager};
+
+static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
+static ACTIVE_CHILD_PIDS: OnceLock<Mutex<Vec<u32>>> = OnceLock::new();
+
+fn active_pids() -> &'static Mutex<Vec<u32>> {
+    ACTIVE_CHILD_PIDS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+#[cfg(windows)]
+mod win_job {
+    use std::ffi::c_void;
+    use std::os::windows::io::AsRawHandle;
+    use std::process::Child;
+    use std::sync::OnceLock;
+
+    const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS: u32 = 9;
+    const JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: u32 = 0x0000_2000;
+    const PROCESS_TERMINATE: u32 = 0x0001;
+
+    #[repr(C)]
+    #[derive(Default, Copy, Clone)]
+    struct IoCounters {
+        read_operation_count: u64,
+        write_operation_count: u64,
+        other_operation_count: u64,
+        read_transfer_count: u64,
+        write_transfer_count: u64,
+        other_transfer_count: u64,
+    }
+
+    #[repr(C)]
+    #[derive(Default, Copy, Clone)]
+    struct JobObjectBasicLimitInformation {
+        per_process_user_time_limit: i64,
+        per_job_user_time_limit: i64,
+        limit_flags: u32,
+        minimum_working_set_size: usize,
+        maximum_working_set_size: usize,
+        active_process_limit: u32,
+        affinity: usize,
+        priority_class: u32,
+        scheduling_class: u32,
+    }
+
+    #[repr(C)]
+    #[derive(Default, Copy, Clone)]
+    struct JobObjectExtendedLimitInformation {
+        basic_limit_information: JobObjectBasicLimitInformation,
+        io_info: IoCounters,
+        process_memory_limit: usize,
+        job_memory_limit: usize,
+        peak_process_memory_used: usize,
+        peak_job_memory_used: usize,
+    }
+
+    extern "system" {
+        fn CreateJobObjectW(lpJobAttributes: *const c_void, lpName: *const u16) -> *mut c_void;
+        fn SetInformationJobObject(
+            hJob: *mut c_void,
+            JobObjectInformationClass: u32,
+            lpJobObjectInformation: *const c_void,
+            cbJobObjectInformationLength: u32,
+        ) -> i32;
+        fn AssignProcessToJobObject(hJob: *mut c_void, hProcess: *mut c_void) -> i32;
+        fn OpenProcess(dwDesiredAccess: u32, bInheritHandle: i32, dwProcessId: u32) -> *mut c_void;
+        fn TerminateProcess(hProcess: *mut c_void, uExitCode: u32) -> i32;
+        fn CloseHandle(hObject: *mut c_void) -> i32;
+    }
+
+    static JOB_HANDLE: OnceLock<usize> = OnceLock::new();
+
+    fn get_or_init_job() -> Option<*mut c_void> {
+        let raw = *JOB_HANDLE.get_or_init(|| unsafe {
+            let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+            if job.is_null() {
+                return 0;
+            }
+            let mut info = JobObjectExtendedLimitInformation::default();
+            info.basic_limit_information.limit_flags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            let ok = SetInformationJobObject(
+                job,
+                JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS,
+                &info as *const _ as *const c_void,
+                std::mem::size_of::<JobObjectExtendedLimitInformation>() as u32,
+            );
+            if ok == 0 {
+                CloseHandle(job);
+                return 0;
+            }
+            job as usize
+        });
+        if raw == 0 {
+            None
+        } else {
+            Some(raw as *mut c_void)
+        }
+    }
+
+    pub fn assign_child_to_job(child: &Child) {
+        if let Some(job) = get_or_init_job() {
+            unsafe {
+                let _ = AssignProcessToJobObject(job, child.as_raw_handle());
+            }
+        }
+    }
+
+    pub fn terminate_pid(pid: u32) {
+        unsafe {
+            let handle = OpenProcess(PROCESS_TERMINATE, 0, pid);
+            if !handle.is_null() {
+                let _ = TerminateProcess(handle, 1);
+                let _ = CloseHandle(handle);
+            }
+        }
+    }
+}
+
+/// RAII-регистратор дочернего процесса компилятора/конвертера.
+struct ChildProcessRegistration {
+    pid: u32,
+}
+
+impl ChildProcessRegistration {
+    fn register(child: &std::process::Child) -> Self {
+        #[cfg(windows)]
+        win_job::assign_child_to_job(child);
+
+        let pid = child.id();
+        if let Ok(mut list) = active_pids().lock() {
+            if !list.contains(&pid) {
+                list.push(pid);
+            }
+        }
+        Self { pid }
+    }
+}
+
+impl Drop for ChildProcessRegistration {
+    fn drop(&mut self) {
+        if let Ok(mut list) = active_pids().lock() {
+            list.retain(|&p| p != self.pid);
+        }
+    }
+}
+
+/// Принудительно завершает все активные дочерние процессы компиляции TensorRT и конвертации ONNX при выходе из плеера.
+pub fn shutdown_active_processes() {
+    SHUTTING_DOWN.store(true, Ordering::SeqCst);
+    let pids = active_pids()
+        .lock()
+        .map(|mut list| std::mem::take(&mut *list))
+        .unwrap_or_default();
+    #[cfg(windows)]
+    for pid in pids {
+        win_job::terminate_pid(pid);
+    }
+}
 
 /// Параметры конфигурации запуска компилятора TensorRT (trtexec)
 struct TrtBuildOptions<'a> {
@@ -32,35 +193,77 @@ impl Drop for MonitorGuard {
     }
 }
 
+/// Определяет целевые бэкенд и слот для восстановления после компиляции 1080p движка TensorRT.
+///
+/// Если пользователь работал на `DirectML`, его активный бэкенд и слот сохраняются неизменными.
+fn resolve_post_compile_restore_target(
+    prev_backend: &str,
+    prev_slot: u32,
+    compiled_slot: u32,
+    compile_succeeded: bool,
+) -> (String, u32) {
+    if prev_backend.eq_ignore_ascii_case("DirectML") {
+        ("DirectML".to_string(), prev_slot)
+    } else if compile_succeeded {
+        ("TensorRT".to_string(), compiled_slot)
+    } else {
+        ("TensorRT".to_string(), prev_slot)
+    }
+}
+
 /// RAII-гарда для гарантированного восстановления фильтра AnimeJaNai и паузы в mpv после компиляции
 struct VramGuard {
     app: tauri::AppHandle,
     had_active_ai: bool,
     was_playing: bool,
-    restore_slot: std::sync::atomic::AtomicU32,
+    prev_backend: String,
+    prev_slot: u32,
+    compiled_slot: u32,
+    compile_succeeded: bool,
+    prev_conf_raw: Option<String>,
 }
 
 impl Drop for VramGuard {
     fn drop(&mut self) {
+        let conf_path = get_upscale_conf_path();
+        let (restore_backend, target_slot) = resolve_post_compile_restore_target(
+            &self.prev_backend,
+            self.prev_slot,
+            self.compiled_slot,
+            self.compile_succeeded,
+        );
+
+        // Если до компиляции был выбран DirectML, восстанавливаем прежний upscale.conf без переключения на TensorRT
+        if restore_backend.eq_ignore_ascii_case("DirectML") {
+            if let Some(ref raw) = self.prev_conf_raw {
+                let _ = std::fs::write(&conf_path, raw);
+            } else {
+                let _ = write_upscale_conf("DirectML", target_slot);
+            }
+        } else if self.compile_succeeded || self.had_active_ai {
+            let _ = write_upscale_conf("TensorRT", target_slot);
+        }
+
         if let Some(player_state) =
             self.app.try_state::<crate::commands::PlayerState>()
         {
             if self.had_active_ai {
                 println!(
-                    "[L-MPV][Upscale] Восстановление фильтра AnimeJaNai в mpv..."
+                    "[L-MPV][Upscale] Восстановление фильтра AnimeJaNai ({}, слот {}) в mpv...",
+                    restore_backend, target_slot
                 );
-                let target_slot = self
-                    .restore_slot
-                    .load(std::sync::atomic::Ordering::Relaxed);
-                let conf_path = get_upscale_conf_path();
                 let conf_str = conf_path.to_string_lossy();
                 let models_dir = get_models_dir();
-                if let Err(e) = player_state.mpv.enable_ai_upscale(
-                    &conf_str,
-                    &models_dir.to_string_lossy(),
-                    target_slot,
-                    false,
-                ) {
+                if let Err(e) = super::controller::prepare_activation(&restore_backend, target_slot)
+                    .and_then(|_| {
+                        player_state.mpv.enable_ai_upscale(
+                            &conf_str,
+                            &models_dir.to_string_lossy(),
+                            target_slot,
+                            false,
+                        )
+                    })
+                {
                     eprintln!(
                         "[L-MPV][Upscale] Не удалось восстановить фильтр после компиляции: {}",
                         e
@@ -79,19 +282,28 @@ impl Drop for VramGuard {
     }
 }
 
-/// Считывание текущего активного слота по умолчанию из upscale.conf
-fn read_current_default_slot() -> Option<u32> {
+/// Считывание текущего бэкенда, активного слота и сырого текста из upscale.conf
+fn read_current_upscale_state() -> (Option<String>, Option<u32>, Option<String>) {
     let conf_path = get_upscale_conf_path();
-    let content = std::fs::read_to_string(conf_path).ok()?;
+    let Ok(content) = std::fs::read_to_string(conf_path) else {
+        return (None, None, None);
+    };
+    let mut backend = None;
+    let mut slot = None;
     for line in content.lines() {
         let trim = line.trim();
-        if let Some(val) = trim.strip_prefix("default_slot=") {
+        if let Some(val) = trim.strip_prefix("backend=") {
+            let b = val.trim();
+            if !b.is_empty() {
+                backend = Some(b.to_string());
+            }
+        } else if let Some(val) = trim.strip_prefix("default_slot=") {
             if let Ok(slot_num) = val.trim().parse::<u32>() {
-                return Some(slot_num);
+                slot = Some(slot_num);
             }
         }
     }
-    None
+    (backend, slot, Some(content))
 }
 
 /// Проверка, указывает ли журнал ошибок на нехватку видеопамяти (CUDA Out of Memory)
@@ -206,10 +418,16 @@ fn run_trtexec_build(
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("Ошибка запуска процесса trtexec: {}", e))?;
+    let _child_reg = ChildProcessRegistration::register(&child);
 
     let start = std::time::Instant::now();
     let timeout = std::time::Duration::from_secs(15 * 60); // 15 минут максимальный бюджет времени
     loop {
+        if SHUTTING_DOWN.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("Компиляция TensorRT прервана в связи с завершением работы плеера.".to_string());
+        }
         match child.try_wait() {
             Ok(Some(status)) => return Ok(status),
             Ok(None) => {
@@ -221,7 +439,7 @@ fn run_trtexec_build(
                             .to_string(),
                     );
                 }
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                std::thread::sleep(std::time::Duration::from_millis(250));
             }
             Err(e) => {
                 let _ = child.kill();
@@ -339,6 +557,12 @@ pub async fn precompile_model_engine_1080p_impl(
     slot: u32,
     filename: String,
 ) -> Result<String, String> {
+    let _operation = super::compatibility::OPERATION.try_lock().map_err(|_| "UPSCALE_BUSY".to_owned())?;
+    super::compatibility::ensure_runtime("TensorRT")?;
+    if std::path::Path::new(&filename).file_name().and_then(|s| s.to_str()) != Some(filename.as_str())
+        || !filename.to_lowercase().ends_with(".onnx") {
+        return Err("Invalid ONNX model filename".into());
+    }
     if COMPILATION_ACTIVE
         .compare_exchange(
             false,
@@ -370,11 +594,13 @@ pub async fn precompile_model_engine_1080p_impl(
 
     super::config::ensure_inference_environment();
 
-    // Считываем текущий работающий слот до записи новой конфигурации
-    let prev_slot = read_current_default_slot().unwrap_or(slot);
+    // Считываем текущий работающий бэкенд и слот без перезаписи upscale.conf на TensorRT
+    let (conf_backend, conf_slot, prev_conf_raw) = read_current_upscale_state();
+    let prev_backend = super::controller::get_last_applied_backend()
+        .or(conf_backend)
+        .unwrap_or_else(|| "TensorRT".to_string());
+    let prev_slot = conf_slot.unwrap_or(slot);
 
-    // Записываем конфигурацию с нужным слотом
-    let _ = write_upscale_conf("TensorRT", slot)?;
     let models_dir = get_models_dir();
     let logs_dir = get_logs_dir();
 
@@ -436,11 +662,15 @@ pub async fn precompile_model_engine_1080p_impl(
     };
 
     // RAII-гарда для гарантированного восстановления фильтра и состояния паузы в mpv при завершении
-    let vram_guard = VramGuard {
+    let mut vram_guard = VramGuard {
         app: app.clone(),
         had_active_ai,
         was_playing,
-        restore_slot: std::sync::atomic::AtomicU32::new(prev_slot),
+        prev_backend: prev_backend.clone(),
+        prev_slot,
+        compiled_slot: slot,
+        compile_succeeded: false,
+        prev_conf_raw,
     };
 
     // Отправляем начальное событие запуска компиляции
@@ -517,6 +747,15 @@ pub async fn precompile_model_engine_1080p_impl(
 
     let tcache = models_dir.join(format!("{}.timing.cache", model_stem));
     let tcache_lock = models_dir.join(format!("{}.timing.cache.lock", model_stem));
+    let root = super::config::get_app_root_dir();
+    let gpu_key = super::compatibility::gpu_key(&gpu);
+    let build_context = super::compatibility::model_context_token(&root, &onnx_path, &gpu_key)?;
+    // Only the explicit rebuild action archives old artifacts. A failed rebuild
+    // of the active TensorRT slot must not silently fall back to compiling it in mpv.
+    if slot == prev_slot && prev_backend.eq_ignore_ascii_case("TensorRT") {
+        vram_guard.had_active_ai = false;
+    }
+    super::compatibility::archive_model_cache(&onnx_path)?;
 
     // Попытка 1: Уровень оптимизации 5 с безопасным пулом памяти
     let is_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
@@ -688,10 +927,12 @@ pub async fn precompile_model_engine_1080p_impl(
         return Err(format!("Ошибка компиляции TensorRT: {}", err_detail));
     }
 
-    // При успешной сборке активируем именно текущую новую модель в VramGuard
-    vram_guard
-        .restore_slot
-        .store(slot, std::sync::atomic::Ordering::Relaxed);
+    if super::compatibility::model_context_token(&root, &onnx_path, &gpu_key)? != build_context {
+        return Err("UPSCALE_RUNTIME_UPDATE:TensorRT".into());
+    }
+    super::compatibility::record_model(&root, &onnx_path, &gpu_key)?;
+    vram_guard.had_active_ai = had_active_ai;
+    vram_guard.compile_succeeded = true;
 
     let _ = app.emit(
         "upscale-compile-progress",
@@ -751,12 +992,15 @@ fn ensure_onnx_model_fp16(onnx_path: &std::path::Path, inf_dir: &std::path::Path
             let mut cmd = std::process::Command::new(&converter_exe);
             cmd.arg(onnx_path.to_string_lossy().as_ref());
             cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-            if let Ok(status) = cmd.status() {
-                if status.success() {
-                    println!(
-                        "[L-MPV][Upscale] Успешно выполнена проверка/конвертация нативным конвертером."
-                    );
-                    return;
+            if let Ok(mut child) = cmd.spawn() {
+                let _reg = ChildProcessRegistration::register(&child);
+                if let Ok(status) = child.wait() {
+                    if status.success() {
+                        println!(
+                            "[L-MPV][Upscale] Успешно выполнена проверка/конвертация нативным конвертером."
+                        );
+                        return;
+                    }
                 }
             }
             println!(
@@ -788,9 +1032,12 @@ except Exception as e:
                 cmd.args(["-c", py_code, onnx_path.to_string_lossy().as_ref()]);
             }
             cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-            if let Ok(status) = cmd.status() {
-                if status.success() {
-                    break;
+            if let Ok(mut child) = cmd.spawn() {
+                let _reg = ChildProcessRegistration::register(&child);
+                if let Ok(status) = child.wait() {
+                    if status.success() {
+                        break;
+                    }
                 }
             }
         }
@@ -825,5 +1072,40 @@ mod tests {
         assert!(!extracted.contains("errorOnTimingCacheMiss"));
         assert!(extracted.contains("cudaError 2: out of memory"));
         assert!(extracted.contains("could not be allocated"));
+    }
+
+    #[test]
+    fn test_resolve_post_compile_restore_target_preserves_directml() {
+        assert_eq!(
+            resolve_post_compile_restore_target("DirectML", 2, 4, true),
+            ("DirectML".to_string(), 2)
+        );
+        assert_eq!(
+            resolve_post_compile_restore_target("DirectML", 2, 4, false),
+            ("DirectML".to_string(), 2)
+        );
+        assert_eq!(
+            resolve_post_compile_restore_target("TensorRT", 1, 3, true),
+            ("TensorRT".to_string(), 3)
+        );
+        assert_eq!(
+            resolve_post_compile_restore_target("TensorRT", 1, 3, false),
+            ("TensorRT".to_string(), 1)
+        );
+    }
+
+    #[test]
+    fn test_child_process_registration_cleanup() {
+        let mut cmd = std::process::Command::new("cmd.exe");
+        cmd.args(["/C", "echo", "ok"]);
+        if let Ok(mut child) = cmd.spawn() {
+            let pid = child.id();
+            {
+                let _reg = ChildProcessRegistration::register(&child);
+                assert!(active_pids().lock().unwrap().contains(&pid));
+            }
+            let _ = child.wait();
+            assert!(!active_pids().lock().unwrap().contains(&pid));
+        }
     }
 }

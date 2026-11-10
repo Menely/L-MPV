@@ -742,14 +742,6 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                     console.error("Ошибка сохранения настройки subtitles_avoid_ui:", err);
                     return;
                   }
-                  try {
-                    await invoke("update_subtitles_avoid_ui", {
-                      controlsVisible: val,
-                      windowHeight: window.innerHeight,
-                    });
-                  } catch (err) {
-                    console.warn("Не удалось обновить позицию субтитров:", err);
-                  }
                   localStorage.setItem("l-mpv-subtitles-avoid-ui", val ? "true" : "false");
                   window.dispatchEvent(new Event("l-mpv-settings-changed"));
                 }}

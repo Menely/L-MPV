@@ -1,6 +1,6 @@
 [package]
 name = "l-mpv"
-version = "2.7.1"
+version = "2.7.2"
 description = "L-MPV — портативный медиаплеер на базе libmpv"
 authors = ["Leo DiSanche"]
 license = "GPL-3.0-or-later"
@@ -12,6 +12,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+blake3 = "1.8.7"
 
 [dependencies]
 tauri = { version = "2", features = [] }

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.7.1-blueviolet?style=for-the-badge" alt="Version 2.7.1">
+  <img src="https://img.shields.io/badge/Version-2.7.2-blueviolet?style=for-the-badge" alt="Version 2.7.2">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -119,16 +119,17 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   <img src="./assets/ai-upscale.png" alt="Real-Time 4K AI Upscaling Before / After" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
 </p>
 
-- **Native In-Stream Video Inference:** Deep integration of the `vf_animejanai` filter powered by the updated `mpv-AnimeJaNai 3.9.0` stack (`aji` v0.17.1 bridge, NVIDIA TensorRT 11.4.0.106, and DirectML DirectX 12), outputting real-time hardware-accelerated 4K Ultra HD frames.
+- **Native In-Stream Video Inference:** Deep integration of the `vf_animejanai` filter powered by the updated `mpv-AnimeJaNai 3.10.0` stack (`aji` v0.17.1 bridge, NVIDIA TensorRT 11.4.0.106, and DirectML DirectX 12), outputting real-time hardware-accelerated 4K Ultra HD frames.
 - **Two Operational Modes:** A simple **"Off"** and **"AI Upscaling"** toggle in Settings (`F2`) — you decide when to engage neural enhancement.
 - **Dual Inference Backends:**
   - **DirectML:** DirectX 12 inference for compatible AMD, Intel and NVIDIA GPUs. Model support and speed depend on the hardware.
   - **TensorRT:** Inference for supported NVIDIA GPUs, including architectures from `sm75` to Blackwell `sm120`.
 - **Component Downloader ("Download Engine"):**
-  - Automatically identifies the installed GPU and downloads the matching runtime libraries.
+  - Identifies the GPU and selects matching libraries when you click Download or Update engine.
   - Live progress display (percentages, downloaded MBs), clean extraction status, and persistent 100% completion notice for 3 seconds.
   - Non-blocking background extraction via `spawn_blocking` in the background and no intrusive console popups.
 - **TensorRT 1080p Precompilation (.engine):**
+  - After a libmpv/runtime package change, old or unverified caches are flagged for rebuilding. Update engine and Rebuild actions require your click; libraries and stale caches are not updated automatically. ONNX models are retained. Loaded DLLs require restarting before replacement.
   - Background optimization of ONNX models for 1080p -> 4K upscaling with multi-stage phase tracking (ONNX parsing, CUDA tactics profiling, graph optimization, engine serialization).
   - Compiled with `trtexec.exe` using a 1080p input profile.
   - Precompilation can reduce startup delays for the matching model and input profile. Models can be recompiled from settings.
@@ -270,7 +271,8 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Speech Tokenizer & Tempo Metrics (Intl.Segmenter):** Text segmentation with native support for spaceless CJK languages (Japanese, Chinese), automated ISO 639 to BCP-47 locale normalization, real-time speech rate analysis (WPM — words per minute, CPS — characters per second), and color-coded speech tempo badges in the ASS inspector (relaxed, brisk, rapid).
 - **Subtitle and Sign Rendering:** Rendering of stylized ASS/SSA subtitles, karaoke animations, and on-screen signs:
   - *Video-frame placement*: Subtitle margin settings keep rendering aligned with the video frame.
-  - *Author Style Integrity (`sub-ass-override=no`, `sub-scale-signs=no`)*: Preserves author styling, positioning, and 1:1 scale for on-screen signs (signs on buildings, phones, posters);
+  - *Author styling*: `sub-ass-override=no` is the default; UI avoidance temporarily enables positioning without forcing replacement fonts or colors. Explicit ASS coordinates (`\pos`/`\move`) are preserved and may overlap the controls;
+  - *UI avoidance*: ordinary text subtitles move above the visible controls using the selected style (Modern, Classic, Capsule), UI scale and window size; the previous position is restored when controls hide;
   - *Subpixel Precision & Typography (`sub-ass-hinting=none`, `sub-ass-shaper=harfbuzz`, `embeddedfonts=yes`)*: Unlocks HarfBuzz OpenType shaping, loads embedded MKV fonts, and disables FreeType hinting for subtitle rendering;
   - *Aspect Protection (`stretch-image-subs-to-screen=no`)*: Prevents PGS and VobSub bitmap subtitles from stretching during aspect ratio adjustments.
 
@@ -454,6 +456,19 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 </details>
 
 <details>
+<summary><b>💻 System Components, Diagnostics & Windows Integration</b></summary>
+
+- **Native Runtime Diagnostics Dashboard:** Compact card-based overview of L-MPV Core (version, architecture, portable mode), `libmpv` (mpv version and `vf_animejanai` filter status), `FFmpeg` utility, and `MediaInfo` C-API library.
+- **Neural Inference Monitoring (AnimeJaNai / aji):** Accurately surfaces installed runtimes (`TensorRT 11`, `DirectML`, `aji v0.17.1`), along with ONNX model and compiled `.engine` counters, avoiding false "Not installed" noise.
+- **Hardware Acceleration (GPU):** Displays detected graphics hardware, dedicated video memory (VRAM), and compute microarchitecture (`sm120`, `sm89`, `sm86`, etc.).
+- **Windows File Associations:** One-click registration for video and audio formats in the Windows Registry, safe unlinking, and shortcut to Windows Default Apps settings.
+- **Explorer Context Menu:** Integrates “L-MPV MediaInfo” into the Windows Explorer right-click context menu for instant media analysis without launching playback.
+- **Support Report Generation:** “Copy Report” creates a clean, structured diagnostic report including paths, versions, and hardware specs ready for GitHub Issues.
+- **Real-Time Shell Log:** Dedicated color-coded terminal log tracking Windows integration events and errors.
+
+</details>
+
+<details>
 <summary><b>⚙️ Hybrid Input Customization System</b></summary>
 
 - **Full Hotkey Rebinding:** Configure keyboard shortcuts with modifiers (`Ctrl`, `Shift`, `Alt`) and mouse inputs (`MouseLeft`, `MouseRight`, `MouseMiddle`, `MouseLeftDoubleClick`).
@@ -468,6 +483,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 
 - **Native In-Memory Inspection:** Direct C-FFI binding to `mediainfo.dll` via `libloading` for extraction of video, audio, and subtitle streams without external command-line shells.
 - **Independent Desktop Window (655×685 px):** The MediaInfo window moves freely across monitors beyond the main player; launches over the player (`Shift+F10`) with an Always-on-Top pin button (`alwaysOnTop`).
+- **Recent report cache:** reopening the same unchanged file keeps its completed report on screen. Analysis runs again if the file changes or its report is no longer in the current process cache.
 - **Standalone inspection ("Open with L-MPV MediaInfo"):** View file metadata from the Windows Explorer context menu without showing the main window or starting playback.
 - **Style & Color Theme Harmonization:** MediaInfo fully adapts to the selected player style (Capsule, Modern, Classic) and automatically inherits the active color theme, even when opened directly from Windows Explorer. In Capsule mode, elements are organized into floating cards with balanced symmetry.
 - **Interactive Stream Filter Tabs (Quick Filter):** Filter tracks (*"All"*, *"General"*, *"Video"*, *"Audio"*, *"Subtitles"*, *"Chapters"*) with informative stream count badges and 6px rounded pills matching the design system.

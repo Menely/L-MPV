@@ -1,6 +1,6 @@
 //! Модуль централизованного логирования, ротации и обработки аварийных сбоев плеера L-MPV.
 
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -130,21 +130,42 @@ pub fn log_error(context: &str, error_details: &str) {
     }
 }
 
+/// Безопасная запись отчёта о панике с каскадным резервированием путей без паник и без записи в CWD.
+pub fn write_panic_report(logs_dir: &Path, location: &str, payload: &str) {
+    let timestamp = format_local_timestamp();
+    let report_line = format!(
+        "[{}] [CRASH/PANIC] Локация: {}, Ошибка: {}",
+        timestamp, location, payload
+    );
+
+    let _ = fs::create_dir_all(logs_dir);
+    let error_log_path = logs_dir.join("error.log");
+    rotate_log_file(&error_log_path, MAX_ERROR_LOG_SIZE);
+
+    let mut candidate_paths = Vec::with_capacity(3);
+    candidate_paths.push(error_log_path);
+    if let Some(parent) = logs_dir.parent() {
+        if !parent.as_os_str().is_empty() {
+            candidate_paths.push(parent.join("fallback_error.log"));
+        }
+    }
+    candidate_paths.push(std::env::temp_dir().join("l-mpv_fallback_error.log"));
+
+    for path in candidate_paths {
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&path) {
+            if writeln!(file, "{}", report_line).is_ok() {
+                return;
+            }
+        }
+    }
+
+    let _ = writeln!(std::io::stderr(), "{}", report_line);
+}
+
 /// Установка глобального перехватчика паник Rust для фиксации критических сбоев в `logs/error.log`.
 pub fn setup_panic_hook(logs_dir: &Path) {
-    let error_log_path = logs_dir.join("error.log");
+    let logs_dir_owned = logs_dir.to_path_buf();
     std::panic::set_hook(Box::new(move |panic_info| {
-        rotate_log_file(&error_log_path, MAX_ERROR_LOG_SIZE);
-
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&error_log_path)
-            .unwrap_or_else(|_| {
-                File::create("fallback_error.log").unwrap()
-            });
-
-        let timestamp = format_local_timestamp();
         let payload = panic_info
             .payload()
             .downcast_ref::<&str>()
@@ -162,11 +183,7 @@ pub fn setup_panic_hook(logs_dir: &Path) {
             .map(|l| format!("{}:{}", l.file(), l.line()))
             .unwrap_or_else(|| "неизвестный модуль".to_string());
 
-        let _ = writeln!(
-            file,
-            "[{}] [CRASH/PANIC] Локация: {}, Ошибка: {}",
-            timestamp, location, payload
-        );
+        write_panic_report(&logs_dir_owned, &location, payload);
     }));
 }
 
@@ -252,6 +269,43 @@ mod tests {
         assert!(!log_file.exists());
         assert!(old_file.exists());
         assert_eq!(fs::metadata(&old_file).unwrap().len(), 100);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn тест_резервной_записи_паники_без_загрязнения_cwd() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "l_mpv_panic_fallback_test_{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        // Создаём файл на месте каталога logs, чтобы открытие logs/error.log гарантированно не удалось
+        let blocked_logs_dir = temp_dir.join("logs");
+        fs::write(&blocked_logs_dir, b"blocked").unwrap();
+
+        let cwd_fallback = PathBuf::from("fallback_error.log");
+        let existed_in_cwd = cwd_fallback.exists();
+
+        write_panic_report(&blocked_logs_dir, "src/logging.rs:999", "Тестовый сбой");
+
+        if !existed_in_cwd {
+            assert!(
+                !cwd_fallback.exists(),
+                "Файл fallback_error.log не должен создаваться в CWD"
+            );
+        }
+
+        let parent_fallback = temp_dir.join("fallback_error.log");
+        assert!(
+            parent_fallback.exists(),
+            "Резервный лог должен быть создан в родительском каталоге рядом с logs/"
+        );
+        let content = fs::read_to_string(&parent_fallback).unwrap();
+        assert!(content.contains("[CRASH/PANIC]"));
+        assert!(content.contains("Тестовый сбой"));
 
         let _ = fs::remove_dir_all(&temp_dir);
     }

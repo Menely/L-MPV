@@ -25,6 +25,107 @@ const FFT_SIZE: usize = 1024;
 /// Количество полос спектра (соответствует третьоктавному студийному эквалайзеру).
 const BANDS_COUNT: usize = 32;
 
+/// GUID подтипа KSDATAFORMAT_SUBTYPE_PCM (00000001-0000-0010-8000-00aa00389b71) в байтовом представлении LE.
+const KSDATAFORMAT_SUBTYPE_PCM_BYTES: [u8; 16] = [
+    0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+    0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71,
+];
+
+/// GUID подтипа KSDATAFORMAT_SUBTYPE_IEEE_FLOAT (00000003-0000-0010-8000-00aa00389b71) в байтовом представлении LE.
+const KSDATAFORMAT_SUBTYPE_IEEE_FLOAT_BYTES: [u8; 16] = [
+    0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+    0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71,
+];
+
+/// Формат аудиосэмплов потока WASAPI Loopback.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SampleFormat {
+    Float32,
+    Pcm16,
+    Pcm24,
+    Pcm32,
+    Unsupported(u16, u16),
+}
+
+/// Определение формата сэмплов по полям `WAVEFORMATEX` и `SubFormat` (для `WAVE_FORMAT_EXTENSIBLE`).
+fn detect_sample_format(
+    format_tag: u16,
+    bits_per_sample: u16,
+    cb_size: u16,
+    subformat_guid_bytes: Option<[u8; 16]>,
+) -> SampleFormat {
+    match format_tag {
+        3 if bits_per_sample == 32 => SampleFormat::Float32,
+        1 => match bits_per_sample {
+            16 => SampleFormat::Pcm16,
+            24 => SampleFormat::Pcm24,
+            32 => SampleFormat::Pcm32,
+            _ => SampleFormat::Unsupported(format_tag, bits_per_sample),
+        },
+        0xFFFE if cb_size >= 22 => match subformat_guid_bytes {
+            Some(guid) if guid == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT_BYTES && bits_per_sample == 32 => {
+                SampleFormat::Float32
+            }
+            Some(guid) if guid == KSDATAFORMAT_SUBTYPE_PCM_BYTES => match bits_per_sample {
+                16 => SampleFormat::Pcm16,
+                24 => SampleFormat::Pcm24,
+                32 => SampleFormat::Pcm32,
+                _ => SampleFormat::Unsupported(format_tag, bits_per_sample),
+            },
+            _ => SampleFormat::Unsupported(format_tag, bits_per_sample),
+        },
+        _ => SampleFormat::Unsupported(format_tag, bits_per_sample),
+    }
+}
+
+/// Построение логарифмических границ частотных полос (от 25 Гц до 19 кГц) с учётом реальной частоты дискретизации.
+fn build_band_indices(sample_rate: u32) -> [usize; BANDS_COUNT + 1] {
+    let effective_rate = sample_rate.max(8_000) as f32;
+    let nyquist = (effective_rate * 0.5 - 100.0).max(1_000.0);
+    let min_freq = 25.0f32;
+    let max_freq = 19_000.0f32.min(nyquist);
+    let bin_freq = effective_rate / FFT_SIZE as f32;
+    let max_bin = FFT_SIZE / 2 - 1;
+
+    let mut band_indices = [0usize; BANDS_COUNT + 1];
+    for (i, item) in band_indices.iter_mut().enumerate() {
+        let norm = i as f32 / BANDS_COUNT as f32;
+        let freq = min_freq * (max_freq / min_freq).powf(norm);
+        let bin = (freq / bin_freq).round() as usize;
+        *item = bin.clamp(1, max_bin);
+    }
+
+    // Гарантируем строгую монотонность диапазонов полос в пределах [1 ..= FFT_SIZE / 2]
+    for i in 1..=BANDS_COUNT {
+        if band_indices[i] <= band_indices[i - 1] {
+            band_indices[i] = (band_indices[i - 1] + 1).min(FFT_SIZE / 2);
+        }
+    }
+
+    band_indices
+}
+
+/// Сведение одного многоканального кадра 32-bit PCM (`i32`) в нормализованный моно-отсчёт `[-1.0 .. 1.0]`.
+fn decode_pcm32_frame_mono(frame: &[i32], channels: usize) -> f32 {
+    const SCALE: f32 = 2_147_483_648.0;
+    if frame.is_empty() {
+        return 0.0;
+    }
+    let f0 = frame[0] as f32 / SCALE;
+    let mono = if channels == 1 || frame.len() < 2 {
+        f0
+    } else if channels == 2 || frame.len() < 6 {
+        let f1 = frame[1] as f32 / SCALE;
+        (f0 + f1) * 0.5
+    } else {
+        let f1 = frame[1] as f32 / SCALE;
+        let fc = frame[2] as f32 / SCALE;
+        let flfe = frame[3] as f32 / SCALE;
+        (f0 * 0.5 + f1 * 0.5 + fc * 0.8 + flfe * 1.5) / 1.7
+    };
+    mono.clamp(-1.0, 1.0)
+}
+
 /// Потокобезопасный контроллер захвата звука и вычисления спектра.
 pub struct AudioCaptureManager {
     /// Флаг работы фонового потока (false — завершение потока).
@@ -145,26 +246,6 @@ fn run_capture_loop(
     let mut imag = [0.0f32; FFT_SIZE];
     let mut smoothed_bands = [0.0f32; BANDS_COUNT];
 
-    // Построение логарифмических границ частотных полос (от 25 Гц до 19 кГц)
-    let min_freq = 25.0f32;
-    let max_freq = 19000.0f32;
-    let bin_freq = 48000.0f32 / FFT_SIZE as f32; // ~46.875 Гц на 1 бин
-
-    let mut band_indices = [0usize; BANDS_COUNT + 1];
-    for (i, item) in band_indices.iter_mut().enumerate() {
-        let norm = i as f32 / BANDS_COUNT as f32;
-        let freq = min_freq * (max_freq / min_freq).powf(norm);
-        let bin = (freq / bin_freq).round() as usize;
-        *item = bin.clamp(1, FFT_SIZE / 2 - 1);
-    }
-
-    // Гарантируем строгую монотонность диапазонов полос
-    for i in 1..=BANDS_COUNT {
-        if band_indices[i] <= band_indices[i - 1] {
-            band_indices[i] = band_indices[i - 1] + 1;
-        }
-    }
-
     // Предрасчёт таблицы битовой перестановки и коэффициентов окна Ханна для БПФ
     let mut bit_rev = [0usize; FFT_SIZE];
     let mut hann_window = [0.0f32; FFT_SIZE];
@@ -193,13 +274,15 @@ fn run_capture_loop(
 
         // Инициализация WASAPI Loopback
         let capture_res = unsafe { init_wasapi_loopback() };
-        let (audio_client, capture_client, channels, bits_per_sample, is_float) = match capture_res {
+        let (audio_client, capture_client, channels, sample_rate, sample_format) = match capture_res {
             Ok(c) => c,
             Err(_) => {
                 thread::sleep(Duration::from_millis(300));
                 continue;
             }
         };
+
+        let band_indices = build_band_indices(sample_rate);
 
         if unsafe { audio_client.Start() }.is_err() {
             thread::sleep(Duration::from_millis(200));
@@ -241,61 +324,105 @@ fn run_capture_loop(
                             samples_buffer[buffer_pos] = 0.0;
                             buffer_pos = (buffer_pos + 1) % FFT_SIZE;
                         }
-                    } else if is_float {
-                        let slice = unsafe {
-                            std::slice::from_raw_parts(data_ptr as *const f32, (frames_available * channels) as usize)
-                        };
-                        for frame in slice.chunks_exact(channels as usize) {
-                            let mono = if channels == 1 {
-                                frame[0]
-                            } else if channels == 2 {
-                                (frame[0] + frame[1]) * 0.5
-                            } else if channels >= 6 {
-                                // 5.1 / 7.1: LFE (взрывы/сабвуфер = frame[3]) и Center (голос = frame[2])
-                                (frame[0] * 0.5 + frame[1] * 0.5 + frame[2] * 0.8 + frame[3] * 1.5) / 1.7
-                            } else {
-                                frame[0]
-                            };
-                            samples_buffer[buffer_pos] = mono.clamp(-1.0, 1.0);
-                            buffer_pos = (buffer_pos + 1) % FFT_SIZE;
-                        }
-                    } else if bits_per_sample == 16 {
-                        let slice = unsafe {
-                            std::slice::from_raw_parts(data_ptr as *const i16, (frames_available * channels) as usize)
-                        };
-                        for frame in slice.chunks_exact(channels as usize) {
-                            let f0 = frame[0] as f32 / 32768.0;
-                            let mono = if channels == 1 {
-                                f0
-                            } else if channels == 2 {
-                                (f0 + (frame[1] as f32 / 32768.0)) * 0.5
-                            } else if channels >= 6 {
-                                let f1 = frame[1] as f32 / 32768.0;
-                                let fc = frame[2] as f32 / 32768.0;
-                                let flfe = frame[3] as f32 / 32768.0;
-                                (f0 * 0.5 + f1 * 0.5 + fc * 0.8 + flfe * 1.5) / 1.7
-                            } else {
-                                f0
-                            };
-                            samples_buffer[buffer_pos] = mono.clamp(-1.0, 1.0);
-                            buffer_pos = (buffer_pos + 1) % FFT_SIZE;
-                        }
-                    } else if bits_per_sample == 24 {
-                        let total_bytes = (frames_available * channels * 3) as usize;
-                        let slice = unsafe { std::slice::from_raw_parts(data_ptr as *const u8, total_bytes) };
-                        let frame_size = (channels * 3) as usize;
-                        for frame in slice.chunks_exact(frame_size) {
-                            let ch0_raw = (frame[0] as i32) | ((frame[1] as i32) << 8) | (((frame[2] as i8) as i32) << 16);
-                            let f0 = ch0_raw as f32 / 8388608.0;
-                            let mono = if channels >= 2 && frame.len() >= 6 {
-                                let ch1_raw = (frame[3] as i32) | ((frame[4] as i32) << 8) | (((frame[5] as i8) as i32) << 16);
-                                let f1 = ch1_raw as f32 / 8388608.0;
-                                (f0 + f1) * 0.5
-                            } else {
-                                f0
-                            };
-                            samples_buffer[buffer_pos] = mono.clamp(-1.0, 1.0);
-                            buffer_pos = (buffer_pos + 1) % FFT_SIZE;
+                    } else {
+                        match sample_format {
+                            SampleFormat::Float32 => {
+                                let slice = unsafe {
+                                    std::slice::from_raw_parts(
+                                        data_ptr as *const f32,
+                                        (frames_available * channels) as usize,
+                                    )
+                                };
+                                for frame in slice.chunks_exact(channels as usize) {
+                                    let mono = if channels == 1 {
+                                        frame[0]
+                                    } else if channels == 2 {
+                                        (frame[0] + frame[1]) * 0.5
+                                    } else if channels >= 6 {
+                                        // 5.1 / 7.1: LFE (взрывы/сабвуфер = frame[3]) и Center (голос = frame[2])
+                                        (frame[0] * 0.5
+                                            + frame[1] * 0.5
+                                            + frame[2] * 0.8
+                                            + frame[3] * 1.5)
+                                            / 1.7
+                                    } else {
+                                        frame[0]
+                                    };
+                                    samples_buffer[buffer_pos] = mono.clamp(-1.0, 1.0);
+                                    buffer_pos = (buffer_pos + 1) % FFT_SIZE;
+                                }
+                            }
+                            SampleFormat::Pcm16 => {
+                                let slice = unsafe {
+                                    std::slice::from_raw_parts(
+                                        data_ptr as *const i16,
+                                        (frames_available * channels) as usize,
+                                    )
+                                };
+                                for frame in slice.chunks_exact(channels as usize) {
+                                    let f0 = frame[0] as f32 / 32768.0;
+                                    let mono = if channels == 1 {
+                                        f0
+                                    } else if channels == 2 {
+                                        (f0 + (frame[1] as f32 / 32768.0)) * 0.5
+                                    } else if channels >= 6 {
+                                        let f1 = frame[1] as f32 / 32768.0;
+                                        let fc = frame[2] as f32 / 32768.0;
+                                        let flfe = frame[3] as f32 / 32768.0;
+                                        (f0 * 0.5 + f1 * 0.5 + fc * 0.8 + flfe * 1.5) / 1.7
+                                    } else {
+                                        f0
+                                    };
+                                    samples_buffer[buffer_pos] = mono.clamp(-1.0, 1.0);
+                                    buffer_pos = (buffer_pos + 1) % FFT_SIZE;
+                                }
+                            }
+                            SampleFormat::Pcm24 => {
+                                let total_bytes = (frames_available * channels * 3) as usize;
+                                let slice = unsafe {
+                                    std::slice::from_raw_parts(
+                                        data_ptr as *const u8,
+                                        total_bytes,
+                                    )
+                                };
+                                let frame_size = (channels * 3) as usize;
+                                for frame in slice.chunks_exact(frame_size) {
+                                    let ch0_raw = (frame[0] as i32)
+                                        | ((frame[1] as i32) << 8)
+                                        | (((frame[2] as i8) as i32) << 16);
+                                    let f0 = ch0_raw as f32 / 8388608.0;
+                                    let mono = if channels >= 2 && frame.len() >= 6 {
+                                        let ch1_raw = (frame[3] as i32)
+                                            | ((frame[4] as i32) << 8)
+                                            | (((frame[5] as i8) as i32) << 16);
+                                        let f1 = ch1_raw as f32 / 8388608.0;
+                                        (f0 + f1) * 0.5
+                                    } else {
+                                        f0
+                                    };
+                                    samples_buffer[buffer_pos] = mono.clamp(-1.0, 1.0);
+                                    buffer_pos = (buffer_pos + 1) % FFT_SIZE;
+                                }
+                            }
+                            SampleFormat::Pcm32 => {
+                                let slice = unsafe {
+                                    std::slice::from_raw_parts(
+                                        data_ptr as *const i32,
+                                        (frames_available * channels) as usize,
+                                    )
+                                };
+                                for frame in slice.chunks_exact(channels as usize) {
+                                    samples_buffer[buffer_pos] =
+                                        decode_pcm32_frame_mono(frame, channels as usize);
+                                    buffer_pos = (buffer_pos + 1) % FFT_SIZE;
+                                }
+                            }
+                            SampleFormat::Unsupported(_, _) => {
+                                for _ in 0..frames_available {
+                                    samples_buffer[buffer_pos] = 0.0;
+                                    buffer_pos = (buffer_pos + 1) % FFT_SIZE;
+                                }
+                            }
                         }
                     }
 
@@ -377,7 +504,7 @@ fn run_capture_loop(
 }
 
 /// Инициализация интерфейса WASAPI Loopback Capture на устройстве по умолчанию.
-unsafe fn init_wasapi_loopback() -> Result<(IAudioClient, IAudioCaptureClient, u32, u16, bool), String> {
+unsafe fn init_wasapi_loopback() -> Result<(IAudioClient, IAudioCaptureClient, u32, u32, SampleFormat), String> {
     let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
         .map_err(|e| format!("Ошибка создания MMDeviceEnumerator: {}", e))?;
 
@@ -395,9 +522,29 @@ unsafe fn init_wasapi_loopback() -> Result<(IAudioClient, IAudioCaptureClient, u
 
     let wave_format = &*mix_format_ptr;
     let channels = (wave_format.nChannels as u32).max(1);
+    let sample_rate = wave_format.nSamplesPerSec.max(8_000);
+    let format_tag = wave_format.wFormatTag;
     let bits_per_sample = wave_format.wBitsPerSample;
-    let is_float = wave_format.wFormatTag == 3 // WAVE_FORMAT_IEEE_FLOAT
-        || (wave_format.wFormatTag == 0xFFFE && bits_per_sample == 32);
+    let cb_size = wave_format.cbSize;
+
+    // В WAVEFORMATEXTENSIBLE за 18-байтным заголовком WAVEFORMATEX идут:
+    // Samples (2 байта) + dwChannelMask (4 байта) + SubFormat GUID (16 байт), смещение SubFormat = 24 байта.
+    let subformat_guid_bytes = if format_tag == 0xFFFE && cb_size >= 22 {
+        let base_ptr = mix_format_ptr as *const u8;
+        let guid_slice = std::slice::from_raw_parts(base_ptr.add(24), 16);
+        let mut guid = [0u8; 16];
+        guid.copy_from_slice(guid_slice);
+        Some(guid)
+    } else {
+        None
+    };
+
+    let sample_format = detect_sample_format(
+        format_tag,
+        bits_per_sample,
+        cb_size,
+        subformat_guid_bytes,
+    );
 
     let hns_buffer_duration = 200_000i64; // 20ms буфер
     let init_result = audio_client.Initialize(
@@ -418,5 +565,82 @@ unsafe fn init_wasapi_loopback() -> Result<(IAudioClient, IAudioCaptureClient, u
         .GetService()
         .map_err(|e| format!("Ошибка получения IAudioCaptureClient: {}", e))?;
 
-    Ok((audio_client, capture_client, channels, bits_per_sample, is_float))
+    Ok((audio_client, capture_client, channels, sample_rate, sample_format))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn тест_различения_32_битного_pcm_и_ieee_float_в_wave_format_extensible() {
+        assert_eq!(
+            detect_sample_format(
+                0xFFFE,
+                32,
+                22,
+                Some(KSDATAFORMAT_SUBTYPE_IEEE_FLOAT_BYTES)
+            ),
+            SampleFormat::Float32
+        );
+        assert_eq!(
+            detect_sample_format(
+                0xFFFE,
+                32,
+                22,
+                Some(KSDATAFORMAT_SUBTYPE_PCM_BYTES)
+            ),
+            SampleFormat::Pcm32
+        );
+        assert_eq!(
+            detect_sample_format(
+                0xFFFE,
+                24,
+                22,
+                Some(KSDATAFORMAT_SUBTYPE_PCM_BYTES)
+            ),
+            SampleFormat::Pcm24
+        );
+        assert_eq!(
+            detect_sample_format(
+                0xFFFE,
+                16,
+                22,
+                Some(KSDATAFORMAT_SUBTYPE_PCM_BYTES)
+            ),
+            SampleFormat::Pcm16
+        );
+        // Без валидного SubFormat 32-bit extensible не должен слепо считаться Float32
+        assert_eq!(
+            detect_sample_format(0xFFFE, 32, 0, None),
+            SampleFormat::Unsupported(0xFFFE, 32)
+        );
+    }
+
+    #[test]
+    fn тест_декодирования_32_битного_pcm() {
+        let half_pos = i32::MAX / 2;
+        let mono = decode_pcm32_frame_mono(&[half_pos, half_pos], 2);
+        assert!((mono - 0.5).abs() < 0.001, "mono={mono}");
+    }
+
+    #[test]
+    fn тест_пересчёта_полос_спектра_для_разных_частот_дискретизации() {
+        let bands_44k = build_band_indices(44_100);
+        let bands_48k = build_band_indices(48_000);
+        let bands_96k = build_band_indices(96_000);
+
+        for bands in [&bands_44k, &bands_48k, &bands_96k] {
+            for i in 1..=BANDS_COUNT {
+                assert!(
+                    bands[i] > bands[i - 1],
+                    "Нарушена строгая монотонность полос на индексе {i}: {bands:?}"
+                );
+                assert!(bands[i] <= FFT_SIZE / 2);
+            }
+        }
+        // При 96 кГц шаг бина в 2 раза шире (93.75 Гц против 46.875 Гц), поэтому верхний бин 19 кГц меньше
+        assert!(bands_96k[BANDS_COUNT] < bands_48k[BANDS_COUNT]);
+        assert!(bands_48k[BANDS_COUNT] <= bands_44k[BANDS_COUNT]);
+    }
 }

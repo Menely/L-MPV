@@ -1,9 +1,12 @@
 {
-  "animejanai": "3.9.0",
-  "aji": "v0.17.1",
+  "animejanai": "3.10.0",
+  "aji": "v0.25.0",
+  "runtime_tag": "runtime-2",
   "tensorrt": "11.4.0.106",
   "tensorrt_cache": "11.4.0",
-  "mpv_release": "2026-10-24-b4f9f5bfed",
-  "mpv_asset": "mpv-dev-x86_64-20261024-git-b4f9f5bfed.7z",
+  "onnxruntime_directml": "1.24.4",
+  "directml": "1.15.4",
+  "mpv_release": "2026-11-09-484611bce0",
+  "mpv_asset": "mpv-dev-x86_64-20261109-git-484611bce0.7z",
   "architectures": ["sm120", "sm100", "sm90", "sm89", "sm86", "sm80", "sm75", "ptx"]
 }

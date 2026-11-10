@@ -37,7 +37,7 @@ jobs:
           if ((Get-Item "l-mpv_convert_fp16.zip").Length -lt 100KB) { throw "Архив конвертера пуст или повреждён" }
           Write-Host "Готово! l-mpv_convert_fp16.zip создан."
 
-      - name: Загрузка и проверка комплекта AnimeJaNai 3.9.0
+      - name: Загрузка и проверка комплекта AnimeJaNai 3.10.0
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -48,7 +48,7 @@ jobs:
         with:
           tag_name: inference-v1
           name: "L-MPV Inference Engines v1"
-          body: "AnimeJaNai 3.9.0 / aji v0.17.1 / TensorRT 11.4.0.106: оптимизированные библиотеки TensorRT/aji (в плоском корне архивов без лишних промежуточных папок animejanai) и скомпилированный нативный конвертер l-mpv_convert_fp16."
+          body_path: inference-release-notes.md
           files: |
             l-mpv_convert_fp16.zip
             aji-windows-x64.zip
@@ -56,6 +56,7 @@ jobs:
             component-trt-sm*.7z
             component-trt-ptx.7z
             dependency-sources.json
+            inference-release-notes.md
           fail_on_unmatched_files: true
           overwrite_files: true
           draft: false

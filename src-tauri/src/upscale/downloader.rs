@@ -78,20 +78,70 @@ pub fn extract_zip_file(archive_path: &Path, dest_dir: &Path) -> Result<(), Stri
         let mut item = archive
             .by_index(i)
             .map_err(|e| format!("Ошибка чтения записи архива #{}: {}", i, e))?;
-        let outpath = dest_dir.join(item.name());
+        let safe_name = item.enclosed_name().ok_or_else(|| "Unsafe ZIP path".to_owned())?;
+        let outpath = dest_dir.join(safe_name);
 
         if item.name().ends_with('/') {
-            let _ = fs::create_dir_all(&outpath);
+            fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
         } else {
             if let Some(p) = outpath.parent() {
-                let _ = fs::create_dir_all(p);
+                fs::create_dir_all(p).map_err(|e| e.to_string())?;
             }
-            if let Ok(mut outfile) = fs::File::create(&outpath) {
-                let _ = std::io::copy(&mut item, &mut outfile);
-            }
+            let mut outfile = fs::File::create(&outpath).map_err(|e| e.to_string())?;
+            std::io::copy(&mut item, &mut outfile).map_err(|e| e.to_string())?;
         }
     }
 
+    Ok(())
+}
+
+// Each download starts in a fresh directory: an old DLL can never satisfy a
+// missing archive entry. The compatibility record is written only after commit.
+struct InstallStaging(std::path::PathBuf);
+impl InstallStaging {
+    fn new(root: &Path) -> Result<Self, String> {
+        let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
+        let path = root.join("inference").join(format!(".install-{unique}"));
+        fs::create_dir_all(&path).map_err(|e| e.to_string())?;
+        Ok(Self(path))
+    }
+}
+impl Drop for InstallStaging { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+fn commit_staged_install(root: &Path, staging: &Path) -> Result<(), String> {
+    let destination = root.join("inference");
+    let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
+    let archive = destination.join("_stale").join(unique.to_string());
+    // Remove obsolete TensorRT builders and legacy executable-directory shadows
+    // before admitting this installation. Preserve them for manual recovery.
+    for dir in [&destination, root] {
+        for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let name = entry.file_name().to_string_lossy().to_string();
+            let old_builder = name.starts_with("nvinfer_builder_resource_") && name.ends_with(".dll")
+                && staging.join("nvinfer_11.dll").exists() && !staging.join(&name).exists();
+            let shadow = dir == root && name.to_lowercase().ends_with(".dll") && staging.join(&name).is_file();
+            if entry.file_type().map_err(|e| e.to_string())?.is_file() && (old_builder || shadow) {
+                let target_dir = archive.join(if dir == root { "legacy-root" } else { "inference" });
+                fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
+                fs::rename(entry.path(), target_dir.join(entry.file_name())).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+    for entry in fs::read_dir(staging).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if entry.file_type().map_err(|e| e.to_string())?.is_file()
+            && path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("dll") || e.eq_ignore_ascii_case("exe")) {
+            let expected = entry.metadata().map_err(|e| e.to_string())?.len();
+            let copied = fs::copy(&path, destination.join(entry.file_name())).map_err(|e| format!("Failed to install {}: {e}", path.display()))?;
+            if copied == 0 || copied != expected { return Err("Incomplete runtime file copy".into()); }
+        }
+    }
+    super::compatibility::prune_stale_archives(
+        &destination.join("_stale"),
+        super::compatibility::MAX_STALE_GENERATIONS,
+        super::compatibility::MAX_STALE_BYTES,
+    );
     Ok(())
 }
 
@@ -107,27 +157,12 @@ pub fn extract_specific_files_from_zip(
         .map_err(|e| format!("Некорректный zip-архив: {}", e))?;
 
     for (target_name, out_filename) in targets {
-        let mut found = false;
-        if let Ok(mut item) = archive.by_name(target_name) {
-            let outpath = dest_dir.join(out_filename);
-            if let Ok(mut outfile) = fs::File::create(&outpath) {
-                let _ = std::io::copy(&mut item, &mut outfile);
-                found = true;
-            }
-        }
-        if !found {
-            for i in 0..archive.len() {
-                if let Ok(mut item) = archive.by_index(i) {
-                    if item.name().eq_ignore_ascii_case(target_name) {
-                        let outpath = dest_dir.join(out_filename);
-                        if let Ok(mut outfile) = fs::File::create(&outpath) {
-                            let _ = std::io::copy(&mut item, &mut outfile);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
+        let index = (0..archive.len()).find(|&i| archive.by_index(i)
+            .map(|item| item.name().eq_ignore_ascii_case(target_name)).unwrap_or(false))
+            .ok_or_else(|| format!("Missing ZIP entry: {target_name}"))?;
+        let mut item = archive.by_index(index).map_err(|e| e.to_string())?;
+        let mut outfile = fs::File::create(dest_dir.join(out_filename)).map_err(|e| e.to_string())?;
+        std::io::copy(&mut item, &mut outfile).map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -273,13 +308,24 @@ pub async fn download_inference_engine_impl(
     engine: String,
 ) -> Result<String, String> {
     println!("[L-MPV][Upscale] Запуск процедуры загрузки компонентов движка: {}", engine);
+    let _operation = super::compatibility::OPERATION.try_lock().map_err(|_| "UPSCALE_BUSY".to_owned())?;
+    if super::compatibility::runtime_used() { return Err("UPSCALE_RESTART_REQUIRED".into()); }
+    let root = super::config::get_app_root_dir();
+    if !super::compatibility::native_matches_package(&root) { return Err("UPSCALE_PLAYER_UPDATE".into()); }
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(900))
         .build()
         .map_err(|e| format!("Ошибка создания HTTP-клиента: {}", e))?;
 
-    let inf_dir = get_inference_dir();
+    let staging = InstallStaging::new(&root)?;
+    let inf_dir = staging.0.clone();
+    let published = client.get("https://github.com/Menely/L-MPV/releases/download/inference-v1/dependency-sources.json")
+        .timeout(Duration::from_secs(30)).send().await.map_err(|e| e.to_string())?
+        .error_for_status().map_err(|e| e.to_string())?.text().await.map_err(|e| e.to_string())?;
+    let contract: serde_json::Value = serde_json::from_str(published.trim_start_matches('\u{feff}')).map_err(|e| e.to_string())?;
+    super::compatibility::verify_download_contract(&contract)?;
+    super::compatibility::invalidate_runtime(&root, &engine)?;
     let _ = fs::create_dir_all(&inf_dir);
     let gpu_info = detect_system_gpu();
 
@@ -300,6 +346,11 @@ pub async fn download_inference_engine_impl(
             aji_end_pct,
         )
         .await?;
+        super::compatibility::verify_downloaded_archive(
+            &contract,
+            "aji-windows-x64.zip",
+            &aji_zip,
+        )?;
 
         let _ = app.emit(
             "upscale-download-progress",
@@ -328,20 +379,28 @@ pub async fn download_inference_engine_impl(
         // 2. В зависимости от выбранного движка загружаем профильные зависимости
         if engine.eq_ignore_ascii_case("DirectML") {
             // OnnxRuntime DirectML
-            let ort_url = "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.directml/1.24.4/microsoft.ml.onnxruntime.directml.1.24.4.nupkg";
+            let pins: serde_json::Value = serde_json::from_str(include_str!("../../../scripts/animejanai-dependencies.json")).map_err(|e| e.to_string())?;
+            let ort_version = pins["onnxruntime_directml"].as_str().ok_or("Missing ONNX Runtime pin")?;
+            let ort_pkg_name = format!("microsoft.ml.onnxruntime.directml.{ort_version}.nupkg");
+            let ort_url = format!("https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.directml/{ort_version}/{ort_pkg_name}");
             let ort_zip = inf_dir.join("temp_ort.zip");
 
             download_file_with_progress(
                 &client,
                 &app,
                 &engine,
-                ort_url,
+                &ort_url,
                 &ort_zip,
                 "Скачивание Microsoft.ML.OnnxRuntime.DirectML (2/3)...",
                 5.0,
                 50.0,
             )
             .await?;
+            super::compatibility::verify_downloaded_archive(
+                &contract,
+                &ort_pkg_name,
+                &ort_zip,
+            )?;
 
             let _ = app.emit(
                 "upscale-download-progress",
@@ -382,20 +441,27 @@ pub async fn download_inference_engine_impl(
             println!("[L-MPV][Upscale] Библиотека OnnxRuntime успешно извлечена.");
 
             // DirectML
-            let dml_url = "https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/1.15.4/microsoft.ai.directml.1.15.4.nupkg";
+            let dml_version = pins["directml"].as_str().ok_or("Missing DirectML pin")?;
+            let dml_pkg_name = format!("microsoft.ai.directml.{dml_version}.nupkg");
+            let dml_url = format!("https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/{dml_version}/{dml_pkg_name}");
             let dml_zip = inf_dir.join("temp_dml.zip");
 
             download_file_with_progress(
                 &client,
                 &app,
                 &engine,
-                dml_url,
+                &dml_url,
                 &dml_zip,
                 "Скачивание Microsoft.AI.DirectML (3/3)...",
                 50.0,
                 95.0,
             )
             .await?;
+            super::compatibility::verify_downloaded_archive(
+                &contract,
+                &dml_pkg_name,
+                &dml_zip,
+            )?;
 
             let _ = app.emit(
                 "upscale-download-progress",
@@ -435,6 +501,9 @@ pub async fn download_inference_engine_impl(
             }
 
             let msg = "Движок DirectML успешно установлен (aji_dml.dll, DirectML.dll, onnxruntime.dll)".to_string();
+            if !super::compatibility::native_matches_package(&root) { return Err("UPSCALE_PLAYER_UPDATE".into()); }
+            commit_staged_install(&root, &inf_dir)?;
+            super::compatibility::record_runtime(&root, "DirectML")?;
             let _ = app.emit(
                 "upscale-download-progress",
                 &UpscaleDownloadProgress {
@@ -464,6 +533,11 @@ pub async fn download_inference_engine_impl(
                 45.0,
             )
             .await?;
+            super::compatibility::verify_downloaded_archive(
+                &contract,
+                "component-trt-runtime.7z",
+                &trt_runtime_path,
+            )?;
 
             let _ = app.emit(
                 "upscale-download-progress",
@@ -497,6 +571,11 @@ pub async fn download_inference_engine_impl(
                 45.0,
                 50.0,
             ).await?;
+            super::compatibility::verify_downloaded_archive(
+                &contract,
+                "l-mpv_convert_fp16.zip",
+                &conv_zip,
+            )?;
 
             let _ = app.emit(
                 "upscale-download-progress",
@@ -526,11 +605,12 @@ pub async fn download_inference_engine_impl(
                 "ptx"
             };
 
+            let sm_archive_name = format!("component-trt-{}.7z", sm);
             let sm_url = format!(
-                "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-{}.7z",
-                sm
+                "https://github.com/Menely/L-MPV/releases/download/inference-v1/{}",
+                sm_archive_name
             );
-            let sm_path = inf_dir.join(format!("component-trt-{}.7z", sm));
+            let sm_path = inf_dir.join(&sm_archive_name);
             let sm_stage = format!("Скачивание билдера TensorRT ({}) (4/4)...", sm);
 
             let download_sm_res = download_file_with_progress(
@@ -561,9 +641,19 @@ pub async fn download_inference_engine_impl(
                     95.0,
                 )
                 .await?;
+                super::compatibility::verify_downloaded_archive(
+                    &contract,
+                    "component-trt-ptx.7z",
+                    &ptx_path,
+                )?;
 
                 extract_7z_and_cleanup(ptx_path, inf_dir.clone()).await?;
             } else {
+                super::compatibility::verify_downloaded_archive(
+                    &contract,
+                    &sm_archive_name,
+                    &sm_path,
+                )?;
                 let _ = app.emit(
                     "upscale-download-progress",
                     &UpscaleDownloadProgress {
@@ -607,6 +697,9 @@ pub async fn download_inference_engine_impl(
             }
 
             println!("[L-MPV][Upscale] Установка движка TensorRT завершена успешно.");
+            if !super::compatibility::native_matches_package(&root) { return Err("UPSCALE_PLAYER_UPDATE".into()); }
+            commit_staged_install(&root, &inf_dir)?;
+            super::compatibility::record_runtime(&root, "TensorRT")?;
 
             let msg = format!(
                 "Движок TensorRT успешно установлен для {} ({})!",
@@ -665,6 +758,9 @@ pub async fn download_inference_engine_impl(
 
 /// Удаление библиотек выбранного движка инференса из каталога inference/
 pub fn delete_inference_engine_impl(backend: String) -> Result<String, String> {
+    let _operation = super::compatibility::OPERATION.try_lock().map_err(|_| "UPSCALE_BUSY".to_owned())?;
+    if super::compatibility::runtime_used() { return Err("UPSCALE_RESTART_REQUIRED".into()); }
+    super::compatibility::invalidate_runtime(&super::config::get_app_root_dir(), &backend)?;
     let inf_dir = get_inference_dir();
     if !inf_dir.exists() {
         return Ok("Папка inference/ не найдена — удалять нечего".to_string());
@@ -722,4 +818,66 @@ pub fn delete_inference_engine_impl(backend: String) -> Result<String, String> {
     }
 
     Ok(format!("Успешно удалено файлов: {}", removed))
+}
+
+#[cfg(test)]
+mod install_tests {
+    use super::*;
+    use std::io::Write;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static NEXT: AtomicUsize = AtomicUsize::new(0);
+    struct TestDir(std::path::PathBuf);
+    impl TestDir {
+        fn new() -> Self {
+            let dir = std::env::temp_dir().join(format!("lmpv-install-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::SeqCst)));
+            fs::create_dir_all(&dir).unwrap(); Self(dir)
+        }
+        fn zip(&self, name: &str) -> std::path::PathBuf {
+            let path = self.0.join("package.zip");
+            let mut writer = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+            writer.start_file(name, zip::write::SimpleFileOptions::default()).unwrap();
+            writer.write_all(b"new library").unwrap(); writer.finish().unwrap(); path
+        }
+    }
+    impl Drop for TestDir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+    #[test]
+    fn missing_zip_entry_does_not_reuse_old_destination_file() {
+        let d = TestDir::new(); let archive = d.zip("unrelated.dll");
+        fs::write(d.0.join("aji.dll"), b"old library").unwrap();
+        assert!(extract_specific_files_from_zip(&archive, &d.0, &[("aji.dll", "aji.dll")]).is_err());
+        assert_eq!(fs::read(d.0.join("aji.dll")).unwrap(), b"old library");
+    }
+    #[test]
+    fn zip_write_failure_is_not_reported_as_success() {
+        let d = TestDir::new(); let archive = d.zip("aji.dll");
+        fs::create_dir(d.0.join("aji.dll")).unwrap();
+        assert!(extract_zip_file(&archive, &d.0).is_err());
+        assert!(extract_specific_files_from_zip(&archive, &d.0, &[("aji.dll", "aji.dll")]).is_err());
+    }
+    #[test]
+    fn stage_is_fresh_and_does_not_copy_old_backend_into_new_install() {
+        let d = TestDir::new(); fs::create_dir(d.0.join("inference")).unwrap();
+        fs::write(d.0.join("inference/old.dll"), b"old").unwrap();
+        let stage = InstallStaging::new(&d.0).unwrap();
+        assert!(!stage.0.join("old.dll").exists());
+        fs::write(stage.0.join("aji.dll"), b"new bridge").unwrap();
+        commit_staged_install(&d.0, &stage.0).unwrap();
+        assert_eq!(fs::read(d.0.join("inference/aji.dll")).unwrap(), b"new bridge");
+        assert_eq!(fs::read(d.0.join("inference/old.dll")).unwrap(), b"old");
+    }
+    #[test]
+    fn new_trt_install_archives_obsolete_builders_and_root_shadows() {
+        let d = TestDir::new(); fs::create_dir(d.0.join("inference")).unwrap();
+        fs::write(d.0.join("inference/nvinfer_builder_resource_old.dll"), b"old builder").unwrap();
+        fs::write(d.0.join("aji.dll"), b"legacy bridge").unwrap();
+        let stage = InstallStaging::new(&d.0).unwrap();
+        for name in ["aji.dll", "nvinfer_11.dll", "nvinfer_builder_resource_new.dll"] {
+            fs::write(stage.0.join(name), b"new").unwrap();
+        }
+        commit_staged_install(&d.0, &stage.0).unwrap();
+        assert!(!d.0.join("aji.dll").exists());
+        assert!(!d.0.join("inference/nvinfer_builder_resource_old.dll").exists());
+        assert!(d.0.join("inference/nvinfer_builder_resource_new.dll").is_file());
+        assert!(d.0.join("inference/_stale").is_dir());
+    }
 }

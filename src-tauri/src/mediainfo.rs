@@ -22,6 +22,7 @@ pub struct DetailedMediaInfo {
 }
 
 static MEDIAINFO_API: OnceLock<Result<MediaInfoApi, String>> = OnceLock::new();
+static REPORT_CACHE: OnceLock<std::sync::Mutex<crate::media_report_cache::ReportCache<DetailedMediaInfo>>> = OnceLock::new();
 
 /// Набор динамически загружаемых символов C-API MediaInfo.
 struct MediaInfoApi {
@@ -96,7 +97,7 @@ impl MediaInfoApi {
 }
 
 /// Поиск пути к файлу библиотеки mediainfo.dll по списку стандартных кандидатов.
-fn find_mediainfo_dll() -> Result<PathBuf, String> {
+pub fn find_mediainfo_dll() -> Result<PathBuf, String> {
     let mut candidates = Vec::new();
 
     // 1. Каталог исполняемого файла процесса
@@ -124,6 +125,23 @@ fn find_mediainfo_dll() -> Result<PathBuf, String> {
         "Файл библиотеки mediainfo.dll не найден. Проверенные пути: {:?}",
         candidates
     ))
+}
+
+/// Получение версии библиотеки MediaInfo через вызов C-API функции Option("Info_Version").
+pub fn get_mediainfo_version() -> Result<String, String> {
+    let api = MediaInfoApi::get()?;
+    let option = to_wide("Info_Version");
+    let empty = to_wide("");
+    unsafe {
+        let ptr = (api.option_fn)(std::ptr::null_mut(), option.as_ptr(), empty.as_ptr());
+        let ver = from_wide_ptr(ptr);
+        let trimmed = ver.trim();
+        if trimmed.is_empty() {
+            Ok("MediaInfo (версия не определена)".to_string())
+        } else {
+            Ok(trimmed.to_string())
+        }
+    }
 }
 
 /// Конвертация строкового среза в нуль-терминированный UTF-16 буфер.
@@ -215,7 +233,9 @@ pub async fn get_detailed_media_info(
     };
 
     tokio::task::spawn_blocking(move || {
-        analyze_media_file(&file_path)
+        REPORT_CACHE.get_or_init(|| std::sync::Mutex::new(crate::media_report_cache::ReportCache::new()))
+            .lock().map_err(|e| e.to_string())?
+            .get_or_load(Path::new(&file_path), || analyze_media_file(&file_path))
     })
     .await
     .map_err(|e| format!("Ошибка задачи асинхронного анализа MediaInfo: {e}"))?
@@ -251,17 +271,25 @@ pub fn open_or_update_mediainfo_window(app: &tauri::AppHandle, path: &str) -> Re
     let win = if let Some(win) = app.get_webview_window("mediainfo") {
         win
     } else {
-        let config = app.config().app.windows.iter().find(|config| config.label == "mediainfo")
+        let config = app
+            .config()
+            .app
+            .windows
+            .iter()
+            .find(|config| config.label == "mediainfo")
             .ok_or_else(|| "Окно 'mediainfo' не найдено в конфигурации приложения".to_string())?;
-        tauri::WebviewWindowBuilder::from_config(app, config).map_err(|e| e.to_string())?
-            .build().map_err(|e| e.to_string())?
+        let created = tauri::WebviewWindowBuilder::from_config(app, config)
+            .map_err(|e| e.to_string())?
+            .build()
+            .map_err(|e| e.to_string())?;
+        let _ = created.set_always_on_top(true);
+        created
     };
-        let _ = win.set_always_on_top(true);
-        let _ = win.show();
-        let _ = win.unminimize();
-        let _ = win.set_focus();
-        let _ = win.emit("load-mediainfo-path", path);
-        let _ = app.emit("mediainfo-window-opened", ());
+    let _ = win.show();
+    let _ = win.unminimize();
+    let _ = win.set_focus();
+    let _ = win.emit("load-mediainfo-path", path);
+    let _ = app.emit("mediainfo-window-opened", ());
     Ok(())
 }
 

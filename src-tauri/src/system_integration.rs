@@ -7,6 +7,11 @@
 //! - Переход в системные настройки сопоставления приложений по умолчанию Windows 10/11.
 //! - Оповещение оболочки Windows Shell (SHChangeNotify) для немедленного обновления кэша иконок и меню.
 
+use std::path::{Path, PathBuf};
+use serde::{Deserialize, Serialize};
+use tauri::State;
+use crate::commands::PlayerState;
+
 /// Список поддерживаемых видеоформатов для сопоставления в Проводнике.
 pub const VIDEO_EXTENSIONS: &[&str] = &[
     ".mp4", ".mkv", ".avi", ".mov", ".webm", ".ts", ".m4v", ".flv", ".wmv", ".3gp",
@@ -363,4 +368,328 @@ pub fn open_default_apps_settings() -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// Структурированные диагностические данные обо всех компонентах системы, плеера и ОС.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemDiagnosticsInfo {
+    /// Версия приложения L-MPV (например, "2.7.2")
+    pub app_version: String,
+    /// Архитектура сборки ("x86_64")
+    pub app_arch: String,
+    /// Каталог расположения исполняемого файла
+    pub app_exe_dir: String,
+    /// Признак работы в портативном режиме
+    pub is_portable: bool,
+
+    /// Версия библиотеки libmpv-2.dll
+    pub libmpv_version: String,
+    /// Доступность библиотеки libmpv-2.dll на диске
+    pub libmpv_available: bool,
+    /// Наличие скомпилированного видеофильтра vf_animejanai в libmpv
+    pub libmpv_has_animejanai: bool,
+    /// Путь к файлу libmpv-2.dll
+    pub libmpv_path: String,
+
+    /// Версия бинарного файла FFmpeg
+    pub ffmpeg_version: String,
+    /// Доступность утилиты ffmpeg.exe на диске или в PATH
+    pub ffmpeg_available: bool,
+    /// Путь к файлу ffmpeg.exe
+    pub ffmpeg_path: String,
+
+    /// Версия библиотеки MediaInfo
+    pub mediainfo_version: String,
+    /// Доступность библиотеки mediainfo.dll
+    pub mediainfo_available: bool,
+    /// Путь к файлу mediainfo.dll
+    pub mediainfo_path: String,
+
+    /// Доступность библиотеки-моста aji.dll
+    pub aji_available: bool,
+    /// Доступность TensorRT-плагина aji_trt.dll
+    pub aji_trt_available: bool,
+    /// Доступность DirectML-плагина aji_dml.dll
+    pub aji_dml_available: bool,
+    /// Доступность рантайма TensorRT (nvinfer_11.dll или trtexec.exe)
+    pub tensorrt_available: bool,
+    /// Доступность рантайма DirectML (DirectML.dll или onnxruntime.dll)
+    pub directml_available: bool,
+    /// Количество доступных ONNX-моделей в models/onnx
+    pub models_count: usize,
+    /// Количество скомпилированных TensorRT .engine файлов
+    pub compiled_engines_count: usize,
+
+    /// Наименование графического процессора (GPU)
+    pub gpu_name: String,
+    /// Производитель видеокарты (NVIDIA, AMD, Intel и т.д.)
+    pub gpu_vendor: String,
+    /// Объём выделенной видеопамяти VRAM в мегабайтах
+    pub gpu_vram_mb: u64,
+    /// Вычислительная архитектура SM (например, "sm120", "sm89", "sm86")
+    pub gpu_sm_arch: String,
+    /// Рекомендуемый бэкенд инференса ("TensorRT" или "DirectML")
+    pub gpu_recommended_backend: String,
+    /// Поддержка аппаратного ускорения TensorRT
+    pub gpu_supports_tensorrt: bool,
+
+    /// Статус регистрации контекстного меню в Проводнике
+    pub context_menu_registered: bool,
+    /// Наименование операционной системы
+    pub os_name: String,
+}
+
+/// Поиск пути к библиотеке libmpv по стандартным расположениям.
+fn find_libmpv_dll(root: &Path) -> Option<PathBuf> {
+    let candidates = [
+        root.join("libmpv-2.dll"),
+        root.join("mpv-2.dll"),
+        root.join("resources").join("libmpv-2.dll"),
+        root.join("src-tauri").join("binaries").join("libmpv-2.dll"),
+        root.join("src-tauri").join("libmpv-2.dll"),
+        root.join("Portable-L-MPV").join("libmpv-2.dll"),
+        PathBuf::from("libmpv-2.dll"),
+    ];
+    candidates.into_iter().find(|p| p.is_file())
+}
+
+static HAS_ANIMEJANAI_FILTER: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+/// Проверка наличия бинарного маркера vf_animejanai в библиотеке libmpv-2.dll.
+fn check_libmpv_has_animejanai(dll_path: Option<&Path>) -> bool {
+    *HAS_ANIMEJANAI_FILTER.get_or_init(|| {
+        if let Some(path) = dll_path {
+            use std::io::Read;
+            if let Ok(mut file) = std::fs::File::open(path) {
+                let needle = b"animejanai";
+                let mut buf = [0u8; 64 * 1024];
+                let mut overlap = Vec::new();
+                while let Ok(n) = file.read(&mut buf) {
+                    if n == 0 {
+                        break;
+                    }
+                    let slice = &buf[..n];
+                    if !overlap.is_empty() {
+                        let mut combined = overlap.clone();
+                        combined.extend_from_slice(&slice[..needle.len().min(slice.len())]);
+                        if combined.windows(needle.len()).any(|w| w == needle) {
+                            return true;
+                        }
+                    }
+                    if slice.windows(needle.len()).any(|w| w == needle) {
+                        return true;
+                    }
+                    overlap.clear();
+                    let keep = needle.len().saturating_sub(1);
+                    if slice.len() >= keep {
+                        overlap.extend_from_slice(&slice[slice.len() - keep..]);
+                    }
+                }
+            }
+        }
+        false
+    })
+}
+
+/// Сбор диагностической информации о библиотеке libmpv.
+fn collect_libmpv_diagnostics(
+    root: &Path,
+    state: &State<'_, PlayerState>,
+) -> (bool, String, bool, String) {
+    let libmpv_found = find_libmpv_dll(root);
+    let libmpv_available = libmpv_found.is_some();
+    let libmpv_path = libmpv_found
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "Отсутствует".to_string());
+    let libmpv_has_animejanai = check_libmpv_has_animejanai(libmpv_found.as_deref());
+    let libmpv_version = state
+        .mpv
+        .get_property_string("mpv-version")
+        .unwrap_or_else(|_| {
+            if libmpv_available {
+                "libmpv-2.dll (активен)".to_string()
+            } else {
+                "Не загружен".to_string()
+            }
+        });
+    (libmpv_available, libmpv_version, libmpv_has_animejanai, libmpv_path)
+}
+
+/// Сбор сведений о компонентах инференса, плагинах и ONNX-моделях.
+fn collect_inference_diagnostics() -> (bool, bool, bool, bool, bool, usize, usize) {
+    let inf_dir = crate::upscale::get_inference_dir();
+    let aji_available = inf_dir.join("aji.dll").is_file();
+    let aji_trt_available = inf_dir.join("aji_trt.dll").is_file();
+    let aji_dml_available = inf_dir.join("aji_dml.dll").is_file();
+    let tensorrt_available =
+        inf_dir.join("nvinfer_11.dll").is_file() || inf_dir.join("trtexec.exe").is_file();
+    let directml_available =
+        inf_dir.join("DirectML.dll").is_file() || inf_dir.join("onnxruntime.dll").is_file();
+
+    let models_dir = crate::upscale::get_models_dir();
+    let models_count = std::fs::read_dir(&models_dir)
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|e| {
+                    e.path()
+                        .extension()
+                        .map_or(false, |ext| ext.eq_ignore_ascii_case("onnx"))
+                })
+                .count()
+        })
+        .unwrap_or(0);
+
+    let compiled_engines_count = std::fs::read_dir(&models_dir)
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|e| {
+                    e.path()
+                        .extension()
+                        .map_or(false, |ext| ext.eq_ignore_ascii_case("engine"))
+                })
+                .count()
+        })
+        .unwrap_or(0);
+
+    (
+        aji_available,
+        aji_trt_available,
+        aji_dml_available,
+        tensorrt_available,
+        directml_available,
+        models_count,
+        compiled_engines_count,
+    )
+}
+
+/// Сбор диагностической информации об утилите FFmpeg.
+fn get_ffmpeg_diagnostics(root: &Path) -> (bool, String, String) {
+    let candidates = [
+        root.join("ffmpeg.exe"),
+        root.join("resources").join("ffmpeg.exe"),
+        root.join("src-tauri").join("binaries").join("ffmpeg.exe"),
+        root.join("Portable-L-MPV").join("ffmpeg.exe"),
+        PathBuf::from("ffmpeg.exe"),
+    ];
+
+    let found_path = candidates.into_iter().find(|p| p.is_file());
+    let (exe_name, resolved_path) = match &found_path {
+        Some(p) => (p.as_os_str(), p.display().to_string()),
+        None => (std::ffi::OsStr::new("ffmpeg.exe"), "ffmpeg.exe (PATH)".to_string()),
+    };
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = std::process::Command::new(exe_name);
+        cmd.arg("-version");
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        if let Ok(output) = crate::upscale::hardware::run_command_with_timeout(
+            cmd,
+            std::time::Duration::from_secs(2),
+        ) {
+            if output.status.success() {
+                let text = String::from_utf8_lossy(&output.stdout);
+                if let Some(line) = text.lines().next() {
+                    return (true, line.trim().to_string(), resolved_path);
+                }
+            }
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        if let Ok(output) = std::process::Command::new(exe_name).arg("-version").output() {
+            if output.status.success() {
+                let text = String::from_utf8_lossy(&output.stdout);
+                if let Some(line) = text.lines().next() {
+                    return (true, line.trim().to_string(), resolved_path);
+                }
+            }
+        }
+    }
+
+    if found_path.is_some() {
+        (true, "FFmpeg установлен (версия не определена)".to_string(), resolved_path)
+    } else {
+        (false, "Не найден".to_string(), "Отсутствует".to_string())
+    }
+}
+
+/// Команда получения полной системной диагностики плеера, компонентов и окружения.
+#[tauri::command]
+pub fn get_system_diagnostics(
+    state: State<'_, PlayerState>,
+) -> Result<SystemDiagnosticsInfo, String> {
+    let root = crate::upscale::get_app_root_dir();
+    let app_version = env!("CARGO_PKG_VERSION").to_string();
+    let app_arch = std::env::consts::ARCH.to_string();
+    let app_exe_dir = root.display().to_string();
+    let is_portable = true;
+
+    let (libmpv_available, libmpv_version, libmpv_has_animejanai, libmpv_path) =
+        collect_libmpv_diagnostics(&root, &state);
+
+    let (ffmpeg_available, ffmpeg_version, ffmpeg_path) = get_ffmpeg_diagnostics(&root);
+
+    let (mediainfo_available, mediainfo_version, mediainfo_path) =
+        match crate::mediainfo::find_mediainfo_dll() {
+            Ok(path) => {
+                let ver = crate::mediainfo::get_mediainfo_version()
+                    .unwrap_or_else(|_| "MediaInfo v24.x (C-API)".to_string());
+                (true, ver, path.display().to_string())
+            }
+            Err(_) => (false, "Не найдена".to_string(), "Отсутствует".to_string()),
+        };
+
+    let (
+        aji_available,
+        aji_trt_available,
+        aji_dml_available,
+        tensorrt_available,
+        directml_available,
+        models_count,
+        compiled_engines_count,
+    ) = collect_inference_diagnostics();
+
+    let gpu = crate::upscale::detect_system_gpu();
+    let gpu_vram_mb = gpu.vram_bytes / (1024 * 1024);
+
+    let context_menu_registered = is_explorer_context_menu_registered().unwrap_or(false);
+    let os_name = "Windows (x86_64)".to_string();
+
+    Ok(SystemDiagnosticsInfo {
+        app_version,
+        app_arch,
+        app_exe_dir,
+        is_portable,
+        libmpv_version,
+        libmpv_available,
+        libmpv_has_animejanai,
+        libmpv_path,
+        ffmpeg_version,
+        ffmpeg_available,
+        ffmpeg_path,
+        mediainfo_version,
+        mediainfo_available,
+        mediainfo_path,
+        aji_available,
+        aji_trt_available,
+        aji_dml_available,
+        tensorrt_available,
+        directml_available,
+        models_count,
+        compiled_engines_count,
+        gpu_name: gpu.name,
+        gpu_vendor: gpu.vendor,
+        gpu_vram_mb,
+        gpu_sm_arch: gpu.sm_architecture,
+        gpu_recommended_backend: gpu.recommended_backend,
+        gpu_supports_tensorrt: gpu.supports_tensorrt,
+        context_menu_registered,
+        os_name,
+    })
 }

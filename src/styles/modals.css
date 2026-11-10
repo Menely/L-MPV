@@ -1307,18 +1307,39 @@ html.no-animations .color-circle--palette { will-change: auto; }
   position: absolute;
   bottom: calc(100% + 8px);
   left: 0;
-  min-width: 280px;
-  max-width: 340px;
-  max-height: 260px;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  width: min(320px, calc(100vw - 48px));
+  box-sizing: border-box;
+  max-height: min(300px, calc(100dvh - 160px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--bg-elevated);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-surface, 16px);
   box-shadow: var(--shadow-modal);
   padding: var(--space-3);
   z-index: var(--z-float);
   animation: versionPickerSlideUp var(--t-base) var(--ease-out);
+}
+
+.version-picker-list {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 0 var(--space-1) var(--space-1);
+}
+
+.update-modal--docked .version-picker-popover {
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-elevated);
+}
+
+.update-modal--modern .version-picker-popover {
+  border-radius: var(--radius-controls, 16px);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
 }
 
 /* Без opacity: фейд текста даёт snap ClearType в конце (см. modalSpringIn). */
@@ -1332,6 +1353,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
 }
 
 .version-picker-header {
+  flex-shrink: 0;
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-muted, #9ca3af);
@@ -1353,6 +1375,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
   user-select: none;
   transition: background-color var(--t-fast) var(--ease-smooth);
   font-size: var(--fs-sm);
+  border: 1px solid transparent;
 }
 
 .version-picker-item:hover {

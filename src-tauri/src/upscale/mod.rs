@@ -2,6 +2,7 @@
 //! и универсальной библиотекой ONNX-моделей.
 
 pub mod config;
+pub mod compatibility;
 pub mod controller;
 pub mod downloader;
 pub mod engine_builder;
@@ -14,6 +15,7 @@ pub use config::{
     get_inference_dir, get_models_dir, get_upscale_conf_path, scan_onnx_models_internal,
     write_upscale_conf,
 };
+pub use engine_builder::shutdown_active_processes;
 pub use hardware::{detect_system_gpu, determine_nvidia_sm};
 pub use types::{GpuHardwareInfo, ModelFileItem, UpscaleSettings, UpscaleStatus};
 
@@ -32,6 +34,10 @@ pub fn get_upscale_status() -> UpscaleStatus {
             aji_present: false,
             directml_present: false,
             tensorrt_present: false,
+            directml_update_required: false,
+            tensorrt_update_required: false,
+            player_update_required: false,
+            runtime_restart_required: false,
             models_count: 0,
             models_dir: String::new(),
             models: Vec::new(),

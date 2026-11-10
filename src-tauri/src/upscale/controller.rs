@@ -12,6 +12,23 @@ use tauri::State;
 
 static LAST_APPLIED_BACKEND: Mutex<Option<String>> = Mutex::new(None);
 
+/// Возвращает последний применённый в mpv бэкенд апскейлинга (`"DirectML"` или `"TensorRT"`).
+pub fn get_last_applied_backend() -> Option<String> {
+    LAST_APPLIED_BACKEND.lock().ok().and_then(|g| g.clone())
+}
+
+/// Подготовка активации апскейлинга: проверяет совместимость рантайма и кэша модели для слота.
+pub fn prepare_activation(backend: &str, slot: u32) -> Result<(), String> {
+    let root = super::config::get_app_root_dir();
+    let gpu = super::hardware::detect_system_gpu();
+    if backend.eq_ignore_ascii_case("TensorRT") {
+        let models = super::config::scan_onnx_models_internal();
+        super::compatibility::prepare_activation_with_models(&root, backend, slot, &models, &gpu)
+    } else {
+        super::compatibility::prepare_activation_with_models(&root, backend, slot, &[], &gpu)
+    }
+}
+
 /// Принудительно заставляет mpv перерисовать и отобразить апскейленный кадр,
 /// если воспроизведение активного файла стоит на паузе.
 pub fn force_frame_refresh(mpv: &MpvManager) {
@@ -30,6 +47,7 @@ pub fn apply_upscale_settings_impl(
     state: &State<'_, PlayerState>,
     settings: UpscaleSettings,
 ) -> Result<(), String> {
+    let _operation = super::compatibility::OPERATION.try_lock().map_err(|_| "UPSCALE_BUSY".to_owned())?;
     let mut active_slot = settings.active_slot;
 
     // Миграция старых CRC-слотов (2000-9999) на новые 1-9
@@ -45,15 +63,13 @@ pub fn apply_upscale_settings_impl(
         }
     }
 
-    let conf_path = write_upscale_conf(&settings.backend, active_slot)?;
-    let conf_str = conf_path.to_string_lossy();
-
     let backend_changed = {
         let last = LAST_APPLIED_BACKEND.lock().unwrap();
         last.as_deref() != Some(&settings.backend)
     };
 
     if settings.mode == "ai" {
+        prepare_activation(&settings.backend, active_slot)?;
         // Проверяем, установлены ли необходимые библиотеки выбранного движка
         let status = super::config::check_upscale_status_internal();
         let is_installed = if settings.backend.eq_ignore_ascii_case("TensorRT") {
@@ -65,9 +81,11 @@ pub fn apply_upscale_settings_impl(
         if !is_installed {
             // Если движок не установлен — отключаем AI фильтр, не ломая цепочку вывода
             let _ = state.mpv.disable_ai_upscale();
-            return Ok(());
+            return Err(format!("UPSCALE_RUNTIME_UPDATE:{}", settings.backend));
         }
 
+        let conf_path = write_upscale_conf(&settings.backend, active_slot)?;
+        let conf_str = conf_path.to_string_lossy();
         ensure_inference_environment();
         let models_dir = get_models_dir();
         if let Err(e) = state.mpv.set_hwdec_for_backend(&settings.backend) {
@@ -97,6 +115,7 @@ pub fn switch_upscale_network_hotkey_impl(
     slot: u32,
     backend: Option<String>,
 ) -> Result<(), String> {
+    let _operation = super::compatibility::OPERATION.try_lock().map_err(|_| "UPSCALE_BUSY".to_owned())?;
     let chosen_backend = backend.unwrap_or_else(|| {
         let last = LAST_APPLIED_BACKEND.lock().unwrap();
         last.clone().unwrap_or_else(|| "DirectML".to_string())
@@ -109,6 +128,7 @@ pub fn switch_upscale_network_hotkey_impl(
     if slot == 0 {
         state.mpv.disable_ai_upscale()?;
     } else {
+        prepare_activation(&chosen_backend, slot)?;
         // Проверяем, установлены ли необходимые библиотеки выбранного движка
         let status = super::config::check_upscale_status_internal();
         let is_installed = if chosen_backend.eq_ignore_ascii_case("TensorRT") {
