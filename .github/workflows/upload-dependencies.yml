@@ -24,7 +24,7 @@ jobs:
           python-version: '3.11'
           architecture: x64
 
-      - name: Свежие FFmpeg и MediaInfo, libmpv для AnimeJaNai 3.9.0
+      - name: Свежие FFmpeg и MediaInfo, libmpv для AnimeJaNai 3.10.0
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -35,11 +35,12 @@ jobs:
         with:
           tag_name: deps-v1
           name: "L-MPV Build Dependencies v1"
-          body: "Автоматически собранные нативные библиотеки libmpv-2.dll (от the-database/mpv-winbuild с vf_animejanai), ffmpeg.exe (от gyan.dev) и MediaInfo.dll для сборки L-MPV."
+          body_path: deps-release-notes.md
           files: |
             mpv_libs.zip
             dependency-sources.json
             dependency-versions.json
+            deps-release-notes.md
           fail_on_unmatched_files: true
           overwrite_files: true
           draft: false

@@ -13,6 +13,7 @@ import {
 import { UpscaleSettings, UpscaleStatus, DownloadProgressPayload } from "./types";
 import { GpuHardwareCard } from "./GpuHardwareCard";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { backendNeedsUpdate, backendReady } from "../../utils/upscaleCompatibility";
 
 interface BackendSelectorProps {
   status: UpscaleStatus | null;
@@ -49,8 +50,8 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
   const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
-  const isCurrentBackendInstalled =
-    settings.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
+  const needsUpdate = backendNeedsUpdate(status, settings.backend);
+  const isCurrentBackendInstalled = backendReady(status, settings.backend);
   const isAnyEnginePresent = isDmlInstalled || isTrtInstalled;
 
   const isFinished = !!(downloadProgress && downloadProgress.is_finished && !downloadProgress.error);
@@ -144,7 +145,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 event.stopPropagation();
                 onDownloadEngine();
               }}
-              disabled={isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)}
+              disabled={!!status?.player_update_required || isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)}
               title={dict.settings.upscaling.btnDownloadLibsTitle}
               style={{ minWidth: 145, height: 32 }}
               >
@@ -155,7 +156,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               )}
               {isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)
                 ? dict.settings.upscaling.downloadingProgress(activePercent)
-                : dict.settings.upscaling.btnDownloadEngine}
+                : needsUpdate ? dict.settings.upscaling.btnUpdateEngine : dict.settings.upscaling.btnDownloadEngine}
             </button>
           )}
 
@@ -179,6 +180,12 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
         </div>
       </div>
 
+      {(needsUpdate || status?.player_update_required) && (
+        <div role="status" className="upscale-compatibility-notice" style={{ color: "var(--warning-text)", fontSize: "var(--fs-sm)", lineHeight: 1.5 }}>
+          <p>{status?.player_update_required ? dict.settings.upscaling.playerUpdateRequired : dict.settings.upscaling.runtimeUpdateRequired}</p>
+          {!status?.player_update_required && status?.runtime_restart_required && <p>{dict.settings.upscaling.runtimeRestartRequired}</p>}
+        </div>
+      )}
       <div className={`collapse-fold ${isOpen ? "collapse-fold--open" : ""}`}>
         <div className="collapse-fold__inner">
           <div className="collapse-fold__body backend-selector-content">

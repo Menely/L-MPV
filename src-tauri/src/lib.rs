@@ -7,15 +7,17 @@ mod ambient;
 pub mod upscale;
 mod audio_capture;
 pub mod audio_filter;
-mod commands;
+pub mod commands;
 mod fonts_bundle;
 mod startup_runtime;
 mod mediainfo;
+mod media_report_cache;
 mod mpv_manager;
+mod subtitle_position;
 pub mod logging;
 pub use logging::log_error;
 mod system_integration;
-mod updater;
+pub mod updater;
 pub mod window_aspect_ratio;
 
 use commands::PlayerState;
@@ -212,6 +214,7 @@ pub fn run() {
             system_integration::register_explorer_context_menu,
             system_integration::unregister_explorer_context_menu,
             system_integration::open_default_apps_settings,
+            system_integration::get_system_diagnostics,
             commands::get_playlist,
             commands::play_playlist_item,
             commands::reload_folder_playlist,
@@ -320,6 +323,7 @@ pub fn run() {
                     // Если главное окно плеера скрыто (приложение запущено только для MediaInfo), завершаем процесс
                     if let Some(main_win) = window.app_handle().get_webview_window("main") {
                         if !main_win.is_visible().unwrap_or(false) {
+                            upscale::shutdown_active_processes();
                             window.app_handle().exit(0);
                         }
                     }
@@ -327,6 +331,7 @@ pub fn run() {
                     let state = window.state::<PlayerState>();
                     commands::save_current_playback_position(&state);
                     commands::save_history_to_disk();
+                    upscale::shutdown_active_processes();
                     // Закрытие главного окна плеера обязано полностью завершать процесс приложения
                     window.app_handle().exit(0);
                 }

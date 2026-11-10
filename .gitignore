@@ -127,7 +127,21 @@ skills-lock.json
 *~
 *.bak
 *.tmp
+.tmp/
 .updates/
+
+# Временные файлы Python, PyInstaller и отчетов сборки зависимостей
+__pycache__/
+*.py[cod]
+*.spec
+dependency-sources.json
+dependency-versions.json
+deps-release-notes.md
+inference-release-notes.md
+dist_libs/
+aji-check/
+download-*/
+unpacked-*/
 
 # Local design audits and agent implementation plans
 /docs/audits/

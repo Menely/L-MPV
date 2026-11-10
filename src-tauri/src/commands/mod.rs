@@ -20,7 +20,7 @@ mod subtitles;
 mod system;
 mod startup;
 mod tracks;
-mod types;
+pub mod types;
 
 // ─── Реэкспорт типов ───────────────────────────────────
 #[allow(unused_imports)]

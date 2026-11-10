@@ -36,6 +36,8 @@ export function useSubtitlesAnalysis() {
   // Монотонный счётчик запросов анализа: отбрасываем устаревшие ответы FFmpeg,
   // если пользователь быстро переключает дорожки (гонка асинхронных invoke).
   const analyzeSeqRef = useRef(0);
+  // Ключ активной целевой дорожки `${mediaPath}:${trackId}` для защиты от гонки с кэшем.
+  const activeTargetKeyRef = useRef<string | null>(null);
   // Ключ последней отправленной на анализ дорожки `${mediaPath}:${trackId}`
   // для предотвращения повторных избыточных вызовов при ререндерах.
   const lastAnalyzedTargetRef = useRef<string | null>(null);
@@ -68,6 +70,10 @@ export function useSubtitlesAnalysis() {
       if (trackId === null || trackId === undefined) return;
 
       const cacheKey = `${mediaPath || ""}:${trackId}`;
+      // Инкрементируем счётчик ДО проверки кэша, чтобы инвалидировать любые
+      // незавершённые медленные вызовы FFmpeg от предыдущей дорожки.
+      const seq = ++analyzeSeqRef.current;
+      activeTargetKeyRef.current = cacheKey;
 
       // Если данные уже есть в кэше — загружаем моментально без задержек и спиннеров
       if (globalSubtitlesCache.has(cacheKey)) {
@@ -80,7 +86,6 @@ export function useSubtitlesAnalysis() {
         return;
       }
 
-      const seq = ++analyzeSeqRef.current;
       setIsAnalyzing(true);
       setAnalyzeError(null);
       try {
@@ -88,7 +93,12 @@ export function useSubtitlesAnalysis() {
           trackId,
         });
         // Если пока шёл FFmpeg пользователь уже выбрал другую дорожку — игнорируем.
-        if (analyzeSeqRef.current !== seq) return;
+        if (
+          analyzeSeqRef.current !== seq ||
+          activeTargetKeyRef.current !== cacheKey
+        ) {
+          return;
+        }
         const validLines = (result || [])
           .slice()
           .sort((a, b) => a.start - b.start || a.index - b.index);
@@ -97,7 +107,12 @@ export function useSubtitlesAnalysis() {
         const trk = subTracks.find((t) => t.id === trackId);
         setAnalyzedTrackTitle(trk ? trk.title || dict.subtitlesSearch.defaultTrackName(trk.id) : "");
       } catch (err) {
-        if (analyzeSeqRef.current !== seq) return;
+        if (
+          analyzeSeqRef.current !== seq ||
+          activeTargetKeyRef.current !== cacheKey
+        ) {
+          return;
+        }
         console.error("Ошибка анализа дорожки субтитров:", err);
         setLines([]);
         setAnalyzeError(
@@ -106,7 +121,10 @@ export function useSubtitlesAnalysis() {
             : dict.subtitlesSearch.notFound
         );
       } finally {
-        if (analyzeSeqRef.current === seq) {
+        if (
+          analyzeSeqRef.current === seq &&
+          activeTargetKeyRef.current === cacheKey
+        ) {
           setIsAnalyzing(false);
         }
       }
@@ -126,6 +144,7 @@ export function useSubtitlesAnalysis() {
       setSelectedTrackId(null);
       setAnalyzedTrackTitle("");
       setIsAnalyzing(false);
+      activeTargetKeyRef.current = null;
       lastAnalyzedTargetRef.current = null;
     }
     loadTracks();

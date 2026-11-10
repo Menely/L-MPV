@@ -1,0 +1,13 @@
+const assert = require('node:assert/strict');
+const esbuild = require('esbuild');
+const mod = { exports: {} };
+const compiled = esbuild.buildSync({ entryPoints: ['src/utils/subtitleUiGeometry.ts'], bundle: true, write: false, platform: 'node', format: 'cjs' });
+new Function('module', 'exports', compiled.outputFiles[0].text)(mod, mod.exports);
+const offset = mod.exports.subtitleControlsOffset;
+assert.equal(offset(70, 70, 12), 94, 'modern controls plus bottom and subtitle gap');
+assert.equal(offset(100, 100, 12), 124, 'capsule includes the separate timeline');
+assert.equal(offset(60, 60, 0), 72, 'docked controls have no bottom gap');
+assert.equal(offset(150, 100, 12), 186, 'CSS zoom scales the bottom and subtitle gap too');
+assert.equal(offset(0, 0, 12), 0);
+assert.equal(offset(NaN, 70, 12), 0);
+console.log('PASS subtitle geometry: all styles, scaled controls and unavailable layout');

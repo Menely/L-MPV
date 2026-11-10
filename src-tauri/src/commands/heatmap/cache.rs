@@ -28,89 +28,6 @@ const MAX_WAVEFORM_CACHE_BYTES: u64 = 50 * 1024 * 1024;
 /// Атомарный счётчик для генерации уникальных имён временных файлов кэша.
 static TMP_FILE_NONCE: AtomicU64 = AtomicU64::new(0);
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct TestCache(PathBuf);
-    impl TestCache {
-        fn new() -> Self {
-            let path = std::env::temp_dir().join(format!(
-                "l-mpv-profile-cache-{}-{}",
-                std::process::id(),
-                TMP_FILE_NONCE.fetch_add(1, Ordering::Relaxed)
-            ));
-            std::fs::create_dir_all(&path).unwrap();
-            Self(path)
-        }
-    }
-    impl Drop for TestCache {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
-    }
-
-    #[test]
-    fn separated_profiles_persist_migrate_and_clear() {
-        tauri::async_runtime::block_on(async {
-            let root = TestCache::new();
-            std::fs::write(root.0.join("legacy.json"), "cached-video").unwrap();
-            let video = profile_cache_path(&root.0, "legacy", "video_bitrate").unwrap();
-            let audio = profile_cache_path(&root.0, "audio-key", "audio").unwrap();
-            assert_eq!(video.parent().unwrap(), root.0.join("video_bitrate"));
-            assert_eq!(audio.parent().unwrap(), root.0.join("audio"));
-            assert_eq!(std::fs::read_to_string(&video).unwrap(), "cached-video");
-            assert!(!root.0.join("legacy.json").exists());
-            let manager = HeatmapTaskManager::new();
-            let generation = manager.start_request().await;
-            save_cache_atomically(&audio, "cached-audio", &manager, generation)
-                .await
-                .unwrap();
-            let reopened = profile_cache_path(&root.0, "audio-key", "audio").unwrap();
-            assert_eq!(std::fs::read_to_string(reopened).unwrap(), "cached-audio");
-            std::fs::write(root.0.join("old.json"), "old-layout").unwrap();
-            std::fs::create_dir(root.0.join("unrelated")).unwrap();
-            std::fs::write(root.0.join("unrelated/keep.txt"), "keep").unwrap();
-            assert_eq!(clear_profile_cache(&root.0).await.unwrap(), 3);
-            assert!(root.0.join("audio").is_dir());
-            assert!(root.0.join("video_bitrate").is_dir());
-            assert!(root.0.join("unrelated/keep.txt").exists());
-            assert!(profile_cache_path(&root.0, "key", "../invalid").is_err());
-        });
-    }
-
-    #[test]
-    fn cache_rotation_is_independent_for_each_source() {
-        tauri::async_runtime::block_on(async {
-            let root = TestCache::new();
-            let video = profile_cache_path(&root.0, "video", "video_bitrate").unwrap();
-            let audio = profile_cache_path(&root.0, "audio", "audio").unwrap();
-            std::fs::write(&video, "video").unwrap();
-            for i in 0..=MAX_WAVEFORM_CACHE_FILES {
-                std::fs::write(audio.parent().unwrap().join(format!("{}.json", i)), "audio")
-                    .unwrap();
-            }
-            prune_waveform_cache(audio.parent().unwrap()).await;
-            assert_eq!(
-                std::fs::read_dir(audio.parent().unwrap()).unwrap().count(),
-                MAX_WAVEFORM_CACHE_FILES
-            );
-            assert!(video.exists());
-        });
-    }
-
-    #[test]
-    fn cache_identity_includes_duration_and_source() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands/heatmap/cache.rs");
-        let key =
-            |mode, duration| calculate_file_cache_key(&path, mode, None, None, duration).unwrap();
-        assert_ne!(key("video_bitrate", 0.0), key("video_bitrate", 120.0));
-        assert_ne!(key("video_bitrate", 120.0), key("video_bitrate", 121.0));
-        assert_ne!(key("video_bitrate", 120.0), key("audio", 120.0));
-        assert_eq!(key("video_bitrate", 120.0), key("video_bitrate", 120.001));
-    }
-}
-
 /// Вычисление уникального BLAKE3-хэша для файла на основе пути, размера, времени изменения, дорожки и режима.
 pub fn calculate_file_cache_key(
     path: &Path,
@@ -306,7 +223,7 @@ pub async fn prune_waveform_cache(waveforms_dir: &Path) {
     }
 
     // Сортируем от самых свежих к самым старым
-    json_files.sort_by(|a, b| b.1.cmp(&a.1));
+    json_files.sort_by_key(|a| std::cmp::Reverse(a.1));
 
     let mut accumulated_bytes: u64 = 0;
     for (idx, (path, _, len)) in json_files.into_iter().enumerate() {
@@ -314,5 +231,88 @@ pub async fn prune_waveform_cache(waveforms_dir: &Path) {
         if idx >= MAX_WAVEFORM_CACHE_FILES || accumulated_bytes > MAX_WAVEFORM_CACHE_BYTES {
             let _ = tokio::fs::remove_file(path).await;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestCache(PathBuf);
+    impl TestCache {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "l-mpv-profile-cache-{}-{}",
+                std::process::id(),
+                TMP_FILE_NONCE.fetch_add(1, Ordering::Relaxed)
+            ));
+            std::fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+    }
+    impl Drop for TestCache {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn separated_profiles_persist_migrate_and_clear() {
+        tauri::async_runtime::block_on(async {
+            let root = TestCache::new();
+            std::fs::write(root.0.join("legacy.json"), "cached-video").unwrap();
+            let video = profile_cache_path(&root.0, "legacy", "video_bitrate").unwrap();
+            let audio = profile_cache_path(&root.0, "audio-key", "audio").unwrap();
+            assert_eq!(video.parent().unwrap(), root.0.join("video_bitrate"));
+            assert_eq!(audio.parent().unwrap(), root.0.join("audio"));
+            assert_eq!(std::fs::read_to_string(&video).unwrap(), "cached-video");
+            assert!(!root.0.join("legacy.json").exists());
+            let manager = HeatmapTaskManager::new();
+            let generation = manager.start_request().await;
+            save_cache_atomically(&audio, "cached-audio", &manager, generation)
+                .await
+                .unwrap();
+            let reopened = profile_cache_path(&root.0, "audio-key", "audio").unwrap();
+            assert_eq!(std::fs::read_to_string(reopened).unwrap(), "cached-audio");
+            std::fs::write(root.0.join("old.json"), "old-layout").unwrap();
+            std::fs::create_dir(root.0.join("unrelated")).unwrap();
+            std::fs::write(root.0.join("unrelated/keep.txt"), "keep").unwrap();
+            assert_eq!(clear_profile_cache(&root.0).await.unwrap(), 3);
+            assert!(root.0.join("audio").is_dir());
+            assert!(root.0.join("video_bitrate").is_dir());
+            assert!(root.0.join("unrelated/keep.txt").exists());
+            assert!(profile_cache_path(&root.0, "key", "../invalid").is_err());
+        });
+    }
+
+    #[test]
+    fn cache_rotation_is_independent_for_each_source() {
+        tauri::async_runtime::block_on(async {
+            let root = TestCache::new();
+            let video = profile_cache_path(&root.0, "video", "video_bitrate").unwrap();
+            let audio = profile_cache_path(&root.0, "audio", "audio").unwrap();
+            std::fs::write(&video, "video").unwrap();
+            for i in 0..=MAX_WAVEFORM_CACHE_FILES {
+                std::fs::write(audio.parent().unwrap().join(format!("{}.json", i)), "audio")
+                    .unwrap();
+            }
+            prune_waveform_cache(audio.parent().unwrap()).await;
+            assert_eq!(
+                std::fs::read_dir(audio.parent().unwrap()).unwrap().count(),
+                MAX_WAVEFORM_CACHE_FILES
+            );
+            assert!(video.exists());
+        });
+    }
+
+    #[test]
+    fn cache_identity_includes_duration_and_source() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands/heatmap/cache.rs");
+        let key =
+            |mode, duration| calculate_file_cache_key(&path, mode, None, None, duration).unwrap();
+        assert_ne!(key("video_bitrate", 0.0), key("video_bitrate", 120.0));
+        assert_ne!(key("video_bitrate", 120.0), key("video_bitrate", 121.0));
+        assert_ne!(key("video_bitrate", 120.0), key("audio", 120.0));
+        assert_eq!(key("video_bitrate", 120.0), key("video_bitrate", 120.001));
     }
 }

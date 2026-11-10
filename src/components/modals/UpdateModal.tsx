@@ -160,12 +160,13 @@ const VersionPicker: React.FC<VersionPickerProps> = React.memo(({
     </button>
 
     {isPickerOpen && (
-      <div className="version-picker-popover custom-scrollbar" role="menu">
+      <div className="version-picker-popover" role="menu">
         <div className="version-picker-header">
           {isLoadingReleases
             ? dict.updateModal.loadingReleases
             : dict.updateModal.availableReleases(releases.length)}
         </div>
+        <div className="version-picker-list custom-scrollbar">
         {releases.length === 0 && !isLoadingReleases ? (
           <div style={{ padding: "8px 10px", fontSize: "var(--fs-xs)", color: "var(--text-muted)", fontStyle: "italic" }}>
             {dict.updateModal.releasesUnavailable}
@@ -201,6 +202,7 @@ const VersionPicker: React.FC<VersionPickerProps> = React.memo(({
             );
           })
         )}
+        </div>
       </div>
     )}
   </div>
@@ -545,7 +547,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
       {!isCapsule ? (
         /* ─── КЛАССИЧЕСКИЙ РЕЖИМ (Модерн, Прикрепленный) ─── */
         <div
-          className={`modal-container update-modal-card ${isClosing ? "update-modal-card--closing" : ""}`}
+          className={`modal-container update-modal-card update-modal--${controlBarStyle} ${isClosing ? "update-modal-card--closing" : ""}`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="update-modal-title"

@@ -8,16 +8,20 @@ use std::path::PathBuf;
 /// Version token used by aji v0.17.1 for the AnimeJaNai 3.9.0 runtime.
 pub const TRT_CACHE_VERSION: &str = "11.4.0";
 
-#[cfg(test)]
-mod dependency_tests {
-    #[test]
-    fn cache_version_matches_packaged_runtime() {
-        let pins: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../scripts/animejanai-dependencies.json"
-        )).unwrap();
-        assert_eq!(pins["tensorrt_cache"].as_str(), Some(super::TRT_CACHE_VERSION));
-        assert!(pins["tensorrt"].as_str().unwrap().starts_with(super::TRT_CACHE_VERSION));
-    }
+/// Хэш профиля оптимизации 1080p в aji.dll ("--builderOptimizationLevel=5 --optShapes=input:1x3x1080x1920 --skipInference").
+pub const TRT_1080P_PROFILE_HASH: &str = "780037328";
+
+/// Формирует точное имя файла скомпилированного 1080p движка TensorRT для заданной модели и GPU.
+pub fn expected_engine_1080p_filename(
+    model_stem: &str,
+    gpu_clean: &str,
+    sm_suffix: &str,
+) -> String {
+    let crc = crc32_ieee(model_stem.as_bytes());
+    format!(
+        "aji-{:08x}.{}.trt-{}.gpu-{}-{}.engine",
+        crc, TRT_1080P_PROFILE_HASH, TRT_CACHE_VERSION, gpu_clean, sm_suffix
+    )
 }
 
 /// Возвращает корневой каталог приложения
@@ -143,7 +147,7 @@ pub fn crc32_ieee(data: &[u8]) -> u32 {
     !crc
 }
 
-/// Проверка наличия скомпилированного движка TensorRT (.engine) для модели в каталоге под текущий GPU
+/// Проверка наличия скомпилированного 1080p движка TensorRT (.engine) для модели в каталоге под текущий GPU
 pub fn has_compiled_engine_for_model(
     models_dir: &std::path::Path,
     model_stem: &str,
@@ -151,16 +155,21 @@ pub fn has_compiled_engine_for_model(
     sm_suffix: Option<&str>,
 ) -> bool {
     let crc = crc32_ieee(model_stem.as_bytes());
-    let prefix = format!("aji-{:08x}.", crc);
-    let target_suffix = match (gpu_clean, sm_suffix) {
-        (Some(g), Some(s)) => format!(".trt-{}.gpu-{}-{}.engine", TRT_CACHE_VERSION, g, s),
-        _ => ".engine".to_string(),
+    let exact_name = match (gpu_clean, sm_suffix) {
+        (Some(g), Some(s)) => Some(expected_engine_1080p_filename(model_stem, g, s)),
+        _ => None,
     };
+    let prefix_1080p = format!("aji-{:08x}.{}.", crc, TRT_1080P_PROFILE_HASH);
 
     if let Ok(entries) = fs::read_dir(models_dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with(&prefix) && name.ends_with(&target_suffix) {
+            let matched = if let Some(ref exact) = exact_name {
+                &name == exact
+            } else {
+                name.starts_with(&prefix_1080p) && name.ends_with(".engine")
+            };
+            if matched {
                 if let Ok(meta) = entry.metadata() {
                     if meta.len() > 0 {
                         return true;
@@ -269,9 +278,27 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
 
             let crc_stem = crc32_ieee(model_stem.as_bytes());
             let prefix = format!("aji-{:08x}.", crc_stem);
-            let has_engine_1080p = engine_files.iter().any(|eng| {
-                eng.starts_with(&prefix) && eng.ends_with(&target_engine_suffix)
-            });
+            let prefix_1080p = format!("aji-{:08x}.{}.", crc_stem, TRT_1080P_PROFILE_HASH);
+            let expected_1080p = match (gpu_clean.as_deref(), sm_suffix.as_deref()) {
+                (Some(g), Some(s)) => Some(expected_engine_1080p_filename(model_stem, g, s)),
+                _ => None,
+            };
+            let is_1080p_match = |eng: &str| -> bool {
+                if let Some(ref exact) = expected_1080p {
+                    eng == exact
+                } else {
+                    eng.starts_with(&prefix_1080p) && eng.ends_with(&target_engine_suffix)
+                }
+            };
+            let context_current = super::compatibility::model_current(
+                &get_app_root_dir(),
+                &path,
+                &super::compatibility::gpu_key(&gpu),
+            );
+            let any_engine = engine_files.iter().any(|eng| eng.starts_with(&prefix))
+                || models_dir.join(format!("{model_stem}.timing.cache")).exists();
+            let has_engine_1080p =
+                context_current && engine_files.iter().any(|eng| is_1080p_match(eng));
 
             items.push(ModelFileItem {
                 filename,
@@ -280,6 +307,11 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
                 slot,
                 full_path: path.to_string_lossy().to_string(),
                 has_engine_1080p,
+                engine_outdated: any_engine
+                    && (!context_current
+                        || engine_files
+                            .iter()
+                            .any(|eng| eng.starts_with(&prefix) && !is_1080p_match(eng))),
             });
         }
     }
@@ -324,12 +356,25 @@ pub fn check_upscale_status_internal() -> UpscaleStatus {
         || root.join("animejanai").join("inference").join("nvinfer_11.dll").exists();
 
     let tensorrt_present = aji_present && has_aji_trt_dll && has_nvinfer_dll;
+    let directml_update_required = directml_present && !super::compatibility::runtime_current(&root, "DirectML");
+    let tensorrt_update_required = tensorrt_present
+        && (!super::compatibility::runtime_current(&root, "TensorRT")
+            || (gpu_info.supports_tensorrt
+                && !super::compatibility::runtime_supports_gpu_sm(
+                    &root,
+                    &gpu_info.sm_architecture,
+                )));
+    let player_update_required = !super::compatibility::native_matches_package(&root);
 
     UpscaleStatus {
         filter_supported: true,
         aji_present,
         directml_present,
         tensorrt_present,
+        directml_update_required,
+        tensorrt_update_required,
+        player_update_required,
+        runtime_restart_required: super::compatibility::runtime_used(),
         models_count: models.len(),
         models_dir: models_dir.to_string_lossy().to_string(),
         models,
@@ -375,4 +420,57 @@ pub fn write_upscale_conf(backend: &str, default_slot: u32) -> Result<PathBuf, S
         .map_err(|e| format!("Ошибка записи конфигурации апскейлинга: {}", e))?;
 
     Ok(conf_path)
+}
+
+#[cfg(test)]
+mod dependency_tests {
+    use super::*;
+
+    #[test]
+    fn cache_version_matches_packaged_runtime() {
+        let pins: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../scripts/animejanai-dependencies.json"
+        ))
+        .unwrap();
+        assert_eq!(pins["tensorrt_cache"].as_str(), Some(TRT_CACHE_VERSION));
+        assert!(pins["tensorrt"]
+            .as_str()
+            .unwrap()
+            .starts_with(TRT_CACHE_VERSION));
+    }
+
+    #[test]
+    fn non_1080p_engine_does_not_satisfy_has_compiled_engine_for_model() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "l_mpv_engine_1080p_test_{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let stem = "2x_AnimeJaNai_HD_V3_UltraCompact";
+        let crc = crc32_ieee(stem.as_bytes());
+        let engine_720p = temp_dir.join(format!(
+            "aji-{:08x}.111222333.trt-{}.gpu-rtx4070-sm8.engine",
+            crc, TRT_CACHE_VERSION
+        ));
+        fs::write(&engine_720p, b"compiled-720p").unwrap();
+
+        assert!(
+            !has_compiled_engine_for_model(&temp_dir, stem, Some("rtx4070"), Some("sm8")),
+            "Движок другого разрешения (720p) не должен считаться 1080p-движком"
+        );
+
+        let engine_1080p = temp_dir.join(expected_engine_1080p_filename(
+            stem, "rtx4070", "sm8",
+        ));
+        fs::write(&engine_1080p, b"compiled-1080p").unwrap();
+
+        assert!(
+            has_compiled_engine_for_model(&temp_dir, stem, Some("rtx4070"), Some("sm8")),
+            "Точный 1080p движок с хэшем 780037328 должен распознаваться"
+        );
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
 }

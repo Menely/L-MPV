@@ -7,8 +7,85 @@ use super::types::{get_config_dir, PlayerState};
 use crate::mpv_manager::MpvManager;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 use tauri::State;
+
+/// Максимальное количество хранимых записей истории просмотра.
+const MAX_HISTORY_ENTRIES: usize = 300;
+
+static HISTORY_FILE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+struct HistoryFileGuard {
+    _process_guard: std::sync::MutexGuard<'static, ()>,
+    lock_path: PathBuf,
+    lock_token: String,
+}
+
+impl Drop for HistoryFileGuard {
+    fn drop(&mut self) {
+        if std::fs::read_to_string(&self.lock_path)
+            .map(|content| content == self.lock_token)
+            .unwrap_or(false)
+        {
+            let _ = std::fs::remove_file(&self.lock_path);
+        }
+    }
+}
+
+fn lock_history_file(config_dir: &Path) -> Result<HistoryFileGuard, String> {
+    let process_guard = HISTORY_FILE_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    std::fs::create_dir_all(config_dir).map_err(|e| e.to_string())?;
+    let lock_path = config_dir.join(".history.lock");
+    let lock_token = format!(
+        "{}:{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    );
+
+    for _ in 0..300 {
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&lock_path)
+        {
+            Ok(mut file) => {
+                if let Err(err) = file.write_all(lock_token.as_bytes()) {
+                    let _ = std::fs::remove_file(&lock_path);
+                    return Err(err.to_string());
+                }
+                return Ok(HistoryFileGuard {
+                    _process_guard: process_guard,
+                    lock_path,
+                    lock_token,
+                });
+            }
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                let is_stale = std::fs::metadata(&lock_path)
+                    .and_then(|m| m.modified())
+                    .ok()
+                    .and_then(|modified| modified.elapsed().ok())
+                    .map(|elapsed| elapsed > std::time::Duration::from_secs(600))
+                    .unwrap_or(false);
+                if is_stale {
+                    let _ = std::fs::remove_file(&lock_path);
+                    continue;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            Err(err) => return Err(err.to_string()),
+        }
+    }
+
+    Err("Не удалось получить межпроцессную блокировку history.json".to_string())
+}
 
 // ─── Структуры данных ───────────────────────────────────
 
@@ -55,55 +132,120 @@ pub fn normalize_history_path(path: &str) -> String {
     clean.to_lowercase()
 }
 
-// ─── Ленивая инициализация хранилища ────────────────────
+// ─── Ленивая инициализация и межпроцессная синхронизация хранилища ────
+
+/// Чтение карты истории просмотра с диска с нормализацией ключей.
+fn load_history_from_dir(config_dir: &Path) -> HashMap<String, WatchHistoryItem> {
+    let mut map = HashMap::new();
+    let history_path = config_dir.join("history.json");
+    let tmp_path = config_dir.join("history.json.tmp");
+    let content = std::fs::read_to_string(&history_path)
+        .or_else(|_| std::fs::read_to_string(&tmp_path));
+    if let Ok(content) = content {
+        if let Ok(parsed) = serde_json::from_str::<HashMap<String, WatchHistoryItem>>(&content) {
+            for (k, v) in parsed {
+                map.insert(normalize_history_path(&k), v);
+            }
+        }
+    }
+    map
+}
+
+/// Детерминированное слияние локальной карты истории с картой на диске по метке времени `timestamp`.
+pub fn merge_history_maps(
+    local: &mut HashMap<String, WatchHistoryItem>,
+    disk: HashMap<String, WatchHistoryItem>,
+) {
+    for (raw_key, disk_item) in disk {
+        let key = normalize_history_path(&raw_key);
+        match local.get_mut(&key) {
+            None => {
+                local.insert(key, disk_item);
+            }
+            Some(local_item) => {
+                let disk_is_newer = disk_item.timestamp > local_item.timestamp
+                    || (disk_item.timestamp == local_item.timestamp
+                        && ((disk_item.completed && !local_item.completed)
+                            || disk_item.position > local_item.position));
+                if disk_is_newer {
+                    let merged_duration = if disk_item.duration > 0.0 {
+                        disk_item.duration
+                    } else {
+                        local_item.duration
+                    };
+                    *local_item = WatchHistoryItem {
+                        duration: merged_duration,
+                        ..disk_item
+                    };
+                } else if local_item.duration <= 0.0 && disk_item.duration > 0.0 {
+                    local_item.duration = disk_item.duration;
+                }
+            }
+        }
+    }
+
+    while local.len() > MAX_HISTORY_ENTRIES {
+        if let Some(oldest_key) = local
+            .iter()
+            .min_by_key(|(_, v)| v.timestamp)
+            .map(|(k, _)| k.clone())
+        {
+            local.remove(&oldest_key);
+        } else {
+            break;
+        }
+    }
+}
+
+/// Атомарное сохранение карты истории в указанный каталог с межпроцессной блокировкой и слиянием.
+pub fn save_history_map_to_dir(
+    map: &mut HashMap<String, WatchHistoryItem>,
+    config_dir: &Path,
+) -> Result<(), String> {
+    let _guard = lock_history_file(config_dir)?;
+    let disk_map = load_history_from_dir(config_dir);
+    merge_history_maps(map, disk_map);
+    let json = serde_json::to_string_pretty(map).map_err(|e| e.to_string())?;
+    let history_path = config_dir.join("history.json");
+    super::types::write_atomic(&history_path, json.as_bytes(), true)
+}
+
+/// Подтягивает свежие записи из `history.json`, если другой процесс обновил файл.
+fn sync_history_from_disk() {
+    let Ok(config_dir) = get_config_dir() else {
+        return;
+    };
+    let disk_map = load_history_from_dir(&config_dir);
+    if disk_map.is_empty() {
+        return;
+    }
+    if let Ok(mut map) = get_history_map().lock() {
+        merge_history_maps(&mut map, disk_map);
+    }
+}
 
 /// Получение ссылки на глобальное хранилище истории (ленивая загрузка из файла).
 pub fn get_history_map(
 ) -> &'static Mutex<HashMap<String, WatchHistoryItem>> {
     WATCH_HISTORY.get_or_init(|| {
-        let mut map = HashMap::new();
-        if let Ok(config_dir) = get_config_dir() {
-            let history_path =
-                config_dir.join("history.json");
-            let tmp_path =
-                config_dir.join("history.json.tmp");
-            let content = std::fs::read_to_string(&history_path)
-                .or_else(|_| std::fs::read_to_string(&tmp_path));
-            if let Ok(content) = content {
-                if let Ok(parsed) = serde_json::from_str::<
-                    HashMap<String, WatchHistoryItem>,
-                >(
-                    &content
-                ) {
-                    for (k, v) in parsed {
-                        map.insert(
-                            normalize_history_path(&k),
-                            v,
-                        );
-                    }
-                }
-            }
-        }
+        let map = get_config_dir()
+            .map(|dir| load_history_from_dir(&dir))
+            .unwrap_or_default();
         Mutex::new(map)
     })
 }
 
 // ─── Операции записи ────────────────────────────────────
 
-/// Синхронная запись всей карты истории на диск.
+/// Синхронная запись всей карты истории на диск с межпроцессным слиянием.
 pub fn save_history_to_disk() {
-    let json = {
-        let Ok(map) = get_history_map().lock() else {
-            return;
-        };
-        serde_json::to_string_pretty(&*map).ok()
+    let Ok(config_dir) = get_config_dir() else {
+        return;
     };
-    if let Some(json) = json {
-        if let Ok(config_dir) = get_config_dir() {
-            let history_path = config_dir.join("history.json");
-            let _ = super::types::write_atomic(&history_path, json.as_bytes(), true);
-        }
-    }
+    let Ok(mut map) = get_history_map().lock() else {
+        return;
+    };
+    let _ = save_history_map_to_dir(&mut map, &config_dir);
 }
 
 /// Обновление позиции просмотра для конкретного файла с автоматическим дебаунсингом записи.
@@ -307,6 +449,7 @@ pub fn apply_resume_start(
     path: &str,
 ) -> bool {
     let resume_generation = RESUME_START_GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+    sync_history_from_disk();
     let key = normalize_history_path(path);
     let position = get_history_map()
         .lock()
@@ -342,6 +485,7 @@ pub fn apply_resume_start(
 pub fn get_last_position(
     path: String,
 ) -> Result<f64, String> {
+    sync_history_from_disk();
     let key = normalize_history_path(&path);
     let map = get_history_map()
         .lock()
@@ -405,6 +549,7 @@ pub fn get_watch_history_batch(
     let current_dur = state.mpv.get_property_double("duration").unwrap_or(0.0);
     let current_pos = state.mpv.get_property_double("time-pos").unwrap_or(0.0);
 
+    sync_history_from_disk();
     let map = get_history_map()
         .lock()
         .map_err(|_| "Ошибка блокировки мьютекса истории".to_string())?;
@@ -419,11 +564,10 @@ pub fn get_watch_history_batch(
             let (pos, mut dur, completed) = if is_cur && current_dur > 0.0 {
                 let is_near_end = current_dur > 15.0 && current_pos >= (current_dur - 10.0);
                 (current_pos, current_dur, is_near_end)
-            } else if let Some(item) = map.get(&norm) {
+            } else {
+                let item = map.get(&norm)?;
                 let is_comp = item.completed || (item.duration > 15.0 && item.position == 0.0);
                 (item.position, item.duration, is_comp)
-            } else {
-                return None;
             };
 
             // Если в истории duration не был сохранен, но плеер его знает прямо сейчас
@@ -461,4 +605,87 @@ pub struct WatchProgressInfo {
     /// Процент просмотренного от 0.0 до 100.0.
     /// 0.0 означает: файл новый или данные отсутствуют.
     pub progress_percent: f64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn тест_слияния_истории_между_несколькими_экземплярами_плеера() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "l_mpv_history_merge_test_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let mut instance_a = HashMap::new();
+        instance_a.insert(
+            normalize_history_path("D:\\Videos\\Episode1.mkv"),
+            WatchHistoryItem {
+                position: 120.0,
+                timestamp: 1_000,
+                duration: 1_400.0,
+                completed: false,
+            },
+        );
+        save_history_map_to_dir(&mut instance_a, &temp_dir).unwrap();
+
+        // Второй экземпляр стартовал раньше и не знал про Episode1, но сохранил Episode2
+        // и более свежую позицию для общего файла Episode0
+        instance_a.insert(
+            normalize_history_path("D:\\Videos\\Episode0.mkv"),
+            WatchHistoryItem {
+                position: 50.0,
+                timestamp: 900,
+                duration: 1_200.0,
+                completed: false,
+            },
+        );
+        save_history_map_to_dir(&mut instance_a, &temp_dir).unwrap();
+
+        let mut instance_b = HashMap::new();
+        instance_b.insert(
+            normalize_history_path("D:\\Videos\\Episode2.mkv"),
+            WatchHistoryItem {
+                position: 340.0,
+                timestamp: 1_050,
+                duration: 1_500.0,
+                completed: false,
+            },
+        );
+        instance_b.insert(
+            normalize_history_path("D:\\Videos\\Episode0.mkv"),
+            WatchHistoryItem {
+                position: 600.0,
+                timestamp: 1_100,
+                duration: 1_200.0,
+                completed: false,
+            },
+        );
+        save_history_map_to_dir(&mut instance_b, &temp_dir).unwrap();
+
+        let final_disk = load_history_from_dir(&temp_dir);
+        assert_eq!(
+            final_disk
+                .get(&normalize_history_path("D:\\Videos\\Episode1.mkv"))
+                .map(|i| i.position),
+            Some(120.0)
+        );
+        assert_eq!(
+            final_disk
+                .get(&normalize_history_path("D:\\Videos\\Episode2.mkv"))
+                .map(|i| i.position),
+            Some(340.0)
+        );
+        assert_eq!(
+            final_disk
+                .get(&normalize_history_path("D:\\Videos\\Episode0.mkv"))
+                .map(|i| i.position),
+            Some(600.0)
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
 }

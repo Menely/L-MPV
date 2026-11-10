@@ -54,12 +54,13 @@ $mpv = Get-ReleaseAsset 'the-database/mpv-winbuild' $pins.mpv_release $pins.mpv_
 $resolved = [ordered]@{ animejanai = $pins.animejanai; aji = $pins.aji; tensorrt = $pins.tensorrt; libmpv = $mpv.browser_download_url }
 if ($Kind -eq 'Native') {
     # Gyan's official latest-git mirror resolves to an immutable release tag.
-    $mirror = Invoke-WebRequest -Uri 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-github' -Method Head -Headers $headers -TimeoutSec 60
-    $tag = $mirror.BaseResponse.RequestMessage.RequestUri.Segments[-1]
+    $mirror = Invoke-WebRequest -Uri 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-github' -Method Head -Headers $headers -TimeoutSec 15 -UseBasicParsing
+    $finalUri = if ($mirror.BaseResponse.PSObject.Properties.Name -contains 'ResponseUri') { $mirror.BaseResponse.ResponseUri } else { $mirror.BaseResponse.RequestMessage.RequestUri }
+    $tag = $finalUri.Segments[-1]
     if ($tag -notmatch '^\d{4}-\d{2}-\d{2}-git-[a-f0-9]+$') { throw "Unexpected FFmpeg mirror tag: $tag" }
     $ffmpegAsset = Get-ReleaseAsset 'GyanD/codexffmpeg' $tag "ffmpeg-$tag-essentials_build.7z"
     $resolved.ffmpeg = $ffmpegAsset.browser_download_url
-    $page = Invoke-WebRequest -Uri 'https://mediaarea.net/en/MediaInfo/Download/Windows' -Headers $headers
+    $page = Invoke-WebRequest -Uri 'https://mediaarea.net/en/MediaInfo/Download/Windows' -Headers $headers -TimeoutSec 15 -UseBasicParsing
     $pattern = '(?:https://mediaarea\.net)?/download/binary/libmediainfo0/(?<version>\d+\.\d+(?:\.\d+)?)/MediaInfo_DLL_[^"<>\s/]+_Windows_x64_WithoutInstaller\.zip'
     $links = @([regex]::Matches($page.Content, $pattern) | Sort-Object { [version]$_.Groups['version'].Value } -Descending)
     if ($links.Count -eq 0) { throw 'Official MediaInfo page has no Windows x64 DLL ZIP; refusing to use an old pinned version.' }
@@ -102,6 +103,76 @@ if ($Kind -eq 'Inference') {
         }
         New-FlatArchive $source $name
     }
+
+    $ortVer = $pins.onnxruntime_directml
+    $ortName = "microsoft.ml.onnxruntime.directml.$ortVer.nupkg"
+    Receive-File "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.directml/$ortVer/$ortName" $ortName
+    Require-File $ortName
+
+    $dmlVer = $pins.directml
+    $dmlName = "microsoft.ai.directml.$dmlVer.nupkg"
+    Receive-File "https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/$dmlVer/$dmlName" $dmlName
+    Require-File $dmlName
+
+    Write-Host "Resolving AnimeJaNai target tag: $($pins.animejanai) (from animejanai-dependencies.json)" -ForegroundColor Cyan
+    Write-Host "Resolving aji bridge target tag: $($pins.aji) (from animejanai-dependencies.json)" -ForegroundColor Cyan
+    Write-Host "Resolving TensorRT target version: $($pins.tensorrt)" -ForegroundColor Cyan
+
+    $archives = [ordered]@{}
+    $archiveList = @('aji-windows-x64.zip', $ortName, $dmlName) + @($components | ForEach-Object { "component-trt-$_.7z" })
+    if (Test-Path -LiteralPath 'l-mpv_convert_fp16.zip' -PathType Leaf) {
+        $archiveList += 'l-mpv_convert_fp16.zip'
+    }
+    foreach ($archName in $archiveList) {
+        Require-File $archName
+        $item = Get-Item -LiteralPath $archName
+        $hash = (Get-FileHash -LiteralPath $archName -Algorithm SHA256).Hash.ToLowerInvariant()
+        $archives[$archName] = [ordered]@{
+            sha256 = $hash
+            size   = [int64]$item.Length
+        }
+    }
+    $resolved.build_date = (Get-Date -AsUTC).ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
+    $resolved.upstream_tags = [ordered]@{
+        animejanai = "https://github.com/the-database/mpv-AnimeJaNai/releases/tag/$($pins.animejanai)"
+        aji        = "https://github.com/the-database/animejanai-inference/releases/tag/$($pins.aji)"
+        tensorrt   = "NVIDIA TensorRT $($pins.tensorrt)"
+        mpv_target = "https://github.com/the-database/mpv-winbuild/releases/tag/$($pins.mpv_release)"
+    }
+    $resolved.archives = $archives
+    $resolved | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath 'dependency-sources.json' -Encoding utf8
+    Get-Content -LiteralPath 'dependency-sources.json' | Out-Host
+
+    # Генерация подробной подписи релиза для публикации в GitHub Actions
+    $releaseNotes = @"
+# 📦 L-MPV Inference Engines v1
+
+**Дата сборки:** $((Get-Date -AsUTC).ToString("yyyy-MM-dd HH:mm:ss 'UTC'"))
+
+### 🏷️ Исходные версии компонентов (Upstream Sources)
+- **AnimeJaNai (DirectML / TensorRT):** [$($pins.animejanai)](https://github.com/the-database/mpv-AnimeJaNai/releases/tag/$($pins.animejanai))
+- **aji Bridge:** [$($pins.aji)](https://github.com/the-database/animejanai-inference/releases/tag/$($pins.aji))
+- **NVIDIA TensorRT Runtime:** ``$($pins.tensorrt)`` (CUDA 13)
+- **DirectML / OnnxRuntime:** ``$($pins.directml)`` / ``$($pins.onnxruntime_directml)`` (NuGet)
+- **libmpv Target Build:** [$($pins.mpv_release)](https://github.com/the-database/mpv-winbuild/releases/tag/$($pins.mpv_release))
+
+### 🛡️ Контрольные суммы архивов (SHA-256)
+| Файл архива | Размер | SHA-256 |
+| :--- | :--- | :--- |
+"@
+
+    foreach ($archName in $archiveList) {
+        $archInfo = $archives[$archName]
+        $sizeKb = [math]::Round($archInfo.size / 1KB, 1)
+        $releaseNotes += "`n| ``$archName`` | $sizeKb KB | ``$($archInfo.sha256)`` |"
+    }
+
+    $releaseNotes += "`n`n> *Пакеты оптимизированы для плоской структуры каталога ``inference/`` без промежуточных папок animejanai.*`n"
+    Set-Content -LiteralPath 'inference-release-notes.md' -Value $releaseNotes -Encoding utf8
+    Write-Host "Generated inference-release-notes.md successfully."
+    if ($env:GITHUB_STEP_SUMMARY) {
+        $releaseNotes | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+    }
 } else {
     Receive-Asset $mpv 'mpv-dev.7z'
     Receive-Asset $ffmpegAsset 'ffmpeg.7z'
@@ -131,4 +202,47 @@ if ($Kind -eq 'Inference') {
     if ($LASTEXITCODE -ne 0) { throw 'Native binary version/API verification failed' }
     Compress-Archive -Path 'dist_libs/*' -DestinationPath 'mpv_libs.zip' -Force
     Invoke-Archive @('t', 'mpv_libs.zip')
+
+    # Генерация подробной подписи релиза нативных зависимостей
+    $nativeVersions = Get-Content -LiteralPath 'dependency-versions.json' -Raw | ConvertFrom-Json
+    $nativeHashes = [ordered]@{}
+    foreach ($fn in @('libmpv-2.dll', 'ffmpeg.exe', 'mediainfo.dll')) {
+        $p = Join-Path 'dist_libs' $fn
+        $nativeHashes[$fn] = [ordered]@{
+            size = (Get-Item $p).Length
+            sha256 = (Get-FileHash $p -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+    }
+    $zipItem = Get-Item 'mpv_libs.zip'
+    $zipHash = (Get-FileHash 'mpv_libs.zip' -Algorithm SHA256).Hash.ToLowerInvariant()
+
+    $depsNotes = @"
+# 📦 L-MPV Build Dependencies v1 (Native)
+
+**Дата сборки:** $((Get-Date -AsUTC).ToString("yyyy-MM-dd HH:mm:ss 'UTC'"))
+
+### 🏷️ Исходные версии компонентов (Upstream Sources)
+- **libmpv-2.dll (с видеофильтром vf_animejanai):** [$($pins.mpv_release)](https://github.com/the-database/mpv-winbuild/releases/tag/$($pins.mpv_release))  
+  *Отчёт C-API:* ``$($nativeVersions.libmpv)``
+- **FFmpeg (ffmpeg.exe):** [$tag](https://github.com/GyanD/codexffmpeg/releases/tag/$tag) (gyan.dev mirror)  
+  *Отчёт CLI:* ``$($nativeVersions.ffmpeg)``
+- **MediaInfo (mediainfo.dll):** [v$($links[0].Groups['version'].Value)](https://mediaarea.net/en/MediaInfo/Download/Windows)  
+  *Отчёт C-API:* ``$($nativeVersions.mediainfo)``
+
+### 🛡️ Контрольные суммы файлов (SHA-256)
+| Файл | Размер | SHA-256 |
+| :--- | :--- | :--- |
+| ``mpv_libs.zip`` (архив) | $([math]::Round($zipItem.Length / 1MB, 2)) MB | ``$zipHash`` |
+| ``libmpv-2.dll`` | $([math]::Round($nativeHashes['libmpv-2.dll'].size / 1MB, 2)) MB | ``$($nativeHashes['libmpv-2.dll'].sha256)`` |
+| ``ffmpeg.exe`` | $([math]::Round($nativeHashes['ffmpeg.exe'].size / 1MB, 2)) MB | ``$($nativeHashes['ffmpeg.exe'].sha256)`` |
+| ``mediainfo.dll`` | $([math]::Round($nativeHashes['mediainfo.dll'].size / 1MB, 2)) MB | ``$($nativeHashes['mediainfo.dll'].sha256)`` |
+
+> *Все бинарники проверены тестом заголовков PE x64, инициализацией C-API ctypes и дымовыми тестами вызовов.*
+"@
+
+    Set-Content -LiteralPath 'deps-release-notes.md' -Value $depsNotes -Encoding utf8
+    Write-Host "Generated deps-release-notes.md successfully."
+    if ($env:GITHUB_STEP_SUMMARY) {
+        $depsNotes | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+    }
 }

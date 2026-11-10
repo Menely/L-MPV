@@ -98,10 +98,9 @@ impl AudioStreamAccumulator {
         }
 
         // Обработка выровненных 4-байтовых стереофреймов
-        let chunks = chunk.chunks_exact(4);
-        let rem = chunks.remainder();
-        for frame in chunks {
-            self.push_stereo_frame([frame[0], frame[1], frame[2], frame[3]]);
+        let (frames, rem) = chunk.as_chunks::<4>();
+        for &frame in frames {
+            self.push_stereo_frame(frame);
         }
 
         // Сохраняем остаток (1..3 байта) для склейки со следующей порцией чтения

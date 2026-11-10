@@ -1,3 +1,4 @@
+import { backendReady, backendNeedsUpdate, upscaleErrorMessage } from "../../../utils/upscaleCompatibility";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -183,6 +184,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   const refreshInProgressRef = useRef<Promise<void> | null>(null);
   const compileTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const downloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applyingSettingsRef = useRef(false);
 
   // Загрузка статуса подсистемы и списка доступных моделей
   const refreshStatus = useCallback(async () => {
@@ -327,62 +329,50 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     };
   }, [refreshStatus]);
 
-  // Сохранение и применение настроек
-  const updateSettings = async (newPartialSettings: Partial<UpscaleSettings>) => {
-    const updated: UpscaleSettings = { ...settings, ...newPartialSettings };
-    setSettings(updated);
-    setErrorMessage(null);
+  const persistSettings = (next: UpscaleSettings) => {
+    setSettings(next);
+    localStorage.setItem("l-mpv-upscale-mode", next.mode);
+    localStorage.setItem("l-mpv-upscale-backend", next.backend);
+    localStorage.setItem("l-mpv-upscale-slot", String(next.active_slot));
+    localStorage.setItem("l-mpv-upscale-selected-model", next.selected_model);
+  };
 
-    localStorage.setItem("l-mpv-upscale-mode", updated.mode);
-    localStorage.setItem("l-mpv-upscale-backend", updated.backend);
-    localStorage.setItem("l-mpv-upscale-slot", String(updated.active_slot));
-    localStorage.setItem("l-mpv-upscale-selected-model", updated.selected_model);
-
-    // Проверяем, установлен ли движок при попытке включить режим "ai"
-    const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
-    const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
-    const isInstalled = updated.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
-
-    if (updated.mode === "ai" && !isInstalled) {
-      setErrorMessage(dict.settings.upscaling.errNeedBackend(updated.backend));
-      const fallbackSettings: UpscaleSettings = { ...updated, mode: "off" };
-      setSettings(fallbackSettings);
-      localStorage.setItem("l-mpv-upscale-mode", "off");
+  // Preflight rejection leaves the old filter running, so retain its selection.
+  const updateSettings = async (partial: Partial<UpscaleSettings>) => {
+    if (applyingSettingsRef.current) {
+      setErrorMessage(dict.settings.upscaling.upscaleBusy);
       return;
     }
-
+    const previous = settings;
+    const updated: UpscaleSettings = { ...previous, ...partial };
+    setErrorMessage(null);
+    if (updated.mode === "ai" && !backendReady(status, updated.backend)) {
+      setErrorMessage(status?.player_update_required ? dict.settings.upscaling.playerUpdateRequired
+        : backendNeedsUpdate(status, updated.backend) ? dict.settings.upscaling.runtimeUpdateRequired
+        : dict.settings.upscaling.errNeedBackend(updated.backend));
+      return;
+    }
+    applyingSettingsRef.current = true;
+    persistSettings(updated);
     try {
       await invoke("apply_upscale_settings", { settings: updated });
     } catch (err) {
-      console.error(dict.settings.upscaling.errApply, err);
-      setErrorMessage(String(err));
+      setErrorMessage(upscaleErrorMessage(err, dict));
+      if (String(err).includes("UPSCALE_")) {
+        persistSettings(previous);
+      } else {
+        // A native filter failure may have removed the old filter already.
+        await invoke("apply_upscale_settings", { settings: { ...updated, mode: "off" } }).catch(console.error);
+        persistSettings({ ...updated, mode: "off" });
+      }
+    } finally {
+      applyingSettingsRef.current = false;
     }
   };
 
-  // Переключение выбранного бэкенда без лишних перерисовок кадра, если апскейл выключен
   const handleSelectBackend = async (backend: "DirectML" | "TensorRT") => {
-    const updated: UpscaleSettings = { ...settings, backend };
-    setSettings(updated);
-    setErrorMessage(null);
-    localStorage.setItem("l-mpv-upscale-backend", updated.backend);
-
-    // Если апскейлинг выключен, mpv не трогаем — видео не будет дергаться
-    if (updated.mode === "ai") {
-      const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
-      const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
-      const isInstalled = backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
-
-      if (isInstalled) {
-        try {
-          await invoke("apply_upscale_settings", { settings: updated });
-        } catch (err) {
-          console.error(dict.settings.upscaling.errApplyEngine, err);
-          setErrorMessage(String(err));
-        }
-      } else {
-        setErrorMessage(dict.settings.upscaling.errEngineNotInstalled(backend));
-      }
-    }
+    if (settings.mode === "ai") await updateSettings({ backend });
+    else { persistSettings({ ...settings, backend }); setErrorMessage(null); }
   };
 
   // Открытие папки моделей models/onnx/ в Проводнике
@@ -428,7 +418,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       await refreshStatus();
     } catch (err) {
       console.error(dict.settings.upscaling.errDownloadLibs, err);
-      setErrorMessage(dict.settings.upscaling.errEngineDownload(String(err)));
+      setErrorMessage(dict.settings.upscaling.errEngineDownload(upscaleErrorMessage(err, dict)));
       setIsDownloadingEngine(false);
       if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
       downloadTimerRef.current = setTimeout(() => {
@@ -460,7 +450,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       await refreshStatus();
     } catch (err) {
       console.error(dict.settings.upscaling.errRemoveLibs, err);
-      setErrorMessage(dict.settings.upscaling.errRemoveEngine(String(err)));
+      setErrorMessage(dict.settings.upscaling.errRemoveEngine(upscaleErrorMessage(err, dict)));
     } finally {
       setIsDeletingEngine(false);
     }
@@ -468,6 +458,10 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
 
   // Фоновая предварительная компиляция TensorRT .engine для 1080p
   const handlePrecompileModel = async (model: ModelFileItem) => {
+    if (!backendReady(status, "TensorRT")) {
+      setErrorMessage(status?.player_update_required ? dict.settings.upscaling.playerUpdateRequired : dict.settings.upscaling.runtimeUpdateRequired);
+      return;
+    }
     if (compilingModel) return;
     if (compileTimersRef.current[model.filename]) {
       clearTimeout(compileTimersRef.current[model.filename]);
@@ -485,7 +479,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       await refreshStatus();
     } catch (err) {
       console.error(dict.settings.upscaling.errModelCompile, err);
-      setErrorMessage(dict.settings.upscaling.errModelCompileDetail(String(err)));
+      setErrorMessage(dict.settings.upscaling.errModelCompileDetail(upscaleErrorMessage(err, dict)));
       setCompilingModel(null);
     }
   };

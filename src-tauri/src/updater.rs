@@ -685,7 +685,7 @@ pub async fn download_and_install_update(
         .unwrap_or_else(|| "l-mpv.exe".to_string());
 
     // Если пользователь переименовал exe (например, L-MPV.exe или плеер.exe),
-    // подгоняем имя файла в папке обновлений, чтобы xcopy перезаписал именно его.
+    // подгоняем имя файла в папке обновлений, чтобы замена обновила именно его.
     if !current_exe_name.eq_ignore_ascii_case("l-mpv.exe") {
         let default_exe = updates_dir.join("l-mpv.exe");
         if default_exe.exists() {
@@ -693,22 +693,31 @@ pub async fn download_and_install_update(
         }
     }
 
-    let bat_content = format!(
-        "@echo off\r\n\
-        chcp 65001 > NUL\r\n\
-        timeout /t 3 /nobreak > NUL\r\n\
-        xcopy /s /y /q /r \"*\" \"..\\\"\r\n\
-        del \"..\\update.bat\" 2>NUL\r\n\
-        start \"\" \"..\\{}\"\r\n\
-        cd ..\r\n\
-        start /b cmd /c \"timeout /t 2 > NUL & rmdir /s /q .updates\"\r\n\
-        exit\r\n",
-        current_exe_name
-    );
+    let mut staged_files: Vec<String> = portable_assets
+        .iter()
+        .map(|a| {
+            if a.name.eq_ignore_ascii_case("l-mpv.exe")
+                && !current_exe_name.eq_ignore_ascii_case("l-mpv.exe")
+            {
+                current_exe_name.clone()
+            } else {
+                a.name.clone()
+            }
+        })
+        .collect();
+    if updates_dir.join(CHECKSUM_ASSET_NAME).exists() {
+        staged_files.push(CHECKSUM_ASSET_NAME.to_string());
+    }
+    staged_files.sort();
+    staged_files.dedup();
+
+    let bat_content = build_transactional_update_bat(&current_exe_name, &staged_files);
 
     tokio::fs::write(&bat_path, bat_content)
         .await
         .map_err(|e| format!("Не удалось создать update.bat: {}", e))?;
+
+    crate::upscale::shutdown_active_processes();
 
     let mut cmd = std::process::Command::new(&bat_path);
     cmd.current_dir(&updates_dir);
@@ -725,6 +734,177 @@ pub async fn download_and_install_update(
 
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     std::process::exit(0);
+}
+
+/// Транзакционное применение подготовленного комплекта обновления с резервным копированием и откатом.
+///
+/// Гарантирует отсутствие смешанного состояния бинарников:
+/// 1. Проверяет наличие и ненулевой размер всех файлов в `updates_dir`.
+/// 2. Проверяет отсутствие блокировок на целевых файлах в `target_dir` и создаёт их резервные копии в `updates_dir/.backup`.
+/// 3. Пофайлово переносит новые файлы в `target_dir` с проверкой размера.
+/// 4. При любой ошибке во время копирования автоматически восстанавливает все затронутые файлы из `.backup`
+///    и сохраняет содержимое `updates_dir` нетронутым.
+pub fn apply_staged_update_transaction(
+    updates_dir: &std::path::Path,
+    target_dir: &std::path::Path,
+    staged_files: &[String],
+) -> Result<(), String> {
+    if staged_files.is_empty() {
+        return Err("Список файлов обновления пуст".to_string());
+    }
+
+    let backup_dir = updates_dir.join(".backup");
+    let _ = std::fs::remove_dir_all(&backup_dir);
+    std::fs::create_dir_all(&backup_dir)
+        .map_err(|e| format!("Не удалось создать каталог резервных копий .backup: {}", e))?;
+
+    // Фаза 1: валидация исходных файлов, проверка доступности на запись и резервное копирование
+    for name in staged_files {
+        let src = updates_dir.join(name);
+        let src_meta = std::fs::metadata(&src)
+            .map_err(|e| format!("Отсутствует подготовленный файл {}: {}", name, e))?;
+        if !src_meta.is_file() || src_meta.len() == 0 {
+            return Err(format!("Подготовленный файл {} пуст или поврежден", name));
+        }
+
+        let dst = target_dir.join(name);
+        if dst.exists() {
+            let dst_meta = std::fs::metadata(&dst)
+                .map_err(|e| format!("Не удалось прочитать метаданные {}: {}", name, e))?;
+            if dst_meta.is_dir() {
+                return Err(format!(
+                    "Целевой путь {} является директорией, замена невозможна",
+                    name
+                ));
+            }
+            // Проверяем, что целевой файл не заблокирован другим процессом
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(&dst)
+                .map_err(|e| format!("Целевой файл {} заблокирован: {}", name, e))?;
+
+            std::fs::copy(&dst, backup_dir.join(name)).map_err(|e| {
+                format!("Не удалось создать резервную копию файла {}: {}", name, e)
+            })?;
+        }
+    }
+
+    // Фаза 2: пофайловая замена с автоматическим откатом при любой ошибке
+    let mut updated_names: Vec<&str> = Vec::with_capacity(staged_files.len());
+    for name in staged_files {
+        let src = updates_dir.join(name);
+        let dst = target_dir.join(name);
+        let expected_len = std::fs::metadata(&src).map(|m| m.len()).unwrap_or(0);
+
+        let copy_res = std::fs::copy(&src, &dst).and_then(|copied| {
+            if copied == 0 || copied != expected_len {
+                Err(std::io::Error::other(
+                    "Неполная запись файла при обновлении",
+                ))
+            } else {
+                Ok(())
+            }
+        });
+
+        if let Err(err) = copy_res {
+            // Откатываем все файлы, которые уже успели обновиться, плюс текущий файл
+            updated_names.push(name.as_str());
+            for rolled_name in updated_names {
+                let backup_file = backup_dir.join(rolled_name);
+                let target_file = target_dir.join(rolled_name);
+                if backup_file.is_file() {
+                    let _ = std::fs::copy(&backup_file, &target_file);
+                } else {
+                    let _ = std::fs::remove_file(&target_file);
+                }
+            }
+            return Err(format!(
+                "Сбой замены файла {} ({}). Выполнен полный откат к предыдущей версии.",
+                name, err
+            ));
+        }
+
+        updated_names.push(name.as_str());
+    }
+
+    let _ = std::fs::remove_dir_all(&backup_dir);
+    Ok(())
+}
+
+/// Генерирует транзакционный BAT-скрипт обновления с ожиданием снятия блокировок,
+/// резервным копированием (`.backup`), проверкой каждого `copy` и полным откатом (`:rollback`) при ошибке.
+pub fn build_transactional_update_bat(
+    current_exe_name: &str,
+    staged_files: &[String],
+) -> String {
+    let mut script = String::from(
+        "@echo off\r\n\
+         setlocal EnableExtensions\r\n\
+         chcp 65001 > NUL\r\n\
+         set \"WAIT_COUNT=0\"\r\n\
+         :wait_locks\r\n\
+         set /a WAIT_COUNT+=1\r\n\
+         timeout /t 1 /nobreak > NUL\r\n",
+    );
+
+    // Проверяем освобождение каждого целевого файла на запись
+    for file in staged_files {
+        script.push_str(&format!(
+            "if exist \"..\\{file}\" (\r\n\
+             (call >> \"..\\{file}\") 2>NUL || (\r\n\
+                 if %WAIT_COUNT% LSS 30 goto :wait_locks\r\n\
+                 goto :lock_timeout\r\n\
+             )\r\n\
+             )\r\n"
+        ));
+    }
+
+    // Создаём резервную копию всех заменяемых файлов перед модификацией
+    script.push_str(
+        "if exist \".backup\" rmdir /s /q \".backup\" 2>NUL\r\n\
+         mkdir \".backup\" 2>NUL\r\n",
+    );
+    for file in staged_files {
+        script.push_str(&format!(
+            "if exist \"..\\{file}\" (\r\n\
+                 copy /y /b \"..\\{file}\" \".backup\\{file}\" > NUL\r\n\
+                 if errorlevel 1 goto :backup_failed\r\n\
+             )\r\n"
+        ));
+    }
+
+    // Пофайловое копирование новых бинарников с проверкой кода возврата
+    for file in staged_files {
+        script.push_str(&format!(
+            "copy /y /b \"{file}\" \"..\\{file}\" > NUL\r\n\
+             if errorlevel 1 goto :rollback\r\n\
+             if not exist \"..\\{file}\" goto :rollback\r\n"
+        ));
+    }
+
+    // Успешное завершение транзакции: удаляем .backup, запускаем обновлённый плеер и удаляем .updates
+    script.push_str(&format!(
+        "rmdir /s /q \".backup\" 2>NUL\r\n\
+         start \"\" \"..\\{current_exe_name}\"\r\n\
+         cd ..\r\n\
+         start /b cmd /c \"timeout /t 2 /nobreak > NUL & rmdir /s /q .updates\"\r\n\
+         exit /b 0\r\n\
+         :rollback\r\n\
+         for %%F in (\".backup\\*\") do copy /y /b \"%%~fF\" \"..\\%%~nxF\" > NUL\r\n\
+         if not exist \"..\\logs\" mkdir \"..\\logs\" 2>NUL\r\n\
+         echo [UPDATE ERROR] Сбой замены файлов обновления, выполнен автоматический откат из .updates\\.backup >> \"..\\logs\\error.log\"\r\n\
+         exit /b 1\r\n\
+         :backup_failed\r\n\
+         if not exist \"..\\logs\" mkdir \"..\\logs\" 2>NUL\r\n\
+         echo [UPDATE ERROR] Не удалось создать резервную копию перед обновлением; папка .updates сохранена >> \"..\\logs\\error.log\"\r\n\
+         exit /b 1\r\n\
+         :lock_timeout\r\n\
+         if not exist \"..\\logs\" mkdir \"..\\logs\" 2>NUL\r\n\
+         echo [UPDATE ERROR] Превышено время ожидания освобождения файлов плеера; папка .updates сохранена >> \"..\\logs\\error.log\"\r\n\
+         exit /b 1\r\n"
+    ));
+
+    script
 }
 
 #[cfg(test)]
@@ -808,6 +988,75 @@ mod tests {
         assert!(v200.contains_key("l-mpv.exe"));
 
         assert!(get_legacy_checksums("v9.9.9").is_none());
+    }
+
+    #[test]
+    fn транзакционное_обновление_откатывает_все_файлы_при_сбое_и_сохраняет_updates() {
+        use super::{apply_staged_update_transaction, build_transactional_update_bat};
+
+        let temp_root = std::env::temp_dir().join(format!(
+            "l_mpv_updater_tx_test_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&temp_root);
+        let updates_dir = temp_root.join(".updates");
+        std::fs::create_dir_all(&updates_dir).unwrap();
+
+        // Старые версии файлов в корне плеера
+        std::fs::write(temp_root.join("l-mpv.exe"), b"old-exe-v1").unwrap();
+        std::fs::write(temp_root.join("libmpv-2.dll"), b"old-mpv-v1").unwrap();
+
+        // Новые версии в .updates
+        std::fs::write(updates_dir.join("l-mpv.exe"), b"new-exe-v2").unwrap();
+        std::fs::write(updates_dir.join("libmpv-2.dll"), b"new-mpv-v2").unwrap();
+        std::fs::write(updates_dir.join("mediainfo.dll"), b"new-mediainfo-v2").unwrap();
+
+        // Имитируем препятствие для третьего файла: на месте mediainfo.dll в target_dir создана папка
+        std::fs::create_dir_all(temp_root.join("mediainfo.dll")).unwrap();
+
+        let files = vec![
+            "l-mpv.exe".to_string(),
+            "libmpv-2.dll".to_string(),
+            "mediainfo.dll".to_string(),
+        ];
+        let res = apply_staged_update_transaction(&updates_dir, &temp_root, &files);
+        assert!(res.is_err(), "Транзакция обязана завершиться ошибкой");
+
+        // Проверяем, что первые два файла остались в старой версии v1, а .updates сохранился
+        assert_eq!(
+            std::fs::read(temp_root.join("l-mpv.exe")).unwrap(),
+            b"old-exe-v1"
+        );
+        assert_eq!(
+            std::fs::read(temp_root.join("libmpv-2.dll")).unwrap(),
+            b"old-mpv-v1"
+        );
+        assert!(updates_dir.join("l-mpv.exe").is_file());
+        assert!(updates_dir.join("libmpv-2.dll").is_file());
+        assert!(updates_dir.join("mediainfo.dll").is_file());
+
+        // Убираем препятствие и повторяем транзакцию — теперь все 3 файла должны обновиться атомарно
+        std::fs::remove_dir_all(temp_root.join("mediainfo.dll")).unwrap();
+        apply_staged_update_transaction(&updates_dir, &temp_root, &files).unwrap();
+        assert_eq!(
+            std::fs::read(temp_root.join("l-mpv.exe")).unwrap(),
+            b"new-exe-v2"
+        );
+        assert_eq!(
+            std::fs::read(temp_root.join("libmpv-2.dll")).unwrap(),
+            b"new-mpv-v2"
+        );
+        assert_eq!(
+            std::fs::read(temp_root.join("mediainfo.dll")).unwrap(),
+            b"new-mediainfo-v2"
+        );
+
+        let bat = build_transactional_update_bat("l-mpv.exe", &files);
+        assert!(!bat.contains("xcopy"));
+        assert!(bat.contains(":rollback"));
+        assert!(bat.contains(".backup"));
+
+        let _ = std::fs::remove_dir_all(&temp_root);
     }
 }
 

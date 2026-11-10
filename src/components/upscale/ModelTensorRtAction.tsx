@@ -182,7 +182,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
       className="btn btn--secondary model-compile-action"
       onClick={onPrecompile}
       disabled={!!compilingModel}
-      title={dict.settings.upscaling.trtCompileTitle}
+      title={model.engine_outdated ? dict.settings.upscaling.trtRebuildRequired : dict.settings.upscaling.trtCompileTitle}
       style={{
         height: "var(--size-action-compact)",
         padding: "0 8px",
@@ -197,8 +197,8 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
         cursor: "pointer",
       }}
       >
-      <Zap size={14} color="var(--accent-text, var(--accent))" />
-      <span>{dict.settings.upscaling.trtCompileBadge}</span>
+      {model.engine_outdated ? <RefreshCw size={14} color="var(--warning-text)" /> : <Zap size={14} color="var(--accent-text, var(--accent))" />}
+      <span>{model.engine_outdated ? dict.settings.upscaling.trtRebuildBadge : dict.settings.upscaling.trtCompileBadge}</span>
     </button>
   );
 });

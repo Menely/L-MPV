@@ -276,7 +276,7 @@ mod tests {
     fn test_generation_increment_and_cancellation() {
         tauri::async_runtime::block_on(async {
             let manager = HeatmapTaskManager::new();
-            assert_eq!(manager.is_generation_current(0), true);
+            assert!(manager.is_generation_current(0));
 
             let gen1 = manager.start_request().await;
             assert_eq!(gen1, 1);

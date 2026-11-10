@@ -381,9 +381,17 @@ unsafe impl Sync for MpvManager {}
 
 impl MpvManager {
     /// Загрузка API из первой доступной библиотеки mpv.
-    unsafe fn load_mpv_api() -> Result<MpvApi, String> {
+    unsafe fn load_mpv_api(portable_dir: &Path) -> Result<MpvApi, String> {
         let dll_names = ["libmpv-2.dll", "mpv-2.dll", "libmpv-1.dll", "mpv-1.dll"];
         for dll_name in &dll_names {
+            let candidate = portable_dir.join(dll_name);
+            if candidate.exists() {
+                if let Some(path_str) = candidate.to_str() {
+                    if let Ok(loaded) = MpvApi::load(path_str) {
+                        return Ok(loaded);
+                    }
+                }
+            }
             if let Ok(loaded) = MpvApi::load(dll_name) {
                 return Ok(loaded);
             }
@@ -397,7 +405,7 @@ impl MpvManager {
     /// Создание нового экземпляра менеджера mpv.
     pub fn new(portable_dir: &Path, saved_settings: &crate::commands::AppSettings) -> Result<Self, String> {
         unsafe {
-            let api = Self::load_mpv_api()?;
+            let api = Self::load_mpv_api(portable_dir)?;
 
             let handle = (api.create)();
             if handle.is_null() {
@@ -593,10 +601,12 @@ impl MpvManager {
             if saved_settings.deband_enabled.unwrap_or(false) {
                 Self::set_option(&api, handle, "deband", "yes");
             }
-            // Деинтерлейсинг
+            // Деинтерлейсинг (базовые режимы до initialize; yadif/yadif2x применяются после initialize через vf @deint)
             if let Some(ref mode) = saved_settings.deinterlace_mode {
-                if matches!(mode.as_str(), "no" | "auto" | "yadif" | "yadif2x") {
-                    Self::set_option(&api, handle, "deinterlace", mode);
+                match mode.as_str() {
+                    "no" | "auto" => Self::set_option(&api, handle, "deinterlace", mode),
+                    "yadif" | "yadif2x" => Self::set_option(&api, handle, "deinterlace", "no"),
+                    _ => {}
                 }
             }
             // Аппаратное декодирование
@@ -643,10 +653,18 @@ impl MpvManager {
                 return Err(format!("Ошибка инициализации mpv: код {}", err));
             }
 
-            Ok(Self {
+            let manager = Self {
                 handle: Mutex::new(handle),
                 api,
-            })
+            };
+
+            if let Some(ref mode) = saved_settings.deinterlace_mode {
+                if matches!(mode.as_str(), "no" | "auto" | "yadif" | "yadif2x") {
+                    let _ = manager.set_deinterlace_mode(mode);
+                }
+            }
+
+            Ok(manager)
         }
     }
 
@@ -766,16 +784,34 @@ impl MpvManager {
     /// Динамически применяет режим деинтерлейсинга.
     ///
     /// Допустимые значения: `"no"`, `"auto"`, `"yadif"`, `"yadif2x"`.
-    /// Префикс `yadif` без суффикса `2x` убирает дёрганость полей на
-    /// прогрессивном источнике, `yadif2x` удваивает число кадров.
+    /// В поставляемой `libmpv-2.dll` свойство `deinterlace` принимает только `"no" | "auto" | "yes"`,
+    /// поэтому режимы `"yadif"` и `"yadif2x"` управляются через именованный видеофильтр `@deint`
+    /// (`lavfi=[yadif=mode=send_frame...]` и `lavfi=[yadif=mode=send_field...]`).
     pub fn set_deinterlace_mode(
         &self,
         mode: &str,
     ) -> Result<(), String> {
-        if !matches!(mode, "no" | "auto" | "yadif" | "yadif2x") {
-            return Err(format!("Неизвестный режим деинтерлейсинга: {mode}"));
+        match mode {
+            "no" | "auto" => {
+                let _ = self.command("vf remove @deint");
+                self.set_property_string("deinterlace", mode)
+            }
+            "yadif" => {
+                self.set_property_string("deinterlace", "no")?;
+                let _ = self.command("vf remove @deint");
+                self.command(
+                    "vf add @deint:lavfi=[yadif=mode=send_frame:parity=auto:deint=all]",
+                )
+            }
+            "yadif2x" => {
+                self.set_property_string("deinterlace", "no")?;
+                let _ = self.command("vf remove @deint");
+                self.command(
+                    "vf add @deint:lavfi=[yadif=mode=send_field:parity=auto:deint=all]",
+                )
+            }
+            _ => Err(format!("Неизвестный режим деинтерлейсинга: {mode}")),
         }
-        self.set_property_string("deinterlace", mode)
     }
 
     /// Динамически применяет режим аппаратного декодирования.
@@ -1729,6 +1765,7 @@ impl MpvManager {
         slot: u32,
         backend_changed: bool,
     ) -> Result<(), String> {
+        crate::upscale::compatibility::mark_runtime_used();
         use crate::upscale::config::get_inference_dir;
 
         let norm_conf = conf_path.replace('\\', "/");
@@ -1947,6 +1984,7 @@ impl Drop for MpvManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn copy_bgr0_frame_handles_positive_stride() {
@@ -2046,5 +2084,60 @@ mod tests {
     fn copy_bgr0_frame_rejects_invalid_bounds() {
         assert!(copy_bgr0_frame(&[0; 7], 2, 2, 8).is_err());
         assert!(copy_bgr0_frame(&[0; 16], 2, 2, 7).is_err());
+    }
+
+    #[test]
+    fn set_deinterlace_mode_supports_all_ui_modes_with_bundled_libmpv() {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        if !manifest_dir.join("libmpv-2.dll").exists() {
+            return;
+        }
+        let temp_dir = std::env::temp_dir().join(format!(
+            "l_mpv_deint_test_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        unsafe {
+            let api = MpvManager::load_mpv_api(&manifest_dir).unwrap();
+            let handle = (api.create)();
+            assert!(!handle.is_null());
+            MpvManager::set_option(&api, handle, "vo", "null");
+            MpvManager::set_option(&api, handle, "ao", "null");
+            MpvManager::set_option(&api, handle, "terminal", "no");
+            assert_eq!((api.initialize)(handle), 0);
+
+            let mgr = MpvManager {
+                handle: Mutex::new(handle),
+                api,
+            };
+
+            mgr.set_deinterlace_mode("yadif").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "no");
+            let vf_yadif = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(vf_yadif.contains("deint"), "vf={vf_yadif}");
+            assert!(vf_yadif.contains("send_frame"), "vf={vf_yadif}");
+
+            mgr.set_deinterlace_mode("yadif2x").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "no");
+            let vf_yadif2x = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(vf_yadif2x.contains("deint"), "vf={vf_yadif2x}");
+            assert!(vf_yadif2x.contains("send_field"), "vf={vf_yadif2x}");
+
+            mgr.set_deinterlace_mode("auto").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "auto");
+            let vf_auto = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(!vf_auto.contains("deint"), "vf={vf_auto}");
+
+            mgr.set_deinterlace_mode("no").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "no");
+            let vf_no = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(!vf_no.contains("deint"), "vf={vf_no}");
+
+            assert!(mgr.set_deinterlace_mode("invalid").is_err());
+        }
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }

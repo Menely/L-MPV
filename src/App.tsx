@@ -1,3 +1,4 @@
+import { upscaleErrorMessage } from "./utils/upscaleCompatibility";
 import {
   useState,
   useCallback,
@@ -38,6 +39,7 @@ import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
 import { useTranslation } from "./i18n/LanguageContext";
 import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
 import { getSavedSeekStepSeconds, triggerSeekIndicator } from "./utils/seekUtils";
+import { subtitleControlsOffset } from "./utils/subtitleUiGeometry";
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
 // Тяжёлые модалки и панели настроек грузятся лениво: в стартовый бандл не попадают,
 // парсятся только при первом открытии (dnd-kit едет вместе с настройками).
@@ -306,52 +308,61 @@ function App() {
 
   const shouldHideControlsInUpperHalf = hasMedia && hideControlsInUpperHalf && isCursorInUpperHalf;
   const isControlsVisible = hasMedia && !isIdle && !shouldHideControlsInUpperHalf;
-  const lastAppliedAvoidControlsRef = useRef<boolean | null>(null);
-  const lastAvoidMediaPathRef = useRef<string | undefined>(undefined);
-  const lastWindowHeightRef = useRef<number>(window.innerHeight);
-
-  // Динамическое смещение субтитров выше интерфейса при его активности
+  const subtitleUpdateQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  // Measure the rendered panel: capsule, modern, docked and CSS zoom have
+  // different heights. Layout changes must update subtitles without mouse input.
   useEffect(() => {
     if (!hasMedia) {
-      lastAppliedAvoidControlsRef.current = null;
-      lastAvoidMediaPathRef.current = undefined;
+      subtitleUpdateQueueRef.current = subtitleUpdateQueueRef.current.catch(() => {}).then(() =>
+        invoke("update_subtitles_avoid_ui", { controlsVisible: false }),
+      ).catch(console.error);
       return;
     }
-
-    const isNewMedia = lastAvoidMediaPathRef.current !== mediaInfo?.path;
-    lastAvoidMediaPathRef.current = mediaInfo?.path;
-    if (isNewMedia) {
-      lastAppliedAvoidControlsRef.current = null;
-    }
-
-    const targetVisible = subtitlesAvoidUi ? isControlsVisible : false;
-
-    const applySubtitlePosition = () => {
-      lastWindowHeightRef.current = window.innerHeight;
-      invoke("update_subtitles_avoid_ui", {
-        controlsVisible: targetVisible,
-        windowHeight: window.innerHeight,
-      }).catch(console.error);
-    };
-
-    const heightChanged = Math.abs(window.innerHeight - lastWindowHeightRef.current)> 2;
-    if (lastAppliedAvoidControlsRef.current !== targetVisible || isNewMedia || (targetVisible && heightChanged)) {
-      lastAppliedAvoidControlsRef.current = targetVisible;
-      applySubtitlePosition();
-    }
-
-    // При изменении размера окна или переключении fullscreen пересчитываем позицию
-    const handleResize = () => {
-      if (subtitlesAvoidUi && isControlsVisible) {
-        if (Math.abs(window.innerHeight - lastWindowHeightRef.current)> 2) {
-          applySubtitlePosition();
+    const wrapper = document.querySelector<HTMLElement>(".player-controls-wrapper");
+    let cancelled = false;
+    let pending = false;
+    let running = false;
+    let lastApplied = "";
+    const apply = async () => {
+      pending = true;
+      if (running) return;
+      running = true;
+      while (pending && !cancelled) {
+        pending = false;
+        const controls = wrapper?.querySelector<HTMLElement>(".player-controls");
+        const bottom = wrapper ? parseFloat(getComputedStyle(wrapper).bottom) || 0 : 0;
+        const offset = controls ? subtitleControlsOffset(
+          controls.getBoundingClientRect().height, controls.offsetHeight, bottom,
+        ) : 0;
+        const controlsVisible = subtitlesAvoidUi && isControlsVisible && offset > 0;
+        const args = { controlsVisible, windowHeight: window.innerHeight, controlsBottom: offset };
+        const key = JSON.stringify(args);
+        if (key === lastApplied) continue;
+        try {
+          const update = subtitleUpdateQueueRef.current.catch(() => {}).then(() => {
+            if (!cancelled) return invoke("update_subtitles_avoid_ui", args);
+          });
+          subtitleUpdateQueueRef.current = update;
+          await update;
+          lastApplied = key;
+        } catch (error) {
+          console.error("Subtitle UI positioning failed:", error);
         }
       }
+      running = false;
     };
-
-    window.addEventListener("resize", handleResize);
+    const observer = new ResizeObserver(() => { void apply(); });
+    // The wrapper survives style switches; its panel subtree does not.
+    if (wrapper) observer.observe(wrapper);
+    const update = () => { void apply(); };
+    window.addEventListener("resize", update);
+    window.addEventListener("l-mpv-settings-changed", update);
+    void apply();
     return () => {
-      window.removeEventListener("resize", handleResize);
+      cancelled = true;
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+      window.removeEventListener("l-mpv-settings-changed", update);
     };
   }, [hasMedia, mediaInfo?.path, subtitlesAvoidUi, isControlsVisible, isFullscreen]);
 
@@ -1011,7 +1022,7 @@ function App() {
           localStorage.setItem("l-mpv-upscale-mode", "off");
           triggerOsd(dict.osd.upscaleOff, 2000);
           window.dispatchEvent(new Event("l-mpv-settings-changed"));
-        } catch (e) { console.error("Ошибка отключения апскейлинга:", e); triggerOsd(dict.osd.upscaleError(String(e)), 3000, true); }
+        } catch (e) { console.error("Ошибка отключения апскейлинга:", e); triggerOsd(dict.osd.upscaleError(upscaleErrorMessage(e, dict)), 3000, true); }
         break;
       case "upscaleFavorite": {
         try {
@@ -1054,7 +1065,7 @@ function App() {
           window.dispatchEvent(new Event("l-mpv-settings-changed"));
         } catch (e) {
           console.error("Ошибка переключения избранной модели по хоткею:", e);
-          triggerOsd(dict.osd.upscaleError(String(e)), 3000, true);
+          triggerOsd(dict.osd.upscaleError(upscaleErrorMessage(e, dict)), 3000, true);
         }
         break;
       }
@@ -1093,7 +1104,7 @@ function App() {
           }
         } catch (e) {
           console.error("Ошибка переключения нейросети по хоткею:", e);
-          triggerOsd(dict.osd.upscaleError(String(e)), 3000, true);
+          triggerOsd(dict.osd.upscaleError(upscaleErrorMessage(e, dict)), 3000, true);
         }
         break;
       }

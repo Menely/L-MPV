@@ -42,7 +42,8 @@ export function sectionIdForModalTab(tab: string): string {
     presets: "section-presets",
     upscaling: "section-upscaling",
     hotkeys: "section-hotkeys",
-    integration: "section-integration",
+    system: "section-system",
+    integration: "section-system",
   };
   return map[tab] || "section-general";
 }
@@ -54,7 +55,8 @@ export function modalTabForSection(section: string): string {
     "section-presets": "presets",
     "section-upscaling": "upscaling",
     "section-hotkeys": "hotkeys",
-    "section-integration": "integration",
+    "section-system": "system",
+    "section-integration": "system",
   };
   return map[section] || "general";
 }

@@ -6,13 +6,13 @@ import {
   Keyboard,
   SlidersHorizontal,
   Palette,
-  Link,
   Loader2,
   Sparkles,
   Layers,
   RefreshCw,
   X,
   Settings,
+  Cpu,
 } from "lucide-react";
 import { useTranslation } from "../../i18n/LanguageContext";
 import {
@@ -39,7 +39,7 @@ import { UpdateInfo } from "../modals/UpdateModal";
 import { PresetsSection } from "./sections/PresetsSection";
 import { UpscalingSettingsSection } from "./sections/UpscalingSettingsSection";
 import { HotkeysSettingsTab } from "./tabs/HotkeysSettingsTab";
-import { IntegrationSettingsTab } from "./tabs/IntegrationSettingsTab";
+import { SystemSettingsTab } from "./tabs/SystemSettingsTab";
 import { AppearanceSettingsTab } from "./tabs/AppearanceSettingsTab";
 import { GeneralSettingsTab } from "./tabs/GeneralSettingsTab";
 import {
@@ -119,7 +119,7 @@ const SECTION_DEFS = [
   { id: "section-presets",     Icon: Layers,            labelKey: "presets"      },
   { id: "section-upscaling",   Icon: Sparkles,          labelKey: "upscaling"    },
   { id: "section-hotkeys",     Icon: Keyboard,          labelKey: "hotkeys"      },
-  { id: "section-integration", Icon: Link,              labelKey: "integration"  },
+  { id: "section-system",      Icon: Cpu,               labelKey: "system"       },
 ] as const;
 
 type SectionId = (typeof SECTION_DEFS)[number]["id"];
@@ -129,7 +129,7 @@ const MemoizedAppearanceSettingsTab = memo(AppearanceSettingsTab);
 const MemoizedPresetsSection = memo(PresetsSection);
 const MemoizedUpscalingSettingsSection = memo(UpscalingSettingsSection);
 const MemoizedHotkeysSettingsTab = memo(HotkeysSettingsTab);
-const MemoizedIntegrationSettingsTab = memo(IntegrationSettingsTab);
+const MemoizedSystemSettingsTab = memo(SystemSettingsTab);
 
 interface SectionBlockProps {
   id: string;
@@ -187,7 +187,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.7.1");
+  const [appVersion, setAppVersion] = useState<string>("2.7.2");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
   const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
@@ -926,12 +926,12 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
       </SectionBlock>
 
       <SectionBlock
-        id="section-integration"
-        Icon={Link}
-        label={dict.settings.tabs.integration}
-        isMounted={mountedSections.has("section-integration")}
+        id="section-system"
+        Icon={Cpu}
+        label={dict.settings.tabs.system}
+        isMounted={mountedSections.has("section-system")}
       >
-        <MemoizedIntegrationSettingsTab />
+        <MemoizedSystemSettingsTab />
       </SectionBlock>
     </>
   );
