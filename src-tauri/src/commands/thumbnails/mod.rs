@@ -29,6 +29,18 @@ struct Requests {
     cancelled: VecDeque<String>,
 }
 
+#[derive(Clone, Debug)]
+struct CachedSource {
+    raw_path: String,
+    canonical_path: PathBuf,
+    vid: String,
+    stream: String,
+    duration: f64,
+    hdr: Option<decoder::HdrTransfer>,
+    base_profile: profile::DecodeProfile,
+    transforms: transforms::Transforms,
+}
+
 #[derive(Default)]
 struct Inner {
     active: Mutex<Requests>,
@@ -36,6 +48,7 @@ struct Inner {
     running: Mutex<Option<Child>>,
     native: Mutex<native::NativeDecoder>,
     cache: Mutex<FrameCache>,
+    source_cache: Mutex<Option<CachedSource>>,
     stopped: AtomicBool,
     reaper_started: AtomicBool,
 }
@@ -55,10 +68,15 @@ impl ThumbnailService {
                 break;
             };
             if inner.stopped.load(Ordering::Acquire) {
+                inner.reaper_started.store(false, Ordering::Release);
                 break;
             }
             if let Ok(mut native) = inner.native.try_lock() {
-                native.release_if_idle();
+                let still_active = native.release_if_idle();
+                if !still_active {
+                    inner.reaper_started.store(false, Ordering::Release);
+                    break;
+                }
             };
         });
     }
@@ -109,6 +127,132 @@ impl ThumbnailService {
         if let Ok(mut native) = self.0.native.lock() {
             *native = native::NativeDecoder::default();
         }
+        if let Ok(mut source_cache) = self.0.source_cache.lock() {
+            *source_cache = None;
+        }
+    }
+
+    /// Разрешение параметров видеоисточника с кешированием метаданных дорожки и профиля.
+    ///
+    /// Исключает повторные дорогостоящие FFI-запросы к libmpv (сканирование дорожек,
+    /// чтение параметров кодека и каноникализацию пути файловой системы) на каждое смещение курсора.
+    fn resolve_source(
+        &self,
+        mpv: &MpvManager,
+        path: &str,
+        seconds: f64,
+        exact: bool,
+    ) -> Result<SourceRequest, String> {
+        if !seconds.is_finite() || seconds < 0.0 {
+            return Err("THUMBNAIL_POSITION".into());
+        }
+        let vid = mpv.get_property_string("vid").unwrap_or_default();
+        let id: i64 = vid.parse().map_err(|_| "THUMBNAIL_UNAVAILABLE")?;
+        if !same_source(mpv, path, &vid) {
+            return Err("THUMBNAIL_CANCELLED".into());
+        }
+
+        let mut source_cache = self.0.source_cache.lock().map_err(|e| e.to_string())?;
+        let cached = match &*source_cache {
+            Some(cached) if cached.raw_path == path && cached.vid == vid => {
+                let current_transforms = transforms::Transforms::read(mpv);
+                let mut updated = cached.clone();
+                updated.transforms = current_transforms;
+                updated
+            }
+            _ => {
+                let local = Path::new(path)
+                    .canonicalize()
+                    .map_err(|_| "THUMBNAIL_UNAVAILABLE")?;
+                if !local.is_file() {
+                    return Err("THUMBNAIL_UNAVAILABLE".into());
+                }
+                let count = mpv.get_property_double("track-list/count").unwrap_or(0.0) as usize;
+                let mut stream = None;
+                let mut video_index = 0;
+                for index in 0..count.min(2048) {
+                    let prefix = format!("track-list/{index}");
+                    if mpv
+                        .get_property_string(&format!("{prefix}/type"))
+                        .unwrap_or_default()
+                        != "video"
+                        || mpv
+                            .get_property_bool(&format!("{prefix}/external"))
+                            .unwrap_or(false)
+                    {
+                        continue;
+                    }
+                    if mpv
+                        .get_property_double(&format!("{prefix}/id"))
+                        .unwrap_or(-1.0) as i64
+                        == id
+                    {
+                        let ff = mpv
+                            .get_property_double(&format!("{prefix}/ff-index"))
+                            .ok()
+                            .filter(|v| v.is_finite() && *v >= 0.0);
+                        stream = Some(
+                            ff.map(|v| format!("0:{}", v as i64))
+                                .unwrap_or_else(|| format!("0:v:{video_index}")),
+                        );
+                        break;
+                    }
+                    video_index += 1;
+                }
+                let duration = mpv.get_property_double("duration").unwrap_or(0.0);
+                if !duration.is_finite() || duration <= 0.0 {
+                    return Err("THUMBNAIL_UNAVAILABLE".into());
+                }
+                let gamma = mpv
+                    .get_property_string("video-params/gamma")
+                    .unwrap_or_default();
+                let width = mpv.get_property_double("video-params/w").unwrap_or(0.0);
+                let height = mpv.get_property_double("video-params/h").unwrap_or(0.0);
+                let base_profile = profile::DecodeProfile::select(
+                    &mpv.get_property_string("video-format").unwrap_or_default(),
+                    width,
+                    height,
+                    matches!(gamma.as_str(), "pq" | "smpte2084" | "hlg" | "arib-std-b67"),
+                    mpv.get_property_double("video-dec-params/rotate")
+                        .unwrap_or(f64::NAN),
+                );
+                let transforms = transforms::Transforms::read(mpv);
+                let hdr = match gamma.as_str() {
+                    "pq" | "smpte2084" => Some(decoder::HdrTransfer::Pq),
+                    "hlg" | "arib-std-b67" => Some(decoder::HdrTransfer::Hlg),
+                    _ => None,
+                };
+                let new_cached = CachedSource {
+                    raw_path: path.to_owned(),
+                    canonical_path: local,
+                    vid: vid.clone(),
+                    stream: stream.ok_or("THUMBNAIL_UNAVAILABLE")?,
+                    duration,
+                    hdr,
+                    base_profile,
+                    transforms,
+                };
+                *source_cache = Some(new_cached.clone());
+                new_cached
+            }
+        };
+        drop(source_cache);
+
+        let mut profile = cached.base_profile;
+        if !cached.transforms.is_identity() {
+            profile = profile::DecodeProfile::Hardware;
+        }
+
+        let seconds = if exact { seconds } else { seconds.floor() };
+        Ok(SourceRequest {
+            profile,
+            transforms: cached.transforms,
+            path: cached.canonical_path,
+            stream: cached.stream,
+            vid: cached.vid,
+            seconds: seconds.min((cached.duration - 0.05).max(0.0)),
+            hdr: cached.hdr,
+        })
     }
 
     fn frame(
@@ -118,13 +262,13 @@ impl ThumbnailService {
         seconds: f64,
         exact: bool,
         token: &AtomicBool,
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Arc<[u8]>, String> {
         let is_cancelled =
             || token.load(Ordering::Acquire) || self.0.stopped.load(Ordering::Acquire);
         if is_cancelled() {
             return Err("THUMBNAIL_CANCELLED".into());
         }
-        let source = source_request(mpv, path, seconds, exact)?;
+        let source = self.resolve_source(mpv, path, seconds, exact)?;
         let color = source.hdr.map_or(0, |hdr| hdr as u8);
         let key = cache::cache_key(
             &source.path,
@@ -139,7 +283,7 @@ impl ThumbnailService {
         }
         let dir = cache_directory()?;
         if let Some(bytes) = FrameCache::read_disk(&dir, &key) {
-            cache.insert(key, bytes.clone());
+            cache.insert(key, Arc::clone(&bytes));
             return Ok(bytes);
         }
         drop(cache);
@@ -195,9 +339,10 @@ impl ThumbnailService {
         {
             return Err("THUMBNAIL_CANCELLED".into());
         }
+        let bytes: Arc<[u8]> = Arc::from(bytes.into_boxed_slice());
         let mut cache = self.0.cache.lock().map_err(|e| e.to_string())?;
         cache.write_disk(&dir, &key, &bytes);
-        cache.insert(key, bytes.clone());
+        cache.insert(key, Arc::clone(&bytes));
         Ok(bytes)
     }
 }
@@ -231,97 +376,6 @@ fn same_source(mpv: &MpvManager, path: &str, vid: &str) -> bool {
         && mpv.get_property_string("vid").unwrap_or_default() == vid
 }
 
-fn source_request(
-    mpv: &MpvManager,
-    path: &str,
-    seconds: f64,
-    exact: bool,
-) -> Result<SourceRequest, String> {
-    if !seconds.is_finite() || seconds < 0.0 {
-        return Err("THUMBNAIL_POSITION".into());
-    }
-    let local = Path::new(path)
-        .canonicalize()
-        .map_err(|_| "THUMBNAIL_UNAVAILABLE")?;
-    if !local.is_file() {
-        return Err("THUMBNAIL_UNAVAILABLE".into());
-    }
-    let vid = mpv.get_property_string("vid").unwrap_or_default();
-    let id: i64 = vid.parse().map_err(|_| "THUMBNAIL_UNAVAILABLE")?;
-    if !same_source(mpv, path, &vid) {
-        return Err("THUMBNAIL_CANCELLED".into());
-    }
-    let count = mpv.get_property_double("track-list/count").unwrap_or(0.0) as usize;
-    let mut stream = None;
-    let mut video_index = 0;
-    for index in 0..count.min(2048) {
-        let prefix = format!("track-list/{index}");
-        if mpv
-            .get_property_string(&format!("{prefix}/type"))
-            .unwrap_or_default()
-            != "video"
-            || mpv
-                .get_property_bool(&format!("{prefix}/external"))
-                .unwrap_or(false)
-        {
-            continue;
-        }
-        if mpv
-            .get_property_double(&format!("{prefix}/id"))
-            .unwrap_or(-1.0) as i64
-            == id
-        {
-            let ff = mpv
-                .get_property_double(&format!("{prefix}/ff-index"))
-                .ok()
-                .filter(|v| v.is_finite() && *v >= 0.0);
-            stream = Some(
-                ff.map(|v| format!("0:{}", v as i64))
-                    .unwrap_or_else(|| format!("0:v:{video_index}")),
-            );
-            break;
-        }
-        video_index += 1;
-    }
-    let duration = mpv.get_property_double("duration").unwrap_or(0.0);
-    if !duration.is_finite() || duration <= 0.0 {
-        return Err("THUMBNAIL_UNAVAILABLE".into());
-    }
-    let seconds = if exact { seconds } else { seconds.floor() };
-    let gamma = mpv
-        .get_property_string("video-params/gamma")
-        .unwrap_or_default();
-    let width = mpv.get_property_double("video-params/w").unwrap_or(0.0);
-    let height = mpv.get_property_double("video-params/h").unwrap_or(0.0);
-    let mut profile = profile::DecodeProfile::select(
-        &mpv.get_property_string("video-format").unwrap_or_default(),
-        width,
-        height,
-        matches!(gamma.as_str(), "pq" | "smpte2084" | "hlg" | "arib-std-b67"),
-        mpv.get_property_double("video-dec-params/rotate")
-            .unwrap_or(f64::NAN),
-    );
-    let transforms = transforms::Transforms::read(mpv);
-    // Full-resolution crop coordinates cannot be applied after GPU scaling.
-    // Preserve geometry through the proven copy-back path instead.
-    if !transforms.is_identity() {
-        profile = profile::DecodeProfile::Hardware;
-    }
-    Ok(SourceRequest {
-        profile,
-        transforms,
-        path: local,
-        stream: stream.ok_or("THUMBNAIL_UNAVAILABLE")?,
-        vid,
-        seconds: seconds.min((duration - 0.05).max(0.0)),
-        hdr: match gamma.as_str() {
-            "pq" | "smpte2084" => Some(decoder::HdrTransfer::Pq),
-            "hlg" | "arib-std-b67" => Some(decoder::HdrTransfer::Hlg),
-            _ => None,
-        },
-    })
-}
-
 #[tauri::command]
 pub async fn get_timeline_thumbnail(
     state: State<'_, PlayerState>,
@@ -348,7 +402,7 @@ pub async fn get_timeline_thumbnail(
     })
     .await
     .map_err(|e| e.to_string())??;
-    Ok(tauri::ipc::Response::new(bytes))
+    Ok(tauri::ipc::Response::new(bytes.to_vec()))
 }
 
 #[tauri::command]

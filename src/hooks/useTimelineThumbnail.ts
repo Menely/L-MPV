@@ -9,6 +9,80 @@ const MAX_READY_FRAMES = 12;
 interface FrameState { source: string; url: string | null; failed: boolean; pending: boolean }
 interface Job { seconds: number; exact: boolean; key: string }
 
+/**
+ * Модульный LRU-кеш готовых миниатюр (Blob URL) в памяти браузера.
+ * Сохраняет декодированные изображения между событиями увода/возврата курсора (pointerleave),
+ * предотвращая повторные IPC-запросы к бэкенду при повторном наведении на таймлайн.
+ */
+class ThumbnailMemoryCache {
+  private readonly entries = new Map<string, string>();
+  private currentSource = "";
+  private readonly maxEntries: number;
+
+  constructor(maxEntries = MAX_READY_FRAMES) {
+    this.maxEntries = maxEntries;
+  }
+
+  public getSource(): string {
+    return this.currentSource;
+  }
+
+  public get(source: string, key: string): string | undefined {
+    if (this.currentSource !== source) return undefined;
+    const compoundKey = `${source}::${key}`;
+    const hit = this.entries.get(compoundKey);
+    if (hit) {
+      // Обновление порядка использования в LRU
+      this.entries.delete(compoundKey);
+      this.entries.set(compoundKey, hit);
+    }
+    return hit;
+  }
+
+  public set(source: string, key: string, url: string, activeUrl: string | null): void {
+    if (this.currentSource !== source) {
+      this.clearAll();
+      this.currentSource = source;
+    }
+    const compoundKey = `${source}::${key}`;
+    const old = this.entries.get(compoundKey);
+    if (old && old !== url) {
+      URL.revokeObjectURL(old);
+    }
+    this.entries.set(compoundKey, url);
+    while (this.entries.size > this.maxEntries) {
+      const oldestKey = [...this.entries.keys()].find(
+        (k) => this.entries.get(k) !== activeUrl && k !== compoundKey
+      );
+      if (!oldestKey) break;
+      const revoked = this.entries.get(oldestKey);
+      if (revoked) URL.revokeObjectURL(revoked);
+      this.entries.delete(oldestKey);
+    }
+  }
+
+  public clearSource(source: string): void {
+    if (this.currentSource === source) {
+      this.clearAll();
+    }
+  }
+
+  public clearAll(): void {
+    for (const url of this.entries.values()) {
+      URL.revokeObjectURL(url);
+    }
+    this.entries.clear();
+    this.currentSource = "";
+  }
+}
+
+export const thumbnailMemoryCache = new ThumbnailMemoryCache(MAX_READY_FRAMES);
+
+/** Сброс всего модульного кеша миниатюр при смене медиафайла или очистке. */
+export function clearTimelineThumbnailCache(): void {
+  thumbnailMemoryCache.clearAll();
+}
+
 /** Latest pending request wins; only one IPC/decode request is in flight. */
 export function useTimelineThumbnail(path: string, videoTrack: number | null, seconds: number, enabled: boolean) {
   const [transformRevision, setTransformRevision] = useState(0);
@@ -24,15 +98,18 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
   useEffect(() => {
     if (!enabled) {
       controller.current = null;
+      thumbnailMemoryCache.clearAll();
       setFrame({ source, url: null, failed: false, pending: false });
       return;
+    }
+    if (thumbnailMemoryCache.getSource() && thumbnailMemoryCache.getSource() !== source) {
+      thumbnailMemoryCache.clearAll();
     }
     const scope = `${Date.now().toString(36)}-${++scopeCounter}`;
     let sequence = 0;
     let disposed = false;
     let stopped = false;
     let failedExact: string | null = null;
-    const cached = new Map<string, string>();
     let desired: Job | null = null;
     let active: { id: string; job: Job; cancelled: boolean } | null = null;
     let shown: string | null = null;
@@ -47,7 +124,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
       desired = null;
       if (job.exact && failedExact === job.key) return;
       if (shown === job.key) return;
-      const hit = cached.get(job.key);
+      const hit = thumbnailMemoryCache.get(source, job.key);
       if (hit) {
         url = hit;
         shown = job.key;
@@ -62,15 +139,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
       }).then((bytes) => {
         if (disposed || stopped || active?.cancelled || !bytes.byteLength) return;
         const next = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
-        const old = cached.get(job.key);
-        if (old) URL.revokeObjectURL(old);
-        cached.set(job.key, next);
-        while (cached.size > MAX_READY_FRAMES) {
-          const oldest = [...cached.keys()].find((key) => cached.get(key) !== url && key !== job.key);
-          if (!oldest) break;
-          URL.revokeObjectURL(cached.get(oldest)!);
-          cached.delete(oldest);
-        }
+        thumbnailMemoryCache.set(source, job.key, next, url);
         // Keep valid completed jobs for a return hover, but never label a frame
         // from another position as the current timestamp.
         if (thumbnailTime(latestTime, job.exact) !== job.seconds) return;
@@ -93,8 +162,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
         stopped = true;
         clearTimeout(settle);
         desired = null;
-        for (const image of cached.values()) URL.revokeObjectURL(image);
-        cached.clear();
+        thumbnailMemoryCache.clearSource(source);
         url = null;
         setFrame({ source, url: null, failed: true, pending: false });
       }).finally(() => {
@@ -109,7 +177,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
       const normalized = thumbnailTime(time, exact);
       const job = { seconds: normalized, exact, key: `${exact ? "exact" : "grid"}:${normalized}` };
       if (exact && failedExact === job.key) return;
-      const hit = cached.get(job.key);
+      const hit = thumbnailMemoryCache.get(source, job.key);
       if (hit) {
         url = hit;
         shown = job.key;
@@ -142,8 +210,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
         clearTimeout(settle);
         desired = null;
         if (active) void invoke("cancel_timeline_thumbnail", { requestId: active.id }).catch(() => {});
-        for (const image of cached.values()) URL.revokeObjectURL(image);
-        cached.clear();
+        thumbnailMemoryCache.clearSource(source);
         url = null;
         setFrame({ source, url: null, failed: true, pending: false });
       },
@@ -154,8 +221,8 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
       clearTimeout(settle);
       desired = null;
       if (active) void invoke("cancel_timeline_thumbnail", { requestId: active.id }).catch(() => {});
-      for (const image of cached.values()) URL.revokeObjectURL(image);
-      cached.clear();
+      // Внимание: модульный кеш thumbnailMemoryCache не сбрасывается при pointerleave,
+      // позволяя мгновенно показать кадры при повторном наведении курсора на таймлайн!
     };
   }, [path, videoTrack, source, enabled]);
 

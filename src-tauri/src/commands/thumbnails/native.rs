@@ -241,7 +241,7 @@ mod tests {
             &main,
             &cancelled,
             &stopped,
-            false,
+            None,
             Instant::now() + Duration::from_secs(3),
         )
         .unwrap();
@@ -451,13 +451,18 @@ mod tests {
 }
 
 impl NativeDecoder {
-    pub fn release_if_idle(&mut self) {
+    /// Очистка неактивного контекста libmpv по истечении 5 секунд бездействия.
+    /// Возвращает true, если декодер еще активен, или false, если освобожден.
+    pub fn release_if_idle(&mut self) -> bool {
         if self
             .last_used
             .is_some_and(|time| time.elapsed() >= Duration::from_secs(5))
         {
             self.core = None;
             self.last_used = None;
+            false
+        } else {
+            self.core.is_some()
         }
     }
 
@@ -569,7 +574,7 @@ impl NativeDecoder {
                 core.jpeg()
             };
             if fresh {
-                wait_restart(core, cancelled, stopped, false, deadline)?;
+                wait_restart(core, cancelled, stopped, None, deadline)?;
                 return frame();
             }
             {
@@ -584,7 +589,7 @@ impl NativeDecoder {
                     },
                 ])?;
             }
-            wait_restart(core, cancelled, stopped, true, deadline)?;
+            wait_restart(core, cancelled, stopped, Some((source.seconds, exact)), deadline)?;
             frame()
         })();
         if !exact {
@@ -594,19 +599,22 @@ impl NativeDecoder {
                 }
             }
         }
-        if result.is_err() {
-            // A canceled seek can still emit SEEK/PLAYBACK_RESTART later. Never
-            // let its events satisfy the next job or poison the persistent cache.
-            self.core = None;
-            if using_snapshot
-                && result
-                    .as_ref()
-                    .is_err_and(|e| e != "THUMBNAIL_CANCELLED" && e != "THUMBNAIL_MPV_TIMEOUT")
-            {
-                #[cfg(test)]
-                eprintln!("Snapshot fallback: {:?}", result.as_ref().err());
-                self.snapshot_failed_identity = Some(identity);
-                return self.extract_until(root, source, exact, cancelled, stopped, deadline);
+        if let Err(err) = &result {
+            // Контекст декодера уничтожается только если сбой произошёл на этапе
+            // первоначальной загрузки файла (fresh == true), либо при неисправимой ошибке декодера.
+            // При штатной отмене сика в уже прогретом декодере контекст сохраняется живым!
+            let is_fatal = fresh || (err != "THUMBNAIL_CANCELLED" && err != "THUMBNAIL_MPV_TIMEOUT");
+            if is_fatal {
+                self.core = None;
+                if using_snapshot
+                    && err != "THUMBNAIL_CANCELLED"
+                    && err != "THUMBNAIL_MPV_TIMEOUT"
+                {
+                    #[cfg(test)]
+                    eprintln!("Snapshot fallback: {:?}", err);
+                    self.snapshot_failed_identity = Some(identity);
+                    return self.extract_until(root, source, exact, cancelled, stopped, deadline);
+                }
             }
         }
         self.last_used = Some(Instant::now());
@@ -618,10 +626,10 @@ fn wait_restart(
     core: &PreviewCore,
     cancelled: &AtomicBool,
     stopped: &AtomicBool,
-    require_seek: bool,
+    target: Option<(f64, bool)>,
     deadline: Instant,
 ) -> Result<(), String> {
-    let mut seeking = !require_seek;
+    let mut seeking = target.is_none();
     loop {
         if cancelled.load(Ordering::Acquire) || stopped.load(Ordering::Acquire) {
             return Err("THUMBNAIL_CANCELLED".into());
@@ -631,7 +639,27 @@ fn wait_restart(
         }
         match core.wait_event(0.01)? {
             20 => seeking = true,
-            21 if seeking => return Ok(()),
+            21 if seeking => {
+                if let Some((requested, exact)) = target {
+                    if let Ok(actual) = core.position() {
+                        if exact {
+                            if (actual - requested).abs() <= core.frame_tolerance() {
+                                return Ok(());
+                            }
+                            // Позиция не совпадает: это запоздалое событие от ранее отменённого сика.
+                            // Продолжаем ожидание события PLAYBACK_RESTART от актуального сика.
+                            seeking = false;
+                            continue;
+                        } else if actual <= requested + 0.1 && requested - actual <= 120.0 {
+                            return Ok(());
+                        } else {
+                            seeking = false;
+                            continue;
+                        }
+                    }
+                }
+                return Ok(());
+            }
             7 => return Err("THUMBNAIL_MPV_END".into()),
             _ => {}
         }

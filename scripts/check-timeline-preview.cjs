@@ -31,7 +31,7 @@ const invoke=(command,args)=>{
   assert.equal(command,'get_timeline_thumbnail');
   return new Promise((resolve,reject)=>requests.push({args,resolve,reject}));
 };
-const {useTimelineThumbnail}=load('src/hooks/useTimelineThumbnail.ts',{'react':react,'@tauri-apps/api/core':{invoke}}, {
+const {useTimelineThumbnail, clearTimelineThumbnailCache}=load('src/hooks/useTimelineThumbnail.ts',{'react':react,'@tauri-apps/api/core':{invoke}}, {
   window:{addEventListener(){},removeEventListener(){}},
   URL:{createObjectURL(){const url='blob:frame-'+(++urlId);urls.add(url);return url},revokeObjectURL(url){urls.delete(url)}},
   setTimeout(fn,ms){const id=++timerId;timers.set(id,{fn,at:clock+ms});return id},
@@ -125,6 +125,6 @@ const bytes=()=>new Uint8Array([255,216,1,255,217]).buffer;
   await advance(180);
   assert.equal(requests.length,beforeNewExact+1,'exact failure at one position must not disable refinement elsewhere');
   requests.at(-1).resolve(bytes());await flush();
-  hooks.forEach(hook=>hook.cleanup?.());assert.equal(urls.size,0);assert.equal(timers.size,0);
+  hooks.forEach(hook=>hook.cleanup?.());clearTimelineThumbnailCache();assert.equal(urls.size,0);assert.equal(timers.size,0);
   console.log('PASS timeline geometry, local-video gating, latest queue, coarse/precise refinement, stale frames, cancellation and URL cleanup');
 })().catch(error=>{console.error(error);process.exitCode=1});

@@ -3,6 +3,7 @@ use std::{
     fs,
     io::Read,
     path::{Path, PathBuf},
+    sync::Arc,
     time::UNIX_EPOCH,
 };
 
@@ -60,20 +61,23 @@ pub(super) fn cache_key(
 
 #[derive(Default)]
 pub(super) struct FrameCache {
-    entries: VecDeque<(String, Vec<u8>)>,
+    entries: VecDeque<(String, Arc<[u8]>)>,
     bytes: usize,
     writes: usize,
 }
 
 impl FrameCache {
-    pub fn get(&mut self, key: &str) -> Option<Vec<u8>> {
+    /// Получение миниатюры из оперативной памяти без глубокого копирования буфера (O(1)).
+    pub fn get(&mut self, key: &str) -> Option<Arc<[u8]>> {
         let index = self.entries.iter().position(|entry| entry.0 == key)?;
         let entry = self.entries.remove(index)?;
-        let result = entry.1.clone();
+        let result = Arc::clone(&entry.1);
         self.entries.push_back(entry);
         Some(result)
     }
-    pub fn insert(&mut self, key: String, bytes: Vec<u8>) {
+
+    /// Вставка кадра в LRU-кеш памяти с контролем объема памяти и числа записей.
+    pub fn insert(&mut self, key: String, bytes: Arc<[u8]>) {
         if !valid_jpeg(&bytes) {
             return;
         }
@@ -90,11 +94,13 @@ impl FrameCache {
             }
         }
     }
-    /// Чтение миниатюры из дискового кеша с быстрой валидацией целостности.
+
+    /// Чтение миниатюры из дискового кеша с быстрой валидацией целостности и LRU-обновлением.
     ///
     /// Проверяет допустимый размер файла, наличие маркеров JPEG (SOI/EOI)
     /// и совпадение габаритов (320x180) по заголовку без полной декомпрессии пикселей на CPU.
-    pub fn read_disk(dir: &Path, key: &str) -> Option<Vec<u8>> {
+    /// При успешном чтении обновляет mtime (touch) файла для честного LRU-вытеснения.
+    pub fn read_disk(dir: &Path, key: &str) -> Option<Arc<[u8]>> {
         let path = dir.join(format!("{key}.jpg"));
         if path.metadata().ok()?.len() > MAX_JPEG_BYTES as u64 {
             return None;
@@ -112,12 +118,21 @@ impl FrameCache {
         // Быстрая проверка целостности миниатюры без затратной декомпрессии DCT на CPU:
         // валидация маркеров начала/конца кадра и чтение геометрии 320x180 из заголовка SOF.
         if valid_jpeg(&bytes) && dimensions == Some((320, 180)) {
-            Some(bytes)
+            // Обновляем время модификации (touch) для превращения дискового кеша в честный LRU:
+            // часто просматриваемые миниатюры получают свежий mtime и защищаются от вытеснения.
+            let _ = fs::OpenOptions::new()
+                .write(true)
+                .open(&path)
+                .and_then(|file| {
+                    file.set_times(fs::FileTimes::new().set_modified(std::time::SystemTime::now()))
+                });
+            Some(Arc::from(bytes.into_boxed_slice()))
         } else {
             let _ = fs::remove_file(path);
             None
         }
     }
+
     pub fn write_disk(&mut self, dir: &Path, key: &str, bytes: &[u8]) {
         if !valid_jpeg(bytes) || fs::create_dir_all(dir).is_err() {
             return;
@@ -183,13 +198,14 @@ mod tests {
         frame[..2].copy_from_slice(&[0xff, 0xd8]);
         let n = frame.len();
         frame[n - 2..].copy_from_slice(&[0xff, 0xd9]);
+        let frame_arc: Arc<[u8]> = Arc::from(frame.into_boxed_slice());
         for i in 0..120 {
-            cache.insert(i.to_string(), frame.clone());
+            cache.insert(i.to_string(), Arc::clone(&frame_arc));
         }
         assert!(cache.bytes <= MEMORY_BYTES);
         assert!(cache.get("0").is_none());
         assert!(cache.get("119").is_some());
-        cache.insert("broken".into(), vec![0; 8]);
+        cache.insert("broken".into(), Arc::from(vec![0; 8].into_boxed_slice()));
         assert!(cache.get("broken").is_none());
     }
 
@@ -223,9 +239,9 @@ mod tests {
             .encode_image(&image)
             .unwrap();
         cache.write_disk(&dir, &first, &bytes);
-        assert_eq!(FrameCache::read_disk(&dir, &first).unwrap(), bytes);
+        assert_eq!(&*FrameCache::read_disk(&dir, &first).unwrap(), bytes.as_slice());
         cache.write_disk(&dir, &first, &bytes);
-        assert_eq!(FrameCache::read_disk(&dir, &first).unwrap(), bytes);
+        assert_eq!(&*FrameCache::read_disk(&dir, &first).unwrap(), bytes.as_slice());
         assert!(!dir.join(format!("{first}.part")).exists());
         fs::write(dir.join("bad.jpg"), b"interrupted").unwrap();
         assert!(FrameCache::read_disk(&dir, "bad").is_none());
