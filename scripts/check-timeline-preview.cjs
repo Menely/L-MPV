@@ -32,6 +32,7 @@ const invoke=(command,args)=>{
   return new Promise((resolve,reject)=>requests.push({args,resolve,reject}));
 };
 const {useTimelineThumbnail}=load('src/hooks/useTimelineThumbnail.ts',{'react':react,'@tauri-apps/api/core':{invoke}}, {
+  window:{addEventListener(){},removeEventListener(){}},
   URL:{createObjectURL(){const url='blob:frame-'+(++urlId);urls.add(url);return url},revokeObjectURL(url){urls.delete(url)}},
   setTimeout(fn,ms){const id=++timerId;timers.set(id,{fn,at:clock+ms});return id},
   clearTimeout(id){timers.delete(id)},
@@ -49,22 +50,22 @@ const bytes=()=>new Uint8Array([255,216,1,255,217]).buffer;
   requests[0].resolve(bytes());await flush();
   assert.equal(result.src,null,'late grid reply must not appear under a new timestamp');
   assert.equal(requests.length,2);assert.equal(requests[1].args.seconds,350);
-  requests[1].resolve(bytes());await flush();assert(result.src);assert.equal(urls.size,1);
+  requests[1].resolve(bytes());await flush();assert(result.src);assert.equal(urls.size,2);
   await advance(180);assert.equal(requests[2].args.exact,true);assert.equal(requests[2].args.seconds,350.5);
   await update(['C:/first.mkv',1,351,true]);
   assert(cancellations.includes(requests[2].args.requestId));
   await advance(180);requests[2].resolve(bytes());await flush();
-  assert.equal(requests.at(-1).args.seconds,351);assert.equal(urlId,1,'late precise reply discarded');
+  assert.equal(requests.at(-1).args.seconds,351);assert.equal(urlId,2,'late precise reply discarded');
   const stale=requests.at(-1);
   await update(['C:/second.mkv',2,20,true]);
   assert.equal(result.src,null);assert.equal(urls.size,0);
-  stale.resolve(bytes());await flush();assert.equal(urlId,1,'old source reply discarded');
+  stale.resolve(bytes());await flush();assert.equal(urlId,2,'old source reply discarded');
   requests.at(-1).resolve(bytes());await flush();assert(result.src);assert.equal(urls.size,1);
   await update(['C:/second.mkv',2,20,false]);assert.equal(result.src,null);assert.equal(urls.size,0);
   await update(['C:/cached.mkv',1,10,true]);requests.at(-1).resolve(bytes());await flush();const firstFrame=result.src;
   await advance(180);requests.at(-1).reject('THUMBNAIL_TIMEOUT');await flush();
   assert.equal(result.src,firstFrame,'slow exact refinement retains the matching coarse frame');
-  await update(['C:/cached.mkv',1,30,true]);requests.at(-1).resolve(bytes());await flush();
+  await update(['C:/cached.mkv',1,30,true]);assert.equal(result.src,firstFrame,'moving to a different bucket retains shown frame until new frame arrives');assert(result.pending);requests.at(-1).resolve(bytes());await flush();
   const beforeHit=requests.length;
   await update(['C:/cached.mkv',1,10,true]);assert.equal(result.src,firstFrame);
   await advance(180);assert.equal(requests.length,beforeHit,'cached frame is reused without IPC, failed exact is not repeated');
@@ -90,6 +91,39 @@ const bytes=()=>new Uint8Array([255,216,1,255,217]).buffer;
   }
   const beforeEvicted=requests.length;
   await update(['C:/cache-limit.mkv',1,0,true]);assert.equal(requests.length,beforeEvicted+1,'evicted images can be requested again');
+  requests.at(-1).resolve(bytes());await flush();
+  // A completed coarse request at an old position is cached, never displayed
+  // as the new position, and reused when the pointer comes back.
+  await update(['C:/moving.mkv',1,10,true]);
+  const moving = requests.at(-1);
+  await update(['C:/moving.mkv',1,30,true]);
+  moving.resolve(bytes());await flush();assert.equal(result.src,null);
+  requests.at(-1).resolve(bytes());await flush();
+  const countBeforeReturn=requests.length;
+  await update(['C:/moving.mkv',1,10,true]);
+  assert(result.src);assert.equal(requests.length,countBeforeReturn,'completed old coarse frame is cached');
+  await update(['C:/transient.mkv',1,10,true]);
+  requests.at(-1).reject('THUMBNAIL_UNAVAILABLE');await flush();
+  assert(!result.failed,'temporary open/IO contention must not permanently disable preview');
+  await update(['C:/transient.mkv',1,11,true]);
+  requests.at(-1).resolve(bytes());await flush();assert(result.src);
+  await update(['C:/cancel-error.mkv',1,10,true]);
+  requests.at(-1).resolve(bytes());await flush();await advance(180);
+  const canceledExact=requests.at(-1);
+  await update(['C:/cancel-error.mkv',1,30,true]);
+  canceledExact.reject('THUMBNAIL_TIMEOUT');await flush();
+  requests.at(-1).resolve(bytes());await flush();
+  const countBeforeExact=requests.length;
+  await advance(180);assert.equal(requests.length,countBeforeExact+1,'obsolete exact error must not disable future refinement');
+  requests.at(-1).resolve(bytes());await flush();
+  await update(['C:/exact-retry-position.mkv',1,10,true]);
+  requests.at(-1).resolve(bytes());await flush();await advance(180);
+  requests.at(-1).reject('THUMBNAIL_TIMEOUT');await flush();
+  await update(['C:/exact-retry-position.mkv',1,30,true]);
+  requests.at(-1).resolve(bytes());await flush();
+  const beforeNewExact=requests.length;
+  await advance(180);
+  assert.equal(requests.length,beforeNewExact+1,'exact failure at one position must not disable refinement elsewhere');
   requests.at(-1).resolve(bytes());await flush();
   hooks.forEach(hook=>hook.cleanup?.());assert.equal(urls.size,0);assert.equal(timers.size,0);
   console.log('PASS timeline geometry, local-video gating, latest queue, coarse/precise refinement, stale frames, cancellation and URL cleanup');

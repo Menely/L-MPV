@@ -10,11 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[derive(Clone, Copy)]
-pub(super) enum HdrTransfer {
-    Pq = 1,
-    Hlg = 2,
-}
+pub(super) use super::filters::HdrTransfer;
 
 pub(super) struct DecodeRequest<'a> {
     pub path: &'a Path,
@@ -25,19 +21,7 @@ pub(super) struct DecodeRequest<'a> {
 }
 
 pub(super) fn preview_filter(hdr: Option<HdrTransfer>) -> String {
-    let scale =
-        "scale=320:180:force_original_aspect_ratio=decrease:force_divisible_by=2:reset_sar=1";
-    let pad = "pad=320:180:(ow-iw)/2:(oh-ih)/2,setsar=1";
-    if let Some(hdr) = hdr {
-        let transfer = match hdr {
-            HdrTransfer::Pq => "smpte2084",
-            HdrTransfer::Hlg => "arib-std-b67",
-        };
-        // Bound float conversion and tonemapping to preview pixels, even for 4K HDR.
-        format!("{scale},zscale=pin=bt2020:tin={transfer}:min=bt2020nc:t=linear:m=gbr:p=bt709:npl=100,format=gbrpf32le,tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,{pad}")
-    } else {
-        format!("{scale},{pad}")
-    }
+    super::filters::software(hdr, true)
 }
 
 fn command(ffmpeg: &Path, request: &DecodeRequest<'_>) -> Command {

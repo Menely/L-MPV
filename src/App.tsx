@@ -849,6 +849,7 @@ function App() {
           const curRot = (mediaInfo as any)?.rotation || 0;
           const nextRot = (curRot + 90) % 360;
           await invoke("set_rotation", { degrees: nextRot });
+          window.dispatchEvent(new Event("l-mpv-preview-transform-changed"));
           triggerOsd(dict.osd.rotation(nextRot), 1500);
         } catch (e) {
           console.error(e);

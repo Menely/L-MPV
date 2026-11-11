@@ -31,13 +31,13 @@ zip = "2"
 blake3 = "1.8.7"
 flate2 = "1"
 symphonia = { version = "0.6.1", default-features = false, features = ["mkv", "exp-video-codecs"] }
+fast_image_resize = { version = "6", default-features = false, features = ["std"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
 windows = { version = "0.52", features = [
     "Win32_UI_Shell",
     "Win32_System_Com",
-    "Win32_System_Threading",
     "Win32_System_Com_StructuredStorage",
     "Win32_System_Variant",
     "Win32_Foundation",

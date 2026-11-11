@@ -11,7 +11,13 @@ interface Job { seconds: number; exact: boolean; key: string }
 
 /** Latest pending request wins; only one IPC/decode request is in flight. */
 export function useTimelineThumbnail(path: string, videoTrack: number | null, seconds: number, enabled: boolean) {
-  const source = `${path}\n${videoTrack ?? "none"}`;
+  const [transformRevision, setTransformRevision] = useState(0);
+  useEffect(() => {
+    const invalidate = () => setTransformRevision((revision) => revision + 1);
+    window.addEventListener("l-mpv-preview-transform-changed", invalidate);
+    return () => window.removeEventListener("l-mpv-preview-transform-changed", invalidate);
+  }, []);
+  const source = `${path}\n${videoTrack ?? "none"}\n${transformRevision}`;
   const [frame, setFrame] = useState<FrameState>({ source: "", url: null, failed: false, pending: false });
   const controller = useRef<{ move: (time: number) => void; fail: () => void } | null>(null);
 
@@ -25,10 +31,10 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
     let sequence = 0;
     let disposed = false;
     let stopped = false;
-    let exactDisabled = false;
+    let failedExact: string | null = null;
     const cached = new Map<string, string>();
     let desired: Job | null = null;
-    let active: { id: string; job: Job; started: number; cancelled: boolean } | null = null;
+    let active: { id: string; job: Job; cancelled: boolean } | null = null;
     let shown: string | null = null;
     let url: string | null = null;
     let settle: ReturnType<typeof setTimeout> | undefined;
@@ -39,7 +45,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
       if (disposed || stopped || active || !desired) return;
       const job = desired;
       desired = null;
-      if (job.exact && exactDisabled) return;
+      if (job.exact && failedExact === job.key) return;
       if (shown === job.key) return;
       const hit = cached.get(job.key);
       if (hit) {
@@ -49,14 +55,15 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
         return;
       }
       const id = `${scope}-${++sequence}`;
-      active = { id, job, started: Date.now(), cancelled: false };
+      active = { id, job, cancelled: false };
       setFrame((previous) => ({ ...previous, source, pending: true, failed: false }));
       void invoke<ArrayBuffer>("get_timeline_thumbnail", {
         path, seconds: job.seconds, exact: job.exact, requestId: id, videoTrack,
       }).then((bytes) => {
-        if (disposed || stopped || !bytes.byteLength) return;
-        if (thumbnailTime(latestTime, job.exact) !== job.seconds) return;
+        if (disposed || stopped || active?.cancelled || !bytes.byteLength) return;
         const next = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
+        const old = cached.get(job.key);
+        if (old) URL.revokeObjectURL(old);
         cached.set(job.key, next);
         while (cached.size > MAX_READY_FRAMES) {
           const oldest = [...cached.keys()].find((key) => cached.get(key) !== url && key !== job.key);
@@ -64,13 +71,20 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
           URL.revokeObjectURL(cached.get(oldest)!);
           cached.delete(oldest);
         }
+        // Keep valid completed jobs for a return hover, but never label a frame
+        // from another position as the current timestamp.
+        if (thumbnailTime(latestTime, job.exact) !== job.seconds) return;
         url = next;
         shown = job.key;
         setFrame({ source, url: next, failed: false, pending: desired !== null });
       }).catch((error: unknown) => {
-        if (disposed || String(error).includes("THUMBNAIL_CANCELLED")) return;
+        if (disposed || stopped || active?.cancelled || String(error).includes("THUMBNAIL_CANCELLED")) return;
+        if (String(error).includes("THUMBNAIL_UNAVAILABLE")) {
+          setFrame((previous) => ({ ...previous, pending: false }));
+          return;
+        }
         if (job.exact) {
-          exactDisabled = true;
+          failedExact = job.key;
           if (url && shown !== `grid:${thumbnailTime(latestTime, false)}`) url = null;
           setFrame({ source, url, failed: !url, pending: false });
           return;
@@ -91,22 +105,27 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
       });
     };
     const queue = (time: number, exact: boolean) => {
-      if (stopped || (exact && exactDisabled)) return;
+      if (stopped) return;
       const normalized = thumbnailTime(time, exact);
       const job = { seconds: normalized, exact, key: `${exact ? "exact" : "grid"}:${normalized}` };
+      if (exact && failedExact === job.key) return;
       const hit = cached.get(job.key);
       if (hit) {
         url = hit;
         shown = job.key;
         desired = null;
         setFrame({ source, url, failed: false, pending: false });
+      } else {
+        // Сохраняем ранее показанный кадр (url) до готовности нового,
+        // предотвращая мерцание и стробоскопический эффект при перемещении курсора.
+        setFrame((previous) => ({ ...previous, pending: true }));
       }
       if (active && !active.cancelled && active.job.key !== job.key &&
-        (active.job.exact || (thumbnailTime(active.job.seconds, false) !== thumbnailTime(time, false) && Date.now() - active.started >= 120))) {
+        active.job.exact) {
         active.cancelled = true;
         void invoke("cancel_timeline_thumbnail", { requestId: active.id }).catch(() => {});
       }
-      if (shown === job.key || active?.job.key === job.key) { desired = null; return; }
+      if (shown === job.key || (active?.job.key === job.key && !active.cancelled)) { desired = null; return; }
       desired = job;
       pump();
     };

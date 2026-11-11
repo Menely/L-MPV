@@ -14,6 +14,7 @@ use std::sync::Mutex;
 use crate::audio_filter::{AudioFilterChainBuilder, AudioNormalizeMode};
 
 pub(crate) mod preview;
+mod preview_image;
 
 // ─── Определения FFI для libmpv C API ───────────────────
 

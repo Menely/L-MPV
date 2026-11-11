@@ -13,7 +13,6 @@ mod startup_runtime;
 mod mediainfo;
 mod media_report_cache;
 mod mpv_manager;
-pub mod thumbnail_worker;
 mod subtitle_position;
 #[cfg(windows)]
 mod process_job;

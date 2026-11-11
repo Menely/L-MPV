@@ -460,6 +460,7 @@ export function ContextMenu({
   const handleSetRotation = useCallback(async (degrees: number) => {
     try {
       await invoke("set_rotation", { degrees });
+      window.dispatchEvent(new Event("l-mpv-preview-transform-changed"));
       setCurrentRotation(degrees);
     } catch (e) {
       console.error("Ошибка установки поворота видео:", e);

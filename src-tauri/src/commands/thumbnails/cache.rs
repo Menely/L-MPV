@@ -31,7 +31,7 @@ pub(super) fn cache_key(
     }
     let mut hash = blake3::Hasher::new();
     // Bump when dimensions, conversion or selection rules change.
-    hash.update(b"lmpv-timeline-v6-shared-320x180");
+    hash.update(b"lmpv-timeline-v8-snapshot-320x180");
     hash.update(path.to_string_lossy().as_bytes());
     hash.update(&metadata.len().to_le_bytes());
     hash.update(
@@ -90,6 +90,10 @@ impl FrameCache {
             }
         }
     }
+    /// Чтение миниатюры из дискового кеша с быстрой валидацией целостности.
+    ///
+    /// Проверяет допустимый размер файла, наличие маркеров JPEG (SOI/EOI)
+    /// и совпадение габаритов (320x180) по заголовку без полной декомпрессии пикселей на CPU.
     pub fn read_disk(dir: &Path, key: &str) -> Option<Vec<u8>> {
         let path = dir.join(format!("{key}.jpg"));
         if path.metadata().ok()?.len() > MAX_JPEG_BYTES as u64 {
@@ -105,9 +109,9 @@ impl FrameCache {
             image::ImageReader::with_format(std::io::Cursor::new(&bytes), image::ImageFormat::Jpeg)
                 .into_dimensions()
                 .ok();
-        let decodes = dimensions == Some((320, 180))
-            && image::load_from_memory_with_format(&bytes, image::ImageFormat::Jpeg).is_ok();
-        if valid_jpeg(&bytes) && decodes {
+        // Быстрая проверка целостности миниатюры без затратной декомпрессии DCT на CPU:
+        // валидация маркеров начала/конца кадра и чтение геометрии 320x180 из заголовка SOF.
+        if valid_jpeg(&bytes) && dimensions == Some((320, 180)) {
             Some(bytes)
         } else {
             let _ = fs::remove_file(path);
@@ -119,7 +123,17 @@ impl FrameCache {
             return;
         }
         // Cache writes are expendable; corrupt or interrupted entries are ignored on read.
-        let _ = fs::write(dir.join(format!("{key}.jpg")), bytes);
+        let temporary = dir.join(format!("{key}.part"));
+        let destination = dir.join(format!("{key}.jpg"));
+        if fs::write(&temporary, bytes).is_err() {
+            let _ = fs::remove_file(&temporary);
+            return;
+        }
+        // Requests are serialized; readers see either the complete old file or
+        // the complete new file. On Windows an existing destination may win.
+        if fs::rename(&temporary, &destination).is_err() {
+            let _ = fs::remove_file(&temporary);
+        }
         self.writes += 1;
         if self.writes == 1 || self.writes.is_multiple_of(16) {
             prune_disk(dir);
@@ -210,6 +224,9 @@ mod tests {
             .unwrap();
         cache.write_disk(&dir, &first, &bytes);
         assert_eq!(FrameCache::read_disk(&dir, &first).unwrap(), bytes);
+        cache.write_disk(&dir, &first, &bytes);
+        assert_eq!(FrameCache::read_disk(&dir, &first).unwrap(), bytes);
+        assert!(!dir.join(format!("{first}.part")).exists());
         fs::write(dir.join("bad.jpg"), b"interrupted").unwrap();
         assert!(FrameCache::read_disk(&dir, "bad").is_none());
         let huge = fs::File::create(dir.join("oversized.jpg")).unwrap();

@@ -53,7 +53,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **[Tauri](https://tauri.app/)** ([GitHub](https://github.com/tauri-apps/tauri)) — For the lightweight and performant framework powered by Rust and modern web technologies.
 - **[dnd-kit](https://dndkit.com/)** ([GitHub](https://github.com/clauderic/dnd-kit)) — For the flexible and reliable Drag & Drop toolkit for React.
 - **[frame-player](https://github.com/risenxxx/frame-player)** — For the reference approach to timeline frame previews, adapted here with an independent preview worker.
-- **[thumbfast](https://github.com/iiiGerardoiii/thumbfast)** — For the original Lua thumbnailer, integrated with an in-process decoder using the existing libmpv library.
+- **[thumbfast](https://github.com/iiiGerardoiii/thumbfast)** — For the on-demand thumbnail generation approach that inspired the private libmpv preview decoder.
 
 ---
 
@@ -384,7 +384,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Segmented Chapter Hover Adaptation:** when hovering over a video with chapters, only the segment of the chapter under the cursor smoothly expands in height (from 5px to 8px) with vertical centering, while neighboring segments maintain their sleek default thickness. For single-chapter or non-chapter videos, the entire timeline expands uniformly as before.
 - **Kinematic Neon Pulse Wave:** Compact glowing neon ring expanding from the click point along the progress track, styled to match the active player accent theme. Automatically suppressed when animations are disabled, so the ring can never linger over the control buttons.
 - **Live scrubbing:** Pointer movement updates the preview position while dragging the timeline.
-- **Frame preview on hover:** Local videos show a thumbnail above the timeline together with the time and chapter. A coarse preview is cached and refined to the selected moment after the pointer stops. The original thumbfast Lua script manages a private libmpv decoder on a worker thread inside L-MPV, with hardware decoding enabled and no second player process; audio and network sources retain the time/chapter tooltip.
+- **Frame preview on hover:** Local videos show a thumbnail above the timeline together with the time and chapter. A coarse preview is cached and refined to the selected moment after the pointer stops. A private libmpv decoder runs inside L-MPV with bounded hardware decoding buffers, explicit keyframe/exact seeking and in-memory frame transfer; no second player process is launched; audio and network sources retain the time/chapter tooltip.
 - **Preview and exact seeking:** Dragging uses keyframe preview seeks; releasing the pointer requests an exact seek to the selected position.
 - **Release Position Calculation:** The final seek position is computed from a freshly measured track rectangle (invalidated on window resize), so auto window resizing can no longer misplace the playhead.
 - **No Stray Focus Ring:** Clicking the timeline no longer leaves a green `:focus-visible` outline floating over the video; keyboard focus indication is preserved via the progress track growing from 5px to 8px.

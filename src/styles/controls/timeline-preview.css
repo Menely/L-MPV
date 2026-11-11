@@ -1,5 +1,5 @@
 .timeline-preview-card.timeline-preview-card--with-frame {
-  width: 252px;
+  width: 240px;
   max-width: calc(100vw / var(--ui-scale, 1) - 24px);
   max-height: calc(100vh / var(--ui-scale, 1) - 16px);
   box-sizing: border-box;

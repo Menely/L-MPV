@@ -1,12 +1,12 @@
 //! Timeline hover thumbnails, inspired by frame-player's grid/settle split.
 //! Persistent private libmpv decoder with FFmpeg fallback; playback is never sought.
 mod cache;
+mod coarse_cache;
 mod decoder;
+mod filters;
 mod native;
-mod thumbfast;
-#[cfg(test)]
-mod thumbfast_pipe;
-mod thumbfast_runtime;
+mod profile;
+mod transforms;
 
 use super::types::PlayerState;
 use crate::mpv_manager::MpvManager;
@@ -19,7 +19,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tauri::State;
 
@@ -35,8 +35,6 @@ struct Inner {
     worker: Mutex<()>,
     running: Mutex<Option<Child>>,
     native: Mutex<native::NativeDecoder>,
-    thumbfast: Mutex<Option<thumbfast::Thumbfast>>,
-    thumbfast_disabled: AtomicBool,
     cache: Mutex<FrameCache>,
     stopped: AtomicBool,
     reaper_started: AtomicBool,
@@ -61,11 +59,6 @@ impl ThumbnailService {
             }
             if let Ok(mut native) = inner.native.try_lock() {
                 native.release_if_idle();
-            };
-            if let Ok(mut thumbfast) = inner.thumbfast.try_lock() {
-                if thumbfast.as_ref().is_some_and(|session| session.idle()) {
-                    *thumbfast = None;
-                }
             };
         });
     }
@@ -116,9 +109,6 @@ impl ThumbnailService {
         if let Ok(mut native) = self.0.native.lock() {
             *native = native::NativeDecoder::default();
         }
-        if let Ok(mut thumbfast) = self.0.thumbfast.lock() {
-            *thumbfast = None;
-        }
     }
 
     fn frame(
@@ -129,7 +119,6 @@ impl ThumbnailService {
         exact: bool,
         token: &AtomicBool,
     ) -> Result<Vec<u8>, String> {
-        let _worker = self.0.worker.lock().map_err(|e| e.to_string())?;
         let is_cancelled =
             || token.load(Ordering::Acquire) || self.0.stopped.load(Ordering::Acquire);
         if is_cancelled() {
@@ -137,7 +126,13 @@ impl ThumbnailService {
         }
         let source = source_request(mpv, path, seconds, exact)?;
         let color = source.hdr.map_or(0, |hdr| hdr as u8);
-        let key = cache::cache_key(&source.path, &source.stream, color, source.seconds, exact)?;
+        let key = cache::cache_key(
+            &source.path,
+            &source.cache_stream(),
+            color,
+            source.seconds,
+            exact,
+        )?;
         let mut cache = self.0.cache.lock().map_err(|e| e.to_string())?;
         if let Some(bytes) = cache.get(&key) {
             return Ok(bytes);
@@ -153,48 +148,24 @@ impl ThumbnailService {
         }
         let root = std::env::current_exe().map_err(|e| e.to_string())?;
         self.start_idle_cleanup();
-        let thumbfast_result = (|| {
-            if self.0.thumbfast_disabled.load(Ordering::Acquire) {
-                return Err("THUMBFAST_DISABLED".to_string());
-            }
-            let mut session = self.0.thumbfast.lock().map_err(|e| e.to_string())?;
-            if session.is_none() {
-                *session = Some(thumbfast::Thumbfast::new(
-                    mpv.clone(),
-                    root.parent().ok_or("THUMBNAIL_ROOT")?,
-                )?);
-            }
-            let result = session.as_mut().ok_or("THUMBFAST_SESSION")?.frame(
-                source.seconds,
-                token,
-                &self.0.stopped,
-            );
-            if result.as_ref().is_err_and(|e| e != "THUMBNAIL_CANCELLED") {
-                *session = None;
-            }
-            result
-        })();
-        if let Err(error) = &thumbfast_result {
-            if error != "THUMBNAIL_CANCELLED"
-                && !self.0.thumbfast_disabled.swap(true, Ordering::AcqRel)
-            {
-                crate::logging::log_error("thumbfast fallback", error);
-            }
+        let _worker = self.0.worker.lock().map_err(|e| e.to_string())?;
+        if is_cancelled() {
+            return Err("THUMBNAIL_CANCELLED".into());
         }
-        let native_result = match thumbfast_result {
-            Ok(bytes) => Ok(bytes),
-            Err(error) if error == "THUMBNAIL_CANCELLED" => return Err(error),
-            Err(_) => self.0.native.lock().map_err(|e| e.to_string())?.extract(
-                root.parent().ok_or("THUMBNAIL_ROOT")?,
-                &source,
-                exact,
-                token,
-                &self.0.stopped,
-            ),
-        };
+        let began = Instant::now();
+        let native_result = self.0.native.lock().map_err(|e| e.to_string())?.extract(
+            root.parent().ok_or("THUMBNAIL_ROOT")?,
+            &source,
+            exact,
+            token,
+            &self.0.stopped,
+        );
         let bytes = match native_result {
             Ok(bytes) => bytes,
             Err(error) if error == "THUMBNAIL_CANCELLED" => return Err(error),
+            // FFmpeg's default autorotation cannot reproduce mpv's custom
+            // transforms. Do not cache an untransformed fallback as that view.
+            Err(error) if !source.transforms.is_identity() => return Err(error),
             Err(_) => decoder::extract(
                 &super::heatmap::resolve_ffmpeg_path(),
                 decoder::DecodeRequest {
@@ -207,12 +178,20 @@ impl ThumbnailService {
                 token,
                 &self.0.stopped,
                 &self.0.running,
-                Duration::from_secs(10),
+                Duration::from_secs(4).saturating_sub(began.elapsed()),
             )?,
         };
         if is_cancelled()
             || !same_source(mpv, path, &source.vid)
-            || key != cache::cache_key(&source.path, &source.stream, color, source.seconds, exact)?
+            || transforms::Transforms::read(mpv) != source.transforms
+            || key
+                != cache::cache_key(
+                    &source.path,
+                    &source.cache_stream(),
+                    color,
+                    source.seconds,
+                    exact,
+                )?
         {
             return Err("THUMBNAIL_CANCELLED".into());
         }
@@ -237,6 +216,14 @@ struct SourceRequest {
     vid: String,
     seconds: f64,
     hdr: Option<decoder::HdrTransfer>,
+    transforms: transforms::Transforms,
+    profile: profile::DecodeProfile,
+}
+
+impl SourceRequest {
+    fn cache_stream(&self) -> String {
+        format!("{}|{:?}|{:?}", self.stream, self.transforms, self.profile)
+    }
 }
 
 fn same_source(mpv: &MpvManager, path: &str, vid: &str) -> bool {
@@ -304,7 +291,25 @@ fn source_request(
     let gamma = mpv
         .get_property_string("video-params/gamma")
         .unwrap_or_default();
+    let width = mpv.get_property_double("video-params/w").unwrap_or(0.0);
+    let height = mpv.get_property_double("video-params/h").unwrap_or(0.0);
+    let mut profile = profile::DecodeProfile::select(
+        &mpv.get_property_string("video-format").unwrap_or_default(),
+        width,
+        height,
+        matches!(gamma.as_str(), "pq" | "smpte2084" | "hlg" | "arib-std-b67"),
+        mpv.get_property_double("video-dec-params/rotate")
+            .unwrap_or(f64::NAN),
+    );
+    let transforms = transforms::Transforms::read(mpv);
+    // Full-resolution crop coordinates cannot be applied after GPU scaling.
+    // Preserve geometry through the proven copy-back path instead.
+    if !transforms.is_identity() {
+        profile = profile::DecodeProfile::Hardware;
+    }
     Ok(SourceRequest {
+        profile,
+        transforms,
         path: local,
         stream: stream.ok_or("THUMBNAIL_UNAVAILABLE")?,
         vid,

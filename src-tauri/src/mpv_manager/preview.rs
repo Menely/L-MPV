@@ -15,20 +15,40 @@ struct Event {
     data: *mut c_void,
 }
 
-pub(crate) struct EventStatus {
-    pub id: i32,
-    pub end_reason: Option<i32>,
+type Command = unsafe extern "C" fn(*mut MpvHandle, *const *const c_char) -> i32;
+type Wait = unsafe extern "C" fn(*mut MpvHandle, f64) -> *const Event;
+type Terminate = unsafe extern "C" fn(*mut MpvHandle);
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum PreviewBackend {
+    CopyBack,
+    Snapshot,
+    #[cfg(test)]
+    Software,
+}
+impl PreviewBackend {
+    fn hwdec(self) -> &'static str {
+        match self {
+            Self::CopyBack => "auto-copy",
+            Self::Snapshot => "d3d11va",
+            #[cfg(test)]
+            Self::Software => "no",
+        }
+    }
 }
 
-pub(crate) struct PreviewCore(Option<MpvManager>);
+pub(crate) struct PreviewCore {
+    manager: MpvManager,
+    command: Command,
+    wait: Wait,
+    terminate: Terminate,
+    backend: PreviewBackend,
+    encoder: Mutex<super::preview_image::FrameEncoder>,
+}
 
 impl PreviewCore {
     fn manager(&self) -> &MpvManager {
-        self.0.as_ref().expect("live preview context")
-    }
-    #[cfg(test)]
-    pub(crate) fn into_manager(mut self) -> MpvManager {
-        self.0.take().expect("live preview context")
+        &self.manager
     }
     pub fn new(
         root: &Path,
@@ -36,8 +56,13 @@ impl PreviewCore {
         vid: &str,
         start: f64,
         exact: bool,
+        backend: PreviewBackend,
     ) -> Result<Self, String> {
-        let vf = format!("lavfi=[{filter}]");
+        let vf = if matches!(backend, PreviewBackend::Snapshot) {
+            String::new()
+        } else {
+            format!("lavfi=[{filter}]:o=[threads=1]")
+        };
         let start = format!("{start:.3}");
         let options: Vec<(String, String)> = [
             ("config", "no"),
@@ -49,15 +74,32 @@ impl PreviewCore {
             ("idle", "yes"),
             ("keep-open", "always"),
             ("terminal", "no"),
-            // Like thumbfast's default: avoid initializing a second GPU decoder
-            // for a tiny preview, and leave GPU resources to actual playback.
-            ("hwdec", "no"),
+            ("hwdec", backend.hwdec()),
+            ("hwdec-threads", "1"),
+            ("hwdec-extra-frames", "0"),
+            ("vd-queue-enable", "no"),
+            ("demuxer-max-back-bytes", "0"),
+            ("autoload-files", "no"),
+            ("sub-auto", "no"),
+            ("audio-file-auto", "no"),
+            ("embeddedfonts", "no"),
+            ("osc", "no"),
+            ("ytdl", "no"),
+            ("load-stats-overlay", "no"),
+            ("load-osd-console", "no"),
+            ("load-auto-profiles", "no"),
+            ("input-terminal", "no"),
+            ("input-media-keys", "no"),
+            ("media-controls", "no"),
             ("vd-lavc-threads", "2"),
             ("vd-lavc-skiploopfilter", "all"),
             ("vd-lavc-fast", "yes"),
             ("demuxer-readahead-secs", "0"),
             ("demuxer-max-bytes", "512KiB"),
             ("sws-scaler", "fast-bilinear"),
+            // Auto uses every logical CPU for each screenshot. A small bound
+            // avoids thread fan-out while playback is rendering concurrently.
+            ("zimg-threads", "4"),
             ("vf", vf.as_str()),
             ("vid", vid),
             ("start", start.as_str()),
@@ -66,10 +108,29 @@ impl PreviewCore {
         .into_iter()
         .map(|(key, value)| (key.to_string(), value.to_string()))
         .collect();
-        Self::with_options(root, &options)
+        #[cfg(test)]
+        let options = if let Some(dir) = std::env::var_os("LMPV_THUMB_LOG_DIR") {
+            let mut options = options;
+            options.push((
+                "log-file".into(),
+                std::path::PathBuf::from(dir)
+                    .join(format!("native-{backend:?}.log"))
+                    .to_string_lossy()
+                    .into_owned(),
+            ));
+            options.push(("msg-level".into(), "all=v".into()));
+            options
+        } else {
+            options
+        };
+        Self::with_options(root, &options, backend)
     }
 
-    pub fn with_options(root: &Path, options: &[(String, String)]) -> Result<Self, String> {
+    fn with_options(
+        root: &Path,
+        options: &[(String, String)],
+        backend: PreviewBackend,
+    ) -> Result<Self, String> {
         // SAFETY: the API owns the loaded library; the manager owns the new handle
         // immediately, including all option/initialization failure paths.
         let core = unsafe {
@@ -107,7 +168,35 @@ impl PreviewCore {
                 Ok(())
             }
         })?;
-        Ok(Self(Some(core)))
+        // SAFETY: functions are copied from this manager's library and called
+        // only while the owning manager (and therefore the DLL) remains alive.
+        let (command, wait, terminate) = unsafe {
+            (
+                *core
+                    .api
+                    ._lib
+                    .get::<Command>(b"mpv_command\0")
+                    .map_err(|e| e.to_string())?,
+                *core
+                    .api
+                    ._lib
+                    .get::<Wait>(b"mpv_wait_event\0")
+                    .map_err(|e| e.to_string())?,
+                *core
+                    .api
+                    ._lib
+                    .get::<Terminate>(b"mpv_terminate_destroy\0")
+                    .map_err(|e| e.to_string())?,
+            )
+        };
+        Ok(Self {
+            manager: core,
+            command,
+            wait,
+            terminate,
+            backend,
+            encoder: Mutex::new(super::preview_image::FrameEncoder::default()),
+        })
     }
 
     pub fn command(&self, args: &[&str]) -> Result<(), String> {
@@ -121,17 +210,7 @@ impl PreviewCore {
         self.manager().with_handle(|handle| {
             // SAFETY: symbol belongs to the manager's live library. The pointer array
             // is NULL-terminated and all strings remain owned until mpv returns.
-            let status = unsafe {
-                let command = self
-                    .manager()
-                    .api
-                    ._lib
-                    .get::<unsafe extern "C" fn(*mut MpvHandle, *const *const c_char) -> i32>(
-                        b"mpv_command\0",
-                    )
-                    .map_err(|e| e.to_string())?;
-                command(handle, pointers.as_ptr())
-            };
+            let status = unsafe { (self.command)(handle, pointers.as_ptr()) };
             if status < 0 {
                 Err(format!("THUMBNAIL_MPV_COMMAND:{status}"))
             } else {
@@ -140,117 +219,83 @@ impl PreviewCore {
         })
     }
 
-    pub fn watch_filters(&self) -> Result<(), String> {
-        self.manager().with_handle(|handle| {
-            // SAFETY: this core owns the handle and is the only consumer of its
-            // event queue. NONE requests change notifications without borrowed data.
-            let result = unsafe {
-                let observe = self
-                    .manager()
-                    .api
-                    ._lib
-                    .get::<unsafe extern "C" fn(
-                        *mut MpvHandle,
-                        u64,
-                        *const c_char,
-                        super::MpvFormat,
-                    ) -> i32>(b"mpv_observe_property\0")
-                    .map_err(|e| e.to_string())?;
-                observe(handle, 1, c"vf".as_ptr(), super::MpvFormat::None)
-            };
-            if result < 0 {
-                Err("THUMBNAIL_FILTER_OBSERVER".into())
-            } else {
-                Ok(())
-            }
-        })
-    }
-    pub fn filters(&self) -> Result<String, String> {
-        self.manager().get_property_string("vf")
-    }
-    pub fn set_filters(&self, value: &str) -> Result<(), String> {
-        self.manager().set_property_string("vf", value)
-    }
-
     pub fn event(&self) -> Result<i32, String> {
-        self.event_status().map(|event| event.id)
+        self.wait_event(0.0)
     }
 
-    pub fn event_status(&self) -> Result<EventStatus, String> {
+    pub fn wait_event(&self, timeout: f64) -> Result<i32, String> {
         self.manager().with_handle(|handle| {
-            // SAFETY: this is the sole event consumer of this private client.
-            // Copy only the event id before the next API call invalidates its storage.
-            unsafe {
-                let wait = self
-                    .manager()
-                    .api
-                    ._lib
-                    .get::<unsafe extern "C" fn(*mut MpvHandle, f64) -> *const Event>(
-                        b"mpv_wait_event\0",
-                    )
-                    .map_err(|e| e.to_string())?;
-                let event = wait(handle, 0.0);
-                if event.is_null() {
-                    Err("THUMBNAIL_MPV_EVENT".into())
-                } else {
-                    let event = &*event;
-                    // mpv_event_end_file starts with enum mpv_end_file_reason.
-                    // Its storage belongs to the live event until the next wait.
-                    let end_reason = if event.id == 7 && !event.data.is_null() {
-                        Some(*(event.data as *const i32))
-                    } else {
-                        None
-                    };
-                    Ok(EventStatus {
-                        id: event.id,
-                        end_reason,
-                    })
-                }
+            // SAFETY: sole consumer of this private client's event queue. Copy
+            // the event id before the next wait invalidates libmpv's storage.
+            let event = unsafe { (self.wait)(handle, timeout) };
+            if event.is_null() {
+                return Err("THUMBNAIL_MPV_EVENT".into());
             }
+            Ok(unsafe { (*event).id })
         })
+    }
+
+    pub fn set_property(&self, name: &str, value: &str) -> Result<(), String> {
+        self.manager().set_property_string(name, value)
+    }
+
+    pub fn position(&self) -> Result<f64, String> {
+        self.manager().get_property_double("time-pos")
+    }
+
+    pub fn frame_tolerance(&self) -> f64 {
+        self.manager()
+            .get_property_double("estimated-vf-fps")
+            .ok()
+            .filter(|fps| fps.is_finite() && *fps > 0.0)
+            .map_or(0.25, |fps| (1.5 / fps).max(0.08))
+    }
+
+    pub fn validate_snapshot(&self) -> Result<(), String> {
+        let w = self.manager().get_property_double("video-out-params/w")?;
+        let h = self.manager().get_property_double("video-out-params/h")?;
+        let rotation = self
+            .manager()
+            .get_property_double("video-dec-params/rotate")?;
+        let gamma = self
+            .manager()
+            .get_property_string("video-dec-params/gamma")?;
+        if !w.is_finite()
+            || !h.is_finite()
+            || w < 1.0
+            || h < 1.0
+            || w > 8192.0
+            || h > 8192.0
+            || w * h > 8192.0 * 4320.0
+            || !rotation.is_finite()
+            || rotation.rem_euclid(360.0) != 0.0
+            || matches!(gamma.as_str(), "pq" | "smpte2084" | "hlg" | "arib-std-b67")
+        {
+            return Err("THUMBNAIL_SNAPSHOT_LAYOUT".into());
+        }
+        Ok(())
     }
 
     pub fn jpeg(&self) -> Result<Vec<u8>, String> {
-        let mut frame = self.manager().screenshot_raw()?;
-        if frame.width != 320 || frame.height != 180 || frame.data.len() != 320 * 180 * 3 {
-            return Err("THUMBNAIL_MPV_DIMENSIONS".into());
-        }
-        for pixel in frame.data.chunks_exact_mut(3) {
-            pixel.swap(0, 2);
-        }
-        let mut bytes = Vec::new();
-        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, 75)
-            .encode(&frame.data, 320, 180, image::ExtendedColorType::Rgb8)
-            .map_err(|e| e.to_string())?;
-        Ok(bytes)
-    }
-
-    /// Packed BGRA after mpv's video filters; independent of screenshot row padding.
-    pub fn bgra(&self) -> Result<Vec<u8>, String> {
+        let aspect = if matches!(self.backend, PreviewBackend::Snapshot) {
+            self.manager()
+                .get_property_double("video-dec-params/aspect")
+                .ok()
+        } else {
+            None
+        };
+        let mut encoder = self.encoder.lock().map_err(|e| e.to_string())?;
         self.manager()
             .with_screenshot_raw(|data, width, height, stride| {
-                if width == 0 || height == 0 || width > 1280 || height > 720 {
-                    return Err("THUMBNAIL_MPV_DIMENSIONS".into());
-                }
                 let stride = usize::try_from(stride).map_err(|_| "THUMBNAIL_MPV_STRIDE")?;
-                let row_bytes = width * 4;
-                let mut bytes = vec![0; row_bytes * height];
-                for (index, row) in bytes.chunks_exact_mut(row_bytes).enumerate() {
-                    row.copy_from_slice(&data[index * stride..index * stride + row_bytes]);
-                    for pixel in row.chunks_exact_mut(4) {
-                        pixel[3] = 255;
-                    }
-                }
-                Ok(bytes)
+                encoder.encode(data, width, height, stride, aspect)
             })
     }
 }
 
 impl Drop for PreviewCore {
     fn drop(&mut self) {
-        let Some(manager) = self.0.as_ref() else {
-            return;
-        };
+        let manager = &self.manager;
         let mut handle = manager
             .handle
             .lock()
@@ -264,14 +309,7 @@ impl Drop for PreviewCore {
         // Unlike detach, terminate_destroy also waits for native IPC clients,
         // decoder buffers and the hardware context to finish closing.
         unsafe {
-            match manager
-                .api
-                ._lib
-                .get::<unsafe extern "C" fn(*mut MpvHandle)>(b"mpv_terminate_destroy\0")
-            {
-                Ok(terminate) => terminate(raw),
-                Err(_) => (manager.api.destroy)(raw),
-            }
+            (self.terminate)(raw);
         }
     }
 }
