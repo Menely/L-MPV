@@ -9,6 +9,7 @@ pub mod engine_builder;
 pub mod hardware;
 pub mod types;
 mod verification_cache;
+mod archive_integrity;
 
 // Реэкспорт моделей данных для использования внешними модулями
 pub use config::{

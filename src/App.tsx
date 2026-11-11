@@ -13,12 +13,12 @@ import { listen, emit } from "@tauri-apps/api/event";
 import { usePlayerState } from "./contexts/PlayerStateContext";
 import { useOsd, showOsd } from "./hooks/useOsd";
 import { useAutoUpscale } from "./hooks/useAutoUpscale";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Play } from "lucide-react";
 import "./index.css";
 import { Titlebar } from "./components/player/Titlebar";
+import { FileDragPreview } from "./components/player/FileDragPreview";
 import { PlayerControls } from "./components/player/PlayerControls";
 import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
@@ -1280,10 +1280,8 @@ function App() {
     };
   }, [executeAction]);
 
-  // ─── Обработка перетаскивания (Drag & Drop / Хотлоад) ─────────
-  useEffect(() => {
-    let unlistenFn: (() => void) | undefined;
-
+  // ─── Открытие файла / подключение внешней дорожки ─────────
+  const handleDroppedFile = useCallback(async (file: string) => {
     const isAudioFile = (p: string) => {
       const ext = p.split('.').pop()?.toLowerCase() || '';
       return ['mka', 'm4a', 'aac', 'mp3', 'ogg', 'opus', 'flac', 'wav', 'ac3', 'eac3', 'dts', 'thd', 'wma', 'aiff', 'ape'].includes(ext);
@@ -1294,66 +1292,37 @@ function App() {
       return ['srt', 'ass', 'ssa', 'vtt', 'sub', 'idx', 'sup'].includes(ext);
     };
 
-    const setupDragDrop = async () => {
-      const webview = getCurrentWebview();
-      const unlisten = await webview.onDragDropEvent(
-        async (event) => {
-          if (
-            event.payload.type === "drop" &&
-            event.payload.paths.length> 0
-          ) {
-            const file = event.payload.paths[0];
-            const curHasMedia = latestRef.current.hasMedia;
-            const hotloadEnabled = localStorage.getItem('l-mpv-hotload-enabled') === 'true';
-            const d = getDict(getEffectiveLocale());
+    const curHasMedia = latestRef.current.hasMedia;
+    const hotloadEnabled = localStorage.getItem('l-mpv-hotload-enabled') === 'true';
+    const d = getDict(getEffectiveLocale());
 
-            if (hotloadEnabled && curHasMedia && isAudioFile(file)) {
-              try {
-                await invoke("load_audio_file", { path: file });
-                await latestRef.current.loadTracks();
-                const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-                showOsd(d.osd.audioLoaded(fileName));
-              } catch (err) {
-                console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
-              }
-            } else if (hotloadEnabled && curHasMedia && isSubtitleFile(file)) {
-              try {
-                await invoke("load_subtitle_file", { path: file });
-                await latestRef.current.loadTracks();
-                const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-                showOsd(d.osd.subsLoaded(fileName));
-              } catch (err) {
-                console.error("Ошибка подключения субтитров (Хотлоад):", err);
-                showOsd(d.osd.subtitlesLoadErr, { isError: true });
-              }
-            } else {
-              try {
-                await invoke("open_file", { path: file });
-              } catch (err) {
-                console.error("Ошибка открытия файла:", err);
-                showOsd(d.osd.openFileErr, { isError: true });
-              }
-            }
-          }
-        }
-      );
-      return unlisten;
-    };
-
-    let isMounted = true;
-
-    setupDragDrop().then((unlisten) => {
-      if (!isMounted) {
-        unlisten();
-      } else {
-        unlistenFn = unlisten;
+    if (hotloadEnabled && curHasMedia && isAudioFile(file)) {
+      try {
+        await invoke("load_audio_file", { path: file });
+        await latestRef.current.loadTracks();
+        const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
+        showOsd(d.osd.audioLoaded(fileName));
+      } catch (err) {
+        console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
       }
-    });
-
-    return () => {
-      isMounted = false;
-      if (unlistenFn) unlistenFn();
-    };
+    } else if (hotloadEnabled && curHasMedia && isSubtitleFile(file)) {
+      try {
+        await invoke("load_subtitle_file", { path: file });
+        await latestRef.current.loadTracks();
+        const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
+        showOsd(d.osd.subsLoaded(fileName));
+      } catch (err) {
+        console.error("Ошибка подключения субтитров (Хотлоад):", err);
+        showOsd(d.osd.subtitlesLoadErr, { isError: true });
+      }
+    } else {
+      try {
+        await invoke("open_file", { path: file });
+      } catch (err) {
+        console.error("Ошибка открытия файла:", err);
+        showOsd(d.osd.openFileErr, { isError: true });
+      }
+    }
   }, []);
 
   const handleDragOver = useCallback(
@@ -1377,6 +1346,7 @@ function App() {
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       >
+      <FileDragPreview onFileDrop={handleDroppedFile} />
       <Titlebar title="L-MPV" mediaTitle={mediaTitle} />
 
       {/* OSD подписи текущего кадра и статистики */}

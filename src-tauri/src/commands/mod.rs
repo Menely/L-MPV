@@ -11,6 +11,7 @@ pub(crate) mod background_io;
 mod dir_scan;
 pub mod heatmap;
 mod history;
+mod file_lock;
 pub mod matroska;
 mod playback;
 mod playlist;

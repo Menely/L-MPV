@@ -390,11 +390,23 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     const container = listContainerRef.current;
     if (!container) return;
     const currentTop = container.scrollTop;
-    if (Math.abs(currentTop - scrollOffsetRef.current)> 15) {
-      scrollOffsetRef.current = currentTop;
-      setScrollOffset(currentTop);
-    }
-    if (Math.abs(container.scrollTop - expectedScrollTopRef.current) <= 2) {
+    // Программная прокрутка уже обновляет ref до события scroll.
+    // Окно виртуализации сравниваем с React-состоянием, иначе оно застывает.
+    scrollOffsetRef.current = currentTop;
+    setScrollOffset((previous) =>
+      Math.abs(currentTop - previous) > 15 ? currentTop : previous
+    );
+    // Фильтрация и смена режима могут уменьшить scrollHeight: браузер
+    // ограничит прежнюю программную позицию новыми границами списка.
+    const expectedTop = Math.max(
+      0,
+      Math.min(
+        expectedScrollTopRef.current,
+        Math.max(0, container.scrollHeight - container.clientHeight)
+      )
+    );
+    if (Math.abs(currentTop - expectedTop) <= 2) {
+      expectedScrollTopRef.current = expectedTop;
       return;
     }
     lastManualNavTimeRef.current = Date.now();
@@ -672,6 +684,8 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
             flex: 1,
             minHeight: 0,
             overflowY: "auto",
+            // Смещение при замене виртуального окна контролирует сам список.
+            overflowAnchor: "none",
             scrollbarGutter: "stable",
             display: "flex",
             flexDirection: "column",

@@ -7,8 +7,7 @@ use super::types::{get_config_dir, PlayerState};
 use crate::mpv_manager::MpvManager;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 use tauri::State;
 
@@ -18,20 +17,8 @@ const MAX_HISTORY_ENTRIES: usize = 300;
 static HISTORY_FILE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 struct HistoryFileGuard {
+    _file: std::fs::File,
     _process_guard: std::sync::MutexGuard<'static, ()>,
-    lock_path: PathBuf,
-    lock_token: String,
-}
-
-impl Drop for HistoryFileGuard {
-    fn drop(&mut self) {
-        if std::fs::read_to_string(&self.lock_path)
-            .map(|content| content == self.lock_token)
-            .unwrap_or(false)
-        {
-            let _ = std::fs::remove_file(&self.lock_path);
-        }
-    }
 }
 
 fn lock_history_file(config_dir: &Path) -> Result<HistoryFileGuard, String> {
@@ -39,52 +26,10 @@ fn lock_history_file(config_dir: &Path) -> Result<HistoryFileGuard, String> {
         .get_or_init(|| Mutex::new(()))
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    std::fs::create_dir_all(config_dir).map_err(|e| e.to_string())?;
-    let lock_path = config_dir.join(".history.lock");
-    let lock_token = format!(
-        "{}:{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    );
-
-    for _ in 0..300 {
-        match std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&lock_path)
-        {
-            Ok(mut file) => {
-                if let Err(err) = file.write_all(lock_token.as_bytes()) {
-                    let _ = std::fs::remove_file(&lock_path);
-                    return Err(err.to_string());
-                }
-                return Ok(HistoryFileGuard {
-                    _process_guard: process_guard,
-                    lock_path,
-                    lock_token,
-                });
-            }
-            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
-                let is_stale = std::fs::metadata(&lock_path)
-                    .and_then(|m| m.modified())
-                    .ok()
-                    .and_then(|modified| modified.elapsed().ok())
-                    .map(|elapsed| elapsed > std::time::Duration::from_secs(600))
-                    .unwrap_or(false);
-                if is_stale {
-                    let _ = std::fs::remove_file(&lock_path);
-                    continue;
-                }
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
-            Err(err) => return Err(err.to_string()),
-        }
-    }
-
-    Err("Не удалось получить межпроцессную блокировку history.json".to_string())
+    Ok(HistoryFileGuard {
+        _file: super::file_lock::acquire(config_dir, ".history.os-lock")?,
+        _process_guard: process_guard,
+    })
 }
 
 // ─── Структуры данных ───────────────────────────────────
@@ -94,6 +39,9 @@ fn lock_history_file(config_dir: &Path) -> Result<HistoryFileGuard, String> {
 pub struct WatchHistoryItem {
     pub position: f64,
     pub timestamp: u64,
+    /// Subsecond revision; old history files deserialize with zero precision.
+    #[serde(default)]
+    pub timestamp_subsec_nanos: u32,
     /// Общая длительность файла в секундах.
     /// Поле опциональное (default = 0.0) для обратной совместимости
     /// с записями, сохранёнными до добавления этого поля.
@@ -163,10 +111,11 @@ pub fn merge_history_maps(
                 local.insert(key, disk_item);
             }
             Some(local_item) => {
-                let disk_is_newer = disk_item.timestamp > local_item.timestamp
-                    || (disk_item.timestamp == local_item.timestamp
-                        && ((disk_item.completed && !local_item.completed)
-                            || disk_item.position > local_item.position));
+                let disk_revision = (disk_item.timestamp, disk_item.timestamp_subsec_nanos);
+                let local_revision = (local_item.timestamp, local_item.timestamp_subsec_nanos);
+                let disk_is_newer = disk_revision > local_revision
+                    || (disk_revision == local_revision
+                        && disk_item.completed && !local_item.completed);
                 if disk_is_newer {
                     let merged_duration = if disk_item.duration > 0.0 {
                         disk_item.duration
@@ -248,6 +197,17 @@ pub fn save_history_to_disk() {
     let _ = save_history_map_to_dir(&mut map, &config_dir);
 }
 
+fn next_history_revision(observed: (u64, u32), previous: Option<&WatchHistoryItem>) -> (u64, u32) {
+    let Some(previous) = previous else { return observed; };
+    let revision = (previous.timestamp, previous.timestamp_subsec_nanos);
+    if observed > revision { return observed; }
+    if revision.1 < 999_999_999 {
+        (revision.0, revision.1 + 1)
+    } else {
+        (revision.0.saturating_add(1), 0)
+    }
+}
+
 /// Обновление позиции просмотра для конкретного файла с автоматическим дебаунсингом записи.
 pub fn update_history_position(
     path: &str,
@@ -262,10 +222,8 @@ pub fn update_history_position(
         return;
     }
     use std::time::{SystemTime, UNIX_EPOCH};
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+    let observed_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let now = observed_time.as_secs();
     let key = normalize_history_path(path);
 
     // Если видео просмотрено почти до конца (за 10 сек до конца при длительности > 15 сек),
@@ -300,11 +258,17 @@ pub fn update_history_position(
         // Флаг завершённости выставляется строго при реальном досмотре видео до конца
         let completed = is_near_end;
 
+        // Preserve write order even when two updates share a clock tick, or
+        // the system clock moves backwards. Seconds retain their existing meaning.
+        let (timestamp, timestamp_subsec_nanos) = next_history_revision(
+            (now, observed_time.subsec_nanos()), map.get(&key),
+        );
         map.insert(
             key,
             WatchHistoryItem {
                 position: target_pos,
-                timestamp: now,
+                timestamp,
+                timestamp_subsec_nanos,
                 duration: duration_to_store,
                 completed,
             },
@@ -611,6 +575,48 @@ pub struct WatchProgressInfo {
 mod tests {
     use super::*;
 
+    fn item(position: f64, completed: bool, nanos: u32) -> WatchHistoryItem {
+        WatchHistoryItem { position, completed, timestamp: 1_000,
+            timestamp_subsec_nanos: nanos, duration: 1_400.0 }
+    }
+
+    #[test]
+    fn same_second_completion_seek_back_and_restart_keep_latest_update() {
+        for (older, newer) in [
+            (item(1_380.0, false, 10), item(0.0, true, 20)),
+            (item(600.0, false, 10), item(120.0, false, 20)),
+            (item(0.0, true, 10), item(5.0, false, 20)),
+        ] {
+            // Both sync (newer disk) and save (newer local) must agree.
+            for (local_item, disk_item) in [(older.clone(), newer.clone()), (newer.clone(), older)] {
+                let mut local = HashMap::from([("video.mkv".to_string(), local_item)]);
+                merge_history_maps(&mut local, HashMap::from([("video.mkv".to_string(), disk_item)]));
+                assert_eq!(local["video.mkv"].position, newer.position);
+                assert_eq!(local["video.mkv"].completed, newer.completed);
+            }
+        }
+    }
+
+    #[test]
+    fn legacy_records_load_and_completion_wins_an_exact_legacy_tie() {
+        let parsed: WatchHistoryItem = serde_json::from_str(
+            r#"{"position":600.0,"timestamp":1000,"duration":1400.0,"completed":false}"#
+        ).unwrap();
+        assert_eq!(parsed.timestamp_subsec_nanos, 0);
+        for (local_item, disk_item) in [(parsed.clone(), item(0.0, true, 0)), (item(0.0, true, 0), parsed)] {
+            let mut local = HashMap::from([("video.mkv".to_string(), local_item)]);
+            merge_history_maps(&mut local, HashMap::from([("video.mkv".to_string(), disk_item)]));
+            assert!(local["video.mkv"].completed);
+        }
+    }
+
+    #[test]
+    fn revision_orders_equal_ticks_and_clock_rollback() {
+        assert_eq!(next_history_revision((1_000, 20), Some(&item(0.0, true, 20))), (1_000, 21));
+        assert_eq!(next_history_revision((999, 20), Some(&item(0.0, true, 20))), (1_000, 21));
+        assert_eq!(next_history_revision((1_000, 0), Some(&item(0.0, true, 999_999_999))), (1_001, 0));
+    }
+
     #[test]
     fn тест_слияния_истории_между_несколькими_экземплярами_плеера() {
         let temp_dir = std::env::temp_dir().join(format!(
@@ -626,6 +632,7 @@ mod tests {
             WatchHistoryItem {
                 position: 120.0,
                 timestamp: 1_000,
+                timestamp_subsec_nanos: 0,
                 duration: 1_400.0,
                 completed: false,
             },
@@ -639,6 +646,7 @@ mod tests {
             WatchHistoryItem {
                 position: 50.0,
                 timestamp: 900,
+                timestamp_subsec_nanos: 0,
                 duration: 1_200.0,
                 completed: false,
             },
@@ -651,6 +659,7 @@ mod tests {
             WatchHistoryItem {
                 position: 340.0,
                 timestamp: 1_050,
+                timestamp_subsec_nanos: 0,
                 duration: 1_500.0,
                 completed: false,
             },
@@ -660,6 +669,7 @@ mod tests {
             WatchHistoryItem {
                 position: 600.0,
                 timestamp: 1_100,
+                timestamp_subsec_nanos: 0,
                 duration: 1_200.0,
                 completed: false,
             },

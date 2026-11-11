@@ -129,6 +129,7 @@ skills-lock.json
 *.tmp
 .tmp/
 .updates/
+.updates-*/
 
 # Временные файлы Python, PyInstaller и отчетов сборки зависимостей
 __pycache__/

@@ -14,20 +14,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 static SETTINGS_FILE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 struct SettingsFileGuard {
+    _file: std::fs::File,
     _process_guard: std::sync::MutexGuard<'static, ()>,
-    lock_path: PathBuf,
-    lock_token: String,
-}
-
-impl Drop for SettingsFileGuard {
-    fn drop(&mut self) {
-        if std::fs::read_to_string(&self.lock_path)
-            .map(|content| content == self.lock_token)
-            .unwrap_or(false)
-        {
-            let _ = std::fs::remove_file(&self.lock_path);
-        }
-    }
 }
 
 /// Вспомогательная функция десериализации для полей `bool` с дефолтом `true`.
@@ -254,70 +242,10 @@ impl AppSettings {
         } else {
             config_dir.join("config")
         };
-        std::fs::create_dir_all(&target_dir)
-            .map_err(|error| error.to_string())?;
-        let lock_path = target_dir.join(".settings.lock");
-        let lock_token = format!(
-            "{}:{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|duration| duration.as_nanos())
-                .unwrap_or(0)
-        );
-
-        for _ in 0..300 {
-            match std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&lock_path)
-            {
-                Ok(mut file) => {
-                    if let Err(error) = file.write_all(
-                        lock_token.as_bytes(),
-                    ) {
-                        let _ = std::fs::remove_file(&lock_path);
-                        return Err(error.to_string());
-                    }
-                    return Ok(SettingsFileGuard {
-                        _process_guard: process_guard,
-                        lock_path,
-                        lock_token,
-                    });
-                }
-                Err(error)
-                    if error.kind()
-                        == std::io::ErrorKind::AlreadyExists =>
-                {
-                    let is_stale = std::fs::metadata(
-                        &lock_path,
-                    )
-                    .and_then(|metadata| metadata.modified())
-                    .ok()
-                    .and_then(|modified| {
-                        modified.elapsed().ok()
-                    })
-                    .map(|elapsed| {
-                        elapsed > std::time::Duration::from_secs(600)
-                    })
-                    .unwrap_or(false);
-                    if is_stale {
-                        let _ = std::fs::remove_file(
-                            &lock_path,
-                        );
-                        continue;
-                    }
-                    std::thread::sleep(
-                        std::time::Duration::from_millis(10),
-                    );
-                }
-                Err(error) => {
-                    return Err(error.to_string());
-                }
-            }
-        }
-
-        Err("Не удалось получить блокировку settings.json".to_string())
+        Ok(SettingsFileGuard {
+            _file: super::file_lock::acquire(&target_dir, ".settings.os-lock")?,
+            _process_guard: process_guard,
+        })
     }
 
     fn load_unlocked(config_dir: &Path) -> Self {
@@ -1074,9 +1002,9 @@ mod settings_tests {
         assert_eq!(loaded.ui.language.as_deref(), Some("en"));
         assert_eq!(loaded.ui.skip_opening_seconds, Some(120));
         assert!(loaded.ui.visualizer_config.is_some());
-        assert!(!root
+        assert!(root
             .join("config")
-            .join(".settings.lock")
+            .join(".settings.os-lock")
             .exists());
         let _ = std::fs::remove_dir_all(root);
     }

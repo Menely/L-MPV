@@ -133,8 +133,8 @@ export function useFollowPlayback({
             Math.min(container.scrollTop + step, maxTop)
           );
           container.scrollTop = next;
-          expectedScrollTopRef.current = next;
-          scrollOffsetRef.current = next;
+          expectedScrollTopRef.current = container.scrollTop;
+          scrollOffsetRef.current = container.scrollTop;
           needsAnotherTick = true;
         }
       } else if (activeLineIndex >= 0) {
@@ -164,8 +164,8 @@ export function useFollowPlayback({
                 Math.min(container.scrollTop + step, maxTop)
               );
               container.scrollTop = next;
-              expectedScrollTopRef.current = next;
-              scrollOffsetRef.current = next;
+              expectedScrollTopRef.current = container.scrollTop;
+              scrollOffsetRef.current = container.scrollTop;
               needsAnotherTick = true;
             }
           }

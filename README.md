@@ -129,7 +129,8 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Live progress display (percentages, downloaded MBs), clean extraction status, and persistent 100% completion notice for 3 seconds.
   - Non-blocking background extraction via `spawn_blocking` in the background and no intrusive console popups.
 - **TensorRT 1080p Precompilation (.engine):**
-  - After a libmpv/runtime package change, old or unverified caches are flagged for rebuilding. Update engine and Rebuild actions require your click; libraries and stale caches are not updated automatically. ONNX models are retained. Loaded DLLs require restarting before replacement.
+  - Old or unverified caches are flagged for rebuilding. Verified engines can be retained after a libmpv/aji update when the model, GPU and TensorRT core remain compatible. Valid input profiles for different resolutions can coexist; 1080p readiness is shown separately. Update engine and Rebuild actions require your click, and ONNX models are retained. Loaded DLLs require restarting before replacement.
+  - A failed download or extraction leaves the existing runtime and its verification record intact. The new package is checked before replacing installed components.
   - Background optimization of ONNX models for 1080p -> 4K upscaling with multi-stage phase tracking (ONNX parsing, CUDA tactics profiling, graph optimization, engine serialization).
   - Compiled with `trtexec.exe` using a 1080p input profile.
   - Precompilation can reduce startup delays for the matching model and input profile. Models can be recompiled from settings.
@@ -255,11 +256,12 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Versioned `l_mpv_sub_v4` disk cache for repeat lookups without re-parsing.
 - **Full-Text Search:** Real-time searching across the entire subtitle track with match highlighting, match counters, and quick navigation via `Up` / `Down` / `Enter`.
 - **Interactive Jump to Timestamp:** Clicking any line immediately seeks playback to the exact dialogue timestamp.
-- **"Follow Playback" Mode:** Automatically tracks the active line during playback in real time with adaptive auto-scrolling. The animation loop pauses once the active line is centered (`|delta| <= 2px`), reducing DOM layout queries while developer tools are active.
+- **"Follow Playback" Mode:** Highlights the current dialogue and follows playback and seeks. Manual scrolling pauses following until you enable it again. Searching temporarily pauses following; clearing the query resumes it if the mode remains enabled.
+- **Virtualized dialogue list:** Long tracks render a moving window of rows while search covers the entire track. Highlighting and auto-scrolling remain synchronized as that window changes.
 - **Dual Inspection Modes:**
   - *Standard (Text)*: Clean, formatted dialogue text free of formatting tags, showing start timestamp, duration, and character/actor name.
   - *Technical (ASS Inspector)*: In-depth parsing of Advanced SubStation Alpha tags (`[Ht]` HTML preview, `[Ae]` Raw ASS), complete style badges (style name, actor, font family, font size, HEX/BGR color, MarginV/Layer, coordinates, and override tags).
-- **Fine Subtitle Delay Tuning:** Micro-adjust subtitle timing offsets in 50/100 ms increments directly from the search bar.
+- **Fine Subtitle Delay Tuning:** Adjust subtitle timing by 100 ms from the search bar, or 500 ms while holding Shift.
 - **Quick Track Picker:** Switch between embedded and external tracks, load new `.srt`/`.ass` files, or disable subtitles in a single click.
 - **Window geometry:** Resize the subtitle panel width, move it horizontally by its header and save the layout. Width also adapts to the inspection mode.
 - **Adjustable Opacity (Glass / Solid):** Toggle between a translucent Glassmorphic backdrop and a solid high-contrast dark theme for optimal readability over vibrant scenes.
@@ -445,7 +447,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - In **"Modern"** and **"Classic"** styles: Features a cohesive frosted glass panel.
 - **Playlist scrolling:** Search and playback indicators are displayed within a scrollable file list.
 - **Elegant Active Media Marker:** A circular accent badge with subtle neon backlighting marks the currently playing file instead of heavy bounding boxes, ensuring text readability.
-- **Drag & Drop:** Drop local media files into the player window.
+- **Drag & Drop:** While dragging video, audio or subtitle files over the player, a label beside the pointer shows the first file's name and an icon for its type; videos use the L-MPV icon. Long names retain their extension, and multiple files show an additional-file count. Releasing opens or attaches the first file according to the current hotload setting.
 - **Loop Modes & Shuffle:** Loop current file, loop entire playlist, or play in random order. The toolbar button and the *Repeat Mode* submenu share a single `set_repeat_mode` command that always sets both loop properties together; the submenu marks the active mode immediately and confirms the change with an OSD toast.
 - **Watch Progress Bar (Netflix / YouTube Style):** Elegant bottom accent line under every playlist card reflecting saved playback progress (`get_watch_history_batch`). Fully watched episodes (ending reached) are marked with a dedicated `completed` flag, displaying a crisp green `CheckCircle2` badge and a completed progress line, with live progress tracking of the actively playing media.
 - **Resilient Compact Geometry & Non-Compressing Items:** Playlist items strictly preserve vertical layout (`flex-shrink: 0; min-height: 38px`), providing smooth native vertical scrolling without vertical crushing or element collisions even in compact player windows.
@@ -458,13 +460,14 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>💻 System Components, Diagnostics & Windows Integration</b></summary>
 
-- **Native Runtime Diagnostics Dashboard:** Compact card-based overview of L-MPV Core (version, architecture, portable mode), `libmpv` (mpv version and `vf_animejanai` filter status), `FFmpeg` utility, and `MediaInfo` C-API library, with preloaded diagnostics data on tab hover.
+- **System overview:** An always-visible list shows L-MPV Core (version, architecture, portable mode), `libmpv` (mpv version and `vf_animejanai` filter status), `FFmpeg`, and the `MediaInfo` C-API library. Diagnostics are preloaded on tab hover and can be refreshed explicitly.
 - **Neural Inference Monitoring (AnimeJaNai / aji):** Accurately surfaces installed runtimes (`TensorRT 11`, `DirectML`, `aji v0.25.0`), along with ONNX model and compiled `.engine` counters, avoiding false "Not installed" noise.
 - **Hardware Acceleration (GPU):** Displays detected graphics hardware, dedicated video memory (VRAM), and compute microarchitecture (`sm120`, `sm89`, `sm86`, etc.).
 - **Windows File Associations:** One-click registration for video and audio formats in the Windows Registry, safe unlinking, and shortcut to Windows Default Apps settings.
 - **Explorer Context Menu:** Integrates “L-MPV MediaInfo” into the Windows Explorer right-click context menu for instant media analysis without launching playback.
 - **Support Report Generation:** “Copy Report” creates a clean, structured diagnostic report including paths, versions, and hardware specs ready for GitHub Issues.
-- **Real-Time Shell Log:** Dedicated color-coded terminal log tracking Windows integration events and errors.
+- **Collapsible Windows integration:** File associations and the Explorer context menu have separate collapsible sections. The menu status refreshes on opening and with Refresh, including changes made outside the player.
+- **Operation log:** Appears when there are results or errors and can be collapsed.
 
 </details>
 
@@ -533,6 +536,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 
 - Configurable process priority and a Windows multimedia scheduling profile for video rendering. These settings cannot guarantee the absence of dropped frames.
 - Settings, history, presets, context menu layouts and subtitle cache use temporary files and atomic replacement to reduce the risk of incomplete writes.
+- Settings and history use process-owned locks that are released after a crash. History preserves the latest save when completion, backward seeking or replay occur within the same second.
 - Settings and context menu layout writes create rotating backups, keeping up to 10 versions per file. Backups are not enabled for every file type.
 - FFmpeg tasks use process ownership and cancellation. External utilities have time limits: GPU queries (4 seconds), archive extraction (120 seconds) and TensorRT builds (15 minutes).
 - TensorRT compilation is limited to one model at a time.
@@ -546,6 +550,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Automatically verifies hashes of downloaded binaries and libraries (`l-mpv.exe`, `libmpv-2.dll`, `mediainfo.dll`) on the fly, rejecting corrupted or partially downloaded assets before installation.
 - **User-Facing `checksums.json` Manifest:**
   - Validated manifests are copied directly into the user's portable player directory upon update, as well as pre-packaged inside `L-MPV-v*-portable.zip`.
+- **Staged installation and rollback:** Downloads use separate staging directories; applying updates is serialized between player instances. If a replacement fails, the updater attempts to restore old files and remove newly added components, retaining recovery files when needed.
 - **Built-in Legacy Hashes for Rollback (v2.0.0 – v2.5.6):**
   - BLAKE3 checksums for supported older releases are stored in `updater.rs` and used to verify files during rollback.
 - **Renamed Executable Support:**

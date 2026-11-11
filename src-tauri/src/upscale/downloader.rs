@@ -107,7 +107,21 @@ impl InstallStaging {
     }
 }
 impl Drop for InstallStaging { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
-fn commit_staged_install(root: &Path, staging: &Path) -> Result<(), String> {
+fn validate_staged_runtime(staging: &Path, backend: &str) -> Result<(), String> {
+    for name in super::compatibility::required_runtime_files(backend)? {
+        let path = staging.join(name);
+        let meta = fs::metadata(&path).map_err(|e| format!("Missing staged component {name}: {e}"))?;
+        if !meta.is_file() || meta.len() == 0 {
+            return Err(format!("Missing or empty staged component: {name}"));
+        }
+    }
+    Ok(())
+}
+
+fn commit_staged_install(root: &Path, staging: &Path, backend: &str) -> Result<(), String> {
+    // Downloads and extraction only touch staging. Keep the installed runtime
+    // usable if either fails; invalidate only when live files may be replaced.
+    super::compatibility::invalidate_runtime(root, backend)?;
     let destination = root.join("inference");
     let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
     let archive = destination.join("_stale").join(unique.to_string());
@@ -302,6 +316,20 @@ async fn download_file_with_progress(
     Ok(downloaded_bytes)
 }
 
+// Hashing large archives must not occupy a Tokio runtime worker.
+async fn verify_downloaded_archive(
+    contract: &serde_json::Value,
+    archive_name: &str,
+    archive_path: &Path,
+) -> Result<(), String> {
+    let contract = contract.clone();
+    let name = archive_name.to_owned();
+    let path = archive_path.to_owned();
+    tokio::task::spawn_blocking(move || {
+        super::compatibility::verify_downloaded_archive(&contract, &name, &path)
+    }).await.map_err(|e| format!("Archive verification failed: {e}"))?
+}
+
 /// Фоновая загрузка библиотек движка инференса (DirectML / TensorRT) с реальным отслеживанием прогресса
 pub async fn download_inference_engine_impl(
     app: tauri::AppHandle,
@@ -309,6 +337,7 @@ pub async fn download_inference_engine_impl(
 ) -> Result<String, String> {
     println!("[L-MPV][Upscale] Запуск процедуры загрузки компонентов движка: {}", engine);
     let _operation = super::compatibility::OPERATION.try_lock().map_err(|_| "UPSCALE_BUSY".to_owned())?;
+    super::compatibility::required_runtime_files(&engine)?;
     if super::compatibility::runtime_used() { return Err("UPSCALE_RESTART_REQUIRED".into()); }
     let root = super::config::get_app_root_dir();
     if !super::compatibility::native_matches_package(&root) { return Err("UPSCALE_PLAYER_UPDATE".into()); }
@@ -351,8 +380,6 @@ pub async fn download_inference_engine_impl(
             && super::compatibility::runtime_current(&root, "TensorRT")
             && super::compatibility::runtime_supports_gpu_sm(&root, sm)
     };
-    // Reuse is decided while the previous provenance record still exists.
-    super::compatibility::invalidate_runtime(&root, &engine)?;
 
     let result: Result<String, String> = async {
         // 1. Загрузка и распаковка базовых мостов aji (aji.dll, aji_dml.dll, aji_trt.dll)
@@ -371,11 +398,11 @@ pub async fn download_inference_engine_impl(
             aji_end_pct,
         )
         .await?;
-        super::compatibility::verify_downloaded_archive(
+        verify_downloaded_archive(
             &contract,
             "aji-windows-x64.zip",
             &aji_zip,
-        )?;
+        ).await?;
 
         let _ = app.emit(
             "upscale-download-progress",
@@ -421,11 +448,11 @@ pub async fn download_inference_engine_impl(
                 50.0,
             )
             .await?;
-            super::compatibility::verify_downloaded_archive(
+            verify_downloaded_archive(
                 &contract,
                 &ort_pkg_name,
                 &ort_zip,
-            )?;
+            ).await?;
 
             let _ = app.emit(
                 "upscale-download-progress",
@@ -482,11 +509,11 @@ pub async fn download_inference_engine_impl(
                 95.0,
             )
             .await?;
-            super::compatibility::verify_downloaded_archive(
+            verify_downloaded_archive(
                 &contract,
                 &dml_pkg_name,
                 &dml_zip,
-            )?;
+            ).await?;
 
             let _ = app.emit(
                 "upscale-download-progress",
@@ -527,7 +554,8 @@ pub async fn download_inference_engine_impl(
 
             let msg = "Движок DirectML успешно установлен (aji_dml.dll, DirectML.dll, onnxruntime.dll)".to_string();
             if !super::compatibility::native_matches_package(&root) { return Err("UPSCALE_PLAYER_UPDATE".into()); }
-            commit_staged_install(&root, &inf_dir)?;
+            validate_staged_runtime(&inf_dir, "DirectML")?;
+            commit_staged_install(&root, &inf_dir, "DirectML")?;
             super::compatibility::record_runtime(&root, "DirectML")?;
             let _ = app.emit(
                 "upscale-download-progress",
@@ -604,11 +632,11 @@ pub async fn download_inference_engine_impl(
                     45.0,
                 )
                 .await?;
-                super::compatibility::verify_downloaded_archive(
+                verify_downloaded_archive(
                     &contract,
                     "component-trt-runtime.7z",
                     &trt_runtime_path,
-                )?;
+                ).await?;
 
                 let _ = app.emit(
                     "upscale-download-progress",
@@ -643,11 +671,11 @@ pub async fn download_inference_engine_impl(
                     50.0,
                 )
                 .await?;
-                super::compatibility::verify_downloaded_archive(
+                verify_downloaded_archive(
                     &contract,
                     "l-mpv_convert_fp16.zip",
                     &conv_zip,
-                )?;
+                ).await?;
 
                 let _ = app.emit(
                     "upscale-download-progress",
@@ -711,19 +739,19 @@ pub async fn download_inference_engine_impl(
                         95.0,
                     )
                     .await?;
-                    super::compatibility::verify_downloaded_archive(
+                    verify_downloaded_archive(
                         &contract,
                         "component-trt-ptx.7z",
                         &ptx_path,
-                    )?;
+                    ).await?;
 
                     extract_7z_and_cleanup(ptx_path, inf_dir.clone()).await?;
                 } else {
-                    super::compatibility::verify_downloaded_archive(
+                    verify_downloaded_archive(
                         &contract,
                         &sm_archive_name,
                         &sm_path,
-                    )?;
+                    ).await?;
                     let _ = app.emit(
                         "upscale-download-progress",
                         &UpscaleDownloadProgress {
@@ -769,7 +797,8 @@ pub async fn download_inference_engine_impl(
 
             println!("[L-MPV][Upscale] Установка движка TensorRT завершена успешно.");
             if !super::compatibility::native_matches_package(&root) { return Err("UPSCALE_PLAYER_UPDATE".into()); }
-            commit_staged_install(&root, &inf_dir)?;
+            validate_staged_runtime(&inf_dir, "TensorRT")?;
+            commit_staged_install(&root, &inf_dir, "TensorRT")?;
             super::compatibility::record_runtime(&root, "TensorRT")?;
 
             let msg = format!(
@@ -926,13 +955,53 @@ mod install_tests {
         assert!(extract_specific_files_from_zip(&archive, &d.0, &[("aji.dll", "aji.dll")]).is_err());
     }
     #[test]
+    fn missing_staged_trt_helper_cannot_be_satisfied_by_installed_file() {
+        let d = TestDir::new();
+        let stage = InstallStaging::new(&d.0).unwrap();
+        for name in super::super::compatibility::required_runtime_files("TensorRT").unwrap() {
+            fs::write(d.0.join("inference").join(name), b"installed component").unwrap();
+            if *name != "nvonnxparser_11.dll" {
+                fs::write(stage.0.join(name), b"new component").unwrap();
+            }
+        }
+        assert!(validate_staged_runtime(&stage.0, "TensorRT").is_err());
+        fs::write(stage.0.join("nvonnxparser_11.dll"), b"new parser").unwrap();
+        assert!(validate_staged_runtime(&stage.0, "TensorRT").is_ok());
+    }
+
+    #[test]
+    fn failed_staging_preserves_runtime_but_commit_invalidates_it() {
+        let d = TestDir::new();
+        fs::create_dir(d.0.join("inference")).unwrap();
+        fs::write(d.0.join("libmpv-2.dll"), b"native player").unwrap();
+        for name in ["aji.dll", "aji_dml.dll", "onnxruntime.dll", "DirectML.dll"] {
+            fs::write(d.0.join("inference").join(name), name.as_bytes()).unwrap();
+        }
+        super::super::compatibility::record_runtime(&d.0, "DirectML").unwrap();
+        assert!(super::super::compatibility::runtime_current(&d.0, "DirectML"));
+        {
+            let stage = InstallStaging::new(&d.0).unwrap();
+            let archive = d.zip("unrelated.dll");
+            assert!(extract_specific_files_from_zip(&archive, &stage.0, &[("aji.dll", "aji.dll")]).is_err());
+        }
+        assert!(super::super::compatibility::runtime_current(&d.0, "DirectML"));
+
+        let stage = InstallStaging::new(&d.0).unwrap();
+        fs::write(stage.0.join("aji.dll"), b"replacement bridge").unwrap();
+        commit_staged_install(&d.0, &stage.0, "DirectML").unwrap();
+        assert!(!d.0.join("inference/lmpv-directml.json").exists());
+        assert!(!super::super::compatibility::runtime_current(&d.0, "DirectML"));
+        super::super::compatibility::record_runtime(&d.0, "DirectML").unwrap();
+        assert!(super::super::compatibility::runtime_current(&d.0, "DirectML"));
+    }
+    #[test]
     fn stage_is_fresh_and_does_not_copy_old_backend_into_new_install() {
         let d = TestDir::new(); fs::create_dir(d.0.join("inference")).unwrap();
         fs::write(d.0.join("inference/old.dll"), b"old").unwrap();
         let stage = InstallStaging::new(&d.0).unwrap();
         assert!(!stage.0.join("old.dll").exists());
         fs::write(stage.0.join("aji.dll"), b"new bridge").unwrap();
-        commit_staged_install(&d.0, &stage.0).unwrap();
+        commit_staged_install(&d.0, &stage.0, "DirectML").unwrap();
         assert_eq!(fs::read(d.0.join("inference/aji.dll")).unwrap(), b"new bridge");
         assert_eq!(fs::read(d.0.join("inference/old.dll")).unwrap(), b"old");
     }
@@ -945,7 +1014,7 @@ mod install_tests {
         for name in ["aji.dll", "nvinfer_11.dll", "nvinfer_builder_resource_new.dll"] {
             fs::write(stage.0.join(name), b"new").unwrap();
         }
-        commit_staged_install(&d.0, &stage.0).unwrap();
+        commit_staged_install(&d.0, &stage.0, "TensorRT").unwrap();
         assert!(!d.0.join("aji.dll").exists());
         assert!(!d.0.join("inference/nvinfer_builder_resource_old.dll").exists());
         assert!(d.0.join("inference/nvinfer_builder_resource_new.dll").is_file());

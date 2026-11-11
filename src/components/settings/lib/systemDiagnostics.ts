@@ -40,13 +40,30 @@ export interface SystemDiagnosticsInfo {
 
 let diagnosticsCache: SystemDiagnosticsInfo | null = null;
 let diagnosticsInflight: Promise<SystemDiagnosticsInfo> | null = null;
+let contextMenuStatus: boolean | null = null;
+let contextMenuStatusRequest = 0;
 
 export function getCachedSystemDiagnostics(): SystemDiagnosticsInfo | null {
   return diagnosticsCache;
 }
 
-export function setCachedSystemDiagnostics(info: SystemDiagnosticsInfo): void {
-  diagnosticsCache = info;
+export function setCachedSystemDiagnostics(info: SystemDiagnosticsInfo): SystemDiagnosticsInfo {
+  diagnosticsCache = contextMenuStatus === null
+    ? info
+    : { ...info, context_menu_registered: contextMenuStatus };
+  return diagnosticsCache;
+}
+
+/** Shell registration changes independently of the expensive native diagnostics. */
+export async function loadContextMenuStatus(): Promise<boolean> {
+  const request = ++contextMenuStatusRequest;
+  const registered = await invoke<boolean>("is_explorer_context_menu_registered");
+  if (request !== contextMenuStatusRequest) return contextMenuStatus ?? registered;
+  contextMenuStatus = registered;
+  if (diagnosticsCache) {
+    diagnosticsCache = { ...diagnosticsCache, context_menu_registered: registered };
+  }
+  return registered;
 }
 
 export function loadPreloadedSystemDiagnostics(force = false): Promise<SystemDiagnosticsInfo> {
@@ -55,8 +72,7 @@ export function loadPreloadedSystemDiagnostics(force = false): Promise<SystemDia
 
   const request = invoke<SystemDiagnosticsInfo>("get_system_diagnostics")
     .then((info) => {
-      diagnosticsCache = info;
-      return info;
+      return setCachedSystemDiagnostics(info);
     })
     .finally(() => {
       diagnosticsInflight = null;

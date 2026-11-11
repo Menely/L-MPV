@@ -295,10 +295,11 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
                 &path,
                 &super::compatibility::gpu_key(&gpu),
             );
-            let any_engine = engine_files.iter().any(|eng| eng.starts_with(&prefix))
-                || models_dir.join(format!("{model_stem}.timing.cache")).exists();
-            let has_engine_1080p =
-                context_current && engine_files.iter().any(|eng| is_1080p_match(eng));
+            let (has_engine_1080p, engine_outdated) = model_cache_state(
+                &engine_files, &prefix, context_current,
+                models_dir.join(format!("{model_stem}.timing.cache")).exists(),
+                is_1080p_match,
+            );
 
             items.push(ModelFileItem {
                 filename,
@@ -307,16 +308,26 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
                 slot,
                 full_path: path.to_string_lossy().to_string(),
                 has_engine_1080p,
-                engine_outdated: any_engine
-                    && (!context_current
-                        || engine_files
-                            .iter()
-                            .any(|eng| eng.starts_with(&prefix) && !is_1080p_match(eng))),
+                // Valid engines for other resolutions can coexist with 1080p.
+                // Their compilation context, not their profile hash, determines staleness.
+                engine_outdated,
             });
         }
     }
 
     items
+}
+
+fn model_cache_state(
+    engines: &[String],
+    prefix: &str,
+    context_current: bool,
+    has_timing_cache: bool,
+    is_1080p: impl Fn(&str) -> bool,
+) -> (bool, bool) {
+    let has_cache = has_timing_cache || engines.iter().any(|name| name.starts_with(prefix));
+    let has_1080p = context_current && engines.iter().any(|name| is_1080p(name));
+    (has_1080p, has_cache && !context_current)
 }
 
 /// Проверяет физическое наличие всех требуемых библиотек инференса и статус подсистемы
@@ -437,6 +448,21 @@ mod dependency_tests {
             .as_str()
             .unwrap()
             .starts_with(TRT_CACHE_VERSION));
+    }
+
+    #[test]
+    fn current_context_accepts_other_resolution_profiles() {
+        let prefix = "aji-12345678.";
+        let exact = "aji-12345678.780037328.trt-11.4.0.gpu-rtx4070-sm8.engine";
+        let mut engines = vec!["aji-12345678.111222333.trt-11.4.0.gpu-rtx4070-sm8.engine".to_owned()];
+        let classify = |engines: &[String], current| model_cache_state(
+            engines, prefix, current, false, |name| name == exact,
+        );
+        assert_eq!(classify(&engines, true), (false, false));
+        engines.push(exact.to_owned());
+        assert_eq!(classify(&engines, true), (true, false));
+        assert_eq!(classify(&engines, false), (false, true));
+        assert_eq!(classify(&[], false), (false, false));
     }
 
     #[test]

@@ -8,6 +8,7 @@ import {
   getCachedSystemDiagnostics,
   setCachedSystemDiagnostics,
   loadPreloadedSystemDiagnostics,
+  loadContextMenuStatus,
 } from "../lib/systemDiagnostics";
 export type { SystemDiagnosticsInfo } from "../lib/systemDiagnostics";
 import { SystemDiagnosticsSummary } from "../components/SystemDiagnosticsSummary";
@@ -53,9 +54,7 @@ export function SystemSettingsTab(): React.ReactElement {
     try {
       const data = await loadPreloadedSystemDiagnostics(force);
       if (!isMountedRef.current) return;
-      setDiag(data);
-      setCachedSystemDiagnostics(data);
-      setIsContextMenuRegistered(data.context_menu_registered);
+      setDiag(setCachedSystemDiagnostics(data));
     } catch (e) {
       if (!isMountedRef.current) return;
       setIntegrationLogs((prev) => [
@@ -71,9 +70,10 @@ export function SystemSettingsTab(): React.ReactElement {
 
   const checkContextMenuStatus = useCallback(async () => {
     try {
-      const reg = await invoke<boolean>("is_explorer_context_menu_registered");
+      const reg = await loadContextMenuStatus();
       if (!isMountedRef.current) return;
       setIsContextMenuRegistered(reg);
+      setDiag((current) => current ? { ...current, context_menu_registered: reg } : current);
     } catch {
       if (!isMountedRef.current) return;
       setIsContextMenuRegistered(false);
@@ -82,7 +82,8 @@ export function SystemSettingsTab(): React.ReactElement {
 
   useEffect(() => {
     fetchDiagnostics();
-  }, [fetchDiagnostics]);
+    checkContextMenuStatus();
+  }, [fetchDiagnostics, checkContextMenuStatus]);
 
   const copyReportToClipboard = useCallback(async () => {
     if (!diag) return;
@@ -247,7 +248,10 @@ export function SystemSettingsTab(): React.ReactElement {
         {integrationLogs[integrationLogs.length - 1] ?? ""}
       </div>
       <SystemDiagnosticsSummary info={diag} loading={isLoadingDiag} copied={isCopied}
-        onRefresh={() => fetchDiagnostics(true)} onCopy={copyReportToClipboard} />
+        onRefresh={() => {
+          void fetchDiagnostics(true);
+          void checkContextMenuStatus();
+        }} onCopy={copyReportToClipboard} />
 
       <AccordionSection isOpen={openIntegration === "files"}
         onToggle={() => setOpenIntegration((current) => current === "files" ? null : "files")}
