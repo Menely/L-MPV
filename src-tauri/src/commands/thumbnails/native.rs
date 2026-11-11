@@ -602,8 +602,12 @@ impl NativeDecoder {
         if let Err(err) = &result {
             // Контекст декодера уничтожается только если сбой произошёл на этапе
             // первоначальной загрузки файла (fresh == true), либо при неисправимой ошибке декодера.
-            // При штатной отмене сика в уже прогретом декодере контекст сохраняется живым!
-            let is_fatal = fresh || (err != "THUMBNAIL_CANCELLED" && err != "THUMBNAIL_MPV_TIMEOUT");
+            // При штатной отмене сика, таймауте или несовпадении позиции контекст сохраняется живым!
+            let is_fatal = fresh
+                || (err != "THUMBNAIL_CANCELLED"
+                    && err != "THUMBNAIL_MPV_TIMEOUT"
+                    && err != "THUMBNAIL_MPV_POSITION"
+                    && err != "THUMBNAIL_MPV_END");
             if is_fatal {
                 self.core = None;
                 if using_snapshot
@@ -647,13 +651,12 @@ fn wait_restart(
                                 return Ok(());
                             }
                             // Позиция не совпадает: это запоздалое событие от ранее отменённого сика.
-                            // Продолжаем ожидание события PLAYBACK_RESTART от актуального сика.
-                            seeking = false;
+                            // Продолжаем ожидание события PLAYBACK_RESTART от актуального сика,
+                            // не сбрасывая seeking, так как событие 20 для текущего сика уже поступило.
                             continue;
                         } else if actual <= requested + 0.1 && requested - actual <= 120.0 {
                             return Ok(());
                         } else {
-                            seeking = false;
                             continue;
                         }
                     }

@@ -105,9 +105,13 @@ impl FrameCache {
         if path.metadata().ok()?.len() > MAX_JPEG_BYTES as u64 {
             return None;
         }
+        let mut file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .ok()?;
         let mut bytes = Vec::new();
-        fs::File::open(&path)
-            .ok()?
+        file.by_ref()
             .take(MAX_JPEG_BYTES as u64 + 1)
             .read_to_end(&mut bytes)
             .ok()?;
@@ -120,14 +124,10 @@ impl FrameCache {
         if valid_jpeg(&bytes) && dimensions == Some((320, 180)) {
             // Обновляем время модификации (touch) для превращения дискового кеша в честный LRU:
             // часто просматриваемые миниатюры получают свежий mtime и защищаются от вытеснения.
-            let _ = fs::OpenOptions::new()
-                .write(true)
-                .open(&path)
-                .and_then(|file| {
-                    file.set_times(fs::FileTimes::new().set_modified(std::time::SystemTime::now()))
-                });
+            let _ = file.set_times(fs::FileTimes::new().set_modified(std::time::SystemTime::now()));
             Some(Arc::from(bytes.into_boxed_slice()))
         } else {
+            drop(file);
             let _ = fs::remove_file(path);
             None
         }
@@ -240,6 +240,14 @@ mod tests {
             .unwrap();
         cache.write_disk(&dir, &first, &bytes);
         assert_eq!(&*FrameCache::read_disk(&dir, &first).unwrap(), bytes.as_slice());
+        let file_path = dir.join(format!("{first}.jpg"));
+        let old_time = std::time::SystemTime::now() - std::time::Duration::from_secs(10);
+        let f = fs::OpenOptions::new().write(true).open(&file_path).unwrap();
+        f.set_times(fs::FileTimes::new().set_modified(old_time)).unwrap();
+        drop(f);
+        let _ = FrameCache::read_disk(&dir, &first);
+        let new_time = file_path.metadata().unwrap().modified().unwrap();
+        assert!(new_time > old_time);
         cache.write_disk(&dir, &first, &bytes);
         assert_eq!(&*FrameCache::read_disk(&dir, &first).unwrap(), bytes.as_slice());
         assert!(!dir.join(format!("{first}.part")).exists());
