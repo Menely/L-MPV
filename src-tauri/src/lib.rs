@@ -14,6 +14,8 @@ mod mediainfo;
 mod media_report_cache;
 mod mpv_manager;
 mod subtitle_position;
+#[cfg(windows)]
+mod process_job;
 pub mod logging;
 pub use logging::log_error;
 mod system_integration;
@@ -151,8 +153,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(commands::HeatmapTaskManager::new())
+        .manage(commands::ThumbnailService::default())
         .invoke_handler(tauri::generate_handler![
             // Управление воспроизведением
+            commands::get_timeline_thumbnail,
+            commands::cancel_timeline_thumbnail,
             commands::open_file,
             commands::complete_startup_playback,
             commands::toggle_pause,
@@ -328,6 +333,7 @@ pub fn run() {
                         }
                     }
                 } else if window.label() == "main" {
+                    window.state::<commands::ThumbnailService>().shutdown();
                     let state = window.state::<PlayerState>();
                     commands::save_current_playback_position(&state);
                     commands::save_history_to_disk();
@@ -420,6 +426,7 @@ pub fn run() {
         .expect("Ошибка сборки приложения L-MPV")
         .run(|app_handle, event| {
             if let tauri::RunEvent::ExitRequested { .. } = event {
+                app_handle.state::<commands::ThumbnailService>().shutdown();
                 let state = app_handle.state::<PlayerState>();
                 commands::save_current_playback_position(&state);
                 commands::save_history_to_disk();

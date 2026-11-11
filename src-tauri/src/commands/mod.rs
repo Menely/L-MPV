@@ -21,6 +21,7 @@ mod subtitles;
 mod system;
 mod startup;
 mod tracks;
+pub mod thumbnails;
 pub mod types;
 
 // ─── Реэкспорт типов ───────────────────────────────────
@@ -41,3 +42,4 @@ pub use subtitles::*;
 pub use system::*;
 pub use startup::*;
 pub use tracks::*;
+pub use thumbnails::*;

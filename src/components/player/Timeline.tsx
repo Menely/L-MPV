@@ -4,6 +4,7 @@ import { useTranslation } from "../../i18n/LanguageContext";
 import { formatTime } from "../../utils/timeUtils";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { useLiveScrubbing } from "./useLiveScrubbing";
+import { TimelinePreview } from "./timeline/TimelinePreview";
 import { useNeonPulse } from "./useNeonPulse";
 import { isMotionAllowed } from "../../utils/animationUtils";
 import { getSavedSeekStepSeconds, triggerSeekIndicator } from "../../utils/seekUtils";
@@ -117,31 +118,6 @@ const TimelineSegment = React.memo<TimelineSegmentProps>(
   );
 TimelineSegment.displayName = "TimelineSegment";
 
-interface TimelinePreviewProps {
-  hoverInfo: { ratio: number; time: number };
-  segments: TimelineSegmentData[];
-  mediaPath: string;
-}
-
-const TimelinePreview = React.memo<TimelinePreviewProps>(({ hoverInfo, segments, mediaPath }) => {
-  const active =
-    segments.find((s) => hoverInfo.time >= s.start && hoverInfo.time <= s.end) ||
-    segments[segments.length - 1];
-  const showChapter = Boolean(active?.title && active.title !== mediaPath);
-  const clampOffset = showChapter ? "64px" : "44px";
-
-  return (
-    <div
-      className={`timeline-preview-card ${showChapter ? "timeline-preview-card--with-chapter" : ""}`}
-      style={{ left: `clamp(${clampOffset}, ${hoverInfo.ratio * 100}%, calc(100% - ${clampOffset}))` }}
-    >
-      <div className="timeline-preview-card__time">{formatTime(hoverInfo.time)}</div>
-      {showChapter && <div className="timeline-preview-card__chapter">{active.title}</div>}
-    </div>
-  );
-});
-TimelinePreview.displayName = "TimelinePreview";
-
 // ─── Главный компонент ────────────────────────────────────────────────────────
 
 /**
@@ -159,6 +135,7 @@ export const Timeline = React.memo(() => {
   const { dict } = useTranslation();
   const {
     mediaInfo,
+    tracks,
     chapters,
     seekTo,
     seekBy,
@@ -450,7 +427,9 @@ export const Timeline = React.memo(() => {
       <AudioVisualizer placement="inside_timeline" />
 
       {hoverInfo && (
-        <TimelinePreview hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath} />
+        <TimelinePreview hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath}
+          hasVideo={mediaInfo?.has_video ?? false}
+          videoTrack={tracks.find((track) => track.type === "video" && track.selected)?.id ?? null} />
       )}
 
 
