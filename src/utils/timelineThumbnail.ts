@@ -1,7 +1,7 @@
-/** Keep transport-independent request keys aligned with the backend's 5s grid. */
+/** Keep transport-independent request keys aligned with the backend's 1s grid. */
 export function thumbnailTime(seconds: number, exact: boolean): number {
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
-  return exact ? Math.round(safe * 1000) / 1000 : Math.floor(safe / 5) * 5;
+  return exact ? Math.round(safe * 1000) / 1000 : Math.floor(safe);
 }
 
 export function supportsTimelineThumbnail(path: string, hasVideo: boolean): boolean {

@@ -7,8 +7,8 @@ use std::{
 };
 
 pub(super) const MAX_JPEG_BYTES: usize = 512 * 1024;
-const MEMORY_BYTES: usize = 8 * 1024 * 1024;
-const MEMORY_ENTRIES: usize = 96;
+const MEMORY_BYTES: usize = 4 * 1024 * 1024;
+const MEMORY_ENTRIES: usize = 64;
 const DISK_BYTES: u64 = 64 * 1024 * 1024;
 
 pub(super) fn valid_jpeg(bytes: &[u8]) -> bool {
@@ -31,7 +31,7 @@ pub(super) fn cache_key(
     }
     let mut hash = blake3::Hasher::new();
     // Bump when dimensions, conversion or selection rules change.
-    hash.update(b"lmpv-timeline-v1-320x180");
+    hash.update(b"lmpv-timeline-v6-shared-320x180");
     hash.update(path.to_string_lossy().as_bytes());
     hash.update(&metadata.len().to_le_bytes());
     hash.update(

@@ -24,6 +24,22 @@ pub(super) struct DecodeRequest<'a> {
     pub hdr: Option<HdrTransfer>,
 }
 
+pub(super) fn preview_filter(hdr: Option<HdrTransfer>) -> String {
+    let scale =
+        "scale=320:180:force_original_aspect_ratio=decrease:force_divisible_by=2:reset_sar=1";
+    let pad = "pad=320:180:(ow-iw)/2:(oh-ih)/2,setsar=1";
+    if let Some(hdr) = hdr {
+        let transfer = match hdr {
+            HdrTransfer::Pq => "smpte2084",
+            HdrTransfer::Hlg => "arib-std-b67",
+        };
+        // Bound float conversion and tonemapping to preview pixels, even for 4K HDR.
+        format!("{scale},zscale=pin=bt2020:tin={transfer}:min=bt2020nc:t=linear:m=gbr:p=bt709:npl=100,format=gbrpf32le,tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,{pad}")
+    } else {
+        format!("{scale},{pad}")
+    }
+}
+
 fn command(ffmpeg: &Path, request: &DecodeRequest<'_>) -> Command {
     let mut cmd = Command::new(ffmpeg);
     #[cfg(windows)]
@@ -40,21 +56,16 @@ fn command(ffmpeg: &Path, request: &DecodeRequest<'_>) -> Command {
         "-threads",
         "2",
     ]);
+    // This decoder serves disposable previews only; avoid deblocking full-size frames.
+    cmd.args(["-skip_loop_filter", "all"]);
     if !request.exact {
-        cmd.arg("-noaccurate_seek");
+        // Input options: coarse requests need only the seek point's keyframe.
+        // Exact refinement still decodes intervening frames with accurate seeking.
+        cmd.args(["-noaccurate_seek", "-skip_frame", "nokey"]);
     }
     cmd.args(["-ss", &format!("{:.3}", request.seconds), "-i"])
         .arg(request.path);
-    let scale = "scale=320:180:force_original_aspect_ratio=decrease:force_divisible_by=2:reset_sar=1,pad=320:180:(ow-iw)/2:(oh-ih)/2,setsar=1";
-    let filter = if let Some(hdr) = request.hdr {
-        let transfer = match hdr {
-            HdrTransfer::Pq => "smpte2084",
-            HdrTransfer::Hlg => "arib-std-b67",
-        };
-        format!("zscale=pin=bt2020:tin={transfer}:min=bt2020nc:t=linear:m=gbr:p=bt709:npl=100,format=gbrpf32le,tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,{scale}")
-    } else {
-        scale.to_owned()
-    };
+    let filter = preview_filter(request.hdr);
     cmd.args([
         "-map",
         request.stream,
@@ -151,7 +162,7 @@ pub(super) fn extract(
             Ok(None) => {}
         }
         drop(slot);
-        std::thread::sleep(Duration::from_millis(15));
+        std::thread::sleep(Duration::from_millis(5));
     };
     let bytes = reader
         .join()
@@ -184,7 +195,41 @@ mod tests {
         assert!(args.windows(2).any(|a| a == ["-map", "0:2"]));
         assert!(args.windows(2).any(|a| a == ["-frames:v", "1"]));
         assert!(!args.contains(&"-noaccurate_seek".into()));
+        assert!(!args.contains(&"-skip_frame".into()));
         assert!(!args.iter().any(|a| a.contains("animejanai")));
+    }
+
+    #[test]
+    fn coarse_skips_interframes_before_input_and_hdr_scales_before_tonemap() {
+        for hdr in [HdrTransfer::Pq, HdrTransfer::Hlg] {
+            let cmd = command(
+                Path::new("ffmpeg.exe"),
+                &DecodeRequest {
+                    path: Path::new("movie.mkv"),
+                    stream: "0:2",
+                    seconds: 12.345,
+                    exact: false,
+                    hdr: Some(hdr),
+                },
+            );
+            let args: Vec<_> = cmd
+                .get_args()
+                .map(|arg| arg.to_string_lossy().into_owned())
+                .collect();
+            let input = args.iter().position(|arg| arg == "-i").unwrap();
+            assert!(args[..input]
+                .windows(2)
+                .any(|a| a == ["-skip_frame", "nokey"]));
+            assert!(args[..input]
+                .windows(2)
+                .any(|a| a == ["-skip_loop_filter", "all"]));
+            assert!(args[..input].contains(&"-noaccurate_seek".into()));
+            assert!(args.windows(2).any(|a| a == ["-map", "0:2"]));
+            let filter = &args[args.iter().position(|arg| arg == "-vf").unwrap() + 1];
+            assert!(filter.starts_with("scale=320:180:force_original_aspect_ratio=decrease"));
+            assert!(filter.find("format=gbrpf32le").unwrap() < filter.find("tonemap=").unwrap());
+            assert!(filter.ends_with("pad=320:180:(ow-iw)/2:(oh-ih)/2,setsar=1"));
+        }
     }
 
     #[test]
