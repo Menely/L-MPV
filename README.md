@@ -233,6 +233,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Opening animations adapted to the selected interface style.
 - **Subtitle & Audio Disabling (Mpv Property Alignment):** selecting "Disable Subtitles" reliably dispatches native mpv `sid: "no"` (`aid: "no"` for audio), optimistically clearing active UI tracks and displaying an informative OSD confirmation.
 - **Track Titles (MP4 / MOV ↔ MKV):** Cascade metadata lookup (`title` → QuickTime/MP4 `metadata/name` from `udta/name` atom → `metadata/title` → `metadata/handler_name`). Track titles (e.g., "Dubbing", "Original Atmos") display consistently and accurately in MP4 and MOV files just like in MKV.
+- **Closing track menus:** Click the video to close an open audio or subtitle list without pausing or resuming playback. The next video click works normally.
 - **Track button controls:** By default, left-click cycles the track and right-click opens its selection menu. Keyboard shortcuts `A` and `V` cycle audio and subtitle tracks. Mouse bindings can be changed in settings.
 - **1-Click Audio & Subtitle Export:** Integrated download buttons within the bottom bar popover and context menu (Right-Click).
 - **Stream copy:** Extracts compatible audio and subtitle tracks without re-encoding. The time required depends on the file and storage speed.

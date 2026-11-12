@@ -416,14 +416,25 @@ export function PlayerControls({
       const isInsideSpeedPopover = speedPopoverRef.current?.contains(target);
       const isInsideMorePopover = morePopoverRef.current?.contains(target);
       if (!isInsideTrackPopover && !isInsideSpeedPopover && !isInsideMorePopover) {
+        const isTrackVideoClick = e.button === 0 &&
+          (activePopover === "audio" || activePopover === "sub") && !!target.closest(".video-area");
+        // Keep the track menu open until click capture can consume this same gesture.
+        if (e.type === "mousedown" && isTrackVideoClick) return;
+        if (e.type === "click" && !isTrackVideoClick) return;
+        if (isTrackVideoClick) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         closePopover();
       }
     };
     if (activePopover) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("click", handleClickOutside, true);
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside, true);
     };
   }, [activePopover, closePopover]);
 
