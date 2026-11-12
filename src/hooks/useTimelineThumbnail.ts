@@ -6,8 +6,9 @@ export { clearTimelineThumbnailCache } from "../utils/timelineThumbnailCache";
 
 let scopeCounter = 0;
 const SETTLE_MS = 120;
+const UHD_REFINE_MS = 40;
 type Job = ReturnType<typeof thumbnailJob>;
-interface FrameState { approximate: boolean; source: string; url: string | null; seconds: number | null; failed: boolean; pending: boolean }
+interface FrameState { source: string; url: string | null; seconds: number | null; failed: boolean; pending: boolean }
 
 /** One exact decode in flight; intermediate pending targets collapse into the latest. */
 export function useTimelineThumbnail(path: string, videoTrack: number | null, seconds: number, enabled: boolean, trickplay = false) {
@@ -18,7 +19,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
     return () => window.removeEventListener("l-mpv-preview-transform-changed", invalidate);
   }, []);
   const source = `${path}\n${videoTrack ?? "none"}\n${revision}`;
-  const empty = (pending = false): FrameState => ({ approximate: false, source, url: null, seconds: null, failed: false, pending });
+  const empty = (pending = false): FrameState => ({ source, url: null, seconds: null, failed: false, pending });
   const [frame, setFrame] = useState<FrameState>(empty());
   const controller = useRef<{ move: (time: number) => void; fail: () => void } | null>(null);
   useEffect(() => {
@@ -48,7 +49,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
     const show = (job: Job, next: string, pending: boolean) => {
       url = next;
       shown = job.key;
-      setFrame({ approximate: !job.exact, source, url, seconds: job.seconds, failed: false, pending });
+      setFrame({ source, url, seconds: job.seconds, failed: false, pending });
     };
     const pump = () => {
       if (!isCurrent() || active || !desired) return;
@@ -103,7 +104,11 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
         if (trickplay && !thumbnailMemoryCache.get(source, precise.key)) {
           if (active?.job.exact && active.job.key !== precise.key) cancelActive();
           queue(thumbnailJob(latestTime, false));
-          settle = setTimeout(() => queue(precise), SETTLE_MS);
+          settle = setTimeout(() => {
+            // A keyframe for another grid cell cannot help the resting cursor.
+            if (active && !active.job.exact && active.job.seconds !== Math.floor(latestTime)) cancelActive();
+            queue(precise);
+          }, UHD_REFINE_MS);
         } else {
           queue(precise);
           settle = setTimeout(() => { if (desired) cancelActive(); }, SETTLE_MS);
@@ -129,7 +134,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
   useEffect(() => { if (enabled) controller.current?.move(seconds); }, [seconds, enabled, source, trickplay]);
   const current = enabled && frame.source === source;
   return {
-    approximate: current && frame.approximate, src: current ? frame.url : null, seconds: current ? frame.seconds : null,
+    src: current ? frame.url : null, seconds: current ? frame.seconds : null,
     pending: current && frame.pending, failed: current && frame.failed,
     onImageError: () => { if (current && frame.url) controller.current?.fail(); },
   };

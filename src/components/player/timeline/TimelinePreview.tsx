@@ -75,7 +75,7 @@ export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segmen
         {frame.src ? <img src={frame.src} alt="" draggable={false} onError={frame.onImageError} /> : <ImageIcon size={22} />}
         {frame.pending && <span className="timeline-preview-card__loading" />}
       </div>}
-      <div className="timeline-preview-card__time">{frame.approximate && "≈ "}{formatTime(displayedTime)}</div>
+      <div className="timeline-preview-card__time">{formatTime(displayedTime)}</div>
       {showChapter && <div className="timeline-preview-card__chapter">{active.title}</div>}
     </div>
   );
