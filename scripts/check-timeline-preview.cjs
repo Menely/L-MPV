@@ -31,6 +31,7 @@ for (const ratio of [0, 0.5, 1]) {
   }
 }
 
+const windowListeners = new Map();
 const hooks = [];
 let cursor = 0, dirty = true, effects = [], props, result, clock = 0, timerId = 0;
 const timers = new Map(), requests = [], cancellations = [], urls = new Set();
@@ -82,7 +83,10 @@ const { useTimelineThumbnail, clearTimelineThumbnailCache } = load(
   'src/hooks/useTimelineThumbnail.ts',
   { react, '@tauri-apps/api/core': { invoke } },
   {
-    window: { addEventListener() {}, removeEventListener() {} },
+    window: {
+      addEventListener(name,fn){if(!windowListeners.has(name))windowListeners.set(name,new Set());windowListeners.get(name).add(fn);},
+      removeEventListener(name,fn){windowListeners.get(name)?.delete(fn);}
+    },
     URL: {
       createObjectURL() {
         const url = 'blob:frame-' + (++urlId);
@@ -138,119 +142,48 @@ async function advance(ms) {
 const bytes = () => new Uint8Array([255, 216, 1, 255, 217]).buffer;
 
 (async () => {
-  // 1. Дебаунс 35 мс: быстрое перемещение курсора объединяется в один точный запрос
-  await update(['C:/first.mkv', 1, 10.5, true]);
-  assert.equal(requests.length, 0, 'debounce prevents immediate request on first move');
-  await advance(20);
-  assert.equal(requests.length, 0, 'within debounce interval no request dispatched');
-  await update(['C:/first.mkv', 1, 350.5, true]);
-  await advance(35);
-  assert.equal(requests.length, 1, 'only latest exact job is queued after debounce fires');
-  assert.equal(requests[0].args.seconds, 350.5);
-  assert.equal(requests[0].args.exact, true);
-
-  // 2. Успешный ответ сразу отображается и помещается в кэш
-  requests[0].resolve(bytes());
-  await flush();
-  assert(result.src, 'exact frame displays immediately without intermediate keyframe');
-  assert.equal(urls.size, 1);
-
-  // 3. Отмена активного запроса при смещении на новую позицию
-  await update(['C:/first.mkv', 1, 351, true]);
-  await advance(35);
-  assert.equal(requests.length, 2);
-  assert.equal(requests[1].args.seconds, 351);
-  assert.equal(requests[1].args.exact, true);
-
-  await update(['C:/first.mkv', 1, 352, true]);
-  await advance(35);
-  assert(cancellations.includes(requests[1].args.requestId), 'in-flight request is cancelled');
-
-  requests[1].resolve(bytes());
-  await flush();
-  assert.equal(urlId, 1, 'late reply from cancelled request is discarded');
-
-  assert.equal(requests.length, 3, 'next request is dispatched once in-flight finished');
-  assert.equal(requests[2].args.seconds, 352);
-
-  requests[2].resolve(bytes());
-  await flush();
-  assert(result.src);
-  assert.equal(urls.size, 2);
-
-  // 4. Смена источника сбрасывает кэш и ссылки
-  await update(['C:/second.mkv', 2, 20, true]);
-  assert.equal(result.src, null);
-  assert.equal(urls.size, 0, 'switching source revokes previous source urls');
-  await advance(35);
-  assert.equal(requests.at(-1).args.seconds, 20);
-  requests.at(-1).resolve(bytes());
-  await flush();
-  assert(result.src);
-  assert.equal(urls.size, 1);
-
-  // 5. Выключение предпросмотра (enabled=false) очищает кадр
-  await update(['C:/second.mkv', 2, 20, false]);
-  assert.equal(result.src, null);
-  assert.equal(urls.size, 0);
-
-  // 6. Попадание в кэш ОЗУ отдает точный кадр МГНОВЕННО (0 мс) без вызова IPC
-  await update(['C:/cached.mkv', 1, 10, true]);
-  await advance(35);
-  requests.at(-1).resolve(bytes());
-  await flush();
-  const cachedUrl = result.src;
-  assert(cachedUrl);
-
-  const beforeCacheHit = requests.length;
-  await update(['C:/cached.mkv', 1, 30, true]);
-  await advance(35);
-  requests.at(-1).resolve(bytes());
-  await flush();
-  assert.notEqual(result.src, cachedUrl);
-
-  // Возврат на 10.0: должен отобразиться мгновенно без IPC
-  await update(['C:/cached.mkv', 1, 10, true]);
-  assert.equal(result.src, cachedUrl, 'RAM cache hit returns immediately without debounce delay');
-  assert.equal(requests.length, beforeCacheHit + 1, 'no new IPC request is dispatched on cache hit');
-
-  // 7. Ошибки декодирования
-  await update(['C:/broken.mkv', 1, 10, true]);
-  await advance(35);
-  requests.at(-1).reject(Error('decode'));
-  await flush();
-  assert(result.failed, 'fatal decode error marks frame as failed');
-
-  // 8. Временная недоступность (THUMBNAIL_UNAVAILABLE) не блокирует следующие ховеры
-  await update(['C:/transient.mkv', 1, 10, true]);
-  await advance(35);
-  requests.at(-1).reject('THUMBNAIL_UNAVAILABLE');
-  await flush();
-  assert(!result.failed, 'transient error does not permanently disable preview');
-
-  await update(['C:/transient.mkv', 1, 11, true]);
-  await advance(35);
-  requests.at(-1).resolve(bytes());
-  await flush();
-  assert(result.src);
-
-  // 9. Ограничение емкости кэша (12 кадров)
-  for (let i = 0; i < 24; i++) {
-    await update(['C:/cache-limit.mkv', 1, i * 5, true]);
-    await advance(35);
-    requests.at(-1).resolve(bytes());
-    await flush();
-    assert(urls.size <= 12, 'cache entries must not exceed MAX_READY_FRAMES');
-  }
-
-  // 10. Очистка хука и сброс кэша
-  hooks.forEach(hook => hook.cleanup?.());
-  clearTimelineThumbnailCache();
-  assert.equal(urls.size, 0);
-  assert.equal(timers.size, 0);
-
-  console.log('PASS timeline geometry, always-exact instant decoding, debounce coalescing, cancellation and bounded LRU cache');
-})().catch(error => {
-  console.error(error);
-  process.exitCode = 1;
-});
+  await update(['C:/first.mkv',1,10,true]);
+  assert.equal(requests.length,1,'first exact request starts immediately');
+  for(let i=1;i<=100;i++){await advance(16);await update(['C:/first.mkv',1,10+i*.1,true]);}
+  assert.equal(requests.length,1,'only one active request during continuous movement');
+  assert.equal(cancellations.length,0,'motion alone does not repeatedly abort decoding');
+  requests[0].resolve(bytes());await flush();
+  assert(result.src,'completed exact frame is visible during movement');
+  assert.equal(result.seconds,10,'visible image carries its own timestamp');
+  assert.equal(requests.length,2,'only latest pending target is dispatched');
+  assert.equal(requests[1].args.seconds,20);
+  requests[1].resolve(bytes());await flush();assert.equal(result.seconds,20);
+  const cached=result.src;
+  await update(['C:/first.mkv',1,30,true]);const obsolete=requests.at(-1);
+  await update(['C:/first.mkv',1,20,true]);
+  assert.equal(result.src,cached);
+  assert(cancellations.includes(obsolete.args.requestId),'cached return cancels obsolete decoding');
+  obsolete.reject('THUMBNAIL_MPV_TIMEOUT');await flush();
+  assert.equal(result.src,cached,'obsolete error cannot clear cached image');assert(!result.failed);
+  await update(['C:/first.mkv',1,40,true]);const settling=requests.at(-1);
+  await update(['C:/first.mkv',1,41,true]);await advance(120);
+  assert(cancellations.includes(settling.args.requestId),'resting pointer prioritizes final exact target');
+  settling.reject('THUMBNAIL_CANCELLED');await flush();assert.equal(requests.at(-1).args.seconds,41);
+  requests.at(-1).resolve(bytes());await flush();assert.equal(result.seconds,41);
+  // A cached target reached during cancellation must not be overwritten by a late reply.
+  await update(['C:/first.mkv',1,50,true]);const late=requests.at(-1);
+  await update(['C:/first.mkv',1,20,true]);late.resolve(bytes());await flush();assert.equal(result.src,cached);
+  // Module cache survives popup unmount and is invalidated even while no hook listener exists.
+  hooks.forEach(h=>h.cleanup?.());hooks.length=0;effects=[];
+  for(const listener of [...(windowListeners.get('l-mpv-preview-transform-changed')||[])])listener();
+  const before=requests.length;await update(['C:/first.mkv',1,20,true]);
+  assert.equal(result.src,null);assert.equal(requests.length,before+1,'transform change while closed invalidates cached frame');
+  requests.at(-1).resolve(bytes());await flush();
+  hooks.forEach(h=>h.cleanup?.());hooks.length=0;effects=[];
+  const beforeReopen=requests.length;await update(['C:/first.mkv',1,20,true]);
+  assert(result.src);assert.equal(requests.length,beforeReopen,'unchanged popup reopen uses cache');
+  await update(['C:/second.mkv',2,10,true]);assert.equal(result.src,null);
+  requests.at(-1).reject('THUMBNAIL_UNAVAILABLE');await flush();assert(!result.failed);
+  await update(['C:/second.mkv',2,11,true]);requests.at(-1).resolve(bytes());await flush();
+  for(let i=0;i<24;i++){await update(['C:/cache.mkv',1,i*5,true]);requests.at(-1).resolve(bytes());await flush();assert(urls.size<=12);}
+  await update(['C:/cache.mkv',1,200,true]);await update(['C:/cache.mkv',1,201,true]);
+  const last=requests.at(-1);await update(['C:/cache.mkv',1,201,false]);last.resolve(bytes());await flush();
+  assert.equal(result.src,null);assert.equal(urls.size,0);assert.equal(timers.size,0);
+  hooks.forEach(h=>h.cleanup?.());clearTimelineThumbnailCache();
+  console.log('PASS immediate exact queue, motion progress, latest pending, settle cancellation, stale errors, global transform invalidation and URL bounds');
+})().catch(error=>{console.error(error);process.exitCode=1;});

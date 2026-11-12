@@ -19,7 +19,8 @@ export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segmen
   const enabled = supportsTimelineThumbnail(mediaPath, hasVideo);
   const frame = useTimelineThumbnail(mediaPath, videoTrack, hoverInfo.time, enabled);
   const showFrame = enabled && !frame.failed;
-  const active = segments.find((s) => hoverInfo.time >= s.start && hoverInfo.time <= s.end) || segments[segments.length - 1];
+  const displayedTime = frame.seconds ?? hoverInfo.time;
+  const active = segments.find((s) => displayedTime >= s.start && displayedTime <= s.end) || segments[segments.length - 1];
   const showChapter = Boolean(active?.title && active.title !== mediaPath);
   const card = useRef<HTMLDivElement>(null);
   const [geometry, setGeometry] = useState({ railLeft: 0, railWidth: 0, cardWidth: 0, viewportWidth: 0, scale: 1, shiftY: 0 });
@@ -73,7 +74,7 @@ export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segmen
         {frame.src ? <img src={frame.src} alt="" draggable={false} onError={frame.onImageError} /> : <ImageIcon size={22} />}
         {frame.pending && <span className="timeline-preview-card__loading" />}
       </div>}
-      <div className="timeline-preview-card__time">{formatTime(hoverInfo.time)}</div>
+      <div className="timeline-preview-card__time">{formatTime(displayedTime)}</div>
       {showChapter && <div className="timeline-preview-card__chapter">{active.title}</div>}
     </div>
   );

@@ -22,6 +22,64 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "requires LMPV_THUMB_ROOT and LMPV_THUMB_REAL_FIXTURE (long-GOP 4K)"]
+    fn warm_cancel_preserves_context_and_next_exact_frame() {
+        let root = std::path::PathBuf::from(std::env::var_os("LMPV_THUMB_ROOT").unwrap());
+        let mut source = SourceRequest {
+            path: std::env::var_os("LMPV_THUMB_REAL_FIXTURE").unwrap().into(),
+            stream: "0:0".into(),
+            vid: "1".into(),
+            seconds: 60.5,
+            hdr: None,
+            transforms: Default::default(),
+            profile: super::super::profile::DecodeProfile::Snapshot,
+        };
+        let cancelled = AtomicBool::new(false);
+        let stopped = AtomicBool::new(false);
+        let mut decoder = NativeDecoder::default();
+        let reference = decoder
+            .extract(&root, &source, true, &cancelled, &stopped)
+            .unwrap();
+        for seconds in [180.2, 300.0, 180.24] {
+            source.seconds = seconds;
+            std::thread::scope(|scope| {
+                scope.spawn(|| {
+                    std::thread::sleep(Duration::from_millis(10));
+                    cancelled.store(true, Ordering::Release);
+                });
+                assert_eq!(
+                    decoder
+                        .extract(&root, &source, true, &cancelled, &stopped)
+                        .unwrap_err(),
+                    "THUMBNAIL_CANCELLED"
+                );
+            });
+            assert!(
+                decoder.core.is_some(),
+                "warm cancellation must preserve the context"
+            );
+            cancelled.store(false, Ordering::Release);
+            source.seconds = 60.5;
+            let next = decoder
+                .extract(&root, &source, true, &cancelled, &stopped)
+                .unwrap();
+            let expected = image::load_from_memory(&reference).unwrap().to_rgb8();
+            let actual = image::load_from_memory(&next).unwrap().to_rgb8();
+            let error = expected
+                .as_raw()
+                .iter()
+                .zip(actual.as_raw())
+                .map(|(a, b)| (*a as f64 - *b as f64).abs())
+                .sum::<f64>()
+                / expected.as_raw().len() as f64;
+            assert!(
+                error < 2.0,
+                "late seek events changed the next exact frame: {error}"
+            );
+        }
+    }
+
+    #[test]
     fn expired_fallback_deadline_never_initializes_another_context() {
         let mut decoder = NativeDecoder::default();
         let source = SourceRequest {
@@ -589,7 +647,13 @@ impl NativeDecoder {
                     },
                 ])?;
             }
-            wait_restart(core, cancelled, stopped, Some((source.seconds, exact)), deadline)?;
+            wait_restart(
+                core,
+                cancelled,
+                stopped,
+                Some((source.seconds, exact)),
+                deadline,
+            )?;
             frame()
         })();
         if !exact {
@@ -610,9 +674,7 @@ impl NativeDecoder {
                     && err != "THUMBNAIL_MPV_END");
             if is_fatal {
                 self.core = None;
-                if using_snapshot
-                    && err != "THUMBNAIL_CANCELLED"
-                    && err != "THUMBNAIL_MPV_TIMEOUT"
+                if using_snapshot && err != "THUMBNAIL_CANCELLED" && err != "THUMBNAIL_MPV_TIMEOUT"
                 {
                     #[cfg(test)]
                     eprintln!("Snapshot fallback: {:?}", err);
