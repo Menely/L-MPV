@@ -188,7 +188,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--space-7) 20px 10px;
+  padding: var(--settings-section-padding) 20px;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
   scrollbar-gutter: auto !important;
@@ -243,8 +243,9 @@
   position: relative;
   display: flow-root;
   min-width: 0;
-  padding-top: var(--space-6);
+  padding-top: 0;
 }
+.settings-section-block:last-child { margin-bottom: 0; }
 
 .settings-section-content > *:last-child,
 .settings-section-content > .modal__section > *:last-child {
@@ -393,7 +394,7 @@ body.settings-open .player-controls-wrapper--docked {
 
 @container settings-shell (max-width: 620px) {
   .settings-side-panel__scroll {
-    padding: var(--space-6) 14px 8px;
+    padding: var(--settings-section-padding) 14px;
   }
 
   .settings-side-panel__nav {

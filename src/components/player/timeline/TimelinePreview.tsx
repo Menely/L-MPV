@@ -12,12 +12,13 @@ interface Props {
   segments: TimelineSegmentData[];
   mediaPath: string;
   hasVideo: boolean;
+  previewEnabled?: boolean;
   trickplay?: boolean;
   videoTrack: number | null;
 }
 
-export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segments, mediaPath, hasVideo, videoTrack, trickplay }: Props) {
-  const enabled = supportsTimelineThumbnail(mediaPath, hasVideo);
+export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segments, mediaPath, hasVideo, videoTrack, trickplay, previewEnabled = true }: Props) {
+  const enabled = previewEnabled && supportsTimelineThumbnail(mediaPath, hasVideo);
   const frame = useTimelineThumbnail(mediaPath, videoTrack, hoverInfo.time, enabled, trickplay);
   const showFrame = enabled && !frame.failed;
   const displayedTime = frame.seconds ?? hoverInfo.time;

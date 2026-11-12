@@ -24,11 +24,15 @@ pub fn player_plugin<R: Runtime>(
     tauri::plugin::Builder::new("player-runtime")
         .setup(move |app, _| {
             let began = Instant::now();
+            crate::app_cache::finish_pending(&exe_dir);
+            if let Err(error) = crate::app_cache::migrate(&exe_dir) {
+                logging::log_error("Cache migration", &error);
+            }
             for relative in [
                 "screenshots",
                 "config",
                 "logs",
-                "data/thumbs",
+                "data/cache",
                 "data/webview",
             ] {
                 let _ = std::fs::create_dir_all(exe_dir.join(relative));
@@ -37,7 +41,8 @@ pub fn player_plugin<R: Runtime>(
             // Rotate session files before libmpv opens its log, never afterwards.
             logging::prepare_session_logs(&logs);
             logging::setup_panic_hook(&logs);
-            let mpv = Arc::new(MpvManager::new(&exe_dir, &settings).map_err(std::io::Error::other)?);
+            let mpv =
+                Arc::new(MpvManager::new(&exe_dir, &settings).map_err(std::io::Error::other)?);
             let _ = mpv.set_property_string(
                 "keep-open",
                 if settings.play_next_on_end {

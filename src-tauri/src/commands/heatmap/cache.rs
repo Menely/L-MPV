@@ -2,12 +2,11 @@
 //!
 //! Отвечает за:
 //! - Вычисление детерминированного BLAKE3-хэша файла, дорожки и режима (`calculate_file_cache_key`);
-//! - Разрешение путей к файлам кэша в `data/waveforms/`;
+//! - Разрешение путей к файлам кэша в `data/cache/waveforms/`;
 //! - Атомарную запись через уникальные временные файлы `.tmp` с защитой поколений (`save_cache_atomically`);
 //! - Автоматическую LRU-ротацию кэша по лимиту 200 файлов / 50 МБ (`prune_waveform_cache`).
 
 use super::manager::HeatmapTaskManager;
-use crate::commands::types::get_data_dir;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
@@ -92,7 +91,11 @@ pub fn calculate_file_cache_key(
 
 /// Получение пути к файлу кэша тепловой карты.
 pub fn resolve_waveform_cache_path(cache_key: &str, mode: &str) -> Result<PathBuf, String> {
-    profile_cache_path(&get_data_dir()?.join("waveforms"), cache_key, mode)
+    profile_cache_path(
+        &crate::app_cache::root()?.join("waveforms"),
+        cache_key,
+        mode,
+    )
 }
 
 fn profile_cache_path(root: &Path, cache_key: &str, mode: &str) -> Result<PathBuf, String> {

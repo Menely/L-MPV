@@ -3,8 +3,7 @@
 .presets-container {
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
-  padding-bottom: var(--space-6);
+  gap: var(--settings-section-gap);
 }
 
 /* ─── Блок создания нового пресета ───────────────────────── */
@@ -185,7 +184,7 @@
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 13px 15px;
+  padding: var(--padding-card);
   display: flex;
   flex-direction: column;
   gap: 10px;

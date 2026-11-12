@@ -22,7 +22,7 @@ pub use manager::HeatmapTaskManager;
 pub use types::HeatmapDataResponse;
 pub use video_bitrate::stream_video_bitrate_heatmap;
 
-use crate::commands::types::{get_app_dir, get_data_dir};
+use crate::commands::types::get_app_dir;
 use std::path::{Path, PathBuf};
 use tauri::State;
 
@@ -343,5 +343,5 @@ pub async fn clear_waveform_cache(
     // Сначала прерываем активный анализ и инвалидируем поколение, чтобы фоновая задача не записала файл после очистки
     task_manager.abort_current().await;
 
-    cache::clear_profile_cache(&get_data_dir()?.join("waveforms")).await
+    cache::clear_profile_cache(&crate::app_cache::root()?.join("waveforms")).await
 }

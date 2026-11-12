@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Link2, Loader2, ExternalLink, Trash2, FileText } from "lucide-react";
+import { Cpu, Link2, Loader2, ExternalLink, Trash2, FileText } from "lucide-react";
 import { useTranslation } from "../../../i18n/LanguageContext";
 
 import {
@@ -11,6 +11,7 @@ import {
   loadContextMenuStatus,
 } from "../lib/systemDiagnostics";
 export type { SystemDiagnosticsInfo } from "../lib/systemDiagnostics";
+import { CacheSettingsSection } from "../components/CacheSettingsSection";
 import { SystemDiagnosticsSummary } from "../components/SystemDiagnosticsSummary";
 import { AccordionSection } from "../components/AccordionSection";
 import "../../../styles/settings-system.css";
@@ -235,7 +236,7 @@ export function SystemSettingsTab(): React.ReactElement {
   }, [checkContextMenuStatus, dict]);
 
   const i = dict.settings.integrationFields;
-  const [openIntegration, setOpenIntegration] = useState<"files" | "explorer" | null>(null);
+  const [openIntegration, setOpenIntegration] = useState<"diagnostics" | "cache" | "files" | "explorer" | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   useEffect(() => {
     if (integrationLogs.length > 0) setLogOpen(true);
@@ -247,11 +248,18 @@ export function SystemSettingsTab(): React.ReactElement {
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {integrationLogs[integrationLogs.length - 1] ?? ""}
       </div>
-      <SystemDiagnosticsSummary info={diag} loading={isLoadingDiag} copied={isCopied}
+      <AccordionSection isOpen={openIntegration === "diagnostics"}
+        onToggle={() => setOpenIntegration(current => current === "diagnostics" ? null : "diagnostics")}
+        icon={<Cpu size={16} />} title={dict.settings.systemFields.title}>
+      <SystemDiagnosticsSummary embedded info={diag} loading={isLoadingDiag} copied={isCopied}
         onRefresh={() => {
           void fetchDiagnostics(true);
           void checkContextMenuStatus();
         }} onCopy={copyReportToClipboard} />
+
+      </AccordionSection>
+      <CacheSettingsSection open={openIntegration === "cache"}
+        onToggle={() => setOpenIntegration(current => current === "cache" ? null : "cache")} />
 
       <AccordionSection isOpen={openIntegration === "files"}
         onToggle={() => setOpenIntegration((current) => current === "files" ? null : "files")}

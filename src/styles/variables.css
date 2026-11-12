@@ -262,6 +262,9 @@
   --space-8:   20px;   /* крупные блоки                                   */
   --space-9:   24px;   /* секции, экраны                                   */
   --space-10:  32px;   /* максимум в интерфейсе                            */
+  --settings-section-gap: var(--space-6);
+  --settings-content-gap: var(--space-5);
+  --settings-section-padding: var(--space-7);
 
   /* ─── Полупрозрачные слои ───────────────────────────────────────────
      Два независимых набора:

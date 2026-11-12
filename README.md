@@ -384,7 +384,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Segmented Chapter Hover Adaptation:** when hovering over a video with chapters, only the segment of the chapter under the cursor smoothly expands in height (from 5px to 8px) with vertical centering, while neighboring segments maintain their sleek default thickness. For single-chapter or non-chapter videos, the entire timeline expands uniformly as before.
 - **Kinematic Neon Pulse Wave:** Compact glowing neon ring expanding from the click point along the progress track, styled to match the active player accent theme. Automatically suppressed when animations are disabled, so the ring can never linger over the control buttons.
 - **Live scrubbing:** Pointer movement updates the preview position while dragging the timeline.
-- **Frame preview on hover:** Local videos show a thumbnail above the timeline together with the time and chapter. The exact frame is debounced (35 ms) and decoded directly via a private in-process libmpv decoder, eliminating intermediate keyframe jumps. In-memory LRU caching serves previously visited positions without IPC; a lightweight 512 KiB demuxer buffer and true LRU disk caching ensure responsive navigation without redundant disk I/O; no second player process is launched; audio and network sources retain the time/chapter tooltip.
+- **Frame preview on hover:** Local videos show a thumbnail with the time and chapter. General → Playback provides a persistent preview toggle. For 4K, cached thumbnails and keyframes appear during movement, followed by an exact frame after the pointer rests. Previews use an independent in-process libmpv decoder and bounded memory/disk caches. Time and chapter tooltips remain available when previews are disabled.
 - **Preview and exact seeking:** Dragging uses keyframe preview seeks; releasing the pointer requests an exact seek to the selected position.
 - **Release Position Calculation:** The final seek position is computed from a freshly measured track rectangle (invalidated on window resize), so auto window resizing can no longer misplace the playhead.
 - **No Stray Focus Ring:** Clicking the timeline no longer leaves a green `:focus-visible` outline floating over the video; keyboard focus indication is preserved via the progress track growing from 5px to 8px.
@@ -403,7 +403,9 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - Six graph styles: bars, spline, blocks, filled relief, stepped contour and dotted relief. Eight palettes: Theme, Thermal, Cyberpunk, Monochrome, Sunset, Aurora, Ocean and Plasma.
 - Adjustable height, opacity and placement above the timeline or control bar. Disabled by default; available in settings.
 - Hover to see RMS/peak levels or average bitrate for the selected interval. Video bitrate uses a balanced scale and adapts the number of visible columns to the window width.
-- Audio and video profiles are cached separately in `data/waveforms/audio/` and `data/waveforms/video_bitrate/`. BLAKE3 keys account for file metadata and track selection. Switching the source cancels outdated analysis.
+- Audio and video profiles are cached separately in `data/cache/waveforms/audio/` and `data/cache/waveforms/video_bitrate/`. BLAKE3 keys account for file metadata and track selection. Switching the source cancels outdated analysis.
+- System → Cache shows disk cache sizes and provides cleanup. Legacy cache directories migrate into data/cache; settings, history and models are preserved.
+
 - Settings include a preview and a cache-clearing button.
 
 </details>
@@ -463,7 +465,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>💻 System Components, Diagnostics & Windows Integration</b></summary>
 
-- **System overview:** An always-visible list shows L-MPV Core (version, architecture, portable mode), `libmpv` (mpv version and `vf_animejanai` filter status), `FFmpeg`, and the `MediaInfo` C-API library. Diagnostics are preloaded on tab hover and can be refreshed explicitly.
+- **System overview:** Player specifications, cache and Windows integrations use a shared accordion. The cache table shows folder paths, sizes and file counts, with cleanup for individual categories or all caches. Click a path to copy it. The chart uses separated rounded segments in the Capsule player style and a continuous ring in the other styles. Diagnostics are preloaded and can be refreshed or copied as a report.
 - **Neural Inference Monitoring (AnimeJaNai / aji):** Accurately surfaces installed runtimes (`TensorRT 11`, `DirectML`, `aji v0.25.0`), along with ONNX model and compiled `.engine` counters, avoiding false "Not installed" noise.
 - **Hardware Acceleration (GPU):** Displays detected graphics hardware, dedicated video memory (VRAM), and compute microarchitecture (`sm120`, `sm89`, `sm86`, etc.).
 - **Windows File Associations:** One-click registration for video and audio formats in the Windows Registry, safe unlinking, and shortcut to Windows Default Apps settings.

@@ -597,7 +597,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   const isAiActive = settings.mode === "ai";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-7)" }}>
+    <div className="settings-stack">
       {/* 1. Выбор основного режима работы */}
       <div className="glass-section settings-group-card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>

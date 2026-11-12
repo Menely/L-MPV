@@ -7,7 +7,7 @@ export { clearTimelineThumbnailCache } from "../utils/timelineThumbnailCache";
 let scopeCounter = 0;
 const SETTLE_MS = 120;
 const UHD_REFINE_MS = 40;
-type Job = ReturnType<typeof thumbnailJob>;
+type Job = ReturnType<typeof thumbnailJob> & { refresh?: boolean };
 interface FrameState { source: string; url: string | null; seconds: number | null; failed: boolean; pending: boolean }
 
 /** One exact decode in flight; intermediate pending targets collapse into the latest. */
@@ -32,6 +32,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
     if (thumbnailMemoryCache.getSource() !== source) thumbnailMemoryCache.clearAll();
     const scope = `${Date.now().toString(36)}-${++scopeCounter}`;
     let sequence = 0, disposed = false, stopped = false;
+    let retriedImage = false;
     let failedKey: string | null = null;
     let desired: Job | null = null;
     let active: { id: string; job: Job; cancelled: boolean } | null = null;
@@ -62,7 +63,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
       active = request;
       setFrame(previous => ({ ...previous, pending: true, failed: false }));
       void invoke<ArrayBuffer>("get_timeline_thumbnail", {
-        path, seconds: job.seconds, exact: job.exact, requestId: request.id, videoTrack,
+        path, seconds: job.seconds, exact: job.exact, refresh: job.refresh, requestId: request.id, videoTrack,
       }).then(bytes => {
         if (!isCurrent() || request.cancelled || !bytes.byteLength) return;
         const next = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
@@ -78,6 +79,9 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
       }).finally(() => {
         if (disposed) return;
         active = null;
+        if (job.refresh && job.seconds !== latestTime && !desired) {
+          desired = thumbnailJob(latestTime, true);
+        }
         if (desired) pump();
         else setFrame(previous => ({ ...previous, pending: false }));
       });
@@ -98,7 +102,9 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
     controller.current = {
       move(time) {
         if (stopped) return;
-        latestTime = thumbnailTime(time, true);
+        const nextTime = thumbnailTime(time, true);
+        if (nextTime !== latestTime) failedKey = null;
+        latestTime = nextTime;
         clearTimeout(settle);
         const precise = thumbnailJob(latestTime, true);
         if (trickplay && !thumbnailMemoryCache.get(source, precise.key)) {
@@ -115,6 +121,18 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
         }
       },
       fail() {
+        if (!retriedImage && shown) {
+          retriedImage = true;
+          const [mode, time] = shown.split(":");
+          thumbnailMemoryCache.clearSource(source);
+          desired = { ...thumbnailJob(Number(time), mode === "exact"), refresh: true };
+          shown = null;
+          url = null;
+          setFrame(empty(true));
+          cancelActive();
+          pump();
+          return;
+        }
         stopped = true;
         clearTimeout(settle);
         desired = null;

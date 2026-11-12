@@ -181,6 +181,8 @@ export const en: TranslationDict = {
       saveTracksToDirTitle: "Save extracted tracks next to the video",
       saveTracksToDirDesc:
         "When exporting a track via the download button, save the file directly in the video's directory. Disabled = pick a folder manually.",
+      timelinePreviewTitle: "Timeline preview",
+      timelinePreviewDesc: "Show a video frame when hovering over the timeline.",
       waveformActivityTitle: "Waveform Activity Strip",
       waveformActivityDesc:
         "Display an interactive audio heatmap satellite above the timeline when hovering or scrubbing with precise volume peaks.",

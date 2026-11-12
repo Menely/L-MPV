@@ -3,6 +3,7 @@
 mod cache;
 mod coarse_cache;
 mod decoder;
+mod disk;
 mod filters;
 mod native;
 mod profile;
@@ -17,7 +18,7 @@ use std::{
     process::Child,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc, Mutex, OnceLock,
     },
     time::{Duration, Instant},
 };
@@ -48,6 +49,7 @@ struct Inner {
     running: Mutex<Option<Child>>,
     native: Mutex<native::NativeDecoder>,
     cache: Mutex<FrameCache>,
+    disk: OnceLock<disk::DiskWriter>,
     source_cache: Mutex<Option<CachedSource>>,
     stopped: AtomicBool,
     reaper_started: AtomicBool,
@@ -110,6 +112,22 @@ impl ThumbnailService {
                 }
             }
         }
+    }
+    pub fn clear_memory(&self) -> Result<(), String> {
+        if let Some((_, token)) = self
+            .0
+            .active
+            .lock()
+            .map_err(|e| e.to_string())?
+            .current
+            .as_ref()
+        {
+            token.store(true, Ordering::Release);
+        }
+        let _worker = self.0.worker.lock().map_err(|e| e.to_string())?;
+        *self.0.native.lock().map_err(|e| e.to_string())? = native::NativeDecoder::default();
+        *self.0.cache.lock().map_err(|e| e.to_string())? = FrameCache::default();
+        Ok(())
     }
     pub fn shutdown(&self) {
         self.0.stopped.store(true, Ordering::Release);
@@ -250,7 +268,7 @@ impl ThumbnailService {
             path: cached.canonical_path,
             stream: cached.stream,
             vid: cached.vid,
-            seconds: seconds.min((cached.duration - 0.05).max(0.0)),
+            seconds: seconds.min((cached.duration - 0.001).max(0.0)),
             hdr: cached.hdr,
         })
     }
@@ -262,6 +280,7 @@ impl ThumbnailService {
         seconds: f64,
         exact: bool,
         token: &AtomicBool,
+        refresh: bool,
     ) -> Result<Arc<[u8]>, String> {
         let is_cancelled =
             || token.load(Ordering::Acquire) || self.0.stopped.load(Ordering::Acquire);
@@ -278,15 +297,32 @@ impl ThumbnailService {
             exact,
         )?;
         let mut cache = self.0.cache.lock().map_err(|e| e.to_string())?;
-        if let Some(bytes) = cache.get(&key) {
-            return Ok(bytes);
+        if is_cancelled() {
+            return Err("THUMBNAIL_CANCELLED".into());
         }
-        let dir = cache_directory()?;
-        if let Some(bytes) = FrameCache::read_disk(&dir, &key) {
-            cache.insert(key, Arc::clone(&bytes));
+        if let Some(bytes) = cache.get(&key).filter(|_| !refresh) {
             return Ok(bytes);
         }
         drop(cache);
+        let root_dir = cache_directory()?;
+        let dir = FrameCache::video_directory(&root_dir, &source.path)?;
+        if refresh {
+            let _ = std::fs::remove_file(dir.join(format!("{key}.jpg")));
+            let _ = std::fs::remove_file(root_dir.join(format!("{key}.jpg")));
+        }
+        let disk_hit = if refresh {
+            None
+        } else {
+            FrameCache::read_disk(&dir, &key).or_else(|| FrameCache::read_disk(&root_dir, &key))
+        };
+        if let Some(bytes) = disk_hit {
+            let mut cache = self.0.cache.lock().map_err(|e| e.to_string())?;
+            if is_cancelled() {
+                return Err("THUMBNAIL_CANCELLED".into());
+            }
+            cache.insert(key, Arc::clone(&bytes));
+            return Ok(bytes);
+        }
         if super::background_io::open_work_pending() {
             return Err("THUMBNAIL_UNAVAILABLE".into());
         }
@@ -341,18 +377,20 @@ impl ThumbnailService {
         }
         let bytes: Arc<[u8]> = Arc::from(bytes.into_boxed_slice());
         let mut cache = self.0.cache.lock().map_err(|e| e.to_string())?;
-        cache.write_disk(&dir, &key, &bytes);
-        cache.insert(key, Arc::clone(&bytes));
+        cache.insert(key.clone(), Arc::clone(&bytes));
+        drop(cache);
+        self.0.disk.get_or_init(disk::DiskWriter::new).enqueue(
+            root_dir,
+            dir,
+            key,
+            Arc::clone(&bytes),
+        );
         Ok(bytes)
     }
 }
 
 fn cache_directory() -> Result<PathBuf, String> {
-    Ok(std::env::current_exe()
-        .map_err(|e| e.to_string())?
-        .parent()
-        .ok_or("THUMBNAIL_ROOT")?
-        .join("data/thumbs/timeline-v1"))
+    Ok(crate::app_cache::root()?.join("thumbnails"))
 }
 
 struct SourceRequest {
@@ -385,6 +423,7 @@ pub async fn get_timeline_thumbnail(
     exact: bool,
     request_id: String,
     video_track: Option<i64>,
+    refresh: Option<bool>,
 ) -> Result<tauri::ipc::Response, String> {
     if !super::background_io::same_path(
         &state.mpv.get_property_string("path").unwrap_or_default(),
@@ -398,7 +437,14 @@ pub async fn get_timeline_thumbnail(
     let service = service.inner().clone();
     let mpv = state.mpv.clone();
     let bytes = tauri::async_runtime::spawn_blocking(move || {
-        service.frame(&mpv, &path, seconds, exact, &token)
+        service.frame(
+            &mpv,
+            &path,
+            seconds,
+            exact,
+            &token,
+            refresh.unwrap_or(false),
+        )
     })
     .await
     .map_err(|e| e.to_string())??;

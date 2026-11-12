@@ -1,3 +1,4 @@
+import { isTimelinePreviewEnabled } from "../../utils/timelinePreviewPreference";
 import { supportsTrickplaySize } from "../../utils/timelineThumbnail";
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
@@ -145,6 +146,12 @@ export const Timeline = React.memo(() => {
     prolongControlsIfActive,
   } = usePlayerState();
   const { position, duration, seeking, seekTarget } = usePlayerProgress();
+  const [previewEnabled, setPreviewEnabled] = useState(isTimelinePreviewEnabled);
+  useEffect(() => {
+    const sync = () => setPreviewEnabled(isTimelinePreviewEnabled());
+    window.addEventListener("l-mpv-settings-changed", sync);
+    return () => window.removeEventListener("l-mpv-settings-changed", sync);
+  }, []);
   const mediaPath = mediaInfo?.path || "";
 
   const { scheduleScrub, cancelScrub } = useLiveScrubbing();
@@ -428,7 +435,7 @@ export const Timeline = React.memo(() => {
       <AudioVisualizer placement="inside_timeline" />
 
       {hoverInfo && (
-        <TimelinePreview hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath}
+        <TimelinePreview previewEnabled={previewEnabled} hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath}
           trickplay={supportsTrickplaySize(mediaInfo?.width ?? 0, mediaInfo?.height ?? 0)}
           hasVideo={mediaInfo?.has_video ?? false}
           videoTrack={tracks.find((track) => track.type === "video" && track.selected)?.id ?? null} />

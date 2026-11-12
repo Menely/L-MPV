@@ -4,19 +4,20 @@
 //! и регистрирует все IPC-команды для фронтенда.
 
 mod ambient;
-pub mod upscale;
+mod app_cache;
 mod audio_capture;
 pub mod audio_filter;
 pub mod commands;
 mod fonts_bundle;
-mod startup_runtime;
-mod mediainfo;
+pub mod logging;
 mod media_report_cache;
+mod mediainfo;
 mod mpv_manager;
-mod subtitle_position;
 #[cfg(windows)]
 mod process_job;
-pub mod logging;
+mod startup_runtime;
+mod subtitle_position;
+pub mod upscale;
 pub use logging::log_error;
 mod system_integration;
 pub mod updater;
@@ -88,7 +89,6 @@ pub fn run() {
         .expect("Не удалось определить директорию исполняемого файла")
         .to_path_buf();
 
-
     println!("[L-MPV] Директория exe: {:?}", exe_dir);
 
     // The profile path must be set before WebView2 creation. Heavy native setup
@@ -113,7 +113,7 @@ pub fn run() {
     println!("[L-MPV] Инициализация Tauri Builder...");
 
     let mut builder = tauri::Builder::default();
-    
+
     // Если запущено автономное окно MediaInfo (--mediainfo), плагин single_instance не регистрируется,
     // чтобы каждое открытие из контекстного меню Проводника создавало независимое окно без привязки
     // к настройке "Режим нескольких окон" основного плеера.
@@ -211,6 +211,8 @@ pub fn run() {
             mediainfo::open_mediainfo_window,
             mediainfo::toggle_mediainfo_window,
             commands::get_playback_state,
+            app_cache::get_cache_usage,
+            app_cache::clear_app_cache,
             commands::get_video_dimensions,
             system_integration::get_windows_accent_color,
             system_integration::register_file_associations,
@@ -433,5 +435,3 @@ pub fn run() {
             }
         });
 }
-
-

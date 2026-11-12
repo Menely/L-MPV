@@ -952,7 +952,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           </div>
 
           {/* Тело модального окна */}
-          <div className="modal__body" ref={bodyRef} style={{ padding: "16px 20px 10px 20px" }}>
+          <div className="modal__body" ref={bodyRef} style={{ padding: "var(--settings-section-padding) 20px" }}>
             <div ref={panelRef} className="settings-tab-panel">
               {renderTabContent()}
             </div>

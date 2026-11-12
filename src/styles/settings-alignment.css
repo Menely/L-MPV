@@ -1,4 +1,7 @@
 /* Shared title geometry for every player style. Slots have no text baseline. */
+.settings-stack { display: flex; flex-direction: column; gap: var(--settings-section-gap); min-width: 0; }
+.settings-stack > .settings-accordion { margin-bottom: 0; }
+
 .glass-section.settings-group-card {
   --section-title-size: var(--fs-base);
   padding: 12px;

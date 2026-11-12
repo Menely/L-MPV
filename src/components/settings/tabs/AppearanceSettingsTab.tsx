@@ -147,7 +147,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
   return (
     <>
-                  <div className="modal__section col col-gap-4">
+                  <div className="modal__section settings-stack">
               {/* 1. Цветовое оформление (Единая категория: цвет плеера, акценты, свечение) */}
               <AccordionSection
                 isOpen={!!openSections["app_color_scheme"]}

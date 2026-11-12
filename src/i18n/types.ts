@@ -183,6 +183,8 @@ export interface TranslationDict {
       saveTracksToDirTitle: string;
       saveTracksToDirDesc: string;
       waveformActivityTitle: string;
+      timelinePreviewTitle: string;
+      timelinePreviewDesc: string;
       waveformActivityDesc: string;
 
       // Язык

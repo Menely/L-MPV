@@ -1,3 +1,4 @@
+import { isTimelinePreviewEnabled, setTimelinePreviewEnabled } from "../../../utils/timelinePreviewPreference";
 import React, { useCallback, useEffect, useState, useMemo } from "react";
 import {
   FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, AudioWaveform, Sparkles,
@@ -115,11 +116,13 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   const [hwdecMode, setHwdecMode] = useState("auto-safe");
   const [audioNormalize, setAudioNormalize] = useState("no");
   const [demuxerCacheMb, setDemuxerCacheMb] = useState(64);
+  const [timelinePreviewEnabled, setTimelinePreviewEnabledState] = useState(isTimelinePreviewEnabled);
   const [waveformEnabled, setWaveformEnabledState] = useState<boolean>(isWaveformEnabled);
 
   useEffect(() => {
     const handleSettingsChanged = () => {
       setWaveformEnabledState(isWaveformEnabled());
+      setTimelinePreviewEnabledState(isTimelinePreviewEnabled());
       setVolumeIndicatorEnabledState(isVolumeIndicatorEnabled());
       setVolumeOsdState(isVolumeOsdEnabled());
     };
@@ -252,8 +255,8 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   const cardStyle: React.CSSProperties = {
     display: "flex",
     flexDirection: "column",
-    gap: 8,
-    padding: "12px 14px",
+    gap: "var(--space-4)",
+    padding: "var(--padding-card)",
     background: "var(--surface-card)",
     borderRadius: "var(--radius-md)",
     border: "1px solid var(--border)",
@@ -262,7 +265,7 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   };
 
   return (
-    <div className="modal__section col col-gap-5">
+    <div className="modal__section settings-stack">
 
       {/* ── 0. Язык интерфейса ── */}
       <AccordionSection
@@ -567,6 +570,23 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 <span className="t-label-xs">
                   {dict.settings.general.hideControlsDesc}
                 </span>
+              </div>
+            </label>
+          </div>
+
+          <div style={cardStyle} className="theme-card">
+            <label className="option-row">
+              <input type="checkbox" className="ui-checkbox" checked={timelinePreviewEnabled}
+                onChange={event => {
+                  setTimelinePreviewEnabled(event.target.checked);
+                  setTimelinePreviewEnabledState(event.target.checked);
+                }} />
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <Film size={14} className="t-accent" />
+                  <span className="t-label">{dict.settings.general.timelinePreviewTitle}</span>
+                </div>
+                <span className="t-label-xs">{dict.settings.general.timelinePreviewDesc}</span>
               </div>
             </label>
           </div>

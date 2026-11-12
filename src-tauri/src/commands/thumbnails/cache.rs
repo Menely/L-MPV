@@ -63,10 +63,26 @@ pub(super) fn cache_key(
 pub(super) struct FrameCache {
     entries: VecDeque<(String, Arc<[u8]>)>,
     bytes: usize,
-    writes: usize,
 }
 
 impl FrameCache {
+    pub fn video_directory(root: &Path, source: &Path) -> Result<PathBuf, String> {
+        let identity = cache_key(source, "", 0, 0.0, false)?;
+        let stem = source.file_stem().unwrap_or_default().to_string_lossy();
+        let name: String = stem
+            .chars()
+            .take(40)
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        Ok(root.join(format!("video-{name}-{}", &identity[..16])))
+    }
+
     /// Получение миниатюры из оперативной памяти без глубокого копирования буфера (O(1)).
     pub fn get(&mut self, key: &str) -> Option<Arc<[u8]>> {
         let index = self.entries.iter().position(|entry| entry.0 == key)?;
@@ -119,7 +135,7 @@ impl FrameCache {
             image::ImageReader::with_format(std::io::Cursor::new(&bytes), image::ImageFormat::Jpeg)
                 .into_dimensions()
                 .ok();
-        // Быстрая проверка целостности миниатюры без затратной декомпрессии DCT на CPU:
+        // Быстрая проверка целостности миниатюры перед декодированием ограниченного изображения:
         // валидация маркеров начала/конца кадра и чтение геометрии 320x180 из заголовка SOF.
         if valid_jpeg(&bytes) && dimensions == Some((320, 180)) {
             // Обновляем время модификации (touch) для превращения дискового кеша в честный LRU:
@@ -149,22 +165,33 @@ impl FrameCache {
         if fs::rename(&temporary, &destination).is_err() {
             let _ = fs::remove_file(&temporary);
         }
-        self.writes += 1;
-        if self.writes == 1 || self.writes.is_multiple_of(16) {
-            prune_disk(dir);
-        }
     }
 }
 
-fn prune_disk(dir: &Path) {
+pub(super) fn prune_disk(dir: &Path) {
     let Ok(files) = fs::read_dir(dir) else {
         return;
     };
-    let mut files: Vec<(PathBuf, u64, std::time::SystemTime)> = files
+    let roots: Vec<PathBuf> = files
         .flatten()
+        .filter_map(|entry| {
+            entry
+                .file_type()
+                .ok()
+                .filter(|kind| kind.is_dir() && !kind.is_symlink())
+                .map(|_| entry.path())
+        })
+        .collect();
+    let entries = std::iter::once(dir.to_owned())
+        .chain(roots.iter().cloned())
+        .flat_map(|root| fs::read_dir(root).into_iter().flatten().flatten());
+    let mut files: Vec<(PathBuf, u64, std::time::SystemTime)> = entries
         .filter_map(|entry| {
             let path = entry.path();
             if path.extension()?.to_str()? != "jpg" {
+                return None;
+            }
+            if !entry.file_type().ok()?.is_file() {
                 return None;
             }
             let meta = entry.metadata().ok()?;
@@ -185,6 +212,9 @@ fn prune_disk(dir: &Path) {
             bytes = bytes.saturating_sub(size);
             count -= 1;
         }
+    }
+    for root in roots {
+        let _ = fs::remove_dir(root);
     }
 }
 
@@ -239,18 +269,39 @@ mod tests {
             .encode_image(&image)
             .unwrap();
         cache.write_disk(&dir, &first, &bytes);
-        assert_eq!(&*FrameCache::read_disk(&dir, &first).unwrap(), bytes.as_slice());
+        assert_eq!(
+            &*FrameCache::read_disk(&dir, &first).unwrap(),
+            bytes.as_slice()
+        );
         let file_path = dir.join(format!("{first}.jpg"));
         let old_time = std::time::SystemTime::now() - std::time::Duration::from_secs(10);
         let f = fs::OpenOptions::new().write(true).open(&file_path).unwrap();
-        f.set_times(fs::FileTimes::new().set_modified(old_time)).unwrap();
+        f.set_times(fs::FileTimes::new().set_modified(old_time))
+            .unwrap();
         drop(f);
         let _ = FrameCache::read_disk(&dir, &first);
         let new_time = file_path.metadata().unwrap().modified().unwrap();
         assert!(new_time > old_time);
         cache.write_disk(&dir, &first, &bytes);
-        assert_eq!(&*FrameCache::read_disk(&dir, &first).unwrap(), bytes.as_slice());
+        assert_eq!(
+            &*FrameCache::read_disk(&dir, &first).unwrap(),
+            bytes.as_slice()
+        );
         assert!(!dir.join(format!("{first}.part")).exists());
+        let video_dir = FrameCache::video_directory(&dir, &source).unwrap();
+        assert_eq!(video_dir.parent(), Some(dir.as_path()));
+        assert_eq!(
+            video_dir,
+            FrameCache::video_directory(&dir, &source).unwrap()
+        );
+        let other = dir.join("other.mkv");
+        fs::write(&other, b"another video").unwrap();
+        assert_ne!(
+            video_dir,
+            FrameCache::video_directory(&dir, &other).unwrap()
+        );
+        fs::create_dir_all(&video_dir).unwrap();
+        fs::write(video_dir.join("huge.jpg"), vec![0; 1024]).unwrap();
         fs::write(dir.join("bad.jpg"), b"interrupted").unwrap();
         assert!(FrameCache::read_disk(&dir, "bad").is_none());
         let huge = fs::File::create(dir.join("oversized.jpg")).unwrap();
@@ -264,6 +315,19 @@ mod tests {
             .map(|entry| entry.metadata().unwrap().len())
             .sum();
         assert!(bytes <= DISK_BYTES);
+        fs::create_dir_all(&video_dir).unwrap();
+        for i in 0..1030 {
+            fs::write(video_dir.join(format!("{i}.jpg")), b"x").unwrap();
+        }
+        prune_disk(&dir);
+        let nested_count = fs::read_dir(&video_dir).unwrap().count();
+        let root_count = fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.path().extension().is_some_and(|x| x == "jpg"))
+            .count();
+        assert!(nested_count + root_count <= 1024);
+
         fs::remove_dir_all(dir).unwrap();
     }
 }

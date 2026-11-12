@@ -4,6 +4,7 @@ import { useTranslation } from "../../../i18n/LanguageContext";
 import type { SystemDiagnosticsInfo } from "../lib/systemDiagnostics";
 
 interface Props {
+  embedded?: boolean;
   info: SystemDiagnosticsInfo | null;
   loading: boolean;
   copied: boolean;
@@ -18,7 +19,7 @@ function DiagnosticRow({ icon, label, children }: { icon: ReactNode; label: stri
   </div>;
 }
 
-export function SystemDiagnosticsSummary({ info, loading, copied, onRefresh, onCopy }: Props) {
+export function SystemDiagnosticsSummary({ info, loading, copied, onRefresh, onCopy, embedded = false }: Props) {
   const { dict } = useTranslation();
   const f = dict.settings.systemFields;
   const installed = info ? [
@@ -30,22 +31,8 @@ export function SystemDiagnosticsSummary({ info, loading, copied, onRefresh, onC
     .replace(/\s+Copyright\s*\(c\).*/i, "").replace(/-essentials_build/i, "")
     .replace(/-www\.gyan\.dev/i, " (gyan.dev)").trim();
 
-  return <section className="glass-section settings-group-card system-diagnostics" aria-busy={loading}>
-    <div className="system-diagnostics__header">
-      <h3><Cpu size={17} aria-hidden />{f.title}</h3>
-      <div className="system-settings__actions">
-        <button type="button" disabled={loading} onClick={onRefresh}
-          className="settings-action-btn settings-action-btn--secondary" title={f.btnRefreshTooltip}>
-          <RotateCw size={13} className={loading ? "spin-animation" : ""} aria-hidden />{f.btnRefresh}
-        </button>
-        <button type="button" disabled={!info || loading} onClick={onCopy}
-          className={`settings-action-btn settings-action-btn--${copied ? "primary" : "secondary"}`}
-          title={f.btnCopyReportTooltip}>
-          {copied ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
-          {copied ? f.reportCopied : f.btnCopyReport}
-        </button>
-      </div>
-    </div>
+  return <section className={embedded ? "system-diagnostics system-diagnostics--embedded" : "glass-section settings-group-card system-diagnostics"} aria-busy={loading}>
+    {!embedded && <div className="system-diagnostics__header"><h3><Cpu size={17} aria-hidden />{f.title}</h3></div>}
     {loading && !info ? <div className="system-diagnostics__loading" role="status">
       <Loader2 size={16} className="spin-animation" aria-hidden />{f.loadingDiagnostics}
     </div> : info && <dl className="system-diagnostics__list">
@@ -71,9 +58,21 @@ export function SystemDiagnosticsSummary({ info, loading, copied, onRefresh, onC
           <span className="system-diagnostics__muted">{info.models_count} ONNX / {info.compiled_engines_count} .engine</span>}
       </DiagnosticRow>
       <DiagnosticRow icon={<Cpu size={14} aria-hidden />} label={f.hardwareTitle}>
-        <span>{info.gpu_name} · {(info.gpu_vram_mb / 1024).toFixed(1)} GB VRAM</span>
+        <span>{info.gpu_name}</span>
+        <span className="system-diagnostics__muted">{(info.gpu_vram_mb / 1024).toFixed(1)} GB VRAM</span>
         {info.gpu_sm_arch && <span className="system-settings__badge">{info.gpu_sm_arch}</span>}
       </DiagnosticRow>
     </dl>}
+    <div className="system-diagnostics__tools">
+      <button type="button" disabled={loading} onClick={onRefresh}
+        className="system-settings__tool" title={f.btnRefreshTooltip}>
+        <RotateCw size={13} className={loading ? "spin-animation" : ""} aria-hidden />{f.btnRefresh}
+      </button>
+      <button type="button" disabled={!info || loading} onClick={onCopy}
+        className="system-settings__tool" title={f.btnCopyReportTooltip}>
+        {copied ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
+        {copied ? f.reportCopied : f.btnCopyReport}
+      </button>
+    </div>
   </section>;
 }

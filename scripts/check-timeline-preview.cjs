@@ -17,6 +17,19 @@ function load(entry, imports, globals = {}) {
   return mod.exports;
 }
 
+let previewPreference = null;
+let preferenceEvents = 0;
+const previewSettings = load('src/utils/timelinePreviewPreference.ts', {}, {
+  localStorage: { getItem: () => previewPreference, setItem: (_, value) => { previewPreference = value; } },
+  window: { dispatchEvent: () => { preferenceEvents++; } },
+});
+assert.equal(previewSettings.isTimelinePreviewEnabled(), true);
+previewSettings.setTimelinePreviewEnabled(false);
+assert.equal(previewSettings.isTimelinePreviewEnabled(), false);
+assert.equal(preferenceEvents, 1);
+previewSettings.setTimelinePreviewEnabled(true);
+assert.equal(previewSettings.isTimelinePreviewEnabled(), true);
+
 const geometry = load('src/utils/timelineThumbnail.ts', {});
 assert.equal(geometry.thumbnailTime(12.3456, false), 12);
 assert.equal(geometry.thumbnailTime(12.3456, true), 12.346);
@@ -203,6 +216,21 @@ const bytes = () => new Uint8Array([255, 216, 1, 255, 217]).buffer;
   assert(cancellations.includes(outdated.args.requestId),'resting cursor supersedes outdated coarse seek');
   outdated.reject('THUMBNAIL_CANCELLED');await flush();
   assert.equal(requests.at(-1).args.seconds,60.25);assert(requests.at(-1).args.exact);
+  await update(['C:/retry.mkv',1,10,true]);requests.at(-1).reject('THUMBNAIL_MPV_TIMEOUT');await flush();
+  await update(['C:/retry.mkv',1,20,true]);const oldRetry=requests.at(-1);
+  await update(['C:/retry.mkv',1,30,true]);await update(['C:/retry.mkv',1,10,true]);
+  oldRetry.resolve(bytes());await flush();assert.equal(requests.at(-1).args.seconds,10,'return after an error replaces stale pending target');
+  requests.at(-1).resolve(bytes());await flush();assert.equal(result.seconds,10);
+  result.onImageError();await flush();
+  assert(requests.at(-1).args.refresh,'image failure retries once bypassing backend cache');
+  requests.at(-1).resolve(bytes());await flush();assert(result.src);
+  result.onImageError();await flush();assert(result.failed,'second image error terminates retries');
+  await update(['C:/recovery.mkv',1,10,true]);requests.at(-1).resolve(bytes());await flush();
+  await update(['C:/recovery.mkv',1,20,true]);const prior=requests.at(-1);
+  await update(['C:/recovery.mkv',1,30,true]);result.onImageError();await flush();
+  prior.reject('THUMBNAIL_CANCELLED');await flush();assert(requests.at(-1).args.refresh);
+  requests.at(-1).resolve(bytes());await flush();assert.equal(requests.at(-1).args.seconds,30);
+  requests.at(-1).resolve(bytes());await flush();assert.equal(result.seconds,30);
   hooks.forEach(h=>h.cleanup?.());clearTimelineThumbnailCache();
   console.log('PASS immediate exact queue, motion progress, latest pending, settle cancellation, stale errors, global transform invalidation and URL bounds');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,3 +1,4 @@
+import { isTimelinePreviewEnabled, setTimelinePreviewEnabled } from "./timelinePreviewPreference";
 import { getFavoriteModel, setFavoriteModel } from "./favoriteModel";
 /**
  * Модуль двусторонней синхронизации визуальных настроек L-MPV с портативным файлом config/settings.json.
@@ -90,6 +91,7 @@ export interface UiSettings {
   animations_enabled?: boolean;
   show_track_names?: boolean;
   volume_indicator_enabled?: boolean;
+  timeline_preview_enabled?: boolean;
   volume_indicator_osd?: boolean;
   favorite_upscale_model?: string;
   playlist_width?: number;
@@ -247,6 +249,7 @@ export function collectCurrentUiSettings(): UiSettings {
     animations_enabled: localStorage.getItem("l-mpv-animations-enabled") !== "false",
     show_track_names: localStorage.getItem("l-mpv-show-track-names") !== "false",
     volume_indicator_enabled: isVolumeIndicatorEnabled(),
+    timeline_preview_enabled: isTimelinePreviewEnabled(),
     volume_indicator_osd: isVolumeOsdEnabled(),
     favorite_upscale_model: getFavoriteModel(),
     playlist_width: playlistWidth,
@@ -381,6 +384,10 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
   }
   if (typeof ui.favorite_upscale_model === "string" && getFavoriteModel() !== ui.favorite_upscale_model) {
     setFavoriteModel(ui.favorite_upscale_model);
+    restored = true;
+  }
+  if (typeof ui.timeline_preview_enabled === "boolean") {
+    setTimelinePreviewEnabled(ui.timeline_preview_enabled);
     restored = true;
   }
   if (typeof ui.volume_indicator_osd === "boolean") {
