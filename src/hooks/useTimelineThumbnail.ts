@@ -3,8 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { thumbnailTime } from "../utils/timelineThumbnail";
 
 let scopeCounter = 0;
-/** Период дебаунса перемещения мыши (мс) для мгновенного отклика и предотвращения спама декодера. */
-const DEBOUNCE_MS = 25;
+/** Период дебаунса перемещения мыши (мс) для предотвращения спама декодера при непрерывном скраббинге. */
+const DEBOUNCE_MS = 35;
 const MAX_READY_FRAMES = 12;
 
 interface FrameState { source: string; url: string | null; failed: boolean; pending: boolean }

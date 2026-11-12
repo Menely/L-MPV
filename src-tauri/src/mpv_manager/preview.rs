@@ -95,10 +95,7 @@ impl PreviewCore {
             ("vd-lavc-skiploopfilter", "all"),
             ("vd-lavc-fast", "yes"),
             ("demuxer-readahead-secs", "0"),
-            // Буфер 16 МиБ предотвращает прерывистые чтения диска при exact-поиске в тяжелых 4K-файлах с длинным GOP.
-            ("demuxer-max-bytes", "16MiB"),
-            // Агрессивный сброс кадров до целевого таймстампа без лишней постобработки ускоряет аппаратный поиск.
-            ("hr-seek-framedrop", "yes"),
+            ("demuxer-max-bytes", "512KiB"),
             ("sws-scaler", "fast-bilinear"),
             // Auto uses every logical CPU for each screenshot. A small bound
             // avoids thread fan-out while playback is rendering concurrently.
