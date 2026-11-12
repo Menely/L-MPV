@@ -327,19 +327,24 @@ impl ThumbnailService {
             return Err("THUMBNAIL_UNAVAILABLE".into());
         }
         let root = std::env::current_exe().map_err(|e| e.to_string())?;
-        self.start_idle_cleanup();
         let _worker = self.0.worker.lock().map_err(|e| e.to_string())?;
         if is_cancelled() {
             return Err("THUMBNAIL_CANCELLED".into());
         }
         let began = Instant::now();
-        let native_result = self.0.native.lock().map_err(|e| e.to_string())?.extract(
-            root.parent().ok_or("THUMBNAIL_ROOT")?,
-            &source,
-            exact,
-            token,
-            &self.0.stopped,
-        );
+        let native_result = {
+            let mut native = self.0.native.lock().map_err(|e| e.to_string())?;
+            // The reaper clears its flag under this same lock. Starting it here
+            // prevents an exiting reaper from leaving a new core unmonitored.
+            self.start_idle_cleanup();
+            native.extract(
+                root.parent().ok_or("THUMBNAIL_ROOT")?,
+                &source,
+                exact,
+                token,
+                &self.0.stopped,
+            )
+        };
         let bytes = match native_result {
             Ok(bytes) => bytes,
             Err(error) if error == "THUMBNAIL_CANCELLED" => return Err(error),
