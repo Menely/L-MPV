@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { thumbnailTime } from "../utils/timelineThumbnail";
+import { thumbnailJob, thumbnailTime } from "../utils/timelineThumbnail";
 import { thumbnailMemoryCache, thumbnailTransformRevision } from "../utils/timelineThumbnailCache";
 export { clearTimelineThumbnailCache } from "../utils/timelineThumbnailCache";
 
 let scopeCounter = 0;
 const SETTLE_MS = 120;
-interface Job { seconds: number; key: string }
-interface FrameState { source: string; url: string | null; seconds: number | null; failed: boolean; pending: boolean }
+type Job = ReturnType<typeof thumbnailJob>;
+interface FrameState { approximate: boolean; source: string; url: string | null; seconds: number | null; failed: boolean; pending: boolean }
 
 /** One exact decode in flight; intermediate pending targets collapse into the latest. */
-export function useTimelineThumbnail(path: string, videoTrack: number | null, seconds: number, enabled: boolean) {
+export function useTimelineThumbnail(path: string, videoTrack: number | null, seconds: number, enabled: boolean, trickplay = false) {
   const [revision, setRevision] = useState(thumbnailTransformRevision());
   useEffect(() => {
     const invalidate = () => setRevision(thumbnailTransformRevision());
@@ -18,7 +18,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
     return () => window.removeEventListener("l-mpv-preview-transform-changed", invalidate);
   }, []);
   const source = `${path}\n${videoTrack ?? "none"}\n${revision}`;
-  const empty = (pending = false): FrameState => ({ source, url: null, seconds: null, failed: false, pending });
+  const empty = (pending = false): FrameState => ({ approximate: false, source, url: null, seconds: null, failed: false, pending });
   const [frame, setFrame] = useState<FrameState>(empty());
   const controller = useRef<{ move: (time: number) => void; fail: () => void } | null>(null);
   useEffect(() => {
@@ -48,7 +48,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
     const show = (job: Job, next: string, pending: boolean) => {
       url = next;
       shown = job.key;
-      setFrame({ source, url, seconds: job.seconds, failed: false, pending });
+      setFrame({ approximate: !job.exact, source, url, seconds: job.seconds, failed: false, pending });
     };
     const pump = () => {
       if (!isCurrent() || active || !desired) return;
@@ -61,7 +61,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
       active = request;
       setFrame(previous => ({ ...previous, pending: true, failed: false }));
       void invoke<ArrayBuffer>("get_timeline_thumbnail", {
-        path, seconds: job.seconds, exact: true, requestId: request.id, videoTrack,
+        path, seconds: job.seconds, exact: job.exact, requestId: request.id, videoTrack,
       }).then(bytes => {
         if (!isCurrent() || request.cancelled || !bytes.byteLength) return;
         const next = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
@@ -81,26 +81,33 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
         else setFrame(previous => ({ ...previous, pending: false }));
       });
     };
+    const queue = (job: Job) => {
+      const hit = thumbnailMemoryCache.get(source, job.key);
+      if (hit) {
+        desired = null;
+        if (active?.job.key !== job.key) cancelActive();
+        show(job, hit, false);
+        return;
+      }
+      if (failedKey === job.key || shown === job.key) return;
+      desired = active?.job.key === job.key && !active.cancelled ? null : job;
+      setFrame(previous => previous.pending && !previous.failed ? previous : { ...previous, pending: true, failed: false });
+      pump();
+    };
     controller.current = {
       move(time) {
         if (stopped) return;
         latestTime = thumbnailTime(time, true);
         clearTimeout(settle);
-        const job: Job = { seconds: latestTime, key: `exact:${latestTime}` };
-        const hit = thumbnailMemoryCache.get(source, job.key);
-        if (hit) {
-          desired = null;
-          if (active?.job.key !== job.key) cancelActive();
-          show(job, hit, false);
-          return;
+        const precise = thumbnailJob(latestTime, true);
+        if (trickplay && !thumbnailMemoryCache.get(source, precise.key)) {
+          if (active?.job.exact && active.job.key !== precise.key) cancelActive();
+          queue(thumbnailJob(latestTime, false));
+          settle = setTimeout(() => queue(precise), SETTLE_MS);
+        } else {
+          queue(precise);
+          settle = setTimeout(() => { if (desired) cancelActive(); }, SETTLE_MS);
         }
-        if (failedKey === job.key || shown === job.key) return;
-        desired = active?.job.key === job.key && !active.cancelled ? null : job;
-        setFrame(previous => ({ ...previous, pending: true, failed: false }));
-        pump();
-        // During motion let useful work complete. Once the cursor rests, abort
-        // an outdated seek so a long GOP does not delay the final target twice.
-        settle = setTimeout(() => { if (desired) cancelActive(); }, SETTLE_MS);
       },
       fail() {
         stopped = true;
@@ -118,11 +125,11 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
       desired = null;
       cancelActive();
     };
-  }, [path, videoTrack, source, enabled]);
-  useEffect(() => { if (enabled) controller.current?.move(seconds); }, [seconds, enabled, source]);
+  }, [path, videoTrack, source, enabled, trickplay]);
+  useEffect(() => { if (enabled) controller.current?.move(seconds); }, [seconds, enabled, source, trickplay]);
   const current = enabled && frame.source === source;
   return {
-    src: current ? frame.url : null, seconds: current ? frame.seconds : null,
+    approximate: current && frame.approximate, src: current ? frame.url : null, seconds: current ? frame.seconds : null,
     pending: current && frame.pending, failed: current && frame.failed,
     onImageError: () => { if (current && frame.url) controller.current?.fail(); },
   };

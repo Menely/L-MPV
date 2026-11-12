@@ -1,3 +1,4 @@
+import { supportsTrickplaySize } from "../../utils/timelineThumbnail";
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
@@ -428,6 +429,7 @@ export const Timeline = React.memo(() => {
 
       {hoverInfo && (
         <TimelinePreview hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath}
+          trickplay={supportsTrickplaySize(mediaInfo?.width ?? 0, mediaInfo?.height ?? 0)}
           hasVideo={mediaInfo?.has_video ?? false}
           videoTrack={tracks.find((track) => track.type === "video" && track.selected)?.id ?? null} />
       )}

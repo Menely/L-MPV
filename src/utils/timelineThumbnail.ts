@@ -16,3 +16,13 @@ export function timelinePreviewLeft(ratio: number, railLeft: number, railWidth: 
   const clamped = Math.max(half + 8, Math.min(center, viewportWidth - half - 8));
   return (clamped - railLeft) / zoom;
 }
+
+/** Include UHD/DCI and cropped widescreen or portrait 4K sources. */
+export function supportsTrickplaySize(width: number, height: number): boolean {
+  return width > 0 && height > 0 && (Math.max(width, height) >= 3840 || Math.min(width, height) >= 2160);
+}
+
+export function thumbnailJob(time: number, exact: boolean) {
+  const seconds = thumbnailTime(time, exact);
+  return { seconds, exact, key: `${exact ? "exact" : "grid"}:${seconds}` };
+}
