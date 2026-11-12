@@ -469,6 +469,8 @@ impl MpvManager {
                 });
             Self::set_option(&api, handle, "screenshot-directory", &screenshots_dir);
             Self::set_option(&api, handle, "screenshot-format", "png");
+            // Use the video's basename and the first free number; mpv avoids overwrites.
+            Self::set_option(&api, handle, "screenshot-template", "%F-%#04n");
             // Скриншоты HDR/Dolby Vision: конвертировать в sRGB с тонмаппингом
             // вместо сохранения native BT.2020/ST.2084 (иначе в SDR-просмотрщиках
             // кадр выглядит пересвеченным). Полное разрешение кадра сохраняется.
@@ -511,13 +513,16 @@ impl MpvManager {
             Self::set_option(&api, handle, "audio-buffer", "0.2"); // Отзывчивый размер буфера для плавной перемотки
             Self::set_option(&api, handle, "audio-channels", "auto-safe"); // Автоопределение каналов оборудования
             Self::set_option(&api, handle, "audio-pitch-correction", "yes"); // Сохранение тональности при изменении скорости
-            Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от клиппинга при даунмиксе
+            Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от клиппинга при даунмиксе, включая отключённый лимитер
+            Self::set_option(&api, handle, "gapless-audio", "yes"); // Сохранять аудиовывод открытым между совместимыми треками
             Self::set_option(&api, handle, "volume-max", "150.0"); // Максимальная громкость с софтверным усилением (до 150%)
 
-            // ─── Студийный sinc-ресемплинг (32 taps) ───
+            // ─── Sinc-ресемплинг и высокочастотный треугольный дизеринг ───
             Self::set_option(&api, handle, "audio-resample-filter-size", "32");
             Self::set_option(&api, handle, "audio-resample-phase-shift", "14");
             Self::set_option(&api, handle, "audio-resample-linear", "yes");
+            Self::set_option(&api, handle, "audio-resample-cutoff", "0.97"); // Относительная частота среза ресемплера
+            Self::set_option(&api, handle, "audio-swresample-o", "dither_method=triangular_hp"); // Высокочастотный треугольный дизеринг
 
 
             // ─── Приоритет процесса и мультимедиа-планировщик Windows (MMCSS) ───

@@ -895,8 +895,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           aria-labelledby="settings-modal-title"
           style={{
             width: 720,
-            maxWidth: "95vw",
-            maxHeight: "75vh",
+            maxWidth: "min(95vw, calc(100vw / var(--ui-scale, 1) - 24px))",
+            maxHeight: "min(75vh, calc(100dvh / var(--ui-scale, 1) - 24px))",
             display: "flex",
             flexDirection: "column",
           }}
@@ -973,8 +973,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           aria-labelledby="settings-modal-title"
           style={{
             width: 720,
-            maxWidth: "95vw",
-            maxHeight: "80vh",
+            maxWidth: "min(95vw, calc(100vw / var(--ui-scale, 1) - 24px))",
+            maxHeight: "min(80vh, calc(100dvh / var(--ui-scale, 1) - 24px))",
             display: "flex",
             flexDirection: "column",
           }}

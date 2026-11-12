@@ -18,6 +18,13 @@ use tauri::State;
 pub fn take_screenshot(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    let plane = state.mpv.get_property_string("video-params/plane-depth").unwrap_or_default();
+    let pixel = state.mpv.get_property_string("video-params/pixelformat").unwrap_or_default();
+    let hardware = state.mpv.get_property_string("video-params/hw-pixelformat").unwrap_or_default();
+    let depth = super::playback::resolve_bit_depth(&plane, &[&pixel, &hardware]);
+    // PNG has no 10/12-bit storage: preserve those sources in a 16-bit container.
+    // Unknown depth stays high precision rather than silently losing color information.
+    state.mpv.set_property_string("screenshot-high-bit-depth", if depth == "8-bit" { "no" } else { "yes" })?;
     state.mpv.command("screenshot video")
 }
 

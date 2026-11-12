@@ -137,6 +137,12 @@ export function PlayerControls({
       closePopoverTimerRef.current = null;
     }
     const currentType = activePopover;
+    // Opening an external overlay can request a close with no popover open.
+    // Do not focus unrelated controls in that case.
+    if (!currentType) {
+      setClosingPopover(null);
+      return;
+    }
     const restoreFocus = () => {
       const id = currentType === "audio" ? "btn-audio-tracks"
         : currentType === "sub" ? "btn-sub-tracks"

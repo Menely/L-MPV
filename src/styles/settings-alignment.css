@@ -38,7 +38,7 @@
 .settings-icon > .lucide-flame { transform: translateY(-0.5px); }
 /* Eye glyph is vertically compact (14/24 viewBox); small nudge matches cap-height center. */
 .settings-icon > .lucide-eye { transform: translateY(-0.5px); }
-.settings-accordion__label { min-width: 0; line-height: 20px; }
+.settings-accordion__label { min-width: 0; line-height: 20px; overflow-wrap: anywhere; }
 /* Center the caption's cap-height, not font-specific invisible leading.
    Older WebViews retain the regular line box without clipping any glyphs. */
 @supports (text-box-trim: trim-both) {

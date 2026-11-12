@@ -1,0 +1,17 @@
+.control-buttons-settings { container: control-buttons-settings / inline-size; min-width: 0; }
+.control-buttons-settings__groups { display: grid; gap: var(--settings-section-gap) 24px; }
+.control-buttons-settings__group { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.control-buttons-settings__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 36px; padding: 2px 0; border-bottom: 1px solid var(--border); }
+.control-buttons-settings__row:last-child { border-bottom: 0; }
+.control-buttons-settings__toggle { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: start; align-content: center; gap: 8px; min-width: 0; min-height: 32px; cursor: pointer; }
+.control-buttons-settings__toggle span { font-size: var(--fs-sm); font-weight: 500; line-height: 20px; overflow-wrap: anywhere; }
+.control-buttons-settings__toggle .ui-checkbox { margin: 1px 0 0; }
+.control-buttons-settings__seconds { display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: var(--fs-xs); white-space: nowrap; }
+.control-buttons-settings__seconds input { width: 46px; height: 28px; padding: 0 4px; border: 1px solid var(--border-hover); border-radius: var(--radius-control); background: var(--surface-child); color: var(--text-primary); text-align: center; font-size: var(--fs-xs); font-weight: 600; font-variant-numeric: tabular-nums; }
+.control-buttons-settings__seconds input:disabled { opacity: .4; }
+.control-buttons-settings__seconds input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.control-buttons-settings__toggle:has(:focus-visible) { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius-xs); }
+.control-buttons-preview { display: flex; flex-direction: column; gap: var(--settings-content-gap); padding: var(--padding-card); margin-bottom: var(--settings-section-gap); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-child); }
+@container control-buttons-settings (min-width: 600px) {
+  .control-buttons-settings__groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

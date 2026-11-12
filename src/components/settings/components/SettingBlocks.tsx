@@ -27,6 +27,7 @@ export function SectionHeader({ icon, title, right, desc }: SectionHeaderProps) 
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          flexWrap: "wrap",
           gap: "var(--space-4)",
         }}
         >
@@ -38,7 +39,7 @@ export function SectionHeader({ icon, title, right, desc }: SectionHeaderProps) 
             minHeight: 20,
             lineHeight: "20px",
             minWidth: 0,
-            flex: 1,
+            flex: "1 1 180px",
           }}
           >
           {icon && (
@@ -49,16 +50,15 @@ export function SectionHeader({ icon, title, right, desc }: SectionHeaderProps) 
               fontSize: "var(--section-title-size, var(--fs-sm))",
               fontWeight: 600,
               color: "var(--text-primary)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              whiteSpace: "normal",
+              overflowWrap: "anywhere",
             }}
             >
             {title}
           </span>
         </div>
         {right && (
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexWrap: "wrap", minWidth: 0, maxWidth: "100%" }}>
             {right}
           </div>
         )}

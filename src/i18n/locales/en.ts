@@ -203,7 +203,7 @@ export const en: TranslationDict = {
       // Block 1: Limiter
       audioLimiterTitle: "Audio Overload Protection",
       audioLimiterDesc:
-        "Peak limiter (lavfi alimiter) prevents clipping at volumes above 100%. Fully transparent at 100%.",
+        "Limits sample peaks with lavfi alimiter (limit=1). Inter-sample peaks are not measured.",
       // Block 2: HDR Tone Mapping
       hdrToneMappingTitle: "HDR Tone Mapping Curve",
       hdrToneMappingDesc:
@@ -272,7 +272,7 @@ export const en: TranslationDict = {
         "What to do with the source signal before it reaches the screen. Deinterlacing removes combing from old SD recordings and DVDs by detecting interlaced frames from their flags. Plain Yadif does not jitter even fields on progressive video, which makes it safe by default; Yadif 2x doubles the frame count for the smoothest result at the cost of extra work. Hardware decoding offloads decompression to the GPU instead of the CPU: Auto Safe enables it only where the result is guaranteed to match software; Auto Copy widens codec support (useful for 10-bit HEVC and AV1) at the cost of copying frames back to system memory; Software returns to CPU decoding — higher CPU load but maximum predictability. Note: when AI upscaling is on, the decoding mode is set automatically for the selected backend.",
       tileAudioTitle: "Audio Path",
       tileAudioDesc:
-        "How audio is processed before output. Audio overload protection (peak limiter, limit=0.98) prevents speaker clipping at 101–150% volume, remaining transparent without compression at 100%. Volume normalization smooths the loudness spread inside a track: Dynamic (dynaudnorm) gently balances quiet and loud scenes, Night mode (acompressor) softly tames loud explosions and gunshots without affecting speech volume. Normalization and overload protection work independently. Audio device latency fix (audio-stream-silence + audio-wait-open) stops the first fraction of a second from being swallowed by sleeping DACs and Bluetooth speakers.",
+        "Audio processing before output. The optional alimiter limits sample peaks (limit=1); inter-sample peaks are not measured. Dynamic normalization balances quiet and loud passages; Night mode compresses loud passages. Normalization and the limiter work independently. The audio-device latency option can help devices that need time to wake up.",
       tileHdrTitle: "Artifact Reduction (Debanding)",
       tileHdrDesc:
         "Smooths stepped color transitions (banding) across gradients in the sky, dark scenes, and anime. The shader inspects neighboring pixels and blends abrupt shade edges with procedural grain. Recommended when watching compressed videos or low-bitrate streams.",

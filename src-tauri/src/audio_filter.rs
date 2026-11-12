@@ -4,13 +4,11 @@
 use std::fmt;
 use std::str::FromStr;
 
-/// Защитный пиковый лимитер (True Peak Limiter).
+/// Лимитер семпловых пиков с порогом 0 dBFS (`limit=1`).
 ///
-/// Предотвращает цифровой клиппинг и хрип динамиков при выкручивании громкости выше 100% (до 150%).
-/// На уровне 100% громкости сигнал со стандартным пиком не упирается в потолок (limit=0.98, т.е. -0.17 dBFS)
-/// и звучит прозрачно без компрессии.
+/// Межсемпловые пики не измеряются; фильтр не гарантирует защиту динамиков.
 pub const ALIMITER_FILTER: &str =
-    "alimiter=level_in=1:level_out=1:limit=0.98:attack=5:release=50";
+    "alimiter=level_in=1:level_out=1:limit=1:attack=5:release=50";
 
 /// Ночной режим (Night Mode / Dynamic Range Compression).
 ///
@@ -100,15 +98,15 @@ pub struct AudioFilterChainBuilder;
 impl AudioFilterChainBuilder {
     pub const AF_BYPASS: &'static str = "";
     pub const AF_ALIMITER: &'static str =
-        "lavfi=[alimiter=level_in=1:level_out=1:limit=0.98:attack=5:release=50]";
+        "lavfi=[alimiter=level_in=1:level_out=1:limit=1:attack=5:release=50]";
     pub const AF_DYNAUDNORM: &'static str =
         "lavfi=[dynaudnorm=framelen=500:gausssize=15:maxgain=3.5:peak=0.90:compress=8:threshold=0.008:overlap=0.5]";
     pub const AF_DYNAUDNORM_ALIMITER: &'static str =
-        "lavfi=[dynaudnorm=framelen=500:gausssize=15:maxgain=3.5:peak=0.90:compress=8:threshold=0.008:overlap=0.5,alimiter=level_in=1:level_out=1:limit=0.98:attack=5:release=50]";
+        "lavfi=[dynaudnorm=framelen=500:gausssize=15:maxgain=3.5:peak=0.90:compress=8:threshold=0.008:overlap=0.5,alimiter=level_in=1:level_out=1:limit=1:attack=5:release=50]";
     pub const AF_NIGHT: &'static str =
         "lavfi=[acompressor=threshold=0.25:ratio=3:attack=10:release=450:makeup=1:knee=2:link=maximum:detection=rms]";
     pub const AF_NIGHT_ALIMITER: &'static str =
-        "lavfi=[acompressor=threshold=0.25:ratio=3:attack=10:release=450:makeup=1:knee=2:link=maximum:detection=rms,alimiter=level_in=1:level_out=1:limit=0.98:attack=5:release=50]";
+        "lavfi=[acompressor=threshold=0.25:ratio=3:attack=10:release=450:makeup=1:knee=2:link=maximum:detection=rms,alimiter=level_in=1:level_out=1:limit=1:attack=5:release=50]";
 
     /// Формирует строку параметра `af` для mpv по заданной комбинации режима и состояния лимитера.
     ///

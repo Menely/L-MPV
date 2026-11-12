@@ -10,7 +10,7 @@ import { AccordionSection } from "../components/AccordionSection";
 import { ColorSchemeSection } from "../components/ColorSchemeSection";
 import { VisualizerSettingsSection } from "../sections/VisualizerSettingsSection";
 import { HeatmapSettingsSection } from "../sections/HeatmapSettingsSection";
-import { ControlButtonsPreviewCard } from "../components/ControlButtonsPreviewCard";
+import { ControlButtonsSettings } from "../components/ControlButtonsSettings";
 import { optionCardStyle, optionResetBtnStyle, optionBtnStyle, optionBtnClassName } from "../components/optionCardStyles";
 import { VerticalSlider } from "../appearance/ambientPrimitives";
 import {
@@ -1025,180 +1025,28 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 icon={<Eye size={18} />}
                 title={dict.settings.appearance.visibilitySection}
                 >
-                <div>
-                  <ControlButtonsPreviewCard
-                    visibleButtons={visibleButtons}
-                    skipOpeningSeconds={skipOpeningSeconds}
-                    seekStepSeconds={seekStepSeconds}
-                  />
-                </div>
-
-                {/* Единая аккуратная адаптивная сетка кнопок управления */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", columnGap: "var(--space-7)", rowGap: "var(--space-5)", marginTop: "var(--space-6)" }}>
-                  {[
-                    { id: 'seekButtons', label: dict.settings.appearance.visSeekButtons, defaultChecked: true },
-                    { id: 'repeat', label: dict.settings.appearance.visRepeat, defaultChecked: true },
-                    { id: 'shuffle', label: dict.settings.appearance.visShuffle, defaultChecked: true },
-                    { id: 'alwaysOnTop', label: dict.settings.appearance.visAlwaysOnTop, defaultChecked: true },
-                    { id: 'info', label: dict.settings.appearance.visFileInfo, defaultChecked: true },
-                    { id: 'mediaInfo', label: dict.settings.appearance.visMediaInfo, defaultChecked: true },
-                    { id: 'visualizer', label: dict.settings.appearance.visVisualizer, defaultChecked: true },
-                    { id: 'screenshot', label: dict.settings.appearance.visScreenshot, defaultChecked: true },
-                    { id: 'playlist', label: dict.settings.appearance.visPlaylist, defaultChecked: true },
-                    { id: 'fullscreen', label: dict.settings.appearance.visFullscreen, defaultChecked: true },
-                    { id: 'skipOpening', label: dict.settings.appearance.visSkipOpening, defaultChecked: false },
-                    { id: 'speed', label: dict.settings.appearance.visSpeed, defaultChecked: false }
-                  ].map(btn => {
-                    const isChecked = visibleButtons[btn.id] !== undefined 
-                      ? visibleButtons[btn.id]
-                      : btn.defaultChecked;
-                    return (
-                      <label
-                        key={btn.id}
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          alignItems: "center",
-                          gap: "var(--space-4)",
-                          minHeight: 24,
-                          height: "auto",
-                          minWidth: 0,
-                          cursor: "pointer",
-                          userSelect: "none",
-                          boxSizing: "border-box",
-                        }}
-                        >
-                        <input
-                          type="checkbox"
-                          className="ui-checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            const val = e.target.checked;
-                            const updated = { ...visibleButtons, [btn.id]: val };
-                            setVisibleButtons(updated);
-                            localStorage.setItem('l-mpv-visible-buttons', JSON.stringify(updated));
-                            window.dispatchEvent(new Event('l-mpv-settings-changed'));
-                          }}
-                        />
-                        <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-primary)", fontWeight: 500, lineHeight: 1.3, minWidth: 0, whiteSpace: "normal", overflowWrap: "anywhere" }}>
-                          {btn.label}
-                        </span>
-                        {btn.id === 'seekButtons' && (
-                          <div
-                            onClick={(e) => e.stopPropagation()}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "var(--space-2)",
-                              marginLeft: "var(--space-1)",
-                              height: 20,
-                              flexShrink: 0,
-                              whiteSpace: "nowrap",
-                              opacity: isChecked ? 1 : 0.4,
-                              transition: "opacity var(--t-fast) var(--ease-smooth)",
-                            }}
-                            >
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              className="no-spin-input"
-                              value={seekStepSeconds}
-                              disabled={!isChecked}
-                              onChange={(e) => {
-                                const rawVal = e.target.value.replace(/\D/g, "");
-                                const num = rawVal === "" ? 0 : Number(rawVal);
-                                const val = num> 300 ? 300 : num;
-                                setSeekStepSeconds(val);
-                                if (val> 0) saveSeekStepSeconds(val);
-                              }}
-                              onBlur={() => {
-                                if (seekStepSeconds <= 0) {
-                                  setSeekStepSeconds(10);
-                                  saveSeekStepSeconds(10);
-                                }
-                              }}
-                              style={{
-                                width: 38,
-                                height: 20,
-                                padding: "0 2px",
-                                background: "rgba(0, 0, 0, 0.4)",
-                                border: "1px solid var(--border)",
-                                borderRadius: "var(--radius-sm)",
-                                color: "var(--text-primary)",
-                                fontSize: "var(--fs-xs)",
-                                textAlign: "center",
-                                fontWeight: 600,
-                                boxSizing: "border-box",
-                                outline: "none",
-                              }}
-                            />
-                            <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", lineHeight: 1, whiteSpace: "nowrap" }}>
-                              {dict.settings.appearance.secSuffix}
-                            </span>
-                          </div>
-                        )}
-                        {btn.id === 'skipOpening' && (
-                          <div
-                            onClick={(e) => e.stopPropagation()}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "var(--space-2)",
-                              marginLeft: "var(--space-1)",
-                              height: 20,
-                              flexShrink: 0,
-                              whiteSpace: "nowrap",
-                              opacity: isChecked ? 1 : 0.4,
-                              transition: "opacity var(--t-fast) var(--ease-smooth)",
-                            }}
-                            >
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              className="no-spin-input"
-                              value={skipOpeningSeconds}
-                              disabled={!isChecked}
-                              onChange={(e) => {
-                                const rawVal = e.target.value.replace(/\D/g, "");
-                                const num = rawVal === "" ? 0 : Number(rawVal);
-                                const val = num> 600 ? 600 : num;
-                                setSkipOpeningSeconds(val);
-                                if (val> 0) {
-                                  localStorage.setItem('l-mpv-skip-opening-seconds', val.toString());
-                                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
-                                }
-                              }}
-                              onBlur={() => {
-                                if (skipOpeningSeconds <= 0) {
-                                  setSkipOpeningSeconds(90);
-                                  localStorage.setItem('l-mpv-skip-opening-seconds', '90');
-                                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
-                                }
-                              }}
-                              style={{
-                                width: 38,
-                                height: 20,
-                                padding: "0 2px",
-                                background: "rgba(0, 0, 0, 0.4)",
-                                border: "1px solid var(--border)",
-                                borderRadius: "var(--radius-sm)",
-                                color: "var(--text-primary)",
-                                fontSize: "var(--fs-xs)",
-                                textAlign: "center",
-                                fontWeight: 600,
-                                boxSizing: "border-box",
-                                outline: "none",
-                              }}
-                            />
-                            <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", lineHeight: 1, whiteSpace: "nowrap" }}>
-                              {dict.settings.appearance.secSuffix}
-                            </span>
-                          </div>
-                        )}
-                      </label>
-                    );
-                  })}
-                </div>
+                <ControlButtonsSettings
+                  visibleButtons={visibleButtons}
+                  onVisibilityChange={(id, enabled) => {
+                    const updated = { ...visibleButtons, [id]: enabled };
+                    setVisibleButtons(updated);
+                    localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(updated));
+                    window.dispatchEvent(new Event("l-mpv-settings-changed"));
+                  }}
+                  seekStepSeconds={seekStepSeconds}
+                  onSeekStepChange={value => {
+                    setSeekStepSeconds(value);
+                    if (value > 0) saveSeekStepSeconds(value);
+                  }}
+                  skipOpeningSeconds={skipOpeningSeconds}
+                  onSkipOpeningChange={value => {
+                    setSkipOpeningSeconds(value);
+                    if (value > 0) {
+                      localStorage.setItem("l-mpv-skip-opening-seconds", String(value));
+                      window.dispatchEvent(new Event("l-mpv-settings-changed"));
+                    }
+                  }}
+                />
               </AccordionSection>
 
               {/* 6. Размытие черных полос (Blur) */}

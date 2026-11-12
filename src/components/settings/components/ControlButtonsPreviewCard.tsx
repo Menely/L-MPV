@@ -62,7 +62,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             borderRadius: "var(--radius-xs, 4px)",
             fontSize: "var(--fs-3xs)",
             fontWeight: 600,
-            transition: "all 0.15s ease",
+            transition: "color 0.15s ease, background-color 0.15s ease",
           }}
         >
           <SpeedIcon size={11} />
@@ -88,7 +88,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             borderRadius: "var(--radius-xs, 4px)",
             fontSize: "var(--fs-3xs)",
             fontWeight: 600,
-            transition: "all 0.15s ease",
+            transition: "color 0.15s ease, background-color 0.15s ease",
           }}
           >
           <FastForward size={10} />
@@ -113,34 +113,18 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
     justifyContent: "center",
     color: "var(--text-secondary)",
     borderRadius: "var(--radius-control)",
-    transition: "all 0.15s ease",
+    transition: "color 0.15s ease, background-color 0.15s ease",
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        padding: "14px 16px",
-        marginBottom: "var(--space-6)",
-        background: "rgba(0, 0, 0, 0.35)",
-        borderRadius: "var(--radius-md)",
-        border: "1px solid var(--border)",
-        gap: "var(--space-5)",
-        boxSizing: "border-box",
-      }}
-      >
+    <div className="control-buttons-preview">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "var(--space-4)" }}>
         <div className="row-center row-gap-4">
-          <span className="t-label">
-            {dict.settings.appearance.controlButtons.preview}
-          </span>
           <span
             style={{
               fontSize: "var(--fs-sm)",
-              fontWeight: 700,
-              color: "var(--accent-text)",
-              textShadow: "0 0 10px var(--accent-glow)",
+              fontWeight: 600,
+              color: "var(--text-primary)",
             }}
             >
             {dict.settings.appearance.controlButtons.liveView}

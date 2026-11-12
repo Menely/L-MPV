@@ -554,9 +554,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
           onClick={(e) => e.stopPropagation()}
           style={{
             width: isExpanded ? "820px" : "480px",
-            maxWidth: "94vw",
+            maxWidth: "min(94vw, calc(100vw / var(--ui-scale, 1) - 24px))",
             height: isExpanded ? "78vh" : "420px",
-            maxHeight: "92vh",
+            maxHeight: "min(92vh, calc(100dvh / var(--ui-scale, 1) - 24px))",
             display: "flex",
             flexDirection: "column",
             borderRadius: "var(--radius-surface)",
@@ -758,6 +758,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
 
           {/* Футер с версией приложения и кнопками */}
           <div
+            className="update-modal-footer"
             style={{
               padding: "10px 22px",
               borderTop: "1px solid rgba(255, 255, 255, 0.08)",
@@ -785,7 +786,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               dict={dict}
             />
 
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexShrink: 0 }}>
+            <div className="update-modal-actions">
               <UpdateActionButtons
                 isUpgrade={isUpgrade}
                 isDowngrade={isDowngrade}
@@ -915,7 +916,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
           </div>
 
           {/* 3. Нижний ряд: футер-островок с версиями и кнопками действий */}
-          <div className="update-card update-card--footer">
+          <div className="update-card update-card--footer update-modal-footer">
             <VersionPicker
               currentVersion={currentVersion}
               targetVersion={targetVersion}
@@ -931,7 +932,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               dict={dict}
             />
 
-            <div className="update-card__actions">
+            <div className="update-card__actions update-modal-actions">
               <UpdateActionButtons
                 isUpgrade={isUpgrade}
                 isDowngrade={isDowngrade}

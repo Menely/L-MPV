@@ -210,10 +210,10 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <summary><b>🎧 Audio output and volume boost</b></summary>
 
 - Windows WASAPI output with a configured 0.2-second audio buffer.
-- Volume adjustment up to 150% and an optional peak limiter. Limiting and gain changes can alter the signal; bit-perfect output is not guaranteed.
+- Volume adjustment up to 150% and an optional sample-peak limiter (`alimiter`, `limit=1`). Inter-sample peaks are not measured.
 - Audio device latency options to reduce missing audio at startup on some devices.
+- Sinc resampling (`audio-resample-filter-size=32`, `cutoff=0.97`) with high-pass triangular dithering (`triangular_hp`), gapless audio, normalized multichannel downmixing, and pitch correction when changing playback speed.
 - **Volume indicator:** An optional scale below the screen center or a text OSD in the upper-left corner. Disabled by default; enable it under Video & Audio Settings → Audio Path, then use the OSD checkbox to select its appearance.
-- Configured sinc resampling, normalized multichannel downmixing and pitch correction when changing playback speed.
 
 </details>
 

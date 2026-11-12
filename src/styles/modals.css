@@ -1661,7 +1661,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
 .settings-tab-label {
   min-width: 0;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   line-height: 1.2;
   text-align: center;
 }
@@ -2661,9 +2661,9 @@ html.no-animations .color-circle--palette { will-change: auto; }
 .update-modal-capsule {
   position: relative;
   width: 500px;
-  max-width: 94vw;
+  max-width: min(94vw, calc(100vw / var(--ui-scale, 1) - 24px));
   height: 480px;
-  max-height: 92vh;
+  max-height: min(92vh, calc(100dvh / var(--ui-scale, 1) - 24px));
   display: flex;
   flex-direction: column;
   gap: 10px !important;
@@ -3030,7 +3030,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
 }
 
 /* Fit equal tabs inside narrow settings without scrolling or omitted labels. */
-@container settings-shell (max-width: 620px) {
+@container settings-shell (max-width: 680px) {
   .settings-tab-btn,
   .settings-card--tabs .settings-tab-btn {
     flex-direction: column;
@@ -3038,4 +3038,24 @@ html.no-animations .color-circle--palette { will-change: auto; }
     padding: 4px 2px;
     font-size: var(--fs-2xs);
   }
+}
+
+@container settings-shell (max-width: 420px) {
+  .settings-tabs, .settings-card.settings-card--tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Let actions grow vertically instead of clipping translated labels at high UI scales. */
+.update-modal-card, .update-modal-capsule { container: update-dialog / inline-size; overflow-wrap: anywhere; }
+.update-modal-footer { min-width: 0; flex-wrap: wrap; }
+.update-modal-footer .update-modal-actions { display: flex; align-items: center; justify-content: flex-end; flex: 1 1 auto; min-width: 0; gap: var(--space-4); flex-wrap: wrap; }
+.update-modal-footer .version-picker-wrap { min-width: 0; max-width: 100%; }
+.update-modal-footer .version-picker-trigger { max-width: 100%; min-height: 32px; height: auto; padding-block: 7px; line-height: 1.3; }
+.update-modal-footer .version-picker-trigger span { min-width: 0; overflow-wrap: anywhere; }
+.update-modal-footer .update-modal-actions button { min-width: 0; max-width: 100%; min-height: 32px; height: auto; padding-block: 7px; line-height: 1.3; }
+.update-modal-footer .update-modal-actions button, .update-modal-actions .nowrap { white-space: normal; overflow-wrap: anywhere; }
+.update-modal-actions button > svg { flex-shrink: 0; }
+.update-modal-actions button > span { min-width: 0; }
+@container update-dialog (max-width: 460px) {
+  .update-modal-footer .update-modal-actions { flex-basis: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .update-modal-actions > :only-child { grid-column: 1 / -1; }
 }

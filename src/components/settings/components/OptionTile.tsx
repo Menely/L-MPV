@@ -200,7 +200,7 @@ export function OptionToggleRow({
    Один кегль (var(--fs-sm)) на заголовки карточки и блока — намеренно. */
 const cardHeaderStyle: React.CSSProperties = {
   display: "flex",
-  alignItems: "center",
+  alignItems: "flex-start",
   minHeight: 20,
   lineHeight: "20px",
   gap: 6,
@@ -211,9 +211,9 @@ const cardTitleTextStyle: React.CSSProperties = {
   fontSize: "var(--fs-sm)",
   fontWeight: 600,
   color: "var(--text-primary)",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
+  minWidth: 0,
+  whiteSpace: "normal",
+  overflowWrap: "anywhere",
 };
 
 const cardBodyStyle: React.CSSProperties = {
@@ -238,9 +238,9 @@ const blockTitleTextStyle: React.CSSProperties = {
   fontSize: "var(--fs-sm)",
   fontWeight: 500,
   color: "var(--text-secondary)",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
+  minWidth: 0,
+  whiteSpace: "normal",
+  overflowWrap: "anywhere",
 };
 
 const blockHintStyle: React.CSSProperties = {
