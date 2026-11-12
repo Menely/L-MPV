@@ -3,7 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { thumbnailTime } from "../utils/timelineThumbnail";
 
 let scopeCounter = 0;
-const SETTLE_MS = 180;
+/** Период дебаунса перемещения мыши (мс) для предотвращения спама декодера при непрерывном скраббинге. */
+const DEBOUNCE_MS = 35;
 const MAX_READY_FRAMES = 12;
 
 interface FrameState { source: string; url: string | null; failed: boolean; pending: boolean }
@@ -140,9 +141,9 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
         if (disposed || stopped || active?.cancelled || !bytes.byteLength) return;
         const next = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
         thumbnailMemoryCache.set(source, job.key, next, url);
-        // Keep valid completed jobs for a return hover, but never label a frame
-        // from another position as the current timestamp.
-        if (thumbnailTime(latestTime, job.exact) !== job.seconds) return;
+        // Сохраняем валидные завершенные кадры для повторного наведения,
+        // но отображаем только если курсор все еще на этом таймстампе.
+        if (thumbnailTime(latestTime, true) !== job.seconds) return;
         url = next;
         shown = job.key;
         setFrame({ source, url: next, failed: false, pending: desired !== null });
@@ -152,17 +153,7 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
           setFrame((previous) => ({ ...previous, pending: false }));
           return;
         }
-        if (job.exact) {
-          failedExact = job.key;
-          if (url && shown !== `grid:${thumbnailTime(latestTime, false)}`) url = null;
-          setFrame({ source, url, failed: !url, pending: false });
-          return;
-        }
-        // Retry on the next hover/source, rather than on every pointer event.
-        stopped = true;
-        clearTimeout(settle);
-        desired = null;
-        thumbnailMemoryCache.clearSource(source);
+        failedExact = job.key;
         url = null;
         setFrame({ source, url: null, failed: true, pending: false });
       }).finally(() => {
@@ -172,28 +163,31 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
         else setFrame((previous) => ({ ...previous, pending: false }));
       });
     };
-    const queue = (time: number, exact: boolean) => {
+    const queue = (time: number) => {
       if (stopped) return;
-      const normalized = thumbnailTime(time, exact);
-      const job = { seconds: normalized, exact, key: `${exact ? "exact" : "grid"}:${normalized}` };
-      if (exact && failedExact === job.key) return;
+      const normalized = thumbnailTime(time, true);
+      const job: Job = { seconds: normalized, exact: true, key: `exact:${normalized}` };
+      if (failedExact === job.key) return;
       const hit = thumbnailMemoryCache.get(source, job.key);
       if (hit) {
         url = hit;
         shown = job.key;
         desired = null;
         setFrame({ source, url, failed: false, pending: false });
+        return;
       } else {
         // Сохраняем ранее показанный кадр (url) до готовности нового,
         // предотвращая мерцание и стробоскопический эффект при перемещении курсора.
         setFrame((previous) => ({ ...previous, pending: true }));
       }
-      if (active && !active.cancelled && active.job.key !== job.key &&
-        active.job.exact) {
+      if (active && !active.cancelled && active.job.key !== job.key) {
         active.cancelled = true;
         void invoke("cancel_timeline_thumbnail", { requestId: active.id }).catch(() => {});
       }
-      if (shown === job.key || (active?.job.key === job.key && !active.cancelled)) { desired = null; return; }
+      if (shown === job.key || (active?.job.key === job.key && !active.cancelled)) {
+        desired = null;
+        return;
+      }
       desired = job;
       pump();
     };
@@ -201,9 +195,21 @@ export function useTimelineThumbnail(path: string, videoTrack: number | null, se
       move(time) {
         if (stopped) return;
         latestTime = thumbnailTime(time, true);
+        const key = `exact:${latestTime}`;
+        const hit = thumbnailMemoryCache.get(source, key);
+        if (hit) {
+          clearTimeout(settle);
+          url = hit;
+          shown = key;
+          desired = null;
+          setFrame({ source, url: hit, failed: false, pending: false });
+          return;
+        }
+        setFrame((previous) => ({ ...previous, pending: true }));
         clearTimeout(settle);
-        queue(time, false);
-        settle = setTimeout(() => queue(latestTime, true), SETTLE_MS);
+        settle = setTimeout(() => {
+          queue(latestTime);
+        }, DEBOUNCE_MS);
       },
       fail() {
         stopped = true;
