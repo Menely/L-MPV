@@ -1,3 +1,4 @@
+import { applyAmbientPreview, saveAmbientSettings } from "../../utils/ambientPreviewQueue";
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -296,6 +297,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
       if (isRecordingHotkey) return;
 
       if (e.key === "Escape") {
+        if (panelRef.current?.querySelector('.confirm-dialog[aria-modal="true"]')) return;
         e.preventDefault();
         e.stopPropagation();
         handleClose();
@@ -565,7 +567,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     if (!settings) return;
 
     ambientPreviewInFlightRef.current = true;
-    invoke("apply_ambient_preview", { settings })
+    applyAmbientPreview(settings)
       .catch((err) => {
         console.error("Ошибка предпросмотра Blur:", err);
       })
@@ -588,9 +590,8 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     settings: AmbientSettings,
     revision = ++ambientSaveRevisionRef.current,
   ) {
-    const request = ambientSaveQueueRef.current
-      .catch(() => {})
-      .then(() => invoke<void>("set_ambient_settings", { settings }))
+    // Submit now: the shared queue owns ordering across both views and presets.
+    const request = saveAmbientSettings(settings)
       .then(() => {
         if (revision === ambientSaveRevisionRef.current) {
           isAmbientDirtyRef.current = false;
@@ -628,7 +629,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
       if (pendingPreviewRef.current) {
         const settings = pendingPreviewRef.current;
         pendingPreviewRef.current = null;
-        invoke("apply_ambient_preview", { settings }).catch(console.error);
+        applyAmbientPreview(settings).catch(console.error);
       }
       if (ambientSaveTimeoutRef.current) {
         clearTimeout(ambientSaveTimeoutRef.current);

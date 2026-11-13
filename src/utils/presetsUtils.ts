@@ -1,3 +1,4 @@
+import { saveAmbientSettings } from "./ambientPreviewQueue";
 // ─── Утилиты управления пресетами настроек L-MPV ──────────────
 // Данный модуль обеспечивает создание снимков текущих настроек,
 // их портативное сохранение в config/presets.json и localStorage,
@@ -63,6 +64,7 @@ import type { AmbientPresetSettings } from "./ambientSettingsUtils";
 import { normalizeAmbientSettings } from "./ambientSettingsUtils";
 import { getEffectiveLocale, saveLocale, type Locale } from "../i18n/index";
 import { getSavedSeekStepSeconds, saveSeekStepSeconds } from "./seekUtils";
+import { getUserPresetsCache, setUserPresetsCache, userPresetsCacheRevision } from "./userPresetsCache";
 
 export interface SettingsPresetData {
   /** Тема оформления плеера (расцветка фона и поверхностей) */
@@ -506,7 +508,7 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
 
   if (data.ambient) {
     const ambient = normalizeAmbientSettings(data.ambient);
-    await invoke("set_ambient_settings", { settings: ambient });
+    await saveAmbientSettings(ambient);
     window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: ambient }));
   }
 
@@ -645,6 +647,7 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
  * Загрузка пользовательских пресетов из индивидуальных файлов в config/presets/*.json и localStorage.
  */
 export async function loadUserPresets(): Promise<SettingsPreset[]> {
+  const revision = userPresetsCacheRevision();
   const normalizeList = (list: unknown[]): SettingsPreset[] => {
     return list
       .filter((item): item is SettingsPreset => {
@@ -671,6 +674,7 @@ export async function loadUserPresets(): Promise<SettingsPreset[]> {
       const parsed = JSON.parse(jsonFromBackend);
       if (Array.isArray(parsed)) {
         const normalized = normalizeList(parsed);
+        if (revision !== userPresetsCacheRevision()) return getUserPresetsCache() ?? normalized;
         localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(normalized));
         return normalized;
       }
@@ -710,6 +714,7 @@ export async function saveUserPresets(presets: SettingsPreset[]): Promise<void> 
 
   await invoke("save_settings_presets", { presetsJson: jsonStr });
 
+  setUserPresetsCache(userOnly);
   window.dispatchEvent(new CustomEvent("l-mpv-presets-updated"));
 }
 

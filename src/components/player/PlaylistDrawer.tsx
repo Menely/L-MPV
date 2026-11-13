@@ -84,6 +84,15 @@ const PlaylistItemRow = React.memo(function PlaylistItemRow({
   );
 });
 
+/** Hidden drawers do not subscribe to frequent playback progress. */
+function PlaylistProgressObserver({ onChange }: { onChange: (value: { duration: number; percent: number }) => void }) {
+  const { position, duration } = usePlayerProgress();
+  useEffect(() => {
+    onChange({ duration, percent: duration > 0 ? Math.min(100, Math.max(0, position / duration * 100)) : 0 });
+  }, [position, duration, onChange]);
+  return null;
+}
+
 const DEFAULT_PLAYLIST_WIDTH = 360;
 const PLAYLIST_WIDTH_STORAGE_KEY = "l-mpv-playlist-width";
 
@@ -149,11 +158,7 @@ export function PlaylistDrawer() {
     };
   }, []);
 
-  // Актуальный живой прогресс текущего воспроизводимого видео
-  const { position: livePos, duration: liveDur } = usePlayerProgress();
-  const liveProgress = liveDur > 0
-    ? Math.min(100, Math.max(0, (livePos / liveDur) * 100))
-    : 0;
+  const [liveProgress, setLiveProgress] = useState({ duration: 0, percent: 0 });
 
   // Пакетная загрузка данных прогресса просмотра через IPC при открытии и обновлении плейлиста.
   const [watchProgressMap, setWatchProgressMap] = useState<
@@ -519,6 +524,7 @@ export function PlaylistDrawer() {
         )}
       </div>
 
+      {isPlaylistOpen && <PlaylistProgressObserver onChange={setLiveProgress} />}
       <div ref={contentContainerRef} className="playlist-drawer__content">
         {filteredPlaylist.length === 0 ? (
           <EmptyState
@@ -532,11 +538,8 @@ export function PlaylistDrawer() {
           />
         ) : (
           filteredPlaylist.map((item) => {
-            // Для текущего играющего элемента используем живой прогресс в реальном времени
-            const itemProgress =
-              item.current && liveDur > 0
-                ? liveProgress
-                : (watchProgressMap[item.filename]?.progress_percent ?? 0);
+            const itemProgress = item.current && liveProgress.duration > 0
+              ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
 
             return (
               <PlaylistItemRow

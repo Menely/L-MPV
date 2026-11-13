@@ -1,3 +1,4 @@
+import { toggleAmbientMode } from "./utils/ambientPreviewQueue";
 import { upscaleErrorMessage } from "./utils/upscaleCompatibility";
 import {
   useState,
@@ -933,7 +934,7 @@ function App() {
         break;
       case "toggleAmbient":
         try {
-          const res = normalizeAmbientSettings(await invoke<unknown>("toggle_ambient_mode"));
+          const res = normalizeAmbientSettings(await toggleAmbientMode());
           const labels: Record<string, string> = {
             off: dict.settings.cmenuUI.ambientOff,
             blur: dict.settings.cmenuUI.ambientBlur,

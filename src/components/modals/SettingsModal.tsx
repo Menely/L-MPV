@@ -1,3 +1,4 @@
+import { applyAmbientPreview, saveAmbientSettings } from "../../utils/ambientPreviewQueue";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -242,6 +243,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       if (isRecordingHotkey) return;
 
       if (e.key === "Escape") {
+        if (modalRef.current?.querySelector('.confirm-dialog[aria-modal="true"]')) return;
         e.preventDefault();
         e.stopPropagation();
         handleClose();
@@ -442,7 +444,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     const settings = pendingPreviewRef.current;
     pendingPreviewRef.current = null;
     if (settings) {
-      invoke("apply_ambient_preview", { settings }).catch((err) => {
+      applyAmbientPreview(settings).catch((err) => {
         console.error("Ошибка предпросмотра Blur:", err);
       });
     }
@@ -466,9 +468,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     settings: AmbientSettings,
     revision = ++ambientSaveRevisionRef.current,
   ) {
-    const request = ambientSaveQueueRef.current
-      .catch(() => {})
-      .then(() => invoke<void>("set_ambient_settings", { settings }))
+    // Submit now: the shared queue owns ordering across both views and presets.
+    const request = saveAmbientSettings(settings)
       .then(() => {
         if (revision === ambientSaveRevisionRef.current) {
           isAmbientDirtyRef.current = false;
@@ -512,7 +513,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       if (pendingPreviewRef.current) {
         const settings = pendingPreviewRef.current;
         pendingPreviewRef.current = null;
-        invoke("apply_ambient_preview", { settings }).catch(console.error);
+        applyAmbientPreview(settings).catch(console.error);
       }
       if (ambientSaveTimeoutRef.current) {
         clearTimeout(ambientSaveTimeoutRef.current);

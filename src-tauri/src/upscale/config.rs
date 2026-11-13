@@ -125,10 +125,14 @@ pub fn get_models_order_path() -> PathBuf {
 
 /// Сохраняет пользовательский порядок моделей в файл `config/models_order.json`
 pub fn save_models_order_internal(order: &[String]) -> Result<(), String> {
-    let order_path = get_models_order_path();
-    let json = serde_json::to_string_pretty(order).map_err(|e| e.to_string())?;
-    fs::write(&order_path, json).map_err(|e| e.to_string())?;
-    Ok(())
+    save_models_order_to_root(&get_app_root_dir(), order)
+}
+
+fn save_models_order_to_root(root: &std::path::Path, order: &[String]) -> Result<(), String> {
+    let operation = super::operation::try_acquire(root)?;
+    let order_path = operation.root().join("config/models_order.json");
+    let json = serde_json::to_vec_pretty(order).map_err(|e| e.to_string())?;
+    crate::commands::write_atomic(&order_path, &json, false)
 }
 
 /// Вычисление контрольной суммы CRC32 по стандарту IEEE 802.3
@@ -318,6 +322,19 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
     items
 }
 
+/// Slot numbers are positions in a mutable library; filenames identify models.
+pub(super) fn resolve_model_slot(
+    models: &[ModelFileItem], filename: Option<&str>, builtin_slot: u32,
+) -> Result<u32, String> {
+    match filename {
+        Some(filename) => models.iter()
+            .find(|model| model.filename.eq_ignore_ascii_case(filename) && model.slot > 0)
+            .map(|model| model.slot)
+            .ok_or_else(|| format!("UPSCALE_MODEL_MISSING:{filename}")),
+        None => Ok(builtin_slot),
+    }
+}
+
 fn model_cache_state(
     engines: &[String],
     prefix: &str,
@@ -395,7 +412,14 @@ pub fn check_upscale_status_internal() -> UpscaleStatus {
 
 /// Записывает конфигурационный файл `upscale.conf` для нативного фильтра инференса
 pub fn write_upscale_conf(backend: &str, default_slot: u32) -> Result<PathBuf, String> {
-    let conf_path = get_upscale_conf_path();
+    let operation = super::operation::try_acquire(&get_app_root_dir())?;
+    write_upscale_conf_locked(&operation, backend, default_slot)
+}
+
+pub(super) fn write_upscale_conf_locked(
+    operation: &super::operation::OperationGuard, backend: &str, default_slot: u32,
+) -> Result<PathBuf, String> {
+    let conf_path = operation.root().join("config/upscale.conf");
     let models = scan_onnx_models_internal();
 
     let mut conf_content = format!(
@@ -427,8 +451,7 @@ pub fn write_upscale_conf(backend: &str, default_slot: u32) -> Result<PathBuf, S
         ));
     }
 
-    fs::write(&conf_path, conf_content)
-        .map_err(|e| format!("Ошибка записи конфигурации апскейлинга: {}", e))?;
+    crate::commands::write_atomic(&conf_path, conf_content.as_bytes(), false)?;
 
     Ok(conf_path)
 }
@@ -436,6 +459,36 @@ pub fn write_upscale_conf(backend: &str, default_slot: u32) -> Result<PathBuf, S
 #[cfg(test)]
 mod dependency_tests {
     use super::*;
+
+    #[test]
+    fn reorder_is_busy_during_operation_and_saves_after_release() {
+        let root = std::env::temp_dir().join(format!("lmpv-reorder-operation-{}", std::process::id()));
+        fs::create_dir_all(root.join("config")).unwrap();
+        fs::write(root.join("config/models_order.json"), br#"["a.onnx","b.onnx"]"#).unwrap();
+        let guard = super::super::operation::try_acquire(&root).unwrap();
+        let reordered = vec!["b.onnx".to_owned(), "a.onnx".to_owned()];
+        assert_eq!(save_models_order_to_root(&root, &reordered).unwrap_err(), "UPSCALE_BUSY");
+        assert_eq!(fs::read(root.join("config/models_order.json")).unwrap(), br#"["a.onnx","b.onnx"]"#);
+        drop(guard);
+        save_models_order_to_root(&root, &reordered).unwrap();
+        let saved: Vec<String> = serde_json::from_slice(&fs::read(root.join("config/models_order.json")).unwrap()).unwrap();
+        assert_eq!(saved, reordered);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn restoration_follows_filename_after_reorder_and_never_selects_replacement() {
+        let model = |name: &str, slot| ModelFileItem {
+            filename: name.to_owned(), slot, display_name: name.to_owned(), size_bytes: 1,
+            full_path: name.to_owned(), has_engine_1080p: true, engine_outdated: false,
+        };
+        let reordered = vec![model("b.onnx", 1), model("a.onnx", 2)];
+        assert_eq!(resolve_model_slot(&reordered, Some("a.onnx"), 1).unwrap(), 2);
+        assert_eq!(resolve_model_slot(&reordered, Some("A.ONNX"), 1).unwrap(), 2);
+        assert!(resolve_model_slot(&[model("b.onnx", 1)], Some("a.onnx"), 1).is_err());
+        assert!(resolve_model_slot(&[model("a.onnx", 0)], Some("a.onnx"), 1).is_err());
+        assert_eq!(resolve_model_slot(&reordered, None, 1001).unwrap(), 1001);
+    }
 
     #[test]
     fn cache_version_matches_packaged_runtime() {

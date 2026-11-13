@@ -81,7 +81,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: model.filename });
+  } = useSortable({ id: model.filename, disabled: !!compilingModel });
 
   const cardStyle: React.CSSProperties = {
     transform: CSS.Translate.toString(toLocalDragTransform(transform, getActiveUiScale())),

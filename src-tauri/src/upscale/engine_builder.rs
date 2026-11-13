@@ -2,7 +2,7 @@
 
 use super::config::{
     get_inference_dir, get_logs_dir, get_models_dir, get_upscale_conf_path,
-    write_upscale_conf,
+    write_upscale_conf_locked,
 };
 use super::hardware::detect_system_gpu;
 use super::types::UpscaleCompileProgress;
@@ -105,75 +105,85 @@ fn resolve_post_compile_restore_target(
     }
 }
 
+fn compiles_active_model(
+    previous_filename: Option<&str>, previous_slot: u32, filename: &str, compiled_slot: u32,
+) -> bool {
+    match previous_filename {
+        Some(previous) => previous.eq_ignore_ascii_case(filename),
+        None => previous_slot == compiled_slot,
+    }
+}
+
 /// RAII-гарда для гарантированного восстановления фильтра AnimeJaNai и паузы в mpv после компиляции
 struct VramGuard {
     app: tauri::AppHandle,
-    had_active_ai: bool,
+    had_active_ai: AtomicBool,
     was_playing: bool,
     prev_backend: String,
     prev_slot: u32,
     compiled_slot: u32,
-    compile_succeeded: bool,
-    prev_conf_raw: Option<String>,
+    compile_succeeded: AtomicBool,
+    prev_filename: Option<String>,
+    compiled_filename: String,
+    operation: std::sync::Arc<super::operation::OperationGuard>,
 }
 
+impl VramGuard {
+    fn restore_filter(&self) -> Result<(), String> {
+        let (backend, fallback_slot) = resolve_post_compile_restore_target(
+            &self.prev_backend, self.prev_slot, self.compiled_slot, self.compile_succeeded.load(Ordering::Acquire),
+        );
+        let filename = if backend.eq_ignore_ascii_case("TensorRT") && self.compile_succeeded.load(Ordering::Acquire) {
+            Some(self.compiled_filename.as_str())
+        } else {
+            self.prev_filename.as_deref()
+        };
+        let models = super::config::scan_onnx_models_internal();
+        let target_slot = super::config::resolve_model_slot(&models, filename, fallback_slot)?;
+        if backend.eq_ignore_ascii_case("DirectML") || self.compile_succeeded.load(Ordering::Acquire) || self.had_active_ai.load(Ordering::Acquire) {
+            write_upscale_conf_locked(&self.operation, &backend, target_slot)?;
+        }
+        if self.had_active_ai.load(Ordering::Acquire) {
+            if let Some(state) = self.app.try_state::<crate::commands::PlayerState>() {
+                super::controller::prepare_activation(&backend, target_slot)?;
+                let conf = get_upscale_conf_path();
+                let models_dir = get_models_dir();
+                state.mpv.enable_ai_upscale(
+                    &conf.to_string_lossy(), &models_dir.to_string_lossy(), target_slot, false,
+                )?;
+                super::controller::remember_applied(&backend, target_slot);
+                super::controller::force_frame_refresh(&state.mpv);
+            }
+        }
+        Ok(())
+    }
+}
 impl Drop for VramGuard {
     fn drop(&mut self) {
-        let conf_path = get_upscale_conf_path();
-        let (restore_backend, target_slot) = resolve_post_compile_restore_target(
-            &self.prev_backend,
-            self.prev_slot,
-            self.compiled_slot,
-            self.compile_succeeded,
-        );
-
-        // Если до компиляции был выбран DirectML, восстанавливаем прежний upscale.conf без переключения на TensorRT
-        if restore_backend.eq_ignore_ascii_case("DirectML") {
-            if let Some(ref raw) = self.prev_conf_raw {
-                let _ = std::fs::write(&conf_path, raw);
-            } else {
-                let _ = write_upscale_conf("DirectML", target_slot);
-            }
-        } else if self.compile_succeeded || self.had_active_ai {
-            let _ = write_upscale_conf("TensorRT", target_slot);
+        // operation is still owned here; restore never reacquires it recursively.
+        if let Err(error) = self.restore_filter() {
+            eprintln!("[L-MPV][Upscale] Не удалось восстановить фильтр после компиляции: {error}");
         }
-
-        if let Some(player_state) =
-            self.app.try_state::<crate::commands::PlayerState>()
-        {
-            if self.had_active_ai {
-                println!(
-                    "[L-MPV][Upscale] Восстановление фильтра AnimeJaNai ({}, слот {}) в mpv...",
-                    restore_backend, target_slot
-                );
-                let conf_str = conf_path.to_string_lossy();
-                let models_dir = get_models_dir();
-                if let Err(e) = super::controller::prepare_activation(&restore_backend, target_slot)
-                    .and_then(|_| {
-                        player_state.mpv.enable_ai_upscale(
-                            &conf_str,
-                            &models_dir.to_string_lossy(),
-                            target_slot,
-                            false,
-                        )
-                    })
-                {
-                    eprintln!(
-                        "[L-MPV][Upscale] Не удалось восстановить фильтр после компиляции: {}",
-                        e
-                    );
-                }
-                super::controller::force_frame_refresh(&player_state.mpv);
-            }
-
-            if self.was_playing {
-                println!(
-                    "[L-MPV][Upscale] Возобновление воспроизведения видео после компиляции..."
-                );
-                let _ = player_state.mpv.set_property_string("pause", "no");
+        if self.was_playing {
+            if let Some(state) = self.app.try_state::<crate::commands::PlayerState>() {
+                let _ = state.mpv.set_property_string("pause", "no");
             }
         }
     }
+}
+
+// Retain restoration as well as ownership if the async IPC future is cancelled
+// while a compiler/converter continues in spawn_blocking.
+fn spawn_build_task<T: Send + 'static>(
+    operation: &std::sync::Arc<super::operation::OperationGuard>,
+    restore: &std::sync::Arc<VramGuard>,
+    work: impl FnOnce() -> T + Send + 'static,
+) -> tokio::task::JoinHandle<T> {
+    let restore = restore.clone();
+    super::operation::spawn_blocking(operation, move || {
+        let _restore = restore;
+        work()
+    })
 }
 
 /// Считывание текущего бэкенда, активного слота и сырого текста из upscale.conf
@@ -198,6 +208,24 @@ fn read_current_upscale_state() -> (Option<String>, Option<u32>, Option<String>)
         }
     }
     (backend, slot, Some(content))
+}
+
+/// The applied config records the old slot mapping, even if order changed
+/// before compilation. Keep that identity rather than reading its new occupant.
+fn configured_model_identity(raw: Option<&str>, slot: u32) -> Option<String> {
+    let section = format!("[slot_{slot}]");
+    let mut selected = false;
+    for line in raw?.lines().map(str::trim) {
+        if line.starts_with('[') {
+            selected = line == section;
+        } else if selected {
+            if let Some(stem) = line.strip_prefix("chain_1_model_1_name=") {
+                let stem = stem.trim();
+                if !stem.is_empty() { return Some(format!("{stem}.onnx")); }
+            }
+        }
+    }
+    None
 }
 
 /// Проверка, указывает ли журнал ошибок на нехватку видеопамяти (CUDA Out of Memory)
@@ -451,8 +479,8 @@ pub async fn precompile_model_engine_1080p_impl(
     slot: u32,
     filename: String,
 ) -> Result<String, String> {
-    let _operation = super::compatibility::OPERATION.try_lock().map_err(|_| "UPSCALE_BUSY".to_owned())?;
-    tokio::task::spawn_blocking(|| super::compatibility::ensure_runtime("TensorRT"))
+    let operation = super::operation::try_acquire(&super::config::get_app_root_dir())?;
+    super::operation::spawn_blocking(&operation, || super::compatibility::ensure_runtime("TensorRT"))
         .await
         .map_err(|e| format!("Runtime verification failed: {e}"))??;
     if std::path::Path::new(&filename).file_name().and_then(|s| s.to_str()) != Some(filename.as_str())
@@ -492,10 +520,18 @@ pub async fn precompile_model_engine_1080p_impl(
 
     // Считываем текущий работающий бэкенд и слот без перезаписи upscale.conf на TensorRT
     let (conf_backend, conf_slot, prev_conf_raw) = read_current_upscale_state();
-    let prev_backend = super::controller::get_last_applied_backend()
-        .or(conf_backend)
-        .unwrap_or_else(|| "TensorRT".to_string());
-    let prev_slot = conf_slot.unwrap_or(slot);
+    let applied = super::controller::get_last_applied_state();
+    let prev_backend = applied.as_ref().map(|state| state.backend.clone())
+        .or(conf_backend).unwrap_or_else(|| "TensorRT".to_string());
+    let prev_slot = applied.as_ref().map(|state| state.slot).or(conf_slot).unwrap_or(slot);
+    let models = super::config::scan_onnx_models_internal();
+    let slot = super::config::resolve_model_slot(&models, Some(&filename), slot)?;
+    let prev_filename = match applied {
+        Some(state) => state.filename,
+        None => configured_model_identity(prev_conf_raw.as_deref(), prev_slot)
+            .or_else(|| models.iter().find(|model| model.slot == prev_slot)
+                .map(|model| model.filename.clone())),
+    };
 
     let models_dir = get_models_dir();
     let logs_dir = get_logs_dir();
@@ -558,16 +594,18 @@ pub async fn precompile_model_engine_1080p_impl(
     };
 
     // RAII-гарда для гарантированного восстановления фильтра и состояния паузы в mpv при завершении
-    let mut vram_guard = VramGuard {
+    let vram_guard = std::sync::Arc::new(VramGuard {
         app: app.clone(),
-        had_active_ai,
+        had_active_ai: AtomicBool::new(had_active_ai),
         was_playing,
         prev_backend: prev_backend.clone(),
         prev_slot,
         compiled_slot: slot,
-        compile_succeeded: false,
-        prev_conf_raw,
-    };
+        compile_succeeded: AtomicBool::new(false),
+        prev_filename,
+        compiled_filename: filename.clone(),
+        operation: operation.clone(),
+    });
 
     // Отправляем начальное событие запуска компиляции
     let _ = app.emit(
@@ -593,7 +631,7 @@ pub async fn precompile_model_engine_1080p_impl(
     // чтобы не блокировать основной асинхронный исполнитель Tokio
     let onnx_path_fp16 = onnx_path.clone();
     let inf_dir_fp16 = inf_dir.clone();
-    tokio::task::spawn_blocking(move || {
+    spawn_build_task(&operation, &vram_guard, move || {
         ensure_onnx_model_fp16(&onnx_path_fp16, &inf_dir_fp16);
     })
     .await
@@ -649,7 +687,7 @@ pub async fn precompile_model_engine_1080p_impl(
         let root = root.clone();
         let onnx_path = onnx_path.clone();
         let gpu_key = gpu_key.clone();
-        tokio::task::spawn_blocking(move || {
+        spawn_build_task(&operation, &vram_guard, move || {
             super::compatibility::model_context_token(&root, &onnx_path, &gpu_key)
         })
         .await
@@ -657,8 +695,10 @@ pub async fn precompile_model_engine_1080p_impl(
     };
     // Only the explicit rebuild action archives old artifacts. A failed rebuild
     // of the active TensorRT slot must not silently fall back to compiling it in mpv.
-    if slot == prev_slot && prev_backend.eq_ignore_ascii_case("TensorRT") {
-        vram_guard.had_active_ai = false;
+    if prev_backend.eq_ignore_ascii_case("TensorRT")
+        && compiles_active_model(vram_guard.prev_filename.as_deref(), prev_slot, &filename, slot)
+    {
+        vram_guard.had_active_ai.store(false, Ordering::Release);
     }
     super::compatibility::archive_model_cache(&onnx_path)?;
 
@@ -684,7 +724,7 @@ pub async fn precompile_model_engine_1080p_impl(
     let tcache_task = tcache.clone();
     let build_log_task = build_log_path.clone();
 
-    let mut status = tokio::task::spawn_blocking(move || {
+    let mut status = spawn_build_task(&operation, &vram_guard, move || {
         let opts = TrtBuildOptions {
             trtexec_path: &trtexec_path_task,
             inf_dir: &inf_dir_task,
@@ -753,7 +793,7 @@ pub async fn precompile_model_engine_1080p_impl(
             let tcache_retry = tcache.clone();
             let build_log_retry = build_log_path.clone();
 
-            status = tokio::task::spawn_blocking(move || {
+            status = spawn_build_task(&operation, &vram_guard, move || {
                 let opts = TrtBuildOptions {
                     trtexec_path: &trtexec_path_retry,
                     inf_dir: &inf_dir_retry,
@@ -832,7 +872,7 @@ pub async fn precompile_model_engine_1080p_impl(
         return Err(format!("Ошибка компиляции TensorRT: {}", err_detail));
     }
 
-    tokio::task::spawn_blocking(move || {
+    spawn_build_task(&operation, &vram_guard, move || {
         if super::compatibility::model_context_token(&root, &onnx_path, &gpu_key)? != build_context {
             return Err("UPSCALE_RUNTIME_UPDATE:TensorRT".into());
         }
@@ -840,8 +880,8 @@ pub async fn precompile_model_engine_1080p_impl(
     })
     .await
     .map_err(|e| format!("Compiled model verification failed: {e}"))??;
-    vram_guard.had_active_ai = had_active_ai;
-    vram_guard.compile_succeeded = true;
+    vram_guard.had_active_ai.store(had_active_ai, Ordering::Release);
+    vram_guard.compile_succeeded.store(true, Ordering::Release);
 
     let _ = app.emit(
         "upscale-compile-progress",
@@ -956,6 +996,26 @@ except Exception as e:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn failed_rebuild_suppresses_restore_only_for_active_filename_after_reorder() {
+        // A was active at slot 1; reorder now maps B->1 and A->2.
+        // Rebuilding A must suppress restoration on failure, even at its new slot.
+        assert!(compiles_active_model(Some("a.onnx"), 1, "a.onnx", 2));
+        assert!(compiles_active_model(Some("A.ONNX"), 1, "a.onnx", 2));
+        // Rebuilding B at A's old number must still restore the unrelated active A.
+        assert!(!compiles_active_model(Some("a.onnx"), 1, "b.onnx", 1));
+        assert!(compiles_active_model(None, 1, "a.onnx", 1));
+        assert!(!compiles_active_model(None, 1001, "a.onnx", 1));
+    }
+
+    #[test]
+    fn restore_identity_comes_from_applied_config_not_new_slot_occupant() {
+        let raw = "[global]\ndefault_slot=1\n[slot_1]\nchain_1_model_1_name=a\n[slot_2]\nchain_1_model_1_name=b\n";
+        assert_eq!(configured_model_identity(Some(raw), 1).as_deref(), Some("a.onnx"));
+        assert_eq!(configured_model_identity(Some(raw), 2).as_deref(), Some("b.onnx"));
+        assert!(configured_model_identity(Some(raw), 1001).is_none());
+    }
 
     #[test]
     fn test_is_oom_error_detection() {

@@ -83,6 +83,11 @@ function buttons(tree) {
   if (Array.isArray(tree)) return tree.flatMap(buttons);
   return [...(tree.type === 'button' ? [tree] : []), ...buttons(tree.props?.children)];
 }
+function findRefresh(tree) {
+  if (!tree || typeof tree !== 'object') return undefined;
+  if (Array.isArray(tree)) return tree.map(findRefresh).find(Boolean);
+  return typeof tree.props?.onRefresh === 'function' ? tree.props.onRefresh : findRefresh(tree.props?.children);
+}
 (async () => {
   const first = mount(); await flush();
   assert.equal(states[6], false);
@@ -101,7 +106,9 @@ function buttons(tree) {
   assert.equal(diagnostics.getCachedSystemDiagnostics().context_menu_registered, false);
   assert.equal(states[0].context_menu_registered, false, 'Unregister updates current diagnostics state too');
   registered = true;
-  reopened.tree.props.children[1].props.onRefresh(); await flush();
+  const refresh = findRefresh(reopened.tree);
+  assert.equal(typeof refresh, 'function', 'Find diagnostics refresh through layout wrappers');
+  refresh(); await flush();
   assert.equal(states[6], true, 'Manual refresh checks external shell changes');
   assert.equal(states[0].context_menu_registered, true);
   assert.equal(diagnostics.getCachedSystemDiagnostics().context_menu_registered, true);

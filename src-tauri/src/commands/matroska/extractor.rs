@@ -13,10 +13,11 @@ use std::path::Path;
 use std::time::Instant;
 
 use super::builder::SubtitleDocumentBuilder;
-use super::ebml::{ebml_id, EbmlReader, ElementHeader, MAX_METADATA_BYTES};
+use super::ebml::{ebml_id, EbmlReader, ElementHeader};
 use super::types::{
     ContentCompression, ContentEncoding, CueLocation, MatroskaTrackQuery,
-    RawCue, SegmentLayout, SubtitleTrack,
+    RawCue, SegmentLayout, SubtitleTrack, CueBuffer, MAX_TRACK_CUES,
+    MAX_CODEC_PRIVATE_BYTES, MAX_DECODED_BLOCK_BYTES,
 };
 use crate::commands::types::SubtitleLineInfo;
 
@@ -26,6 +27,20 @@ pub const LINEAR_BUFFER_SIZE: usize = 64 * 1024;
 pub const CUES_BUFFER_SIZE: usize = 8 * 1024;
 /// Максимальный допустимый размер одного блока субтитров (4 МБ).
 pub const MAX_SUBTITLE_BLOCK_BYTES: u64 = 4 * 1024 * 1024;
+const MAX_TRACK_METADATA_BYTES: u64 = 32 * 1024 * 1024;
+const MAX_CONTAINER_TRACKS: usize = 256;
+
+#[derive(Default)]
+struct TrackMetadataBudget { bytes: u64, entries: usize }
+impl TrackMetadataBudget {
+    fn reserve(&mut self, size: u64) -> io::Result<()> {
+        self.bytes = self.bytes.saturating_add(size);
+        if self.bytes > MAX_TRACK_METADATA_BYTES {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Subtitle track metadata limit exceeded"));
+        }
+        Ok(())
+    }
+}
 
 /// Извлекатель встроенных субтитров из файла Matroska.
 pub struct MatroskaSubtitleExtractor<'a> {
@@ -106,6 +121,7 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
                 match self.read_cues_by_index(&locations, track) {
                     Ok(cues) if !cues.is_empty() => return Ok((cues, "индекс Cues")),
                     Ok(_) => eprintln!("[L-MPV MatroskaParser] Индекс Cues пуст, откат на линейный скан"),
+                    Err(e) if e.contains("limit exceeded") => return Err(e),
                     Err(e) => eprintln!("[L-MPV MatroskaParser] Ошибка Cues ({}), откат на линейный скан", e),
                 }
             }
@@ -326,11 +342,16 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
     ) -> io::Result<Vec<SubtitleTrack>> {
         let end = header.data_end().unwrap_or(header.data_start);
         let mut result = Vec::new();
+        let mut budget = TrackMetadataBudget::default();
         while reader.position() < end {
             let entry = reader.read_header()?;
             let entry_end = entry.data_end().unwrap_or(end);
             if entry.id == ebml_id::TRACK_ENTRY {
-                let (track, track_type) = Self::read_track_entry(reader, entry_end)?;
+                budget.entries += 1;
+                if budget.entries > MAX_CONTAINER_TRACKS {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, "Container track count limit exceeded"));
+                }
+                let (track, track_type) = Self::read_track_entry(reader, entry_end, &mut budget)?;
                 if track_type == 17 {
                     result.push(track);
                 }
@@ -344,12 +365,17 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
     fn read_track_entry(
         reader: &mut EbmlReader,
         entry_end: u64,
+        budget: &mut TrackMetadataBudget,
     ) -> io::Result<(SubtitleTrack, u64)> {
         let mut track = SubtitleTrack::default();
         let mut track_type = 0u64;
         while reader.position() < entry_end {
             let child = reader.read_header()?;
             let size = child.size.unwrap_or(0);
+            if matches!(child.id, ebml_id::CODEC_ID | ebml_id::TRACK_NAME | ebml_id::TRACK_LANGUAGE
+                | ebml_id::TRACK_LANGUAGE_BCP47 | ebml_id::CODEC_PRIVATE) {
+                budget.reserve(size)?;
+            }
             match child.id {
                 ebml_id::TRACK_NUMBER => track.track_number = reader.read_uint(size)?,
                 ebml_id::TRACK_TYPE => track_type = reader.read_uint(size)?,
@@ -362,11 +388,11 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
                     }
                 }
                 ebml_id::CODEC_PRIVATE => {
-                    track.codec_private = reader.read_vec(size, MAX_METADATA_BYTES)?;
+                    track.codec_private = reader.read_vec(size, MAX_CODEC_PRIVATE_BYTES as u64)?;
                 }
                 ebml_id::CONTENT_ENCODINGS => {
                     let enc_end = child.data_start + size;
-                    track.encodings = Self::read_content_encodings(reader, enc_end)?;
+                    track.encodings = Self::read_content_encodings(reader, enc_end, budget)?;
                 }
                 _ => reader.skip(size)?,
             }
@@ -378,8 +404,10 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
     fn read_content_encodings(
         reader: &mut EbmlReader,
         end: u64,
+        budget: &mut TrackMetadataBudget,
     ) -> io::Result<Vec<ContentEncoding>> {
         let mut encodings = Vec::new();
+        let mut settings_bytes = 0u64;
         while reader.position() < end {
             let enc = reader.read_header()?;
             let enc_end = enc.data_end().unwrap_or(end);
@@ -406,7 +434,12 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
                             match c.id {
                                 ebml_id::CONTENT_COMP_ALGO => algo = reader.read_uint(cs)?,
                                 ebml_id::CONTENT_COMP_SETTINGS => {
-                                    settings = reader.read_vec(cs, MAX_METADATA_BYTES)?;
+                                    budget.reserve(cs)?;
+                                    settings_bytes = settings_bytes.saturating_add(cs);
+                                    if settings_bytes > MAX_CODEC_PRIVATE_BYTES as u64 {
+                                        return Err(io::Error::new(io::ErrorKind::InvalidData, "Subtitle encoding settings limit exceeded"));
+                                    }
+                                    settings = reader.read_vec(cs, MAX_DECODED_BLOCK_BYTES as u64)?;
                                 }
                                 _ => reader.skip(cs)?,
                             }
@@ -422,6 +455,9 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
                 (1, _) => ContentCompression::Unsupported(100),
                 (_, other) => ContentCompression::Unsupported(other),
             };
+            if encodings.len() >= 16 {
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "Subtitle encoding stages limit exceeded"));
+            }
             encodings.push(ContentEncoding { compression, scope });
             reader.seek_to(enc_end)?;
         }
@@ -528,6 +564,9 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
                 }
                 if track == track_number {
                     if let Some(rel_cluster) = cluster {
+                        if out.len() >= MAX_TRACK_CUES {
+                            return Err(io::Error::new(io::ErrorKind::InvalidData, "Subtitle track limit exceeded"));
+                        }
                         out.push(CueLocation {
                             cluster_pos: segment_data_start + rel_cluster,
                             relative_pos: relative,
@@ -551,7 +590,7 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
         let mut seen_blocks: HashSet<u64> = HashSet::new();
         let mut scanned_clusters: HashSet<u64> = HashSet::new();
         let mut cached_cluster: Option<(u64, ElementHeader, u64)> = None;
-        let mut result = Vec::with_capacity(locations.len());
+        let mut result = CueBuffer::default();
 
         for loc in locations {
             let (cluster, cluster_ts) = match cached_cluster {
@@ -577,7 +616,7 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
                     reader.seek_to(block_pos).map_err(io_err)?;
                     let header = reader.read_header().map_err(io_err)?;
                     if let Some(cue) = Self::read_block_element(&mut reader, &header, cluster_ts, track)? {
-                        result.push(cue);
+                        result.push(cue)?;
                     }
 
                     // Чтение смежных субтитровых блоков с одинаковым таймкодом
@@ -593,7 +632,7 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
                             match Self::read_block_element(&mut reader, &adj, cluster_ts, track)? {
                                 Some(cue) => {
                                     if seen_blocks.insert(next_pos) {
-                                        result.push(cue);
+                                        result.push(cue)?;
                                     }
                                     next_pos = adj_end;
                                 }
@@ -611,7 +650,7 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
             }
         }
 
-        Ok(result)
+        Ok(result.into_vec())
     }
 
     /// Считывание метки времени Timestamp кластера.
@@ -643,7 +682,7 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
     ) -> Result<Vec<RawCue>, String> {
         let io_err = |e: io::Error| e.to_string();
         reader.seek_to(start).map_err(io_err)?;
-        let mut result = Vec::with_capacity(2048);
+        let mut result = CueBuffer::default();
 
         while !reader.at_eof() {
             let Ok(header) = reader.read_header() else { break };
@@ -656,7 +695,7 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
                 None => break,
             }
         }
-        Ok(result)
+        Ok(result.into_vec())
     }
 
     /// Обход содержимого отдельного кластера.
@@ -664,7 +703,7 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
         reader: &mut EbmlReader,
         cluster: &ElementHeader,
         track: &SubtitleTrack,
-        out: &mut Vec<RawCue>,
+        out: &mut CueBuffer,
         mut seen_blocks: Option<&mut HashSet<u64>>,
     ) -> Result<(), String> {
         let io_err = |e: io::Error| e.to_string();
@@ -691,7 +730,7 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
                         .unwrap_or(false);
                     if !already_seen {
                         if let Some(cue) = Self::read_block_element(reader, &child, cluster_ts, track)? {
-                            out.push(cue);
+                            out.push(cue)?;
                         }
                     }
                 }
@@ -781,6 +820,34 @@ impl<'a> MatroskaSubtitleExtractor<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tracks_metadata_is_bounded_before_selecting_a_subtitle_track() {
+        use std::io::Write;
+        fn element(id: &[u8], data: &[u8]) -> Vec<u8> {
+            let size = (data.len() as u32 | 0x1000_0000).to_be_bytes();
+            [id, size.as_slice(), data].concat()
+        }
+        let private = element(&[0x63, 0xa2], &vec![0; 1024 * 1024]);
+        let mut track = vec![0x83, 0x81, 17];
+        track.extend_from_slice(&private);
+        let track = element(&[0xae], &track);
+        for (label, count, entry, expected) in [
+            ("aggregate", 33, track.as_slice(), "metadata limit"),
+            ("count", MAX_CONTAINER_TRACKS + 1, &[0xae, 0x80][..], "track count limit"),
+        ] {
+            let path = std::env::temp_dir().join(format!("lmpv-mkv-metadata-{}-{label}", std::process::id()));
+            let mut file = std::fs::File::create(&path).unwrap();
+            for _ in 0..count { file.write_all(entry).unwrap(); }
+            drop(file);
+            let mut reader = EbmlReader::open(&path, LINEAR_BUFFER_SIZE).unwrap();
+            let header = ElementHeader { id: ebml_id::TRACKS, size: Some(reader.file_len()), data_start: 0 };
+            let result = MatroskaSubtitleExtractor::read_tracks(&mut reader, &header);
+            drop(reader);
+            std::fs::remove_file(path).unwrap();
+            assert!(result.unwrap_err().to_string().contains(expected));
+        }
+    }
 
     #[test]
     fn test_select_track_prefers_confirmed_index() {

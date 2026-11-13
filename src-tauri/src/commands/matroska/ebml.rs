@@ -71,6 +71,8 @@ pub mod ebml_id {
 
 /// Максимальный допустимый объём метаданных одного служебного элемента (64 МБ).
 pub const MAX_METADATA_BYTES: u64 = 64 * 1024 * 1024;
+/// Names, codec identifiers and language tags never need binary-blob budgets.
+pub const MAX_METADATA_STRING_BYTES: u64 = 64 * 1024;
 
 /// Заголовок элемента EBML: идентификатор, размер данных и абсолютное смещение данных.
 #[derive(Debug, Clone, Copy)]
@@ -286,7 +288,7 @@ impl EbmlReader {
 
     /// Считывает текстовую строку UTF-8 с отсечением завершающих нулей.
     pub fn read_string(&mut self, len: u64) -> io::Result<String> {
-        let bytes = self.read_vec(len, MAX_METADATA_BYTES)?;
+        let bytes = self.read_vec(len, MAX_METADATA_STRING_BYTES)?;
         let trimmed: &[u8] = match bytes.iter().position(|&b| b == 0) {
             Some(idx) => &bytes[..idx],
             None => &bytes,
@@ -305,6 +307,18 @@ impl EbmlReader {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn metadata_strings_reject_binary_sized_allocations_before_reading() {
+        let path = std::env::temp_dir().join(format!("lmpv-ebml-string-limit-{}", std::process::id()));
+        std::fs::write(&path, b"codec").unwrap();
+        let mut reader = EbmlReader::open(&path, 4096).unwrap();
+        assert_eq!(reader.read_string(5).unwrap(), "codec");
+        let error = reader.read_string(MAX_METADATA_STRING_BYTES + 1).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        drop(reader);
+        std::fs::remove_file(path).unwrap();
+    }
 
     #[test]
     fn test_read_vint_all_lengths() {

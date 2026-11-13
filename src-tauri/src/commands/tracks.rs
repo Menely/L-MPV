@@ -25,6 +25,11 @@ use std::sync::{Mutex, OnceLock};
 use std::time::SystemTime;
 use tauri::State;
 
+#[path = "subtitle_io.rs"]
+mod subtitle_io;
+static SUBTITLE_ANALYSIS_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static SUBTITLE_ANALYSIS_LOCK: OnceLock<std::sync::Arc<tokio::sync::Mutex<()>>> = OnceLock::new();
+
 // ─── Переключение дорожек ───────────────────────────────
 
 /// Переключение аудиодорожки по ID.
@@ -1182,9 +1187,20 @@ pub async fn analyze_subtitle_track(
     state: State<'_, PlayerState>,
     track_id: Option<i64>,
 ) -> Result<Vec<SubtitleLineInfo>, String> {
+    let generation = SUBTITLE_ANALYSIS_GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+    // Only one resource budget is live at a time. A replacement request cancels
+    // FFmpeg cooperatively; superseded queued requests never start extraction.
+    let _analysis = std::sync::Arc::new(SUBTITLE_ANALYSIS_LOCK
+        .get_or_init(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
+        .clone().lock_owned().await);
+    if SUBTITLE_ANALYSIS_GENERATION.load(std::sync::atomic::Ordering::SeqCst) != generation {
+        return Err("Subtitle extraction cancelled".into());
+    }
     // 1. Получаем путь к медиафайлу
     let video_path_str = state.mpv.get_property_string("path").unwrap_or_default();
 
+    let cancelled = || SUBTITLE_ANALYSIS_GENERATION.load(std::sync::atomic::Ordering::SeqCst) != generation
+        || !super::background_io::same_path(&state.mpv.get_property_string("path").unwrap_or_default(), &video_path_str);
     // 2. Получаем список всех дорожек
     let all_tracks = get_tracks(state.clone())?;
     let sub_tracks: Vec<TrackInfo> = all_tracks.into_iter().filter(|t| t.track_type == "sub").collect();
@@ -1266,13 +1282,8 @@ pub async fn analyze_subtitle_track(
             ));
         }
         if let Some(ext_path) = ext_path_opt {
-            let bytes = std::fs::read(&ext_path).map_err(|e| {
-                format!(
-                    "Ошибка чтения файла внешних субтитров {}: {}",
-                    ext_path.display(),
-                    e
-                )
-            })?;
+            let bytes = subtitle_io::read_file(&ext_path, MAX_SUBTITLE_STDOUT_BYTES).await?;
+            if cancelled() { return Err("Subtitle extraction cancelled".into()); }
             let ext = ext_path
                 .extension()
                 .and_then(|e| e.to_str())
@@ -1330,7 +1341,11 @@ pub async fn analyze_subtitle_track(
         let mkv_path = vpath.to_path_buf();
         let mkv_title = target.title.clone();
         let mkv_lang = target.lang.clone();
+        let analysis = _analysis.clone();
         let mkv_result = tauri::async_runtime::spawn_blocking(move || {
+            // A dropped IPC future must not admit another resource budget
+            // while this non-abortable blocking parser is still running.
+            let _analysis = analysis;
             let query = super::matroska::MatroskaTrackQuery {
                 embedded_index: embedded_sub_index,
                 title: &mkv_title,
@@ -1342,6 +1357,7 @@ pub async fn analyze_subtitle_track(
         .unwrap_or_else(|e| {
             Err(format!("Задача разбора Matroska аварийно завершилась: {}", e))
         });
+        if cancelled() { return Err("Subtitle extraction cancelled".into()); }
 
         match mkv_result {
             Ok(lines) => {
@@ -1428,10 +1444,21 @@ pub async fn analyze_subtitle_track(
                         const CREATE_NO_WINDOW: u32 = 0x08000000;
                         cmd.creation_flags(CREATE_NO_WINDOW);
                     }
-                    tokio::time::timeout(std::time::Duration::from_secs(45), cmd.output()).await
+                    subtitle_io::output(&mut cmd, MAX_SUBTITLE_STDOUT_BYTES,
+                        std::time::Duration::from_secs(45), &cancelled, _analysis.clone()).await
                 };
 
-                if let Ok(Ok(output)) = extract_result {
+                let output = match extract_result {
+                    Ok(output) => output,
+                    Err(error) if error == "Subtitle extraction cancelled" || error == "Subtitle stream limit exceeded" => return Err(error),
+                    Err(error) => {
+                        // Preserve alternate-format/mpv fallback for missing tools,
+                        // unsupported inputs and timeout; never retry a resource breach.
+                        eprintln!("[L-MPV] Subtitle extraction ({fmt}, {target_spec}): {error}");
+                        continue;
+                    }
+                };
+                {
                     if output.status.success() && !output.stdout.is_empty() {
                         if output.stdout.len() > MAX_SUBTITLE_STDOUT_BYTES {
                             eprintln!(

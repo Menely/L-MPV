@@ -123,11 +123,25 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   const ignoreClickUntilRef = useRef<number>(0);
 
   const persistModelOrder = async (newModels: ModelFileItem[]) => {
-    setStatus((prev) => (prev ? { ...prev, models: newModels } : prev));
     const order = newModels.map((m) => m.filename);
     try {
-      localStorage.setItem("l-mpv-upscale-models-order", JSON.stringify(order));
       await invoke("save_models_order", { order });
+      localStorage.setItem("l-mpv-upscale-models-order", JSON.stringify(order));
+      const remappedModels = newModels.map((model, index) => ({ ...model, slot: index < 9 ? index + 1 : 0 }));
+      if (status) {
+        const nextStatus = { ...status, models: remappedModels };
+        storeUpscaleStatus(nextStatus);
+        setStatus(nextStatus);
+      }
+      const selectedName = localStorage.getItem("l-mpv-upscale-selected-model") || settings.selected_model;
+      const savedSlot = Number(localStorage.getItem("l-mpv-upscale-slot") ?? settings.active_slot);
+      const selected = remappedModels.find((model) => model.filename === selectedName);
+      if (((savedSlot >= 1 && savedSlot <= 9) || savedSlot >= 2000) && selected && selected.slot > 0) {
+        // Storage must be current before synchronous settings-changed listeners run.
+        localStorage.setItem("l-mpv-upscale-slot", String(selected.slot));
+        setSettings(current => current.selected_model === selectedName
+          ? { ...current, active_slot: selected.slot } : current);
+      }
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (err) {
       console.error(dict.settings.upscaling.errSaveOrder, err);
@@ -146,6 +160,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   );
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    if (compilingModel) return;
     const { active, over } = event;
     if (over && active.id !== over.id && status?.models) {
       const oldIndex = status.models.findIndex((m) => m.filename === active.id);
@@ -276,6 +291,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       if (!isMountedRef.current) return;
       const p = event.payload;
       setCompileProgress((prev) => ({ ...prev, [p.filename]: p }));
+      if (!p.is_finished) setCompilingModel(p.filename);
       if (p.is_finished) {
         setCompilingModel((curr) => (curr === p.filename ? null : curr));
         if (p.error) {

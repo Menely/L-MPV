@@ -107,6 +107,20 @@ impl InstallStaging {
     }
 }
 impl Drop for InstallStaging { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+// Detached extraction owns its staging directory until its last write finishes.
+// Dropping the IPC future must not remove/recreate a half-extracted directory.
+fn spawn_staged_work<T: Send + 'static>(
+    operation: &std::sync::Arc<super::operation::OperationGuard>,
+    staging: &std::sync::Arc<InstallStaging>,
+    work: impl FnOnce() -> T + Send + 'static,
+) -> tokio::task::JoinHandle<T> {
+    let staging = staging.clone();
+    super::operation::spawn_blocking(operation, move || {
+        let _staging = staging;
+        work()
+    })
+}
+
 fn validate_staged_runtime(staging: &Path, backend: &str) -> Result<(), String> {
     for name in super::compatibility::required_runtime_files(backend)? {
         let path = staging.join(name);
@@ -182,13 +196,15 @@ pub fn extract_specific_files_from_zip(
 }
 
 /// Фоновая распаковка 7z-архива с последующим удалением исходного файла архива
-pub async fn extract_7z_and_cleanup(
+async fn extract_7z_and_cleanup(
+    operation: &std::sync::Arc<super::operation::OperationGuard>,
+    staging: &std::sync::Arc<InstallStaging>,
     archive_path: std::path::PathBuf,
     dest_dir: std::path::PathBuf,
 ) -> Result<(), String> {
     let p = archive_path.clone();
     let d = dest_dir.clone();
-    tokio::task::spawn_blocking(move || extract_7z_archive(&p, &d))
+    spawn_staged_work(operation, staging, move || extract_7z_archive(&p, &d))
         .await
         .map_err(|e| format!("Ошибка потока распаковки: {}", e))??;
     let _ = fs::remove_file(&archive_path);
@@ -336,7 +352,7 @@ pub async fn download_inference_engine_impl(
     engine: String,
 ) -> Result<String, String> {
     println!("[L-MPV][Upscale] Запуск процедуры загрузки компонентов движка: {}", engine);
-    let _operation = super::compatibility::OPERATION.try_lock().map_err(|_| "UPSCALE_BUSY".to_owned())?;
+    let operation = super::operation::try_acquire(&super::config::get_app_root_dir())?;
     super::compatibility::required_runtime_files(&engine)?;
     if super::compatibility::runtime_used() { return Err("UPSCALE_RESTART_REQUIRED".into()); }
     let root = super::config::get_app_root_dir();
@@ -347,7 +363,7 @@ pub async fn download_inference_engine_impl(
         .build()
         .map_err(|e| format!("Ошибка создания HTTP-клиента: {}", e))?;
 
-    let staging = InstallStaging::new(&root)?;
+    let staging = std::sync::Arc::new(InstallStaging::new(&root)?);
     let inf_dir = staging.0.clone();
     let published = client.get("https://github.com/Menely/L-MPV/releases/download/inference-v1/dependency-sources.json")
         .timeout(Duration::from_secs(30)).send().await.map_err(|e| e.to_string())?
@@ -419,7 +435,7 @@ pub async fn download_inference_engine_impl(
 
         let aji_zip_clone = aji_zip.clone();
         let inf_dir_clone = inf_dir.clone();
-        tokio::task::spawn_blocking(move || {
+        spawn_staged_work(&operation, &staging, move || {
             extract_zip_file(&aji_zip_clone, &inf_dir_clone)
         })
         .await
@@ -470,7 +486,7 @@ pub async fn download_inference_engine_impl(
             // Извлекаем только нативные win-x64 dll через модульный хелпер
             let ort_zip_clone = ort_zip.clone();
             let inf_dir_clone = inf_dir.clone();
-            tokio::task::spawn_blocking(move || {
+            spawn_staged_work(&operation, &staging, move || {
                 extract_specific_files_from_zip(
                     &ort_zip_clone,
                     &inf_dir_clone,
@@ -530,7 +546,7 @@ pub async fn download_inference_engine_impl(
 
             let dml_zip_clone = dml_zip.clone();
             let inf_dir_clone = inf_dir.clone();
-            tokio::task::spawn_blocking(move || {
+            spawn_staged_work(&operation, &staging, move || {
                 extract_specific_files_from_zip(
                     &dml_zip_clone,
                     &inf_dir_clone,
@@ -651,7 +667,7 @@ pub async fn download_inference_engine_impl(
                     },
                 );
 
-                extract_7z_and_cleanup(trt_runtime_path, inf_dir.clone()).await?;
+                extract_7z_and_cleanup(&operation, &staging, trt_runtime_path, inf_dir.clone()).await?;
 
                 move_nested_animejanai_files(&inf_dir);
                 println!("[L-MPV][Upscale] Базовый рантайм TensorRT 11 успешно установлен.");
@@ -692,7 +708,7 @@ pub async fn download_inference_engine_impl(
 
                 let conv_zip_clone = conv_zip.clone();
                 let inf_dir_clone = inf_dir.clone();
-                tokio::task::spawn_blocking(move || {
+                spawn_staged_work(&operation, &staging, move || {
                     extract_zip_file(&conv_zip_clone, &inf_dir_clone)
                 })
                 .await
@@ -745,7 +761,7 @@ pub async fn download_inference_engine_impl(
                         &ptx_path,
                     ).await?;
 
-                    extract_7z_and_cleanup(ptx_path, inf_dir.clone()).await?;
+                    extract_7z_and_cleanup(&operation, &staging, ptx_path, inf_dir.clone()).await?;
                 } else {
                     verify_downloaded_archive(
                         &contract,
@@ -765,7 +781,7 @@ pub async fn download_inference_engine_impl(
                         },
                     );
 
-                    extract_7z_and_cleanup(sm_path, inf_dir.clone()).await?;
+                    extract_7z_and_cleanup(&operation, &staging, sm_path, inf_dir.clone()).await?;
                 }
 
                 move_nested_animejanai_files(&inf_dir);
@@ -858,7 +874,7 @@ pub async fn download_inference_engine_impl(
 
 /// Удаление библиотек выбранного движка инференса из каталога inference/
 pub fn delete_inference_engine_impl(backend: String) -> Result<String, String> {
-    let _operation = super::compatibility::OPERATION.try_lock().map_err(|_| "UPSCALE_BUSY".to_owned())?;
+    let _operation = super::operation::try_acquire(&super::config::get_app_root_dir())?;
     if super::compatibility::runtime_used() { return Err("UPSCALE_RESTART_REQUIRED".into()); }
     super::compatibility::invalidate_runtime(&super::config::get_app_root_dir(), &backend)?;
     let inf_dir = get_inference_dir();
@@ -940,6 +956,36 @@ mod install_tests {
         }
     }
     impl Drop for TestDir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+    #[test]
+    fn cancelled_caller_keeps_stage_until_detached_extraction_finishes() {
+        let d = TestDir::new();
+        let operation = super::super::operation::try_acquire(&d.0).unwrap();
+        let staging = std::sync::Arc::new(InstallStaging::new(&d.0).unwrap());
+        let path = staging.0.clone();
+        let worker_path = path.clone();
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (finish_tx, finish_rx) = std::sync::mpsc::channel();
+        let task = {
+            let _runtime = runtime.enter();
+            spawn_staged_work(&operation, &staging, move || {
+                started_tx.send(()).unwrap();
+                finish_rx.recv().unwrap();
+                fs::write(worker_path.join("late.dll"), b"last extracted file").unwrap();
+            })
+        };
+        started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        drop(staging);
+        drop(operation);
+        // Simulate IPC cancellation: both async owners and JoinHandle disappear.
+        drop(task);
+        assert!(path.is_dir());
+        finish_tx.send(()).unwrap();
+        runtime.shutdown_timeout(Duration::from_secs(5));
+        assert!(!path.exists(), "last worker must clean up its staging directory");
+        assert!(super::super::operation::try_acquire(&d.0).is_ok());
+    }
+
     #[test]
     fn missing_zip_entry_does_not_reuse_old_destination_file() {
         let d = TestDir::new(); let archive = d.zip("unrelated.dll");

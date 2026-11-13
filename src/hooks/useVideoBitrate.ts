@@ -55,10 +55,7 @@ function checkHasVideoTrack(
  * Архитектурные особенности:
  * 1. Частота обновления строго ограничена 2 разами в секунду (интервал 500 мс),
  *    что исключает паразитную нагрузку на рендеринг и процессор.
- * 2. Физически корректная микро-динамика кадров (GOP phase modulation): учитывает
- *    естественные колебания веса I/P/B-кадров (±2.5–4.5%), предотвращая визуальное
- *    застывание показаний между редкими секундными ключевыми кадрами mpv, при строгом
- *    сохранении точного среднего значения битрейта сцены.
+ * 2. Значения основаны на измерениях mpv и метаданных без искусственных колебаний.
  * 3. Быстрая адаптация опорного уровня (коэффициент 0.85): переходы между сценами
  *    отрабатываются мгновенно без 2-секундных запаздываний.
  * 4. Многоуровневое резервирование: нативный video-bitrate -> кэш сцены -> метаданные.
@@ -159,7 +156,6 @@ export function useVideoBitrate({
 
     const timerId = window.setInterval(() => {
       const live = liveStateRef.current;
-      const media = mediaInfoRef.current;
       const targetBase = resolveBaseBitrate();
 
       if (targetBase <= 0) {
@@ -174,26 +170,7 @@ export function useVideoBitrate({
         currentBaseRef.current += (targetBase - currentBaseRef.current) * 0.85;
       }
 
-      let activeBitrate = currentBaseRef.current;
-
-      // При активном воспроизведении учитываем динамику кадров GOP-фазы (колебания I/P/B),
-      // устраняя визуальную «заморозку» цифр между редкими ключевыми кадрами mpv
-      if (live && !live.paused) {
-        const fps = media?.fps && media.fps > 0 ? media.fps : 24;
-        const currentFrame =
-          live.frame > 0 ? live.frame : Math.floor((live.position || 0) * fps);
-
-        // Фаза внутри секундного окна кадров
-        const phase = (currentFrame % Math.round(fps)) / fps;
-        // Органическая дельта (±2.5–4.5%), в среднем дающая строго 0 за секунду
-        const deltaFactor =
-          Math.sin(phase * Math.PI * 2) * 0.032 +
-          Math.cos(phase * Math.PI * 4) * 0.014;
-
-        activeBitrate = Math.round(activeBitrate * (1 + deltaFactor));
-      } else {
-        activeBitrate = Math.round(activeBitrate);
-      }
+      const activeBitrate = Math.round(currentBaseRef.current);
 
       setBitrate(activeBitrate);
 

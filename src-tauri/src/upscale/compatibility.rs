@@ -8,7 +8,6 @@ use std::{
     time::UNIX_EPOCH,
 };
 
-pub static OPERATION: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 static RUNTIME_USED: AtomicBool = AtomicBool::new(false);
 pub fn mark_runtime_used() {
     RUNTIME_USED.store(true, Ordering::SeqCst);

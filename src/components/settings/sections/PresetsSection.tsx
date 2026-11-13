@@ -286,7 +286,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       }
       setUserPresets(updated);
       await saveUserPresets(updated);
-      storeUserPresets(updated);
        updateDraftName("");
       saveActivePresetId(targetId);
       setActivePresetId(targetId);
@@ -323,7 +322,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       );
       setUserPresets(updated);
       await saveUserPresets(updated);
-      storeUserPresets(updated);
       saveActivePresetId(preset.id);
       setActivePresetId(preset.id);
       showToast(dict.settings.presets.toastPresetUpdated(preset.name));
@@ -413,7 +411,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       const updated = [...imported, ...userPresets];
       setUserPresets(updated);
       await saveUserPresets(updated);
-      storeUserPresets(updated);
       showToast(dict.settings.presets.toastImported(imported.length));
     } catch (err) {
       if (isMountedRef.current) setUserPresets(previous);
