@@ -339,15 +339,65 @@ export function PlaylistDrawer() {
     return playlist.find((i) => i.current)?.index ?? -1;
   }, [playlist]);
 
-  // Мгновенный автоскролл к текущему воспроизводимому элементу при открытии панели или смене трека
+  // Виртуализация списка: рендерим только видимое окно + overscan.
+  // Строка фиксирована CSS min-height 38px + padding, берём 44px с запасом.
+  const ROW_H = 44;
+  const OVERSCAN = 12;
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewHeight, setViewHeight] = useState(600);
+
+  const handleListScroll = useCallback(() => {
+    const el = contentContainerRef.current;
+    if (!el) return;
+    setScrollTop(el.scrollTop);
+    setViewHeight(el.clientHeight || 600);
+  }, []);
+
   useEffect(() => {
-    if (isPlaylistOpen && currentItemIndex>= 0 && currentItemElRef.current) {
+    const el = contentContainerRef.current;
+    if (!el) return;
+    setScrollTop(el.scrollTop);
+    setViewHeight(el.clientHeight || 600);
+    // Сброс скролла при новом поиске
+    el.scrollTop = 0;
+    setScrollTop(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
+  // viewHeight актуализируем при открытии/ресайзе дровера
+  useEffect(() => {
+    if (!isPlaylistOpen) return;
+    const el = contentContainerRef.current;
+    if (el) setViewHeight(el.clientHeight || 600);
+  }, [isPlaylistOpen, drawerWidth]);
+
+  // Мгновенный автоскролл к текущему воспроизводимому элементу при открытии панели или смене трека
+  // currentFilteredPos Atkinson — позиция именно в отфильтрованном списке
+  // (item.index — индекс mpv, а не позиция в filteredPlaylist).
+  useEffect(() => {
+    if (!isPlaylistOpen) return;
+    const el = contentContainerRef.current;
+    if (el) {
+      // Позицию считаем здесь, когда filteredPlaylist уже определён ниже
+      // через data-атрибут: ищем кнопку текущего трека среди отрендеренных
+      const cur = el.querySelector<HTMLElement>(".playlist-item--current");
+      if (cur) {
+        const top = cur.offsetTop;
+        if (top < el.scrollTop || top > el.scrollTop + el.clientHeight - ROW_H) {
+          el.scrollTop = Math.max(0, top - el.clientHeight / 2);
+          setScrollTop(el.scrollTop);
+        }
+      }
+      return;
+    }
+    if (currentItemElRef.current) {
       currentItemElRef.current.scrollIntoView({
         block: "nearest",
         behavior: "auto",
       });
     }
-  }, [isPlaylistOpen, currentItemIndex]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaylistOpen, currentItemIndex, playlist, searchQuery]);
 
   // Закрытие по Escape и клику вне панели
   useEffect(() => {
@@ -525,7 +575,7 @@ export function PlaylistDrawer() {
       </div>
 
       {isPlaylistOpen && <PlaylistProgressObserver onChange={setLiveProgress} />}
-      <div ref={contentContainerRef} className="playlist-drawer__content">
+      <div ref={contentContainerRef} className="playlist-drawer__content" onScroll={handleListScroll}>
         {filteredPlaylist.length === 0 ? (
           <EmptyState
             icon={<Clapperboard size={24} />}
@@ -536,23 +586,49 @@ export function PlaylistDrawer() {
                 : dict.playlist.emptyDesc
             }
           />
-        ) : (
-          filteredPlaylist.map((item) => {
-            const itemProgress = item.current && liveProgress.duration > 0
-              ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
-
-            return (
-              <PlaylistItemRow
-                key={item.index}
-                item={item}
-                isCurrent={item.current}
-                onPlay={handlePlayItem}
-                itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
-                watchProgress={itemProgress}
-              />
-            );
-          })
-        )}
+        ) : (() => {
+          // Маленькие списки рендерим целиком без оверхеда
+          if (filteredPlaylist.length <= 80) {
+            return filteredPlaylist.map((item) => {
+              const itemProgress = item.current && liveProgress.duration > 0
+                ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
+              return (
+                <PlaylistItemRow
+                  key={item.index}
+                  item={item}
+                  isCurrent={item.current}
+                  onPlay={handlePlayItem}
+                  itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
+                  watchProgress={itemProgress}
+                />
+              );
+            });
+          }
+          const total = filteredPlaylist.length;
+          const start = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
+          const end = Math.min(total, Math.ceil((scrollTop + viewHeight) / ROW_H) + OVERSCAN);
+          const slice = filteredPlaylist.slice(start, end);
+          return (
+            <>
+              {start > 0 && <div style={{ height: start * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
+              {slice.map((item) => {
+                const itemProgress = item.current && liveProgress.duration > 0
+                  ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
+                return (
+                  <PlaylistItemRow
+                    key={item.index}
+                    item={item}
+                    isCurrent={item.current}
+                    onPlay={handlePlayItem}
+                    itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
+                    watchProgress={itemProgress}
+                  />
+                );
+              })}
+              {end < total && <div style={{ height: (total - end) * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
+            </>
+          );
+        })()}
       </div>
     </div>
   );

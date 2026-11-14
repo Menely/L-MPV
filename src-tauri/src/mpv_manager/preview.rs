@@ -143,6 +143,7 @@ impl PreviewCore {
             MpvManager {
                 handle: Mutex::new(handle),
                 api,
+                track_cache: Mutex::new(None),
             }
         };
         for (key, value) in options {

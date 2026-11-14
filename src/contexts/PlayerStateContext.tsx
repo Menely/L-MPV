@@ -444,6 +444,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const lastSaveTimeRef = useRef<number>(0);
   const currentPositionRef = useRef<number>(0);
   const eofReachedRef = useRef<boolean>(false);
+  // Пока громкость дебаунсится (invoke ещё не ушёл), опрос не должен
+  // затирать оптимистичное значение старым значением из бэкенда.
+  const pendingVolumeRef = useRef<number | null>(null);
 
   // Оптимизированный последовательный цикл поллинга с защитой от параллельных вызовов и коалесценцией force-poll
   useEffect(() => {
@@ -660,7 +663,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           if (currentMedia && dynState.path === currentPathRef.current) {
             const isPausedChanged = currentMedia.paused !== dynState.paused;
             const isSpeedChanged = currentMedia.speed !== dynState.speed;
-            const isVolumeChanged = currentMedia.volume !== dynState.volume;
+            // Пока дебаунс громкости не сброшен — backend ещё хранит старое
+            // значение, оптимистичное UI не затираем.
+            const isVolumeChanged = pendingVolumeRef.current === null
+              && currentMedia.volume !== dynState.volume;
 
             // Новые валидные размеры (защита от сброса в 0)
             const targetWidth =
@@ -698,7 +704,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
                 ...currentMedia,
                 paused: dynState.paused,
                 speed: dynState.speed,
-                volume: dynState.volume,
+                volume: pendingVolumeRef.current ?? dynState.volume,
                 width: targetWidth,
                 height: targetHeight,
                 video_track: nextVideoTrack,
@@ -914,21 +920,44 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // ─── Оптимистичное изменение громкости ───
+  // ─── Оптимистичное изменение громкости с дебаунсом IPC ───
+  // UI + localStorage — мгновенно, invoke(set_volume) — с дебаунсом 100мс.
+  // Колесо/драг слайдера даёт десятки событий в секунду — без дебаунса
+  // каждое дёргает mpv + WASAPI через IPC.
+  const volumeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushVolumeRef = useRef(() => {});
+  flushVolumeRef.current = () => {
+    if (pendingVolumeRef.current === null) return;
+    const vol = pendingVolumeRef.current;
+    pendingVolumeRef.current = null;
+    invoke("set_volume", { volume: vol }).catch(() => {});
+  };
+  useEffect(() => {
+    return () => {
+      if (volumeDebounceRef.current) clearTimeout(volumeDebounceRef.current);
+      flushVolumeRef.current();
+    };
+  }, []);
   const setVolume = useCallback((vol: number) => {
+    const clamped = Math.max(0, Math.min(150, vol));
     // Мгновенное обновление UI
     setMediaInfo(prev => {
       if (!prev) return null;
-      const next = { ...prev, volume: vol };
+      const next = { ...prev, volume: clamped };
       mediaInfoRef.current = next;
       return next;
     });
     try {
-      localStorage.setItem("l-mpv-volume", vol.toString());
-      invoke("set_volume", { volume: vol });
+      localStorage.setItem("l-mpv-volume", clamped.toString());
     } catch (e) {
       console.error(e);
     }
+    pendingVolumeRef.current = clamped;
+    if (volumeDebounceRef.current) clearTimeout(volumeDebounceRef.current);
+    volumeDebounceRef.current = setTimeout(() => {
+      volumeDebounceRef.current = null;
+      flushVolumeRef.current();
+    }, 100);
   }, []);
 
   // ─── Интеграция с Taskbar Windows с фильтрацией шага ───

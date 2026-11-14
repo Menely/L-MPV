@@ -374,9 +374,17 @@ impl Drop for MpvNodeResultGuard<'_> {
 }
 
 /// Безопасная обёртка над контекстом mpv.
+#[derive(Clone, Default)]
+struct CachedTrackInfo {
+    path: String,
+    count: i64,
+    video_present: Option<bool>,
+}
+
 pub struct MpvManager {
     handle: Mutex<*mut MpvHandle>,
     api: MpvApi,
+    track_cache: Mutex<Option<CachedTrackInfo>>,
 }
 
 unsafe impl Send for MpvManager {}
@@ -664,6 +672,7 @@ impl MpvManager {
             let manager = Self {
                 handle: Mutex::new(handle),
                 api,
+                track_cache: Mutex::new(None),
             };
 
             if let Some(ref mode) = saved_settings.deinterlace_mode {
@@ -1488,8 +1497,41 @@ impl MpvManager {
             ) as i64;
             let stream_pos = Self::get_double_raw(&self.api, handle, c"stream-pos");
 
-            let video_track_present =
-                Self::video_track_present_raw(&self.api, handle);
+            // aid/sid/vid дешёвые (по 1 FFI) и меняются при переключении
+            // дорожек при том же count — читаем каждый тик.
+            // Дорогой скан video_present (до 256 FFI) кэшируем по (path,count).
+            let track_count = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"track-list/count",
+            ) as i64;
+            let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
+            let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
+            let current_vid = Self::get_string_raw(&self.api, handle, c"vid");
+            let video_track_present = self
+                .track_cache
+                .lock()
+                .ok()
+                .and_then(|guard| {
+                    guard.as_ref().and_then(|cached| {
+                        if cached.path == path && cached.count == track_count {
+                            Some(cached.video_present)
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .unwrap_or_else(|| {
+                    let present = Self::video_track_present_raw(&self.api, handle);
+                    if let Ok(mut guard) = self.track_cache.lock() {
+                        *guard = Some(CachedTrackInfo {
+                            path: path.clone(),
+                            count: track_count,
+                            video_present: present,
+                        });
+                    }
+                    present
+                });
             let mut vid_buf = [0u8; 32];
             let video_track = Self::get_property_str_buf_raw(
                 &self.api,
@@ -1507,15 +1549,6 @@ impl MpvManager {
                 output_width,
                 output_height,
             );
-
-            let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
-            let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
-            let current_vid = Self::get_string_raw(&self.api, handle, c"vid");
-            let track_count = Self::get_double_raw(
-                &self.api,
-                handle,
-                c"track-list/count",
-            ) as i64;
 
             Ok(crate::commands::PlaybackState {
                 position,
@@ -2119,6 +2152,7 @@ mod tests {
             let mgr = MpvManager {
                 handle: Mutex::new(handle),
                 api,
+                track_cache: Mutex::new(None),
             };
 
             mgr.set_deinterlace_mode("yadif").unwrap();
