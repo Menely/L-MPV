@@ -9,6 +9,7 @@
 mod config;
 pub(crate) mod background_io;
 mod dir_scan;
+mod explorer;
 pub mod heatmap;
 mod history;
 mod file_lock;
@@ -33,6 +34,7 @@ pub use types::*;
 
 // ─── Реэкспорт IPC-команд ──────────────────────────────
 pub use config::*;
+pub use explorer::*;
 pub use history::*;
 pub use playback::*;
 pub use playlist::*;

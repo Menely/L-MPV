@@ -1,0 +1,24 @@
+.playlist-drawer.playlist-drawer--pinned {
+  bottom: auto;
+  max-height: none;
+  overflow: hidden !important;
+  animation: none;
+  transition: none;
+}
+.playlist-drawer .playlist-drawer__header-actions { flex-shrink: 0; }
+.playlist-drawer .navigation-panel__tabs { flex: 1; min-width: 0; }
+.playlist-drawer .navigation-panel__tab { min-width: 0; }
+.playlist-drawer .navigation-panel__tab > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navigation-panel__pin[aria-pressed="true"] { color: var(--accent-text); background: var(--surface-level-3-hover); }
+.navigation-panel__grip { touch-action: none; cursor: ns-resize; }
+.navigation-panel__pin:focus-visible, .navigation-panel__grip:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; }
+.navigation-panel__explorer-host { display: flex; flex: 1; min-height: 0; min-width: 0; }
+/* The capsule's islands own their shadows; the transparent host must not clip them. */
+.playlist-drawer.playlist-drawer--capsule.playlist-drawer--pinned { overflow: visible !important; }
+@media (max-width: 560px) {
+  .playlist-drawer .playlist-drawer__header { gap: 4px; padding-inline: 8px; }
+  .playlist-drawer .playlist-drawer__header-actions .playlist-drawer__action-btn,
+  .playlist-drawer .playlist-drawer__header-actions .playlist-drawer__close { width: 24px; }
+  .playlist-drawer .navigation-panel__tab { padding-inline: 5px; gap: 4px; }
+  .playlist-drawer .playlist-drawer__badge { padding-inline: 4px; }
+}

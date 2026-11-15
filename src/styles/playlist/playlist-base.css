@@ -10,12 +10,11 @@
   min-width: min(360px, calc(100% - 28px));
   max-width: calc(100% - 28px);
   width: 360px;
-  background: var(--bg-glass);
+  background: transparent;
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-controls, 16px);
   box-shadow: var(--shadow-elevated);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  isolation: isolate;
   z-index: var(--z-card);
   display: flex;
   flex-direction: column;
@@ -26,6 +25,20 @@
   text-rendering: optimizeLegibility;
   transition: bottom var(--t-panel) var(--ease-standard),
               max-height var(--t-panel) var(--ease-standard);
+}
+
+/* Keep the rounded glass layer separate from the outer shadow when moving the panel. */
+.playlist-drawer:not(.playlist-drawer--capsule)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--bg-glass);
+  border-radius: inherit;
+  clip-path: inset(0 round var(--radius-controls, 16px));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .playlist-drawer--resizing {

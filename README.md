@@ -52,8 +52,6 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **[mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai)** & **[the-database](https://github.com/the-database)** — For the `vf_animejanai` video filter and real-time neural 4K upscaling implementation.
 - **[Tauri](https://tauri.app/)** ([GitHub](https://github.com/tauri-apps/tauri)) — For the lightweight and performant framework powered by Rust and modern web technologies.
 - **[dnd-kit](https://dndkit.com/)** ([GitHub](https://github.com/clauderic/dnd-kit)) — For the flexible and reliable Drag & Drop toolkit for React.
-- **[frame-player](https://github.com/risenxxx/frame-player)** — For the reference approach to timeline frame previews, adapted here with an independent preview worker.
-- **[thumbfast](https://github.com/iiiGerardoiii/thumbfast)** — For the on-demand thumbnail generation approach that inspired the private libmpv preview decoder.
 
 ---
 
@@ -445,6 +443,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>📑 Playlist & File Navigation</b></summary>
 
+- **Explorer in the side panel:** Playlist and Explorer share the `L` / `P` shortcut and remember the last selected tab. Browse folders and supported media, move to the parent folder, choose a folder and search by name. Browsing leaves playback unchanged; selecting subtitles attaches them to the open media. Mouse Back/Forward buttons navigate folder history while the panel is open. Pin the panel to keep its position and height, then use the header grip to move it vertically. The current media file is marked with a Play icon.
 - **Startup and buffering:** Playback starts without waiting for the entire buffer to fill. Read-ahead helps absorb brief storage slowdowns; if data runs out, the player waits for more and resumes. Background scanning and full heatmap analysis are deferred during file opening and yield to video reads during seeking or low-buffer conditions. Startup speed depends on the file and storage device.
 - **Auto-Playlist with Natural Sort:** Opening a file automatically populates the playlist with all sibling media in the directory, ordered by natural human numerical sorting.
 - **Slide-out Playlist Drawer (`L` / `P`):** Search, file filtering, active track highlighting, and one-click playback switching.

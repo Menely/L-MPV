@@ -36,6 +36,13 @@ export interface SystemDiagnosticsInfo {
 
   context_menu_registered: boolean;
   os_name: string;
+  webview2_version: string;
+  os_build: string;
+  disk_free_mb: number;
+  disk_total_mb: number;
+  fonts_builtin: number;
+  fonts_custom: number;
+  exe_dir_writable: boolean;
 }
 
 let diagnosticsCache: SystemDiagnosticsInfo | null = null;

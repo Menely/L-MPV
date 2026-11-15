@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Cpu, Link2, Loader2, ExternalLink, Trash2, FileText } from "lucide-react";
+import { Cpu, Download, Link2, Loader2, ExternalLink, Trash2, FileText, FolderOpen } from "lucide-react";
 import { useTranslation } from "../../../i18n/LanguageContext";
 
 import {
@@ -95,8 +95,11 @@ export function SystemSettingsTab(): React.ReactElement {
       "========================================",
       `Application: L-MPV v${diag.app_version} (${diag.app_arch})`,
       `Mode: ${diag.is_portable ? "Portable" : "Installed"}`,
-      `OS: ${diag.os_name}`,
-      `Exe Directory: ${diag.app_exe_dir}`,
+      `OS: ${diag.os_name}${diag.os_build ? ` (build ${diag.os_build})` : ""}`,
+      `Exe Directory: ${diag.app_exe_dir}${diag.exe_dir_writable === false ? " [READ-ONLY]" : ""}`,
+      `WebView2: ${diag.webview2_version || "unknown"}`,
+      `Disk: ${diag.disk_free_mb} / ${diag.disk_total_mb} MB free`,
+      `Fonts: ${diag.fonts_builtin} built-in / ${diag.fonts_custom} custom`,
       "",
       `[Playback Engine - libmpv]`,
       `Version: ${diag.libmpv_version}`,
@@ -236,12 +239,46 @@ export function SystemSettingsTab(): React.ReactElement {
   }, [checkContextMenuStatus, dict]);
 
   const i = dict.settings.integrationFields;
-  const [openIntegration, setOpenIntegration] = useState<"diagnostics" | "cache" | "files" | "explorer" | null>(null);
+  const f = dict.settings.systemFields;
+  const [openIntegration, setOpenIntegration] = useState<"diagnostics" | "cache" | "files" | "explorer" | null>("diagnostics");
   const [logOpen, setLogOpen] = useState(false);
+  const [logFilter, setLogFilter] = useState<"all" | "ok" | "warn" | "error">("all");
   useEffect(() => {
     if (integrationLogs.length > 0) setLogOpen(true);
   }, [integrationLogs]);
   const busy = isRegistering || isUnregistering || isContextMenuLoading;
+  const filteredLogs = useMemo(() => {
+    if (logFilter === "all") return integrationLogs;
+    if (logFilter === "ok") return integrationLogs.filter((line) => line.includes("[OK]") || line.includes("[DONE]"));
+    const needle = logFilter === "warn" ? "[WARN]" : "[ERROR]";
+    return integrationLogs.filter((line) => line.includes(needle));
+  }, [integrationLogs, logFilter]);
+
+  const downloadReport = useCallback(() => {
+    if (!diag) return;
+    const blob = new Blob([JSON.stringify(diag, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `l-mpv-diagnostics-${diag.app_version}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, [diag]);
+
+  const copyReportJson = useCallback(async () => {
+    if (!diag) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(diag, null, 2));
+    } catch {
+      setIntegrationLogs((prev) => [...prev, `[ERROR] ${f.copyReportError}`]);
+    }
+  }, [diag, f]);
+
+  const openCacheFolder = useCallback(() => {
+    if (!diag?.app_exe_dir) return;
+    void invoke("open_path_in_explorer", { path: `${diag.app_exe_dir}/data/cache` })
+      .catch(error => setIntegrationLogs(prev => [...prev, `[ERROR] ${f.pathActionError(String(error))}`]));
+  }, [diag, f]);
 
   return (
     <div className="modal__section system-settings">
@@ -255,14 +292,27 @@ export function SystemSettingsTab(): React.ReactElement {
         onRefresh={() => {
           void fetchDiagnostics(true);
           void checkContextMenuStatus();
-        }} onCopy={copyReportToClipboard} />
+        }} onCopy={copyReportToClipboard} actions={<>
+        <button type="button" className="system-settings__tool" onClick={downloadReport} disabled={!diag}>
+          <Download size={13} aria-hidden />{f.btnDownloadReport}
+        </button>
+        <button type="button" className="system-settings__tool" onClick={copyReportJson} disabled={!diag}>
+          <FileText size={13} aria-hidden />{f.btnCopyJson}
+        </button>
 
+      </>} />
       </AccordionSection>
       <CacheSettingsSection open={openIntegration === "cache"}
-        onToggle={() => setOpenIntegration(current => current === "cache" ? null : "cache")} />
+        onToggle={() => setOpenIntegration(current => current === "cache" ? null : "cache")}
+        folderAction={<button type="button" className="system-cache-tool" onClick={openCacheFolder} disabled={!diag}>
+          <FolderOpen size={13} aria-hidden />{f.btnOpenCacheFolder}
+        </button>} />
 
       <AccordionSection isOpen={openIntegration === "files"}
-        onToggle={() => setOpenIntegration((current) => current === "files" ? null : "files")}
+        onToggle={() => {
+          setOpenIntegration((current) => current === "files" ? null : "files");
+          void checkContextMenuStatus();
+        }}
         icon={<Link2 size={16} />} title={i.fileAssocTitle}>
         <p className="system-settings__description">{i.fileAssocSubtitle}</p>
         <div className="system-settings__actions">
@@ -284,7 +334,10 @@ export function SystemSettingsTab(): React.ReactElement {
       </AccordionSection>
 
       <AccordionSection isOpen={openIntegration === "explorer"}
-        onToggle={() => setOpenIntegration((current) => current === "explorer" ? null : "explorer")}
+        onToggle={() => {
+          setOpenIntegration((current) => current === "explorer" ? null : "explorer");
+          void checkContextMenuStatus();
+        }}
         icon={<FileText size={16} />} title={i.cmenuTitle}
         badge={isContextMenuRegistered !== null ? <span className="system-settings__badge" data-active={isContextMenuRegistered}>
           {isContextMenuRegistered ? i.cmenuActive : i.cmenuInactive}
@@ -306,8 +359,21 @@ export function SystemSettingsTab(): React.ReactElement {
       {integrationLogs.length > 0 && <AccordionSection isOpen={logOpen}
         onToggle={() => setLogOpen((current) => !current)} icon={<FileText size={16} />}
         title={i.operationLogTitle}>
+        <div className="system-log-filters" role="group" aria-label={i.operationLogTitle}>
+          {(["all", "ok", "warn", "error"] as const).map((level) => (
+            <button key={level} type="button"
+              className="system-log-filter"
+              data-active={logFilter === level}
+              onClick={() => setLogFilter(level)}>
+              {level === "all" ? f.logFilterAll : level === "ok" ? f.logFilterOk : level === "warn" ? f.logFilterWarn : f.logFilterError}
+            </button>
+          ))}
+          <button type="button" className="system-settings__tool" onClick={() => setIntegrationLogs([])}>
+            <Trash2 size={13} aria-hidden />{f.btnClearLog}
+          </button>
+        </div>
         <div className="system-settings__log" role="log" aria-live="off" tabIndex={0}>
-          {integrationLogs.map((line, index) => {
+          {filteredLogs.map((line, index) => {
             const level = /^\[(OK|DONE)\]/.test(line) ? "success"
               : line.startsWith("[ERROR]") ? "error" : line.startsWith("[WARN]") ? "warning" : "info";
             return <div key={index} data-level={level}>{line}</div>;

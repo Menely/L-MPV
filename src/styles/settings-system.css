@@ -53,11 +53,11 @@
 .system-diagnostics__list { margin: 12px 0 0; }
 .system-diagnostics--embedded .system-diagnostics__list { margin: 0; }
 .system-diagnostics__row:first-child { border-top: 0; padding-top: 0; }
-.system-diagnostics__tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--border); }
+.system-diagnostics__tools { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: center; gap: 4px 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--border); }
 .system-diagnostics__row {
   display: grid;
   grid-template-columns: minmax(180px, 0.85fr) minmax(0, 1.15fr);
-  align-items: baseline;
+  align-items: center;
   gap: 8px 20px;
   padding: 10px 0;
   border-top: 1px solid var(--border);
@@ -111,6 +111,35 @@
 .system-settings__log [data-level="success"] { color: var(--success-text); }
 .system-settings__log [data-level="error"] { color: var(--error-text, #f87171); }
 .system-settings__log [data-level="warning"] { color: var(--accent-text); }
+
+/* ─── Строки диагностики: статусы и действия ─── */
+.system-diagnostics__dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; align-self: center; background: var(--text-muted); }
+.system-diagnostics__dot[data-status="ok"] { background: var(--success-text); }
+.system-diagnostics__dot[data-status="warn"] { background: var(--accent-text); }
+.system-diagnostics__dot[data-status="bad"] { background: var(--error-text, #f87171); }
+.system-diagnostics__row[data-status="bad"] dd { color: var(--error-text, inherit); }
+.system-diagnostics__value { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; min-width: 0; flex: 1; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.system-diagnostics__actions { display: inline-flex; gap: 2px; margin-left: auto; }
+.system-diagnostics__mini-btn {
+  display: inline-grid; place-items: center;
+  width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-xs, 4px);
+  background: transparent; color: var(--text-secondary); cursor: pointer; opacity: 1;
+}
+.system-diagnostics__row:hover .system-diagnostics__mini-btn,
+.system-diagnostics__mini-btn:focus-visible { opacity: 1; }
+.system-diagnostics__mini-btn:hover { background: var(--surface-card-hover); color: var(--text-primary); }
+@media (hover: none) {
+  .system-diagnostics__mini-btn { opacity: 1; }
+}
+
+/* ─── Фильтры лога ─── */
+.system-log-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.system-log-filter {
+  padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer;
+}
+.system-log-filter[data-active="true"] { background: var(--surface-level-3); color: var(--text-primary); border-color: var(--accent); }
+
 
 @container (max-width: 540px) {
   .system-diagnostics__row { grid-template-columns: minmax(0, 1fr); gap: 3px; }

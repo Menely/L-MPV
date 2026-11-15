@@ -437,6 +437,25 @@ pub struct SystemDiagnosticsInfo {
     pub context_menu_registered: bool,
     /// Наименование операционной системы
     pub os_name: String,
+    /// Версия WebView2 Runtime (критично для Tauri)
+    #[serde(default)]
+    pub webview2_version: String,
+    /// Сборка Windows (например, "22631")
+    #[serde(default)]
+    pub os_build: String,
+    /// Свободно / всего на диске плеера, МБ
+    #[serde(default)]
+    pub disk_free_mb: u64,
+    #[serde(default)]
+    pub disk_total_mb: u64,
+    /// Шрифты: встроенных / пользовательских
+    #[serde(default)]
+    pub fonts_builtin: usize,
+    #[serde(default)]
+    pub fonts_custom: usize,
+    /// Доступность каталога плеера на запись
+    #[serde(default)]
+    pub exe_dir_writable: bool,
 }
 
 /// Поиск пути к библиотеке libmpv по стандартным расположениям.
@@ -667,7 +686,11 @@ fn collect_system_diagnostics(
     let gpu_vram_mb = gpu.vram_bytes / (1024 * 1024);
 
     let context_menu_registered = is_explorer_context_menu_registered().unwrap_or(false);
-    let os_name = "Windows (x86_64)".to_string();
+    let (os_name, os_build) = collect_os_diagnostics();
+    let webview2_version = collect_webview2_version();
+    let (disk_free_mb, disk_total_mb) = collect_disk_diagnostics(&root);
+    let (fonts_builtin, fonts_custom) = collect_fonts_diagnostics(&root);
+    let exe_dir_writable = check_dir_writable(&root);
 
     Ok(SystemDiagnosticsInfo {
         app_version,
@@ -699,5 +722,176 @@ fn collect_system_diagnostics(
         gpu_supports_tensorrt: gpu.supports_tensorrt,
         context_menu_registered,
         os_name,
+        webview2_version,
+        os_build,
+        disk_free_mb,
+        disk_total_mb,
+        fonts_builtin,
+        fonts_custom,
+        exe_dir_writable,
     })
+}
+
+/// Имя ОС и номер сборки из реестра (без новых зависимостей).
+fn collect_os_diagnostics() -> (String, String) {
+    #[cfg(windows)]
+    {
+        use winreg::enums::HKEY_LOCAL_MACHINE;
+        use winreg::RegKey;
+        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+        if let Ok(cv) = hklm.open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion") {
+            let product: String = cv.get_value("ProductName").unwrap_or_else(|_| "Windows".into());
+            let build: String = cv
+                .get_value::<String, _>("CurrentBuildNumber")
+                .or_else(|_| cv.get_value::<u32, _>("CurrentBuildNumber").map(|n| n.to_string()))
+                .unwrap_or_default();
+            let arch = std::env::consts::ARCH;
+            return (format!("{product} ({arch})"), build);
+        }
+    }
+    ("Windows (x86_64)".to_string(), String::new())
+}
+
+/// Версия WebView2 Runtime из реестра EdgeUpdate.
+fn collect_webview2_version() -> String {
+    #[cfg(windows)]
+    {
+        use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+        use winreg::RegKey;
+        // Клиентские ключи WebView2 регистрируются в обоих кустах.
+        for root in [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE] {
+            let hk = RegKey::predef(root);
+            if let Ok(clients) = hk.open_subkey("SOFTWARE\\Microsoft\\EdgeUpdate\\Clients") {
+                for name in clients.enum_keys().flatten() {
+                    // GUID Evergreen WebView2 Runtime: F3017226-FE2A-4295-8BDF-00C3A9A7E4C5
+                    if !name.to_uppercase().contains("F3017226") {
+                        continue;
+                    }
+                    if let Ok(app) = clients.open_subkey(&name) {
+                        if let Ok(ver) = app.get_value::<String, _>("pv") {
+                            if !ver.trim().is_empty() {
+                                return ver;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Fallback: установленный Edge содержит совместимый рантайм.
+        let hk = RegKey::predef(HKEY_CURRENT_USER);
+        if let Ok(blink) = hk.open_subkey("SOFTWARE\\Microsoft\\Edge\\BLBeacon") {
+            if let Ok(ver) = blink.get_value::<String, _>("version") {
+                if !ver.trim().is_empty() {
+                    return format!("{ver} (Edge)");
+                }
+            }
+        }
+    }
+    // Локализация — на фронте (пустая строка -> "—"), чтобы не шить русский в API.
+    "unknown".to_string()
+}
+
+/// Свободное / полное место на томе каталога плеера, МБ.
+fn collect_disk_diagnostics(root: &Path) -> (u64, u64) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+        let wide: Vec<u16> = root.as_os_str().encode_wide().chain([0]).collect();
+        let mut avail: u64 = 0;
+        let mut total: u64 = 0;
+        let mut free: u64 = 0;
+        // SAFETY: указатели на локальные u64, wide жив до конца вызова.
+        let ok = unsafe {
+            GetDiskFreeSpaceExW(
+                windows::core::PCWSTR(wide.as_ptr()),
+                Some(&mut avail),
+                Some(&mut total),
+                Some(&mut free),
+            )
+        };
+        if ok.is_ok() {
+            return (free / (1024 * 1024), total / (1024 * 1024));
+        }
+    }
+    (0, 0)
+}
+
+/// Подсчёт встроенных и пользовательских шрифтов рядом с exe.
+fn collect_fonts_diagnostics(root: &Path) -> (usize, usize) {
+    const BUILTIN: [&str; 5] = [
+        "Inter-Variable.ttf",
+        "Outfit-Variable.ttf",
+        "PlusJakartaSans-Variable.ttf",
+        "Manrope-Variable.ttf",
+        "JetBrainsMono-Variable.ttf",
+    ];
+    let mut builtin = 0usize;
+    let mut custom = 0usize;
+    if let Ok(entries) = std::fs::read_dir(root.join("fonts")) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let ext_ok = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|e| matches!(
+                    e.to_ascii_lowercase().as_str(),
+                    "ttf" | "otf" | "woff" | "woff2"
+                ));
+            if !ext_ok {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if BUILTIN.contains(&name.as_str()) {
+                builtin += 1;
+            } else {
+                custom += 1;
+            }
+        }
+    }
+    (builtin, custom)
+}
+
+fn check_dir_writable(root: &Path) -> bool {
+    let probe = root.join(".lmpv-write-check.tmp");
+    match std::fs::write(&probe, b"ok") {
+        Ok(()) => {
+            let _ = std::fs::remove_file(&probe);
+            true
+        }
+        Err(_) => false,
+    }
+}
+
+/// Открыть произвольный путь плеера в Проводнике (только внутри каталога приложения).
+#[tauri::command]
+pub fn open_path_in_explorer(path: String) -> Result<(), String> {
+    let root = crate::upscale::get_app_root_dir();
+    let target = PathBuf::from(&path);
+    let resolved = if target.is_absolute() {
+        target
+    } else {
+        root.join(target)
+    };
+    // Защита: не выходим за пределы каталога плеера и системных путей.
+    let canonical_root = root.canonicalize().unwrap_or(root.clone());
+    let canonical_target = resolved.canonicalize().unwrap_or(resolved.clone());
+    if !canonical_target.starts_with(&canonical_root) {
+        return Err("Путь вне каталога плеера".into());
+    }
+    #[cfg(windows)]
+    {
+        std::process::Command::new("explorer")
+            .arg(canonical_target)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(not(windows))]
+    {
+        return Err("Только Windows".into());
+    }
 }
