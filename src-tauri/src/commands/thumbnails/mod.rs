@@ -1,5 +1,6 @@
 //! Timeline hover thumbnails, inspired by frame-player's grid/settle split.
 //! Persistent private libmpv decoder with FFmpeg fallback; playback is never sought.
+//! A background storyboard (see `storyboard`) covers fast pointer sweeps.
 mod cache;
 mod coarse_cache;
 mod decoder;
@@ -7,6 +8,7 @@ mod disk;
 mod filters;
 mod native;
 mod profile;
+mod storyboard;
 mod transforms;
 
 use super::types::PlayerState;
@@ -17,12 +19,33 @@ use std::{
     path::{Path, PathBuf},
     process::Child,
     sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex, OnceLock,
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+        Arc, Condvar, Mutex, OnceLock,
     },
     time::{Duration, Instant},
 };
 use tauri::State;
+
+/// Поколение геометрических преобразований основного плеера. Его увеличивают
+/// команды, которые меняют поворот, чтобы превью не опрашивало mpv на каждый кадр.
+static TRANSFORM_GENERATION: AtomicU64 = AtomicU64::new(0);
+/// Страховка для изменений, прошедших мимо `invalidate_transforms`.
+const TRANSFORMS_MAX_AGE: Duration = Duration::from_secs(1);
+/// Как часто перепроверять, что файл на диске не заменили.
+const IDENTITY_MAX_AGE: Duration = Duration::from_secs(2);
+
+pub fn invalidate_transforms() {
+    TRANSFORM_GENERATION.fetch_add(1, Ordering::AcqRel);
+}
+
+/// Допустимые размеры живой миниатюры (ширина карточки 240 CSS px × масштаб).
+fn thumbnail_size(width: Option<u32>) -> (u32, u32) {
+    match width {
+        Some(400) => (400, 225),
+        Some(480) => (480, 270),
+        _ => (320, 180),
+    }
+}
 
 #[derive(Default)]
 struct Requests {
@@ -34,12 +57,27 @@ struct Requests {
 struct CachedSource {
     raw_path: String,
     canonical_path: PathBuf,
+    identity: String,
+    identity_checked: Instant,
     vid: String,
     stream: String,
     duration: f64,
     hdr: Option<decoder::HdrTransfer>,
     base_profile: profile::DecodeProfile,
     transforms: transforms::Transforms,
+    transforms_generation: u64,
+    transforms_read: Instant,
+}
+
+#[derive(Default)]
+struct Storyboards {
+    board: Option<storyboard::Board>,
+    /// Источник, для которого строится раскадровка (позиция подставляется).
+    source: Option<SourceRequest>,
+    /// Последний размер живой миниатюры: ядро превью общее, и раскадровка не
+    /// должна пересоздавать его под другой размер.
+    live_size: Option<(u32, u32)>,
+    worker_started: bool,
 }
 
 #[derive(Default)]
@@ -53,10 +91,37 @@ struct Inner {
     source_cache: Mutex<Option<CachedSource>>,
     stopped: AtomicBool,
     reaper_started: AtomicBool,
+    storyboards: Mutex<Storyboards>,
+    storyboard_wake: Condvar,
+    /// Отмена текущего кадра раскадровки, когда пришёл живой запрос.
+    tile_cancel: AtomicBool,
+    /// Живые запросы в работе и время окончания последнего.
+    live_busy: AtomicUsize,
+    live_ended: Mutex<Option<Instant>>,
 }
 
 #[derive(Clone, Default)]
 pub struct ThumbnailService(Arc<Inner>);
+
+/// Пока жив, раскадровка не трогает декодер.
+struct LiveGuard<'a>(&'a Inner);
+impl<'a> LiveGuard<'a> {
+    fn new(inner: &'a Inner) -> Self {
+        // Порядок важен: сначала счётчик, потом отмена (см. storyboard_step).
+        inner.live_busy.fetch_add(1, Ordering::SeqCst);
+        inner.tile_cancel.store(true, Ordering::SeqCst);
+        Self(inner)
+    }
+}
+impl Drop for LiveGuard<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut ended) = self.0.live_ended.lock() {
+            *ended = Some(Instant::now());
+        }
+        self.0.live_busy.fetch_sub(1, Ordering::SeqCst);
+        self.0.storyboard_wake.notify_all();
+    }
+}
 
 impl ThumbnailService {
     fn start_idle_cleanup(&self) {
@@ -124,13 +189,19 @@ impl ThumbnailService {
         {
             token.store(true, Ordering::Release);
         }
+        self.0.tile_cancel.store(true, Ordering::Release);
         let _worker = self.0.worker.lock().map_err(|e| e.to_string())?;
         *self.0.native.lock().map_err(|e| e.to_string())? = native::NativeDecoder::default();
         *self.0.cache.lock().map_err(|e| e.to_string())? = FrameCache::default();
+        let mut boards = self.0.storyboards.lock().map_err(|e| e.to_string())?;
+        boards.board = None;
+        boards.source = None;
         Ok(())
     }
     pub fn shutdown(&self) {
         self.0.stopped.store(true, Ordering::Release);
+        self.0.tile_cancel.store(true, Ordering::Release);
+        self.0.storyboard_wake.notify_all();
         if let Ok(active) = self.0.active.lock() {
             if let Some((_, token)) = active.current.as_ref() {
                 token.store(true, Ordering::Release);
@@ -148,43 +219,64 @@ impl ThumbnailService {
         if let Ok(mut source_cache) = self.0.source_cache.lock() {
             *source_cache = None;
         }
+        if let Ok(mut boards) = self.0.storyboards.lock() {
+            boards.board = None;
+            boards.source = None;
+        }
     }
 
     /// Разрешение параметров видеоисточника с кешированием метаданных дорожки и профиля.
     ///
-    /// Исключает повторные дорогостоящие FFI-запросы к libmpv (сканирование дорожек,
-    /// чтение параметров кодека и каноникализацию пути файловой системы) на каждое смещение курсора.
+    /// `path` и `vid` уже проверены вызывающим по основному плееру. Повторно
+    /// основной mpv здесь не опрашивается: преобразования перечитываются, только
+    /// если изменилось их поколение или прошла `TRANSFORMS_MAX_AGE`.
     fn resolve_source(
         &self,
         mpv: &MpvManager,
         path: &str,
+        vid: &str,
         seconds: f64,
         exact: bool,
+        size: (u32, u32),
     ) -> Result<SourceRequest, String> {
         if !seconds.is_finite() || seconds < 0.0 {
             return Err("THUMBNAIL_POSITION".into());
         }
-        let vid = mpv.get_property_string("vid").unwrap_or_default();
         let id: i64 = vid.parse().map_err(|_| "THUMBNAIL_UNAVAILABLE")?;
-        if !same_source(mpv, path, &vid) {
-            return Err("THUMBNAIL_CANCELLED".into());
-        }
+        let generation = TRANSFORM_GENERATION.load(Ordering::Acquire);
 
         let mut source_cache = self.0.source_cache.lock().map_err(|e| e.to_string())?;
-        let cached = match &*source_cache {
-            Some(cached) if cached.raw_path == path && cached.vid == vid => {
-                let current_transforms = transforms::Transforms::read(mpv);
-                let mut updated = cached.clone();
-                updated.transforms = current_transforms;
-                updated
-            }
-            _ => {
+        let reusable = source_cache
+            .as_mut()
+            .filter(|cached| cached.raw_path == path && cached.vid == vid)
+            .and_then(|cached| {
+                if cached.identity_checked.elapsed() >= IDENTITY_MAX_AGE {
+                    // Файл заменили на диске — разрешаем источник заново.
+                    let identity = cache::source_identity(&cached.canonical_path).ok()?;
+                    if identity != cached.identity {
+                        return None;
+                    }
+                    cached.identity_checked = Instant::now();
+                }
+                if cached.transforms_generation != generation
+                    || cached.transforms_read.elapsed() >= TRANSFORMS_MAX_AGE
+                {
+                    cached.transforms = transforms::Transforms::read(mpv);
+                    cached.transforms_generation = generation;
+                    cached.transforms_read = Instant::now();
+                }
+                Some(cached.clone())
+            });
+        let cached = match reusable {
+            Some(cached) => cached,
+            None => {
                 let local = Path::new(path)
                     .canonicalize()
                     .map_err(|_| "THUMBNAIL_UNAVAILABLE")?;
                 if !local.is_file() {
                     return Err("THUMBNAIL_UNAVAILABLE".into());
                 }
+                let identity = cache::source_identity(&local)?;
                 let count = mpv.get_property_double("track-list/count").unwrap_or(0.0) as usize;
                 let mut stream = None;
                 let mut video_index = 0;
@@ -243,12 +335,16 @@ impl ThumbnailService {
                 let new_cached = CachedSource {
                     raw_path: path.to_owned(),
                     canonical_path: local,
-                    vid: vid.clone(),
+                    identity,
+                    identity_checked: Instant::now(),
+                    vid: vid.to_owned(),
                     stream: stream.ok_or("THUMBNAIL_UNAVAILABLE")?,
                     duration,
                     hdr,
                     base_profile,
                     transforms,
+                    transforms_generation: generation,
+                    transforms_read: Instant::now(),
                 };
                 *source_cache = Some(new_cached.clone());
                 new_cached
@@ -266,36 +362,58 @@ impl ThumbnailService {
             profile,
             transforms: cached.transforms,
             path: cached.canonical_path,
+            identity: cached.identity,
             stream: cached.stream,
             vid: cached.vid,
             seconds: seconds.min((cached.duration - 0.001).max(0.0)),
             hdr: cached.hdr,
+            size,
         })
     }
 
+    fn cached_duration(&self) -> Option<f64> {
+        self.0
+            .source_cache
+            .lock()
+            .ok()?
+            .as_ref()
+            .map(|cached| cached.duration)
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn frame(
         &self,
         mpv: &Arc<MpvManager>,
         path: &str,
+        vid: &str,
         seconds: f64,
         exact: bool,
+        size: (u32, u32),
         token: &AtomicBool,
         refresh: bool,
     ) -> Result<Arc<[u8]>, String> {
+        let _live = LiveGuard::new(&self.0);
         let is_cancelled =
             || token.load(Ordering::Acquire) || self.0.stopped.load(Ordering::Acquire);
         if is_cancelled() {
             return Err("THUMBNAIL_CANCELLED".into());
         }
-        let source = self.resolve_source(mpv, path, seconds, exact)?;
+        let source = self.resolve_source(mpv, path, vid, seconds, exact, size)?;
+        let generation = TRANSFORM_GENERATION.load(Ordering::Acquire);
+        if let Ok(mut boards) = self.0.storyboards.lock() {
+            boards.live_size = Some(size);
+            if let Some(board) = boards.board.as_mut() {
+                board.focus(source.seconds);
+            }
+        }
         let color = source.hdr.map_or(0, |hdr| hdr as u8);
         let key = cache::cache_key(
-            &source.path,
+            &source.identity,
             &source.cache_stream(),
             color,
             source.seconds,
             exact,
-        )?;
+        );
         let mut cache = self.0.cache.lock().map_err(|e| e.to_string())?;
         if is_cancelled() {
             return Err("THUMBNAIL_CANCELLED".into());
@@ -305,23 +423,22 @@ impl ThumbnailService {
         }
         drop(cache);
         let root_dir = cache_directory()?;
-        let dir = FrameCache::video_directory(&root_dir, &source.path)?;
-        if refresh {
-            let _ = std::fs::remove_file(dir.join(format!("{key}.jpg")));
-            let _ = std::fs::remove_file(root_dir.join(format!("{key}.jpg")));
-        }
-        let disk_hit = if refresh {
-            None
-        } else {
-            FrameCache::read_disk(&dir, &key).or_else(|| FrameCache::read_disk(&root_dir, &key))
-        };
-        if let Some(bytes) = disk_hit {
-            let mut cache = self.0.cache.lock().map_err(|e| e.to_string())?;
-            if is_cancelled() {
-                return Err("THUMBNAIL_CANCELLED".into());
+        let dir = FrameCache::video_directory(&root_dir, &source.path, &source.identity);
+        // На диске живут только сеточные кадры: их ключ (секунда) повторяется.
+        // Точные кадры почти никогда не запрашиваются повторно — только в памяти.
+        if !exact {
+            let file = dir.join(format!("{key}.jpg"));
+            if refresh {
+                let _ = std::fs::remove_file(&file);
+            } else if let Some(bytes) = FrameCache::read_disk(&dir, &key, size) {
+                self.0.disk.get_or_init(disk::DiskWriter::new).touch(file);
+                let mut cache = self.0.cache.lock().map_err(|e| e.to_string())?;
+                if is_cancelled() {
+                    return Err("THUMBNAIL_CANCELLED".into());
+                }
+                cache.insert(key, Arc::clone(&bytes));
+                return Ok(bytes);
             }
-            cache.insert(key, Arc::clone(&bytes));
-            return Ok(bytes);
         }
         if super::background_io::open_work_pending() {
             return Err("THUMBNAIL_UNAVAILABLE".into());
@@ -359,6 +476,7 @@ impl ThumbnailService {
                     seconds: source.seconds,
                     exact,
                     hdr: source.hdr,
+                    size,
                 },
                 token,
                 &self.0.stopped,
@@ -366,60 +484,349 @@ impl ThumbnailService {
                 Duration::from_secs(4).saturating_sub(began.elapsed()),
             )?,
         };
-        if is_cancelled()
-            || !same_source(mpv, path, &source.vid)
-            || transforms::Transforms::read(mpv) != source.transforms
-            || key
-                != cache::cache_key(
-                    &source.path,
-                    &source.cache_stream(),
-                    color,
-                    source.seconds,
-                    exact,
-                )?
-        {
+        // Ключ описывает файл, дорожку, преобразования и размер, поэтому кадр
+        // в кеше верен для своего ключа. Если преобразования сменились за время
+        // декодирования, текущему запросу этот кадр уже не нужен.
+        if is_cancelled() || TRANSFORM_GENERATION.load(Ordering::Acquire) != generation {
             return Err("THUMBNAIL_CANCELLED".into());
         }
         let bytes: Arc<[u8]> = Arc::from(bytes.into_boxed_slice());
         let mut cache = self.0.cache.lock().map_err(|e| e.to_string())?;
         cache.insert(key.clone(), Arc::clone(&bytes));
         drop(cache);
-        self.0.disk.get_or_init(disk::DiskWriter::new).enqueue(
-            root_dir,
-            dir,
-            key,
-            Arc::clone(&bytes),
-        );
+        if !exact {
+            self.0.disk.get_or_init(disk::DiskWriter::new).enqueue(
+                root_dir,
+                dir,
+                key,
+                Arc::clone(&bytes),
+            );
+        }
         Ok(bytes)
     }
+
+    /// Начинает загрузку файла в ядре превью, не дожидаясь кадра.
+    fn prewarm(&self, mpv: &Arc<MpvManager>, path: &str, vid: &str, size: (u32, u32)) {
+        if self.0.stopped.load(Ordering::Acquire) || super::background_io::open_work_pending() {
+            return;
+        }
+        let seconds = mpv
+            .get_property_double("time-pos")
+            .ok()
+            .filter(|value| value.is_finite() && *value >= 0.0)
+            .unwrap_or(0.0);
+        let Ok(source) = self.resolve_source(mpv, path, vid, seconds, false, size) else {
+            return;
+        };
+        let Ok(root) = std::env::current_exe() else {
+            return;
+        };
+        let Some(root) = root.parent() else {
+            return;
+        };
+        // Занятый воркер означает, что ядро и так работает.
+        let Ok(_worker) = self.0.worker.try_lock() else {
+            return;
+        };
+        if let Ok(mut native) = self.0.native.lock() {
+            self.start_idle_cleanup();
+            native.prewarm(root, &source);
+        }
+    }
+
+    /// Создаёт раскадровку текущего файла (или загружает готовую с диска)
+    /// и будит фоновый поток.
+    fn start_storyboard(
+        &self,
+        mpv: &Arc<MpvManager>,
+        path: &str,
+        vid: &str,
+        size: (u32, u32),
+    ) -> Result<(), String> {
+        if self.0.stopped.load(Ordering::Acquire) {
+            return Ok(());
+        }
+        let source = self.resolve_source(mpv, path, vid, 0.0, false, size)?;
+        let duration = self.cached_duration().ok_or("THUMBNAIL_UNAVAILABLE")?;
+        let key = format!(
+            "{}|{}|{:?}|{:?}|{}",
+            source.identity,
+            source.stream,
+            source.transforms,
+            source.profile,
+            source.hdr.map_or(0, |hdr| hdr as u8)
+        );
+        {
+            let mut boards = self.0.storyboards.lock().map_err(|e| e.to_string())?;
+            boards.live_size.get_or_insert(size);
+            if boards.board.as_ref().is_some_and(|board| board.key == key) {
+                return Ok(());
+            }
+        }
+        let root_dir = cache_directory()?;
+        let dir = FrameCache::video_directory(&root_dir, &source.path, &source.identity);
+        let file = storyboard::file_name(&dir, &key);
+        let mut board = storyboard::Board::new(
+            path.to_owned(),
+            vid.to_owned(),
+            key,
+            file.clone(),
+            root_dir,
+            duration,
+        );
+        if let Ok(bytes) = std::fs::read(&file) {
+            if board.restore(&bytes) {
+                self.0.disk.get_or_init(disk::DiskWriter::new).touch(file);
+            }
+        }
+        let mut boards = self.0.storyboards.lock().map_err(|e| e.to_string())?;
+        // Пока читали диск, мог начаться другой файл: побеждает последний вызов.
+        boards.board = Some(board);
+        boards.source = Some(source);
+        let start_worker = !boards.worker_started;
+        boards.worker_started = true;
+        drop(boards);
+        self.0.storyboard_wake.notify_all();
+        if start_worker {
+            self.spawn_storyboard_worker(Arc::clone(mpv));
+        }
+        Ok(())
+    }
+
+    fn storyboard_wire(&self, path: &str, vid: &str, since: u32) -> Vec<u8> {
+        let Ok(boards) = self.0.storyboards.lock() else {
+            return storyboard::wire(None, since);
+        };
+        let board = boards.board.as_ref().filter(|board| {
+            super::background_io::same_path(&board.raw_path, path) && board.vid == vid
+        });
+        storyboard::wire(board, since)
+    }
+
+    /// Один фоновый поток на сервис: берёт кадры раскадровки, когда декодер
+    /// свободен, и уступает его живым запросам.
+    fn spawn_storyboard_worker(&self, mpv: Arc<MpvManager>) {
+        let weak = Arc::downgrade(&self.0);
+        std::thread::spawn(move || {
+            let Ok(exe) = std::env::current_exe() else {
+                return;
+            };
+            let Some(root) = exe.parent().map(Path::to_path_buf) else {
+                return;
+            };
+            loop {
+                let Some(inner) = weak.upgrade() else {
+                    break;
+                };
+                if inner.stopped.load(Ordering::Acquire) {
+                    break;
+                }
+                let service = ThumbnailService(inner);
+                match service.storyboard_step(&mpv, &root) {
+                    Step::Idle => {
+                        let inner = &service.0;
+                        if let Ok(boards) = inner.storyboards.lock() {
+                            let _ = inner
+                                .storyboard_wake
+                                .wait_timeout(boards, Duration::from_secs(1));
+                        }
+                    }
+                    Step::Wait(pause) => std::thread::sleep(pause),
+                }
+            }
+        });
+    }
+
+    fn storyboard_step(&self, mpv: &Arc<MpvManager>, root: &Path) -> Step {
+        let inner = &self.0;
+        // Выбор кадра и проверка, можно ли сейчас занять декодер.
+        let (index, mut source, raw_path, vid) = {
+            let Ok(mut boards) = inner.storyboards.lock() else {
+                return Step::Idle;
+            };
+            let size = boards.live_size.unwrap_or((320, 180));
+            let template = boards.source.clone();
+            let Some(board) = boards.board.as_mut() else {
+                return Step::Idle;
+            };
+            let Some(mut template) = template else {
+                return Step::Idle;
+            };
+            if let Some(left) = storyboard::START_DELAY.checked_sub(board.created.elapsed()) {
+                return Step::Wait(left);
+            }
+            let Some(index) = board.next() else {
+                if board.worth_persisting() {
+                    board.persisted = true;
+                    let bytes: Arc<[u8]> = Arc::from(board.encode().into_boxed_slice());
+                    let (root_dir, file) = (board.cache_root.clone(), board.file.clone());
+                    drop(boards);
+                    inner
+                        .disk
+                        .get_or_init(disk::DiskWriter::new)
+                        .store_file(root_dir, file, bytes);
+                }
+                return Step::Idle;
+            };
+            template.seconds = board.target(index);
+            template.size = size;
+            (index, template, board.raw_path.clone(), board.vid.clone())
+        };
+        if inner.live_busy.load(Ordering::SeqCst) > 0 {
+            return Step::Wait(Duration::from_millis(30));
+        }
+        if let Some(since) = inner.live_ended.lock().ok().and_then(|ended| *ended) {
+            if let Some(left) = storyboard::LIVE_QUIET.checked_sub(since.elapsed()) {
+                return Step::Wait(left);
+            }
+        }
+        if super::background_io::open_work_pending() {
+            return Step::Wait(Duration::from_millis(250));
+        }
+        // Файл в плеере сменился, а новый ещё не попросил раскадровку:
+        // старую больше не строим.
+        if !super::background_io::same_path(
+            &mpv.get_property_string("path").unwrap_or_default(),
+            &raw_path,
+        ) {
+            if let Ok(mut boards) = inner.storyboards.lock() {
+                if boards
+                    .board
+                    .as_ref()
+                    .is_some_and(|b| b.raw_path == raw_path)
+                {
+                    boards.board = None;
+                    boards.source = None;
+                }
+            }
+            return Step::Idle;
+        }
+        // Поворот сменился: кадры старой раскадровки больше не подходят.
+        // Фронтенд перезапросит раскадровку с новыми преобразованиями.
+        if let Ok(cached) = self.0.source_cache.lock() {
+            if let Some(cached) = cached
+                .as_ref()
+                .filter(|c| c.raw_path == raw_path && c.vid == vid)
+            {
+                if cached.transforms != source.transforms {
+                    return Step::Wait(Duration::from_millis(500));
+                }
+            }
+        }
+        source.profile = if source.transforms.is_identity() {
+            source.profile
+        } else {
+            profile::DecodeProfile::Hardware
+        };
+        let Ok(_worker) = inner.worker.try_lock() else {
+            return Step::Wait(Duration::from_millis(20));
+        };
+        // Сначала сбрасываем отмену, потом проверяем живые запросы: запрос,
+        // начавшийся после этой проверки, снова выставит отмену и прервёт кадр.
+        inner.tile_cancel.store(false, Ordering::SeqCst);
+        if inner.live_busy.load(Ordering::SeqCst) > 0 {
+            return Step::Wait(Duration::from_millis(30));
+        }
+        let began = Instant::now();
+        let result = {
+            let Ok(mut native) = inner.native.lock() else {
+                return Step::Idle;
+            };
+            self.start_idle_cleanup();
+            native.extract_tile(
+                root,
+                &source,
+                storyboard::TILE,
+                &inner.tile_cancel,
+                &inner.stopped,
+            )
+        };
+        drop(_worker);
+        let spent = began.elapsed();
+        let Ok(mut boards) = inner.storyboards.lock() else {
+            return Step::Idle;
+        };
+        let Some(board) = boards
+            .board
+            .as_mut()
+            .filter(|board| board.raw_path == raw_path && board.vid == vid)
+        else {
+            return Step::Wait(Duration::ZERO);
+        };
+        match result {
+            Ok((bytes, actual)) => board.store(index, actual, Arc::from(bytes.into_boxed_slice())),
+            Err(error) if error == "THUMBNAIL_CANCELLED" => return Step::Wait(Duration::ZERO),
+            Err(_) => board.fail(index),
+        }
+        drop(boards);
+        // Диск и GPU заняты не больше половины времени; во время
+        // воспроизведения — не больше трети.
+        let playing = !mpv.get_property_bool("pause").unwrap_or(true);
+        let factor = if playing { 2 } else { 1 };
+        Step::Wait((spent * factor).max(Duration::from_millis(if playing { 40 } else { 20 })))
+    }
+}
+
+enum Step {
+    Idle,
+    Wait(Duration),
 }
 
 fn cache_directory() -> Result<PathBuf, String> {
     Ok(crate::app_cache::root()?.join("thumbnails"))
 }
 
+#[derive(Clone)]
 struct SourceRequest {
     path: PathBuf,
+    /// `cache::source_identity` файла; считается при разрешении источника.
+    identity: String,
     stream: String,
     vid: String,
     seconds: f64,
     hdr: Option<decoder::HdrTransfer>,
     transforms: transforms::Transforms,
     profile: profile::DecodeProfile,
+    /// Размер живой миниатюры (зависит от масштаба экрана).
+    size: (u32, u32),
 }
 
 impl SourceRequest {
     fn cache_stream(&self) -> String {
-        format!("{}|{:?}|{:?}", self.stream, self.transforms, self.profile)
+        format!(
+            "{}|{:?}|{:?}|{}x{}",
+            self.stream, self.transforms, self.profile, self.size.0, self.size.1
+        )
+    }
+
+    /// Всё, что требует пересоздать ядро превью, кроме позиции.
+    fn decoder_identity(&self) -> String {
+        format!(
+            "{}|{}|{}|{}",
+            self.identity,
+            self.path.display(),
+            self.cache_stream(),
+            self.hdr.map_or(0, |hdr| hdr as u8)
+        )
     }
 }
 
-fn same_source(mpv: &MpvManager, path: &str, vid: &str) -> bool {
-    super::background_io::same_path(&mpv.get_property_string("path").unwrap_or_default(), path)
-        && mpv.get_property_string("vid").unwrap_or_default() == vid
+/// Проверяет, что фронтенд спрашивает о текущем файле и дорожке, и
+/// возвращает дорожку. Это все обращения к основному mpv на один запрос.
+fn current_vid(mpv: &MpvManager, path: &str, video_track: Option<i64>) -> Result<String, String> {
+    if !super::background_io::same_path(&mpv.get_property_string("path").unwrap_or_default(), path)
+    {
+        return Err("THUMBNAIL_CANCELLED".into());
+    }
+    let vid = mpv.get_property_string("vid").unwrap_or_default();
+    if video_track.is_some_and(|id| vid != id.to_string()) {
+        return Err("THUMBNAIL_CANCELLED".into());
+    }
+    Ok(vid)
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_timeline_thumbnail(
     state: State<'_, PlayerState>,
     service: State<'_, ThumbnailService>,
@@ -429,24 +836,21 @@ pub async fn get_timeline_thumbnail(
     request_id: String,
     video_track: Option<i64>,
     refresh: Option<bool>,
+    width: Option<u32>,
 ) -> Result<tauri::ipc::Response, String> {
-    if !super::background_io::same_path(
-        &state.mpv.get_property_string("path").unwrap_or_default(),
-        &path,
-    ) || video_track.is_some_and(|id| {
-        state.mpv.get_property_string("vid").unwrap_or_default() != id.to_string()
-    }) {
-        return Err("THUMBNAIL_CANCELLED".into());
-    }
+    let vid = current_vid(&state.mpv, &path, video_track)?;
     let token = service.begin(request_id)?;
     let service = service.inner().clone();
     let mpv = state.mpv.clone();
+    let size = thumbnail_size(width);
     let bytes = tauri::async_runtime::spawn_blocking(move || {
         service.frame(
             &mpv,
             &path,
+            &vid,
             seconds,
             exact,
+            size,
             &token,
             refresh.unwrap_or(false),
         )
@@ -461,9 +865,170 @@ pub fn cancel_timeline_thumbnail(service: State<'_, ThumbnailService>, request_i
     service.cancel(&request_id);
 }
 
+/// Прогрев ядра превью при наведении на панель управления.
+#[tauri::command]
+pub async fn prewarm_timeline_thumbnail(
+    state: State<'_, PlayerState>,
+    service: State<'_, ThumbnailService>,
+    path: String,
+    video_track: Option<i64>,
+    width: Option<u32>,
+) -> Result<(), String> {
+    let vid = current_vid(&state.mpv, &path, video_track)?;
+    let service = service.inner().clone();
+    let mpv = state.mpv.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        service.prewarm(&mpv, &path, &vid, thumbnail_size(width))
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Запускает фоновую раскадровку текущего файла (сразу после открытия).
+#[tauri::command]
+pub async fn start_timeline_storyboard(
+    state: State<'_, PlayerState>,
+    service: State<'_, ThumbnailService>,
+    path: String,
+    video_track: Option<i64>,
+    width: Option<u32>,
+) -> Result<(), String> {
+    let vid = current_vid(&state.mpv, &path, video_track)?;
+    let service = service.inner().clone();
+    let mpv = state.mpv.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        service.start_storyboard(&mpv, &path, &vid, thumbnail_size(width))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Кадры раскадровки, появившиеся после `since` (двоичный ответ, см. `storyboard::wire`).
+/// Асинхронная: синхронные команды Tauri выполняются в главном потоке.
+#[tauri::command]
+pub async fn get_timeline_storyboard(
+    state: State<'_, PlayerState>,
+    service: State<'_, ThumbnailService>,
+    path: String,
+    video_track: Option<i64>,
+    since: Option<u32>,
+) -> Result<tauri::ipc::Response, String> {
+    let service = service.inner().clone();
+    let mpv = state.mpv.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let vid = current_vid(&mpv, &path, video_track)?;
+        Ok(tauri::ipc::Response::new(service.storyboard_wire(
+            &path,
+            &vid,
+            since.unwrap_or(0),
+        )))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// Полный проход раскадровки на реальном файле: LMPV_THUMB_ROOT,
+    /// LMPV_THUMB_BENCH (видео) и LMPV_THUMB_BENCH_DURATION (секунды).
+    #[test]
+    #[ignore = "requires LMPV_THUMB_ROOT and LMPV_THUMB_BENCH"]
+    fn storyboard_pass_on_real_file() {
+        let root = PathBuf::from(std::env::var_os("LMPV_THUMB_ROOT").unwrap());
+        let path = PathBuf::from(std::env::var_os("LMPV_THUMB_BENCH").unwrap());
+        let duration: f64 = std::env::var("LMPV_THUMB_BENCH_DURATION")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(300.0);
+        let read_bytes = || {
+            std::fs::read_to_string("/proc/self/io")
+                .ok()
+                .and_then(|io| {
+                    io.lines()
+                        .find_map(|line| line.strip_prefix("rchar: ")?.trim().parse::<u64>().ok())
+                })
+                .unwrap_or(0)
+        };
+        let mut board = storyboard::Board::new(
+            path.to_string_lossy().into_owned(),
+            "1".into(),
+            "bench".into(),
+            PathBuf::new(),
+            PathBuf::new(),
+            duration,
+        );
+        let template = SourceRequest {
+            path: path.clone(),
+            identity: String::new(),
+            stream: "0:0".into(),
+            vid: "1".into(),
+            seconds: 0.0,
+            hdr: None,
+            transforms: Default::default(),
+            profile: profile::DecodeProfile::Hardware,
+            size: (320, 180),
+        };
+        let cancelled = AtomicBool::new(false);
+        let stopped = AtomicBool::new(false);
+        let mut decoder = native::NativeDecoder::default();
+        let began = Instant::now();
+        let read_before = read_bytes();
+        let (mut decoding, mut tiles, mut first8) = (Duration::ZERO, 0usize, None);
+        while let Some(index) = board.next() {
+            let mut source = template.clone();
+            source.seconds = board.target(index);
+            let step = Instant::now();
+            match decoder.extract_tile(&root, &source, storyboard::TILE, &cancelled, &stopped) {
+                Ok((bytes, actual)) => {
+                    assert!(
+                        actual <= source.seconds + 0.1,
+                        "tile keyframe after its target"
+                    );
+                    board.store(index, actual, Arc::from(bytes.into_boxed_slice()));
+                    tiles += 1;
+                }
+                Err(error) => {
+                    println!("tile {index} failed: {error}");
+                    board.fail(index);
+                }
+            }
+            let spent = step.elapsed();
+            decoding += spent;
+            // Та же пауза, что у фонового потока при паузе воспроизведения.
+            std::thread::sleep(spent.max(Duration::from_millis(20)));
+            if tiles == 8 && first8.is_none() {
+                first8 = Some(began.elapsed());
+            }
+        }
+        let bytes: usize = board.tiles_since(0).map(|(_, tile)| tile.bytes.len()).sum();
+        let file = board.encode();
+        let mut restored = storyboard::Board::new(
+            String::new(),
+            "1".into(),
+            "bench".into(),
+            PathBuf::new(),
+            PathBuf::new(),
+            duration,
+        );
+        assert!(restored.restore(&file));
+        println!(
+            "STORYBOARD {} tiles every {:.1} s, {} decoded: first 8 after {:.0} ms, all after \
+             {:.1} s (decoding {:.1} s), {:.0} KiB in memory, file {:.0} KiB, read {:.1} MiB",
+            board.count(),
+            board.interval,
+            tiles,
+            first8.map_or(0.0, |d| d.as_secs_f64() * 1000.0),
+            began.elapsed().as_secs_f64(),
+            decoding.as_secs_f64(),
+            bytes as f64 / 1024.0,
+            file.len() as f64 / 1024.0,
+            (read_bytes() - read_before) as f64 / 1048576.0
+        );
+        assert_eq!(board.status, storyboard::Status::Done);
+        assert!(board.worth_persisting());
+    }
+
     #[test]
     fn old_cleanup_cannot_cancel_new_hover_request() {
         let service = ThumbnailService::default();

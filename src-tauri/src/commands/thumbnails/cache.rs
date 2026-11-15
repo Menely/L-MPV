@@ -19,20 +19,14 @@ pub(super) fn valid_jpeg(bytes: &[u8]) -> bool {
         && bytes.ends_with(&[0xff, 0xd9])
 }
 
-pub(super) fn cache_key(
-    path: &Path,
-    stream: &str,
-    color: u8,
-    seconds: f64,
-    exact: bool,
-) -> Result<String, String> {
+/// Идентичность файла: путь, размер, время изменения и создания.
+/// Считается при разрешении источника, а не на каждый запрос кадра.
+pub(super) fn source_identity(path: &Path) -> Result<String, String> {
     let metadata = path.metadata().map_err(|e| e.to_string())?;
     if !metadata.is_file() {
         return Err("THUMBNAIL_UNAVAILABLE".into());
     }
     let mut hash = blake3::Hasher::new();
-    // Bump when dimensions, conversion or selection rules change.
-    hash.update(b"lmpv-timeline-v8-snapshot-320x180");
     hash.update(path.to_string_lossy().as_bytes());
     hash.update(&metadata.len().to_le_bytes());
     hash.update(
@@ -53,10 +47,26 @@ pub(super) fn cache_key(
                 .to_le_bytes(),
         );
     }
+    Ok(hash.finalize().to_hex().to_string())
+}
+
+/// Ключ кадра без системных вызовов. `stream` включает дорожку, преобразования,
+/// профиль и размер миниатюры.
+pub(super) fn cache_key(
+    identity: &str,
+    stream: &str,
+    color: u8,
+    seconds: f64,
+    exact: bool,
+) -> String {
+    let mut hash = blake3::Hasher::new();
+    // Bump when dimensions, conversion or selection rules change.
+    hash.update(b"lmpv-timeline-v9");
+    hash.update(identity.as_bytes());
     hash.update(stream.as_bytes());
     hash.update(&[color, u8::from(exact)]);
     hash.update(&((seconds * 1000.0).round() as u64).to_le_bytes());
-    Ok(hash.finalize().to_hex().to_string())
+    hash.finalize().to_hex().to_string()
 }
 
 #[derive(Default)]
@@ -66,8 +76,7 @@ pub(super) struct FrameCache {
 }
 
 impl FrameCache {
-    pub fn video_directory(root: &Path, source: &Path) -> Result<PathBuf, String> {
-        let identity = cache_key(source, "", 0, 0.0, false)?;
+    pub fn video_directory(root: &Path, source: &Path, identity: &str) -> PathBuf {
         let stem = source.file_stem().unwrap_or_default().to_string_lossy();
         let name: String = stem
             .chars()
@@ -80,7 +89,10 @@ impl FrameCache {
                 }
             })
             .collect();
-        Ok(root.join(format!("video-{name}-{}", &identity[..16])))
+        root.join(format!(
+            "video-{name}-{}",
+            &identity[..16.min(identity.len())]
+        ))
     }
 
     /// Получение миниатюры из оперативной памяти без глубокого копирования буфера (O(1)).
@@ -111,21 +123,18 @@ impl FrameCache {
         }
     }
 
-    /// Чтение миниатюры из дискового кеша с быстрой валидацией целостности и LRU-обновлением.
+    /// Чтение миниатюры из дискового кеша с быстрой валидацией целостности.
     ///
     /// Проверяет допустимый размер файла, наличие маркеров JPEG (SOI/EOI)
-    /// и совпадение габаритов (320x180) по заголовку без полной декомпрессии пикселей на CPU.
-    /// При успешном чтении обновляет mtime (touch) файла для честного LRU-вытеснения.
-    pub fn read_disk(dir: &Path, key: &str) -> Option<Arc<[u8]>> {
+    /// и совпадение габаритов по заголовку без полной декомпрессии пикселей на CPU.
+    /// Файл открывается только на чтение; обновление mtime для LRU делает
+    /// фоновый писатель (`DiskWriter::touch`), а не путь запроса.
+    pub fn read_disk(dir: &Path, key: &str, size: (u32, u32)) -> Option<Arc<[u8]>> {
         let path = dir.join(format!("{key}.jpg"));
-        if path.metadata().ok()?.len() > MAX_JPEG_BYTES as u64 {
+        let mut file = fs::File::open(&path).ok()?;
+        if file.metadata().ok()?.len() > MAX_JPEG_BYTES as u64 {
             return None;
         }
-        let mut file = fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(&path)
-            .ok()?;
         let mut bytes = Vec::new();
         file.by_ref()
             .take(MAX_JPEG_BYTES as u64 + 1)
@@ -136,11 +145,8 @@ impl FrameCache {
                 .into_dimensions()
                 .ok();
         // Быстрая проверка целостности миниатюры перед декодированием ограниченного изображения:
-        // валидация маркеров начала/конца кадра и чтение геометрии 320x180 из заголовка SOF.
-        if valid_jpeg(&bytes) && dimensions == Some((320, 180)) {
-            // Обновляем время модификации (touch) для превращения дискового кеша в честный LRU:
-            // часто просматриваемые миниатюры получают свежий mtime и защищаются от вытеснения.
-            let _ = file.set_times(fs::FileTimes::new().set_modified(std::time::SystemTime::now()));
+        // валидация маркеров начала/конца кадра и чтение геометрии из заголовка SOF.
+        if valid_jpeg(&bytes) && dimensions == Some(size) {
             Some(Arc::from(bytes.into_boxed_slice()))
         } else {
             drop(file);
@@ -168,6 +174,13 @@ impl FrameCache {
     }
 }
 
+/// Обновляет mtime файла кеша (LRU). Вызывается из фонового писателя.
+pub(super) fn touch(path: &Path) {
+    if let Ok(file) = fs::OpenOptions::new().write(true).open(path) {
+        let _ = file.set_times(fs::FileTimes::new().set_modified(std::time::SystemTime::now()));
+    }
+}
+
 pub(super) fn prune_disk(dir: &Path) {
     let Ok(files) = fs::read_dir(dir) else {
         return;
@@ -188,7 +201,8 @@ pub(super) fn prune_disk(dir: &Path) {
     let mut files: Vec<(PathBuf, u64, std::time::SystemTime)> = entries
         .filter_map(|entry| {
             let path = entry.path();
-            if path.extension()?.to_str()? != "jpg" {
+            // Кадры и файлы раскадровки делят один лимит кеша.
+            if !matches!(path.extension()?.to_str()?, "jpg" | "lmsb") {
                 return None;
             }
             if !entry.file_type().ok()?.is_file() {
@@ -245,23 +259,22 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         let source = dir.join("movie.mkv");
         fs::write(&source, b"test video").unwrap();
-        let first = cache_key(&source, "0:0", 0, 5.0, false).unwrap();
-        assert_ne!(first, cache_key(&source, "0:1", 0, 5.0, false).unwrap());
-        assert_ne!(first, cache_key(&source, "0:0", 0, 5.0, true).unwrap());
-        assert_ne!(first, cache_key(&source, "0:0", 1, 5.0, false).unwrap());
+        let identity = source_identity(&source).unwrap();
+        let first = cache_key(&identity, "0:0", 0, 5.0, false);
+        assert_ne!(first, cache_key(&identity, "0:1", 0, 5.0, false));
+        assert_ne!(first, cache_key(&identity, "0:0", 0, 5.0, true));
+        assert_ne!(first, cache_key(&identity, "0:0", 1, 5.0, false));
+        assert_eq!(first, cache_key(&identity, "0:0", 0, 5.0, false));
         fs::write(&source, b"new video content").unwrap();
-        assert_ne!(first, cache_key(&source, "0:0", 0, 5.0, false).unwrap());
-        let before_mtime = cache_key(&source, "0:0", 0, 5.0, false).unwrap();
+        assert_ne!(identity, source_identity(&source).unwrap());
+        let before_mtime = source_identity(&source).unwrap();
         let file = fs::OpenOptions::new().write(true).open(&source).unwrap();
         let changed =
             file.metadata().unwrap().modified().unwrap() + std::time::Duration::from_secs(2);
         file.set_times(fs::FileTimes::new().set_modified(changed))
             .unwrap();
         drop(file);
-        assert_ne!(
-            before_mtime,
-            cache_key(&source, "0:0", 0, 5.0, false).unwrap()
-        );
+        assert_ne!(before_mtime, source_identity(&source).unwrap());
         let mut cache = FrameCache::default();
         let mut bytes = Vec::new();
         let image = image::RgbImage::from_pixel(320, 180, image::Rgb([255, 0, 0]));
@@ -270,7 +283,7 @@ mod tests {
             .unwrap();
         cache.write_disk(&dir, &first, &bytes);
         assert_eq!(
-            &*FrameCache::read_disk(&dir, &first).unwrap(),
+            &*FrameCache::read_disk(&dir, &first, (320, 180)).unwrap(),
             bytes.as_slice()
         );
         let file_path = dir.join(format!("{first}.jpg"));
@@ -279,31 +292,34 @@ mod tests {
         f.set_times(fs::FileTimes::new().set_modified(old_time))
             .unwrap();
         drop(f);
-        let _ = FrameCache::read_disk(&dir, &first);
-        let new_time = file_path.metadata().unwrap().modified().unwrap();
-        assert!(new_time > old_time);
+        let _ = FrameCache::read_disk(&dir, &first, (320, 180));
+        // Чтение больше не пишет в файл: mtime обновляет только фоновый писатель.
+        assert_eq!(file_path.metadata().unwrap().modified().unwrap(), old_time);
+        touch(&file_path);
+        assert!(file_path.metadata().unwrap().modified().unwrap() > old_time);
         cache.write_disk(&dir, &first, &bytes);
         assert_eq!(
-            &*FrameCache::read_disk(&dir, &first).unwrap(),
+            &*FrameCache::read_disk(&dir, &first, (320, 180)).unwrap(),
             bytes.as_slice()
         );
         assert!(!dir.join(format!("{first}.part")).exists());
-        let video_dir = FrameCache::video_directory(&dir, &source).unwrap();
+        let identity = source_identity(&source).unwrap();
+        let video_dir = FrameCache::video_directory(&dir, &source, &identity);
         assert_eq!(video_dir.parent(), Some(dir.as_path()));
         assert_eq!(
             video_dir,
-            FrameCache::video_directory(&dir, &source).unwrap()
+            FrameCache::video_directory(&dir, &source, &identity)
         );
         let other = dir.join("other.mkv");
         fs::write(&other, b"another video").unwrap();
         assert_ne!(
             video_dir,
-            FrameCache::video_directory(&dir, &other).unwrap()
+            FrameCache::video_directory(&dir, &other, &source_identity(&other).unwrap())
         );
         fs::create_dir_all(&video_dir).unwrap();
         fs::write(video_dir.join("huge.jpg"), vec![0; 1024]).unwrap();
         fs::write(dir.join("bad.jpg"), b"interrupted").unwrap();
-        assert!(FrameCache::read_disk(&dir, "bad").is_none());
+        assert!(FrameCache::read_disk(&dir, "bad", (320, 180)).is_none());
         let huge = fs::File::create(dir.join("oversized.jpg")).unwrap();
         huge.set_len(DISK_BYTES + 1).unwrap();
         drop(huge);

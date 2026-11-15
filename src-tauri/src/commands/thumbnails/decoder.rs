@@ -18,10 +18,11 @@ pub(super) struct DecodeRequest<'a> {
     pub seconds: f64,
     pub exact: bool,
     pub hdr: Option<HdrTransfer>,
+    pub size: (u32, u32),
 }
 
-pub(super) fn preview_filter(hdr: Option<HdrTransfer>) -> String {
-    super::filters::software(hdr, true)
+pub(super) fn preview_filter(hdr: Option<HdrTransfer>, size: (u32, u32)) -> String {
+    super::filters::software(hdr, true, size)
 }
 
 fn command(ffmpeg: &Path, request: &DecodeRequest<'_>) -> Command {
@@ -49,7 +50,7 @@ fn command(ffmpeg: &Path, request: &DecodeRequest<'_>) -> Command {
     }
     cmd.args(["-ss", &format!("{:.3}", request.seconds), "-i"])
         .arg(request.path);
-    let filter = preview_filter(request.hdr);
+    let filter = preview_filter(request.hdr, request.size);
     cmd.args([
         "-map",
         request.stream,
@@ -170,6 +171,7 @@ mod tests {
             seconds: 12.345,
             exact: true,
             hdr: None,
+            size: (320, 180),
         };
         let cmd = command(Path::new("ffmpeg.exe"), &request);
         let args: Vec<_> = cmd
@@ -194,6 +196,7 @@ mod tests {
                     seconds: 12.345,
                     exact: false,
                     hdr: Some(hdr),
+                    size: (320, 180),
                 },
             );
             let args: Vec<_> = cmd
@@ -235,6 +238,7 @@ mod tests {
                     seconds,
                     exact,
                     hdr: None,
+                    size: (320, 180),
                 },
                 &cancel,
                 &stopped,
@@ -270,6 +274,7 @@ mod tests {
                         seconds: 0.1,
                         exact: true,
                         hdr: Some(transfer),
+                        size: (320, 180),
                     },
                     &cancel,
                     &stopped,

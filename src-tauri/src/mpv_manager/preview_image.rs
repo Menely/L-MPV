@@ -5,6 +5,10 @@ use fast_image_resize::{
     FilterType, ImageView, ResizeAlg, ResizeOptions, Resizer,
 };
 
+/// Буфер для упаковки строк с отступами больше этого размера не удерживается
+/// между кадрами: иначе один 4K-кадр навсегда занимал бы ~33 МБ.
+const RETAINED_PACKED_BYTES: usize = 4 * 1024 * 1024;
+
 #[derive(Default)]
 pub(super) struct FrameEncoder {
     resizer: Resizer,
@@ -21,7 +25,12 @@ impl FrameEncoder {
         height: usize,
         stride: usize,
         aspect: Option<f64>,
+        output: (u32, u32),
     ) -> Result<Vec<u8>, String> {
+        let (out_w, out_h) = output;
+        if out_w < 16 || out_h < 9 || out_w > 1920 || out_h > 1080 {
+            return Err("THUMBNAIL_MPV_DIMENSIONS".into());
+        }
         if width == 0
             || height == 0
             || width > 8192
@@ -52,7 +61,7 @@ impl FrameEncoder {
         let aspect = aspect
             .filter(|a| a.is_finite() && *a > 0.0)
             .unwrap_or(width as f64 / height as f64);
-        let (w, h) = fit(aspect);
+        let (w, h) = fit(aspect, out_w, out_h);
         if self
             .target
             .as_ref()
@@ -67,32 +76,36 @@ impl FrameEncoder {
         let options = ResizeOptions::new()
             .resize_alg(ResizeAlg::Convolution(FilterType::Bilinear))
             .use_alpha(false);
-        self.resizer
-            .resize_typed(&input, target, &options)
-            .map_err(|e| e.to_string())?;
-        self.rgb.resize(320 * 180 * 3, 0);
+        let resized = self.resizer.resize_typed(&input, target, &options);
+        if self.packed.capacity() > RETAINED_PACKED_BYTES {
+            self.packed = Vec::new();
+        }
+        resized.map_err(|e| e.to_string())?;
+        let (frame_w, frame_h) = (out_w as usize, out_h as usize);
+        self.rgb.resize(frame_w * frame_h * 3, 0);
         self.rgb.fill(0);
-        let left = (320 - w as usize) / 2;
-        let top = (180 - h as usize) / 2;
+        let left = (frame_w - w as usize) / 2;
+        let top = (frame_h - h as usize) / 2;
         for (y, row) in target.pixels().chunks_exact(w as usize).enumerate() {
             for (x, pixel) in row.iter().enumerate() {
-                let offset = ((top + y) * 320 + left + x) * 3;
+                let offset = ((top + y) * frame_w + left + x) * 3;
                 self.rgb[offset..offset + 3].copy_from_slice(&[pixel.0[2], pixel.0[1], pixel.0[0]]);
             }
         }
         let mut jpeg = Vec::with_capacity(16 * 1024);
         image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 75)
-            .encode(&self.rgb, 320, 180, image::ExtendedColorType::Rgb8)
+            .encode(&self.rgb, out_w, out_h, image::ExtendedColorType::Rgb8)
             .map_err(|e| e.to_string())?;
         Ok(jpeg)
     }
 }
 
-fn fit(aspect: f64) -> (u32, u32) {
-    if aspect >= 320.0 / 180.0 {
-        (320, (320.0 / aspect).round().clamp(1.0, 180.0) as u32)
+fn fit(aspect: f64, out_w: u32, out_h: u32) -> (u32, u32) {
+    let (fw, fh) = (out_w as f64, out_h as f64);
+    if aspect >= fw / fh {
+        (out_w, (fw / aspect).round().clamp(1.0, fh) as u32)
     } else {
-        ((180.0 * aspect).round().clamp(1.0, 320.0) as u32, 180)
+        ((fh * aspect).round().clamp(1.0, fw) as u32, out_h)
     }
 }
 
@@ -108,12 +121,14 @@ mod tests {
             }
         }
         let mut encoder = FrameEncoder::default();
-        let jpeg = encoder.encode(&pixels, 640, 360, 648 * 4, None).unwrap();
+        let jpeg = encoder
+            .encode(&pixels, 640, 360, 648 * 4, None, (320, 180))
+            .unwrap();
         let image = image::load_from_memory(&jpeg).unwrap().to_rgb8();
         assert_eq!(image.dimensions(), (320, 180));
         assert!(image.get_pixel(160, 90)[0] > 240);
         let wide = encoder
-            .encode(&pixels, 640, 360, 648 * 4, Some(4.0 / 3.0))
+            .encode(&pixels, 640, 360, 648 * 4, Some(4.0 / 3.0), (320, 180))
             .unwrap();
         let image = image::load_from_memory(&wide).unwrap().to_rgb8();
         assert!(image.get_pixel(0, 90)[0] < 20 && image.get_pixel(160, 90)[0] > 240);
@@ -129,9 +144,38 @@ mod tests {
             }
         }
         let jpeg = FrameEncoder::default()
-            .encode(&pixels, 640, 360, 640 * 4, None)
+            .encode(&pixels, 640, 360, 640 * 4, None, (320, 180))
             .unwrap();
         let image = image::load_from_memory(&jpeg).unwrap().to_rgb8();
         assert!((100..155).contains(&image.get_pixel(160, 90)[0]));
+    }
+    #[test]
+    fn encodes_requested_hidpi_and_storyboard_sizes() {
+        let mut pixels = vec![0u8; 1280 * 720 * 4];
+        for p in pixels.chunks_exact_mut(4) {
+            p[1] = 255;
+        }
+        let mut encoder = FrameEncoder::default();
+        for size in [(480, 270), (400, 225), (240, 135)] {
+            let jpeg = encoder
+                .encode(&pixels, 1280, 720, 1280 * 4, None, size)
+                .unwrap();
+            let image = image::load_from_memory(&jpeg).unwrap().to_rgb8();
+            assert_eq!(image.dimensions(), size);
+            assert!(image.get_pixel(size.0 / 2, size.1 / 2)[1] > 240);
+        }
+        assert!(encoder
+            .encode(&pixels, 1280, 720, 1280 * 4, None, (4000, 2000))
+            .is_err());
+    }
+    #[test]
+    fn padded_4k_rows_do_not_pin_a_full_frame_buffer() {
+        let (w, h, stride) = (3840usize, 2160usize, 3840 * 4 + 64);
+        let pixels = vec![128u8; stride * h];
+        let mut encoder = FrameEncoder::default();
+        encoder
+            .encode(&pixels, w, h, stride, None, (320, 180))
+            .unwrap();
+        assert!(encoder.packed.capacity() <= RETAINED_PACKED_BYTES);
     }
 }

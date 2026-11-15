@@ -13,7 +13,7 @@
  * - Честное отображение статусов: "Анализ...", "Видеопоток отсутствует", "Метрика недоступна".
  */
 
-import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState, usePlayerProgress } from "../../../contexts/PlayerStateContext";
 import { useTranslation } from "../../../i18n/LanguageContext";
@@ -510,6 +510,14 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
     e.stopPropagation();
     setRetryCount((c) => c + 1);
   }, []);
+
+  // The strip's visibility and placement move the timeline preview card
+  // (CSS :has offsets). Announce it instead of letting the card observe the
+  // whole controls subtree on every pointer move.
+  useLayoutEffect(() => {
+    window.dispatchEvent(new Event("l-mpv-timeline-layout-changed"));
+    return () => { window.dispatchEvent(new Event("l-mpv-timeline-layout-changed")); };
+  }, [heatmapConfig.enabled, isVisible, isAboveTimeline, isAboveVisualizer]);
 
   if (!heatmapConfig.enabled) {
     return null;

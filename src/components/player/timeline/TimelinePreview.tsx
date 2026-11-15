@@ -1,7 +1,7 @@
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
 import { useTimelineThumbnail } from "../../../hooks/useTimelineThumbnail";
-import { supportsTimelineThumbnail, timelinePreviewLeft } from "../../../utils/timelineThumbnail";
+import { frameTolerance, supportsTimelineThumbnail, timelinePreviewLeft } from "../../../utils/timelineThumbnail";
 import { getActiveUiScale } from "../../../utils/uiThemeUtils";
 import { formatTime } from "../../../utils/timeUtils";
 import type { TimelineSegmentData } from "../Timeline";
@@ -13,15 +13,22 @@ interface Props {
   mediaPath: string;
   hasVideo: boolean;
   previewEnabled?: boolean;
-  trickplay?: boolean;
   videoTrack: number | null;
+  fps?: number;
+  /** Live thumbnail width in device pixels (see thumbnailWidth). */
+  thumbnailWidth?: number;
 }
 
-export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segments, mediaPath, hasVideo, videoTrack, trickplay, previewEnabled = true }: Props) {
+export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segments, mediaPath, hasVideo, videoTrack, fps = 0, thumbnailWidth = 320, previewEnabled = true }: Props) {
   const enabled = previewEnabled && supportsTimelineThumbnail(mediaPath, hasVideo);
-  const frame = useTimelineThumbnail(mediaPath, videoTrack, hoverInfo.time, enabled, trickplay);
+  const frame = useTimelineThumbnail(mediaPath, videoTrack, hoverInfo.time, enabled, { fps, width: thumbnailWidth });
   const showFrame = enabled && !frame.failed;
-  const displayedTime = frame.seconds ?? hoverInfo.time;
+  // The label always names the cursor position; an image from another moment
+  // (storyboard tile, keyframe, an exact frame not caught up yet) is marked "≈".
+  const displayedTime = hoverInfo.time;
+  const approximate = Boolean(frame.src) && frame.seconds !== null &&
+    (frame.kind !== "exact" || Math.abs(frame.seconds - hoverInfo.time) > frameTolerance(fps));
+  const approximateLabel = frame.kind === "grid" || frame.seconds === null ? "≈" : `≈ ${formatTime(frame.seconds)}`;
   const active = segments.find((s) => displayedTime >= s.start && displayedTime <= s.end) || segments[segments.length - 1];
   const showChapter = Boolean(active?.title && active.title !== mediaPath);
   const card = useRef<HTMLDivElement>(null);
@@ -46,25 +53,23 @@ export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segmen
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element); observer.observe(rail);
-    const controls = rail.closest(".player-controls") || rail;
-    const layoutObserver = new MutationObserver((records) => {
-      // Heatmap readiness changes the CSS bottom offset without resizing the rail.
-      // Ignore segment/thumb/card mutations from ordinary pointer movement.
-      if (records.some(({ target, addedNodes, removedNodes }) => target === controls ||
-        (target instanceof Element && target.matches(".waveform-activity-strip")) ||
-        [...addedNodes, ...removedNodes].some((node) => node instanceof Element &&
-          (node.matches(".waveform-activity-strip") || node.querySelector(".waveform-activity-strip"))))) measure();
-    });
-    layoutObserver.observe(controls, { subtree: true, attributes: true, attributeFilter: ["class", "style"], childList: true });
+    // Only the controls' own class/style (visualizer placement) moves the card.
+    // Heatmap readiness is announced by WaveformActivityStrip with an event, so
+    // ordinary pointer movement (segment widths, thumb, this card) is not observed.
+    const controls = rail.closest(".player-controls");
+    const layoutObserver = controls ? new MutationObserver(measure) : null;
+    layoutObserver?.observe(controls as Element, { attributes: true, attributeFilter: ["class", "style"] });
     window.addEventListener("resize", measure);
     window.addEventListener("l-mpv-ui-scale-changed", measure);
     window.addEventListener("l-mpv-settings-changed", measure);
+    window.addEventListener("l-mpv-timeline-layout-changed", measure);
     return () => {
       observer.disconnect();
-      layoutObserver.disconnect();
+      layoutObserver?.disconnect();
       window.removeEventListener("resize", measure);
       window.removeEventListener("l-mpv-ui-scale-changed", measure);
       window.removeEventListener("l-mpv-settings-changed", measure);
+      window.removeEventListener("l-mpv-timeline-layout-changed", measure);
     };
   }, [showFrame, showChapter]);
 
@@ -74,6 +79,7 @@ export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segmen
       style={{ left: `${left}px`, transform: `translate(-50%, ${geometry.shiftY}px)` }}>
       {showFrame && <div className="timeline-preview-card__frame" aria-hidden="true">
         {frame.src ? <img src={frame.src} alt="" draggable={false} onError={frame.onImageError} /> : <ImageIcon size={22} />}
+        {approximate && <span className="timeline-preview-card__approx">{approximateLabel}</span>}
         {frame.pending && <span className="timeline-preview-card__loading" />}
       </div>}
       <div className="timeline-preview-card__time">{formatTime(displayedTime)}</div>

@@ -1,5 +1,7 @@
 import { isTimelinePreviewEnabled } from "../../utils/timelinePreviewPreference";
-import { supportsTrickplaySize } from "../../utils/timelineThumbnail";
+import { supportsTimelineThumbnail, thumbnailWidth as pickThumbnailWidth } from "../../utils/timelineThumbnail";
+import { prewarmTimelineThumbnail, useTimelineStoryboard } from "../../hooks/useTimelineStoryboard";
+import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
@@ -153,6 +155,30 @@ export const Timeline = React.memo(() => {
     return () => window.removeEventListener("l-mpv-settings-changed", sync);
   }, []);
   const mediaPath = mediaInfo?.path || "";
+  const selectedVideoTrack = tracks.find((track) => track.type === "video" && track.selected)?.id ?? null;
+  const thumbnailsEnabled = previewEnabled && supportsTimelineThumbnail(mediaPath, mediaInfo?.has_video ?? false);
+  const [thumbnailWidth, setThumbnailWidth] = useState(() => pickThumbnailWidth(window.devicePixelRatio, getActiveUiScale()));
+  useEffect(() => {
+    const sync = () => setThumbnailWidth(pickThumbnailWidth(window.devicePixelRatio, getActiveUiScale()));
+    window.addEventListener("resize", sync);
+    window.addEventListener("l-mpv-ui-scale-changed", sync);
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("l-mpv-ui-scale-changed", sync);
+    };
+  }, []);
+  // Storyboard tiles are built right after a file opens, before the first hover.
+  useTimelineStoryboard(mediaPath, selectedVideoTrack, thumbnailsEnabled, thumbnailWidth);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!thumbnailsEnabled) return;
+    // Entering the controls area starts loading the file in the preview decoder.
+    const area = timelineRef.current?.closest(".player-controls") ?? timelineRef.current;
+    if (!area) return;
+    const prewarm = () => prewarmTimelineThumbnail(mediaPath, selectedVideoTrack, thumbnailWidth);
+    area.addEventListener("pointerenter", prewarm);
+    return () => area.removeEventListener("pointerenter", prewarm);
+  }, [thumbnailsEnabled, mediaPath, selectedVideoTrack, thumbnailWidth]);
 
   const { scheduleScrub, cancelScrub } = useLiveScrubbing();
   const { pulse, firePulse, dismissPulse } = useNeonPulse();
@@ -414,6 +440,7 @@ export const Timeline = React.memo(() => {
 
   return (
     <div
+      ref={timelineRef}
       className={`timeline ${isDraggingState ? "timeline--dragging" : ""} ${
         hasChapters ? "timeline--has-chapters" : ""
       }`}
@@ -436,9 +463,8 @@ export const Timeline = React.memo(() => {
 
       {hoverInfo && (
         <TimelinePreview previewEnabled={previewEnabled} hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath}
-          trickplay={supportsTrickplaySize(mediaInfo?.width ?? 0, mediaInfo?.height ?? 0)}
-          hasVideo={mediaInfo?.has_video ?? false}
-          videoTrack={tracks.find((track) => track.type === "video" && track.selected)?.id ?? null} />
+          hasVideo={mediaInfo?.has_video ?? false} fps={mediaInfo?.fps ?? 0} thumbnailWidth={thumbnailWidth}
+          videoTrack={selectedVideoTrack} />
       )}
 
 

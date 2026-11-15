@@ -18,12 +18,19 @@ fn color(hdr: Option<HdrTransfer>) -> String {
     }
 }
 
-pub(super) fn software(hdr: Option<HdrTransfer>, boxed: bool) -> String {
-    let bounds = if boxed { "320:180" } else { "320:320" };
-    let pad = if boxed {
-        "pad=320:180:(ow-iw)/2:(oh-ih)/2,"
+/// `size` — итоговый размер миниатюры. Без `boxed` кадр только вписывается в
+/// квадрат со стороной ширины, рамку добавляет кодировщик.
+pub(super) fn software(hdr: Option<HdrTransfer>, boxed: bool, size: (u32, u32)) -> String {
+    let (w, h) = size;
+    let bounds = if boxed {
+        format!("{w}:{h}")
     } else {
-        ""
+        format!("{w}:{w}")
+    };
+    let pad = if boxed {
+        format!("pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,")
+    } else {
+        String::new()
     };
     format!("scale={bounds}:force_original_aspect_ratio=decrease:force_divisible_by=2:reset_sar=1,{}{pad}setsar=1", color(hdr))
 }

@@ -32,8 +32,12 @@ impl Transforms {
             && self.crop.is_empty()
             && self.filters.is_empty()
     }
-    pub fn filter(&self, hdr: Option<super::decoder::HdrTransfer>) -> String {
-        format!("{}{}", self.filters, super::filters::software(hdr, false))
+    pub fn filter(&self, hdr: Option<super::decoder::HdrTransfer>, size: (u32, u32)) -> String {
+        format!(
+            "{}{}",
+            self.filters,
+            super::filters::software(hdr, false, size)
+        )
     }
 }
 fn geometric_filters(vf: &str) -> String {

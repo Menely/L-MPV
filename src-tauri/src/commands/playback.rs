@@ -405,10 +405,13 @@ pub fn set_rotation(
     state: State<'_, PlayerState>,
     degrees: i64,
 ) -> Result<(), String> {
-    state.mpv.set_property_string(
+    let result = state.mpv.set_property_string(
         "video-rotate",
         &degrees.to_string(),
-    )
+    );
+    // Превью кеширует преобразования и перечитывает их по этому сигналу.
+    super::thumbnails::invalidate_transforms();
+    result
 }
 
 /// Установка зума и панорамирования видео.

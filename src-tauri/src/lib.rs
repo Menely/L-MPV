@@ -158,6 +158,9 @@ pub fn run() {
             // Управление воспроизведением
             commands::get_timeline_thumbnail,
             commands::cancel_timeline_thumbnail,
+            commands::prewarm_timeline_thumbnail,
+            commands::start_timeline_storyboard,
+            commands::get_timeline_storyboard,
             commands::open_file,
             commands::complete_startup_playback,
             commands::toggle_pause,
