@@ -16,6 +16,8 @@ const POLL_WAITING_MS = 1000;
 /** The backend answers "none" only until start_timeline_storyboard is processed. */
 const MAX_WAITING_POLLS = 10;
 const PREWARM_THROTTLE_MS = 2000;
+let storyboardRequest = 0;
+const storyboardScope = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
 export function useTransformRevision(): number {
   const [revision, setRevision] = useState(thumbnailTransformRevision());
@@ -42,6 +44,7 @@ export function useTimelineStoryboard(path: string, videoTrack: number | null, e
       return;
     }
     const key = storyboardKey(path, videoTrack, revision);
+    const requestId = `${storyboardScope}:${++storyboardRequest}`;
     if (timelineStoryboard.current() !== key) timelineStoryboard.reset(key);
     let disposed = false;
     let waiting = 0;
@@ -49,7 +52,7 @@ export function useTimelineStoryboard(path: string, videoTrack: number | null, e
     const poll = async () => {
       try {
         const bytes = await invoke<ArrayBuffer>("get_timeline_storyboard", {
-          path, videoTrack, since: timelineStoryboard.current() === key ? timelineStoryboard.seq : 0,
+          path, videoTrack, requestId, since: timelineStoryboard.current() === key ? timelineStoryboard.seq : 0,
         });
         const update = disposed ? null : parseStoryboard(bytes);
         if (update && update.status !== STORYBOARD_NONE) timelineStoryboard.apply(key, update);
@@ -63,12 +66,15 @@ export function useTimelineStoryboard(path: string, videoTrack: number | null, e
       if (status !== STORYBOARD_BUILDING && ++waiting > MAX_WAITING_POLLS) return;
       timer = setTimeout(poll, status === STORYBOARD_BUILDING ? POLL_BUILDING_MS : POLL_WAITING_MS);
     };
-    void invoke("start_timeline_storyboard", { path, videoTrack, width: widthRef.current })
+    void invoke("start_timeline_storyboard", { path, videoTrack, requestId, width: widthRef.current })
       .then(() => { if (!disposed) timer = setTimeout(poll, 0); })
       .catch(() => {});
     return () => {
       disposed = true;
       clearTimeout(timer);
+      if (timelineStoryboard.current() === key) timelineStoryboard.reset();
+      // Scope cleanup to this effect: a delayed stop must not cancel its successor.
+      void invoke("stop_timeline_storyboard", { requestId }).catch(() => {});
     };
   }, [path, videoTrack, enabled, revision]);
 }

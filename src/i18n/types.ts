@@ -91,6 +91,8 @@ export interface TranslationDict {
     movePanel: string;
   };
   explorer: {
+    options: string;
+    playableOnly: string;
     title: string;
     search: string;
     parent: string;
@@ -99,6 +101,17 @@ export interface TranslationDict {
     empty: string;
     needMedia: string;
     openError: string;
+  };
+
+  savedPlaylist: {
+    newList: string;
+    dropUnsupported: string;
+    dropBusy: string;
+    source: string; currentFolder: string; create: string; actions: string; saveFolder: string;
+    rename: string; delete: string; importList: string; exportList: string; name: string;
+    save: string; cancel: string; deleteConfirm: string; addFiles: string; mediaFiles: string;
+    moveUp: string; moveDown: string; remove: string; loading: string; saving: string;
+    empty: string; retry: string; playHint: string; count: (count: number) => string; error: (error: string) => string;
   };
 
   // ─── Titlebar ──────────────────────────────────────────────────

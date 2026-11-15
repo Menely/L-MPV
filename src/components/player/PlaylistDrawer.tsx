@@ -10,6 +10,8 @@ import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2, Pin, GripVertical } from "lucide-react";
 import { EmptyState } from "../settings/components/SettingBlocks";
 import { ExplorerPanel } from "./ExplorerPanel";
+import { SavedPlaylistPanel } from "./SavedPlaylistPanel";
+import { savedPlaylistSource } from "../../utils/savedPlaylists";
 import { usePinnedNavigationPanel } from "../../hooks/usePinnedNavigationPanel";
 import "../../styles/navigation-panel-position.css";
 import { DEFAULT_NAVIGATION_WIDTH, MIN_NAVIGATION_WIDTH, savedNavigationWidth, savedNavigationTab, saveNavigationTab, type NavigationPanelTab } from "../../utils/explorerPanel";
@@ -107,13 +109,15 @@ const PLAYLIST_WIDTH_STORAGE_KEY = "l-mpv-playlist-width";
 const getInitialPlaylistWidth = savedNavigationWidth;
 
 export function PlaylistDrawer() {
-  const { isPlaylistOpen, setIsPlaylistOpen, playlist, setPlaylist, refreshPlaylist } = usePlayerState();
+  const { isPlaylistOpen, setIsPlaylistOpen, playlist, setPlaylist, refreshPlaylist, mediaInfo } = usePlayerState();
   const { dict } = useTranslation();
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<NavigationPanelTab>(savedNavigationTab);
   const [explorerSearch, setExplorerSearch] = useState("");
   const [explorerPath, setExplorerPath] = useState<string>();
+  const [savedSource, setSavedSource] = useState(() => Boolean(savedPlaylistSource()));
+  const folderPaths = useMemo(() => playlist.map(item => item.filename), [playlist]);
   const changeTab = (tab: NavigationPanelTab) => { setActiveTab(tab); saveNavigationTab(tab); };
 
   useEffect(() => {
@@ -370,7 +374,7 @@ export function PlaylistDrawer() {
     }
     // Scroll events already synchronize scrollTop; this effect restores remounted DOM.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaylistOpen, drawerWidth, activeTab]);
+  }, [isPlaylistOpen, drawerWidth, activeTab, savedSource]);
 
   // Мгновенный автоскролл к текущему воспроизводимому элементу при открытии панели или смене трека
   // currentFilteredPos Atkinson — позиция именно в отфильтрованном списке
@@ -398,7 +402,7 @@ export function PlaylistDrawer() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaylistOpen, currentItemIndex, playlist, searchQuery, activeTab]);
+  }, [isPlaylistOpen, currentItemIndex, playlist, searchQuery, activeTab, savedSource]);
 
   // Закрытие по Escape и клику вне панели
   useEffect(() => {
@@ -406,6 +410,7 @@ export function PlaylistDrawer() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (drawerRef.current?.querySelector("[data-saved-playlist-editor]") || document.querySelector("[data-navigation-popover]")) return;
         e.preventDefault();
         e.stopPropagation();
         const currentSearch = activeTab === "playlist" ? searchQuery : explorerSearch;
@@ -423,6 +428,7 @@ export function PlaylistDrawer() {
         return;
       }
       const target = e.target as Element | null;
+      if (target?.closest("[data-navigation-popover]")) return;
       if (
         target &&
         typeof target.closest === "function" &&
@@ -505,8 +511,8 @@ export function PlaylistDrawer() {
         maxWidth: "calc(100% - 28px)",
         minWidth: `min(${MIN_NAVIGATION_WIDTH}px, calc(100% - 28px))`,
         ...(pinnedPanel.geometry ? {
-          top: `${pinnedPanel.geometry.top}px`, height: `${pinnedPanel.geometry.height}px`,
-          bottom: "auto", maxHeight: "none",
+          top: `${pinnedPanel.geometry.top}px`,
+          bottom: "auto", maxHeight: `${pinnedPanel.geometry.height}px`,
         } : {}),
       }}
       >
@@ -527,11 +533,11 @@ export function PlaylistDrawer() {
             changeTab(next);
             event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`#navigation-tab-${next}`)?.focus();
           }}><span>{tab === "playlist" ? dict.playlist.title : dict.explorer.title}</span>
-            {tab === "playlist" && countBadge && <span className="playlist-drawer__badge" aria-hidden="true">{countBadge}</span>}
+            {tab === "playlist" && !savedSource && countBadge && <span className="playlist-drawer__badge" aria-hidden="true">{countBadge}</span>}
           </button>)}
       </div>
         <div className="playlist-drawer__header-actions">
-          {activeTab === "playlist" && <button
+          {activeTab === "playlist" && !savedSource && <button
             type="button"
             className={`playlist-drawer__action-btn ${isRefreshing ? "playlist-drawer__action-btn--spinning" : ""}`}
             onClick={handleRefresh}
@@ -567,7 +573,9 @@ export function PlaylistDrawer() {
           onRequestActivate={() => changeTab("explorer")} search={explorerSearch} onSearch={setExplorerSearch}
           initialPath={explorerPath} onLocation={setExplorerPath} />
       </div>
-      {activeTab === "playlist" && <>
+      {activeTab === "playlist" && <SavedPlaylistPanel active={isPlaylistOpen} folderPaths={folderPaths}
+        mediaPath={mediaInfo?.path ?? ""} refreshPlaylist={refreshPlaylist} onSourceChange={setSavedSource}
+        onFolderRequested={async () => { await invoke("reload_folder_playlist"); await refreshPlaylist(); }}>
       <div className="playlist-drawer__search">
         <Search size={15} className="playlist-drawer__search-icon" />
         <input
@@ -601,8 +609,7 @@ export function PlaylistDrawer() {
       </div>
 
       {isPlaylistOpen && <PlaylistProgressObserver onChange={setLiveProgress} />}
-      <div ref={contentContainerRef} className="playlist-drawer__content" onScroll={handleListScroll}
-        id="navigation-playlist" role="tabpanel" aria-labelledby="navigation-tab-playlist">
+      <div ref={contentContainerRef} className="playlist-drawer__content" onScroll={handleListScroll}>
         {filteredPlaylist.length === 0 ? (
           <EmptyState
             icon={<Clapperboard size={24} />}
@@ -657,7 +664,7 @@ export function PlaylistDrawer() {
           );
         })()}
       </div>
-      </>}
+      </SavedPlaylistPanel>}
     </div>
   );
 }

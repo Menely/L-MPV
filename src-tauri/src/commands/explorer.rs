@@ -7,7 +7,7 @@ use tauri::State;
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub enum DirectoryEntryKind { Directory, Video, Audio, Subtitle, Image, Playlist }
+pub enum DirectoryEntryKind { Directory, Video, Audio, Subtitle, Image, Playlist, File }
 
 #[derive(Debug, Serialize)]
 pub struct MediaDirectoryEntry {
@@ -47,7 +47,7 @@ fn file_kind(extension: &str) -> Option<DirectoryEntryKind> {
     else if matches!(extension.as_str(), "jpg" | "jpeg" | "png" | "webp" | "bmp" | "gif" | "tif" | "tiff" | "avif") {
         Some(DirectoryEntryKind::Image)
     } else if matches!(extension.as_str(), "m3u" | "m3u8" | "pls") { Some(DirectoryEntryKind::Playlist) }
-    else { None }
+    else { Some(DirectoryEntryKind::File) }
 }
 
 fn list_directory(directory: &Path) -> Result<DirectoryListing, String> {
@@ -132,16 +132,17 @@ mod tests {
         fs::write(root.0.join("Folder2/nested.mkv"), b"not recursive").unwrap();
         let listing = list_directory(&root.0).unwrap();
         assert_eq!(listing.entries.iter().map(|entry| entry.name.as_str()).collect::<Vec<_>>(),
-            [".hidden", "Folder2", "Folder10", "captions.SRT", "Episode2.mkv", "Episode10.MKV", "picture.AVIF", "queue.m3u8", "transport.M2TS", "voice.FLAC"]);
+            [".hidden", "Folder2", "Folder10", "app.exe", "captions.SRT", "Episode2.mkv", "Episode10.MKV", "notes.txt", "picture.AVIF", "queue.m3u8", "transport.M2TS", "voice.FLAC"]);
         assert!(listing.entries[..3].iter().all(|entry| entry.kind == DirectoryEntryKind::Directory));
-        assert_eq!(listing.entries[3].kind, DirectoryEntryKind::Subtitle);
-        assert_eq!(listing.entries[4].kind, DirectoryEntryKind::Video);
-        assert_eq!(listing.entries[6].kind, DirectoryEntryKind::Image);
-        assert_eq!(listing.entries[7].kind, DirectoryEntryKind::Playlist);
-        assert_eq!(listing.entries[8].kind, DirectoryEntryKind::Video);
-        assert_eq!(listing.entries[9].kind, DirectoryEntryKind::Audio);
+        assert_eq!(listing.entries[3].kind, DirectoryEntryKind::File);
+        assert_eq!(listing.entries[4].kind, DirectoryEntryKind::Subtitle);
+        assert_eq!(listing.entries[5].kind, DirectoryEntryKind::Video);
+        assert_eq!(listing.entries[8].kind, DirectoryEntryKind::Image);
+        assert_eq!(listing.entries[9].kind, DirectoryEntryKind::Playlist);
+        assert_eq!(listing.entries[10].kind, DirectoryEntryKind::Video);
+        assert_eq!(listing.entries[11].kind, DirectoryEntryKind::Audio);
         assert!(listing.entries.iter().all(|entry| Path::new(&entry.path).is_absolute()));
-        assert_eq!(serde_json::to_value(&listing.entries[4]).unwrap()["kind"], "video");
+        assert_eq!(serde_json::to_value(&listing.entries[5]).unwrap()["kind"], "video");
     }
 
     #[test]
@@ -165,8 +166,8 @@ mod tests {
         }
         for extension in ["m3u", "M3U8", "pls"] { assert_eq!(file_kind(extension), Some(DirectoryEntryKind::Playlist)); }
         for extension in ["m2ts", "MTS", "mpeg", "mpg", "m2v", "3g2"] { assert_eq!(file_kind(extension), Some(DirectoryEntryKind::Video)); }
-        assert_eq!(file_kind("txt"), None);
-        assert_eq!(file_kind("exe"), None);
+        assert_eq!(file_kind("txt"), Some(DirectoryEntryKind::File));
+        assert_eq!(file_kind("exe"), Some(DirectoryEntryKind::File));
         assert_eq!(default_directory("").unwrap(), home_directory().unwrap());
         assert_eq!(default_directory("https://example.invalid/video.mkv").unwrap(), home_directory().unwrap());
     }

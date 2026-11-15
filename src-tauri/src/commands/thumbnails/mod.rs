@@ -9,6 +9,8 @@ mod filters;
 mod native;
 mod profile;
 mod storyboard;
+mod storyboard_worker;
+use storyboard_worker::Storyboards;
 mod transforms;
 
 use super::types::PlayerState;
@@ -67,17 +69,6 @@ struct CachedSource {
     transforms: transforms::Transforms,
     transforms_generation: u64,
     transforms_read: Instant,
-}
-
-#[derive(Default)]
-struct Storyboards {
-    board: Option<storyboard::Board>,
-    /// Источник, для которого строится раскадровка (позиция подставляется).
-    source: Option<SourceRequest>,
-    /// Последний размер живой миниатюры: ядро превью общее, и раскадровка не
-    /// должна пересоздавать его под другой размер.
-    live_size: Option<(u32, u32)>,
-    worker_started: bool,
 }
 
 #[derive(Default)]
@@ -194,8 +185,7 @@ impl ThumbnailService {
         *self.0.native.lock().map_err(|e| e.to_string())? = native::NativeDecoder::default();
         *self.0.cache.lock().map_err(|e| e.to_string())? = FrameCache::default();
         let mut boards = self.0.storyboards.lock().map_err(|e| e.to_string())?;
-        boards.board = None;
-        boards.source = None;
+        boards.clear();
         Ok(())
     }
     pub fn shutdown(&self) {
@@ -220,8 +210,7 @@ impl ThumbnailService {
             *source_cache = None;
         }
         if let Ok(mut boards) = self.0.storyboards.lock() {
-            boards.board = None;
-            boards.source = None;
+            boards.clear();
         }
     }
 
@@ -369,15 +358,6 @@ impl ThumbnailService {
             hdr: cached.hdr,
             size,
         })
-    }
-
-    fn cached_duration(&self) -> Option<f64> {
-        self.0
-            .source_cache
-            .lock()
-            .ok()?
-            .as_ref()
-            .map(|cached| cached.duration)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -533,243 +513,6 @@ impl ThumbnailService {
             native.prewarm(root, &source);
         }
     }
-
-    /// Создаёт раскадровку текущего файла (или загружает готовую с диска)
-    /// и будит фоновый поток.
-    fn start_storyboard(
-        &self,
-        mpv: &Arc<MpvManager>,
-        path: &str,
-        vid: &str,
-        size: (u32, u32),
-    ) -> Result<(), String> {
-        if self.0.stopped.load(Ordering::Acquire) {
-            return Ok(());
-        }
-        let source = self.resolve_source(mpv, path, vid, 0.0, false, size)?;
-        let duration = self.cached_duration().ok_or("THUMBNAIL_UNAVAILABLE")?;
-        let key = format!(
-            "{}|{}|{:?}|{:?}|{}",
-            source.identity,
-            source.stream,
-            source.transforms,
-            source.profile,
-            source.hdr.map_or(0, |hdr| hdr as u8)
-        );
-        {
-            let mut boards = self.0.storyboards.lock().map_err(|e| e.to_string())?;
-            boards.live_size.get_or_insert(size);
-            if boards.board.as_ref().is_some_and(|board| board.key == key) {
-                return Ok(());
-            }
-        }
-        let root_dir = cache_directory()?;
-        let dir = FrameCache::video_directory(&root_dir, &source.path, &source.identity);
-        let file = storyboard::file_name(&dir, &key);
-        let mut board = storyboard::Board::new(
-            path.to_owned(),
-            vid.to_owned(),
-            key,
-            file.clone(),
-            root_dir,
-            duration,
-        );
-        if let Ok(bytes) = std::fs::read(&file) {
-            if board.restore(&bytes) {
-                self.0.disk.get_or_init(disk::DiskWriter::new).touch(file);
-            }
-        }
-        let mut boards = self.0.storyboards.lock().map_err(|e| e.to_string())?;
-        // Пока читали диск, мог начаться другой файл: побеждает последний вызов.
-        boards.board = Some(board);
-        boards.source = Some(source);
-        let start_worker = !boards.worker_started;
-        boards.worker_started = true;
-        drop(boards);
-        self.0.storyboard_wake.notify_all();
-        if start_worker {
-            self.spawn_storyboard_worker(Arc::clone(mpv));
-        }
-        Ok(())
-    }
-
-    fn storyboard_wire(&self, path: &str, vid: &str, since: u32) -> Vec<u8> {
-        let Ok(boards) = self.0.storyboards.lock() else {
-            return storyboard::wire(None, since);
-        };
-        let board = boards.board.as_ref().filter(|board| {
-            super::background_io::same_path(&board.raw_path, path) && board.vid == vid
-        });
-        storyboard::wire(board, since)
-    }
-
-    /// Один фоновый поток на сервис: берёт кадры раскадровки, когда декодер
-    /// свободен, и уступает его живым запросам.
-    fn spawn_storyboard_worker(&self, mpv: Arc<MpvManager>) {
-        let weak = Arc::downgrade(&self.0);
-        std::thread::spawn(move || {
-            let Ok(exe) = std::env::current_exe() else {
-                return;
-            };
-            let Some(root) = exe.parent().map(Path::to_path_buf) else {
-                return;
-            };
-            loop {
-                let Some(inner) = weak.upgrade() else {
-                    break;
-                };
-                if inner.stopped.load(Ordering::Acquire) {
-                    break;
-                }
-                let service = ThumbnailService(inner);
-                match service.storyboard_step(&mpv, &root) {
-                    Step::Idle => {
-                        let inner = &service.0;
-                        if let Ok(boards) = inner.storyboards.lock() {
-                            let _ = inner
-                                .storyboard_wake
-                                .wait_timeout(boards, Duration::from_secs(1));
-                        }
-                    }
-                    Step::Wait(pause) => std::thread::sleep(pause),
-                }
-            }
-        });
-    }
-
-    fn storyboard_step(&self, mpv: &Arc<MpvManager>, root: &Path) -> Step {
-        let inner = &self.0;
-        // Выбор кадра и проверка, можно ли сейчас занять декодер.
-        let (index, mut source, raw_path, vid) = {
-            let Ok(mut boards) = inner.storyboards.lock() else {
-                return Step::Idle;
-            };
-            let size = boards.live_size.unwrap_or((320, 180));
-            let template = boards.source.clone();
-            let Some(board) = boards.board.as_mut() else {
-                return Step::Idle;
-            };
-            let Some(mut template) = template else {
-                return Step::Idle;
-            };
-            if let Some(left) = storyboard::START_DELAY.checked_sub(board.created.elapsed()) {
-                return Step::Wait(left);
-            }
-            let Some(index) = board.next() else {
-                if board.worth_persisting() {
-                    board.persisted = true;
-                    let bytes: Arc<[u8]> = Arc::from(board.encode().into_boxed_slice());
-                    let (root_dir, file) = (board.cache_root.clone(), board.file.clone());
-                    drop(boards);
-                    inner
-                        .disk
-                        .get_or_init(disk::DiskWriter::new)
-                        .store_file(root_dir, file, bytes);
-                }
-                return Step::Idle;
-            };
-            template.seconds = board.target(index);
-            template.size = size;
-            (index, template, board.raw_path.clone(), board.vid.clone())
-        };
-        if inner.live_busy.load(Ordering::SeqCst) > 0 {
-            return Step::Wait(Duration::from_millis(30));
-        }
-        if let Some(since) = inner.live_ended.lock().ok().and_then(|ended| *ended) {
-            if let Some(left) = storyboard::LIVE_QUIET.checked_sub(since.elapsed()) {
-                return Step::Wait(left);
-            }
-        }
-        if super::background_io::open_work_pending() {
-            return Step::Wait(Duration::from_millis(250));
-        }
-        // Файл в плеере сменился, а новый ещё не попросил раскадровку:
-        // старую больше не строим.
-        if !super::background_io::same_path(
-            &mpv.get_property_string("path").unwrap_or_default(),
-            &raw_path,
-        ) {
-            if let Ok(mut boards) = inner.storyboards.lock() {
-                if boards
-                    .board
-                    .as_ref()
-                    .is_some_and(|b| b.raw_path == raw_path)
-                {
-                    boards.board = None;
-                    boards.source = None;
-                }
-            }
-            return Step::Idle;
-        }
-        // Поворот сменился: кадры старой раскадровки больше не подходят.
-        // Фронтенд перезапросит раскадровку с новыми преобразованиями.
-        if let Ok(cached) = self.0.source_cache.lock() {
-            if let Some(cached) = cached
-                .as_ref()
-                .filter(|c| c.raw_path == raw_path && c.vid == vid)
-            {
-                if cached.transforms != source.transforms {
-                    return Step::Wait(Duration::from_millis(500));
-                }
-            }
-        }
-        source.profile = if source.transforms.is_identity() {
-            source.profile
-        } else {
-            profile::DecodeProfile::Hardware
-        };
-        let Ok(_worker) = inner.worker.try_lock() else {
-            return Step::Wait(Duration::from_millis(20));
-        };
-        // Сначала сбрасываем отмену, потом проверяем живые запросы: запрос,
-        // начавшийся после этой проверки, снова выставит отмену и прервёт кадр.
-        inner.tile_cancel.store(false, Ordering::SeqCst);
-        if inner.live_busy.load(Ordering::SeqCst) > 0 {
-            return Step::Wait(Duration::from_millis(30));
-        }
-        let began = Instant::now();
-        let result = {
-            let Ok(mut native) = inner.native.lock() else {
-                return Step::Idle;
-            };
-            self.start_idle_cleanup();
-            native.extract_tile(
-                root,
-                &source,
-                storyboard::TILE,
-                &inner.tile_cancel,
-                &inner.stopped,
-            )
-        };
-        drop(_worker);
-        let spent = began.elapsed();
-        let Ok(mut boards) = inner.storyboards.lock() else {
-            return Step::Idle;
-        };
-        let Some(board) = boards
-            .board
-            .as_mut()
-            .filter(|board| board.raw_path == raw_path && board.vid == vid)
-        else {
-            return Step::Wait(Duration::ZERO);
-        };
-        match result {
-            Ok((bytes, actual)) => board.store(index, actual, Arc::from(bytes.into_boxed_slice())),
-            Err(error) if error == "THUMBNAIL_CANCELLED" => return Step::Wait(Duration::ZERO),
-            Err(_) => board.fail(index),
-        }
-        drop(boards);
-        // Диск и GPU заняты не больше половины времени; во время
-        // воспроизведения — не больше трети.
-        let playing = !mpv.get_property_bool("pause").unwrap_or(true);
-        let factor = if playing { 2 } else { 1 };
-        Step::Wait((spent * factor).max(Duration::from_millis(if playing { 40 } else { 20 })))
-    }
-}
-
-enum Step {
-    Idle,
-    Wait(Duration),
 }
 
 fn cache_directory() -> Result<PathBuf, String> {
@@ -892,15 +635,27 @@ pub async fn start_timeline_storyboard(
     path: String,
     video_track: Option<i64>,
     width: Option<u32>,
+    request_id: String,
 ) -> Result<(), String> {
     let vid = current_vid(&state.mpv, &path, video_track)?;
+    // Reserve before spawning: cache reads may complete in a different order.
+    let generation = service.begin_storyboard(request_id)?;
     let service = service.inner().clone();
     let mpv = state.mpv.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        service.start_storyboard(&mpv, &path, &vid, thumbnail_size(width))
+        service.start_storyboard(&mpv, &path, &vid, thumbnail_size(width), generation)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn stop_timeline_storyboard(
+    service: State<'_, ThumbnailService>,
+    request_id: String,
+) -> Result<(), String> {
+    service.stop_storyboard(&request_id);
+    Ok(())
 }
 
 /// Кадры раскадровки, появившиеся после `since` (двоичный ответ, см. `storyboard::wire`).
@@ -912,6 +667,7 @@ pub async fn get_timeline_storyboard(
     path: String,
     video_track: Option<i64>,
     since: Option<u32>,
+    request_id: String,
 ) -> Result<tauri::ipc::Response, String> {
     let service = service.inner().clone();
     let mpv = state.mpv.clone();
@@ -920,6 +676,7 @@ pub async fn get_timeline_storyboard(
         Ok(tauri::ipc::Response::new(service.storyboard_wire(
             &path,
             &vid,
+            &request_id,
             since.unwrap_or(0),
         )))
     })
@@ -979,7 +736,8 @@ mod tests {
             let mut source = template.clone();
             source.seconds = board.target(index);
             let step = Instant::now();
-            match decoder.extract_tile(&root, &source, storyboard::TILE, &cancelled, &stopped) {
+            match decoder.extract_tile(&root, &source, storyboard::TILE, &cancelled, &stopped, None)
+            {
                 Ok((bytes, actual)) => {
                     assert!(
                         actual <= source.seconds + 0.1,

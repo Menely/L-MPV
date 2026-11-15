@@ -1,40 +1,47 @@
 import { useCallback, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from "react";
 import { getActiveUiScale } from "../utils/uiThemeUtils";
+import { readNavigationPin, saveNavigationPin, NAVIGATION_PIN_EVENT } from "../utils/navigationPanelPin";
 
 interface Geometry { top: number; height: number }
 
 /** Inputs/outputs use layout CSS pixels; viewport and controls use measured pixels. */
-export function fitPinnedNavigationGeometry(base: Geometry, viewportHeight: number, controlsTop: number | null, scale: number): Geometry {
+export function fitPinnedNavigationGeometry(base: Geometry, viewportHeight: number, controlsTop: number | null, scale: number, minimumTop = 8, renderedHeight?: number): Geometry {
   const zoom = Number.isFinite(scale) && scale > 0 ? scale : 1;
   const margin = 8;
   const bottom = Math.max(margin + 1, Math.min(viewportHeight - margin,
     controlsTop !== null && Number.isFinite(controlsTop) ? controlsTop - margin : viewportHeight - margin));
-  const height = Math.min(Math.max(1, base.height * zoom), bottom - margin);
-  const top = Math.max(margin, Math.min(base.top * zoom, bottom - height));
-  return { top: top / zoom, height: height / zoom };
+  const start = Math.min(bottom - 1, Math.max(margin, minimumTop));
+  const limit = Math.min(Math.max(1, base.height * zoom), bottom - start);
+  const visibleHeight = renderedHeight !== undefined && Number.isFinite(renderedHeight) && renderedHeight > 0
+    ? Math.min(renderedHeight, limit) : limit;
+  const top = Math.max(start, Math.min(base.top * zoom, bottom - visibleHeight));
+  return { top: top / zoom, height: Math.min(limit, bottom - top) / zoom };
 }
 
-/** Freeze the shared panel's geometry, independent of its current tab or content. */
+/** Keep a pinned top and height limit; the rendered card can shrink with its content. */
 export function usePinnedNavigationPanel(panelRef: RefObject<HTMLDivElement | null>, visible: boolean) {
-  const [geometry, setGeometry] = useState<Geometry | null>(null);
-  const base = useRef<Geometry | null>(null);
-  const shown = useRef<Geometry | null>(null);
+  const [initial] = useState(readNavigationPin);
+  const [geometry, setGeometry] = useState<Geometry | null>(initial);
+  const base = useRef<Geometry | null>(initial);
+  const shown = useRef<Geometry | null>(initial);
   const dragCleanup = useRef<((cancel?: boolean) => void) | null>(null);
   const fit = useCallback(() => {
     if (!base.current) return;
     const controls = document.querySelector<HTMLElement>(".player-controls-wrapper");
     const rect = controls?.getBoundingClientRect();
+    const titlebar = document.querySelector<HTMLElement>(".titlebar")?.getBoundingClientRect();
+    const minimumTop = titlebar && Number.isFinite(titlebar.bottom) && titlebar.bottom > 0 ? titlebar.bottom + 8 : 8;
     const next = fitPinnedNavigationGeometry(base.current, window.innerHeight,
-      rect && rect.height > 0 ? rect.top : null, getActiveUiScale());
+      rect && rect.height > 0 ? rect.top : null, getActiveUiScale(), minimumTop, panelRef.current?.getBoundingClientRect().height);
     shown.current = next;
     setGeometry(previous => previous?.top === next.top && previous.height === next.height ? previous : next);
-  }, []);
+  }, [panelRef]);
 
   const togglePinned = useCallback(() => {
     if (!visible) return;
     dragCleanup.current?.();
     if (base.current) {
-      base.current = null; shown.current = null; setGeometry(null);
+      base.current = null; shown.current = null; setGeometry(null); saveNavigationPin(null);
       return;
     }
     const rect = panelRef.current?.getBoundingClientRect();
@@ -42,6 +49,8 @@ export function usePinnedNavigationPanel(panelRef: RefObject<HTMLDivElement | nu
     const scale = getActiveUiScale();
     base.current = { top: rect.top / scale, height: rect.height / scale };
     fit();
+    if (shown.current) base.current.top = shown.current.top;
+    saveNavigationPin(base.current);
   }, [fit, panelRef, visible]);
 
   const onGripPointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => {
@@ -79,6 +88,9 @@ export function usePinnedNavigationPanel(panelRef: RefObject<HTMLDivElement | nu
       if (!publish) pendingTop = null;
       else if (cancel && base.current) { base.current = original; pendingTop = null; fit(); }
       else flush();
+      if (publish && !cancel && base.current && shown.current) {
+        base.current = { ...base.current, top: shown.current.top }; saveNavigationPin(base.current);
+      }
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", cancelled);
@@ -107,9 +119,21 @@ export function usePinnedNavigationPanel(panelRef: RefObject<HTMLDivElement | nu
       : shown.current.top + (event.key === "ArrowDown" ? step : -step);
     base.current = { ...base.current, top };
     fit();
+    // Persist the visible position, rather than an out-of-bounds Home/End target.
+    if (shown.current) { base.current = { ...base.current, top: shown.current.top }; saveNavigationPin(base.current); }
   }, [fit, visible]);
 
   const pinned = geometry !== null;
+  useLayoutEffect(() => {
+    const restore = () => {
+      dragCleanup.current?.();
+      base.current = readNavigationPin();
+      shown.current = base.current;
+      if (base.current) fit(); else setGeometry(null);
+    };
+    window.addEventListener(NAVIGATION_PIN_EVENT, restore);
+    return () => window.removeEventListener(NAVIGATION_PIN_EVENT, restore);
+  }, [fit]);
   useLayoutEffect(() => {
     if (!visible || !pinned) { dragCleanup.current?.(); return; }
     fit();

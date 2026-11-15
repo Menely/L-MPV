@@ -33,7 +33,7 @@ dispose(); assert.equal(listeners.size,0,'Closed/unmounted panel removes every c
 
 // Execute the real panel effects: auxiliary buttons activate a hidden Explorer
 // before traversing, and closing the shared panel discards queued navigation.
-const panel = fs.readFileSync('src/components/player/ExplorerPanel.tsx','utf8');
+const panel = fs.readFileSync('src/components/player/ExplorerPanel.tsx','utf8').replace(/\r\n/g, '\n');
 const effectsCode = esbuild.transformSync(panel.slice(panel.indexOf('  const pendingDirection ='),panel.indexOf('  useEffect(() => {\n    openingRef.current')), {loader:'ts'}).code;
 const panelHooks=[], panelCalls=[]; let panelCursor=0,panelEffects=[];
 const panelRef=initial=>panelHooks[panelCursor++]??={current:initial};

@@ -11,6 +11,11 @@ function moduleFrom(file, imports = {}, globals = {}) {
 const storage = new Map();
 const utils = moduleFrom('src/utils/explorerPanel.ts', {}, {localStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value)}});
 const currentFile = {kind:'video',path:'D:/Media/Episode 2.mkv'};
+assert.equal(utils.savedExplorerFilter(), true);
+storage.set(utils.EXPLORER_FILTER_KEY, 'false'); assert.equal(utils.savedExplorerFilter(), false);
+storage.delete(utils.EXPLORER_FILTER_KEY);
+for (const kind of ['directory', 'video', 'audio', 'playlist']) assert(utils.isExplorerPlayable({kind}));
+for (const kind of ['image', 'subtitle', 'file']) assert(!utils.isExplorerPlayable({kind}));
 assert(utils.isExplorerCurrentFile(currentFile, String.raw`d:\MEDIA\Episode 2.mkv`));
 assert(utils.isExplorerCurrentFile(currentFile, String.raw`\\?\D:\Media\Episode 2.mkv`));
 assert(!utils.isExplorerCurrentFile(currentFile, 'D:/Media/Episode 20.mkv'));
@@ -32,8 +37,8 @@ const layoutCode = esbuild.transformSync(drawerSource.slice(layoutStart, layoutE
 for (const rememberedTop of [0, 4400]) {
   const element = {scrollTop: 0, clientHeight: 400};
   let restored, height;
-  new Function('useLayoutEffect', 'isPlaylistOpen', 'activeTab', 'contentContainerRef', 'scrollTop', 'setScrollTop', 'setViewHeight', 'drawerWidth', layoutCode)(
-    callback => callback(), true, 'playlist', {current: element}, rememberedTop, value => {restored = value;}, value => {height = value;}, 480,
+  new Function('useLayoutEffect', 'isPlaylistOpen', 'activeTab', 'contentContainerRef', 'scrollTop', 'setScrollTop', 'setViewHeight', 'drawerWidth', 'savedSource', layoutCode)(
+    callback => callback(), true, 'playlist', {current: element}, rememberedTop, value => {restored = value;}, value => {height = value;}, 480, false,
   );
   assert.equal(element.scrollTop, rememberedTop, 'Returning from Explorer restores virtual playlist DOM position before paint');
   assert.equal(restored, rememberedTop); assert.equal(height, 400);
@@ -79,6 +84,7 @@ const directory = path => ({path, parent: null, entries: []});
   const count = calls.length;
   await assert.rejects(utils.openExplorerFile({kind: 'subtitle', path: 'C:/text.ass'}, false, tracks, invoke), /EXPLORER_MEDIA_REQUIRED/);
   await utils.openExplorerFile({kind: 'directory', path: 'C:/folder'}, true, tracks, invoke);
+  await utils.openExplorerFile({kind: 'file', path: 'C:/app.exe'}, true, tracks, invoke);
   assert.equal(calls.length, count, 'Browsing and rejected subtitles must not change playback');
 
   const f = hookFixture(); await f.flush();

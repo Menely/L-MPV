@@ -1,6 +1,5 @@
 .playlist-drawer.playlist-drawer--pinned {
   bottom: auto;
-  max-height: none;
   overflow: hidden !important;
   animation: none;
   transition: none;

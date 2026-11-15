@@ -97,8 +97,7 @@ const invoke = (command, args) => {
     return Promise.resolve();
   }
   if (command !== 'get_timeline_thumbnail') {
-    other.push({ command, args });
-    return new Promise(() => {});
+    return new Promise((resolve, reject) => other.push({ command, args, resolve, reject }));
   }
   return new Promise((resolve, reject) => requests.push({ args, resolve, reject }));
 };
@@ -132,7 +131,7 @@ const testGlobals = {
 // One bundle so the hook and the test share the same storyboard store.
 const compiled = esbuild.buildSync({
   stdin: {
-    contents: "export * from './src/hooks/useTimelineThumbnail'; export { timelineStoryboard, parseStoryboard, storyboardKey } from './src/utils/timelineStoryboard'; export { prewarmTimelineThumbnail } from './src/hooks/useTimelineStoryboard';",
+    contents: "export * from './src/hooks/useTimelineThumbnail'; export { timelineStoryboard, parseStoryboard, storyboardKey } from './src/utils/timelineStoryboard'; export { prewarmTimelineThumbnail, useTimelineStoryboard } from './src/hooks/useTimelineStoryboard';",
     resolveDir: process.cwd(), loader: 'ts',
   },
   bundle: true, write: false, platform: 'node', format: 'cjs', external: ['react', '@tauri-apps/api/core'],
@@ -141,14 +140,15 @@ const bundle = { exports: {} };
 new Function('module', 'exports', 'require', ...Object.keys(testGlobals), compiled.outputFiles[0].text)(
   bundle, bundle.exports, name => ({ react, '@tauri-apps/api/core': { invoke } })[name], ...Object.values(testGlobals)
 );
-const { useTimelineThumbnail, clearTimelineThumbnailCache, timelineStoryboard, parseStoryboard, storyboardKey, prewarmTimelineThumbnail } = bundle.exports;
+const { useTimelineThumbnail, clearTimelineThumbnailCache, timelineStoryboard, parseStoryboard, storyboardKey, prewarmTimelineThumbnail, useTimelineStoryboard } = bundle.exports;
+let renderCurrent = () => useTimelineThumbnail(...props);
 
 async function flush() {
   for (let i = 0; i < 12; i++) {
     if (dirty) {
       dirty = false;
       cursor = 0;
-      result = useTimelineThumbnail(...props);
+      result = renderCurrent();
       const pending = effects;
       effects = [];
       pending.forEach(fn => fn());
@@ -339,5 +339,54 @@ function storyboardBuffer(status, count, interval, seq, tiles) {
   prewarmTimelineThumbnail('C:/warm.mkv', 1, 320, 12_500);
   prewarmTimelineThumbnail('C:/other.mkv', 1, 320, 12_600);
   assert.equal(other.filter(call => call.command === 'prewarm_timeline_thumbnail').length, 3);
-  console.log('PASS storyboard wire/lookup, instant tiles in fast sweeps, keyframes while moving, exact at rest, nearest-frame choice, fps keys, HiDPI width, transform invalidation, errors, URL bounds and prewarm throttle');
+  // Lifecycle: cleanup must stop even an unresolved start; late replies cannot
+  // repopulate a different file, rotation or disabled preview.
+  let storyboardProps = ['C:/first.mkv', 1, true, 320];
+  renderCurrent = () => useTimelineStoryboard(...storyboardProps);
+  const renderStoryboard = async (...next) => { storyboardProps = next; dirty = true; await flush(); };
+  const lastCall = command => other.filter(call => call.command === command).at(-1);
+  await renderStoryboard('C:/first.mkv', 1, true, 320);
+  const firstStart = lastCall('start_timeline_storyboard');
+  firstStart.resolve(); await flush(); await advance(0);
+  const firstPoll = lastCall('get_timeline_storyboard');
+  assert.equal(firstPoll.args.requestId, firstStart.args.requestId);
+  await renderStoryboard('C:/second.mkv', 1, true, 320);
+  const secondStart = lastCall('start_timeline_storyboard');
+  assert.equal(lastCall('stop_timeline_storyboard')?.args.requestId, firstStart.args.requestId);
+  assert.notEqual(secondStart.args.requestId, firstStart.args.requestId);
+  firstPoll.resolve(storyboardBuffer(2, 2, 60, 1, [{index:0,time:0}])); await flush();
+  assert.equal(timelineStoryboard.seq, 0, 'late first-file response cannot populate the second file');
+  secondStart.resolve(); await flush(); await advance(0);
+  const secondPoll = lastCall('get_timeline_storyboard');
+  secondPoll.resolve(storyboardBuffer(1, 2, 60, 1, [{index:0,time:0}])); await flush();
+  assert.equal(timelineStoryboard.seq, 1);
+  for (const fn of [...(windowListeners.get('l-mpv-preview-transform-changed') || [])]) fn();
+  await flush();
+  const rotatedStart = lastCall('start_timeline_storyboard');
+  assert.notEqual(rotatedStart.args.requestId, secondStart.args.requestId);
+  assert.equal(lastCall('stop_timeline_storyboard')?.args.requestId, secondStart.args.requestId);
+  assert.equal(timelineStoryboard.seq, 0);
+  // Disable before the rotated start resolves, as with rapid settings toggles.
+  await renderStoryboard('C:/second.mkv', 1, false, 320);
+  assert.equal(lastCall('stop_timeline_storyboard')?.args.requestId, rotatedStart.args.requestId);
+  rotatedStart.resolve(); await flush();
+  const pollCount = other.filter(call => call.command === 'get_timeline_storyboard').length;
+  await advance(2000);
+  assert.equal(other.filter(call => call.command === 'get_timeline_storyboard').length, pollCount);
+  assert.equal(timelineStoryboard.current(), '');
+  assert.equal(urls.size, 0, 'disabled preview releases all storyboard URLs');
+  unmount();
+  await renderStoryboard('C:/unmount.mkv', 1, true, 320);
+  lastCall('start_timeline_storyboard').resolve(); await flush(); await advance(0);
+  lastCall('get_timeline_storyboard').resolve(storyboardBuffer(2, 2, 60, 1, [{index:0,time:0}])); await flush();
+  assert.equal(urls.size, 1);
+  unmount();
+  assert.equal(urls.size, 0, 'unmount releases ready storyboard URLs');
+  await renderStoryboard('C:/pending.mkv', 1, true, 320);
+  const pendingStart = lastCall('start_timeline_storyboard');
+  unmount();
+  assert.equal(lastCall('stop_timeline_storyboard')?.args.requestId, pendingStart.args.requestId);
+  pendingStart.reject('THUMBNAIL_CANCELLED'); await flush();
+
+  console.log('PASS storyboard wire/lookup, instant tiles in fast sweeps, keyframes while moving, exact at rest, nearest-frame choice, fps keys, HiDPI width, transform invalidation, errors, URL bounds, prewarm throttle and storyboard stop/switch/rotation lifecycle');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1229,6 +1229,7 @@ function App() {
     const handleKeyDown = async (e: KeyboardEvent) => {
       const target = e.target instanceof HTMLElement ? e.target : null;
       if (target?.closest(".color-picker-modal")) return;
+      if (target?.closest(".navigation-popover, .saved-playlists__source-trigger")) return;
 
       const isSlider = target?.getAttribute("role") === "slider" && !target?.closest(".timeline");
       const isEditing = target instanceof HTMLInputElement

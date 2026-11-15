@@ -61,6 +61,10 @@ pub struct UiSettings {
     #[serde(default)]
     pub timeline_preview_enabled: Option<bool>,
     #[serde(default)]
+    pub explorer_playable_only: Option<bool>,
+    #[serde(default)]
+    pub navigation_panel_pin: Option<serde_json::Value>,
+    #[serde(default)]
     pub volume_indicator_osd: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub favorite_upscale_model: Option<String>,
@@ -977,6 +981,8 @@ mod settings_tests {
             Some("sidebar".to_string());
         settings.ui.language = Some("en".to_string());
         settings.ui.timeline_preview_enabled = Some(false);
+        settings.ui.explorer_playable_only = Some(false);
+        settings.ui.navigation_panel_pin = Some(serde_json::json!({"top": 90.5, "height": 420.0}));
         settings.ui.skip_opening_seconds = Some(120);
         settings.ui.visualizer_config = Some(
             serde_json::json!({
@@ -1004,6 +1010,8 @@ mod settings_tests {
         );
         assert_eq!(loaded.ui.language.as_deref(), Some("en"));
         assert_eq!(loaded.ui.timeline_preview_enabled, Some(false));
+        assert_eq!(loaded.ui.explorer_playable_only, Some(false));
+        assert_eq!(loaded.ui.navigation_panel_pin, settings.ui.navigation_panel_pin);
         assert_eq!(loaded.ui.skip_opening_seconds, Some(120));
         assert!(loaded.ui.visualizer_config.is_some());
         assert!(root

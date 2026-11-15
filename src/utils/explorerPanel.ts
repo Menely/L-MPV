@@ -1,9 +1,17 @@
 export type NavigationPanelTab = "playlist" | "explorer";
-export type ExplorerEntryKind = "directory" | "video" | "audio" | "subtitle" | "image" | "playlist";
+export type ExplorerEntryKind = "directory" | "video" | "audio" | "subtitle" | "image" | "playlist" | "file";
 export interface ExplorerEntry { name: string; path: string; kind: ExplorerEntryKind }
 export interface ExplorerDirectory { path: string; parent: string | null; entries: ExplorerEntry[] }
 
 const TAB_KEY = "l-mpv-navigation-panel-tab";
+export const EXPLORER_FILTER_KEY = "l-mpv-explorer-playable-only";
+export function savedExplorerFilter(): boolean {
+  try { return localStorage.getItem(EXPLORER_FILTER_KEY) !== "false"; }
+  catch { return true; }
+}
+export function isExplorerPlayable(entry: ExplorerEntry): boolean {
+  return ["directory", "video", "audio", "playlist"].includes(entry.kind);
+}
 export const DEFAULT_NAVIGATION_WIDTH = 480;
 export const MIN_NAVIGATION_WIDTH = 320;
 
@@ -27,7 +35,7 @@ export async function openExplorerFile(
   entry: ExplorerEntry, hasMedia: boolean, loadTracks: () => Promise<void>,
   invoke: (command: string, args: { path: string }) => Promise<unknown>,
 ): Promise<void> {
-  if (entry.kind === "directory") return;
+  if (entry.kind === "directory" || entry.kind === "file") return;
   if (entry.kind === "subtitle") {
     if (!hasMedia) throw new Error("EXPLORER_MEDIA_REQUIRED");
     await invoke("load_subtitle_file", { path: entry.path });

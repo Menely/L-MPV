@@ -81,14 +81,28 @@ export const en: TranslationDict = {
     movePanel: "Move panel vertically (Up/Down arrows)",
   },
   explorer: {
+    options: "File browser options",
+    playableOnly: "Playable files only",
     title: "File browser",
     search: "Search this folder…",
     parent: "Parent folder",
     pickFolder: "Choose folder…",
     loading: "Loading folder…",
-    empty: "No supported media in this folder",
+    empty: "No matching files in this folder",
     needMedia: "Open a media file before adding subtitles.",
     openError: "Could not open this file.",
+  },
+
+  savedPlaylist: {
+    newList: "New playlist",
+    dropUnsupported: "Drop video or audio files.",
+    dropBusy: "Wait for the current action to finish, then drop the files again.",
+    source: "Playlist source", currentFolder: "Current video's folder", create: "Create playlist", actions: "Playlist actions",
+    saveFolder: "Save as playlist…", rename: "Rename", delete: "Delete playlist", importList: "Import M3U8…", exportList: "Export M3U8…",
+    name: "Playlist name", save: "Save", cancel: "Cancel", deleteConfirm: "Delete this playlist? Media files will stay on disk.",
+    addFiles: "Add files…", mediaFiles: "Video and audio", moveUp: "Move up", moveDown: "Move down", remove: "Remove from playlist",
+    loading: "Loading playlists…", saving: "Saving…", empty: "This playlist is empty. Add video or audio files.", retry: "Retry save",
+    playHint: "Choose a file to play this list.", count: count => `${count} files`, error: error => `Playlist error: ${error}`,
   },
 
   // ─── Titlebar ──────────────────────────────────────────────────

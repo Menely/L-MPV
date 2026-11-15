@@ -248,6 +248,10 @@ impl PreviewCore {
         self.manager().get_property_double("time-pos")
     }
 
+    pub fn seeking(&self) -> Result<bool, String> {
+        self.manager().get_property_bool("seeking")
+    }
+
     pub fn frame_tolerance(&self) -> f64 {
         self.manager()
             .get_property_double("estimated-vf-fps")

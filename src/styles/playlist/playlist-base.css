@@ -15,7 +15,8 @@
   border-radius: var(--radius-controls, 16px);
   box-shadow: var(--shadow-elevated);
   isolation: isolate;
-  z-index: var(--z-card);
+  /* Above the titlebar's fade; pinned panels are clamped below its buttons. */
+  z-index: calc(var(--z-float, 1000) + 1);
   display: flex;
   flex-direction: column;
   overflow: hidden;

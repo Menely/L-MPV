@@ -3,7 +3,8 @@ const esbuild = require('esbuild');
 const compiled = esbuild.buildSync({entryPoints: ['src/hooks/usePinnedNavigationPanel.ts'], bundle: true, write: false,
   platform: 'node', format: 'cjs', external: ['react', '../utils/uiThemeUtils']}).outputFiles[0].text;
 
-function fixture() {
+function fixture(savedPin = null) {
+  const storage = new Map(savedPin === null ? [] : [['l-mpv-navigation-panel-pin', JSON.stringify(savedPin)]]);
   const hooks = [], listeners = new Map(), frames = new Map(), observers = [];
   let cursor = 0, effects = [], dirty = true, result, visible = true, scale = 1.5, frameId = 0, mounted = true, postUnmountWrites = 0;
   let panelRect = {top: 120, height: 300};
@@ -14,11 +15,12 @@ function fixture() {
   const bodyStyle = {cursor: 'default', userSelect: 'text'};
   const windowMock = {
     innerHeight: 900,
+    dispatchEvent(event) { for (const callback of [...listeners.get(event.type) ?? []]) callback(event); },
     addEventListener(name, callback) {if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name).add(callback);},
     removeEventListener(name, callback) {listeners.get(name)?.delete(callback);},
   };
   const react = {
-    useState(initial) {const i = cursor++; hooks[i] ??= {value: initial}; return [hooks[i].value, value => {
+    useState(initial) {const i = cursor++; hooks[i] ??= {value: typeof initial === 'function' ? initial() : initial}; return [hooks[i].value, value => {
       if (!mounted) postUnmountWrites++;
       const next = typeof value === 'function' ? value(hooks[i].value) : value;
       if (!Object.is(next, hooks[i].value)) {hooks[i].value = next; dirty = true;}
@@ -35,10 +37,11 @@ function fixture() {
     disconnect() {this.nodes.clear();}
   }
   const mod = {exports: {}};
-  new Function('module', 'exports', 'require', 'window', 'document', 'ResizeObserver', 'requestAnimationFrame', 'cancelAnimationFrame', compiled)(
+  new Function('module', 'exports', 'require', 'window', 'document', 'ResizeObserver', 'requestAnimationFrame', 'cancelAnimationFrame', 'localStorage', compiled)(
     mod, mod.exports, name => name === 'react' ? react : {getActiveUiScale: () => scale}, windowMock,
     {querySelector: () => controls, body: {style: bodyStyle}}, ResizeObserverMock,
     callback => {frames.set(++frameId, callback); return frameId;}, id => frames.delete(id),
+    {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value)},
   );
   const exports = mod.exports;
   function flush() {
@@ -54,7 +57,7 @@ function fixture() {
   const target = {setPointerCapture: id => capture.add(id), releasePointerCapture: id => capture.delete(id)};
   const pointer = (y, id = 1) => ({button: 0, clientY: y, pointerId: id, currentTarget: target, preventDefault() {}, stopPropagation() {}});
   flush();
-  return {get: () => result, exports, dispatch, pointer, capture, bodyStyle, frames, observers,
+  return {get: () => result, exports, dispatch, pointer, capture, bodyStyle, frames, observers, storage,
     flush, animate: () => {for (const [id, callback] of [...frames]) {frames.delete(id); callback();} flush();},
     resize: (height, top = controlsRect.top) => {windowMock.innerHeight = height; controlsRect = {...controlsRect, top}; dispatch('resize');},
     zoom: value => {scale = value; dispatch('l-mpv-ui-scale-changed');},
@@ -72,6 +75,11 @@ for (const scale of [1, 1.25, 1.5, 2]) {
   assert(g.top * scale >= 8 && (g.top + g.height) * scale <= 262);
 }
 assert.equal(f.get().pinned, false);
+const titlebarBound = fit({top: 0, height: 500}, 600, 550, 1, 54);
+assert(titlebarBound.top >= 54 && titlebarBound.top + titlebarBound.height <= 542, 'Pinned card cannot cover titlebar controls');
+const shortCard = fit({top: 300, height: 500}, 700, 650, 1, 54, 160);
+assert.equal(shortCard.top, 300, 'A short card can move down without being constrained by its former tall content');
+assert.equal(shortCard.height, 342, 'Height limit respects space below the pinned top');
 f.get().togglePinned(); f.flush();
 assert.deepEqual(f.get().geometry, {top: 80, height: 200}, 'Snapshot measured top and height divided by UI zoom');
 f.content(600);
@@ -94,9 +102,9 @@ f.get().onGripKeyDown({key: 'End', preventDefault() {}, stopPropagation() {}}); 
 assert.equal((f.get().geometry.top + f.get().geometry.height) * 1.5, 692);
 f.get().onGripPointerDown(f.pointer(300)); f.dispatch('pointermove', f.pointer(350));
 f.show(false);
-assert.equal(f.frames.size, 0, 'Close cancels pending drag rAF'); assert.equal(f.listenerCount(), 0);
+assert.equal(f.frames.size, 0, 'Close cancels pending drag rAF'); assert.equal(f.listenerCount(), 1, 'Only portable hydration subscription stays while closed');
 assert.equal(f.capture.size, 0); assert.deepEqual(f.bodyStyle, {cursor: 'default', userSelect: 'text'});
-f.get().onGripPointerDown(f.pointer(10)); assert.equal(f.listenerCount(), 0, 'Closing UI cannot start another drag');
+f.get().onGripPointerDown(f.pointer(10)); assert.equal(f.listenerCount(), 1, 'Closing UI cannot start another drag');
 f.show(true);
 f.get().onGripPointerDown(f.pointer(300)); f.dispatch('pointermove', f.pointer(320));
 f.unmount(); assert.equal(f.frames.size, 0); assert.equal(f.listenerCount(), 0);
@@ -105,5 +113,11 @@ assert.equal(f.postUnmountWrites(), 0); assert.equal(f.capture.size, 0);
 
 const unpin = fixture(); unpin.get().togglePinned(); unpin.flush(); unpin.get().togglePinned(); unpin.flush();
 assert.equal(unpin.get().geometry, null, 'Unpin removes all fixed geometry so normal CSS anchoring returns');
-assert.equal(unpin.listenerCount(), 0); unpin.unmount();
+assert.equal(unpin.listenerCount(), 1); assert.equal(unpin.storage.get('l-mpv-navigation-panel-pin'), 'null'); unpin.unmount();
+const restored = fixture({top: 90, height: 210});
+assert.deepEqual(restored.get().geometry, {top: 90, height: 210}, 'Cold restart restores pin dimensions');
+restored.get().onGripKeyDown({key: 'ArrowDown', preventDefault() {}, stopPropagation() {}}); restored.flush();
+assert.deepEqual(JSON.parse(restored.storage.get('l-mpv-navigation-panel-pin')), {top: 98, height: 210});
+restored.unmount();
+const invalid = fixture({top: -1, height: 'bad'}); assert.equal(invalid.get().pinned, false); invalid.unmount();
 console.log('PASS pinned panel snapshot, stable content height, scale/viewport/control clamps, drag/cancel/keyboard, unpin and close/unmount listener/rAF cleanup');

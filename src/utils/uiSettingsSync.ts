@@ -1,5 +1,7 @@
 import { isTimelinePreviewEnabled, setTimelinePreviewEnabled } from "./timelinePreviewPreference";
 import { getFavoriteModel, setFavoriteModel } from "./favoriteModel";
+import { EXPLORER_FILTER_KEY, savedExplorerFilter } from "./explorerPanel";
+import { parseNavigationPin, readNavigationPin, saveNavigationPin, NAVIGATION_PIN_EVENT } from "./navigationPanelPin";
 /**
  * Модуль двусторонней синхронизации визуальных настроек L-MPV с портативным файлом config/settings.json.
  * 
@@ -92,6 +94,8 @@ export interface UiSettings {
   show_track_names?: boolean;
   volume_indicator_enabled?: boolean;
   timeline_preview_enabled?: boolean;
+  explorer_playable_only?: boolean;
+  navigation_panel_pin?: { top: number; height: number } | null;
   volume_indicator_osd?: boolean;
   favorite_upscale_model?: string;
   playlist_width?: number;
@@ -250,6 +254,8 @@ export function collectCurrentUiSettings(): UiSettings {
     show_track_names: localStorage.getItem("l-mpv-show-track-names") !== "false",
     volume_indicator_enabled: isVolumeIndicatorEnabled(),
     timeline_preview_enabled: isTimelinePreviewEnabled(),
+    explorer_playable_only: savedExplorerFilter(),
+    navigation_panel_pin: readNavigationPin(),
     volume_indicator_osd: isVolumeOsdEnabled(),
     favorite_upscale_model: getFavoriteModel(),
     playlist_width: playlistWidth,
@@ -388,6 +394,15 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
   }
   if (typeof ui.timeline_preview_enabled === "boolean") {
     setTimelinePreviewEnabled(ui.timeline_preview_enabled);
+    restored = true;
+  }
+  if (typeof ui.explorer_playable_only === "boolean") {
+    localStorage.setItem(EXPLORER_FILTER_KEY, String(ui.explorer_playable_only));
+    restored = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(ui, "navigation_panel_pin")) {
+    saveNavigationPin(parseNavigationPin(ui.navigation_panel_pin), false);
+    window.dispatchEvent(new Event(NAVIGATION_PIN_EVENT));
     restored = true;
   }
   if (typeof ui.volume_indicator_osd === "boolean") {

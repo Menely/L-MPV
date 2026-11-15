@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Play, ArrowUp, Folder, FolderOpen, Clapperboard, FileAudio, FileImage, ListMusic, Subtitles, Search, X, RotateCw, Loader2 } from "lucide-react";
+import { Play, ArrowUp, Folder, FolderOpen, Clapperboard, FileAudio, FileImage, File, ListMusic, Subtitles, Search, X, RotateCw, Loader2, MoreHorizontal, Check, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
 import { useExplorerDirectory } from "../../hooks/useExplorerDirectory";
-import { openExplorerFile, isExplorerCurrentFile, type ExplorerEntry } from "../../utils/explorerPanel";
+import { useWatchHistory } from "../../hooks/useWatchHistory";
+import { LiveWatchProgressBar, WatchProgressBar } from "./WatchProgressBar";
+import { openExplorerFile, isExplorerCurrentFile, savedExplorerFilter, EXPLORER_FILTER_KEY, isExplorerPlayable, type ExplorerEntry } from "../../utils/explorerPanel";
 import { bindExplorerHistoryMouse } from "../../utils/explorerHistory";
 import { ExplorerPath } from "./ExplorerPath";
+import { NavigationPopover } from "./NavigationPopover";
 import "../../styles/explorer-panel.css";
 
 interface Props {
@@ -18,15 +21,26 @@ interface Props {
   initialPath?: string;
   onLocation: (path: string) => void;
 }
-const icons = { directory: Folder, video: Clapperboard, audio: FileAudio, subtitle: Subtitles, image: FileImage, playlist: ListMusic };
+const icons = { directory: Folder, video: Clapperboard, audio: FileAudio, subtitle: Subtitles, image: FileImage, playlist: ListMusic, file: File };
 
 export function ExplorerPanel({ active, panelActive = active, onRequestActivate, search, onSearch, initialPath, onLocation }: Props) {
   const { dict } = useTranslation();
   const text = dict.explorer;
   const { hasMedia, loadTracks, mediaInfo } = usePlayerState();
   const { directory, loading, error, load, refresh, pickFolder, back, forward, canGoBack, canGoForward } = useExplorerDirectory(active, initialPath, onLocation);
+  const videoPaths = useMemo(() => (directory?.entries ?? []).filter(entry => entry.kind === "video").map(entry => entry.path), [directory]);
+  const watchHistory = useWatchHistory(videoPaths, active, mediaInfo?.path ?? "");
   const [opening, setOpening] = useState<string | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
+  const [playableOnly, setPlayableOnly] = useState(savedExplorerFilter);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const optionsAnchor = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (!active) setOptionsOpen(false); }, [active]);
+  useEffect(() => {
+    const sync = () => setPlayableOnly(savedExplorerFilter());
+    window.addEventListener("l-mpv-settings-changed", sync);
+    return () => window.removeEventListener("l-mpv-settings-changed", sync);
+  }, []);
   const operation = useRef(0);
   const openingRef = useRef(false);
   const pendingDirection = useRef<-1 | 1 | null>(null);
@@ -62,8 +76,9 @@ export function ExplorerPanel({ active, panelActive = active, onRequestActivate,
   }, [active]);
   const entries = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return (directory?.entries ?? []).filter(entry => !query || entry.name.toLowerCase().includes(query));
-  }, [directory, search]);
+    return (directory?.entries ?? []).filter(entry => (!playableOnly || isExplorerPlayable(entry))
+      && (!query || entry.name.toLowerCase().includes(query)));
+  }, [directory, search, playableOnly]);
   const activate = async (entry: ExplorerEntry) => {
     setOpenError(null);
     if (entry.kind === "directory") { onSearch(""); void load(entry.path); return; }
@@ -88,6 +103,15 @@ export function ExplorerPanel({ active, panelActive = active, onRequestActivate,
         onClick={() => void pickFolder(text.pickFolder)}><FolderOpen size={16} /></button>
       <button type="button" className="playlist-drawer__action-btn" title={dict.playlist.refresh} aria-label={dict.playlist.refresh}
         disabled={loading} onClick={() => void refresh()}><RotateCw size={15} /></button>
+      <button ref={optionsAnchor} type="button" className="playlist-drawer__action-btn" aria-label={text.options}
+        title={text.options} aria-haspopup="menu" aria-expanded={optionsOpen} onClick={() => setOptionsOpen(value => !value)}><MoreHorizontal size={17} /></button>
+      {optionsOpen && <NavigationPopover anchor={optionsAnchor} label={text.options} onClose={() => setOptionsOpen(false)}>
+        <button type="button" role="menuitemcheckbox" aria-checked={playableOnly} onClick={() => {
+          const enabled = !playableOnly; setPlayableOnly(enabled);
+          try { localStorage.setItem(EXPLORER_FILTER_KEY, String(enabled)); } catch { /* Keep session choice. */ }
+          window.dispatchEvent(new Event("l-mpv-settings-changed"));
+        }}><Check size={15} style={{ opacity: playableOnly ? 1 : 0 }} /><span>{text.playableOnly}</span></button>
+      </NavigationPopover>}
     </div>
     <div className="playlist-drawer__search">
       <Search size={15} className="playlist-drawer__search-icon" />
@@ -101,12 +125,18 @@ export function ExplorerPanel({ active, panelActive = active, onRequestActivate,
       {!loading && !entries.length && !error && <p className="explorer-panel__message">{search ? dict.playlist.nothingFound : text.empty}</p>}
       {entries.map(entry => {
         const current = isExplorerCurrentFile(entry, mediaInfo?.path ?? "");
-        const Icon = current ? Play : icons[entry.kind];
+        const video = entry.kind === "video";
+        const percent = video ? watchHistory[entry.path]?.progress_percent ?? 0 : 0;
+        const Icon = current ? Play : percent >= 90 ? CheckCircle2 : icons[entry.kind];
         return <button key={entry.path} type="button" className="explorer-panel__entry" title={entry.name} aria-current={current ? "true" : undefined}
-          disabled={loading || opening !== null} onClick={() => void activate(entry)}>
-          <Icon size={17} fill={current ? "currentColor" : "none"} aria-hidden="true" className={`explorer-panel__entry-icon explorer-panel__entry-icon--${entry.kind}`} />
+          draggable={entry.kind === "video" || entry.kind === "audio"} onDragStart={event => {
+            event.dataTransfer.setData("application/x-lmpv-media-paths", JSON.stringify([entry.path])); event.dataTransfer.effectAllowed = "copy";
+          }}
+          disabled={loading || opening !== null || entry.kind === "file"} onClick={() => void activate(entry)}>
+          <Icon size={17} fill={current ? "currentColor" : "none"} aria-hidden="true" className={`explorer-panel__entry-icon explorer-panel__entry-icon--${entry.kind}${!current && percent >= 90 ? " playlist-item__watched-icon" : ""}`} />
           <span>{entry.name}</span>
           {opening === entry.path && <Loader2 size={15} className="spin-animation" />}
+          {video && (current && active ? <LiveWatchProgressBar fallback={percent} /> : <WatchProgressBar percent={percent} />)}
         </button>;
       })}
     </div>

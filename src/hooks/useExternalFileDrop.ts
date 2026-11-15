@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
 import { getActiveUiScale } from "../utils/uiThemeUtils";
 import { fileDragPreviewPosition, splitDraggedFileName } from "../utils/fileDragPreview";
+import { dispatchFileDrop, updateFileDropTarget } from "../utils/fileDropTargets";
 
 export function useExternalFileDrop(onFileDrop: (path: string) => void | Promise<void>) {
   const [preview, setPreview] = useState<{
@@ -47,6 +48,7 @@ export function useExternalFileDrop(onFileDrop: (path: string) => void | Promise
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
       if (!disposed) setPreview(null);
+      updateFileDropTarget();
     };
     const handleDrag = ({ payload }: { payload: DragDropEvent }) => {
       if (disposed) return;
@@ -55,13 +57,16 @@ export function useExternalFileDrop(onFileDrop: (path: string) => void | Promise
         if (!payload.paths.length) return;
         dragging = true;
         pointRef.current = payload.position;
+        updateFileDropTarget(payload.position);
         setPreview({ ...splitDraggedFileName(payload.paths[0]), count: payload.paths.length });
       } else if (payload.type === "over") {
         pointRef.current = payload.position;
+        updateFileDropTarget(payload.position);
         schedulePosition();
       } else {
         clear();
         if (payload.type === "drop" && payload.paths.length) {
+          if (dispatchFileDrop(payload.paths, payload.position)) return;
           void Promise.resolve().then(() => onDropRef.current(payload.paths[0]))
             .catch((error) => console.error("Ошибка обработки перетаскиваемого файла:", error));
         }
