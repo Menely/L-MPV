@@ -31,18 +31,3 @@
   background: var(--accent-text);
   box-shadow: 0 0 0 2px var(--bg-modal-solid);
 }
-/* Image from another moment than the cursor (storyboard tile, keyframe, catching-up exact frame). */
-.timeline-preview-card__approx {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  padding: 1px 5px;
-  border-radius: max(0px, calc(var(--radius-md) - 7px));
-  background: var(--bg-modal-solid);
-  color: var(--text-muted);
-  font-size: 10px;
-  line-height: 14px;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.9;
-  pointer-events: none;
-}

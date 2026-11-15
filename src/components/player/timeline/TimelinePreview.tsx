@@ -1,7 +1,7 @@
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
 import { useTimelineThumbnail } from "../../../hooks/useTimelineThumbnail";
-import { frameTolerance, supportsTimelineThumbnail, timelinePreviewLeft } from "../../../utils/timelineThumbnail";
+import { supportsTimelineThumbnail, timelinePreviewLeft } from "../../../utils/timelineThumbnail";
 import { getActiveUiScale } from "../../../utils/uiThemeUtils";
 import { formatTime } from "../../../utils/timeUtils";
 import type { TimelineSegmentData } from "../Timeline";
@@ -23,12 +23,7 @@ export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segmen
   const enabled = previewEnabled && supportsTimelineThumbnail(mediaPath, hasVideo);
   const frame = useTimelineThumbnail(mediaPath, videoTrack, hoverInfo.time, enabled, { fps, width: thumbnailWidth });
   const showFrame = enabled && !frame.failed;
-  // The label always names the cursor position; an image from another moment
-  // (storyboard tile, keyframe, an exact frame not caught up yet) is marked "≈".
   const displayedTime = hoverInfo.time;
-  const approximate = Boolean(frame.src) && frame.seconds !== null &&
-    (frame.kind !== "exact" || Math.abs(frame.seconds - hoverInfo.time) > frameTolerance(fps));
-  const approximateLabel = frame.kind === "grid" || frame.seconds === null ? "≈" : `≈ ${formatTime(frame.seconds)}`;
   const active = segments.find((s) => displayedTime >= s.start && displayedTime <= s.end) || segments[segments.length - 1];
   const showChapter = Boolean(active?.title && active.title !== mediaPath);
   const card = useRef<HTMLDivElement>(null);
@@ -79,7 +74,6 @@ export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segmen
       style={{ left: `${left}px`, transform: `translate(-50%, ${geometry.shiftY}px)` }}>
       {showFrame && <div className="timeline-preview-card__frame" aria-hidden="true">
         {frame.src ? <img src={frame.src} alt="" draggable={false} onError={frame.onImageError} /> : <ImageIcon size={22} />}
-        {approximate && <span className="timeline-preview-card__approx">{approximateLabel}</span>}
         {frame.pending && <span className="timeline-preview-card__loading" />}
       </div>}
       <div className="timeline-preview-card__time">{formatTime(displayedTime)}</div>
