@@ -136,10 +136,9 @@ jobs:
           Copy-Item "src-tauri/binaries/mediainfo.dll" -Destination "Portable-L-MPV/mediainfo.dll" -Force
 
           # Определение выбранных чекбоксами компонентов для отдельного обновления
-          $isTagPush = ("${{ github.event_name }}" -eq "push")
-          $includeFfmpeg = $isTagPush -or ("${{ github.event.inputs.include_ffmpeg }}" -eq "true")
-          $includeMediainfo = $isTagPush -or ("${{ github.event.inputs.include_mediainfo }}" -eq "true")
-          $includeLibmpv = $isTagPush -or ("${{ github.event.inputs.include_libmpv }}" -eq "true")
+          $includeFfmpeg = ("${{ github.event.inputs.include_ffmpeg }}" -eq "true")
+          $includeMediainfo = ("${{ github.event.inputs.include_mediainfo }}" -eq "true")
+          $includeLibmpv = ("${{ github.event.inputs.include_libmpv }}" -eq "true")
 
           # Верификация того, что скомпилированный l-mpv.exe содержит точный BLAKE3-хэш упакованного libmpv-2.dll
           Push-Location src-tauri
