@@ -1,5 +1,5 @@
 import React, {
-  useEffect, useState, useRef, useCallback, useMemo,
+  useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState, usePlayerProgress, PlaylistItem } from "../../contexts/PlayerStateContext";
@@ -7,8 +7,12 @@ import { useTranslation } from "../../i18n/LanguageContext";
 import { showOsd } from "../../hooks/useOsd";
 import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { getActiveUiScale } from "../../utils/uiThemeUtils";
-import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2 } from "lucide-react";
+import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2, Pin, GripVertical } from "lucide-react";
 import { EmptyState } from "../settings/components/SettingBlocks";
+import { ExplorerPanel } from "./ExplorerPanel";
+import { usePinnedNavigationPanel } from "../../hooks/usePinnedNavigationPanel";
+import "../../styles/navigation-panel-position.css";
+import { DEFAULT_NAVIGATION_WIDTH, MIN_NAVIGATION_WIDTH, savedNavigationWidth, savedNavigationTab, saveNavigationTab, type NavigationPanelTab } from "../../utils/explorerPanel";
 import {
   type ControlBarStyle,
   getSavedControlBarStyle,
@@ -93,33 +97,24 @@ function PlaylistProgressObserver({ onChange }: { onChange: (value: { duration: 
   return null;
 }
 
-const DEFAULT_PLAYLIST_WIDTH = 360;
+const DEFAULT_PLAYLIST_WIDTH = DEFAULT_NAVIGATION_WIDTH;
 const PLAYLIST_WIDTH_STORAGE_KEY = "l-mpv-playlist-width";
 
 /**
  * Безопасное получение сохранённой ширины окна плейлиста из localStorage.
- * При отсутствии или некорректном значении возвращает дефолтные 360px.
+ * При отсутствии или некорректном значении возвращает дефолтные 480px.
  */
-const getInitialPlaylistWidth = (): number => {
-  try {
-    const saved = localStorage.getItem(PLAYLIST_WIDTH_STORAGE_KEY);
-    if (saved) {
-      const parsed = parseInt(saved, 10);
-      if (!isNaN(parsed) && parsed>= DEFAULT_PLAYLIST_WIDTH) {
-        return parsed;
-      }
-    }
-  } catch (e) {
-    console.error("Ошибка чтения ширины плейлиста из localStorage:", e);
-  }
-  return DEFAULT_PLAYLIST_WIDTH;
-};
+const getInitialPlaylistWidth = savedNavigationWidth;
 
 export function PlaylistDrawer() {
   const { isPlaylistOpen, setIsPlaylistOpen, playlist, setPlaylist, refreshPlaylist } = usePlayerState();
   const { dict } = useTranslation();
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<NavigationPanelTab>(savedNavigationTab);
+  const [explorerSearch, setExplorerSearch] = useState("");
+  const [explorerPath, setExplorerPath] = useState<string>();
+  const changeTab = (tab: NavigationPanelTab) => { setActiveTab(tab); saveNavigationTab(tab); };
 
   useEffect(() => {
     const handleStyleChanged = () => {
@@ -215,12 +210,12 @@ export function PlaylistDrawer() {
       // Дельта от стартовой позиции мыши: влево увеличивает, вправо уменьшает
       const deltaX = (startX - moveEvent.clientX) / zoom;
       const effectiveMaxWidth = Math.max(
-        DEFAULT_PLAYLIST_WIDTH,
+        MIN_NAVIGATION_WIDTH,
         (window.innerWidth / zoom) - 28
       );
       const clampedWidth = Math.min(
         effectiveMaxWidth,
-        Math.max(DEFAULT_PLAYLIST_WIDTH, Math.round(startWidth + deltaX))
+        Math.max(MIN_NAVIGATION_WIDTH, Math.round(startWidth + deltaX))
       );
       latestWidth = clampedWidth;
 
@@ -264,7 +259,7 @@ export function PlaylistDrawer() {
   }, []);
 
   /**
-   * Сброс ширины плейлиста к заводским 360px при двойном клике по ручке изменения размера.
+   * Сброс ширины панели к заводским 480px при двойном клике по ручке изменения размера.
    */
   const handleResetWidth = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -364,12 +359,18 @@ export function PlaylistDrawer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
-  // viewHeight актуализируем при открытии/ресайзе дровера
-  useEffect(() => {
-    if (!isPlaylistOpen) return;
+  // Restore the virtual window's DOM scroll before paint when switching back.
+  useLayoutEffect(() => {
+    if (!isPlaylistOpen || activeTab !== "playlist") return;
     const el = contentContainerRef.current;
-    if (el) setViewHeight(el.clientHeight || 600);
-  }, [isPlaylistOpen, drawerWidth]);
+    if (el) {
+      el.scrollTop = scrollTop;
+      setScrollTop(el.scrollTop);
+      setViewHeight(el.clientHeight || 600);
+    }
+    // Scroll events already synchronize scrollTop; this effect restores remounted DOM.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaylistOpen, drawerWidth, activeTab]);
 
   // Мгновенный автоскролл к текущему воспроизводимому элементу при открытии панели или смене трека
   // currentFilteredPos Atkinson — позиция именно в отфильтрованном списке
@@ -397,7 +398,7 @@ export function PlaylistDrawer() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaylistOpen, currentItemIndex, playlist, searchQuery]);
+  }, [isPlaylistOpen, currentItemIndex, playlist, searchQuery, activeTab]);
 
   // Закрытие по Escape и клику вне панели
   useEffect(() => {
@@ -407,8 +408,10 @@ export function PlaylistDrawer() {
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
-        if (searchQuery) {
-          setSearchQuery("");
+        const currentSearch = activeTab === "playlist" ? searchQuery : explorerSearch;
+        if (currentSearch) {
+          if (activeTab === "playlist") setSearchQuery("");
+          else setExplorerSearch("");
         } else {
           handleClose();
         }
@@ -439,7 +442,7 @@ export function PlaylistDrawer() {
       window.removeEventListener("keydown", handleKeyDown, true);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isPlaylistOpen, handleClose, searchQuery]);
+  }, [isPlaylistOpen, handleClose, searchQuery, activeTab, explorerSearch]);
 
   const handlePlayItem = useCallback(
     async (index: number) => {
@@ -487,18 +490,24 @@ export function PlaylistDrawer() {
     return curIdx>= 0 ? `${curIdx + 1} / ${total}` : `${total}`;
   }, [playlist]);
 
+  const pinnedPanel = usePinnedNavigationPanel(drawerRef, isPlaylistOpen && shouldRender);
+
   if (!shouldRender) return null;
 
   return (
     <div
       ref={drawerRef}
-      className={`playlist-drawer ${isCapsule ? "playlist-drawer--capsule" : ""} ${isClosing ? "playlist-drawer--closing" : ""} ${
+      className={`playlist-drawer ${isCapsule ? "playlist-drawer--capsule" : ""} ${pinnedPanel.pinned ? "playlist-drawer--pinned" : ""} ${isClosing ? "playlist-drawer--closing" : ""} ${
         isResizing ? "playlist-drawer--resizing" : ""
       }`}
       style={{
         width: `${drawerWidth}px`,
         maxWidth: "calc(100% - 28px)",
-        minWidth: `min(${DEFAULT_PLAYLIST_WIDTH}px, calc(100% - 28px))`,
+        minWidth: `min(${MIN_NAVIGATION_WIDTH}px, calc(100% - 28px))`,
+        ...(pinnedPanel.geometry ? {
+          top: `${pinnedPanel.geometry.top}px`, height: `${pinnedPanel.geometry.height}px`,
+          bottom: "auto", maxHeight: "none",
+        } : {}),
       }}
       >
       <div
@@ -507,28 +516,38 @@ export function PlaylistDrawer() {
         onDoubleClick={handleResetWidth}
       />
       <div className="playlist-drawer__header">
-        <div className="playlist-drawer__header-left">
-          <h2 className="playlist-drawer__title">{dict.playlist.title}</h2>
-          {countBadge && (
-            <span
-              className="playlist-drawer__badge"
-              title={dict.playlist.trackBadge(
-                playlist.findIndex((i) => i.current) + 1,
-                playlist.length
-              )}
-              >
-              {countBadge}
-            </span>
-          )}
-        </div>
+      <div className="playlist-drawer__header-left navigation-panel__tabs" role="tablist" aria-label={dict.playlist.tabsLabel}>
+        {(["playlist", "explorer"] as const).map(tab => <button key={tab} type="button" role="tab"
+          id={`navigation-tab-${tab}`} aria-selected={activeTab === tab} aria-controls={`navigation-${tab}`}
+          tabIndex={activeTab === tab ? 0 : -1} className="navigation-panel__tab"
+          onClick={() => changeTab(tab)} onKeyDown={event => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+            event.preventDefault(); event.stopPropagation();
+            const next = event.key === "Home" ? "playlist" : event.key === "End" ? "explorer" : tab === "playlist" ? "explorer" : "playlist";
+            changeTab(next);
+            event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`#navigation-tab-${next}`)?.focus();
+          }}><span>{tab === "playlist" ? dict.playlist.title : dict.explorer.title}</span>
+            {tab === "playlist" && countBadge && <span className="playlist-drawer__badge" aria-hidden="true">{countBadge}</span>}
+          </button>)}
+      </div>
         <div className="playlist-drawer__header-actions">
-          <button
+          {activeTab === "playlist" && <button
             type="button"
             className={`playlist-drawer__action-btn ${isRefreshing ? "playlist-drawer__action-btn--spinning" : ""}`}
             onClick={handleRefresh}
             aria-label={dict.playlist.refresh}
             >
             <RotateCw size={15} />
+          </button>}
+          {pinnedPanel.pinned && <button id="navigation-panel-drag" type="button" className="playlist-drawer__action-btn navigation-panel__grip"
+            aria-label={dict.playlist.movePanel} title={dict.playlist.movePanel}
+            onPointerDown={pinnedPanel.onGripPointerDown} onKeyDown={pinnedPanel.onGripKeyDown}>
+            <GripVertical size={15} />
+          </button>}
+          <button id="navigation-panel-pin" type="button" className="playlist-drawer__action-btn navigation-panel__pin"
+            aria-pressed={pinnedPanel.pinned} aria-label={pinnedPanel.pinned ? dict.playlist.unpin : dict.playlist.pin}
+            title={pinnedPanel.pinned ? dict.playlist.unpin : dict.playlist.pin} onClick={pinnedPanel.togglePinned}>
+            <Pin size={15} />
           </button>
           <button
             type="button"
@@ -542,6 +561,13 @@ export function PlaylistDrawer() {
         </div>
       </div>
 
+      <div className="navigation-panel__explorer-host" hidden={activeTab !== "explorer"}
+        style={activeTab !== "explorer" ? { display: "none" } : undefined} aria-hidden={activeTab !== "explorer"}>
+        <ExplorerPanel active={isPlaylistOpen && activeTab === "explorer"} panelActive={isPlaylistOpen}
+          onRequestActivate={() => changeTab("explorer")} search={explorerSearch} onSearch={setExplorerSearch}
+          initialPath={explorerPath} onLocation={setExplorerPath} />
+      </div>
+      {activeTab === "playlist" && <>
       <div className="playlist-drawer__search">
         <Search size={15} className="playlist-drawer__search-icon" />
         <input
@@ -575,7 +601,8 @@ export function PlaylistDrawer() {
       </div>
 
       {isPlaylistOpen && <PlaylistProgressObserver onChange={setLiveProgress} />}
-      <div ref={contentContainerRef} className="playlist-drawer__content" onScroll={handleListScroll}>
+      <div ref={contentContainerRef} className="playlist-drawer__content" onScroll={handleListScroll}
+        id="navigation-playlist" role="tabpanel" aria-labelledby="navigation-tab-playlist">
         {filteredPlaylist.length === 0 ? (
           <EmptyState
             icon={<Clapperboard size={24} />}
@@ -630,6 +657,7 @@ export function PlaylistDrawer() {
           );
         })()}
       </div>
+      </>}
     </div>
   );
 }

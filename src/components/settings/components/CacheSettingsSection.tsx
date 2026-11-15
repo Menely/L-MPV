@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatCacheSize, cachedCacheUsage, loadCacheUsage, clearCacheUsage, type CacheUsage } from "../lib/cacheUsage";
 import { CacheUsageChart } from "./CacheUsageChart";
@@ -23,7 +24,7 @@ const labels = {
     shaders: "Shaders", icc: "Colour profiles", browser: "WebView cache", other: "Library verification and other cache"
   },
 };
-export function CacheSettingsSection({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+export function CacheSettingsSection({ open, onToggle, folderAction }: { open: boolean; onToggle: () => void; folderAction?: ReactNode }) {
   const { locale } = useTranslation();
   const text = labels[locale];
   const [rows, setRows] = useState<CacheUsage[]>(cachedCacheUsage);
@@ -85,6 +86,7 @@ export function CacheSettingsSection({ open, onToggle }: { open: boolean; onTogg
         <button type="button" disabled={busy || !rows.length} className="system-cache-tool system-cache-tool--clear" onClick={() => void load(true)}>
           <Trash2 size={13} />{text.clearAll}
         </button>
+        {folderAction}
       </>} />
     {message && <p role="status" className="system-settings__description">{message}</p>}
   </AccordionSection>;

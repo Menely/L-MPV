@@ -12,6 +12,8 @@
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   padding: 0 !important;
   display: flex !important;
   flex-direction: column !important;
@@ -20,6 +22,12 @@
 }
 
 /* Шапка плейлиста в капсульном стиле: прозрачная строка между островками */
+.playlist-drawer--capsule :is(.playlist-drawer__header-left, .playlist-drawer__header-actions,
+  .playlist-drawer__search, .explorer-panel__toolbar, .explorer-panel__entries) {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
 .playlist-drawer--capsule .playlist-drawer__header {
   position: relative;
   z-index: 2;

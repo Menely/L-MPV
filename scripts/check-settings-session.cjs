@@ -59,6 +59,7 @@ const React = {
   },
   useRef: initial => ({ current: initial }),
   useCallback: callback => callback,
+  useMemo: factory => factory(),
   useEffect: effect => effects.push(effect),
   createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
 };
