@@ -368,6 +368,8 @@ export function HotkeysSettingsTab({
         >
         <span>{dict.settings.hotkeys.helpText}</span>
         <button
+          title={dict.settings.hotkeys.btnReset}
+          aria-label={dict.settings.hotkeys.btnReset}
           onClick={() => {
             resetCustomHotkeys();
             setCustomHotkeys(getCustomHotkeys());
@@ -386,7 +388,7 @@ export function HotkeysSettingsTab({
             flexShrink: 0,
           }}
           >
-          <RotateCcw size={14} /> {dict.settings.hotkeys.btnReset}
+          <RotateCcw size={14} aria-hidden="true" />
         </button>
       </div>
 
