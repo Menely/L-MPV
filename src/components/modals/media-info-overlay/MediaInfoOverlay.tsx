@@ -85,10 +85,11 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
 
   const isCapsule = controlBarStyle === "capsule";
 
-  // Вычисление битрейта видеопотока и плавной истории замеров для графика Sparkline
+  // Вычисление точного битрейта видеопотока и истории замеров по времени кадра (position)
   const { bitrate: currentVideoBitrate, history: bitrateHistory } = useVideoBitrate({
     liveState,
     mediaInfo,
+    position,
   });
 
   // Замер системных показателей и рендеринга (только когда активна вкладка 2)

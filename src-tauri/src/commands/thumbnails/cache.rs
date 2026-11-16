@@ -10,7 +10,8 @@ use std::{
 pub(super) const MAX_JPEG_BYTES: usize = 512 * 1024;
 const MEMORY_BYTES: usize = 4 * 1024 * 1024;
 const MEMORY_ENTRIES: usize = 64;
-const DISK_BYTES: u64 = 64 * 1024 * 1024;
+const DISK_BYTES: u64 = 256 * 1024 * 1024;
+const DISK_FILES: usize = 10_000;
 
 pub(super) fn valid_jpeg(bytes: &[u8]) -> bool {
     bytes.len() > 4
@@ -181,45 +182,61 @@ pub(super) fn touch(path: &Path) {
     }
 }
 
-pub(super) fn prune_disk(dir: &Path) {
-    let Ok(files) = fs::read_dir(dir) else {
-        return;
-    };
-    let roots: Vec<PathBuf> = files
-        .flatten()
-        .filter_map(|entry| {
-            entry
-                .file_type()
-                .ok()
-                .filter(|kind| kind.is_dir() && !kind.is_symlink())
-                .map(|_| entry.path())
-        })
-        .collect();
-    let entries = std::iter::once(dir.to_owned())
-        .chain(roots.iter().cloned())
-        .flat_map(|root| fs::read_dir(root).into_iter().flatten().flatten());
-    let mut files: Vec<(PathBuf, u64, std::time::SystemTime)> = entries
-        .filter_map(|entry| {
+/// Проверка, является ли запись файловой системы ссылкой или точкой повторной обработки (reparse point).
+fn is_linked_entry(meta: &fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        meta.file_attributes() & 0x400 != 0
+    }
+    #[cfg(not(windows))]
+    {
+        meta.file_type().is_symlink()
+    }
+}
+
+/// Рекурсивный сбор всех файлов кеша (`.jpg` и `.lmsb`) и списка подпапок на любую глубину вложенности.
+fn collect_disk_cache_entries(
+    root_dir: &Path,
+) -> (Vec<(PathBuf, u64, std::time::SystemTime)>, Vec<PathBuf>) {
+    let mut files = Vec::new();
+    let mut subdirs = Vec::new();
+    let mut pending_dirs = vec![root_dir.to_path_buf()];
+
+    while let Some(current_dir) = pending_dirs.pop() {
+        let Ok(entries) = fs::read_dir(&current_dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
             let path = entry.path();
-            // Кадры и файлы раскадровки делят один лимит кеша.
-            if !matches!(path.extension()?.to_str()?, "jpg" | "lmsb") {
-                return None;
+            let Ok(meta) = fs::symlink_metadata(&path) else {
+                continue;
+            };
+            if is_linked_entry(&meta) {
+                continue;
             }
-            if !entry.file_type().ok()?.is_file() {
-                return None;
+            if meta.is_dir() {
+                subdirs.push(path.clone());
+                pending_dirs.push(path);
+            } else if meta.is_file()
+                && matches!(path.extension().and_then(|e| e.to_str()), Some("jpg" | "lmsb"))
+            {
+                files.push((path, meta.len(), meta.modified().unwrap_or(UNIX_EPOCH)));
             }
-            let meta = entry.metadata().ok()?;
-            if !meta.is_file() {
-                return None;
-            }
-            Some((path, meta.len(), meta.modified().unwrap_or(UNIX_EPOCH)))
-        })
-        .collect();
+        }
+    }
+
+    (files, subdirs)
+}
+
+/// Очистка дискового кеша предпросмотра с учётом всех подпапок видео по общим лимитам объёма и числа файлов.
+pub(super) fn prune_disk(dir: &Path) {
+    let (mut files, subdirs) = collect_disk_cache_entries(dir);
     let mut bytes: u64 = files.iter().map(|entry| entry.1).sum();
     let mut count = files.len();
     files.sort_by_key(|entry| entry.2);
     for (path, size, _) in files {
-        if bytes <= DISK_BYTES && count <= 1024 {
+        if bytes <= DISK_BYTES && count <= DISK_FILES {
             break;
         }
         if fs::remove_file(path).is_ok() {
@@ -227,8 +244,9 @@ pub(super) fn prune_disk(dir: &Path) {
             count -= 1;
         }
     }
-    for root in roots {
-        let _ = fs::remove_dir(root);
+    // Удаляем опустевшие подпапки снизу вверх от глубоких к верхним.
+    for subdir in subdirs.into_iter().rev() {
+        let _ = fs::remove_dir(subdir);
     }
 }
 
@@ -320,29 +338,45 @@ mod tests {
         fs::write(video_dir.join("huge.jpg"), vec![0; 1024]).unwrap();
         fs::write(dir.join("bad.jpg"), b"interrupted").unwrap();
         assert!(FrameCache::read_disk(&dir, "bad", (320, 180)).is_none());
-        let huge = fs::File::create(dir.join("oversized.jpg")).unwrap();
+        let huge_dir = dir.join("video-huge-old");
+        fs::create_dir_all(&huge_dir).unwrap();
+        let huge = fs::File::create(huge_dir.join("oversized.jpg")).unwrap();
         huge.set_len(DISK_BYTES + 1).unwrap();
         drop(huge);
         prune_disk(&dir);
-        let bytes: u64 = fs::read_dir(&dir)
-            .unwrap()
-            .flatten()
-            .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "jpg"))
-            .map(|entry| entry.metadata().unwrap().len())
-            .sum();
-        assert!(bytes <= DISK_BYTES);
-        fs::create_dir_all(&video_dir).unwrap();
-        for i in 0..1030 {
-            fs::write(video_dir.join(format!("{i}.jpg")), b"x").unwrap();
+        let (remaining_files, _) = collect_disk_cache_entries(&dir);
+        let remaining_bytes: u64 = remaining_files.iter().map(|entry| entry.1).sum();
+        assert!(remaining_bytes <= DISK_BYTES);
+        assert!(!huge_dir.exists());
+
+        // Проверяем подсчёт файлов во всех подпапках (включая вложенные) по общему лимиту DISK_FILES.
+        let nested_sub = video_dir.join("nested-part");
+        let second_video_dir = dir.join("video-second-title");
+        fs::create_dir_all(&nested_sub).unwrap();
+        fs::create_dir_all(&second_video_dir).unwrap();
+        let old_file_time =
+            std::time::SystemTime::now() - std::time::Duration::from_secs(300);
+        for i in 0..(DISK_FILES + 25) {
+            let target_dir = if i < 20 {
+                &nested_sub
+            } else if i % 2 == 0 {
+                &video_dir
+            } else {
+                &second_video_dir
+            };
+            let p = target_dir.join(format!("{i}.jpg"));
+            fs::write(&p, b"x").unwrap();
+            if i < 25 {
+                let f = fs::OpenOptions::new().write(true).open(&p).unwrap();
+                f.set_times(fs::FileTimes::new().set_modified(old_file_time))
+                    .unwrap();
+            }
         }
         prune_disk(&dir);
-        let nested_count = fs::read_dir(&video_dir).unwrap().count();
-        let root_count = fs::read_dir(&dir)
-            .unwrap()
-            .flatten()
-            .filter(|e| e.path().extension().is_some_and(|x| x == "jpg"))
-            .count();
-        assert!(nested_count + root_count <= 1024);
+        let (after_prune, _) = collect_disk_cache_entries(&dir);
+        assert!(after_prune.len() <= DISK_FILES);
+        assert_eq!(after_prune.len(), DISK_FILES);
+        assert!(!nested_sub.exists());
 
         fs::remove_dir_all(dir).unwrap();
     }

@@ -12,6 +12,7 @@ import { TimelinePreview } from "./timeline/TimelinePreview";
 import { useNeonPulse } from "./useNeonPulse";
 import { isMotionAllowed } from "../../utils/animationUtils";
 import { getSavedSeekStepSeconds, triggerSeekIndicator } from "../../utils/seekUtils";
+import { timelineScrubSync } from "../../utils/timelineScrubSync";
 
 export interface TimelineSegmentData {
   start: number;
@@ -73,12 +74,6 @@ function tryRelease(el: Element, pointerId: number): void {
   try {
     if (el.hasPointerCapture(pointerId)) el.releasePointerCapture(pointerId);
   } catch { /* noop */ }
-}
-
-/** Конвертация clientX в позицию [0, duration] без layout thrashing. */
-function clientXToSeconds(clientX: number, rect: DOMRect, duration: number): number {
-  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-  return rect.width> 0 ? (x / rect.width) * duration : 0;
 }
 
 /** Конвертация clientX в ratio [0, 1]. */
@@ -236,6 +231,7 @@ export const Timeline = React.memo(() => {
     const time = ratio * safeDuration;
     if (p.drag) {
       setMousePosition(time);
+      timelineScrubSync.update(time, ratio, safeDuration);
       // Во время перетаскивания используем быстрые ключевые кадры (exact=false),
       // чтобы не перегружать декодер на паузе, и игнорируем микро-сдвиги (< 3px) при обычном клике.
       const movedDistance = dragStartXRef.current !== null ? Math.abs(p.x - dragStartXRef.current) : 999;
@@ -265,8 +261,11 @@ export const Timeline = React.memo(() => {
       if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
       cachedRectRef.current = null;
       cancelScrub();
-      if (isDragging.current && wasPlayingRef.current) {
-        setPause(false);
+      if (isDragging.current) {
+        timelineScrubSync.cancel();
+        if (wasPlayingRef.current) {
+          setPause(false);
+        }
       }
       isDragging.current = false;
     };
@@ -297,6 +296,7 @@ export const Timeline = React.memo(() => {
 
     const ratio = clientXToRatio(e.clientX, rect);
     const time = ratio * safeDuration;
+    timelineScrubSync.update(time, ratio, safeDuration);
 
     // При выключенных анимациях волну не запускаем: без animationEnd
     // страховка всё равно уберёт её через 600мс, но лучше не создавать DOM.
@@ -339,13 +339,16 @@ export const Timeline = React.memo(() => {
 
     if (commit) {
       if (rect.width <= 0 || safeDuration <= 0) {
+        timelineScrubSync.cancel();
         setMousePosition(null);
         if (shouldResume) {
           setPause(false);
         }
         return;
       }
-      const finalPos = clientXToSeconds(e.clientX, rect, safeDuration);
+      const finalRatio = clientXToRatio(e.clientX, rect);
+      const finalPos = finalRatio * safeDuration;
+      timelineScrubSync.commit(finalPos, finalRatio, safeDuration);
       setMousePosition(null);
       // Единственный точный сик за жест; превью драга — лёгкие keyframes.
       seekTo(finalPos);
@@ -357,6 +360,7 @@ export const Timeline = React.memo(() => {
       if (outside) setHoverInfo(null);
     } else {
       // cancel: откатываем без seek
+      timelineScrubSync.cancel();
       setMousePosition(null);
     }
 

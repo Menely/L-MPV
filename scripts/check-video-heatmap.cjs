@@ -7,11 +7,12 @@ import {resolveHeatmapHoverMetrics} from './src/components/player/heatmap/heatma
 import {WaveformMemoryCache} from './src/components/player/heatmap/waveformPalette';
 import {renderWaveformToCanvas} from './src/components/player/heatmap/waveformDrawer';
 import {DEFAULT_HEATMAP_CONFIG,getHeatmapConfig,normalizeHeatmapConfig} from './src/components/player/heatmap/heatmapTypes';
-export {aggregateVideoBitrate,prepareVideoDisplay,prepareAudioDisplay,getHeatmapColumnCount,createHeatmapDisplayCache,resolveHeatmapHoverMetrics,WaveformMemoryCache,renderWaveformToCanvas,DEFAULT_HEATMAP_CONFIG,getHeatmapConfig,normalizeHeatmapConfig};
+import {TimelineScrubBus,resolveWaveformRenderPosition} from './src/utils/timelineScrubSync';
+export {aggregateVideoBitrate,prepareVideoDisplay,prepareAudioDisplay,getHeatmapColumnCount,createHeatmapDisplayCache,resolveHeatmapHoverMetrics,WaveformMemoryCache,renderWaveformToCanvas,DEFAULT_HEATMAP_CONFIG,getHeatmapConfig,normalizeHeatmapConfig,TimelineScrubBus,resolveWaveformRenderPosition};
 ` }, bundle: true, write: false, platform: 'node', format: 'cjs' });
 const compiled = {exports:{}};
 new Function('module','exports','require',result.outputFiles[0].text)(compiled,compiled.exports,require);
-const {aggregateVideoBitrate,prepareVideoDisplay,prepareAudioDisplay,getHeatmapColumnCount,createHeatmapDisplayCache,resolveHeatmapHoverMetrics,WaveformMemoryCache,renderWaveformToCanvas,DEFAULT_HEATMAP_CONFIG,getHeatmapConfig,normalizeHeatmapConfig}=compiled.exports;
+const {aggregateVideoBitrate,prepareVideoDisplay,prepareAudioDisplay,getHeatmapColumnCount,createHeatmapDisplayCache,resolveHeatmapHoverMetrics,WaveformMemoryCache,renderWaveformToCanvas,DEFAULT_HEATMAP_CONFIG,getHeatmapConfig,normalizeHeatmapConfig,TimelineScrubBus,resolveWaveformRenderPosition}=compiled.exports;
 const profile = (rates, duration=rates.length) => ({media_path:'test.mkv',stream_mode:'video_bitrate',track_idx:null,external_track_path:null,duration_sec:duration,step_duration_sec:1,start_time_offset:0,generation_id:1,visual_bins:rates.map(()=>0),metrics:{type:'video_bitrate',payload:{bitrate_kbps:rates,packet_counts:rates.map(()=>24)}}});
 
 assert(Math.abs(aggregateVideoBitrate(profile([100,300],1.5),2,1.5)[0]-500/3)<1e-8,'Partial interval is duration weighted');
@@ -58,7 +59,34 @@ assert(!('bitrateScale' in normalized)&&!('showCrestLine' in normalized),'Retire
 assert.equal(normalizeHeatmapConfig({style:'mirrored'}).style,'steps','Retired mirrored setting migrates to its replacement');
 for(const height of [16,24,36])assert.equal(normalizeHeatmapConfig({height,_schemaVersion:3}).height,height);
 const oldCached=cached(long,1920,7200);cached(null,0,0);assert.notStrictEqual(oldCached,cached(long,1920,7200),'Clear releases retained preparation');
-console.log('PASS balanced aggregation, partial intervals, display density/cache release, hover timing, memory budget, single-bin spline, defaults and retired config fields');
+
+// Проверка синхронизации скраббинга таймлайна и тепловой карты
+const scrubBus = new TimelineScrubBus();
+const scrubEvents = [];
+const unsub = scrubBus.subscribe((s) => scrubEvents.push(s));
+assert.deepEqual(resolveWaveformRenderPosition(12, 100, scrubBus.getSnapshot()), { position: 12, duration: 100 });
+scrubBus.update(45, 0.45, 100);
+assert.equal(scrubEvents.length, 1);
+assert.equal(scrubBus.getSnapshot().active, true);
+assert.deepEqual(resolveWaveformRenderPosition(12, 100, scrubBus.getSnapshot()), { position: 45, duration: 100 });
+// Совпадение по ratio при небольшом расхождении длительностей
+assert.deepEqual(resolveWaveformRenderPosition(12, 100.5, scrubBus.getSnapshot()), { position: 0.45 * 100.5, duration: 100.5 });
+// Фиксация цели после отпускания мыши (удержание до подтверждения React / TTL)
+scrubBus.commit(72, 0.72, 100, 1000);
+assert.equal(scrubBus.getSnapshot().active, false);
+assert.equal(scrubBus.getSnapshot().committed, true);
+assert.deepEqual(resolveWaveformRenderPosition(12, 100, scrubBus.getSnapshot(), 1050), { position: 72, duration: 100 });
+assert.deepEqual(resolveWaveformRenderPosition(12, 100, scrubBus.getSnapshot(), 1300), { position: 12, duration: 100 });
+scrubBus.acknowledgeCommit();
+assert.equal(scrubBus.getSnapshot().committed, false);
+assert.deepEqual(resolveWaveformRenderPosition(72, 100, scrubBus.getSnapshot(), 1050), { position: 72, duration: 100 });
+// Отмена перетаскивания сразу сбрасывает оверрайд
+scrubBus.update(30, 0.3, 100);
+scrubBus.cancel();
+assert.deepEqual(resolveWaveformRenderPosition(12, 100, scrubBus.getSnapshot()), { position: 12, duration: 100 });
+unsub();
+
+console.log('PASS balanced aggregation, partial intervals, display density/cache release, hover timing, memory budget, single-bin spline, defaults and retired config fields, timeline scrub sync');
 
 // Load the real menu module twice against the same portable file and local cache.
 // This catches migrations that appear successful but reverse after restarting.

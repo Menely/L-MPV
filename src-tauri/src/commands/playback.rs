@@ -766,10 +766,14 @@ pub(crate) fn resolve_bit_depth(
 #[tauri::command]
 pub fn get_media_info(
     state: State<'_, PlayerState>,
+    live_bitrate: State<'_, crate::commands::LiveVideoBitrateService>,
 ) -> Result<MediaInfo, String> {
     let mpv = &state.mpv;
     let current_path =
         mpv.get_property_string("path").unwrap_or_default();
+    let position = mpv
+        .get_property_double("time-pos")
+        .unwrap_or(0.0);
     // Размеры окна можно использовать только после того, как проверяемые
     // свойства относятся к тому же файлу, что и текущий путь.
     let output_status = mpv.video_output_status_for(&current_path);
@@ -817,11 +821,9 @@ pub fn get_media_info(
         resolve_bit_depth(&plane_depth_str, &[&pixel_format, &hw_pixel_format]);
 
     Ok(MediaInfo {
-        path: current_path,
+        path: current_path.clone(),
         duration,
-        position: mpv
-            .get_property_double("time-pos")
-            .unwrap_or(0.0),
+        position,
         frame: mpv
             .get_property_double("estimated-frame-number")
             .unwrap_or(0.0) as i64,
@@ -872,17 +874,25 @@ pub fn get_media_info(
             }
         },
         video_bitrate: {
-            let vb = mpv
-                .get_property_double("video-bitrate")
-                .unwrap_or(0.0);
-            if vb > 0.0 {
-                vb
-            } else {
-                mpv.get_property_double(
-                    "packet-video-bitrate",
-                )
-                .unwrap_or(0.0)
-            }
+            let current_vid = mpv
+                .get_property_string("vid")
+                .ok()
+                .and_then(|s| s.trim().parse::<i64>().ok());
+            live_bitrate
+                .peek_cached_bitrate(&current_path, current_vid, position)
+                .unwrap_or_else(|| {
+                    let vb = mpv
+                        .get_property_double("video-bitrate")
+                        .unwrap_or(0.0);
+                    if vb > 0.0 {
+                        vb
+                    } else {
+                        mpv.get_property_double(
+                            "packet-video-bitrate",
+                        )
+                        .unwrap_or(0.0)
+                    }
+                })
         },
         total_bitrate,
         hdr_info,
@@ -901,8 +911,18 @@ pub fn get_media_info(
 #[tauri::command]
 pub fn get_playback_state(
     state: State<'_, PlayerState>,
+    live_bitrate: State<'_, crate::commands::LiveVideoBitrateService>,
 ) -> Result<PlaybackState, String> {
-    state.mpv.get_playback_state_snapshot()
+    let mut snapshot = state.mpv.get_playback_state_snapshot()?;
+    let current_vid = snapshot.current_vid.trim().parse::<i64>().ok();
+    if let Some(exact_bps) = live_bitrate.peek_cached_bitrate(
+        &snapshot.path,
+        current_vid,
+        snapshot.position,
+    ) {
+        snapshot.video_bitrate = exact_bps;
+    }
+    Ok(snapshot)
 }
 
 /// Получение фактических размеров сконфигурированного видеовыхода.

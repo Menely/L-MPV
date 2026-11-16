@@ -10,6 +10,7 @@
 
 pub mod audio;
 pub mod cache;
+pub mod live_bitrate;
 pub mod manager;
 pub mod types;
 pub mod video_bitrate;
@@ -18,6 +19,7 @@ pub mod video_profile;
 
 pub use audio::stream_audio_heatmap;
 pub use cache::{calculate_file_cache_key, resolve_waveform_cache_path, save_cache_atomically};
+pub use live_bitrate::*;
 pub use manager::HeatmapTaskManager;
 pub use types::HeatmapDataResponse;
 pub use video_bitrate::stream_video_bitrate_heatmap;
@@ -63,9 +65,19 @@ pub fn resolve_ffmpeg_path() -> PathBuf {
         return dev_bin;
     }
 
+    let local_binaries = PathBuf::from("binaries/ffmpeg.exe");
+    if local_binaries.exists() {
+        return local_binaries;
+    }
+
     let portable_bin = PathBuf::from("Portable-L-MPV/ffmpeg.exe");
     if portable_bin.exists() {
         return portable_bin;
+    }
+
+    let parent_portable_bin = PathBuf::from("../Portable-L-MPV/ffmpeg.exe");
+    if parent_portable_bin.exists() {
+        return parent_portable_bin;
     }
 
     if Path::new("ffmpeg.exe").exists() {
