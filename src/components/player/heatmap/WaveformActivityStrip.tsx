@@ -20,6 +20,11 @@ import { useTranslation } from "../../../i18n/LanguageContext";
 import { createHeatmapDisplayCache } from "./heatmapDisplay";
 import { getVisualizerConfig } from "../AudioVisualizer";
 import {
+  timelineScrubSync,
+  TimelineScrubState,
+  resolveWaveformRenderPosition,
+} from "../../../utils/timelineScrubSync";
+import {
   resolveHeatmapHoverMetrics,
   HeatmapHoverMetrics,
 } from "./heatmapHoverUtils";
@@ -100,6 +105,9 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
     return cfg.enabled && cfg.placement === "above_timeline";
   });
   const [isSelfHovered, setIsSelfHovered] = useState<boolean>(false);
+  const [isTimelineScrubbing, setIsTimelineScrubbing] = useState<boolean>(
+    () => timelineScrubSync.getSnapshot().active
+  );
   const [isHoldingVisibility, setIsHoldingVisibility] = useState<boolean>(false);
   const [hoverRatio, setHoverRatio] = useState<number | null>(null);
   const [retryCount, setRetryCount] = useState<number>(0);
@@ -316,7 +324,7 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
 
   // Плавное удержание видимости с задержкой 400мс при переходе курсора между таймлайном и парящей картой
   useEffect(() => {
-    if (isTimelineHovered || isSelfHovered) {
+    if (isTimelineHovered || isSelfHovered || isTimelineScrubbing) {
       if (hideTimerRef.current) {
         clearTimeout(hideTimerRef.current);
         hideTimerRef.current = null;
@@ -332,11 +340,11 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
         clearTimeout(hideTimerRef.current);
       }
     };
-  }, [isTimelineHovered, isSelfHovered]);
+  }, [isTimelineHovered, isSelfHovered, isTimelineScrubbing]);
 
   const isVisible = isAboveTimeline
     ? true
-    : Boolean(isTimelineHovered || isSelfHovered || isHoldingVisibility);
+    : Boolean(isTimelineHovered || isSelfHovered || isHoldingVisibility || isTimelineScrubbing);
   const isAboveVisualizer =
     !isAboveTimeline && (visualizerPlacement === "above_timeline" || isVisualizerAbove);
 
@@ -375,6 +383,7 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
   configRef.current = heatmapConfig;
   const isVisibleRef = useRef(isVisible);
   isVisibleRef.current = isVisible;
+  const scrubStateRef = useRef<TimelineScrubState>(timelineScrubSync.getSnapshot());
 
   // 3. Высокопроизводительная отрисовка на Canvas с пропуском скрытых кадров
   const renderFrame = useCallback(() => {
@@ -392,15 +401,20 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
 
     if (metricsRef.current) {
       const response = responseRef.current;
+      const effective = resolveWaveformRenderPosition(
+        positionRef.current,
+        durationRef.current,
+        scrubStateRef.current
+      );
       const displaySamples = response
-        ? prepareDisplay(response, metricsRef.current.width, durationRef.current)
+        ? prepareDisplay(response, metricsRef.current.width, effective.duration)
         : currentSamples;
       renderWaveformToCanvas(
         ctx,
         metricsRef.current,
         displaySamples,
-        positionRef.current,
-        durationRef.current,
+        effective.position,
+        effective.duration,
         hoverRatioRef.current,
         themeColorsRef.current,
         configRef.current
@@ -472,12 +486,47 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
     };
   }, []);
 
-  // 5. Отрисовка при изменении позиции, наведения или настроек внешнего вида (включая режим паузы)
+  // 5. Синхронная подписка на перетаскивание таймлайна (обновление в том же кадре без задержек и ререндеров)
   useEffect(() => {
+    const syncScrubState = (next: TimelineScrubState) => {
+      scrubStateRef.current = next;
+      setIsTimelineScrubbing((prev) => (prev === next.active ? prev : next.active));
+      if (next.active) {
+        if (isVisibleRef.current) {
+          if (rafIdRef.current !== null) {
+            cancelAnimationFrame(rafIdRef.current);
+            rafIdRef.current = null;
+          }
+          renderFrame();
+        }
+      } else if (!next.committed) {
+        scheduleRender();
+      }
+    };
+
+    syncScrubState(timelineScrubSync.getSnapshot());
+    return timelineScrubSync.subscribe(syncScrubState);
+  }, [renderFrame, scheduleRender]);
+
+  // 6. Отрисовка при изменении позиции, наведения или настроек внешнего вида (включая режим паузы)
+  useEffect(() => {
+    if (!scrubStateRef.current.active && scrubStateRef.current.committed) {
+      timelineScrubSync.acknowledgeCommit();
+      scrubStateRef.current = timelineScrubSync.getSnapshot();
+    }
     if (isVisible) {
       scheduleRender();
     }
-  }, [position, timelineDuration, hoverRatio, samples, isVisible, heatmapConfig, scheduleRender]);
+  }, [
+    position,
+    timelineDuration,
+    hoverRatio,
+    samples,
+    isVisible,
+    heatmapConfig,
+    isTimelineScrubbing,
+    scheduleRender,
+  ]);
 
   // 6. Интерактивные обработчики мыши
   const handlePointerEnter = useCallback((e: React.PointerEvent<HTMLDivElement>) => {

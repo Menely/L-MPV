@@ -153,6 +153,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(commands::HeatmapTaskManager::new())
+        .manage(commands::LiveVideoBitrateService::default())
         .manage(commands::ThumbnailService::default())
         .invoke_handler(tauri::generate_handler![
             // Управление воспроизведением
@@ -295,6 +296,7 @@ pub fn run() {
             commands::get_audio_spectrum,
             commands::set_visualizer_active,
             commands::get_media_heatmap_data,
+            commands::get_live_video_bitrate,
             commands::cancel_media_heatmap_analysis,
             commands::clear_waveform_cache,
             // Пресеты настроек
@@ -348,6 +350,7 @@ pub fn run() {
                     }
                 } else if window.label() == "main" {
                     window.state::<commands::ThumbnailService>().shutdown();
+                    window.state::<commands::LiveVideoBitrateService>().shutdown();
                     let state = window.state::<PlayerState>();
                     commands::save_current_playback_position(&state);
                     commands::save_history_to_disk();
