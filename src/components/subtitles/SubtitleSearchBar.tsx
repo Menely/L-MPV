@@ -13,6 +13,7 @@ import { useTranslation } from "../../i18n/LanguageContext";
 interface SubtitleSearchBarProps {
   searchQuery: string;
   totalLines: number;
+  totalWords?: number;
   filteredCount: number;
   navAnchor: number | null;
   navPos: number;
@@ -31,6 +32,7 @@ interface SubtitleSearchBarProps {
 export function SubtitleSearchBar({
   searchQuery,
   totalLines,
+  totalWords,
   filteredCount,
   navAnchor,
   navPos,
@@ -46,130 +48,149 @@ export function SubtitleSearchBar({
   onStepDelay,
 }: SubtitleSearchBarProps) {
   const { dict } = useTranslation();
-  const hasResults = filteredCount > 0 && searchQuery.trim();
+  const hasResults = filteredCount> 0 && searchQuery.trim();
 
   return (
     <div
+      className="subtitles-search-card__bar"
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "8px",
-        marginBottom: "10px",
+        gap: "var(--space-4)",
+        marginBottom: "var(--space-5)",
         flexShrink: 0,
       }}
-    >
+      >
       {/* Строка ввода */}
       <div
+        className="sub-search-input-wrapper subtitles-search-card__search-input-wrap"
         style={{ position: "relative", display: "flex", alignItems: "center" }}
-      >
+        >
         <Search
           size={15}
           style={{
             position: "absolute",
-            left: 10,
+            left: "var(--space-5)",
             color: "var(--text-muted)",
             pointerEvents: "none",
           }}
         />
         <input
           ref={inputRef}
+          className="subtitles-search-card__search-input"
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           onKeyDown={onSearchKeyDown}
           placeholder={dict.subtitlesSearch.searchPlaceholder}
+          aria-label={dict.subtitlesSearch.searchPlaceholder}
+          autoComplete="off"
+          spellCheck={false}
           title={dict.subtitlesSearch.searchEnterHint}
           style={{
             width: "100%",
-            padding: hasResults
-              ? "8px 76px 8px 32px"
-              : "8px 32px 8px 32px",
+            padding: `8px ${hasResults && searchQuery ? "96px" : searchQuery ? "40px" : "14px"} 8px 32px`,
             background: "rgba(0, 0, 0, 0.3)",
             border: "1px solid var(--border-pill)",
-            borderRadius: "var(--radius-sm)",
+            borderRadius: "var(--radius-control)",
             color: "var(--text-primary)",
-            fontSize: "0.84rem",
+            fontSize: "var(--fs-sm)",
             outline: "none",
             transition: "border-color 0.15s ease",
           }}
         />
 
-        {/* Кнопки навигации по совпадениям */}
-        {hasResults && (
+        {/* Кнопки действий поиска: навигация и очистка в едином flex-контейнере */}
+        {(hasResults || searchQuery) && (
           <div
+            className="subtitles-search-card__actions"
             style={{
               position: "absolute",
-              right: searchQuery ? 30 : 8,
+              right: 6,
               display: "flex",
               alignItems: "center",
-              gap: 1,
+              gap: 2,
             }}
           >
-            <button
-              type="button"
-              onClick={onJumpPrev}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 2,
-                borderRadius: "var(--radius-xs)",
-              }}
-              className="hover-bright"
-              title={dict.subtitlesSearch.prevMatch}
-              aria-label={dict.subtitlesSearch.prevMatch}
-            >
-              <ChevronUp size={13} />
-            </button>
-            <button
-              type="button"
-              onClick={onJumpNext}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 2,
-                borderRadius: "var(--radius-xs)",
-              }}
-              className="hover-bright"
-              title={dict.subtitlesSearch.nextMatch}
-              aria-label={dict.subtitlesSearch.nextMatch}
-            >
-              <ChevronDown size={13} />
-            </button>
-          </div>
-        )}
+            {hasResults && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={onJumpPrev}
+                  className="subtitles-search-card__jump-btn hover-bright"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 26,
+                    minHeight: 26,
+                    padding: 0,
+                    borderRadius: "var(--radius-control)",
+                  }}
+                  title={dict.subtitlesSearch.prevMatch}
+                  aria-label={dict.subtitlesSearch.prevMatch}
+                >
+                  <ChevronUp size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={onJumpNext}
+                  className="subtitles-search-card__jump-btn hover-bright"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 26,
+                    minHeight: 26,
+                    padding: 0,
+                    borderRadius: "var(--radius-control)",
+                  }}
+                  title={dict.subtitlesSearch.nextMatch}
+                  aria-label={dict.subtitlesSearch.nextMatch}
+                >
+                  <ChevronDown size={13} />
+                </button>
+              </div>
+            )}
 
-        {/* Кнопка сброса запроса */}
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={onClearSearch}
-            style={{
-              position: "absolute",
-              right: 8,
-              background: "transparent",
-              border: "none",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 2,
-            }}
-            className="hover-bright"
-            title={dict.subtitlesSearch.clearSearch}
-          >
-            <X size={14} />
-          </button>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={onClearSearch}
+                className="subtitles-search-card__clear-btn hover-bright"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 26,
+                  minHeight: 26,
+                  padding: 0,
+                  borderRadius: "var(--radius-control)",
+                }}
+                aria-label={dict.subtitlesSearch.clearSearch}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -179,22 +200,22 @@ export function SubtitleSearchBar({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          fontSize: "0.75rem",
+          fontSize: "var(--fs-xs)",
           color: "var(--text-secondary)",
           padding: "0 2px",
         }}
-      >
+        >
         <div
           style={{
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}
-        >
+          >
           {searchQuery.trim() ? (
             <span>
               {dict.subtitlesSearch.foundCount(filteredCount, totalLines)}
-              {navAnchor !== null && filteredCount > 0 && (
+              {navAnchor !== null && filteredCount> 0 && (
                 <span style={{ opacity: 0.7 }}>
                   {" "}
                   · {navPos + 1}/{filteredCount}
@@ -204,8 +225,9 @@ export function SubtitleSearchBar({
           ) : (
             <span>
               {dict.subtitlesSearch.totalCount(totalLines)}
+              {totalWords ? dict.subtitlesSearch.totalWordsSuffix(totalWords) : ""}
               {analyzedTrackTitle && (
-                <span style={{ opacity: 0.7, marginLeft: 5 }}>
+                <span style={{ opacity: 0.7, marginLeft: "var(--space-2)" }}>
                   ({analyzedTrackTitle})
                 </span>
               )}
@@ -217,63 +239,71 @@ export function SubtitleSearchBar({
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 8,
+            gap: "var(--space-4)",
             flexShrink: 0,
           }}
-        >
+          >
           {/* Регуляторы сдвига таймингов */}
           <div
-            style={{ display: "inline-flex", alignItems: "center", gap: 2 }}
+            style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}
             title={dict.subtitlesSearch.delayTooltip}
-          >
+            >
             <button
               type="button"
               onClick={(e) => onStepDelay(-0.1, e.shiftKey)}
-              className="hover-bright"
-              title={dict.subtitlesSearch.delayEarlier}
+              className="subtitles-search-card__delay-btn hover-bright"
               style={{
                 background: "transparent",
                 border: "none",
                 color: "var(--text-muted)",
                 cursor: "pointer",
-                padding: "2px 6px",
-                borderRadius: "var(--radius-xs)",
-                fontSize: "0.78rem",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: 28,
+                minHeight: 26,
+                padding: "2px 4px",
+                borderRadius: "var(--radius-control)",
+                fontSize: "var(--fs-xs)",
                 fontWeight: 700,
                 lineHeight: 1,
               }}
-            >
+              >
               −
             </button>
             <span
               style={{
-                fontSize: "0.72rem",
+                fontSize: "var(--fs-xs)",
                 color: "var(--text-secondary)",
                 fontVariantNumeric: "tabular-nums",
                 minWidth: 44,
                 textAlign: "center",
               }}
-            >
-              {subDelay > 0 ? "+" : ""}
+              >
+              {subDelay> 0 ? "+" : ""}
               {subDelay.toFixed(1)}{dict.subtitlesSearch.secSuffix}
             </span>
             <button
               type="button"
               onClick={(e) => onStepDelay(0.1, e.shiftKey)}
-              className="hover-bright"
-              title={dict.subtitlesSearch.delayLater}
+              className="subtitles-search-card__delay-btn hover-bright"
               style={{
                 background: "transparent",
                 border: "none",
                 color: "var(--text-muted)",
                 cursor: "pointer",
-                padding: "2px 6px",
-                borderRadius: "var(--radius-xs)",
-                fontSize: "0.78rem",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: 28,
+                minHeight: 26,
+                padding: "2px 4px",
+                borderRadius: "var(--radius-control)",
+                fontSize: "var(--fs-xs)",
                 fontWeight: 700,
                 lineHeight: 1,
               }}
-            >
+              >
               +
             </button>
           </div>
@@ -284,11 +314,11 @@ export function SubtitleSearchBar({
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 4,
-                fontSize: "0.72rem",
-                color: "var(--accent)",
+                gap: "var(--space-2)",
+                fontSize: "var(--fs-xs)",
+                color: "var(--accent-text)",
               }}
-            >
+              >
               <Loader2 size={11} className="spin-animation" />
               <span>{dict.subtitlesSearch.analyzing}</span>
             </div>

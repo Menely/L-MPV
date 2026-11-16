@@ -1,0 +1,1172 @@
+import { CapsuleControlsPreview } from "../components/CapsuleControlsPreview";
+import { SettingsIcon } from "../components/SettingsIcon";
+import { useState, useCallback, useEffect } from "react";
+import {
+  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, Clock, RotateCcw, PanelBottom, Timer, Zap, FolderOpen, Eye, Sun
+} from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { setAnimationsEnabled as applyAnimationsEnabledToDom } from "../../../utils/animationUtils";
+import { AccordionSection } from "../components/AccordionSection";
+import { ColorSchemeSection } from "../components/ColorSchemeSection";
+import { VisualizerSettingsSection } from "../sections/VisualizerSettingsSection";
+import { HeatmapSettingsSection } from "../sections/HeatmapSettingsSection";
+import { ControlButtonsSettings } from "../components/ControlButtonsSettings";
+import { optionCardStyle, optionResetBtnStyle, optionBtnStyle, optionBtnClassName } from "../components/optionCardStyles";
+import { VerticalSlider } from "../appearance/ambientPrimitives";
+import {
+  UiRadiusLevel,
+  UiScaleMode,
+  UiFontId,
+  UI_RADIUS_PRESETS,
+  UI_SCALE_PRESETS,
+  UI_FONT_PRESETS,
+  CustomFontItem,
+  registerCustomFont,
+  getSavedUiSettingsStyle,
+  saveUiSettingsStyle,
+  type UiSettingsStyle,
+  DEFAULT_UI_OPACITY,
+} from "../../../utils/uiThemeUtils";
+import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
+import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
+import { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
+import { saveSeekStepSeconds } from "../../../utils/seekUtils";
+import type { AmbientMode } from "../../../utils/ambientSettingsUtils";
+import type { AmbientSettings } from "../../modals/SettingsModal";
+
+interface AppearanceSettingsTabProps {
+  uiRadius: { level: UiRadiusLevel, value: number };
+  saveUiRadius: (level: UiRadiusLevel, value: number) => void;
+  setUiRadius: (r: { level: UiRadiusLevel, value: number }) => void;
+  uiScale: { mode: UiScaleMode, value: number };
+  saveUiScale: (mode: UiScaleMode, value: number) => void;
+  setUiScale: (s: { mode: UiScaleMode, value: number }) => void;
+  uiOpacity: number;
+  saveUiOpacity: (o: number) => void;
+  setUiOpacity: (o: number) => void;
+  uiFont: UiFontId;
+  saveUiFont: (f: UiFontId, customFamily?: string) => void;
+  setUiFont: (f: UiFontId) => void;
+  timePosition: TimeDisplayPosition;
+  saveTimePosition: (p: TimeDisplayPosition) => void;
+  setTimePosition: (p: TimeDisplayPosition) => void;
+  timeFormat: TimeFormatMode;
+  saveTimeFormat: (f: TimeFormatMode) => void;
+  setTimeFormat: (f: TimeFormatMode) => void;
+  controlBarStyle: ControlBarStyle;
+  saveControlBarStyle: (s: ControlBarStyle) => void;
+  setControlBarStyle: (s: ControlBarStyle) => void;
+  ambientSettings: AmbientSettings;
+  updateAmbient: (updates: Partial<AmbientSettings>, immediateSave?: boolean) => void;
+  visibleButtons: Record<string, boolean>;
+  setVisibleButtons: (v: Record<string, boolean>) => void;
+  skipOpeningSeconds: number;
+  setSkipOpeningSeconds: (v: number) => void;
+  seekStepSeconds: number;
+  setSeekStepSeconds: (v: number) => void;
+  animationsEnabled: boolean;
+  setAnimationsEnabled: (v: boolean) => void;
+  openSections: Record<string, boolean>;
+  onToggleSection: (id: string) => void;
+}
+
+import { useTranslation } from "../../../i18n/LanguageContext";
+
+export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
+  const { dict } = useTranslation();
+  const {
+    uiRadius, saveUiRadius, setUiRadius,
+    uiScale, saveUiScale, setUiScale,
+    uiOpacity, saveUiOpacity, setUiOpacity,
+    uiFont, saveUiFont, setUiFont,
+    timePosition, saveTimePosition, setTimePosition,
+    timeFormat, saveTimeFormat, setTimeFormat,
+    controlBarStyle, saveControlBarStyle, setControlBarStyle,
+    ambientSettings, updateAmbient,
+    visibleButtons, setVisibleButtons,
+    skipOpeningSeconds, setSkipOpeningSeconds,
+    seekStepSeconds, setSeekStepSeconds,
+    animationsEnabled, setAnimationsEnabled,
+    openSections, onToggleSection: toggleSection,
+  } = props;
+
+  // ── Пользовательские шрифты из папки fonts/ ─────────────────────────────
+  const [customFonts, setCustomFonts] = useState<CustomFontItem[]>([]);
+
+  // ── Стиль окна настроек ───────────────────────────────────────────────────
+  const [settingsStyle, setSettingsStyle] = useState<UiSettingsStyle>(getSavedUiSettingsStyle);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<UiSettingsStyle>;
+      setSettingsStyle(ce.detail);
+    };
+    window.addEventListener("l-mpv-ui-settings-style-changed", handler);
+    return () => window.removeEventListener("l-mpv-ui-settings-style-changed", handler);
+  }, []);
+
+  const loadFonts = useCallback(async () => {
+    try {
+      const items = await invoke<CustomFontItem[]>("get_custom_fonts");
+      const userFonts = (items || []).filter((f) => !f.is_builtin);
+      setCustomFonts((prev) => {
+        if (
+          prev.length === userFonts.length &&
+          prev.every((p, i) => p.id === userFonts[i]?.id)
+        ) {
+          return prev;
+        }
+        return userFonts;
+      });
+
+      // Фоновая регистрация обнаруженных пользовательских шрифтов
+      for (const font of userFonts) {
+        registerCustomFont(font).catch(() => {});
+      }
+    } catch (e) {
+      console.error("Ошибка загрузки пользовательских шрифтов:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFonts();
+    const handleFocus = () => {
+      loadFonts();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [loadFonts]);
+
+  const handleOpenFontsFolder = useCallback(async () => {
+    try {
+      await invoke("open_fonts_folder");
+    } catch (e) {
+      console.error("Ошибка открытия папки шрифтов:", e);
+    }
+  }, []);
+
+  return (
+    <>
+                  <div className="modal__section settings-stack">
+              {/* 1. Цветовое оформление (Единая категория: цвет плеера, акценты, свечение) */}
+              <AccordionSection
+                isOpen={!!openSections["app_color_scheme"]}
+                onToggle={() => toggleSection("app_color_scheme")}
+                icon={<Palette size={18} />}
+                title={dict.settings.appearance.appearanceSection}
+                >
+                <ColorSchemeSection />
+              </AccordionSection>
+
+              {/* 2.1 Настройки интерфейса (Единая категория: скругление, масштаб, прозрачность) */}
+              <AccordionSection
+                isOpen={!!openSections["app_interface"]}
+                onToggle={() => toggleSection("app_interface")}
+                icon={<SlidersHorizontal size={18} />}
+                title={dict.settings.appearance.interfaceSection}
+                >
+
+
+                {/* ── Вспомогательные стили для подблоков настроек интерфейса ── */}
+                {(() => {
+                  const cardStyle = optionCardStyle;
+                  const resetBtnStyle = optionResetBtnStyle;
+                  const btnStyle = optionBtnStyle;
+
+                  return (
+                    <>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", marginBottom: "var(--space-5)" }}>
+                        
+                        {/* ── Секция стекломорфизма: Прозрачность и Преломление ── */}
+                        {(() => {
+                          const renderSliderRow = (
+                            icon: React.ReactNode,
+                            label: string,
+                            value: number,
+                            min: number,
+                            max: number,
+                            step: number,
+                            displayStr: string,
+                            defaultValue: number,
+                            ariaLabel: string,
+                            _resetTitle: string,
+                            onChange: (val: number) => void,
+                            onReset: () => void,
+                          ) => {
+                            const pct = Math.max(0, Math.min(100, Math.round(((value - min) / (max - min)) * 100)));
+                            const isChanged = Math.abs(value - defaultValue)> (step < 0.05 ? 0.005 : 0.5);
+
+                            return (
+                              <div
+                                className="option-card settings-opacity-row"
+                                style={{
+                                  ...cardStyle,
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  padding: "9px 14px",
+                                  gap: 14,
+                                }}
+                                >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "var(--space-3)",
+                                    flexShrink: 0,
+                                    lineHeight: 1,
+                                    minWidth: 175,
+                                  }}
+                                  >
+                                  <SettingsIcon>{icon}</SettingsIcon>
+                                  <span
+                                    style={{
+                                      fontSize: "var(--fs-sm)",
+                                      fontWeight: 600,
+                                      color: "var(--text-primary)",
+                                      lineHeight: 1,
+                                      whiteSpace: "nowrap",
+                                    }}
+                                    >
+                                    {label}
+                                  </span>
+                                </div>
+
+                                <div
+                                  style={{
+                                    flex: 1,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    minWidth: 0,
+                                    height: 20,
+                                  }}
+                                  >
+                                  <input
+                                    type="range"
+                                    min={min}
+                                    max={max}
+                                    step={step}
+                                    value={value}
+                                    onChange={(e) => onChange(parseFloat(e.target.value))}
+                                    className="ui-premium-slider"
+                                    style={{
+                                      "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, rgba(255, 255, 255, 0.12) ${pct}%, rgba(255, 255, 255, 0.12) 100%)`,
+                                    } as React.CSSProperties}
+                                    aria-label={ariaLabel}
+                                  />
+                                </div>
+
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "var(--space-4)",
+                                    flexShrink: 0,
+                                    lineHeight: 1,
+                                  }}
+                                  >
+                                  <span
+                                    style={{
+                                      fontSize: "var(--fs-sm)",
+                                      fontWeight: 700,
+                                      color: "var(--accent-text)",
+                                      minWidth: 42,
+                                      textAlign: "right",
+                                      fontVariantNumeric: "tabular-nums",
+                                      lineHeight: 1,
+                                    }}
+                                    >
+                                    {displayStr}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={onReset}
+                                    className="btn btn--secondary btn--sm"
+                                    style={{
+                                      ...resetBtnStyle,
+                                      opacity: isChanged ? 1 : 0,
+                                      visibility: isChanged ? "visible" : "hidden",
+                                      pointerEvents: isChanged ? "auto" : "none",
+                                      transform: isChanged ? "scale(1)" : "scale(0.85)",
+                                      transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                                    }}
+
+                                    tabIndex={isChanged ? 0 : -1}
+                                    >
+                                    <RotateCcw size={11} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          };
+
+                          return (
+                            <div className="col col-gap-4">
+                              {/* 1. Слайдер прозрачности */}
+                              {renderSliderRow(
+                                <SlidersHorizontal size={16} className="t-accent" />,
+                                dict.settings.appearance.opacityLabel,
+                                uiOpacity,
+                                0.10,
+                                1.00,
+                                0.01,
+                                `${Math.round(uiOpacity * 100)}%`,
+                                DEFAULT_UI_OPACITY,
+                                dict.settings.appearance.opacityAria,
+                                dict.settings.appearance.reset88,
+                                (val) => {
+                                  setUiOpacity(val);
+                                  saveUiOpacity(val);
+                                },
+                                () => {
+                                  setUiOpacity(DEFAULT_UI_OPACITY);
+                                  saveUiOpacity(DEFAULT_UI_OPACITY);
+                                }
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        {/* ── Сетка из 3-х колонок ── */}
+                        <div className="ui-ergonomics-grid">
+
+                          {/* Колонка 1: Скругление */}
+                          <div className="option-card ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                            <div className="block-head">
+                              <div className="row-center row-gap-3">
+                                <SettingsIcon><Square size={14} className="t-accent" /></SettingsIcon>
+                                <span className="t-label">
+                                  {dict.settings.appearance.roundingLabel}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--accent-text)", fontVariantNumeric: "tabular-nums" }}>
+                                {uiRadius.value} px
+                              </span>
+                            </div>
+
+                            <div className="ui-ergonomics-control-row" style={{ display: "flex", gap: "var(--space-5)", flex: 1, minHeight: 0, alignItems: "stretch" }}>
+                              {/* Сетка 2x2 для пресетов */}
+                              <div
+                                style={{
+                                  display: "grid",
+                                   gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                                   gridTemplateRows: "repeat(2, minmax(0, 1fr))",
+                                   gap: "var(--space-2)",
+                                   flex: 1,
+                                  minWidth: 0,
+                                  minHeight: 0,
+                                }}
+                                >
+                                {(Object.keys(UI_RADIUS_PRESETS) as (Exclude<UiRadiusLevel, "custom">)[])
+                                  .filter(level => level !== "none")
+                                  .map((level) => {
+                                    const preset = UI_RADIUS_PRESETS[level];
+                                    const isSel = uiRadius.value === preset.controlsRadius;
+                                    const visualRadius =
+                                      level === "minimal"
+                                        ? "1.5px"
+                                        : level === "default"
+                                        ? "6px"
+                                        : level === "smooth"
+                                        ? "13px"
+                                        : "999px";
+                                    return (
+                                      <button
+                                        key={level}
+                                        type="button"
+                                        className={optionBtnClassName(isSel)}
+                                        onClick={() => {
+                                          setUiRadius({ level, value: preset.controlsRadius });
+                                          saveUiRadius(level, preset.controlsRadius);
+                                        }}
+                                        style={{
+                                          ...btnStyle(isSel, "5px 4px"),
+                                          gap: "var(--space-2)",
+                                          minHeight: 56,
+                                        }}
+                                        >
+                                        <div
+                                          style={{
+                                            width: 46,
+                                            height: 25,
+                                            border: `1.5px solid ${isSel ? "var(--selection-frame)" : "var(--border-hover)"}`,
+                                            borderRadius: visualRadius,
+                                            background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.18)" : "rgba(255, 255, 255, 0.04)",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            boxShadow: isSel ? "var(--selection-shadow)" : "none",
+                                            transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
+                                            flexShrink: 0,
+                                          }}
+                                          >
+                                          <div
+                                            style={{
+                                              width: 20,
+                                              height: 3,
+                                              borderRadius: visualRadius === "1.5px" ? "1px" : "999px",
+                                              background: isSel ? "var(--accent)" : "rgba(255, 255, 255, 0.25)",
+                                              transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
+                                            }}
+                                          />
+                                        </div>
+                                         <span style={{ fontSize: "var(--fs-2xs)", fontWeight: 600, lineHeight: 1.15, textAlign: "center", whiteSpace: "nowrap", letterSpacing: "normal", padding: "0 1px", maxWidth: "100%" }}>
+                                           {dict.settings.appearance.roundingPresets[level === "default" ? "standard" : level] || preset.label}
+                                         </span>
+                                      </button>
+                                    );
+                                })}
+                              </div>
+
+                              {/* Вертикальный ползунок */}
+                              <div className="ui-ergonomics-slider" style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
+                                <VerticalSlider
+                                  value={uiRadius.value}
+                                  min={0}
+                                  max={34}
+                                  step={1}
+                                  onChange={(val: number) => {
+                                    const matched = (Object.keys(UI_RADIUS_PRESETS) as (Exclude<UiRadiusLevel, "custom">)[]).find(
+                                      (k) => UI_RADIUS_PRESETS[k].controlsRadius === val
+                                    );
+                                    const nextLevel: UiRadiusLevel = matched || "custom";
+                                    setUiRadius({ level: nextLevel, value: val });
+                                    saveUiRadius(nextLevel, val);
+                                  }}
+                                  ariaLabel={dict.settings.appearance.radiusAria}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Колонка 2: Масштаб */}
+                          <div className="option-card ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                            <div className="block-head">
+                              <div className="row-center row-gap-3">
+                                <SettingsIcon><Maximize2 size={14} className="t-accent" /></SettingsIcon>
+                                <span className="t-label">
+                                  {dict.settings.appearance.scaleLabel}
+                                </span>
+                              </div>
+                              <div className="row-center row-gap-3">
+                                <span style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--accent-text)", fontVariantNumeric: "tabular-nums" }}>
+                                  {Math.round(uiScale.value * 100)}%
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setUiScale({ mode: "auto", value: 1.0 });
+                                    saveUiScale("auto", 1.0);
+                                  }}
+                                  style={{
+                                    background: uiScale.mode === "auto" ? "var(--accent)" : "rgba(255,255,255,0.08)",
+                                    color: uiScale.mode === "auto" ? "var(--on-accent)" : "var(--text-secondary)",
+                                    border: "none",
+                                    borderRadius: "var(--radius-xs)",
+                                    width: 18,
+                                    height: 18,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "var(--fs-2xs)",
+                                    fontWeight: "bold",
+                                    cursor: "pointer",
+                                    transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
+                                  }}
+
+                                  >
+                                  A
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="ui-ergonomics-control-row" style={{ display: "flex", gap: "var(--space-5)", flex: 1, minHeight: 0, alignItems: "stretch" }}>
+                              {/* Сетка 2x2 для пресетов */}
+                              <div
+                                style={{
+                                  display: "grid",
+                                   gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                                   gridTemplateRows: "repeat(2, minmax(0, 1fr))",
+                                   gap: "var(--space-2)",
+                                   flex: 1,
+                                  minWidth: 0,
+                                  minHeight: 0,
+                                }}
+                                >
+                                {UI_SCALE_PRESETS.filter(p => ["compact", "standard", "medium", "large"].includes(p.id)).map((preset) => {
+                                  const isSel = uiScale.mode === preset.id || (uiScale.mode !== "auto" && preset.value !== null && Math.abs(uiScale.value - preset.value) < 0.01);
+                                  return (
+                                    <button
+                                      key={preset.id}
+                                      type="button"
+                                      className={optionBtnClassName(isSel)}
+                                      onClick={() => {
+                                        const nextVal = preset.value !== null ? preset.value : 1.0;
+                                        setUiScale({ mode: preset.id, value: nextVal });
+                                        saveUiScale(preset.id, nextVal);
+                                      }}
+                                      style={{
+                                        ...btnStyle(isSel, "5px 4px"),
+                                        gap: "var(--space-1)",
+                                        minHeight: 56,
+                                      }}
+                                      >
+                                      <span
+                                        style={{
+                                         fontSize: "var(--fs-2xs)",
+                                         fontWeight: 600,
+                                         lineHeight: 1.15,
+                                         textAlign: "center",
+                                         whiteSpace: "nowrap",
+                                         letterSpacing: "normal",
+                                         maxWidth: "100%",
+                                        }}
+                                        >
+                                        {preset.id === "compact"
+                                          ? dict.settings.appearance.scalePresets.compact
+                                          : preset.id === "standard"
+                                          ? dict.settings.appearance.scalePresets.standard
+                                          : preset.id === "medium"
+                                          ? dict.settings.appearance.scalePresets.medium
+                                          : dict.settings.appearance.scalePresets.large}
+                                      </span>
+                                      <span style={{ fontSize: "var(--fs-3xs)", color: isSel ? "var(--text-primary)" : "var(--text-muted)", opacity: 0.85, fontWeight: 500 }}>
+                                        {preset.badge}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Вертикальный ползунок */}
+                              <div className="ui-ergonomics-slider" style={{ width: 20, display: "flex", alignItems: "stretch", justifyContent: "center", flexShrink: 0 }}>
+                                <VerticalSlider
+                                  value={uiScale.value}
+                                  min={0.70}
+                                  max={2.00}
+                                  step={0.05}
+                                  onChange={(val: number) => {
+                                    const matched = UI_SCALE_PRESETS.find((p) => p.value !== null && Math.abs(p.value - val) < 0.01);
+                                    const nextMode = matched ? matched.id : "custom";
+                                    setUiScale({ mode: nextMode, value: val });
+                                    saveUiScale(nextMode, val);
+                                  }}
+                                  ariaLabel={dict.settings.appearance.scaleAria}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Колонка 3: Шрифты */}
+                          <div className="option-card ui-ergonomics-card" style={{ ...cardStyle, flex: 1, minHeight: 185 }}>
+                            <div className="block-head">
+                              <div className="row-center row-gap-3">
+                                <SettingsIcon><Type size={14} className="t-accent" /></SettingsIcon>
+                                <span className="t-label">
+                                  {dict.settings.appearance.fontsLabel}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleOpenFontsFolder}
+                                className="btn btn--secondary btn--sm"
+                                style={optionResetBtnStyle}
+                                title={dict.settings.appearance.openFontsFolderTooltip}
+                                >
+                                <FolderOpen size={13} className="t-accent" />
+                              </button>
+                            </div>
+
+                            <div className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", flex: 1, overflowY: "auto", paddingRight: "var(--space-2)" }}>
+                              {UI_FONT_PRESETS.map((fontPreset) => {
+                                const isSel = uiFont === fontPreset.id;
+                                return (
+                                  <button
+                                    key={fontPreset.id}
+                                    className={`ui-font-choice${isSel ? " ui-font-choice--active" : ""}`}
+                                    type="button"
+                                    onClick={() => {
+                                      setUiFont(fontPreset.id);
+                                      saveUiFont(fontPreset.id);
+                                    }}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      padding: "6px 8px",
+                                      borderRadius: "var(--radius-control)",
+                            border: isSel ? "1px solid var(--selection-frame)" : "1px solid rgba(255, 255, 255, 0.06)",
+                                      background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
+                                      color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+                                      boxShadow: isSel
+                                        ? "var(--selection-shadow)"
+                                        : "none",
+                                      cursor: "pointer",
+                                      fontFamily: `var(--font-${fontPreset.id})`,
+                                      transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
+                                      flexShrink: 0,
+                                    }}
+                                    >
+                                    <span className="t-sub">{fontPreset.id === "system" ? dict.settings.appearance.fontSystemLabel : fontPreset.label}</span>
+                                    <span style={{ fontSize: "var(--fs-2xs)", color: isSel ? "var(--accent-text)" : "var(--text-muted)", fontWeight: 700 }}>Aa</span>
+                                  </button>
+                                );
+                              })}
+
+                              {customFonts.length> 0 && (
+                                <>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", margin: "6px 0 2px 0" }}>
+                                    <div style={{ height: 1, flex: 1, background: "var(--surface-level-3-hover)" }} />
+                                    <span style={{ fontSize: "var(--fs-2xs)", fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                                      {dict.settings.appearance.customFontsDivider}
+                                    </span>
+                                    <div style={{ height: 1, flex: 1, background: "var(--surface-level-3-hover)" }} />
+                                  </div>
+                                  {customFonts.map((font) => {
+                                    const isSel = uiFont === font.id;
+                                    return (
+                                    <button
+                                      key={font.id}
+                                      className={`ui-font-choice${isSel ? " ui-font-choice--active" : ""}`}
+                                        type="button"
+                                        onClick={() => {
+                                          setUiFont(font.id);
+                                          saveUiFont(font.id, font.family);
+                                        }}
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "space-between",
+                                          padding: "6px 8px",
+                                          borderRadius: "var(--radius-control)",
+                                      border: isSel ? "1px solid var(--selection-frame)" : "1px solid rgba(255, 255, 255, 0.06)",
+                                          background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
+                                          color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+                                          boxShadow: isSel
+                                            ? "var(--selection-shadow)"
+                                            : "none",
+                                          cursor: "pointer",
+                                          fontFamily: `'${font.family}', sans-serif`,
+                                          transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
+                                          flexShrink: 0,
+                                        }}
+                                        >
+                                        <span
+                                          style={{
+                                            fontSize: "var(--fs-xs)",
+                                            fontWeight: 600,
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                            marginRight: "var(--space-3)",
+                                          }}
+                                          title={font.name}
+                                          >
+                                          {font.name}
+                                        </span>
+                                        <span style={{ fontSize: "var(--fs-2xs)", color: isSel ? "var(--accent-text)" : "var(--text-muted)", fontWeight: 700, flexShrink: 0 }}>
+                                          Aa
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ── Блок: Настройки интерфейса (слева стиль плеера, справа меню и время) ── */}
+                      <div className="controls-and-time-grid">
+                        {/* Левая колонка: Стиль плеера */}
+                        <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                          <div className="block-head">
+                            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
+                              <SettingsIcon><PanelBottom size={14} className="t-accent no-shrink" /></SettingsIcon>
+                              <span className="t-label nowrap">
+                                {dict.settings.appearance.controlBarStyleTitle}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setControlBarStyle("modern");
+                                saveControlBarStyle("modern");
+                              }}
+                              className="btn btn--secondary btn--sm"
+                              title={dict.settings.appearance.resetModern}
+                              aria-label={dict.settings.appearance.resetModern}
+                              style={{
+                                ...resetBtnStyle,
+                                opacity: controlBarStyle !== "modern" ? 1 : 0,
+                                visibility: controlBarStyle !== "modern" ? "visible" : "hidden",
+                                pointerEvents: controlBarStyle !== "modern" ? "auto" : "none",
+                                transform: controlBarStyle !== "modern" ? "scale(1)" : "scale(0.85)",
+                                transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                              }}
+                              tabIndex={controlBarStyle !== "modern" ? 0 : -1}
+                              >
+                              <RotateCcw size={11} />
+                            </button>
+                          </div>
+
+                          {/* Наглядные реалистичные превью плеера друг под другом */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", flex: 1, justifyContent: "space-between" }}>
+                            {/* Капсула: общий dock с группами и отдельной строкой таймлайна */}
+                            <div
+                              className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "capsule" ? "visual-bar-card--active" : ""}`}
+                              style={{ padding: "10px 14px", flex: 1 }}
+                              onClick={() => {
+                                setControlBarStyle("capsule");
+                                saveControlBarStyle("capsule");
+                              }}
+                              >
+                              {/* Мини-превью плеера */}
+                              <CapsuleControlsPreview />
+
+                              <div className="visual-bar-card__info">
+                                <span className="visual-bar-card__label">{dict.settings.appearance.styleCapsule}</span>
+                                <span className="visual-bar-card__desc">{dict.settings.appearance.styleCapsuleDesc}</span>
+                              </div>
+                            </div>
+
+                            {/* 2: Модерн (Единая парящая капсула) */}
+                            <div
+                              className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "modern" || (controlBarStyle as string) === "floating" ? "visual-bar-card--active" : ""}`}
+                              style={{ padding: "10px 14px", flex: 1 }}
+                              onClick={() => {
+                                setControlBarStyle("modern");
+                                saveControlBarStyle("modern");
+                              }}
+                              >
+                              {/* Мини-превью плеера */}
+                              <div className="visual-bar-preview">
+                                <div className="visual-bar-preview__screen">
+                                  <div className="visual-bar-preview__glow" />
+                                  <div className="visual-bar-preview__floating-island">
+                                    <div className="visual-bar-preview__btn-play" />
+                                    <div className="visual-bar-preview__track">
+                                      <div className="visual-bar-preview__progress" style={{ width: "45%" }} />
+                                    </div>
+                                    <div className="visual-bar-preview__dot" />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="visual-bar-card__info">
+                                <span className="visual-bar-card__label">{dict.settings.appearance.styleModern}</span>
+                                <span className="visual-bar-card__desc">{dict.settings.appearance.styleModernDesc}</span>
+                              </div>
+                            </div>
+
+                            {/* 3: Классический */}
+                            <div
+                              className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "docked" ? "visual-bar-card--active" : ""}`}
+                              style={{ padding: "10px 14px", flex: 1 }}
+                              onClick={() => {
+                                setControlBarStyle("docked");
+                                saveControlBarStyle("docked");
+                              }}
+                              >
+                              {/* Мини-превью плеера */}
+                              <div className="visual-bar-preview">
+                                <div className="visual-bar-preview__screen">
+                                  <div className="visual-bar-preview__glow" />
+                                  <div className="visual-bar-preview__docked-bar">
+                                    <div className="visual-bar-preview__docked-timeline">
+                                      <div className="visual-bar-preview__progress" style={{ width: "65%" }} />
+                                    </div>
+                                    <div className="visual-bar-preview__docked-controls">
+                                      <div className="visual-bar-preview__btn-play" />
+                                      <div className="visual-bar-preview__line" />
+                                      <div className="visual-bar-preview__dot" />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="visual-bar-card__info">
+                                <span className="visual-bar-card__label">{dict.settings.appearance.styleClassic}</span>
+                                <span className="visual-bar-card__desc">{dict.settings.appearance.styleClassicDesc}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Правая колонка: Стиль окна настроек, Позиция времени и Формат времени */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", flex: 1, minWidth: 0, justifyContent: "space-between" }}>
+                          {/* 1: Стиль меню настроек */}
+                          <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                            <div className="block-head">
+                              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
+                                <SettingsIcon><SlidersHorizontal size={14} className="t-accent no-shrink" /></SettingsIcon>
+                                <span className="t-label nowrap">
+                                  {dict.settings.appearance.settingsWindow.title}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => saveUiSettingsStyle("modal")}
+                                className="btn btn--secondary btn--sm"
+                                title={dict.settings.appearance.settingsWindow.resetTitle}
+                                aria-label={dict.settings.appearance.settingsWindow.resetTitle}
+                                style={{
+                                  ...resetBtnStyle,
+                                  opacity: settingsStyle !== "modal" ? 1 : 0,
+                                  visibility: settingsStyle !== "modal" ? "visible" : "hidden",
+                                  pointerEvents: settingsStyle !== "modal" ? "auto" : "none",
+                                  transform: settingsStyle !== "modal" ? "scale(1)" : "scale(0.85)",
+                                  transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                                }}
+                                tabIndex={settingsStyle !== "modal" ? 0 : -1}
+                                >
+                                <RotateCcw size={11} />
+                              </button>
+                            </div>
+
+                            <div className="settings-window-compact-grid">
+                              <button
+                                type="button"
+                                className={`compact-segment-btn ${settingsStyle === "sidebar" ? "compact-segment-btn--active" : ""}`}
+                                onClick={() => saveUiSettingsStyle("sidebar")}
+                                style={{ height: 28 }}
+                                >
+                                {dict.settings.appearance.settingsWindow.sidebar}
+                              </button>
+                              <button
+                                type="button"
+                                className={`compact-segment-btn ${settingsStyle === "modal" ? "compact-segment-btn--active" : ""}`}
+                                onClick={() => saveUiSettingsStyle("modal")}
+                                style={{ height: 28 }}
+                                >
+                                {dict.settings.appearance.settingsWindow.modal}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* 2: Позиция времени */}
+                          <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                            <div className="block-head">
+                              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
+                                <SettingsIcon><Clock size={14} className="t-accent no-shrink" /></SettingsIcon>
+                                <span className="t-label nowrap">
+                                  {dict.settings.appearance.timePositionTitle}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTimePosition("timeline_right");
+                                  saveTimePosition("timeline_right");
+                                }}
+                                className="btn btn--secondary btn--sm"
+                                style={{
+                                  ...resetBtnStyle,
+                                  opacity: timePosition !== "timeline_right" ? 1 : 0,
+                                  visibility: timePosition !== "timeline_right" ? "visible" : "hidden",
+                                  pointerEvents: timePosition !== "timeline_right" ? "auto" : "none",
+                                  transform: timePosition !== "timeline_right" ? "scale(1)" : "scale(0.85)",
+                                  transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                                }}
+                                tabIndex={timePosition !== "timeline_right" ? 0 : -1}
+                                >
+                                <RotateCcw size={11} />
+                              </button>
+                            </div>
+
+                            {/* Компактные сегментные кнопки позиций времени */}
+                            <div className="time-pos-compact-grid">
+                              {TIME_POSITION_OPTIONS.map((posOption) => {
+                                const isSel = timePosition === posOption.id;
+                                const shortLabel =
+                                  posOption.id === "timeline_left"
+                                    ? dict.settings.appearance.timePosLeft
+                                    : posOption.id === "timeline_right"
+                                    ? dict.settings.appearance.timePosRight
+                                    : posOption.id === "volume_right"
+                                    ? dict.settings.appearance.timePosSound
+                                    : posOption.id === "toolbar_right"
+                                    ? dict.settings.appearance.timePosToolbar
+                                    : posOption.id === "timeline_floating_center"
+                                    ? dict.settings.appearance.timePosCenter
+                                    : "Titlebar";
+                                return (
+                                  <button
+                                    key={posOption.id}
+                                    type="button"
+                                    className={`compact-segment-btn ${isSel ? "compact-segment-btn--active" : ""}`}
+                                    onClick={() => {
+                                      setTimePosition(posOption.id);
+                                      saveTimePosition(posOption.id);
+                                    }}
+                                    title={`${posOption.label}: ${posOption.desc}`}
+                                    style={{ height: 28 }}
+                                    >
+                                    {shortLabel}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* 3: Формат отображения времени */}
+                          <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                            <div className="block-head">
+                              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
+                                <SettingsIcon><Timer size={14} className="t-accent no-shrink" /></SettingsIcon>
+                                <span className="t-label nowrap">
+                                  {dict.settings.appearance.timeFormatTitle}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTimeFormat("elapsed_total");
+                                  saveTimeFormat("elapsed_total");
+                                }}
+                                className="btn btn--secondary btn--sm"
+                                style={{
+                                  ...resetBtnStyle,
+                                  opacity: timeFormat !== "elapsed_total" ? 1 : 0,
+                                  visibility: timeFormat !== "elapsed_total" ? "visible" : "hidden",
+                                  pointerEvents: timeFormat !== "elapsed_total" ? "auto" : "none",
+                                  transform: timeFormat !== "elapsed_total" ? "scale(1)" : "scale(0.85)",
+                                  transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                                }}
+                                tabIndex={timeFormat !== "elapsed_total" ? 0 : -1}
+                                >
+                                <RotateCcw size={11} />
+                              </button>
+                            </div>
+
+                            {/* 4 компактные сегментные кнопки с примерами тайминга */}
+                            <div className="time-format-compact-grid">
+                              {TIME_FORMAT_OPTIONS.map((formatOption) => {
+                                const isSel = timeFormat === formatOption.id;
+                                return (
+                                  <button
+                                    key={formatOption.id}
+                                    type="button"
+                                    className={`compact-segment-btn compact-segment-btn--mono ${
+                                      isSel ? "compact-segment-btn--active" : ""
+                                    }`}
+                                    onClick={() => {
+                                      setTimeFormat(formatOption.id);
+                                      saveTimeFormat(formatOption.id);
+                                    }}
+                                    title={`${formatOption.label} — ${formatOption.desc}`}
+                                    style={{ height: 28 }}
+                                    >
+                                    {formatOption.id === "finish_time" ? dict.settings.appearance.timeFormatEndsAt("22:15") : formatOption.example}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </AccordionSection>
+
+              {/* 4. Плавные анимации интерфейса */}
+              <AccordionSection
+                isOpen={!!openSections["app_animations"]}
+                onToggle={() => toggleSection("app_animations")}
+                icon={<Zap size={18} />}
+                title={dict.settings.appearance.animationsSection}
+                >
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+                  <div style={optionCardStyle} className="option-card">
+                    <label className="option-row" style={{ cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        className="ui-checkbox"
+                        checked={animationsEnabled}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setAnimationsEnabled(val);
+                          applyAnimationsEnabledToDom(val);
+                        }}
+                      />
+                      <div className="option-body">
+                        <div className="row-center row-gap-3">
+                          <Zap size={14} className="t-accent" />
+                          <span className="font-semibold text-sm">
+                            {dict.settings.appearance.animationsDesc1}
+                          </span>
+                        </div>
+                        <span className="t-label-xs" style={{ fontWeight: 400, lineHeight: 1.45 }}>
+                          {dict.settings.appearance.animationsDesc2}
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </AccordionSection>
+
+              {/* 5. Тепловая карта таймлайна (Activity Heatmap) */}
+              <HeatmapSettingsSection
+                isOpen={!!openSections["app_heatmap"]}
+                onToggle={() => toggleSection("app_heatmap")}
+              />
+
+              {/* 6. Аудио-визуалайзер на панели управления */}
+              <VisualizerSettingsSection
+                isOpen={!!openSections["app_visualizer"]}
+                onToggle={() => toggleSection("app_visualizer")}
+              />
+
+              {/* 6. Видимость кнопок панели управления */}
+              <AccordionSection
+                isOpen={!!openSections["app_control_buttons"]}
+                onToggle={() => toggleSection("app_control_buttons")}
+                icon={<Eye size={18} />}
+                title={dict.settings.appearance.visibilitySection}
+                >
+                <ControlButtonsSettings
+                  visibleButtons={visibleButtons}
+                  onVisibilityChange={(id, enabled) => {
+                    const updated = { ...visibleButtons, [id]: enabled };
+                    setVisibleButtons(updated);
+                    localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(updated));
+                    window.dispatchEvent(new Event("l-mpv-settings-changed"));
+                  }}
+                  seekStepSeconds={seekStepSeconds}
+                  onSeekStepChange={value => {
+                    setSeekStepSeconds(value);
+                    if (value > 0) saveSeekStepSeconds(value);
+                  }}
+                  skipOpeningSeconds={skipOpeningSeconds}
+                  onSkipOpeningChange={value => {
+                    setSkipOpeningSeconds(value);
+                    if (value > 0) {
+                      localStorage.setItem("l-mpv-skip-opening-seconds", String(value));
+                      window.dispatchEvent(new Event("l-mpv-settings-changed"));
+                    }
+                  }}
+                />
+              </AccordionSection>
+
+              {/* 6. Размытие черных полос (Blur) */}
+              <AccordionSection
+                isOpen={!!openSections["app_ambient"]}
+                onToggle={() => toggleSection("app_ambient")}
+                icon={<Sun size={18} />}
+                title={dict.settings.appearance.ambientSection}
+                >
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+                  {/* Переключатель режимов */}
+                  <div
+                    className="radius-segmented theme-card"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: "var(--space-4)",
+                      padding: "var(--segment-padding)",
+                      background: "var(--surface-card)",
+                      borderRadius: "var(--segment-radius)",
+                      border: "1px solid var(--border)",
+                    }}
+                    >
+                    {[
+                      { id: "off", label: dict.settings.appearance.ambientOff },
+                      { id: "blur", label: dict.settings.appearance.ambientBlur },
+                    ].map((item) => {
+                      const isSel = ambientSettings.mode === item.id;
+                      return (
+                          <button
+                            key={item.id}
+                            onClick={() => updateAmbient({ mode: item.id as AmbientMode }, true)}
+                            type="button"
+                            aria-pressed={isSel}
+                            className={`ambient-choice${isSel ? " ambient-choice--active" : ""}`}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "var(--space-1)",
+                            padding: "10px 6px",
+                            borderRadius: "var(--segment-inner-radius)",
+                            border: isSel ? "1px solid var(--selection-frame)" : "1px solid rgba(255, 255, 255, 0.06)",
+                            cursor: "pointer",
+                            background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "transparent",
+                            color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
+                            boxShadow: isSel
+                              ? "var(--selection-shadow)"
+                              : "none",
+                            transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
+                          }}
+                          >
+                          <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600 }}>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Настройка радиуса размытия (только для режима blur) */}
+                  {ambientSettings.mode === "blur" && (() => {
+                    const bMin = 5;
+                    const bMax = 150;
+                    const bDef = 100;
+                    const bVal = ambientSettings.blur_radius;
+                    const bPct = Math.round(((bVal - bMin) / (bMax - bMin)) * 100);
+                    const isDefault = bVal === bDef;
+                    return (
+                      <div className="option-card" style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 14 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0, lineHeight: 1 }}>
+                          <SettingsIcon><Sparkles size={15} className="t-accent" /></SettingsIcon>
+                          <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
+                            {dict.settings.appearance.ambientLight.blurRadius}
+                          </span>
+                        </div>
+                        <div style={{ flex: 1, display: "flex", alignItems: "center", minWidth: 0, height: 20 }}>
+                          <input
+                            type="range"
+                            min={bMin}
+                            max={bMax}
+                            step={5}
+                            value={bVal}
+                            onChange={(e) => updateAmbient({ blur_radius: parseInt(e.target.value, 10) }, false)}
+                            className="ui-premium-slider"
+                            style={{
+                              "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${bPct}%, rgba(255, 255, 255, 0.12) ${bPct}%, rgba(255, 255, 255, 0.12) 100%)`,
+                            } as React.CSSProperties}
+                            aria-label={dict.settings.appearance.ambientRadiusAria}
+                          />
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexShrink: 0, lineHeight: 1 }}>
+                          <span style={{ fontSize: "var(--fs-sm)", fontWeight: 700, color: "var(--accent-text)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                            {bVal} px
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateAmbient({ blur_radius: bDef }, true)}
+                            className="btn btn--secondary btn--sm"
+                            style={{
+                              ...optionResetBtnStyle,
+                              opacity: isDefault ? 0 : 1,
+                              visibility: isDefault ? "hidden" : "visible",
+                              pointerEvents: isDefault ? "none" : "auto",
+                              transform: isDefault ? "scale(0.85)" : "scale(1)",
+                              transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
+                            }}
+
+                            tabIndex={isDefault ? -1 : 0}
+                            >
+                            <RotateCcw size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+
+                </div>
+              </AccordionSection>
+            </div>
+    </>
+  );
+}

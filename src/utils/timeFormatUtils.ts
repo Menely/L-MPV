@@ -1,4 +1,6 @@
 import { formatTime } from "./timeUtils";
+import type { Locale } from "../i18n/types";
+import { getEffectiveLocale } from "../i18n";
 
 /**
  * Режимы отображения времени воспроизведения видео в плеере L-MPV:
@@ -100,7 +102,8 @@ export function formatTimeByMode(
   position: number,
   duration: number,
   mode: TimeFormatMode,
-  speed: number = 1.0
+  speed: number = 1.0,
+  locale?: Locale
 ): { full: string; compact: string } {
   const posSec = Math.max(0, position);
   const durSec = Math.max(0, duration);
@@ -129,7 +132,9 @@ export function formatTimeByMode(
       const finishDate = new Date(finishMs);
       const hours = finishDate.getHours().toString().padStart(2, "0");
       const minutes = finishDate.getMinutes().toString().padStart(2, "0");
-      const full = `Конец в ${hours}:${minutes} (${formatTime(posSec)})`;
+      const activeLocale = locale ?? getEffectiveLocale();
+      const prefix = activeLocale === "ru" ? "Конец в" : "Ends at";
+      const full = `${prefix} ${hours}:${minutes} (${formatTime(posSec)})`;
       const compact = `~${hours}:${minutes}`;
       return { full, compact };
     }

@@ -1,0 +1,4 @@
+/* ─── Модульная архитектура стилей окна информации о файле (I) ─── */
+@import "./media-info-overlay/media-info-overlay-base.css";
+@import "./media-info-overlay/media-info-overlay-capsule.css";
+

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 import {
   Download,
   Loader2,
@@ -17,6 +17,10 @@ import {
 } from "lucide-react";
 import { MarkdownRenderer } from "../common/MarkdownRenderer";
 import { useTranslation } from "../../i18n/LanguageContext";
+import {
+  ControlBarStyle,
+  getSavedControlBarStyle,
+} from "../../utils/controlBarStyleUtils";
 
 /**
  * Иконка-логотип плеера L-MPV (векторный SVG).
@@ -99,6 +103,301 @@ function formatBytes(bytes: number, locale: string = "ru"): string {
 }
 
 /**
+ * Выпадающий список выбора целевой версии релиза (Upgrade / Downgrade).
+ */
+interface VersionPickerProps {
+  currentVersion: string;
+  targetVersion: string;
+  isUpgrade: boolean;
+  isDowngrade: boolean;
+  isLoadingReleases: boolean;
+  isPickerOpen: boolean;
+  onTogglePicker: () => void;
+  releases: UpdateInfo[];
+  locale: string;
+  onSelectRelease: (rel: UpdateInfo) => void;
+  pickerRef: React.RefObject<HTMLDivElement | null>;
+  dict: any;
+}
+
+const VersionPicker: React.FC<VersionPickerProps> = React.memo(({
+  currentVersion,
+  targetVersion,
+  isUpgrade,
+  isDowngrade,
+  isLoadingReleases,
+  isPickerOpen,
+  onTogglePicker,
+  releases,
+  locale,
+  onSelectRelease,
+  pickerRef,
+  dict,
+}) => (
+  <div className="version-picker-wrap" ref={pickerRef}>
+    <button
+      type="button"
+      onClick={onTogglePicker}
+      className={`version-picker-trigger ${isDowngrade ? "version-picker-trigger--downgrade" : ""}`}
+    >
+      {isDowngrade || isUpgrade ? (
+        <>
+          <span>{currentVersion}</span>
+          <ArrowRight size={12} style={{ opacity: 0.8 }} />
+          <span>{targetVersion}</span>
+        </>
+      ) : (
+        <span>v{currentVersion}</span>
+      )}
+      <ChevronDown
+        size={13}
+        style={{
+          transform: isPickerOpen ? "rotate(180deg)" : "none",
+          transition: "transform 0.15s ease",
+          opacity: 0.85,
+        }}
+      />
+    </button>
+
+    {isPickerOpen && (
+      <div className="version-picker-popover" role="menu">
+        <div className="version-picker-header">
+          {isLoadingReleases
+            ? dict.updateModal.loadingReleases
+            : dict.updateModal.availableReleases(releases.length)}
+        </div>
+        <div className="version-picker-list custom-scrollbar">
+        {releases.length === 0 && !isLoadingReleases ? (
+          <div style={{ padding: "8px 10px", fontSize: "var(--fs-xs)", color: "var(--text-muted)", fontStyle: "italic" }}>
+            {dict.updateModal.releasesUnavailable}
+          </div>
+        ) : (
+          releases.map((rel) => {
+            const cleanRelVer = rel.latest_version.replace(/^[vV]/, "");
+            const isRelCurrent = cleanRelVer === currentVersion;
+            const isRelSelected = cleanRelVer === targetVersion;
+            return (
+              <div
+                key={rel.latest_version}
+                onClick={() => onSelectRelease(rel)}
+                className={`version-picker-item ${isRelSelected ? "version-picker-item--active" : ""}`}
+                role="menuitem"
+                tabIndex={0}
+              >
+                <div className="row-center row-gap-3">
+                  <span className="version-picker-item__tag">v{cleanRelVer}</span>
+                  {isRelCurrent && (
+                    <span className="version-picker-badge version-picker-badge--current">
+                      {dict.updateModal.currentBadge}
+                    </span>
+                  )}
+                </div>
+                <div className="version-picker-item__meta">
+                  {rel.published_at && (
+                    <span>{new Date(rel.published_at).toLocaleDateString(locale === "en" ? "en-US" : "ru-RU")}</span>
+                  )}
+                  {isRelSelected && <Check size={13} color="var(--accent, #60a5fa)" />}
+                </div>
+              </div>
+            );
+          })
+        )}
+        </div>
+      </div>
+    )}
+  </div>
+));
+
+/**
+ * Компонент кнопок действий в футере окна обновлений.
+ */
+interface UpdateActionButtonsProps {
+  isUpgrade: boolean;
+  isDowngrade: boolean;
+  isDownloading: boolean;
+  isDone: boolean;
+  targetVersion: string;
+  isCapsule: boolean;
+  onPostpone: () => void;
+  onInstall: () => void;
+  onClose: () => void;
+  dict: any;
+}
+
+const UpdateActionButtons: React.FC<UpdateActionButtonsProps> = React.memo(({
+  isUpgrade,
+  isDowngrade,
+  isDownloading,
+  isDone,
+  targetVersion,
+  isCapsule,
+  onPostpone,
+  onInstall,
+  onClose,
+  dict,
+}) => {
+  const primaryClass = isCapsule
+    ? "update-card__btn update-card__btn--primary"
+    : "update-modal-btn update-modal-btn--primary";
+  const secondaryClass = isCapsule
+    ? "update-card__btn update-card__btn--secondary"
+    : "update-modal-btn update-modal-btn--secondary";
+
+  if (isUpgrade) {
+    return (
+      <>
+        {!isDownloading && (
+          <button
+            type="button"
+            onClick={onPostpone}
+            className={secondaryClass}
+          >
+            {dict.updateModal.remindLater}
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={onInstall}
+          disabled={isDownloading}
+          className={primaryClass}
+        >
+          {isDownloading ? (
+            <>
+              <Loader2 size={14} className="animate-spin" />
+              <span className="nowrap">
+                {isDone ? dict.updateModal.installStarting : dict.updateModal.downloading}
+              </span>
+            </>
+          ) : (
+            <>
+              <Download size={14} />
+              <span className="nowrap">
+                {dict.updateModal.updateTo(targetVersion)}
+              </span>
+            </>
+          )}
+        </button>
+      </>
+    );
+  }
+
+  if (isDowngrade) {
+    return (
+      <button
+        type="button"
+        onClick={onInstall}
+        disabled={isDownloading}
+        className={primaryClass}
+      >
+        {isDownloading ? (
+          <>
+            <Loader2 size={14} className="animate-spin" />
+            <span className="nowrap">
+              {isDone ? dict.updateModal.rollbackStarting : dict.updateModal.downloading}
+            </span>
+          </>
+        ) : (
+          <>
+            <Download size={14} />
+            <span className="nowrap">
+              {dict.updateModal.rollbackTo(targetVersion)}
+            </span>
+          </>
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClose}
+      className={primaryClass}
+    >
+      <span className="nowrap">{dict.updateModal.gotIt}</span>
+    </button>
+  );
+});
+
+/**
+ * Прогресс скачивания обновления с анимацией и байтовой шкалой.
+ */
+interface DownloadProgressProps {
+  progress: number;
+  downloadedBytes: number;
+  totalBytes: number;
+  isDone: boolean;
+  locale: string;
+  dict: any;
+}
+
+const DownloadProgressBar: React.FC<DownloadProgressProps> = React.memo(({
+  progress,
+  downloadedBytes,
+  totalBytes,
+  isDone,
+  locale,
+  dict,
+}) => (
+  <div style={{ marginBottom: "var(--space-7)" }}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: "var(--fs-sm)",
+        color: "var(--text-secondary, #d1d5db)",
+        marginBottom: "var(--space-4)",
+      }}
+    >
+      <span>
+        {isDone ? dict.updateModal.installerStarting : dict.updateModal.downloadProgress(progress)}
+      </span>
+      {totalBytes > 0 && (
+        <span style={{ color: "var(--text-muted, #9ca3af)" }}>
+          {formatBytes(downloadedBytes, locale)} / {formatBytes(totalBytes, locale)}
+        </span>
+      )}
+    </div>
+
+    <div
+      style={{
+        width: "100%",
+        height: 8,
+        borderRadius: "var(--radius-xs)",
+        background: "var(--surface-level-3-hover)",
+        overflow: "hidden",
+        position: "relative",
+        transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
+      }}
+    >
+      <div
+        style={{
+          width: `${progress}%`,
+          height: "100%",
+          background: "var(--accent-gradient, linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%))",
+          borderRadius: "var(--radius-xs)",
+          transition: "width 0.2s ease-out, border-radius var(--t-spring) var(--ease-spring-smooth)",
+          boxShadow: "none",
+        }}
+      />
+    </div>
+
+    <p
+      style={{
+        fontSize: "var(--fs-xs)",
+        color: "var(--text-muted, #9ca3af)",
+        marginTop: "var(--space-4)",
+        marginBottom: "var(--space-0)",
+        textAlign: "center",
+      }}
+    >
+      {dict.updateModal.restartHint}
+    </p>
+  </div>
+));
+
+/**
  * Модальное окно уведомления о доступном обновлении и его установки.
  */
 export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose }) => {
@@ -116,6 +415,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDone, setIsDone] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [controlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const isCapsule = controlBarStyle === "capsule";
 
   // Синхронизируем выбранный релиз при смене пропса updateInfo
   useEffect(() => {
@@ -197,595 +498,457 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     }
   };
 
-  const [isClosing, setIsClosing] = useState(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleClose = useCallback(() => {
-    if (closeTimerRef.current || isDownloading) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-    }, getCloseTimeoutMs("base"));
-  }, [isDownloading, onClose]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && (!isDownloading || !!errorMessage)) {
-        e.preventDefault();
-        e.stopPropagation();
-        handleClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [handleClose, isDownloading, errorMessage]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
+  const { isClosing, handleClose } = useOverlayDismiss({
+    onClose,
+    kind: "base",
+    disabled: isDownloading && !errorMessage,
+    closeOnEscape: true,
+  });
 
   const handlePostpone = () => {
     invoke("postpone_update").catch(console.error).finally(handleClose);
   };
+
+  const handleSelectRelease = (rel: UpdateInfo) => {
+    setSelectedRelease(rel);
+    setIsPickerOpen(false);
+  };
+
+  const titleText = isUpgrade
+    ? dict.updateModal.titleUpgrade
+    : isDowngrade
+    ? dict.updateModal.titleDowngrade
+    : dict.updateModal.titleInfo;
+
+  const subtitleText = isUpgrade
+    ? dict.updateModal.subtitleUpgrade(targetVersion)
+    : isDowngrade
+    ? dict.updateModal.subtitleDowngrade(currentVersion, targetVersion)
+    : dict.updateModal.subtitleInfo(currentVersion);
+
+  const changelogText = isUpgrade
+    ? dict.updateModal.changelogUpgrade
+    : isDowngrade
+    ? dict.updateModal.changelogDowngrade(targetVersion)
+    : dict.updateModal.changelogInfo;
 
   return (
     <div
       className={`modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`}
       onClick={handleClose}
       style={{
-        zIndex: 10000,
+        zIndex: "var(--z-modal)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         background: "rgba(0, 0, 0, 0.65)",
-        backdropFilter: "blur(10px)",
       }}
     >
-      <div
-        className={`modal-container update-modal-card ${isClosing ? "update-modal-card--closing" : ""}`}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: isExpanded ? "820px" : "480px",
-          maxWidth: "94vw",
-          height: isExpanded ? "78vh" : "420px",
-          maxHeight: "92vh",
-          display: "flex",
-          flexDirection: "column",
-          borderRadius: "var(--radius-lg)",
-          background: "linear-gradient(180deg, rgba(26, 28, 35, 0.96) 0%, rgba(18, 19, 24, 0.98) 100%)",
-          border: "1px solid rgba(255, 255, 255, 0.12)",
-          boxShadow: isExpanded
-            ? "0 25px 60px rgba(0, 0, 0, 0.75), 0 0 45px var(--accent-glass, rgba(64, 150, 255, 0.22))"
-            : "0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px var(--accent-glass, rgba(64, 150, 255, 0.15))",
-          overflow: "hidden",
-          color: "var(--text, #fff)",
-          animation: "updateModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-          transition: "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
-        }}
-      >
-        {/* Шапка модального окна */}
+      {!isCapsule ? (
+        /* ─── КЛАССИЧЕСКИЙ РЕЖИМ (Модерн, Прикрепленный) ─── */
         <div
-          onDoubleClick={() => setIsExpanded((prev) => !prev)}
+          className={`modal-container update-modal-card update-modal--${controlBarStyle} ${isClosing ? "update-modal-card--closing" : ""}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="update-modal-title"
+          onClick={(e) => e.stopPropagation()}
           style={{
-            padding: "20px 24px 16px",
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-            cursor: "default",
-            userSelect: "none",
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: "var(--radius-md)",
-                background: "linear-gradient(135deg, var(--accent, #3b82f6) 0%, rgba(59, 130, 246, 0.5) 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 4px 15px var(--accent-glass, rgba(59, 130, 246, 0.4))",
-                flexShrink: 0,
-                transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
-              }}
-            >
-              <AppLogoIcon size={24} color="#ffffff" />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, letterSpacing: "-0.01em" }}>
-                {isUpgrade
-                  ? dict.updateModal.titleUpgrade
-                  : isDowngrade
-                  ? dict.updateModal.titleDowngrade
-                  : dict.updateModal.titleInfo}
-              </h3>
-              <p style={{ margin: "3px 0 0", fontSize: "0.84rem", color: "var(--text-muted, #9ca3af)" }}>
-                {isUpgrade
-                  ? dict.updateModal.subtitleUpgrade(targetVersion)
-                  : isDowngrade
-                  ? dict.updateModal.subtitleDowngrade(currentVersion, targetVersion)
-                  : dict.updateModal.subtitleInfo(currentVersion)}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button
-              onClick={() => setIsExpanded((prev) => !prev)}
-              className="modal__close"
-              aria-label={isExpanded ? dict.updateModal.ariaRestore : dict.updateModal.ariaMaximize}
-            >
-              {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-            </button>
-
-            {!isDownloading && (
-              <button
-                onClick={handleClose}
-                className="modal__close"
-                aria-label={dict.updateModal.ariaClose}
-              >
-                <X size={18} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Тело модального окна */}
-        <div
-          style={{
-            padding: isExpanded ? "18px 26px 14px" : "16px 24px 14px",
-            flex: 1,
-            overflow: "hidden",
-            minHeight: 0,
+            width: isExpanded ? "820px" : "480px",
+            maxWidth: "min(94vw, calc(100vw / var(--ui-scale, 1) - 24px))",
+            height: isExpanded ? "78vh" : "420px",
+            maxHeight: "min(92vh, calc(100dvh / var(--ui-scale, 1) - 24px))",
             display: "flex",
             flexDirection: "column",
-            transition: "padding 0.3s ease",
+            borderRadius: "var(--radius-surface)",
+            background: "linear-gradient(180deg, rgba(26, 28, 35, 0.96) 0%, rgba(18, 19, 24, 0.98) 100%)",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
+            boxShadow: isExpanded
+              ? "0 25px 60px rgba(0, 0, 0, 0.75)"
+              : "0 20px 50px rgba(0, 0, 0, 0.6)",
+            overflow: "hidden",
+            color: "var(--text, #fff)",
+            animation: "updateModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+            transition: "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
           }}
         >
-          {/* Список изменений / Описание релиза */}
+          {/* Шапка модального окна.
+              По высоте и плотности повторяет футер: одинаковые отступы,
+              выравнивание по центру и полупрозрачная подложка. Освободившееся
+              место уходит центральной части (тело — flex: 1). */}
           <div
+            onDoubleClick={() => setIsExpanded((prev) => !prev)}
             style={{
-              marginBottom: errorMessage || isDownloading ? 14 : 0,
+              padding: "10px 22px",
               display: "flex",
-              flexDirection: "column",
-              flex: 1,
-              minHeight: 0,
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 14,
+              borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+              background: "rgba(0, 0, 0, 0.2)",
+              cursor: "default",
+              userSelect: "none",
+              flexShrink: 0,
             }}
           >
+            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "var(--radius-control)",
+                  background: "rgba(var(--accent-rgb, 59, 130, 246), 0.12)",
+                  border: "1px solid var(--border-pill, rgba(var(--accent-rgb, 59, 130, 246), 0.22))",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "none",
+                  flexShrink: 0,
+                  transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
+                }}
+              >
+                <AppLogoIcon size={18} color="var(--accent-text, var(--accent))" />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <h3 id="update-modal-title" style={{ margin: "var(--space-0)", fontSize: "var(--fs-lg)", fontWeight: 700, letterSpacing: "-0.01em" }}>
+                  {titleText}
+                </h3>
+                <p style={{ margin: "1px 0 0", fontSize: "var(--fs-xs)", color: "var(--text-muted, #9ca3af)" }}>
+                  {subtitleText}
+                </p>
+              </div>
+            </div>
+
+            <div className="row-center row-gap-3">
+              <button
+                onClick={() => setIsExpanded((prev) => !prev)}
+                className="modal__close"
+                aria-label={isExpanded ? dict.updateModal.ariaRestore : dict.updateModal.ariaMaximize}
+              >
+                {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+
+              {!isDownloading && (
+                <button
+                  onClick={handleClose}
+                  className="modal__close"
+                  aria-label={dict.updateModal.ariaClose}
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Тело модального окна */}
+          <div
+            style={{
+              padding: isExpanded ? "18px 26px 14px" : "16px 24px 14px",
+              flex: 1,
+              overflow: "hidden",
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+              transition: "padding 0.3s ease",
+            }}
+          >
+            {/* Список изменений / Описание релиза */}
             <div
               style={{
+                marginBottom: errorMessage || isDownloading ? 14 : 0,
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 8,
-                marginBottom: 8,
-                flexShrink: 0,
+                flexDirection: "column",
+                flex: 1,
+                minHeight: 0,
               }}
             >
               <div
                 style={{
-                  fontSize: "0.8rem",
-                  fontWeight: 600,
-                  color: "var(--text-secondary, #d1d5db)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "var(--space-4)",
+                  marginBottom: "var(--space-4)",
+                  flexShrink: 0,
                 }}
               >
-                {isUpgrade
-                  ? dict.updateModal.changelogUpgrade
-                  : isDowngrade
-                  ? dict.updateModal.changelogDowngrade(targetVersion)
-                  : dict.updateModal.changelogInfo}
+                <div
+                  style={{
+                    fontSize: "var(--fs-sm)",
+                    fontWeight: 600,
+                    color: "var(--text-secondary, #d1d5db)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {changelogText}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openUrl(releasePageUrl).catch(console.error)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "var(--space-2)",
+                    background: "var(--surface-level-3)",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    borderRadius: "var(--radius-control, 8px)",
+                    padding: "4px 10px",
+                    fontSize: "var(--fs-xs)",
+                    color: "var(--accent-text)",
+                    cursor: "pointer",
+                    transition: "all var(--t-fast) var(--ease-smooth)",
+                  }}
+                  className="hover-bright"
+                >
+                  <ExternalLink size={12} />
+                  <span>{dict.updateModal.openGithub}</span>
+                </button>
               </div>
+              <div
+                className="custom-scrollbar"
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: "auto",
+                  background: "rgba(0, 0, 0, 0.35)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: "var(--radius-md, 12px)",
+                  padding: isExpanded ? "14px 18px" : "12px 14px",
+                  transition: "padding 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
+                }}
+              >
+                <MarkdownRenderer content={selectedRelease.release_notes} />
+              </div>
+            </div>
+
+            {/* Ошибка скачивания */}
+            {errorMessage && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--space-5)",
+                  padding: "10px 14px",
+                  background: "rgba(239, 68, 68, 0.15)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "#fca5a5",
+                  fontSize: "var(--fs-sm)",
+                  marginBottom: "var(--space-7)",
+                  transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
+                }}
+              >
+                <AlertCircle size={18} className="no-shrink" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {/* Прогресс скачивания */}
+            {isDownloading && (
+              <DownloadProgressBar
+                progress={progress}
+                downloadedBytes={downloadedBytes}
+                totalBytes={totalBytes}
+                isDone={isDone}
+                locale={locale}
+                dict={dict}
+              />
+            )}
+          </div>
+
+          {/* Футер с версией приложения и кнопками */}
+          <div
+            className="update-modal-footer"
+            style={{
+              padding: "10px 22px",
+              borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 14,
+              background: "rgba(0, 0, 0, 0.2)",
+              flexShrink: 0,
+              position: "relative",
+            }}
+          >
+            <VersionPicker
+              currentVersion={currentVersion}
+              targetVersion={targetVersion}
+              isUpgrade={isUpgrade}
+              isDowngrade={isDowngrade}
+              isLoadingReleases={isLoadingReleases}
+              isPickerOpen={isPickerOpen}
+              onTogglePicker={() => setIsPickerOpen((prev) => !prev)}
+              releases={releases}
+              locale={locale}
+              onSelectRelease={handleSelectRelease}
+              pickerRef={pickerRef}
+              dict={dict}
+            />
+
+            <div className="update-modal-actions">
+              <UpdateActionButtons
+                isUpgrade={isUpgrade}
+                isDowngrade={isDowngrade}
+                isDownloading={isDownloading}
+                isDone={isDone}
+                targetVersion={targetVersion}
+                isCapsule={false}
+                onPostpone={handlePostpone}
+                onInstall={handleInstall}
+                onClose={handleClose}
+                dict={dict}
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ─── ОСТРОВНОЙ РЕЖИМ (Стиль «Капсула») ─── */
+        <div
+          className={`modal-container update-modal-capsule ${isExpanded ? "update-modal-capsule--expanded" : ""} ${isClosing ? "update-modal-capsule--closing" : ""}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="update-modal-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* 1. Верхний ряд: 3 самостоятельные карточки (иконка, инфо, действия).
+              Иконка-логотип — отдельный островок, как иконка настроек в окне
+              настроек: свой фон, свой контур, без «плашки» внутри инфо-карточки. */}
+          <div className="update-capsule-header">
+            {/* Островок логотипа */}
+            <div className="update-card update-card--logo">
+              <AppLogoIcon size={28} color="var(--accent-text, var(--accent))" />
+            </div>
+
+            {/* Островок информации */}
+            <div
+              className="update-card update-card--header-info"
+              onDoubleClick={() => setIsExpanded((prev) => !prev)}
+            >
+              <div className="update-card__title-group">
+                <h3 id="update-modal-title" className="update-card__title">
+                  {titleText}
+                </h3>
+                <p className="update-card__subtitle">
+                  {subtitleText}
+                </p>
+              </div>
+            </div>
+
+            {/* Островок действий окна */}
+            <div className="update-card update-card--header-actions">
+              <button
+                type="button"
+                onClick={() => setIsExpanded((prev) => !prev)}
+                className="update-card__action-btn"
+                aria-label={isExpanded ? dict.updateModal.ariaRestore : dict.updateModal.ariaMaximize}
+              >
+                {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+
+              {!isDownloading && (
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="update-card__action-btn update-card__action-btn--close"
+                  aria-label={dict.updateModal.ariaClose}
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 2. Центральная карточка: тело релиза */}
+          <div className="update-card update-card--body">
+            <div className="update-card__body-header">
+              <span className="update-card__body-title">
+                {changelogText}
+              </span>
               <button
                 type="button"
                 onClick={() => openUrl(releasePageUrl).catch(console.error)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  background: "rgba(255, 255, 255, 0.05)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "var(--radius-xs)",
-                  padding: "4px 9px",
-                  fontSize: "0.75rem",
-                  color: "var(--accent, #60a5fa)",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
-                className="hover-bright"
+                className="update-card__github-btn"
               >
                 <ExternalLink size={12} />
                 <span>{dict.updateModal.openGithub}</span>
               </button>
             </div>
-            <div
-              className="custom-scrollbar"
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: "auto",
-                background: "rgba(0, 0, 0, 0.35)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                borderRadius: "var(--radius-sm)",
-                padding: isExpanded ? "14px 18px" : "12px 14px",
-                transition: "padding 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
-              }}
-            >
+
+            <div className="update-card__notes-wrap">
               <MarkdownRenderer content={selectedRelease.release_notes} />
             </div>
-          </div>
 
-          {/* Ошибка скачивания */}
-          {errorMessage && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 14px",
-                background: "rgba(239, 68, 68, 0.15)",
-                border: "1px solid rgba(239, 68, 68, 0.3)",
-                borderRadius: "var(--radius-sm)",
-                color: "#fca5a5",
-                fontSize: "0.82rem",
-                marginBottom: 16,
-                transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
-              }}
-            >
-              <AlertCircle size={18} style={{ flexShrink: 0 }} />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {/* Прогресс скачивания */}
-          {isDownloading && (
-            <div style={{ marginBottom: 16 }}>
+            {/* Ошибка скачивания */}
+            {errorMessage && (
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: "0.82rem",
-                  color: "var(--text-secondary, #d1d5db)",
-                  marginBottom: 8,
+                  alignItems: "center",
+                  gap: "var(--space-4)",
+                  padding: "10px 14px",
+                  background: "rgba(239, 68, 68, 0.15)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "var(--radius-md)",
+                  color: "#fca5a5",
+                  fontSize: "var(--fs-xs)",
+                  marginTop: "10px",
                 }}
               >
-                <span>
-                  {isDone ? dict.updateModal.installerStarting : dict.updateModal.downloadProgress(progress)}
-                </span>
-                {totalBytes > 0 && (
-                  <span style={{ color: "var(--text-muted, #9ca3af)" }}>
-                    {formatBytes(downloadedBytes, locale)} / {formatBytes(totalBytes, locale)}
-                  </span>
-                )}
+                <AlertCircle size={16} className="no-shrink" />
+                <span>{errorMessage}</span>
               </div>
+            )}
 
-              <div
-                style={{
-                  width: "100%",
-                  height: 8,
-                  borderRadius: "var(--radius-xs)",
-                  background: "rgba(255, 255, 255, 0.08)",
-                  overflow: "hidden",
-                  position: "relative",
-                  transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
-                }}
-              >
-                <div
-                  style={{
-                    width: `${progress}%`,
-                    height: "100%",
-                    background: "linear-gradient(90deg, var(--accent, #3b82f6) 0%, #60a5fa 100%)",
-                    borderRadius: "var(--radius-xs)",
-                    transition: "width 0.2s ease-out, border-radius var(--t-spring) var(--ease-spring-smooth)",
-                    boxShadow: "0 0 10px var(--accent, rgba(59, 130, 246, 0.6))",
-                  }}
+            {/* Прогресс скачивания */}
+            {isDownloading && (
+              <div style={{ marginTop: "12px" }}>
+                <DownloadProgressBar
+                  progress={progress}
+                  downloadedBytes={downloadedBytes}
+                  totalBytes={totalBytes}
+                  isDone={isDone}
+                  locale={locale}
+                  dict={dict}
                 />
               </div>
+            )}
+          </div>
 
-              <p
-                style={{
-                  fontSize: "0.75rem",
-                  color: "var(--text-muted, #9ca3af)",
-                  marginTop: 8,
-                  marginBottom: 0,
-                  textAlign: "center",
-                }}
-              >
-                {dict.updateModal.restartHint}
-              </p>
-            </div>
-          )}
-        </div>
+          {/* 3. Нижний ряд: футер-островок с версиями и кнопками действий */}
+          <div className="update-card update-card--footer update-modal-footer">
+            <VersionPicker
+              currentVersion={currentVersion}
+              targetVersion={targetVersion}
+              isUpgrade={isUpgrade}
+              isDowngrade={isDowngrade}
+              isLoadingReleases={isLoadingReleases}
+              isPickerOpen={isPickerOpen}
+              onTogglePicker={() => setIsPickerOpen((prev) => !prev)}
+              releases={releases}
+              locale={locale}
+              onSelectRelease={handleSelectRelease}
+              pickerRef={pickerRef}
+              dict={dict}
+            />
 
-        {/* Футер с версией приложения и кнопками */}
-        <div
-          style={{
-            padding: "10px 22px",
-            borderTop: "1px solid rgba(255, 255, 255, 0.08)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 14,
-            background: "rgba(0, 0, 0, 0.2)",
-            flexShrink: 0,
-            position: "relative",
-          }}
-        >
-          {/* Селектор версии слева */}
-          <div className="version-picker-wrap" ref={pickerRef}>
-            <button
-              type="button"
-              onClick={() => setIsPickerOpen((prev) => !prev)}
-              className={`version-picker-trigger ${isDowngrade ? "version-picker-trigger--downgrade" : ""}`}
-            >
-              {isDowngrade || isUpgrade ? (
-                <>
-                  <span>{currentVersion}</span>
-                  <ArrowRight size={12} style={{ opacity: 0.8 }} />
-                  <span>{targetVersion}</span>
-                </>
-              ) : (
-                <span>v{currentVersion}</span>
-              )}
-              <ChevronDown
-                size={13}
-                style={{
-                  transform: isPickerOpen ? "rotate(180deg)" : "none",
-                  transition: "transform 0.15s ease",
-                  opacity: 0.85,
-                }}
+            <div className="update-card__actions update-modal-actions">
+              <UpdateActionButtons
+                isUpgrade={isUpgrade}
+                isDowngrade={isDowngrade}
+                isDownloading={isDownloading}
+                isDone={isDone}
+                targetVersion={targetVersion}
+                isCapsule={true}
+                onPostpone={handlePostpone}
+                onInstall={handleInstall}
+                onClose={handleClose}
+                dict={dict}
               />
-            </button>
-
-            {/* Выпадающее меню со списком версий */}
-            {isPickerOpen && (
-              <div className="version-picker-popover custom-scrollbar">
-                <div className="version-picker-header">
-                  {isLoadingReleases
-                    ? dict.updateModal.loadingReleases
-                    : dict.updateModal.availableReleases(releases.length)}
-                </div>
-                {releases.length === 0 && !isLoadingReleases ? (
-                  <div style={{ padding: "8px 10px", fontSize: "0.78rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-                    {dict.updateModal.releasesUnavailable}
-                  </div>
-                ) : (
-                  releases.map((rel) => {
-                    const cleanRelVer = rel.latest_version.replace(/^[vV]/, "");
-                    const isRelCurrent = cleanRelVer === currentVersion;
-                    const isRelSelected = cleanRelVer === targetVersion;
-                    return (
-                      <div
-                        key={rel.latest_version}
-                        onClick={() => {
-                          setSelectedRelease(rel);
-                          setIsPickerOpen(false);
-                        }}
-                        className={`version-picker-item ${isRelSelected ? "version-picker-item--active" : ""}`}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span className="version-picker-item__tag">v{cleanRelVer}</span>
-                          {isRelCurrent && (
-                            <span className="version-picker-badge version-picker-badge--current">
-                              {dict.updateModal.currentBadge}
-                            </span>
-                          )}
-                        </div>
-                        <div className="version-picker-item__meta">
-                          {rel.published_at && (
-                            <span>{new Date(rel.published_at).toLocaleDateString(locale === "en" ? "en-US" : "ru-RU")}</span>
-                          )}
-                          {isRelSelected && <Check size={13} color="var(--accent, #60a5fa)" />}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Кнопки действий справа */}
-          <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
-            {isUpgrade ? (
-              <>
-                {!isDownloading && (
-                  <button
-                    onClick={handlePostpone}
-                    style={{
-                      padding: "0 16px",
-                      height: 29,
-                      boxSizing: "border-box",
-                      borderRadius: "var(--radius-sm)",
-                      background: "rgba(255, 255, 255, 0.06)",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
-                      color: "var(--text-secondary, #d1d5db)",
-                      fontSize: "0.83rem",
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transition: "all 0.15s ease",
-                      whiteSpace: "nowrap",
-                      flexShrink: 0,
-                    }}
-                    className="hover-bright"
-                  >
-                    {dict.updateModal.remindLater}
-                  </button>
-                )}
-
-                <button
-                  onClick={handleInstall}
-                  disabled={isDownloading}
-                  style={{
-                    padding: "0 18px",
-                    height: 29,
-                    boxSizing: "border-box",
-                    borderRadius: "var(--radius-sm)",
-                    background: isDownloading
-                      ? "rgba(59, 130, 246, 0.4)"
-                      : "linear-gradient(135deg, var(--accent, #3b82f6) 0%, var(--accent-dim, #2563eb) 100%)",
-                    border: "none",
-                    outline: "none",
-                    color: "#ffffff",
-                    fontSize: "0.83rem",
-                    fontWeight: 600,
-                    cursor: isDownloading ? "default" : "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 7,
-                    boxShadow: isDownloading
-                      ? "none"
-                      : "0 4px 12px var(--accent-glow, rgba(59, 130, 246, 0.35))",
-                    transition: "all 0.15s ease",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                  }}
-                  className={!isDownloading ? "hover-scale" : ""}
-                >
-                  {isDownloading ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      <span style={{ whiteSpace: "nowrap" }}>
-                        {isDone ? dict.updateModal.installStarting : dict.updateModal.downloading}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Download size={14} />
-                      <span style={{ whiteSpace: "nowrap" }}>
-                        {dict.updateModal.updateTo(targetVersion)}
-                      </span>
-                    </>
-                  )}
-                </button>
-              </>
-            ) : isDowngrade ? (
-              <>
-                {!isDownloading && (
-                  <button
-                    onClick={handleClose}
-                    style={{
-                      padding: "0 16px",
-                      height: 29,
-                      boxSizing: "border-box",
-                      borderRadius: "var(--radius-sm)",
-                      background: "rgba(255, 255, 255, 0.06)",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
-                      color: "var(--text-secondary, #d1d5db)",
-                      fontSize: "0.83rem",
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transition: "all 0.15s ease",
-                      whiteSpace: "nowrap",
-                      flexShrink: 0,
-                    }}
-                    className="hover-bright"
-                  >
-                    {dict.updateModal.cancel}
-                  </button>
-                )}
-
-                <button
-                  onClick={handleInstall}
-                  disabled={isDownloading}
-                  style={{
-                    padding: "0 18px",
-                    height: 29,
-                    boxSizing: "border-box",
-                    borderRadius: "var(--radius-sm)",
-                    background: isDownloading
-                      ? "rgba(245, 158, 11, 0.4)"
-                      : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                    border: "none",
-                    outline: "none",
-                    color: "#ffffff",
-                    fontSize: "0.83rem",
-                    fontWeight: 600,
-                    cursor: isDownloading ? "default" : "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 7,
-                    boxShadow: isDownloading
-                      ? "none"
-                      : "0 4px 12px rgba(245, 158, 11, 0.35)",
-                    transition: "all 0.15s ease",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                  }}
-                  className={!isDownloading ? "hover-scale" : ""}
-                >
-                  {isDownloading ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      <span style={{ whiteSpace: "nowrap" }}>
-                        {isDone ? dict.updateModal.rollbackStarting : dict.updateModal.downloading}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Download size={14} />
-                      <span style={{ whiteSpace: "nowrap" }}>
-                        {dict.updateModal.rollbackTo(targetVersion)}
-                      </span>
-                    </>
-                  )}
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={handleClose}
-                style={{
-                  padding: "0 22px",
-                  height: 29,
-                  boxSizing: "border-box",
-                  borderRadius: "var(--radius-sm)",
-                  background: "linear-gradient(135deg, var(--accent, #3b82f6) 0%, var(--accent-dim, #2563eb) 100%)",
-                  border: "none",
-                  outline: "none",
-                  color: "#ffffff",
-                  fontSize: "0.83rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  boxShadow: "0 4px 12px var(--accent-glow, rgba(59, 130, 246, 0.35))",
-                  transition: "all 0.15s ease",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                }}
-                className="hover-scale"
-              >
-                <span style={{ whiteSpace: "nowrap" }}>{dict.updateModal.gotIt}</span>
-              </button>
-            )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -805,28 +968,11 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   onClose,
 }) => {
   const { dict } = useTranslation();
-  const [isClosing, setIsClosing] = useState(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleClose = useCallback(() => {
-    if (closeTimerRef.current) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-    }, getCloseTimeoutMs("fast"));
-  }, [onClose]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
+  const { isClosing, handleClose } = useOverlayDismiss({
+    onClose,
+    kind: "fast",
+    closeOnEscape: true,
+  });
 
   const handlePostpone = () => {
     invoke("postpone_update").catch(console.error).finally(handleClose);
@@ -849,7 +995,6 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
         <button
           className="update-toast__close"
           onClick={handleClose}
-          title={dict.updateModal.toastClose}
           aria-label={dict.updateModal.toastClose}
         >
           <X size={16} />

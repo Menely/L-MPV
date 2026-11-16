@@ -1,0 +1,91 @@
+/* ─── Стиль «Модерн» (Единая парящая капсула) ─────────────────── */
+.player-controls {
+  position: relative;
+  background: var(--bg-pill);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  padding: var(--space-2) 16px 8px;
+  box-shadow: var(--shadow-pill);
+  transition: transform var(--t-pop) var(--ease-standard),
+              box-shadow var(--t-pop) var(--ease-standard),
+              border-color var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
+}
+
+.player-controls:hover {
+  box-shadow: var(--shadow-pill-hover);
+}
+
+/* Строка таймлайна со временем */
+.timeline-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-6);
+  width: 100%;
+  margin-bottom: var(--space-1);
+}
+
+.timeline-row--full {
+  gap: 0;
+}
+
+.timeline-row .timeline-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.timeline-row .timeline-col .timeline,
+.timeline-row .timeline {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.timeline-row .time-display {
+  flex-shrink: 0;
+  padding: 0 2px;
+  user-select: none;
+  height: 14px;
+  display: flex;
+  align-items: center;
+}
+
+/* Строка кнопок управления */
+.controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-4);
+  position: relative;
+}
+
+.controls-row__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.controls-row__center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.controls-row__right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+}

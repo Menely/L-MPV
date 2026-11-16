@@ -1,3 +1,4 @@
+import { saveAmbientSettings } from "./ambientPreviewQueue";
 // ─── Утилиты управления пресетами настроек L-MPV ──────────────
 // Данный модуль обеспечивает создание снимков текущих настроек,
 // их портативное сохранение в config/presets.json и localStorage,
@@ -22,6 +23,12 @@ import {
   getVisualizerConfig,
   saveVisualizerConfig,
 } from "../components/player/AudioVisualizer";
+import {
+  HeatmapConfig,
+  DEFAULT_HEATMAP_CONFIG,
+  getHeatmapConfig,
+  saveHeatmapConfig,
+} from "../components/player/heatmap";
 import { getCustomHotkeys, saveCustomHotkeys } from "./hotkeyUtils";
 import {
   UiRadiusLevel,
@@ -34,6 +41,9 @@ import {
   UiFontId,
   getSavedUiFont,
   saveUiFont,
+  getSavedUiSettingsStyle,
+  saveUiSettingsStyle,
+  UiSettingsStyle,
 } from "./uiThemeUtils";
 import {
   TimeDisplayPosition,
@@ -50,10 +60,19 @@ import {
   getSavedControlBarStyle,
   saveControlBarStyle,
 } from "./controlBarStyleUtils";
+import type { AmbientPresetSettings } from "./ambientSettingsUtils";
+import { normalizeAmbientSettings } from "./ambientSettingsUtils";
+import { getEffectiveLocale, saveLocale, type Locale } from "../i18n/index";
+import { getSavedSeekStepSeconds, saveSeekStepSeconds } from "./seekUtils";
+import { getUserPresetsCache, setUserPresetsCache, userPresetsCacheRevision } from "./userPresetsCache";
 
 export interface SettingsPresetData {
   /** Тема оформления плеера (расцветка фона и поверхностей) */
   playerTheme?: PlayerThemeId | string;
+  /** Стиль окна настроек (модальное окно или боковая панель) */
+  settingsStyle?: UiSettingsStyle;
+  /** Язык интерфейса (ru или en) */
+  language?: Locale;
   /** Семейство шрифта интерфейса */
   uiFont?: UiFontId | string;
   /** Положение отображения времени воспроизведения видео */
@@ -83,22 +102,20 @@ export interface SettingsPresetData {
   visibleButtons: Record<string, boolean>;
   /** Пользовательская сохранённая палитра цветов */
   customColors?: string[];
-  /** Параметры подсветки полос (Ambient Light) */
-  ambient: {
-    mode: "off" | "blur" | "color";
-    blur_radius: number;
-    color: string;
-    brightness?: number;
-    saturation?: number;
-  };
+  /** Параметры подсветки полос (Blur) */
+  ambient: AmbientPresetSettings;
   /** Конфигурация аудио-визуализатора */
   visualizer: VisualizerConfig;
+  /** Конфигурация тепловой карты таймлайна */
+  heatmap?: HeatmapConfig;
   /** Сохранять извлечённые дорожки в папку с видео */
   saveTracksToVideoDir: boolean;
   /** Автоподхват внешних дорожек при перетаскивании */
   hotloadEnabled: boolean;
   /** Количество секунд пропуска опенинга */
   skipOpeningSeconds: number;
+  /** Количество секунд шага перемотки (стрелки / кнопки) */
+  seekStepSeconds?: number;
   /** Пользовательские горячие клавиши */
   customHotkeys?: Record<string, string[]>;
 }
@@ -125,11 +142,12 @@ const PRESETS_STORAGE_KEY = "l-mpv-settings-presets";
 /**
  * Встроенные заводские пресеты для быстрого выбора визуального стиля.
  */
+// Explicit geometry and a disabled heatmap make each style independent of the previous preset.
 export const BUILT_IN_PRESETS: SettingsPreset[] = [
   {
     id: "builtin_classic",
     name: "Классический L-MPV",
-    description: "Фирменный небесно-голубой стиль с мягкой подсветкой и волной",
+    description: "Тёмный графит, небесный акцент и цельная панель «Модерн»",
     createdAt: 1700000000000,
     isBuiltIn: true,
     data: {
@@ -137,25 +155,33 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       uiFont: "inter",
       accentColor: "#7fc7ff",
       glowIntensity: "soft",
-      uiOpacity: 0.88,
+      uiOpacity: 0.92,
+      controlBarStyle: "modern",
+      uiRadius: "default",
+      settingsStyle: "modal",
+      uiScale: { mode: "auto" },
+      timePosition: "timeline_right",
+      timeFormat: "elapsed_total",
+      heatmap: { ...DEFAULT_HEATMAP_CONFIG, enabled: false },
       animationsEnabled: true,
       showTrackNames: true,
       visibleButtons: {
-        repeat: true,
-        shuffle: true,
+        repeat: false,
+        shuffle: false,
         alwaysOnTop: true,
-        info: true,
-        mediaInfo: true,
-        visualizer: true,
+        info: false,
+        mediaInfo: false,
+        visualizer: false,
         screenshot: true,
         playlist: true,
         fullscreen: true,
-        skipOpening: false,
+        skipOpening: true,
+        speed: false,
+        seekButtons: true,
       },
       ambient: {
         mode: "blur",
         blur_radius: 35,
-        color: "#000000",
       },
       visualizer: {
         enabled: true,
@@ -167,20 +193,28 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       saveTracksToVideoDir: true,
       hotloadEnabled: false,
       skipOpeningSeconds: 90,
+      seekStepSeconds: 10,
     },
   },
   {
     id: "builtin_cyberpunk",
-    name: "Киберпанк Неон",
-    description: "Яркий неоново-розовый акцент с сильным свечением и спектральными полосами",
+    name: "Сумеречный ирис",
+    description: "Чернильный индиго, розовый акцент и капсулы со спектром в тон",
     createdAt: 1700000000001,
     isBuiltIn: true,
     data: {
-      playerTheme: "oled",
+      playerTheme: "indigo",
       uiFont: "outfit",
-      accentColor: "#ff2a85",
-      glowIntensity: "intense",
+      accentColor: "#f9a8d4",
+      glowIntensity: "soft",
       uiOpacity: 0.94,
+      controlBarStyle: "capsule",
+      uiRadius: "pill",
+      settingsStyle: "modal",
+      uiScale: { mode: "auto" },
+      timePosition: "timeline_right",
+      timeFormat: "elapsed_total",
+      heatmap: { ...DEFAULT_HEATMAP_CONFIG, enabled: false },
       animationsEnabled: true,
       showTrackNames: true,
       visibleButtons: {
@@ -194,36 +228,45 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         playlist: true,
         fullscreen: true,
         skipOpening: true,
+        speed: false,
+        seekButtons: true,
       },
       ambient: {
-        mode: "color",
+        mode: "off",
         blur_radius: 50,
-        color: "#4a044e",
       },
       visualizer: {
         enabled: true,
         placement: "toolbar",
         mode: "bars",
-        theme: "neon",
+        theme: "accent",
         height: 26,
       },
       saveTracksToVideoDir: true,
       hotloadEnabled: true,
       skipOpeningSeconds: 90,
+      seekStepSeconds: 10,
     },
   },
   {
     id: "builtin_cinema",
     name: "Ночной кинозал",
-    description: "Тёплый янтарный тон, глубокое фоновое размытие и приглушённый интерфейс",
+    description: "Глубокий OLED, янтарные детали и спокойная классическая панель",
     createdAt: 1700000000002,
     isBuiltIn: true,
     data: {
-      playerTheme: "graphite",
+      playerTheme: "oled",
       uiFont: "jakarta",
-      accentColor: "#f59e0b",
-      glowIntensity: "soft",
-      uiOpacity: 0.72,
+      accentColor: "#e8a236",
+      glowIntensity: "off",
+      uiOpacity: 0.96,
+      controlBarStyle: "docked",
+      uiRadius: "smooth",
+      settingsStyle: "modal",
+      uiScale: { mode: "auto" },
+      timePosition: "timeline_right",
+      timeFormat: "elapsed_total",
+      heatmap: { ...DEFAULT_HEATMAP_CONFIG, enabled: false },
       animationsEnabled: true,
       showTrackNames: false,
       visibleButtons: {
@@ -237,11 +280,12 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         playlist: true,
         fullscreen: true,
         skipOpening: false,
+        speed: false,
+        seekButtons: true,
       },
       ambient: {
         mode: "blur",
         blur_radius: 65,
-        color: "#000000",
       },
       visualizer: {
         enabled: false,
@@ -253,20 +297,28 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       saveTracksToVideoDir: false,
       hotloadEnabled: false,
       skipOpeningSeconds: 90,
+      seekStepSeconds: 10,
     },
   },
   {
     id: "builtin_minimal",
-    name: "Чистый минимализм",
-    description: "Строгий нейтральный стиль без лишних кнопок и свечения",
+    name: "Тихий титан",
+    description: "Тёплый минеральный серый, серебряный акцент и строгая геометрия",
     createdAt: 1700000000003,
     isBuiltIn: true,
     data: {
-      playerTheme: "nord",
+      playerTheme: "slate",
       uiFont: "inter",
-      accentColor: "#cbd5e1",
+      accentColor: "#c3c8d0",
       glowIntensity: "off",
       uiOpacity: 1.0,
+      controlBarStyle: "docked",
+      uiRadius: "minimal",
+      settingsStyle: "sidebar",
+      uiScale: { mode: "auto" },
+      timePosition: "timeline_right",
+      timeFormat: "elapsed_total",
+      heatmap: { ...DEFAULT_HEATMAP_CONFIG, enabled: false },
       animationsEnabled: true,
       showTrackNames: false,
       visibleButtons: {
@@ -280,11 +332,12 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         playlist: true,
         fullscreen: true,
         skipOpening: false,
+        speed: false,
+        seekButtons: true,
       },
       ambient: {
         mode: "off",
         blur_radius: 20,
-        color: "#000000",
       },
       visualizer: {
         enabled: false,
@@ -296,6 +349,59 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       saveTracksToVideoDir: true,
       hotloadEnabled: false,
       skipOpeningSeconds: 90,
+      seekStepSeconds: 10,
+    },
+  },
+  {
+    id: "builtin_forest",
+    name: "Лесной нефрит",
+    description: "Лесной шалфей, мятный нефритовый акцент и мягкие парящие капсулы",
+    createdAt: 1700000000004,
+    isBuiltIn: true,
+    data: {
+      playerTheme: "pine",
+      uiFont: "manrope",
+      accentColor: "#a7f3d0",
+      glowIntensity: "off",
+      uiOpacity: 0.90,
+      controlBarStyle: "capsule",
+      uiRadius: "pill",
+      settingsStyle: "modal",
+      uiScale: { mode: "auto" },
+      timePosition: "timeline_right",
+      timeFormat: "elapsed_total",
+      heatmap: { ...DEFAULT_HEATMAP_CONFIG, enabled: false },
+      animationsEnabled: true,
+      showTrackNames: true,
+      visibleButtons: {
+        repeat: false,
+        shuffle: false,
+        alwaysOnTop: true,
+        info: false,
+        mediaInfo: false,
+        visualizer: false,
+        screenshot: true,
+        playlist: true,
+        fullscreen: true,
+        skipOpening: true,
+        speed: false,
+        seekButtons: true,
+      },
+      ambient: {
+        mode: "off",
+        blur_radius: 35,
+      },
+      visualizer: {
+        enabled: true,
+        placement: "toolbar",
+        mode: "waveform",
+        theme: "accent",
+        height: 22,
+      },
+      saveTracksToVideoDir: true,
+      hotloadEnabled: false,
+      skipOpeningSeconds: 90,
+      seekStepSeconds: 10,
     },
   },
 ];
@@ -311,16 +417,18 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
   const showTrackNames = localStorage.getItem("l-mpv-show-track-names") !== "false";
 
   let visibleButtons: Record<string, boolean> = {
-    repeat: true,
-    shuffle: true,
+    repeat: false,
+    shuffle: false,
     alwaysOnTop: true,
-    info: true,
-    mediaInfo: true,
-    visualizer: true,
+    info: false,
+    mediaInfo: false,
+    visualizer: false,
     screenshot: true,
     playlist: true,
     fullscreen: true,
-    skipOpening: false,
+    skipOpening: true,
+    speed: false,
+    seekButtons: true,
   };
   try {
     const rawBtns = localStorage.getItem("l-mpv-visible-buttons");
@@ -333,38 +441,25 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
 
   const customColors = getCustomColors();
 
-  let ambient: {
-    mode: "off" | "blur" | "color";
-    blur_radius: number;
-    color: string;
-    brightness?: number;
-    saturation?: number;
-  } = {
+  let ambient: AmbientPresetSettings = {
     mode: "off",
     blur_radius: 35,
-    color: "#000000",
   };
   try {
-    const savedAmbient = await invoke<{
-      mode: "off" | "blur" | "color";
-      blur_radius: number;
-      color: string;
-      brightness?: number;
-      saturation?: number;
-    }>(
-      "get_ambient_settings"
-    );
+    const savedAmbient = await invoke<unknown>("get_ambient_settings");
     if (savedAmbient) {
-      ambient = savedAmbient;
+      ambient = normalizeAmbientSettings(savedAmbient);
     }
   } catch (e) {
-    console.error("Ошибка получения настроек Ambient Light:", e);
+    console.error("Ошибка получения настроек Blur:", e);
   }
 
   const visualizer = getVisualizerConfig();
+  const heatmap = getHeatmapConfig();
   const saveTracksToVideoDir = localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false";
   const hotloadEnabled = localStorage.getItem("l-mpv-hotload-enabled") === "true";
   const skipOpeningSeconds = Number(localStorage.getItem("l-mpv-skip-opening-seconds") || 90);
+  const seekStepSeconds = getSavedSeekStepSeconds();
   const customHotkeys = getCustomHotkeys();
   const uiRadius = getSavedUiRadius();
   const uiScale = getSavedUiScale();
@@ -377,8 +472,10 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
     createdAt: Date.now(),
     isBuiltIn: false,
     data: {
-      playerTheme,
-      uiFont,
+       playerTheme,
+       settingsStyle: getSavedUiSettingsStyle(),
+       language: getEffectiveLocale(),
+       uiFont,
       timePosition: getSavedTimePosition(),
       timeFormat: getSavedTimeFormat(),
       controlBarStyle: getSavedControlBarStyle(),
@@ -393,9 +490,11 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
       customColors,
       ambient,
       visualizer,
+      heatmap,
       saveTracksToVideoDir,
       hotloadEnabled,
       skipOpeningSeconds,
+      seekStepSeconds,
       customHotkeys,
     },
   };
@@ -406,6 +505,12 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
  */
 export async function applySettingsPreset(preset: SettingsPreset): Promise<void> {
   const { data } = preset;
+
+  if (data.ambient) {
+    const ambient = normalizeAmbientSettings(data.ambient);
+    await saveAmbientSettings(ambient);
+    window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: ambient }));
+  }
 
   // 0. Тема оформления плеера (расцветка фона и поверхностей)
   if (data.playerTheme) {
@@ -438,6 +543,7 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   if (typeof data.uiOpacity === "number") {
     saveUiOpacity(data.uiOpacity);
   }
+
 
   // 3.1 Скругление интерфейса
   if (data.uiRadius) {
@@ -473,6 +579,15 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
     saveControlBarStyle(data.controlBarStyle);
   }
 
+  if (data.settingsStyle === "modal" || data.settingsStyle === "sidebar") {
+    saveUiSettingsStyle(data.settingsStyle);
+  }
+
+  // 3.7 Язык интерфейса
+  if (data.language === "ru" || data.language === "en") {
+    saveLocale(data.language);
+  }
+
   // 4. Плавные анимации — через единый сеттер (localStorage + класс + data-атрибут)
   if (typeof data.animationsEnabled === "boolean") {
     setAnimationsEnabled(data.animationsEnabled);
@@ -493,20 +608,14 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
     saveCustomColors(data.customColors);
   }
 
-  // 8. Подсветка полос (Ambient Light)
-  if (data.ambient) {
-    try {
-      await invoke("set_ambient_settings", { settings: data.ambient });
-      await invoke("apply_ambient_preview", { settings: data.ambient }).catch(() => {});
-      window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: data.ambient }));
-    } catch (e) {
-      console.error("Ошибка применения Ambient Light:", e);
-    }
-  }
-
   // 9. Аудио-визуализатор
   if (data.visualizer) {
     saveVisualizerConfig(data.visualizer);
+  }
+
+  // 9.1. Тепловая карта таймлайна
+  if (data.heatmap) {
+    saveHeatmapConfig(data.heatmap);
   }
 
   // 10. Поведение сохранения дорожек и хотлоад
@@ -518,6 +627,9 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   }
   if (typeof data.skipOpeningSeconds === "number") {
     localStorage.setItem("l-mpv-skip-opening-seconds", data.skipOpeningSeconds.toString());
+  }
+  if (typeof data.seekStepSeconds === "number") {
+    saveSeekStepSeconds(data.seekStepSeconds);
   }
 
   // 11. Горячие клавиши (если сохранены в пресете)
@@ -535,6 +647,7 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
  * Загрузка пользовательских пресетов из индивидуальных файлов в config/presets/*.json и localStorage.
  */
 export async function loadUserPresets(): Promise<SettingsPreset[]> {
+  const revision = userPresetsCacheRevision();
   const normalizeList = (list: unknown[]): SettingsPreset[] => {
     return list
       .filter((item): item is SettingsPreset => {
@@ -547,7 +660,10 @@ export async function loadUserPresets(): Promise<SettingsPreset[]> {
         createdAt: typeof item.createdAt === "number" ? item.createdAt : Date.now(),
         updatedAt: typeof item.updatedAt === "number" ? item.updatedAt : undefined,
         isBuiltIn: false,
-        data: item.data || {},
+        data: {
+          ...(item.data || {}),
+          ambient: normalizeAmbientSettings(item.data?.ambient),
+        },
       }));
   };
 
@@ -558,6 +674,7 @@ export async function loadUserPresets(): Promise<SettingsPreset[]> {
       const parsed = JSON.parse(jsonFromBackend);
       if (Array.isArray(parsed)) {
         const normalized = normalizeList(parsed);
+        if (revision !== userPresetsCacheRevision()) return getUserPresetsCache() ?? normalized;
         localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(normalized));
         return normalized;
       }
@@ -595,12 +712,9 @@ export async function saveUserPresets(presets: SettingsPreset[]): Promise<void> 
     console.error("Ошибка записи пресетов в localStorage:", e);
   }
 
-  try {
-    await invoke("save_settings_presets", { presetsJson: jsonStr });
-  } catch (e) {
-    console.error("Ошибка сохранения пресетов в config/presets.json:", e);
-  }
+  await invoke("save_settings_presets", { presetsJson: jsonStr });
 
+  setUserPresetsCache(userOnly);
   window.dispatchEvent(new CustomEvent("l-mpv-presets-updated"));
 }
 
@@ -739,7 +853,9 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
           createdAt: Date.now(),
           isBuiltIn: false,
           data: {
-            playerTheme: item.data.playerTheme || "graphite",
+             playerTheme: item.data.playerTheme || "graphite",
+             settingsStyle: item.data.settingsStyle === "modal" || item.data.settingsStyle === "sidebar" ? item.data.settingsStyle : undefined,
+             language: item.data.language === "ru" || item.data.language === "en" ? item.data.language : undefined,
             accentColor: item.data.accentColor || "#7fc7ff",
             glowIntensity: item.data.glowIntensity || "medium",
             uiOpacity: typeof item.data.uiOpacity === "number" ? item.data.uiOpacity : 0.88,
@@ -749,7 +865,7 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
             showTrackNames: item.data.showTrackNames !== false,
             visibleButtons: item.data.visibleButtons || {},
             customColors: item.data.customColors || [],
-            ambient: item.data.ambient || { mode: "off", blur_radius: 35, color: "#000000" },
+            ambient: normalizeAmbientSettings(item.data.ambient),
             visualizer: item.data.visualizer || {
               enabled: false,
               placement: "off",
@@ -757,9 +873,11 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
               theme: "accent",
               height: 22,
             },
+            heatmap: item.data.heatmap,
             saveTracksToVideoDir: item.data.saveTracksToVideoDir !== false,
             hotloadEnabled: item.data.hotloadEnabled === true,
             skipOpeningSeconds: typeof item.data.skipOpeningSeconds === "number" ? item.data.skipOpeningSeconds : 90,
+            seekStepSeconds: typeof item.data.seekStepSeconds === "number" ? item.data.seekStepSeconds : 10,
             customHotkeys: item.data.customHotkeys,
           },
         });
@@ -818,6 +936,14 @@ export function isSettingsMatchingPreset(
   const preFont = preset.uiFont || "inter";
   if (curFont !== preFont) return false;
 
+  if (preset.settingsStyle) {
+    if (getSavedUiSettingsStyle() !== preset.settingsStyle) return false;
+  }
+
+  if (preset.language) {
+    if (getEffectiveLocale() !== preset.language) return false;
+  }
+
   // 3. Акцентный цвет
   const curAccent = (current.accentColor || "#7fc7ff").toLowerCase();
   const preAccent = (preset.accentColor || "#7fc7ff").toLowerCase();
@@ -869,16 +995,15 @@ export function isSettingsMatchingPreset(
     }
   }
 
-  // 11. Ambient Light
+  // 11. Blur
   if (current.ambient && preset.ambient) {
-    if (current.ambient.mode !== preset.ambient.mode) return false;
-    if (current.ambient.mode !== "off") {
-      if (current.ambient.blur_radius !== preset.ambient.blur_radius) return false;
-      if (current.ambient.mode === "color" && current.ambient.color.toLowerCase() !== preset.ambient.color.toLowerCase()) return false;
-      // Яркость/насыщенность сравниваем только если пресет их задаёт
-      if (preset.ambient.brightness !== undefined && (current.ambient.brightness ?? 100) !== preset.ambient.brightness) return false;
-      if (preset.ambient.saturation !== undefined && (current.ambient.saturation ?? 100) !== preset.ambient.saturation) return false;
+    const currentAmbient = normalizeAmbientSettings(current.ambient);
+    const presetAmbient = normalizeAmbientSettings(preset.ambient);
+    if (currentAmbient.mode !== presetAmbient.mode) return false;
+    if (currentAmbient.mode === "blur") {
+      if (currentAmbient.blur_radius !== presetAmbient.blur_radius) return false;
     }
+
   }
 
   // 12. Аудио-визуализатор
@@ -896,6 +1021,7 @@ export function isSettingsMatchingPreset(
   if (Boolean(current.saveTracksToVideoDir) !== Boolean(preset.saveTracksToVideoDir)) return false;
   if (Boolean(current.hotloadEnabled) !== Boolean(preset.hotloadEnabled)) return false;
   if (Number(current.skipOpeningSeconds || 90) !== Number(preset.skipOpeningSeconds || 90)) return false;
+  if (Number(current.seekStepSeconds || 10) !== Number(preset.seekStepSeconds || 10)) return false;
 
   // 14. Горячие клавиши (если они определены в пресете)
   if (preset.customHotkeys && Object.keys(preset.customHotkeys).length > 0) {

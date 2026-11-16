@@ -35,7 +35,12 @@ fn get_presets_dir(
 ) -> Result<std::path::PathBuf, String> {
     let dir = get_config_dir()?.join("presets");
     if !dir.exists() {
-        let _ = std::fs::create_dir_all(&dir);
+        std::fs::create_dir_all(&dir).map_err(|e| {
+            format!(
+                "Не удалось создать папку пресетов {}: {}",
+                dir.display(), e
+            )
+        })?;
     }
     Ok(dir)
 }
@@ -78,7 +83,7 @@ fn migrate_legacy_presets_if_needed(
                                     if let Ok(
                                         item_str,
                                     ) = serde_json::to_string_pretty(item) {
-                                        let _ = std::fs::write(&file_path, item_str);
+                                        let _ = super::types::write_atomic(&file_path, item_str.as_bytes(), false);
                                     }
                                 }
                             }
@@ -159,61 +164,70 @@ pub fn save_settings_presets(
     presets_json: String,
 ) -> Result<(), String> {
     let presets_dir = get_presets_dir()?;
-    if let Ok(parsed) = serde_json::from_str::<
-        serde_json::Value,
-    >(&presets_json)
-    {
-        if let Some(list) = parsed.as_array() {
-            let mut active_files =
-                std::collections::HashSet::new();
-            for item in list {
-                if let Some(name) = item
-                    .get("name")
-                    .and_then(|n| n.as_str())
-                {
-                    let safe_name =
-                        sanitize_filename(name);
-                    let file_name =
-                        format!("{safe_name}.json");
-                    let file_path =
-                        presets_dir.join(&file_name);
-                    if let Ok(item_str) =
-                        serde_json::to_string_pretty(
-                            item,
-                        )
-                    {
-                        let _ = std::fs::write(
-                            &file_path, item_str,
-                        );
-                    }
-                    active_files.insert(file_name);
-                }
-            }
+    let list = serde_json::from_str::<Vec<serde_json::Value>>(
+        &presets_json,
+    )
+    .map_err(|e| {
+        format!(
+            "Некорректный JSON списка пресетов: {}",
+            e
+        )
+    })?;
+    let mut active_files =
+        std::collections::HashSet::new();
 
-            // Удаляем файлы пресетов, которые были удалены пользователем
-            if let Ok(entries) =
-                std::fs::read_dir(&presets_dir)
+    for item in &list {
+        let name = item
+            .get("name")
+            .and_then(|value| value.as_str())
+            .ok_or_else(|| {
+                "Пресет без поля name".to_string()
+            })?;
+        let file_name = format!(
+            "{}.json", sanitize_filename(name)
+        );
+        let file_path = presets_dir.join(&file_name);
+        let item_json =
+            serde_json::to_string_pretty(item)
+                .map_err(|e| e.to_string())?;
+        super::types::write_atomic(&file_path, item_json.as_bytes(), false)
+            .map_err(|e| {
+                format!(
+                    "Не удалось сохранить пресет {}: {}",
+                    file_path.display(), e
+                )
+            })?;
+        active_files.insert(file_name);
+    }
+
+    if let Ok(entries) = std::fs::read_dir(&presets_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Some(file_name) = path
+                .file_name()
+                .and_then(|value| value.to_str())
+            else {
+                continue;
+            };
+            if file_name.ends_with(".json")
+                && !active_files.contains(file_name)
             {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if let Some(fname) = path
-                        .file_name()
-                        .and_then(|f| f.to_str())
-                    {
-                        if fname.ends_with(".json")
-                            && !active_files
-                                .contains(fname)
-                        {
-                            let _ =
-                                std::fs::remove_file(
-                                    &path,
-                                );
-                        }
+                match std::fs::remove_file(&path) {
+                    Ok(()) => {}
+                    Err(error)
+                        if error.kind()
+                            == std::io::ErrorKind::NotFound => {}
+                    Err(error) => {
+                        return Err(format!(
+                            "Не удалось удалить пресет {}: {}",
+                            path.display(), error
+                        ));
                     }
                 }
             }
         }
     }
+
     Ok(())
 }
 
@@ -228,7 +242,7 @@ pub fn save_single_preset(
     let target_path =
         presets_dir.join(format!("{safe_name}.json"));
 
-    std::fs::write(&target_path, preset_json).map_err(
+    super::types::write_atomic(&target_path, preset_json.as_bytes(), false).map_err(
         |e| {
             format!(
                 "Ошибка записи файла пресета {:?}: {e}",
@@ -319,10 +333,7 @@ pub fn write_text_file(
     content: String,
 ) -> Result<(), String> {
     let p = std::path::Path::new(&path);
-    if let Some(parent) = p.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    std::fs::write(p, content).map_err(|e| {
+    super::types::write_atomic(p, content.as_bytes(), false).map_err(|e| {
         format!(
             "Ошибка записи файла по пути {path}: {e}"
         )
@@ -372,7 +383,7 @@ pub fn save_context_menu_layout(
     let config_dir = get_config_dir()?;
     let layout_file =
         config_dir.join("context_menu.json");
-    std::fs::write(&layout_file, layout_json).map_err(
+    super::types::write_atomic(&layout_file, layout_json.as_bytes(), true).map_err(
         |e| {
             format!(
                 "Ошибка сохранения \

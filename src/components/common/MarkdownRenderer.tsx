@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { ExternalLink, Image as ImageIcon, CheckSquare, Square } from "lucide-react";
+import { ExternalLink, Image as ImageIcon, CheckSquare, Square, ChevronRight } from "lucide-react";
+import { getEffectiveLocale } from "../../i18n";
 
 interface MarkdownRendererProps {
   content: string;
@@ -13,10 +14,12 @@ interface MarkdownRendererProps {
  * Все внешние ссылки и изображения открываются в системном браузере через openUrl.
  */
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = "" }) => {
+  const isRu = getEffectiveLocale() === "ru";
+
   if (!content || !content.trim()) {
     return (
-      <div style={{ color: "var(--text-muted, #9ca3af)", fontStyle: "italic", fontSize: "0.85rem" }}>
-        Описание изменений отсутствует.
+      <div style={{ color: "var(--text-muted, #9ca3af)", fontStyle: "italic", fontSize: "var(--fs-base)" }}>
+        {isRu ? "Описание изменений отсутствует." : "No changelog description provided."}
       </div>
     );
   }
@@ -28,10 +31,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
       className={`markdown-content ${className}`}
       style={{
         color: "var(--text, #e5e7eb)",
-        fontSize: "0.85rem",
+        fontSize: "var(--fs-base)",
         lineHeight: 1.6,
       }}
-    >
+      >
       {blocks.map((block, idx) => (
         <RenderBlock key={idx} block={block} />
       ))}
@@ -49,6 +52,7 @@ type MarkdownBlock =
   | { type: "list"; items: { indent: number; checked: boolean | null; text: string }[]; ordered?: boolean }
   | { type: "table"; headers: string[]; rows: string[][] }
   | { type: "image"; alt: string; src: string; linkUrl?: string }
+  | { type: "details"; summary: string; innerBlocks: MarkdownBlock[]; defaultOpen?: boolean }
   | { type: "paragraph"; text: string };
 
 /**
@@ -105,6 +109,57 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
     // Пустая строка
     if (!trimmed) {
       i++;
+      continue;
+    }
+
+    // Сворачиваемый блок (<details> ... </details>)
+    const detailsMatch = trimmed.match(/^<details(\s+[^>]*)?>/i);
+    if (detailsMatch) {
+      const isDefaultOpen = /\bopen\b/i.test(detailsMatch[0]);
+      const detailLines: string[] = [];
+
+      // Однострочный <details>...</details>
+      if (/<\/details>/i.test(trimmed)) {
+        const withoutStart = trimmed.replace(/^<details(\s+[^>]*)?>/i, "");
+        const content = withoutStart.replace(/<\/details>/i, "");
+        detailLines.push(content);
+        i++;
+      } else {
+        i++;
+        let depth = 1;
+        while (i < lines.length) {
+          const curTrimmed = lines[i].trim();
+          if (/^<details(\s+[^>]*)?>/i.test(curTrimmed)) {
+            depth++;
+          } else if (/^<\/details>/i.test(curTrimmed)) {
+            depth--;
+            if (depth === 0) {
+              i++;
+              break;
+            }
+          }
+          detailLines.push(lines[i]);
+          i++;
+        }
+      }
+
+      let summary = "Подробнее / Details";
+      const fullDetailText = detailLines.join("\n");
+      const summaryMatch = fullDetailText.match(/<summary\b[^>]*>(.*?)<\/summary>/is);
+
+      let bodyMarkdown = fullDetailText;
+      if (summaryMatch) {
+        summary = summaryMatch[1].trim();
+        bodyMarkdown = fullDetailText.replace(/<summary\b[^>]*>.*?<\/summary>/is, "").trim();
+      }
+
+      const innerBlocks = parseMarkdownBlocks(bodyMarkdown);
+      blocks.push({
+        type: "details",
+        summary,
+        innerBlocks,
+        defaultOpen: isDefaultOpen,
+      });
       continue;
     }
 
@@ -231,7 +286,7 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
         const itemLine = lines[i];
         const itemMatch = itemLine.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/);
         if (!itemMatch) {
-          if (itemLine.trim() && (itemLine.startsWith("  ") || itemLine.startsWith("\t")) && items.length > 0) {
+          if (itemLine.trim() && (itemLine.startsWith("  ") || itemLine.startsWith("\t")) && items.length> 0) {
             items[items.length - 1].text += "\n" + itemLine.trim();
             i++;
             continue;
@@ -272,13 +327,15 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
       !/^(-{3,}|\*{3,}|_{3,})$/.test(lines[i].trim()) &&
       !lines[i].match(/^(\s*)([-*+]|\d+\.)\s+/) &&
       !lines[i].trim().match(/^!?\[([^\]]*)\]\(([^)]+)\)/) &&
-      !(lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|"))
+      !(lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|")) &&
+      !lines[i].trim().match(/^<details(\s+[^>]*)?>/i) &&
+      !lines[i].trim().match(/^<\/details>/i)
     ) {
       paragraphLines.push(lines[i]);
       i++;
     }
 
-    if (paragraphLines.length > 0) {
+    if (paragraphLines.length> 0) {
       blocks.push({
         type: "paragraph",
         text: paragraphLines.join("\n"),
@@ -289,10 +346,86 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
   return blocks;
 }
 
+/* ─── Компонент сворачиваемого блока (<details>) ──────────── */
+
+interface MarkdownDetailsProps {
+  summary: string;
+  innerBlocks: MarkdownBlock[];
+  defaultOpen?: boolean;
+}
+
+const MarkdownDetails: React.FC<MarkdownDetailsProps> = ({ summary, innerBlocks, defaultOpen = false }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div
+      style={{
+        margin: "8px 0",
+        background: "var(--surface-level-2)",
+        border: "1px solid rgba(255, 255, 255, 0.09)",
+        borderRadius: "var(--radius-sm, 6px)",
+        overflow: "hidden",
+        transition: "border-color 0.15s ease, background 0.15s ease",
+      }}
+      >
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--space-4)",
+          padding: "8px 12px",
+          background: isOpen ? "rgba(255, 255, 255, 0.05)" : "transparent",
+          border: "none",
+          borderBottom: isOpen ? "1px solid rgba(255, 255, 255, 0.08)" : "none",
+          color: "var(--text, #ffffff)",
+          fontSize: "var(--fs-base)",
+          fontWeight: 600,
+          cursor: "pointer",
+          textAlign: "left",
+          transition: "background 0.15s ease",
+        }}
+        className="hover-bright"
+        >
+        <ChevronRight
+          size={16}
+          style={{
+            transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+            transition: "transform 0.18s ease",
+            color: "var(--accent-text)",
+            flexShrink: 0,
+          }}
+        />
+        <div className="grow">
+          <InlineContent text={summary} />
+        </div>
+      </button>
+
+      {isOpen && (
+        <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+          {innerBlocks.map((b, idx) => (
+            <RenderBlock key={idx} block={b} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ─── Компонент рендеринга блока ─────────────────────── */
 
-const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
+function RenderBlock({ block }: { block: MarkdownBlock }): React.ReactElement | null {
   switch (block.type) {
+    case "details":
+      return (
+        <MarkdownDetails
+          summary={block.summary}
+          innerBlocks={block.innerBlocks}
+          defaultOpen={block.defaultOpen}
+        />
+      );
     case "heading": {
       const fontSizes = ["1.15rem", "1.02rem", "0.92rem", "0.86rem"];
       const margins = ["16px 0 8px", "14px 0 6px", "12px 0 4px", "10px 0 4px"];
@@ -309,9 +442,9 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
             display: "flex",
             alignItems: "center",
             flexWrap: "wrap",
-            gap: 6,
+            gap: "var(--space-3)",
           }}
-        >
+          >
           <InlineContent text={block.text} />
         </div>
       );
@@ -328,27 +461,27 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
             padding: "10px 12px",
             overflowX: "auto",
             fontFamily: "Consolas, 'Courier New', monospace",
-            fontSize: "0.8rem",
+            fontSize: "var(--fs-sm)",
             lineHeight: 1.45,
             color: "#e2e8f0",
           }}
           className="custom-scrollbar"
-        >
+          >
           {block.language && (
             <div
               style={{
-                fontSize: "0.7rem",
+                fontSize: "var(--fs-2xs)",
                 color: "var(--text-muted, #9ca3af)",
-                marginBottom: 6,
+                marginBottom: "var(--space-3)",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
                 fontWeight: 600,
               }}
-            >
+              >
               {block.language}
             </div>
           )}
-          <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{block.code}</pre>
+          <pre style={{ margin: "var(--space-0)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{block.code}</pre>
         </div>
       );
 
@@ -359,12 +492,12 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
             margin: "10px 0",
             padding: "8px 14px",
             borderLeft: "3px solid var(--accent, #3b82f6)",
-            background: "rgba(255, 255, 255, 0.03)",
+            background: "var(--surface-level-2)",
             borderRadius: "0 var(--radius-xs) var(--radius-xs) 0",
             color: "var(--text-secondary, #d1d5db)",
             fontStyle: "italic",
           }}
-        >
+          >
           <InlineContent text={block.text} />
         </blockquote>
       );
@@ -387,13 +520,13 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
             style={{
               width: "100%",
               borderCollapse: "collapse",
-              fontSize: "0.82rem",
+              fontSize: "var(--fs-sm)",
               border: "1px solid rgba(255, 255, 255, 0.1)",
               borderRadius: "var(--radius-sm)",
             }}
-          >
+            >
             <thead>
-              <tr style={{ background: "rgba(255, 255, 255, 0.06)" }}>
+              <tr style={{ background: "var(--surface-level-3)" }}>
                 {block.headers.map((h, hIdx) => (
                   <th
                     key={hIdx}
@@ -404,7 +537,7 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
                       color: "var(--text, #ffffff)",
                       borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
                     }}
-                  >
+                    >
                     <InlineContent text={h} />
                   </th>
                 ))}
@@ -418,7 +551,7 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
                     background: rIdx % 2 === 1 ? "rgba(255, 255, 255, 0.02)" : "transparent",
                     borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
                   }}
-                >
+                  >
                   {row.map((cell, cIdx) => (
                     <td key={cIdx} style={{ padding: "6px 10px", color: "var(--text-secondary, #d1d5db)" }}>
                       <InlineContent text={cell} />
@@ -439,29 +572,29 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
         <ul
           style={{
             margin: "6px 0 10px",
-            paddingLeft: 0,
+            paddingLeft: "var(--space-0)",
             listStyle: "none",
             display: "flex",
             flexDirection: "column",
-            gap: 4,
+            gap: "var(--space-2)",
           }}
-        >
+          >
           {block.items.map((item, idx) => {
-            const indentPadding = item.indent > 0 ? Math.min(item.indent * 8, 32) : 0;
+            const indentPadding = item.indent> 0 ? Math.min(item.indent * 8, 32) : 0;
             return (
               <li
                 key={idx}
                 style={{
                   display: "flex",
                   alignItems: "flex-start",
-                  gap: 8,
+                  gap: "var(--space-4)",
                   paddingLeft: indentPadding,
-                  fontSize: "0.85rem",
+                  fontSize: "var(--fs-base)",
                   lineHeight: 1.5,
                 }}
-              >
+                >
                 {item.checked !== null ? (
-                  <span style={{ display: "inline-flex", marginTop: 2, flexShrink: 0 }}>
+                  <span style={{ display: "inline-flex", marginTop: "var(--space-1)", flexShrink: 0 }}>
                     {item.checked ? (
                       <CheckSquare size={14} color="var(--accent, #60a5fa)" />
                     ) : (
@@ -471,12 +604,12 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
                 ) : block.ordered ? (
                   <span
                     style={{
-                      color: "var(--accent, #60a5fa)",
+                      color: "var(--accent-text)",
                       fontWeight: 600,
                       minWidth: "16px",
                       flexShrink: 0,
                     }}
-                  >
+                    >
                     {idx + 1}.
                   </span>
                 ) : (
@@ -486,7 +619,7 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
                       height: 5,
                       borderRadius: "50%",
                       background: "var(--accent, #60a5fa)",
-                      marginTop: 8,
+                      marginTop: "var(--space-4)",
                       flexShrink: 0,
                       boxShadow: "0 0 4px var(--accent, #60a5fa)",
                     }}
@@ -511,7 +644,7 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
             wordBreak: "break-word",
             whiteSpace: "pre-line",
           }}
-        >
+          >
           <InlineContent text={block.text} />
         </p>
       );
@@ -524,6 +657,7 @@ const RenderBlock: React.FC<{ block: MarkdownBlock }> = ({ block }) => {
 /* ─── Компонент картинки с поддержкой ссылок и безопасной загрузки ─── */
 
 const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = ({ src, alt, linkUrl }) => {
+  const isRu = getEffectiveLocale() === "ru";
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const normalizedSrc = normalizeImageUrl(src);
@@ -541,20 +675,20 @@ const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = 
         style={{
           margin: "8px 0",
           padding: "8px 12px",
-          background: "rgba(255, 255, 255, 0.04)",
+          background: "var(--surface-level-3)",
           border: "1px dashed rgba(255, 255, 255, 0.15)",
           borderRadius: "var(--radius-sm)",
           display: "inline-flex",
           alignItems: "center",
-          gap: 8,
+          gap: "var(--space-4)",
           color: "var(--text-secondary, #9ca3af)",
-          fontSize: "0.8rem",
+          fontSize: "var(--fs-sm)",
           cursor: "pointer",
         }}
-        title="Нажмите, чтобы открыть изображение в браузере"
-      >
+        title={isRu ? "Нажмите, чтобы открыть изображение в браузере" : "Click to open image in browser"}
+        >
         <ImageIcon size={16} color="var(--accent, #60a5fa)" />
-        <span>Изображение: {alt || "Посмотреть в браузере"}</span>
+        <span>{isRu ? "Изображение:" : "Image:"} {alt || (isRu ? "Посмотреть в браузере" : "View in browser")}</span>
         <ExternalLink size={12} style={{ opacity: 0.7 }} />
       </div>
     );
@@ -564,12 +698,12 @@ const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = 
     <div style={{ margin: "10px 0", position: "relative" }}>
       <img
         src={normalizedSrc}
-        alt={alt || "Изображение релиза"}
+        alt={alt || (isRu ? "Изображение релиза" : "Release image")}
         loading="lazy"
         onLoad={() => setIsLoading(false)}
         onError={() => setHasError(true)}
         onClick={handleClick}
-        title={linkUrl ? `Открыть ссылку: ${linkUrl}` : "Нажмите, чтобы открыть изображение в полном размере"}
+        title={linkUrl ? (isRu ? `Открыть ссылку: ${linkUrl}` : `Open link: ${linkUrl}`) : (isRu ? "Нажмите, чтобы открыть изображение в полном размере" : "Click to open image in full size")}
         style={{
           maxWidth: "100%",
           maxHeight: "360px",
@@ -592,13 +726,13 @@ const MarkdownImage: React.FC<{ src: string; alt: string; linkUrl?: string }> = 
       {alt && (
         <div
           style={{
-            fontSize: "0.72rem",
+            fontSize: "var(--fs-xs)",
             color: "var(--text-muted, #9ca3af)",
-            marginTop: 4,
+            marginTop: "var(--space-2)",
             textAlign: "center",
             fontStyle: "italic",
           }}
-        >
+          >
           {alt}
         </div>
       )}
@@ -660,23 +794,23 @@ const renderLink = (url: string, label: string | React.ReactNode, key: string, h
       openUrl(url).catch((err) => console.error("Ошибка открытия ссылки:", err));
     }}
     style={{
-      color: "var(--accent, #60a5fa)",
+      color: "var(--accent-text)",
       textDecoration: "underline",
       textUnderlineOffset: "3px",
       cursor: "pointer",
       fontWeight: 500,
       display: "inline-flex",
       alignItems: "center",
-      gap: 3,
+      gap: "var(--space-1)",
       wordBreak: "break-all",
     }}
     className="hover-bright"
-    title={`Перейти: ${url}`}
-  >
+    title={getEffectiveLocale() === "ru" ? `Перейти: ${url}` : `Open: ${url}`}
+    >
     <span>{label}</span>
     {hasIcon && <ExternalLink size={11} style={{ opacity: 0.8 }} />}
   </a>
-);
+  );
 
 /**
  * Рендерит инлайн форматирование (картинки, ссылки, автоссылки, жирный, курсив, kbd, код, зачеркивание).
@@ -693,10 +827,12 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
   // 7: Инлайн код `code`
   // 8: Клавиатурная кнопка <kbd>key</kbd>
   // 9: HTML перенос строки <br> или <br/>
-  // 10: Жирный **bold** или __bold__
-  // 11: Зачеркнутый ~~strike~~
-  // 12: Курсив *italic* или _italic_
-  const regex = /(\[\!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\))|(!\[([^\]]*)\]\(([^)]+)\))|(<img\s+([^>]+)>)|(<a\s+[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>)|(\[([^\]]+)\]\(([^)]+)\))|((?:https?:\/\/)[^\s<]+[^<.,:;"')\]\s])|(`([^`]+)`)|(<kbd>([^<]+)<\/kbd>)|(<br\s*\/?>)|(\*\*([^*]+)\*\*|(?<=\s|^|[^\w])__([^_]+)__(?=\s|$|[^\w]))|(~~([^~]+)~~)|((?<=\s|^|[^\w])\*([^*]+)\*(?=\s|$|[^\w])|(?<=\s|^|[^\w])_([^_]+)_(?=\s|$|[^\w]))/gi;
+  // 10: HTML тег bold <b>...</b> или <strong>...</strong>
+  // 11: Жирный **bold** или __bold__
+  // 12: Зачеркнутый ~~strike~~
+  // 13: HTML тег italic <i>...</i> или <em>...</em>
+  // 14: Курсив *italic* или _italic_
+  const regex = /(\[\!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\))|(!\[([^\]]*)\]\(([^)]+)\))|(<img\s+([^>]+)>)|(<a\s+[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>)|(\[([^\]]+)\]\(([^)]+)\))|((?:https?:\/\/)[^\s<]+[^<.,:;"')\]\s])|(`([^`]+)`)|(<kbd>([^<]+)<\/kbd>)|(<br\s*\/?>)|(<(?:b|strong)\b[^>]*>(.*?)<\/(?:b|strong)>)|(\*\*([^*]+)\*\*|(?<=\s|^|[^\w])__([^_]+)__(?=\s|$|[^\w]))|(~~([^~]+)~~)|(<(?:i|em)\b[^>]*>(.*?)<\/(?:i|em)>)|((?<=\s|^|[^\w])\*([^*]+)\*(?=\s|$|[^\w])|(?<=\s|^|[^\w])_([^_]+)_(?=\s|$|[^\w]))/gi;
 
   const elements: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -706,7 +842,7 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
     const matchIndex = match.index;
 
     // Обычный текст перед найденным элементом
-    if (matchIndex > lastIndex) {
+    if (matchIndex> lastIndex) {
       elements.push(text.substring(lastIndex, matchIndex));
     }
 
@@ -721,8 +857,10 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
       isCode, codeText,
       isKbd, kbdText,
       isBr,
+      isHtmlBold, htmlBoldText,
       isBold, boldText1, boldText2,
       isStrike, strikeText,
+      isHtmlItalic, htmlItalicText,
       isItalic, italicText1, italicText2,
     ] = match;
 
@@ -766,7 +904,7 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
         <code
           key={key}
           style={{
-            background: "rgba(255, 255, 255, 0.08)",
+            background: "var(--surface-level-3-hover)",
             padding: "2px 6px",
             borderRadius: "var(--radius-xs)",
             fontSize: "0.85em",
@@ -774,7 +912,7 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
             color: "#e2e8f0",
             border: "1px solid rgba(255, 255, 255, 0.06)",
           }}
-        >
+          >
           {codeText}
         </code>
       );
@@ -792,9 +930,15 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
             fontFamily: "inherit",
             color: "var(--text, #ffffff)",
           }}
-        >
+          >
           {kbdText}
         </kbd>
+      );
+    } else if (isHtmlBold) {
+      elements.push(
+        <strong key={key} style={{ fontWeight: 700, color: "var(--text, #ffffff)" }}>
+          {htmlBoldText}
+        </strong>
       );
     } else if (isBold) {
       elements.push(
@@ -807,6 +951,12 @@ const InlineContent: React.FC<{ text: string }> = ({ text }) => {
         <del key={key} style={{ opacity: 0.7 }}>
           {strikeText}
         </del>
+      );
+    } else if (isHtmlItalic) {
+      elements.push(
+        <em key={key} style={{ fontStyle: "italic", color: "var(--text-secondary, #d1d5db)" }}>
+          {htmlItalicText}
+        </em>
       );
     } else if (isItalic) {
       elements.push(

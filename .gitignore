@@ -104,8 +104,19 @@ Portable-L-MPV*
 # Правила и метаданные агентов ИИ
 # ==============================================================================
 .agents/rules/
+.agents/skills/
+.agents/mcp/
 agents/rules/
 .codebase-memory/*
+SKILL.md
+docs/skills-system-requirements.md
+AGENTS.md
+
+# ==============================================================================
+# Скилы агентов (устанавливаются локально через `npx skills add`, в репо не хранятся)
+# См. SKILL.md в корне проекта
+# ==============================================================================
+skills-lock.json
 
 # ==============================================================================
 # Прочий мусор: бэкапы слияний, временные файлы, кэш tsc, рантайм-каталог апдейтера
@@ -116,5 +127,29 @@ agents/rules/
 *~
 *.bak
 *.tmp
+.tmp/
 .updates/
+.updates-*/
 
+# Временные файлы Python, PyInstaller и отчетов сборки зависимостей
+__pycache__/
+*.py[cod]
+*.spec
+dependency-sources.json
+dependency-versions.json
+deps-release-notes.md
+inference-release-notes.md
+dist_libs/
+aji-check/
+download-*/
+unpacked-*/
+
+# Local design audits and agent implementation plans
+/docs/audits/
+/docs/superpowers/
+/docs/superpowers/plans/
+
+# Local dependency notes and generated design-audit artifacts
+/docs/dependencies.md
+/docs/color-audit-*/
+/docs/interaction-audit-*/

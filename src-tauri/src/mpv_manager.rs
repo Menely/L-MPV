@@ -4,11 +4,17 @@
 //! библиотекой mpv-2.dll (или mpv-1.dll), загружая её
 //! динамически в рантайме.
 
+use libloading::{Library, Symbol};
 use std::ffi::{CStr, CString};
+use std::io::Write;
 use std::os::raw::{c_char, c_double, c_int, c_void};
 use std::path::Path;
 use std::sync::Mutex;
-use libloading::{Library, Symbol};
+
+use crate::audio_filter::{AudioFilterChainBuilder, AudioNormalizeMode};
+
+pub(crate) mod preview;
+mod preview_image;
 
 // ─── Определения FFI для libmpv C API ───────────────────
 
@@ -37,13 +43,20 @@ pub struct MpvNodeList {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
+pub struct MpvByteArray {
+    pub data: *mut c_void,
+    pub size: usize,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub union MpvNodeUnion {
     pub string: *mut c_char,
     pub flag: c_int,
     pub int64: i64,
     pub double_: c_double,
     pub list: *mut MpvNodeList,
-    pub ba: *mut c_void,
+    pub ba: *mut MpvByteArray,
 }
 
 #[repr(C)]
@@ -51,6 +64,139 @@ pub struct MpvNode {
     pub u: MpvNodeUnion,
     pub format: MpvFormat,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MpvRawFrame {
+    pub width: usize,
+    pub height: usize,
+    pub stride: isize,
+    pub format: String,
+    pub data: Vec<u8>,
+}
+
+/// Статус сконфигурированного видеовыхода.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VideoOutputStatus {
+    /// Фактическая ширина видеовыхода после фильтров и коррекции пропорций.
+    pub width: i64,
+    /// Фактическая высота видеовыхода после фильтров и коррекции пропорций.
+    pub height: i64,
+    /// Есть ли видеодорожка в списке дорожек (`None` — список ещё пуст).
+    pub video_track: Option<bool>,
+    /// Выбрана ли видеодорожка (`vid` не равен `no`).
+    pub has_video: bool,
+    /// Относятся ли размеры к ожидаемому файлу и готов ли видеовыход.
+    pub ready: bool,
+}
+
+fn positive_video_dimension(value: f64) -> i64 {
+    if value.is_finite() && value > 0.0 {
+        value as i64
+    } else {
+        0
+    }
+}
+
+fn video_output_status_from_properties(
+    expected_path: &str,
+    observed_path: &str,
+    video_track_present: Option<bool>,
+    video_track: &str,
+    output_width: f64,
+    output_height: f64,
+) -> VideoOutputStatus {
+    let normalized_track = video_track.trim();
+    let has_video =
+        !normalized_track.is_empty() && normalized_track != "no";
+    let norm_expected = expected_path.replace('\\', "/");
+    let norm_observed = observed_path.replace('\\', "/");
+    let path_matches = !norm_expected.trim().is_empty()
+        && norm_observed.trim().eq_ignore_ascii_case(norm_expected.trim());
+    let width = positive_video_dimension(output_width);
+    let height = positive_video_dimension(output_height);
+    VideoOutputStatus {
+        width,
+        height,
+        video_track: video_track_present,
+        has_video,
+        ready: path_matches
+            && video_track_present == Some(true)
+            && has_video
+            && width > 0
+            && height > 0,
+    }
+}
+
+pub fn copy_bgr0_frame(
+    data: &[u8],
+    width: usize,
+    height: usize,
+    stride: isize,
+) -> Result<Vec<u8>, String> {
+    if width == 0 || height == 0 {
+        return Err("screenshot-raw вернул пустой кадр".to_string());
+    }
+    if stride < 0 {
+        return Err("screenshot-raw вернул отрицательный stride".to_string());
+    }
+    let source_row_bytes = width
+        .checked_mul(4)
+        .ok_or_else(|| "Переполнение размера строки screenshot-raw".to_string())?;
+    let output_row_bytes = width
+        .checked_mul(3)
+        .ok_or_else(|| "Переполнение размера BGR0".to_string())?;
+    let stride_abs = stride
+        .checked_abs()
+        .ok_or_else(|| "Некорректный stride screenshot-raw".to_string())?
+        as usize;
+    if stride_abs < source_row_bytes {
+        return Err(format!(
+            "stride {} меньше BGR0 строки {}",
+            stride, source_row_bytes
+        ));
+    }
+    let required = if height == 1 {
+        source_row_bytes
+    } else {
+        (height - 1)
+            .checked_mul(stride_abs)
+            .and_then(|value| value.checked_add(source_row_bytes))
+            .ok_or_else(|| "Переполнение границ screenshot-raw".to_string())?
+    };
+    if data.len() < required {
+        return Err(format!(
+            "screenshot-raw data: {} байт, требуется {}",
+            data.len(),
+            required
+        ));
+    }
+    let capacity = output_row_bytes
+        .checked_mul(height)
+        .ok_or_else(|| "Переполнение owned BGR0".to_string())?;
+    let mut result = Vec::new();
+    result
+        .try_reserve(capacity)
+        .map_err(|_| "Недостаточно памяти для owned BGR0".to_string())?;
+    for row in 0..height {
+        let row_start = row
+            .checked_mul(stride_abs)
+            .ok_or_else(|| "Переполнение смещения screenshot-raw".to_string())?;
+        let row_end = row_start
+            .checked_add(source_row_bytes)
+            .ok_or_else(|| "Переполнение границы строки screenshot-raw".to_string())?;
+        if row_end > data.len() {
+            return Err("screenshot-raw вышел за границы data".to_string());
+        }
+        for pixel in 0..width {
+            let source = row_start + pixel * 4;
+            result.push(data[source]);
+            result.push(data[source + 1]);
+            result.push(data[source + 2]);
+        }
+    }
+    Ok(result)
+}
+
 
 #[repr(C)]
 struct MpvHandle {
@@ -63,14 +209,56 @@ struct MpvApi {
     create: Symbol<'static, unsafe extern "C" fn() -> *mut MpvHandle>,
     initialize: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle) -> c_int>,
     destroy: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle)>,
-    command_string: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, args: *const c_char) -> c_int>,
-    set_option_string: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, data: *const c_char) -> c_int>,
-    get_property_string: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char) -> *mut c_char>,
-    get_property: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, format: MpvFormat, data: *mut c_void) -> c_int>,
+    command_string:
+        Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, args: *const c_char) -> c_int>,
+    command_node: Symbol<
+        'static,
+        unsafe extern "C" fn(
+            ctx: *mut MpvHandle,
+            args: *mut MpvNode,
+            result: *mut MpvNode,
+        ) -> c_int,
+    >,
+    set_option_string: Symbol<
+        'static,
+        unsafe extern "C" fn(
+            ctx: *mut MpvHandle,
+            name: *const c_char,
+            data: *const c_char,
+        ) -> c_int,
+    >,
+    get_property_string: Symbol<
+        'static,
+        unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char) -> *mut c_char,
+    >,
+    get_property: Symbol<
+        'static,
+        unsafe extern "C" fn(
+            ctx: *mut MpvHandle,
+            name: *const c_char,
+            format: MpvFormat,
+            data: *mut c_void,
+        ) -> c_int,
+    >,
     free: Symbol<'static, unsafe extern "C" fn(data: *mut c_void)>,
     free_node_contents: Symbol<'static, unsafe extern "C" fn(node: *mut MpvNode)>,
-    set_property: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, format: MpvFormat, data: *mut c_void) -> c_int>,
-    set_property_string: Symbol<'static, unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, data: *const c_char) -> c_int>,
+    set_property: Symbol<
+        'static,
+        unsafe extern "C" fn(
+            ctx: *mut MpvHandle,
+            name: *const c_char,
+            format: MpvFormat,
+            data: *mut c_void,
+        ) -> c_int,
+    >,
+    set_property_string: Symbol<
+        'static,
+        unsafe extern "C" fn(
+            ctx: *mut MpvHandle,
+            name: *const c_char,
+            data: *const c_char,
+        ) -> c_int,
+    >,
 }
 
 unsafe impl Send for MpvApi {}
@@ -79,19 +267,78 @@ unsafe impl Sync for MpvApi {}
 impl MpvApi {
     #[allow(clippy::missing_transmute_annotations)]
     unsafe fn load(dll_name: &str) -> Result<Self, String> {
-        let lib = Library::new(dll_name).map_err(|e| format!("Не удалось загрузить {}: {}", dll_name, e))?;
-        
-        let create = std::mem::transmute(lib.get::<unsafe extern "C" fn() -> *mut MpvHandle>(b"mpv_create\0").map_err(|e| e.to_string())?);
-        let initialize = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle) -> c_int>(b"mpv_initialize\0").map_err(|e| e.to_string())?);
-        let destroy = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle)>(b"mpv_destroy\0").map_err(|e| e.to_string())?);
-        let command_string = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, args: *const c_char) -> c_int>(b"mpv_command_string\0").map_err(|e| e.to_string())?);
-        let set_option_string = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, data: *const c_char) -> c_int>(b"mpv_set_option_string\0").map_err(|e| e.to_string())?);
+        let lib = Library::new(dll_name)
+            .map_err(|e| format!("Не удалось загрузить {}: {}", dll_name, e))?;
+
+        let create = std::mem::transmute(
+            lib.get::<unsafe extern "C" fn() -> *mut MpvHandle>(b"mpv_create\0")
+                .map_err(|e| e.to_string())?,
+        );
+        let initialize = std::mem::transmute(
+            lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle) -> c_int>(b"mpv_initialize\0")
+                .map_err(|e| e.to_string())?,
+        );
+        let destroy = std::mem::transmute(
+            lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle)>(b"mpv_destroy\0")
+                .map_err(|e| e.to_string())?,
+        );
+        let command_string = std::mem::transmute(
+            lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, args: *const c_char) -> c_int>(
+                b"mpv_command_string\0",
+            )
+            .map_err(|e| e.to_string())?,
+        );
+        let command_node = std::mem::transmute(
+            lib.get::<unsafe extern "C" fn(
+                ctx: *mut MpvHandle,
+                args: *mut MpvNode,
+                result: *mut MpvNode,
+            ) -> c_int>(b"mpv_command_node\0")
+                .map_err(|e| e.to_string())?,
+        );
+        let set_option_string = std::mem::transmute(
+            lib.get::<unsafe extern "C" fn(
+                ctx: *mut MpvHandle,
+                name: *const c_char,
+                data: *const c_char,
+            ) -> c_int>(b"mpv_set_option_string\0")
+                .map_err(|e| e.to_string())?,
+        );
         let get_property_string = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char) -> *mut c_char>(b"mpv_get_property_string\0").map_err(|e| e.to_string())?);
-        let get_property = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, format: MpvFormat, data: *mut c_void) -> c_int>(b"mpv_get_property\0").map_err(|e| e.to_string())?);
-        let free = std::mem::transmute(lib.get::<unsafe extern "C" fn(data: *mut c_void)>(b"mpv_free\0").map_err(|e| e.to_string())?);
-        let free_node_contents = std::mem::transmute(lib.get::<unsafe extern "C" fn(node: *mut MpvNode)>(b"mpv_free_node_contents\0").map_err(|e| e.to_string())?);
-        let set_property = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, format: MpvFormat, data: *mut c_void) -> c_int>(b"mpv_set_property\0").map_err(|e| e.to_string())?);
-        let set_property_string = std::mem::transmute(lib.get::<unsafe extern "C" fn(ctx: *mut MpvHandle, name: *const c_char, data: *const c_char) -> c_int>(b"mpv_set_property_string\0").map_err(|e| e.to_string())?);
+        let get_property = std::mem::transmute(
+            lib.get::<unsafe extern "C" fn(
+                ctx: *mut MpvHandle,
+                name: *const c_char,
+                format: MpvFormat,
+                data: *mut c_void,
+            ) -> c_int>(b"mpv_get_property\0")
+                .map_err(|e| e.to_string())?,
+        );
+        let free = std::mem::transmute(
+            lib.get::<unsafe extern "C" fn(data: *mut c_void)>(b"mpv_free\0")
+                .map_err(|e| e.to_string())?,
+        );
+        let free_node_contents = std::mem::transmute(
+            lib.get::<unsafe extern "C" fn(node: *mut MpvNode)>(b"mpv_free_node_contents\0")
+                .map_err(|e| e.to_string())?,
+        );
+        let set_property = std::mem::transmute(
+            lib.get::<unsafe extern "C" fn(
+                ctx: *mut MpvHandle,
+                name: *const c_char,
+                format: MpvFormat,
+                data: *mut c_void,
+            ) -> c_int>(b"mpv_set_property\0")
+                .map_err(|e| e.to_string())?,
+        );
+        let set_property_string = std::mem::transmute(
+            lib.get::<unsafe extern "C" fn(
+                ctx: *mut MpvHandle,
+                name: *const c_char,
+                data: *const c_char,
+            ) -> c_int>(b"mpv_set_property_string\0")
+                .map_err(|e| e.to_string())?,
+        );
 
         Ok(Self {
             _lib: lib,
@@ -99,6 +346,7 @@ impl MpvApi {
             initialize,
             destroy,
             command_string,
+            command_node,
             set_option_string,
             get_property_string,
             get_property,
@@ -110,10 +358,33 @@ impl MpvApi {
     }
 }
 
+struct MpvNodeResultGuard<'a> {
+    api: &'a MpvApi,
+    node: *mut MpvNode,
+}
+
+impl Drop for MpvNodeResultGuard<'_> {
+    fn drop(&mut self) {
+        if !self.node.is_null() {
+            unsafe {
+                (self.api.free_node_contents)(self.node);
+            }
+        }
+    }
+}
+
 /// Безопасная обёртка над контекстом mpv.
+#[derive(Clone, Default)]
+struct CachedTrackInfo {
+    path: String,
+    count: i64,
+    video_present: Option<bool>,
+}
+
 pub struct MpvManager {
     handle: Mutex<*mut MpvHandle>,
     api: MpvApi,
+    track_cache: Mutex<Option<CachedTrackInfo>>,
 }
 
 unsafe impl Send for MpvManager {}
@@ -121,32 +392,31 @@ unsafe impl Sync for MpvManager {}
 
 impl MpvManager {
     /// Загрузка API из первой доступной библиотеки mpv.
-    unsafe fn load_mpv_api() -> Result<MpvApi, String> {
-        let dll_names = [
-            "libmpv-2.dll",
-            "mpv-2.dll",
-            "libmpv-1.dll",
-            "mpv-1.dll",
-        ];
+    unsafe fn load_mpv_api(portable_dir: &Path) -> Result<MpvApi, String> {
+        let dll_names = ["libmpv-2.dll", "mpv-2.dll", "libmpv-1.dll", "mpv-1.dll"];
         for dll_name in &dll_names {
+            let candidate = portable_dir.join(dll_name);
+            if candidate.exists() {
+                if let Some(path_str) = candidate.to_str() {
+                    if let Ok(loaded) = MpvApi::load(path_str) {
+                        return Ok(loaded);
+                    }
+                }
+            }
             if let Ok(loaded) = MpvApi::load(dll_name) {
                 return Ok(loaded);
             }
         }
-        Err(
-            "Не найдена библиотека libmpv-2.dll / \
+        Err("Не найдена библиотека libmpv-2.dll / \
              mpv-2.dll. Пожалуйста, скачайте её и \
              поместите рядом с исполняемым файлом."
-                .to_string(),
-        )
+            .to_string())
     }
 
     /// Создание нового экземпляра менеджера mpv.
-    pub fn new(
-        portable_dir: &Path,
-    ) -> Result<Self, String> {
+    pub fn new(portable_dir: &Path, saved_settings: &crate::commands::AppSettings) -> Result<Self, String> {
         unsafe {
-            let api = Self::load_mpv_api()?;
+            let api = Self::load_mpv_api(portable_dir)?;
 
             let handle = (api.create)();
             if handle.is_null() {
@@ -154,12 +424,34 @@ impl MpvManager {
             }
 
             // Путь к локальной конфигурации для портативности
-            let config_dir = portable_dir
-                .join("config")
-                .to_string_lossy()
-                .to_string();
+            let config_dir = portable_dir.join("config").to_string_lossy().to_string();
             Self::set_option(&api, handle, "config", "yes");
             Self::set_option(&api, handle, "config-dir", &config_dir);
+
+            // Портативные каталоги кэша: GPU-шейдеры и 3D LUT калибровки цвета
+            let cache_dir = portable_dir.join("data").join("cache");
+            let shader_cache_dir = cache_dir.join("shaders");
+            let icc_cache_dir = cache_dir.join("icc");
+            let _ = std::fs::create_dir_all(&shader_cache_dir);
+            let _ = std::fs::create_dir_all(&icc_cache_dir);
+            let shader_cache_path = shader_cache_dir
+                .to_string_lossy()
+                .replace('\\', "/");
+            let icc_cache_path = icc_cache_dir
+                .to_string_lossy()
+                .replace('\\', "/");
+            Self::set_option(
+                &api,
+                handle,
+                "gpu-shader-cache-dir",
+                &shader_cache_path,
+            );
+            Self::set_option(
+                &api,
+                handle,
+                "icc-cache-dir",
+                &icc_cache_path,
+            );
 
             // Настройка логирования MPV в отдельный файл (сохраняет только ошибки)
             let log_file = portable_dir
@@ -168,12 +460,15 @@ impl MpvManager {
                 .to_string_lossy()
                 .to_string();
             Self::set_option(&api, handle, "log-file", &log_file);
-            Self::set_option(&api, handle, "msg-level", "all=error");
+            // Фильтр апскейлинга пишет диагностику на уровне verbose ([v][animejanai]):
+            // без этого отказ/бездействие фильтра невидимы («в логах пусто»).
+            // Остальные модули по-прежнему только ошибки, чтобы лог не пух.
+            Self::set_option(&api, handle, "msg-level", "all=error,vf=v,animejanai=v,aji=v");
 
-            // Путь к скриншотам (с восстановлением из config/settings.json)
-            let saved_settings = crate::commands::AppSettings::load_portable();
+            // Путь к скриншотам (восстановление из config/settings.json)
             let screenshots_dir = saved_settings
                 .screenshot_directory
+                .clone()
                 .unwrap_or_else(|| {
                     portable_dir
                         .join("screenshots")
@@ -182,48 +477,107 @@ impl MpvManager {
                 });
             Self::set_option(&api, handle, "screenshot-directory", &screenshots_dir);
             Self::set_option(&api, handle, "screenshot-format", "png");
+            // Use the video's basename and the first free number; mpv avoids overwrites.
+            Self::set_option(&api, handle, "screenshot-template", "%F-%#04n");
+            // Скриншоты HDR/Dolby Vision: конвертировать в sRGB с тонмаппингом
+            // вместо сохранения native BT.2020/ST.2084 (иначе в SDR-просмотрщиках
+            // кадр выглядит пересвеченным). Полное разрешение кадра сохраняется.
+            Self::set_option(&api, handle, "screenshot-tag-colorspace", "no");
 
-            // ─── Оптимизированный рендеринг: Direct3D 11 (нативный для Windows / DWM) ───
+
             Self::set_option(&api, handle, "vo", "gpu-next");
             Self::set_option(&api, handle, "gpu-api", "d3d11,auto");
             Self::set_option(&api, handle, "hwdec", "auto-safe");
 
-            // Отключаем лог-файл и снижаем уровень логирования для исключения дискового I/O
+            // Отключаем консольный терминал для исключения паразитного ввода-вывода
             Self::set_option(&api, handle, "terminal", "no");
-            Self::set_option(&api, handle, "msg-level", "all=warn");
 
             // ─── HDR поддержка ──────────────────────────
             Self::set_option(&api, handle, "target-colorspace-hint", "yes");
             Self::set_option(&api, handle, "tone-mapping", "auto");
             Self::set_option(&api, handle, "hdr-compute-peak", "yes");
+            Self::set_option(&api, handle, "gamut-mapping-mode", "perceptual");
 
             // ─── Оптимизация фона и буфера ────────────────
             Self::set_option(&api, handle, "background-color", "#000000");
             Self::set_option(&api, handle, "border-background", "color");
             Self::set_option(&api, handle, "demuxer-max-bytes", "64MiB");
-            Self::set_option(&api, handle, "demuxer-readahead-secs", "5");
+            // Start on the first decodable data, then prefetch within the byte cap.
+            // mpv owns underrun recovery; user pause and the frontend startup hold
+            // must never be toggled by a second, application-level buffer controller.
+            Self::set_option(&api, handle, "cache", "yes");
+            Self::set_option(&api, handle, "cache-secs", "20");
+            Self::set_option(&api, handle, "demuxer-readahead-secs", "20");
+            Self::set_option(&api, handle, "demuxer-cache-wait", "no");
+            Self::set_option(&api, handle, "cache-pause-initial", "no");
+            Self::set_option(&api, handle, "cache-pause-wait", "1");
             Self::set_option(&api, handle, "demuxer-max-back-bytes", "32MiB");
-            Self::set_option(&api, handle, "hr-seek-framedrop", "yes"); // Использовать drop кадров при перемотке для снижения RAM
-            Self::set_option(&api, handle, "cache-pause", "no"); // Не ставить на паузу при буферизации локальных файлов
-            
+            // Разрешаем пропуск промежуточных кадров при перемотке
+            Self::set_option(&api, handle, "hr-seek-framedrop", "yes");
+            Self::set_option(&api, handle, "cache-pause", "yes");
+
             // ─── Качественный отзывчивый звук (WASAPI) ───
             Self::set_option(&api, handle, "ao", "wasapi"); // Высококачественный драйвер Windows WASAPI
             Self::set_option(&api, handle, "audio-buffer", "0.2"); // Отзывчивый размер буфера для плавной перемотки
             Self::set_option(&api, handle, "audio-channels", "auto-safe"); // Автоопределение каналов оборудования
             Self::set_option(&api, handle, "audio-pitch-correction", "yes"); // Сохранение тональности при изменении скорости
-            Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от клиппинга при даунмиксе
+            Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от клиппинга при даунмиксе, включая отключённый лимитер
+            Self::set_option(&api, handle, "gapless-audio", "yes"); // Сохранять аудиовывод открытым между совместимыми треками
             Self::set_option(&api, handle, "volume-max", "150.0"); // Максимальная громкость с софтверным усилением (до 150%)
 
-            // ─── Субтитры ───────────────────────────────
+            // ─── Sinc-ресемплинг и высокочастотный треугольный дизеринг ───
+            Self::set_option(&api, handle, "audio-resample-filter-size", "32");
+            Self::set_option(&api, handle, "audio-resample-phase-shift", "14");
+            Self::set_option(&api, handle, "audio-resample-linear", "yes");
+            Self::set_option(&api, handle, "audio-resample-cutoff", "0.97"); // Относительная частота среза ресемплера
+            Self::set_option(&api, handle, "audio-swresample-o", "dither_method=triangular_hp"); // Высокочастотный треугольный дизеринг
+
+
+            // ─── Приоритет процесса и мультимедиа-планировщик Windows (MMCSS) ───
+            // Защита от микрофризов и дропов кадров из-за фоновых задач ОС (Defender, индексация и т.д.)
+            let priority = saved_settings
+                .process_priority
+                .as_deref()
+                .filter(|p| matches!(*p, "normal" | "abovenormal" | "high"))
+                .unwrap_or("abovenormal");
+            Self::set_option(&api, handle, "priority", priority);
+            Self::set_option(&api, handle, "vo-mmcss-profile", "Playback");
+
+            // ─── Гарантированная A/V-синхронизация при старте ───
+            // Явно фиксируем дефолты, чтобы пользовательский mpv.conf не смог
+            // их переопределить и сломать синхронизацию при открытии файла.
+            Self::set_option(&api, handle, "initial-audio-sync", "yes"); // Ждать выровненного A/V перед первым кадром
+            Self::set_option(&api, handle, "video-sync", "audio"); // Видео синхронизируется по аудиочасам
+            Self::set_option(&api, handle, "hr-seek", "yes"); // Точный seek для идеальной синхронизации аудио и видео после перемотки (и при старте с позиции)
+
+            // ─── Субтитры и экранные надписи (Pristine Subtitle & Signs Rendering) ───
+            // Гарантируем 100% аутентичное, неискажённое отображение авторских субтитров,
+            // экранных надписей (signs), караоке и векторных элементов тайпсеттинга:
             Self::set_option(&api, handle, "demuxer-mkv-subtitle-preroll", "yes");
-            Self::set_option(&api, handle, "sub-auto", "fuzzy");
-            Self::set_option(&api, handle, "sub-ass-force-margins", "yes");
-            Self::set_option(&api, handle, "sub-use-margins", "yes");
+            // Отключаем встроенный автопоиск дорожек mpv, чтобы исключить неконтролируемый
+            // подхват и автоматическую активацию внешних файлов субтитров и звука.
+            // Управление загрузкой внешних файлов осуществляется строго через L-MPV с учётом настройки auto_load_tracks.
+            Self::set_option(&api, handle, "sub-auto", "no");
+            Self::set_option(&api, handle, "audio-file-auto", "no");
+            // 1. Ограничение границами кадра: исключает вылезание на поля леттербокса/пилларбокса и блюр
+            Self::set_option(&api, handle, "sub-ass-force-margins", "no");
+            Self::set_option(&api, handle, "sub-use-margins", "no");
+            // 2. Запрет искажающих оверрайдов: отображать субтитры ровно так, как задал автор/тайпсеттер
+            Self::set_option(&api, handle, "sub-ass-override", "no");
+            // 3. Защита экранных надписей: надписи сохраняют оригинальный масштаб 1:1 с объектами в кадре
+            Self::set_option(&api, handle, "sub-scale-signs", "no");
+            // 4. Субпиксельная точность без искажения глифов: отключение хинтинга для векторной графики
+            Self::set_option(&api, handle, "sub-ass-hinting", "none");
+            // 5. Использование оригинальных встроенных шрифтов из контейнера MKV
+            Self::set_option(&api, handle, "embeddedfonts", "yes");
+            // 6. Продвинутый шейпер HarfBuzz для лигатур, кернинга и сложных скриптов
+            Self::set_option(&api, handle, "sub-ass-shaper", "harfbuzz");
+            // 7. Защита графических субтитров (PGS/VobSub) от геометрического растяжения
+            Self::set_option(&api, handle, "stretch-image-subs-to-screen", "no");
+            Self::set_option(&api, handle, "stretch-dvd-subs", "no");
 
             // ─── Поведение при конце файла ──────────────
-            Self::set_option(
-                &api, handle, "keep-open", "yes",
-            );
+            Self::set_option(&api, handle, "keep-open", "yes");
 
             // ─── Масштабирование без тяжелых фильтров ───
             Self::set_option(&api, handle, "auto-window-resize", "no");
@@ -233,6 +587,73 @@ impl MpvManager {
             Self::set_option(&api, handle, "correct-downscaling", "yes");
             Self::set_option(&api, handle, "linear-downscaling", "yes");
             Self::set_option(&api, handle, "deband", "no"); // Отключаем дебандинг для 0% просадок FPS при обычном воспроизведении
+
+            // ─── Переопределение пользовательскими настройками поверх дефолтов ───
+            // Блок должен стоять последним, чтобы затирать любой дефолт выше.
+
+            // Тонемаппинг HDR
+            if let Some(ref mapping) = saved_settings.tone_mapping {
+                Self::set_option(&api, handle, "tone-mapping", mapping);
+            }
+            // Восстановление контраста HDR
+            if let Some(recovery) = saved_settings.hdr_contrast_recovery {
+                Self::set_option(
+                    &api, handle,
+                    "hdr-contrast-recovery",
+                    &format!("{:.2}", recovery),
+                );
+            }
+            // Глубина дизеринга (дефолт auto выставлен mpv автоматически)
+            if let Some(ref depth) = saved_settings.dither_depth {
+                Self::set_option(&api, handle, "dither-depth", depth);
+            }
+            // Бандинг: настраиваем параметры пресета и включаем только при opt-in
+            let preset = saved_settings.deband_preset.as_deref().unwrap_or("balanced");
+            let (iters, thresh, range, grain) = Self::deband_preset_values(preset);
+            Self::set_option(&api, handle, "deband-iterations", &iters.to_string());
+            Self::set_option(&api, handle, "deband-threshold", &thresh.to_string());
+            Self::set_option(&api, handle, "deband-range", &range.to_string());
+            Self::set_option(&api, handle, "deband-grain", &grain.to_string());
+            if saved_settings.deband_enabled.unwrap_or(false) {
+                Self::set_option(&api, handle, "deband", "yes");
+            }
+            // Деинтерлейсинг (базовые режимы до initialize; yadif/yadif2x применяются после initialize через vf @deint)
+            if let Some(ref mode) = saved_settings.deinterlace_mode {
+                match mode.as_str() {
+                    "no" | "auto" => Self::set_option(&api, handle, "deinterlace", mode),
+                    "yadif" | "yadif2x" => Self::set_option(&api, handle, "deinterlace", "no"),
+                    _ => {}
+                }
+            }
+            // Аппаратное декодирование
+            if let Some(ref mode) = saved_settings.hwdec_mode {
+                if matches!(mode.as_str(), "auto-safe" | "auto-copy" | "no") {
+                    Self::set_option(&api, handle, "hwdec", mode);
+                }
+            }
+            // Нормализация громкости и защита от перегруза звука (пиковый лимитер)
+            let limiter_on = saved_settings.audio_limiter_enabled.unwrap_or(true);
+            let normalize_raw = saved_settings
+                .audio_normalize
+                .as_deref()
+                .unwrap_or("no");
+            let normalize_mode = AudioNormalizeMode::from_str_or_default(normalize_raw);
+            let chain = AudioFilterChainBuilder::build(normalize_mode, limiter_on);
+            if !chain.is_empty() {
+                Self::set_option(&api, handle, "af", chain);
+            }
+            // Буфер демаксера: пользовательское значение затирает дефолт 64MiB
+            if let Some(ref mb) = saved_settings.demuxer_cache_mb {
+                if let Ok(parsed) = mb.parse::<u32>() {
+                    if (16..=4096).contains(&parsed) {
+                        Self::set_option(
+                            &api, handle,
+                            "demuxer-max-bytes",
+                            &format!("{parsed}MiB"),
+                        );
+                    }
+                }
+            }
 
             // Отключаем встроенный OSC и обработку ввода (мы используем свой UI)
             Self::set_option(&api, handle, "osc", "no");
@@ -248,17 +669,215 @@ impl MpvManager {
                 return Err(format!("Ошибка инициализации mpv: код {}", err));
             }
 
-            Ok(Self {
+            let manager = Self {
                 handle: Mutex::new(handle),
                 api,
-            })
+                track_cache: Mutex::new(None),
+            };
+
+            if let Some(ref mode) = saved_settings.deinterlace_mode {
+                if matches!(mode.as_str(), "no" | "auto" | "yadif" | "yadif2x") {
+                    let _ = manager.set_deinterlace_mode(mode);
+                }
+            }
+
+            Ok(manager)
         }
     }
 
     unsafe fn set_option(api: &MpvApi, handle: *mut MpvHandle, name: &str, value: &str) {
-        let c_name = CString::new(name).unwrap();
-        let c_value = CString::new(value).unwrap();
-        (api.set_option_string)(handle, c_name.as_ptr(), c_value.as_ptr());
+        if let (Ok(c_name), Ok(c_value)) = (CString::new(name), CString::new(value)) {
+            (api.set_option_string)(handle, c_name.as_ptr(), c_value.as_ptr());
+        }
+    }
+
+    /// Вспомогательная функция: возвращает параметры дебандинга по имени пресета.
+    ///
+    /// Пресеты: `"light"` — лёгкий (для сцен с мягким бандингом),
+    /// `"balanced"` — сбалансированный (дефолт opt-in),
+    /// `"strong"` — максимальный (только для сильного бандинга, возможна потеря деталей).
+    fn deband_preset_values(preset: &str) -> (u8, u16, u8, u16) {
+        // Возвращает (iterations, threshold, range, grain)
+        match preset {
+            "light" => (1, 32, 12, 16),
+            "strong" => (2, 64, 16, 32),
+            _ => (1, 48, 16, 32), // "balanced" — дефолт
+        }
+    }
+
+    /// Динамически включает или выключает пиковый лимитер аудио (lavfi alimiter).
+    ///
+    /// Применяет новое состояние лимитера, сохраняя текущий активный режим нормализации.
+    pub fn set_audio_limiter_enabled(
+        &self,
+        mode: AudioNormalizeMode,
+        enabled: bool,
+    ) -> Result<(), String> {
+        self.set_audio_normalize(mode, enabled)
+    }
+
+    /// Динамически устанавливает алгоритм тонемаппинга HDR.
+    ///
+    /// Допустимые значения: `"auto"`, `"bt.2446a"`, `"spline"`, `"bt.2390"`.
+    pub fn set_hdr_tone_mapping(
+        &self,
+        algorithm: &str,
+    ) -> Result<(), String> {
+        self.set_property_string("tone-mapping", algorithm)
+    }
+
+    /// Динамически устанавливает силу восстановления контраста HDR.
+    ///
+    /// Диапазон `0.0..2.0`: `0.0` — выкл, `1.0` — 100% силы.
+    pub fn set_hdr_contrast_recovery(
+        &self,
+        strength: f64,
+    ) -> Result<(), String> {
+        self.set_property_double("hdr-contrast-recovery", strength)
+    }
+
+    /// Динамически устанавливает глубину дизеринга.
+    ///
+    /// Допустимые значения: `"auto"`, `"8"`, `"10"`, `"0"` (выкл).
+    pub fn set_dither_depth(
+        &self,
+        depth: &str,
+    ) -> Result<(), String> {
+        self.set_property_string("dither-depth", depth)
+    }
+
+    /// Динамически включает или выключает GPU-шейдер дебандинга.
+    ///
+    /// Деба́нд в `vo=gpu-next` применяется **после** масштабирования —
+    /// см. §2.3 плана; рекомендуется только для 8-битных SDR-панелей.
+    pub fn set_deband_enabled(
+        &self,
+        enabled: bool,
+    ) -> Result<(), String> {
+        self.set_property_string("deband", if enabled { "yes" } else { "no" })
+    }
+
+    /// Динамически применяет пресет параметров дебандинга.
+    ///
+    /// Пресеты: `"light"`, `"balanced"`, `"strong"`.
+    pub fn set_deband_preset(
+        &self,
+        preset: &str,
+    ) -> Result<(), String> {
+        let (iterations, threshold, range, grain) =
+            Self::deband_preset_values(preset);
+        self.set_property_string(
+            "deband-iterations",
+            &iterations.to_string(),
+        )?;
+        self.set_property_string(
+            "deband-threshold",
+            &threshold.to_string(),
+        )?;
+        self.set_property_string(
+            "deband-range",
+            &range.to_string(),
+        )?;
+        self.set_property_string(
+            "deband-grain",
+            &grain.to_string(),
+        )
+    }
+
+    /// Динамически переключает связку устранения задержки аудиоустройства.
+    ///
+    /// Включает или отключает `audio-stream-silence` и `audio-wait-open`.
+    pub fn set_audio_latency_fix(
+        &self,
+        enabled: bool,
+    ) -> Result<(), String> {
+        let silence = if enabled { "yes" } else { "no" };
+        let wait_open = if enabled { "0.25" } else { "0" };
+        let _ = self.set_property_string("audio-stream-silence", silence);
+        let _ = self.set_property_string("audio-wait-open", wait_open);
+        Ok(())
+    }
+
+    /// Динамически применяет режим деинтерлейсинга.
+    ///
+    /// Допустимые значения: `"no"`, `"auto"`, `"yadif"`, `"yadif2x"`.
+    /// В поставляемой `libmpv-2.dll` свойство `deinterlace` принимает только `"no" | "auto" | "yes"`,
+    /// поэтому режимы `"yadif"` и `"yadif2x"` управляются через именованный видеофильтр `@deint`
+    /// (`lavfi=[yadif=mode=send_frame...]` и `lavfi=[yadif=mode=send_field...]`).
+    pub fn set_deinterlace_mode(
+        &self,
+        mode: &str,
+    ) -> Result<(), String> {
+        match mode {
+            "no" | "auto" => {
+                let _ = self.command("vf remove @deint");
+                self.set_property_string("deinterlace", mode)
+            }
+            "yadif" => {
+                self.set_property_string("deinterlace", "no")?;
+                let _ = self.command("vf remove @deint");
+                self.command(
+                    "vf add @deint:lavfi=[yadif=mode=send_frame:parity=auto:deint=all]",
+                )
+            }
+            "yadif2x" => {
+                self.set_property_string("deinterlace", "no")?;
+                let _ = self.command("vf remove @deint");
+                self.command(
+                    "vf add @deint:lavfi=[yadif=mode=send_field:parity=auto:deint=all]",
+                )
+            }
+            _ => Err(format!("Неизвестный режим деинтерлейсинга: {mode}")),
+        }
+    }
+
+    /// Динамически применяет режим аппаратного декодирования.
+    ///
+    /// Допустимые значения: `"auto-safe"`, `"auto-copy"`, `"no"`.
+    /// `auto-copy` расширяет список аппаратных декодеров ценой
+    /// промежуточного копирования кадра в системную память.
+    pub fn set_hwdec_mode(
+        &self,
+        mode: &str,
+    ) -> Result<(), String> {
+        if !matches!(mode, "auto-safe" | "auto-copy" | "no") {
+            return Err(format!("Неизвестный режим декодирования: {mode}"));
+        }
+        self.set_property_string("hwdec", mode)
+    }
+
+    /// Пересобирает цепочку `af` с учётом режима нормализации и состояния лимитера.
+    ///
+    /// Делегирует сборку фильтров модулю `AudioFilterChainBuilder` и применяет
+    /// результат в свойство `af` движка mpv с обязательным логированием.
+    pub fn set_audio_normalize(
+        &self,
+        mode: AudioNormalizeMode,
+        limiter_enabled: bool,
+    ) -> Result<(), String> {
+        let chain = AudioFilterChainBuilder::build(mode, limiter_enabled);
+        let res = self.set_property_string("af", chain);
+        if let Err(ref err) = res {
+            crate::log_error(
+                "MpvManager::set_audio_normalize",
+                &format!("Ошибка применения цепочки af='{chain}': {err}"),
+            );
+        }
+        res
+    }
+
+    /// Динамически применяет размер буфера демаксера (в мегабайтах).
+    ///
+    /// Влияет на устойчивость к сетевым потокам: больший буфер переживает
+    /// кратковременные обрывы сети ценой задержки ввода.
+    pub fn set_demuxer_cache_mb(
+        &self,
+        mb: u32,
+    ) -> Result<(), String> {
+        if !(16..=4096).contains(&mb) {
+            return Err(format!("Недопустимый размер буфера: {mb} МБ"));
+        }
+        self.set_property_string("demuxer-max-bytes", &format!("{mb}MiB"))
     }
 
     /// Внутренний метод для безопасного доступа к handle
@@ -275,6 +894,243 @@ impl MpvManager {
         }
         f(*handle)
     }
+
+    unsafe fn node_integer(node: &MpvNode) -> Option<i64> {
+        match node.format {
+            MpvFormat::Int64 => Some(node.u.int64),
+            MpvFormat::Double => {
+                let value = node.u.double_;
+                if value.is_finite()
+                    && value.fract() == 0.0
+                    && value >= i64::MIN as f64
+                    && value <= i64::MAX as f64
+                {
+                    Some(value as i64)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+
+    unsafe fn node_string(node: &MpvNode) -> Option<String> {
+        if node.format == MpvFormat::String && !node.u.string.is_null() {
+            Some(CStr::from_ptr(node.u.string).to_string_lossy().into_owned())
+        } else {
+            None
+        }
+    }
+
+    unsafe fn with_screenshot_node_bytes<F, R>(root: &MpvNode, consume: F) -> Result<R, String>
+    where
+        F: FnOnce(&[u8], usize, usize, isize) -> Result<R, String>,
+    {
+        let node = root;
+        if node.format != MpvFormat::NodeMap {
+            return Err("screenshot-raw вернул не NodeMap".to_string());
+        }
+        let list_ptr = node.u.list;
+        if list_ptr.is_null() {
+            return Err("screenshot-raw вернул пустой NodeMap".to_string());
+        }
+        let list = &*list_ptr;
+        if list.num < 0 || list.num > 1_000_000 || list.keys.is_null() || list.values.is_null() {
+            return Err("Некорректный NodeMap screenshot-raw".to_string());
+        }
+        let mut width = None;
+        let mut height = None;
+        let mut stride = None;
+        let mut format = None;
+        let mut data = None;
+        for index in 0..list.num as usize {
+            let key_ptr = *list.keys.add(index);
+            let value_ptr = &*list.values.add(index);
+            if key_ptr.is_null() {
+                return Err("Null key в screenshot-raw NodeMap".to_string());
+            }
+            let key = CStr::from_ptr(key_ptr).to_bytes();
+            match key {
+                b"w" => width = Self::node_integer(value_ptr),
+                b"h" => height = Self::node_integer(value_ptr),
+                b"stride" => stride = Self::node_integer(value_ptr),
+                b"format" => format = Self::node_string(value_ptr),
+                b"data" if value_ptr.format == MpvFormat::ByteArray => {
+                    let byte_array = value_ptr.u.ba;
+                    if byte_array.is_null() {
+                        return Err("Null data в screenshot-raw".to_string());
+                    }
+                    data = Some(&*byte_array);
+                }
+                b"data" => return Err("Поле data screenshot-raw не ByteArray".to_string()),
+                _ => {}
+            }
+        }
+        let width = width.ok_or_else(|| "screenshot-raw без поля w".to_string())?;
+        let height = height.ok_or_else(|| "screenshot-raw без поля h".to_string())?;
+        let stride = stride.ok_or_else(|| "screenshot-raw без поля stride".to_string())?;
+        let format = format.ok_or_else(|| "screenshot-raw без поля format".to_string())?;
+        if format != "bgr0" {
+            return Err(format!(
+                "Неподдерживаемый screenshot-raw format: {}",
+                format
+            ));
+        }
+        if width <= 0 || height <= 0 {
+            return Err("screenshot-raw содержит неположительный размер".to_string());
+        }
+        if stride < 0 {
+            return Err("screenshot-raw вернул отрицательный stride".to_string());
+        }
+        if stride > isize::MAX as i64 {
+            return Err("screenshot-raw stride вне диапазона isize".to_string());
+        }
+        let data = data.ok_or_else(|| "screenshot-raw без поля data".to_string())?;
+        if data.data.is_null() {
+            return Err("screenshot-raw data имеет null pointer".to_string());
+        }
+        if usize::BITS < 64 && (width > usize::MAX as i64 || height > usize::MAX as i64) {
+            return Err("screenshot-raw размер не помещается в usize".to_string());
+        }
+        let width = width as usize;
+        let height = height as usize;
+        let stride = stride as isize;
+        let row_bytes = width
+            .checked_mul(4)
+            .ok_or_else(|| "Переполнение строки screenshot-raw".to_string())?;
+        let stride_abs = stride
+            .checked_abs()
+            .ok_or_else(|| "Некорректный stride screenshot-raw".to_string())?
+            as usize;
+        if stride_abs < row_bytes {
+            return Err("screenshot-raw stride меньше строки".to_string());
+        }
+        let required = if height <= 1 {
+            row_bytes
+        } else {
+            (height - 1)
+                .checked_mul(stride_abs)
+                .and_then(|value| value.checked_add(row_bytes))
+                .ok_or_else(|| "Переполнение границ screenshot-raw".to_string())?
+        };
+        if data.size < required || data.size > isize::MAX as usize {
+            return Err("Некорректный размер screenshot-raw data".to_string());
+        }
+        let bytes = std::slice::from_raw_parts(data.data as *const u8, data.size);
+        consume(bytes, width, height, stride)
+    }
+
+    fn with_screenshot_raw<F, R>(&self, consume: F) -> Result<R, String>
+    where
+        F: FnOnce(&[u8], usize, usize, isize) -> Result<R, String>,
+    {
+        self.with_handle(|handle| {
+            let command = CString::new("screenshot-raw")
+                .map_err(|error| format!("Ошибка CString: {}", error))?;
+            let flags =
+                CString::new("video").map_err(|error| format!("Ошибка CString: {}", error))?;
+            let format =
+                CString::new("bgr0").map_err(|error| format!("Ошибка CString: {}", error))?;
+            let mut values = [
+                MpvNode {
+                    u: MpvNodeUnion {
+                        string: command.as_ptr() as *mut c_char,
+                    },
+                    format: MpvFormat::String,
+                },
+                MpvNode {
+                    u: MpvNodeUnion {
+                        string: flags.as_ptr() as *mut c_char,
+                    },
+                    format: MpvFormat::String,
+                },
+                MpvNode {
+                    u: MpvNodeUnion {
+                        string: format.as_ptr() as *mut c_char,
+                    },
+                    format: MpvFormat::String,
+                },
+            ];
+            let mut list = MpvNodeList {
+                num: values.len() as c_int,
+                values: values.as_mut_ptr(),
+                keys: std::ptr::null_mut(),
+            };
+            let mut args = MpvNode {
+                u: MpvNodeUnion { list: &mut list },
+                format: MpvFormat::NodeArray,
+            };
+            unsafe {
+                let mut result = std::mem::zeroed::<MpvNode>();
+                let status = (self.api.command_node)(handle, &mut args, &mut result);
+                if status < 0 {
+                    return Err(format!(
+                        "mpv command_node screenshot-raw вернул код {}",
+                        status
+                    ));
+                }
+                let guard = MpvNodeResultGuard {
+                    api: &self.api,
+                    node: &mut result,
+                };
+                let parsed = Self::with_screenshot_node_bytes(&result, consume);
+                drop(guard);
+                parsed
+            }
+        })
+    }
+
+    pub fn screenshot_raw(&self) -> Result<MpvRawFrame, String> {
+        self.with_screenshot_raw(|bytes, width, height, stride| {
+            let data = copy_bgr0_frame(bytes, width, height, stride)?;
+            Ok(MpvRawFrame {
+                width,
+                height,
+                stride,
+                format: "bgr0".to_string(),
+                data,
+            })
+        })
+    }
+
+
+    pub fn video_output_status_for(
+        &self,
+        expected_path: &str,
+    ) -> VideoOutputStatus {
+        self.with_handle(|handle| unsafe {
+            let video_track_present =
+                Self::video_track_present_raw(&self.api, handle);
+            let observed_path =
+                Self::get_string_raw(&self.api, handle, c"path");
+            let mut vid_buf = [0u8; 32];
+            let video_track = Self::get_property_str_buf_raw(
+                &self.api,
+                handle,
+                c"vid",
+                &mut vid_buf,
+            );
+            let (output_width, output_height) =
+                Self::resolve_video_output_dimensions(&self.api, handle);
+            Ok(video_output_status_from_properties(
+                expected_path,
+                &observed_path,
+                video_track_present,
+                video_track,
+                output_width,
+                output_height,
+            ))
+        })
+        .unwrap_or(VideoOutputStatus {
+            width: 0,
+            height: 0,
+            video_track: None,
+            has_video: false,
+            ready: false,
+        })
+    }
+
 
     pub fn command(&self, cmd: &str) -> Result<(), String> {
         self.with_handle(|handle| {
@@ -396,6 +1252,72 @@ impl MpvManager {
         }
     }
 
+    /// Считывает целочисленное свойство libmpv (Int64), возвращая Option::None при ошибке.
+    #[inline]
+    unsafe fn get_int_opt_raw(api: &MpvApi, handle: *mut MpvHandle, name: &CStr) -> Option<i64> {
+        let mut value: i64 = 0;
+        let err = (api.get_property)(
+            handle,
+            name.as_ptr(),
+            MpvFormat::Int64,
+            &mut value as *mut i64 as *mut c_void,
+        );
+        if err >= 0 {
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    /// Определение фактических геометрических размеров видеовыхода.
+    ///
+    /// Приоритет строго ориентирован на видеовыход (VO):
+    /// 1. `dwidth` / `dheight` — реальные размеры видеовыхода с учетом SAR/DAR,
+    ///    соотношения сторон (aspect ratio), фильтров и поворота видео;
+    /// 2. `video-out-params/dw` / `dh` — параметры активного видеовыхода;
+    /// 3. `video-params/dw` / `dh` — размеры декодированного видеопотока;
+    /// 4. `video-params/w` / `h` — исходные закодированные размеры;
+    /// 5. `width` / `height` — метаданные контейнера демуксера.
+    ///
+    /// В случае, когда `dwidth` ещё недоступен на этапе инициализации VO, но в видео
+    /// присутствует метатег поворота (90° / 270°), ширина и высота меняются местами
+    /// для предотвращения инверсии ориентации окна.
+    #[inline]
+    unsafe fn resolve_video_output_dimensions(api: &MpvApi, handle: *mut MpvHandle) -> (f64, f64) {
+        let mut width = Self::get_double_raw(api, handle, c"dwidth");
+        let mut height = Self::get_double_raw(api, handle, c"dheight");
+
+        if width <= 0.0 || height <= 0.0 {
+            width = Self::get_double_raw(api, handle, c"video-out-params/dw");
+            height = Self::get_double_raw(api, handle, c"video-out-params/dh");
+
+            if width <= 0.0 || height <= 0.0 {
+                width = Self::get_double_raw(api, handle, c"video-params/dw");
+                height = Self::get_double_raw(api, handle, c"video-params/dh");
+
+                if width <= 0.0 || height <= 0.0 {
+                    width = Self::get_double_raw(api, handle, c"video-params/w");
+                    height = Self::get_double_raw(api, handle, c"video-params/h");
+
+                    if width <= 0.0 || height <= 0.0 {
+                        width = Self::get_double_raw(api, handle, c"width");
+                        height = Self::get_double_raw(api, handle, c"height");
+                    }
+                }
+
+                // Корректировка ориентации при повороте видеопотока
+                if width > 0.0 && height > 0.0 {
+                    let rotate = Self::get_double_raw(api, handle, c"video-params/rotate") as i64;
+                    if rotate == 90 || rotate == 270 {
+                        std::mem::swap(&mut width, &mut height);
+                    }
+                }
+            }
+        }
+
+        (width, height)
+    }
+
     #[inline]
     unsafe fn get_flag_raw(api: &MpvApi, handle: *mut MpvHandle, name: &CStr) -> bool {
         let mut value: c_int = 0;
@@ -419,75 +1341,460 @@ impl MpvManager {
         value
     }
 
+    /// Статические C-строки для первых 16 треков, позволяющие избежать
+    /// динамических аллокаций памяти при частом опросе свойств плеера.
+    const STATIC_TRACK_TYPES: [&'static CStr; 16] = [
+        c"track-list/0/type",
+        c"track-list/1/type",
+        c"track-list/2/type",
+        c"track-list/3/type",
+        c"track-list/4/type",
+        c"track-list/5/type",
+        c"track-list/6/type",
+        c"track-list/7/type",
+        c"track-list/8/type",
+        c"track-list/9/type",
+        c"track-list/10/type",
+        c"track-list/11/type",
+        c"track-list/12/type",
+        c"track-list/13/type",
+        c"track-list/14/type",
+        c"track-list/15/type",
+    ];
+
+    /// Сравнивает строковое свойство libmpv с ожидаемым байтовым срезом
+    /// напрямую через сырой указатель без выделения Rust String в куче.
+    #[inline]
+    unsafe fn property_string_equals_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        name: &CStr,
+        expected: &[u8],
+    ) -> bool {
+        let result = (api.get_property_string)(handle, name.as_ptr());
+        if result.is_null() {
+            return false;
+        }
+        let matches = CStr::from_ptr(result).to_bytes() == expected;
+        (api.free)(result as *mut c_void);
+        matches
+    }
+
+    /// Считывает короткое строковое свойство libmpv в предоставленный
+    /// буфер на стеке, исключая любые аллокации памяти в куче.
+    #[inline]
+    unsafe fn get_property_str_buf_raw<'a>(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        name: &CStr,
+        buf: &'a mut [u8],
+    ) -> &'a str {
+        let result = (api.get_property_string)(handle, name.as_ptr());
+        if result.is_null() {
+            return "";
+        }
+        let bytes = CStr::from_ptr(result).to_bytes();
+        let len = bytes.len().min(buf.len());
+        buf[..len].copy_from_slice(&bytes[..len]);
+        (api.free)(result as *mut c_void);
+        match std::str::from_utf8(&buf[..len]) {
+            Ok(valid_str) => valid_str,
+            Err(err) => {
+                std::str::from_utf8(&buf[..err.valid_up_to()])
+                    .unwrap_or("")
+            }
+        }
+    }
+
+    /// Проверяет наличие хотя бы одной видеодорожки в контейнере без аллокаций.
+    /// Использует статические C-строки для типичных индексов и буфер на стеке.
+    unsafe fn video_track_present_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+    ) -> Option<bool> {
+        let track_count =
+            Self::get_double_raw(api, handle, c"track-list/count");
+        if !track_count.is_finite() || track_count < 0.0 {
+            return None;
+        }
+        let count = (track_count as i64).min(256);
+        if count == 0 {
+            return None;
+        }
+        for index in 0..count {
+            let is_video = if let Some(&name) =
+                Self::STATIC_TRACK_TYPES.get(index as usize)
+            {
+                Self::property_string_equals_raw(
+                    api,
+                    handle,
+                    name,
+                    b"video",
+                )
+            } else {
+                let mut buf = [0u8; 32];
+                let mut cursor = std::io::Cursor::new(&mut buf[..]);
+                if write!(cursor, "track-list/{index}/type\0").is_err() {
+                    false
+                } else {
+                    match CStr::from_bytes_until_nul(&buf) {
+                        Ok(c_name) => Self::property_string_equals_raw(
+                            api,
+                            handle,
+                            c_name,
+                            b"video",
+                        ),
+                        Err(_) => false,
+                    }
+                }
+            };
+            if is_video {
+                return Some(true);
+            }
+        }
+        Some(false)
+    }
+
     /// Пакетный сбор динамического состояния плеера за один захват мьютекса
     /// со статическими C-строками без повторных блокировок и лишних аллокаций.
-    pub fn get_playback_state_snapshot(&self) -> Result<crate::commands::PlaybackState, String> {
-        self.with_handle(|handle| {
-            unsafe {
-                let path = Self::get_string_raw(&self.api, handle, c"path");
-                let position = Self::get_double_raw(&self.api, handle, c"time-pos");
-                let duration = Self::get_double_raw(&self.api, handle, c"duration");
-                let frame = Self::get_double_raw(&self.api, handle, c"estimated-frame-number") as i64;
-                let paused_flag = Self::get_flag_raw(&self.api, handle, c"pause");
-                let eof_reached = Self::get_flag_raw(&self.api, handle, c"eof-reached");
-                let paused = paused_flag || eof_reached;
-                let speed_raw = Self::get_double_raw(&self.api, handle, c"speed");
-                let speed = if speed_raw <= 0.0 { 1.0 } else { speed_raw };
-                let volume = Self::get_double_raw(&self.api, handle, c"volume");
+    pub fn get_playback_state_snapshot(
+        &self,
+    ) -> Result<crate::commands::PlaybackState, String> {
+        self.with_handle(|handle| unsafe {
+            let path = Self::get_string_raw(&self.api, handle, c"path");
+            let position = Self::get_double_raw(&self.api, handle, c"time-pos");
+            let duration = Self::get_double_raw(&self.api, handle, c"duration");
+            let frame = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"estimated-frame-number",
+            ) as i64;
+            let paused_flag = Self::get_flag_raw(&self.api, handle, c"pause");
+            let eof_reached = Self::get_flag_raw(&self.api, handle, c"eof-reached");
+            let paused = paused_flag || eof_reached;
+            let speed_raw = Self::get_double_raw(&self.api, handle, c"speed");
+            let speed = if speed_raw <= 0.0 { 1.0 } else { speed_raw };
+            let volume = Self::get_double_raw(&self.api, handle, c"volume");
 
-                let ab = Self::get_double_raw(&self.api, handle, c"packet-audio-bitrate");
-                let audio_bitrate = if ab > 0.0 {
-                    ab
-                } else {
-                    Self::get_double_raw(&self.api, handle, c"audio-bitrate")
-                };
+            let ab = Self::get_double_raw(&self.api, handle, c"audio-bitrate");
+            let audio_bitrate = if ab > 0.0 {
+                ab
+            } else {
+                Self::get_double_raw(&self.api, handle, c"packet-audio-bitrate")
+            };
 
-                let vb = Self::get_double_raw(&self.api, handle, c"packet-video-bitrate");
-                let video_bitrate = if vb > 0.0 {
-                    vb
-                } else {
-                    Self::get_double_raw(&self.api, handle, c"video-bitrate")
-                };
+            let vb = Self::get_double_raw(&self.api, handle, c"video-bitrate");
+            let video_bitrate = if vb > 0.0 {
+                vb
+            } else {
+                Self::get_double_raw(&self.api, handle, c"packet-video-bitrate")
+            };
 
-                let dropped_frames = Self::get_double_raw(&self.api, handle, c"vo-delayed-frame-count") as i64;
-                let stream_pos = Self::get_double_raw(&self.api, handle, c"stream-pos");
+            let dropped_frames = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"vo-delayed-frame-count",
+            ) as i64;
+            let stream_pos = Self::get_double_raw(&self.api, handle, c"stream-pos");
 
-                let dw = Self::get_double_raw(&self.api, handle, c"video-params/dw");
-                let video_width = if dw > 0.0 {
-                    dw as i64
-                } else {
-                    Self::get_double_raw(&self.api, handle, c"width") as i64
-                };
-
-                let dh = Self::get_double_raw(&self.api, handle, c"video-params/dh");
-                let video_height = if dh > 0.0 {
-                    dh as i64
-                } else {
-                    Self::get_double_raw(&self.api, handle, c"height") as i64
-                };
-
-                let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
-                let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
-
-                Ok(crate::commands::PlaybackState {
-                    position,
-                    duration,
-                    frame,
-                    paused,
-                    speed,
-                    volume,
-                    audio_bitrate,
-                    video_bitrate,
-                    dropped_frames,
-                    stream_pos,
-                    path,
-                    video_width,
-                    video_height,
-                    current_aid,
-                    current_sid,
-                    eof_reached,
+            // aid/sid/vid дешёвые (по 1 FFI) и меняются при переключении
+            // дорожек при том же count — читаем каждый тик.
+            // Дорогой скан video_present (до 256 FFI) кэшируем по (path,count).
+            let track_count = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"track-list/count",
+            ) as i64;
+            let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
+            let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
+            let current_vid = Self::get_string_raw(&self.api, handle, c"vid");
+            let video_track_present = self
+                .track_cache
+                .lock()
+                .ok()
+                .and_then(|guard| {
+                    guard.as_ref().and_then(|cached| {
+                        if cached.path == path && cached.count == track_count {
+                            Some(cached.video_present)
+                        } else {
+                            None
+                        }
+                    })
                 })
+                .unwrap_or_else(|| {
+                    let present = Self::video_track_present_raw(&self.api, handle);
+                    if let Ok(mut guard) = self.track_cache.lock() {
+                        *guard = Some(CachedTrackInfo {
+                            path: path.clone(),
+                            count: track_count,
+                            video_present: present,
+                        });
+                    }
+                    present
+                });
+            let mut vid_buf = [0u8; 32];
+            let video_track = Self::get_property_str_buf_raw(
+                &self.api,
+                handle,
+                c"vid",
+                &mut vid_buf,
+            );
+            let (output_width, output_height) =
+                Self::resolve_video_output_dimensions(&self.api, handle);
+            let output_status = video_output_status_from_properties(
+                &path,
+                &path,
+                video_track_present,
+                video_track,
+                output_width,
+                output_height,
+            );
+
+            Ok(crate::commands::PlaybackState {
+                position,
+                duration,
+                frame,
+                paused,
+                speed,
+                volume,
+                audio_bitrate,
+                video_bitrate,
+                dropped_frames,
+                stream_pos,
+                path,
+                video_width: output_status.width,
+                video_height: output_status.height,
+                video_track: output_status.video_track,
+                has_video: output_status.has_video,
+                video_ready: output_status.ready,
+                current_aid,
+                current_sid,
+                current_vid,
+                track_count,
+                eof_reached,
+            })
+        })
+    }
+
+    /// Пакетный сбор всех доступных медиадорожек плеера за один захват
+    /// мьютекса с прямыми FFI-вызовами libmpv без повторных блокировок.
+    /// Проверяет, является ли название обработчика потока MP4/MOV технической заглушкой по умолчанию.
+    #[inline]
+    fn is_generic_handler_name(name: &str) -> bool {
+        let lower = name.trim().to_ascii_lowercase();
+        matches!(
+            lower.as_str(),
+            "" | "soundhandler"
+                | "videohandler"
+                | "subtitlehandler"
+                | "soundmediahandler"
+                | "videomediahandler"
+                | "textmediahandler"
+                | "subtitlemediahandler"
+                | "core media audio"
+                | "core media video"
+                | "core media subtitle"
+                | "gpac iso audio handler"
+                | "gpac iso video handler"
+                | "gpac subtitle handler"
+                | "mainconcept mp4 sound media handler"
+                | "mainconcept mp4 video media handler"
+                | "iso media file produced by google, inc."
+        )
+    }
+
+    /// Считывает строковое свойство дорожки (`track-list/{index}/{suffix}`) без аллокаций имени.
+    #[inline]
+    unsafe fn get_track_prop_string_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        index: i64,
+        suffix: &str,
+        buf: &mut [u8; 64],
+    ) -> String {
+        let mut cur = std::io::Cursor::new(&mut buf[..]);
+        if write!(cur, "track-list/{index}/{suffix}\0").is_ok() {
+            if let Ok(c_name) = CStr::from_bytes_until_nul(buf) {
+                return Self::get_string_raw(api, handle, c_name);
             }
+        }
+        String::new()
+    }
+
+    /// Считывает целочисленное свойство дорожки (`track-list/{index}/{suffix}`) без аллокаций имени.
+    #[inline]
+    unsafe fn get_track_prop_int_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        index: i64,
+        suffix: &str,
+        buf: &mut [u8; 64],
+    ) -> Option<i64> {
+        let mut cur = std::io::Cursor::new(&mut buf[..]);
+        if write!(cur, "track-list/{index}/{suffix}\0").is_ok() {
+            if let Ok(c_name) = CStr::from_bytes_until_nul(buf) {
+                return Self::get_int_opt_raw(api, handle, c_name);
+            }
+        }
+        None
+    }
+
+    /// Проверяет равенство строкового свойства дорожки с байтовым срезом без аллокаций памяти.
+    #[inline]
+    unsafe fn track_prop_equals_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        index: i64,
+        suffix: &str,
+        expected: &[u8],
+        buf: &mut [u8; 64],
+    ) -> bool {
+        let mut cur = std::io::Cursor::new(&mut buf[..]);
+        if write!(cur, "track-list/{index}/{suffix}\0").is_ok() {
+            if let Ok(c_name) = CStr::from_bytes_until_nul(buf) {
+                return Self::property_string_equals_raw(api, handle, c_name, expected);
+            }
+        }
+        false
+    }
+
+    /// Каскадное извлечение названия дорожки для MKV, MP4, MOV и WebM.
+    ///
+    /// 1. `track-list/{i}/title` — прямое свойство заголовка (MKV и потоки со стандартным тегом title).
+    /// 2. `track-list/{i}/metadata/name` — QuickTime/MP4 атом `udta/name` (FFmpeg stream metadata "name").
+    /// 3. `track-list/{i}/metadata/title` — пользовательский тег "title" во вложенных метаданных.
+    /// 4. `track-list/{i}/metadata/handler_name` — дескриптор дорожки hdlr (MP4Box, HandBrake), исключая системные дефолты.
+    unsafe fn resolve_track_title_raw(
+        api: &MpvApi,
+        handle: *mut MpvHandle,
+        index: i64,
+        buf: &mut [u8; 64],
+    ) -> String {
+        let direct_title = Self::get_track_prop_string_raw(api, handle, index, "title", buf);
+        if !direct_title.trim().is_empty() {
+            return direct_title;
+        }
+
+        let meta_name = Self::get_track_prop_string_raw(api, handle, index, "metadata/name", buf);
+        if !meta_name.trim().is_empty() {
+            return meta_name;
+        }
+
+        let meta_title = Self::get_track_prop_string_raw(api, handle, index, "metadata/title", buf);
+        if !meta_title.trim().is_empty() {
+            return meta_title;
+        }
+
+        let handler_name = Self::get_track_prop_string_raw(api, handle, index, "metadata/handler_name", buf);
+        if !Self::is_generic_handler_name(&handler_name) {
+            return handler_name;
+        }
+
+        String::new()
+    }
+
+    pub fn get_tracks_snapshot(
+        &self,
+    ) -> Result<Vec<crate::commands::TrackInfo>, String> {
+        self.with_handle(|handle| unsafe {
+            let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
+            let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
+            let current_vid = Self::get_string_raw(&self.api, handle, c"vid");
+            let count_raw = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"track-list/count",
+            );
+            let count = if count_raw > 0.0 {
+                (count_raw as i64).min(256)
+            } else {
+                0
+            };
+            let mut tracks = Vec::with_capacity(count as usize);
+            let mut prop_buf = [0u8; 64];
+
+            for i in 0..count {
+                let track_type = Self::get_track_prop_string_raw(
+                    &self.api, handle, i, "type", &mut prop_buf,
+                );
+                let id = Self::get_track_prop_int_raw(
+                    &self.api, handle, i, "id", &mut prop_buf,
+                )
+                .unwrap_or(i + 1);
+
+                let title = Self::resolve_track_title_raw(
+                    &self.api, handle, i, &mut prop_buf,
+                );
+                let lang = Self::get_track_prop_string_raw(
+                    &self.api, handle, i, "lang", &mut prop_buf,
+                );
+                let is_selected_by_list = Self::track_prop_equals_raw(
+                    &self.api, handle, i, "selected", b"yes", &mut prop_buf,
+                );
+
+                let selected = match track_type.as_str() {
+                    "audio" => {
+                        if current_aid == "no" {
+                            false
+                        } else if let Ok(aid_id) = current_aid.parse::<i64>() {
+                            id == aid_id
+                        } else {
+                            is_selected_by_list
+                        }
+                    }
+                    "sub" => {
+                        if current_sid == "no" {
+                            false
+                        } else if let Ok(sid_id) = current_sid.parse::<i64>() {
+                            id == sid_id
+                        } else {
+                            is_selected_by_list
+                        }
+                    }
+                    "video" => {
+                        if current_vid == "no" {
+                            false
+                        } else if let Ok(vid_id) = current_vid.parse::<i64>() {
+                            id == vid_id
+                        } else {
+                            is_selected_by_list
+                        }
+                    }
+                    _ => is_selected_by_list,
+                };
+
+                let codec = Self::get_track_prop_string_raw(
+                    &self.api, handle, i, "codec", &mut prop_buf,
+                );
+                let external = Self::track_prop_equals_raw(
+                    &self.api, handle, i, "external", b"yes", &mut prop_buf,
+                );
+                let external_filename = if external {
+                    Self::get_track_prop_string_raw(
+                        &self.api, handle, i, "external-filename", &mut prop_buf,
+                    )
+                } else {
+                    String::new()
+                };
+                let ff_index = Self::get_track_prop_int_raw(
+                    &self.api, handle, i, "ff-index", &mut prop_buf,
+                )
+                .unwrap_or(-1);
+
+                tracks.push(crate::commands::TrackInfo {
+                    id,
+                    track_type,
+                    title,
+                    lang,
+                    selected,
+                    codec,
+                    external,
+                    external_filename,
+                    ff_index,
+                });
+            }
+
+            Ok(tracks)
         })
     }
 
@@ -499,6 +1806,7 @@ impl MpvManager {
         slot: u32,
         backend_changed: bool,
     ) -> Result<(), String> {
+        crate::upscale::compatibility::mark_runtime_used();
         use crate::upscale::config::get_inference_dir;
 
         let norm_conf = conf_path.replace('\\', "/");
@@ -540,18 +1848,26 @@ impl MpvManager {
                 let _ = self.command("vf remove @aji");
             }
             // Полный набор параметров фильтра animejanai.
-            // ВАЖНО: Весь аргумент фильтра нужно обернуть в двойные кавычки ("..."), 
+            // ВАЖНО: Весь аргумент фильтра нужно обернуть в двойные кавычки ("..."),
             // а внутренние пути экранировать (\"), чтобы парсер команд MPV не разбивал строку по пробелам в путях (например "Program Files").
             let cmd_add = format!(
                 r#"vf add "@aji:animejanai=lib=\"{}\":conf=\"{}\":model-dir=\"{}\":rife-model-dir=\"{}\":trtexec=\"{}\":stats=\"{}\":slot={}""#,
                 aji_lib, norm_conf, norm_models_dir, rife_dir, trtexec, stats_path, slot
             );
-            let _ = self.command(&cmd_add);
+            // Ошибку НЕ глушим: иначе OSD показывает «Включен», а фильтр в mpv не встаёт
+            // и диагностика невозможна (симптом: в логах пусто, картинки нет).
+            if let Err(e) = self.command(&cmd_add) {
+                eprintln!("[L-MPV][Upscale] Ошибка добавления фильтра animejanai: {}", e);
+                return Err(format!("Не удалось добавить фильтр апскейлинга в mpv: {}", e));
+            }
         }
 
         // Мгновенное переключение активного слота в AnimeJaNai
         let cmd_slot = format!("vf-command aji slot {}", slot);
-        let _ = self.command(&cmd_slot);
+        if let Err(e) = self.command(&cmd_slot) {
+            eprintln!("[L-MPV][Upscale] Ошибка переключения слота {}: {}", slot, e);
+            return Err(format!("Не удалось переключить слот апскейлинга на {}: {}", slot, e));
+        }
         Ok(())
     }
 
@@ -585,9 +1901,13 @@ impl MpvManager {
     /// Метод запрашивает у libmpv структуру MPV_FORMAT_NODE, парсит массив объектов
     /// с временами start, end и текстом text, очищает разметку и корректно освобождает
     /// выделенную C-память через mpv_free_node_contents.
-    pub fn get_sub_lines(&self, property_name: &str) -> Result<Vec<crate::commands::SubtitleLineInfo>, String> {
+    pub fn get_sub_lines(
+        &self,
+        property_name: &str,
+    ) -> Result<Vec<crate::commands::SubtitleLineInfo>, String> {
         self.with_handle(|handle| {
-            let c_prop = CString::new(property_name).map_err(|e| format!("Ошибка CString: {}", e))?;
+            let c_prop =
+                CString::new(property_name).map_err(|e| format!("Ошибка CString: {}", e))?;
             unsafe {
                 let mut root_node = std::mem::zeroed::<MpvNode>();
                 let err = (self.api.get_property)(
@@ -599,6 +1919,11 @@ impl MpvManager {
                 if err < 0 {
                     return Ok(Vec::new());
                 }
+
+                let _guard = MpvNodeResultGuard {
+                    api: &self.api,
+                    node: &mut root_node,
+                };
 
                 let mut lines = Vec::new();
                 if root_node.format == MpvFormat::NodeArray {
@@ -642,9 +1967,13 @@ impl MpvManager {
                                                 };
                                             }
                                             "text"
-                                                if val_node.format == MpvFormat::String && !val_node.u.string.is_null() => {
-                                                    text = CStr::from_ptr(val_node.u.string).to_string_lossy().into_owned();
-                                                }
+                                                if val_node.format == MpvFormat::String
+                                                    && !val_node.u.string.is_null() =>
+                                            {
+                                                text = CStr::from_ptr(val_node.u.string)
+                                                    .to_string_lossy()
+                                                    .into_owned();
+                                            }
                                             _ => {}
                                         }
                                     }
@@ -666,7 +1995,6 @@ impl MpvManager {
                     }
                 }
 
-                (self.api.free_node_contents)(&mut root_node);
                 Ok(lines)
             }
         })
@@ -691,5 +2019,167 @@ impl Drop for MpvManager {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn copy_bgr0_frame_handles_positive_stride() {
+        let data = vec![
+            1, 2, 3, 4, 5, 6, 7, 8, 90, 91, 9, 10, 11, 12, 13, 14, 15, 16, 92, 93,
+        ];
+        let result = copy_bgr0_frame(&data, 2, 2, 10).unwrap();
+        assert_eq!(result, vec![1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15]);
+    }
+
+    #[test]
+    fn copy_bgr0_frame_rejects_negative_stride() {
+        let data = vec![
+            9, 10, 11, 12, 13, 14, 15, 16, 90, 91, 1, 2, 3, 4, 5, 6, 7, 8, 92, 93,
+        ];
+        assert!(copy_bgr0_frame(&data, 2, 2, -10).is_err());
+    }
+
+    #[test]
+    fn video_output_status_requires_matching_path_track_and_dimensions() {
+        let ready = video_output_status_from_properties(
+            "movie.mkv",
+            "movie.mkv",
+            Some(true),
+            "1",
+            1920.0,
+            1080.0,
+        );
+        assert_eq!(
+            ready,
+            VideoOutputStatus {
+                width: 1920,
+                height: 1080,
+                video_track: Some(true),
+                has_video: true,
+                ready: true,
+            }
+        );
+        assert!(
+            !video_output_status_from_properties(
+                "movie.mkv",
+                "other.mkv",
+                Some(true),
+                "1",
+                1920.0,
+                1080.0,
+            )
+            .ready
+        );
+        assert!(
+            !video_output_status_from_properties(
+                "movie.mkv",
+                "movie.mkv",
+                Some(true),
+                "no",
+                1920.0,
+                1080.0,
+            )
+            .ready
+        );
+        assert!(
+            !video_output_status_from_properties(
+                "movie.mkv",
+                "movie.mkv",
+                None,
+                "1",
+                1920.0,
+                1080.0,
+            )
+            .ready
+        );
+        assert!(
+            !video_output_status_from_properties(
+                "movie.mkv",
+                "movie.mkv",
+                Some(true),
+                "1",
+                0.0,
+                1080.0,
+            )
+            .ready
+        );
+        assert!(
+            !video_output_status_from_properties(
+                "movie.mkv",
+                "movie.mkv",
+                Some(true),
+                "1",
+                f64::NAN,
+                f64::INFINITY,
+            )
+            .ready
+        );
+    }
+
+    #[test]
+    fn copy_bgr0_frame_rejects_invalid_bounds() {
+        assert!(copy_bgr0_frame(&[0; 7], 2, 2, 8).is_err());
+        assert!(copy_bgr0_frame(&[0; 16], 2, 2, 7).is_err());
+    }
+
+    #[test]
+    fn set_deinterlace_mode_supports_all_ui_modes_with_bundled_libmpv() {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        if !manifest_dir.join("libmpv-2.dll").exists() {
+            return;
+        }
+        let temp_dir = std::env::temp_dir().join(format!(
+            "l_mpv_deint_test_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        unsafe {
+            let api = MpvManager::load_mpv_api(&manifest_dir).unwrap();
+            let handle = (api.create)();
+            assert!(!handle.is_null());
+            MpvManager::set_option(&api, handle, "vo", "null");
+            MpvManager::set_option(&api, handle, "ao", "null");
+            MpvManager::set_option(&api, handle, "terminal", "no");
+            assert_eq!((api.initialize)(handle), 0);
+
+            let mgr = MpvManager {
+                handle: Mutex::new(handle),
+                api,
+                track_cache: Mutex::new(None),
+            };
+
+            mgr.set_deinterlace_mode("yadif").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "no");
+            let vf_yadif = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(vf_yadif.contains("deint"), "vf={vf_yadif}");
+            assert!(vf_yadif.contains("send_frame"), "vf={vf_yadif}");
+
+            mgr.set_deinterlace_mode("yadif2x").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "no");
+            let vf_yadif2x = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(vf_yadif2x.contains("deint"), "vf={vf_yadif2x}");
+            assert!(vf_yadif2x.contains("send_field"), "vf={vf_yadif2x}");
+
+            mgr.set_deinterlace_mode("auto").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "auto");
+            let vf_auto = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(!vf_auto.contains("deint"), "vf={vf_auto}");
+
+            mgr.set_deinterlace_mode("no").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "no");
+            let vf_no = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(!vf_no.contains("deint"), "vf={vf_no}");
+
+            assert!(mgr.set_deinterlace_mode("invalid").is_err());
+        }
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }

@@ -1,0 +1,67 @@
+/* Trial ruler: no card, no video pixel access. Existing left/right anchors are retained. */
+.seek-indicator.seek-indicator--ruler {
+  flex-direction: column;
+  gap: 5px;
+  width: 108px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  filter: none;
+  transform: translateY(-50%);
+  animation: seek-ruler-appear 120ms ease-out;
+  transition: opacity 180ms ease-out;
+}
+.seek-indicator--ruler.seek-indicator--closing {
+  opacity: 0;
+  transform: translateY(-50%);
+}
+.seek-ruler__value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  color: #fff;
+  font-size: 27px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+  -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.65);
+  paint-order: stroke fill;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.seek-ruler__unit {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+}
+.seek-ruler__scale {
+  display: block;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  filter: none;
+}
+.seek-ruler__scale-shadow { filter: brightness(0) blur(1.5px); }
+.seek-ruler__ticks { fill: rgba(255, 255, 255, 0.75); shape-rendering: crispEdges; }
+.seek-ruler__trail { fill: var(--accent-text, #fff); }
+.seek-ruler__sweep {
+  animation: seek-ruler-sweep 320ms cubic-bezier(0.2, 0.6, 0.3, 1) both;
+}
+.seek-ruler__mark {
+  stroke: var(--accent-text, #fff);
+  stroke-width: 2;
+}
+.seek-indicator--left .seek-ruler__scale { transform: scaleX(-1); }
+@keyframes seek-ruler-sweep {
+  0% { transform: translateX(0); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translateX(84px); opacity: 1; }
+}
+@keyframes seek-ruler-appear { from { opacity: 0; } to { opacity: 1; } }
+html.no-animations .seek-ruler__sweep { animation: none; transform: translateX(84px); opacity: 1; }
+html.no-animations .seek-ruler__trail { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .seek-ruler__sweep { animation: none; transform: translateX(84px); opacity: 1; }
+  .seek-ruler__trail { display: none; }
+}

@@ -8,6 +8,7 @@ use super::dir_scan::{
 };
 use super::history::{
     apply_resume_start, save_current_playback_position,
+    save_history_to_disk,
 };
 use super::playlist::populate_folder_playlist;
 use super::tracks::load_external_tracks_internal;
@@ -16,6 +17,16 @@ use super::types::{
     MediaInfo, PlaybackState, PlayerState,
 };
 use tauri::State;
+
+fn invalidate_ambient_result<T>(
+    state: &PlayerState,
+    result: Result<T, String>,
+) -> Result<T, String> {
+    if result.is_ok() {
+        state.ambient_controller.invalidate();
+    }
+    result
+}
 
 // ─── Открытие файла ─────────────────────────────────────
 
@@ -31,24 +42,28 @@ pub fn open_file(
 
 /// Внутренняя функция открытия файла с опциональной отправкой события обновления плейлиста.
 ///
-/// Горячий путь устроен так, чтобы первый кадр пошёл максимально быстро:
-/// синхронно выполняются только дешёвые операции (сейв позиции в память,
-/// resume-старт, `loadfile`), а сканирование диска и достройка плейлиста
-/// уходят в фоновый поток. Команда возвращается сразу после постановки
-/// `loadfile` в очередь mpv.
+/// Сохранение истории и resume выполняются до `loadfile`, чтение настроек —
+/// после его постановки в очередь mpv. Сканирование внешних дорожек и
+/// достройка плейлиста вынесены в поток с допуском по состоянию воспроизведения.
 pub fn open_file_internal(
     state: &PlayerState,
     path: &str,
     app: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
-    // Сохранение позиции предыдущего файла: только память + дебаунс диска.
-    save_current_playback_position(state);
+    super::startup::cancel_startup_for_other_file(state, path)?;
+    // Сохранение позиции предыдущего файла перед открытием нового
+    if !state.mpv.get_property_string("path").unwrap_or_default().is_empty() {
+        save_current_playback_position(state);
+        save_history_to_disk();
+    }
+
+    let transition = super::dir_scan::lock_open_transition()?;
 
     let target_path = std::path::PathBuf::from(path);
     let safe_target = escape_mpv_path(path);
     // Единственная точка resume: выставляем `start` ДО loadfile,
     // фронтенд второго seek не делает.
-    let expected_start = apply_resume_start(state, path);
+    let _ = apply_resume_start(state, path);
 
     // Путь, игравший до loadfile: нужен фоновой задаче, чтобы отличить
     // «новый файл ещё грузится» от «пользователь уже переключил дальше».
@@ -57,33 +72,50 @@ pub fn open_file_internal(
         .get_property_string("path")
         .unwrap_or_default();
 
-    // 1. Мгновенно запускаем воспроизведение выбранного файла
+    // Отключаем встроенный автопоиск дорожек mpv: внешние файлы подключаются строго
+    // через L-MPV согласно пользовательской настройке auto_load_tracks.
+    let _ = state.mpv.set_property_string("sub-auto", "no");
+    let _ = state.mpv.set_property_string("audio-file-auto", "no");
+
+    let generation = next_open_generation();
+    let open_work = super::background_io::OpenWork::begin(generation, true);
+
+    // 1. Ставим открытие выбранного файла в очередь mpv.
     state.mpv.command(&format!(
         "loadfile \"{}\" replace",
         safe_target
     ))?;
+    let _ = state.mpv.set_property_double("video-zoom", 0.0);
+    let _ = state.mpv.set_property_double("video-pan-x", 0.0);
+    let _ = state.mpv.set_property_double("video-pan-y", 0.0);
+    state.ambient_controller.invalidate();
+    drop(transition);
 
-    // Флаги читаются один раз (один парсинг settings.json на открытие).
+    // Read settings after queuing playback, so a slow portable disk does not
+    // delay loadfile. The short-lived guard already excludes competing analysis.
     let settings = AppSettings::load_portable();
     let auto_load_tracks = settings.auto_load_tracks;
-    let auto_select_external_audio =
-        settings.auto_select_external_audio;
+    let auto_select_external_audio = settings.auto_select_external_audio;
+    if !auto_load_tracks || !auto_select_external_audio { open_work.audio_selected(); }
 
-    // 2. Всё тяжёлое — в фон: внешние дорожки, плейлист, сброс `start`.
+    // 2. Всё тяжёлое — в фон: внешние дорожки и плейлист.
     // Новое поколение отменяет устаревшую задачу прошлого открытия.
-    let generation = next_open_generation();
     let bg_mpv = state.mpv.clone();
     let bg_app = app.cloned();
     let bg_prev_path = prev_path.clone();
     let _ = std::thread::Builder::new()
         .name("lmpv-open-bg".to_string())
         .spawn(move || {
+            let open_work = open_work;
             if current_open_generation() != generation {
                 return;
             }
             // Подгружаем внешние дорожки и субтитры (если опция активна).
             // Скан каталога берётся из mtime-кэша.
             if auto_load_tracks {
+                if !super::background_io::wait_for_open(
+                    &bg_mpv, &target_path.to_string_lossy(), &bg_prev_path, generation, false,
+                ) { return; }
                 let _ = load_external_tracks_internal(
                     &bg_mpv,
                     &target_path,
@@ -92,31 +124,22 @@ pub fn open_file_internal(
                     &bg_prev_path,
                 );
             }
+            open_work.audio_selected();
             if current_open_generation() != generation {
                 return;
             }
             // Фоново формируем плейлист из остальных файлов в той же папке.
             // Каталог читается один раз общим листингом (см. dir_scan).
+            if !super::background_io::wait_for_open(
+                &bg_mpv, &target_path.to_string_lossy(), "", generation, true,
+            ) { return; }
             let _ = populate_folder_playlist(
                 &bg_mpv,
                 &target_path,
                 bg_app.as_ref(),
+                generation,
+                true,
             );
-
-            // Сбрасываем параметр "start" в "none", чтобы следующие треки
-            // плейлиста стартовали с начала — но только если его никто не
-            // перезаписал (быстрая навигация Next/Prev выставила свой) и
-            // поколение не сменилось (открыли файл новее).
-            if current_open_generation() == generation {
-                let still_ours = bg_mpv
-                    .get_property_string("start")
-                    .map(|v| v == expected_start)
-                    .unwrap_or(false);
-                if still_ours {
-                    let _ = bg_mpv
-                        .set_property_string("start", "none");
-                }
-            }
         });
 
     // 3. Переоценка Ambient Light под новое видео (авто-отключение без
@@ -137,6 +160,7 @@ pub fn open_file_internal(
 pub fn toggle_pause(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, false)?;
     // Если достигнут конец воспроизведения, перезапускаем видео с самого начала
     let dur = state
         .mpv
@@ -157,14 +181,13 @@ pub fn toggle_pause(
         dur > 0.0
     };
 
-    if is_near_end {
-        let _ =
-            state.mpv.command("seek 0 absolute+exact");
-        let _ =
-            state.mpv.set_property_string("pause", "no");
-        return Ok(());
-    }
-    state.mpv.command("cycle pause")
+    let result = if is_near_end {
+        let _ = state.mpv.command("seek 0 absolute+exact");
+        state.mpv.set_property_string("pause", "no")
+    } else {
+        state.mpv.command("cycle pause")
+    };
+    invalidate_ambient_result(&state, result)
 }
 
 /// Установка паузы в конкретное состояние.
@@ -173,6 +196,8 @@ pub fn set_pause(
     state: State<'_, PlayerState>,
     paused: bool,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, false)?;
+    let mut restart = false;
     if !paused {
         let dur = state
             .mpv
@@ -183,7 +208,7 @@ pub fn set_pause(
                 .mpv
                 .get_property_bool("eof-reached")
                 .unwrap_or(false);
-        let is_near_end = if !is_eof {
+        restart = if !is_eof {
             let pos = state
                 .mpv
                 .get_property_double("time-pos")
@@ -192,18 +217,17 @@ pub fn set_pause(
         } else {
             dur > 0.0
         };
-
-        if is_near_end {
-            let _ = state
-                .mpv
-                .command("seek 0 absolute+exact");
-            return state
-                .mpv
-                .set_property_string("pause", "no");
-        }
     }
     let value = if paused { "yes" } else { "no" };
-    state.mpv.set_property_string("pause", value)
+    let result = if restart {
+        let _ = state
+            .mpv
+            .command("seek 0 absolute+exact");
+        state.mpv.set_property_string("pause", value)
+    } else {
+        state.mpv.set_property_string("pause", value)
+    };
+    invalidate_ambient_result(&state, result)
 }
 
 /// Перемотка на указанное количество секунд (относительная).
@@ -212,10 +236,11 @@ pub fn seek(
     state: State<'_, PlayerState>,
     seconds: f64,
 ) -> Result<(), String> {
-    state.mpv.command(&format!(
+    let result = state.mpv.command(&format!(
         "seek {} relative+exact",
         seconds
-    ))
+    ));
+    invalidate_ambient_result(&state, result)
 }
 
 /// Перемотка к абсолютной позиции в секундах.
@@ -230,18 +255,51 @@ pub fn seek_absolute(
         } else {
             seconds.max(0.0)
         };
-    state.mpv.command(&format!(
+    let result = state.mpv.command(&format!(
         "seek {} absolute+exact",
         safe_seconds
-    ))
+    ));
+    invalidate_ambient_result(&state, result)
 }
+
+/// Быстрый предпросмотр кадра во время перетаскивания ползунка.
+///
+/// По умолчанию использует `absolute+keyframes` (прыжок к ключевым кадрам без
+/// перегрузки аппаратного декодера лавиной декодирования длинных GOP), а при
+/// явном запросе `exact = Some(true)` — `absolute+exact`.
+#[tauri::command]
+pub fn seek_preview(
+    state: State<'_, PlayerState>,
+    seconds: f64,
+    exact: Option<bool>,
+) -> Result<(), String> {
+    if seconds.is_nan() || seconds.is_infinite() {
+        return Ok(());
+    }
+    let safe_seconds = seconds.max(0.0);
+
+    let mode = if exact.unwrap_or(false) {
+        "absolute+exact"
+    } else {
+        "absolute+keyframes"
+    };
+
+    let result = state.mpv.command(&format!(
+        "seek {} {}",
+        safe_seconds, mode
+    ));
+    invalidate_ambient_result(&state, result)
+}
+
 
 /// Шаг на один кадр вперед.
 #[tauri::command]
 pub fn frame_step(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
-    state.mpv.command("frame-step")
+    super::startup::cancel_startup_playback(&state, false)?;
+    let result = state.mpv.command("frame-step");
+    invalidate_ambient_result(&state, result)
 }
 
 /// Шаг на один кадр назад.
@@ -249,7 +307,9 @@ pub fn frame_step(
 pub fn frame_back_step(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
-    state.mpv.command("frame-back-step")
+    super::startup::cancel_startup_playback(&state, false)?;
+    let result = state.mpv.command("frame-back-step");
+    invalidate_ambient_result(&state, result)
 }
 
 // ─── Громкость и скорость ────────────────────────────────
@@ -272,18 +332,71 @@ pub fn set_speed(
     state.mpv.set_property_double("speed", speed)
 }
 
-// ─── Вид: пропорции, поворот, зум ───────────────────────
+// ─── Вид: масштаб кадра, поворот, зум ───────────────────
 
-/// Установка соотношения сторон видео.
+/// Режим масштабирования видеокадра относительно окна.
+///
+/// Три режима повторяют поведение MPC-HC:
+/// - `stretch` — «Растянуть до размера окна»: кадр растягивается на всё
+///   окно без сохранения пропорций (`keepaspect=no`);
+/// - `fit` — «Вписать в окно»: кадр вписывается целиком, лишнее место
+///   занимают чёрные полосы (`keepaspect=yes`, `panscan=0`);
+/// - `fill` — «Заполнить экран и обрезать кадр»: кадр масштабируется по
+///   правилу большего отношения, лишнее обрезается за краями окна
+///   (`keepaspect=yes`, `panscan=1`).
 #[tauri::command]
-pub fn set_aspect_ratio(
+pub fn set_frame_mode(
     state: State<'_, PlayerState>,
-    ratio: String,
+    mode: String,
 ) -> Result<(), String> {
-    // Значение "no" сбрасывает к оригинальному
+    // Окно плеера принадлежит Tauri: mpv не должен запрашивать у WM
+    // подгонку размера окна под пропорции видео. Ставим до смены режима,
+    // иначе первая смена проходит ещё с keepaspect-window=yes.
     state
         .mpv
-        .set_property_string("video-aspect-override", &ratio)
+        .set_property_string("keepaspect-window", "no")?;
+
+    match mode.as_str() {
+        // Растянуть: пропорции игнорируются, обрезки нет.
+        "stretch" => {
+            state.mpv.set_property_string("keepaspect", "no")?;
+            let _ = state.mpv.set_property_double("panscan", 0.0);
+        }
+        // Вписать: кадр целиком, лишнее место — чёрные полосы.
+        "fit" => {
+            state.mpv.set_property_string("keepaspect", "yes")?;
+            state.mpv.set_property_double("panscan", 0.0)?;
+        }
+        // Заполнить и обрезать: масштаб по большему отношению, края за окном.
+        "fill" => {
+            state.mpv.set_property_string("keepaspect", "yes")?;
+            state.mpv.set_property_double("panscan", 1.0)?;
+        }
+        other => {
+            return Err(format!("Неизвестный режим видеокадра: {other}"));
+        }
+    }
+    // Геометрия полос letterbox/pillarbox меняется вместе с режимом.
+    state.ambient_controller.invalidate();
+    Ok(())
+}
+
+/// Текущий режим масштабирования видеокадра (`stretch` / `fit` / `fill`).
+#[tauri::command]
+pub fn get_frame_mode(state: State<'_, PlayerState>) -> String {
+    let keepaspect = state
+        .mpv
+        .get_property_string("keepaspect")
+        .unwrap_or_default();
+    let panscan = state.mpv.get_property_double("panscan").unwrap_or(0.0);
+
+    if keepaspect == "no" {
+        "stretch".to_string()
+    } else if panscan > 0.999 {
+        "fill".to_string()
+    } else {
+        "fit".to_string()
+    }
 }
 
 /// Поворот видео (0, 90, 180, 270 градусов).
@@ -292,10 +405,13 @@ pub fn set_rotation(
     state: State<'_, PlayerState>,
     degrees: i64,
 ) -> Result<(), String> {
-    state.mpv.set_property_string(
+    let result = state.mpv.set_property_string(
         "video-rotate",
         &degrees.to_string(),
-    )
+    );
+    // Превью кеширует преобразования и перечитывает их по этому сигналу.
+    super::thumbnails::invalidate_transforms();
+    result
 }
 
 /// Установка зума и панорамирования видео.
@@ -353,6 +469,61 @@ pub fn set_loop_playlist(
     state
         .mpv
         .set_property_string("loop-playlist", &loop_playlist)
+}
+
+/// Единый переключатель режима повтора.
+///
+/// Раньше контекстное меню вызывало `set_repeat_mode`, которой в бэкенде
+/// не было, и три пункта подменю «Режим повтора» молча падали в
+/// `console.error`. Логика режимов всегда была продублирована на фронте
+/// (`PlayerControls.handleToggleRepeat`) двумя вызовами `set_loop_file` +
+/// `set_loop_playlist`, поэтому она собрана здесь в одном месте: оба
+/// свойства выставляются всегда, иначе переключение «повтор файла» после
+/// «повтор плейлиста» оставляло бы включённым оба режима сразу.
+///
+/// * `0` — без повтора
+/// * `1` — повтор текущего файла
+/// * `2` — повтор всего плейлиста
+#[tauri::command]
+pub fn set_repeat_mode(
+    state: State<'_, PlayerState>,
+    mode: i64,
+) -> Result<(), String> {
+    let (loop_file, loop_playlist) = match mode {
+        0 => ("no", "no"),
+        1 => ("inf", "no"),
+        2 => ("no", "inf"),
+        other => {
+            return Err(format!("Неизвестный режим повтора: {other}"));
+        }
+    };
+    state
+        .mpv
+        .set_property_string("loop-file", loop_file)?;
+    state
+        .mpv
+        .set_property_string("loop-playlist", loop_playlist)
+}
+
+/// Чтение текущего режима повтора (`0` / `1` / `2`) из свойств mpv.
+#[tauri::command]
+pub fn get_repeat_mode(state: State<'_, PlayerState>) -> i64 {
+    let loop_playlist = state
+        .mpv
+        .get_property_string("loop-playlist")
+        .unwrap_or_default();
+    if loop_playlist == "inf" {
+        return 2;
+    }
+    let loop_file = state
+        .mpv
+        .get_property_string("loop-file")
+        .unwrap_or_default();
+    if loop_file == "inf" {
+        1
+    } else {
+        0
+    }
 }
 
 #[tauri::command]
@@ -466,6 +637,132 @@ pub fn get_fps(
 }
 
 /// Получение полной информации о текущем медиафайле.
+/// Определение динамического диапазона (HDR10 / HLG / SDR) по кривой гаммы и матрице.
+pub(crate) fn resolve_hdr_info(gamma: &str, colormatrix: &str) -> String {
+    if gamma == "pq" || gamma == "smpte2084" {
+        "HDR10".to_string()
+    } else if gamma == "hlg" {
+        "HLG".to_string()
+    } else if gamma == "dovi" {
+        "Dolby Vision".to_string()
+    } else if colormatrix.contains("2020") {
+        "HDR (BT.2020)".to_string()
+    } else if !gamma.is_empty()
+        && gamma != "bt.1886"
+        && gamma != "srgb"
+        && gamma != "gamma22"
+    {
+        gamma.to_uppercase()
+    } else {
+        "SDR".to_string()
+    }
+}
+
+/// Определение цветового пространства по праймарис и матрице цветов.
+pub(crate) fn resolve_color_space(primaries: &str, colormatrix: &str) -> String {
+    if primaries.contains("2020") || colormatrix.contains("2020") {
+        "BT.2020".to_string()
+    } else if primaries.contains("709") || colormatrix.contains("709") {
+        "BT.709".to_string()
+    } else if primaries.contains("dci") || primaries.contains("display-p3") {
+        "DCI-P3".to_string()
+    } else if primaries.contains("601")
+        || primaries.contains("170m")
+        || colormatrix.contains("601")
+        || colormatrix.contains("170m")
+    {
+        "BT.601".to_string()
+    } else if !primaries.is_empty() {
+        primaries.to_uppercase()
+    } else if !colormatrix.is_empty() {
+        colormatrix.to_uppercase()
+    } else {
+        "—".to_string()
+    }
+}
+
+/// Глубина цвета из имени пиксельного формата (`yuv420p10le`/`p010` -> 10).
+/// 0 — неизвестно, 8 — обычный 8-битный формат.
+pub(crate) fn parse_pixfmt_depth(pixfmt: &str) -> u32 {
+    let p = pixfmt.to_ascii_lowercase();
+    if p.is_empty() {
+        return 0;
+    }
+    // Старшие глубины первыми. Матчим именно суффиксы глубины (`p10`,
+    // `010`), а не голые цифры: иначе `yuv410p` (8 бит) ложно дал бы 10.
+    if p.contains("p16") || p.contains("016") {
+        16
+    } else if p.contains("p14") || p.contains("014") {
+        14
+    } else if p.contains("p12") || p.contains("012") {
+        12
+    } else if p.contains("p10") || p.contains("010") {
+        10
+    } else if p.contains("p9") || p.contains("009") {
+        9
+    } else {
+        8
+    }
+}
+
+/// Короткое имя видеокодека для оверлея (`H265/HEVC`, `H264/AVC`).
+///
+/// mpv в `video-codec` отдаёт длинную строку с расшифровкой
+/// (напр. `hevc - H.265 / HEVC ...`), а в оверлее нужен только кодек.
+/// Размеры (`1920x1080`) в скобках дорисовывает фронтенд — их не трогаем.
+pub(crate) fn normalize_video_codec(raw: &str) -> String {
+    let short = raw
+        .split(" - ")
+        .next()
+        .unwrap_or("")
+        .split(['[', '('])
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    match short.as_str() {
+        "" => String::new(),
+        "hevc" | "h265" | "h.265" => "H265/HEVC".to_string(),
+        "h264" | "h.264" | "avc" | "avc1" => "H264/AVC".to_string(),
+        "av1" | "av01" => "AV1".to_string(),
+        "vp9" => "VP9".to_string(),
+        "vp8" => "VP8".to_string(),
+        "mpeg4" | "mp4v" => "MPEG-4".to_string(),
+        "mpeg2video" | "mpeg2" => "MPEG-2".to_string(),
+        "mpeg1video" | "mpeg1" => "MPEG-1".to_string(),
+        "vc1" | "vc-1" => "VC-1".to_string(),
+        "theora" => "Theora".to_string(),
+        "prores" | "prores_aw" | "prores_ks" | "prores_lt" | "prores_hq" => {
+            "ProRes".to_string()
+        }
+        "dnxhd" => "DNxHD".to_string(),
+        "mjpeg" => "MJPEG".to_string(),
+        "ffv1" => "FFV1".to_string(),
+        other => other.to_ascii_uppercase(),
+    }
+}
+
+/// Разрядность цвета (бит на канал).
+///
+/// `plane-depth` иногда отражает глубину *выхода* VO (8 после дитеринга),
+/// а исходник — 10-битный. Берём максимум plane-depth и глубины из
+/// пиксельных форматов — чинит кейс «пишет 8, а по факту 10».
+pub(crate) fn resolve_bit_depth(
+    plane_depth_str: &str,
+    pixfmts: &[&str],
+) -> String {
+    let plane = plane_depth_str.trim().parse::<u32>().unwrap_or(0);
+    let fmt = pixfmts
+        .iter()
+        .map(|f| parse_pixfmt_depth(f))
+        .max()
+        .unwrap_or(0);
+    match plane.max(fmt) {
+        0 => "—".to_string(),
+        depth => format!("{depth}-bit"),
+    }
+}
+
 #[tauri::command]
 pub fn get_media_info(
     state: State<'_, PlayerState>,
@@ -473,12 +770,55 @@ pub fn get_media_info(
     let mpv = &state.mpv;
     let current_path =
         mpv.get_property_string("path").unwrap_or_default();
+    // Размеры окна можно использовать только после того, как проверяемые
+    // свойства относятся к тому же файлу, что и текущий путь.
+    let output_status = mpv.video_output_status_for(&current_path);
+    if output_status.width > 0 && output_status.height > 0 {
+        crate::window_aspect_ratio::set_current_aspect_ratio(
+            output_status.width as f64 / output_status.height as f64,
+        );
+    } else if current_path.is_empty() {
+        crate::window_aspect_ratio::reset_aspect_ratio();
+    }
+
+    let duration = mpv.get_property_double("duration").unwrap_or(0.0);
+    let file_size = mpv.get_property_double("file-size").unwrap_or(0.0);
+    let total_bitrate = if duration > 0.0 {
+        (file_size * 8.0) / duration
+    } else {
+        0.0
+    };
+
+    let gamma = mpv
+        .get_property_string("video-params/gamma")
+        .unwrap_or_default();
+    let colormatrix = mpv
+        .get_property_string("video-params/colormatrix")
+        .unwrap_or_default();
+    let primaries = mpv
+        .get_property_string("video-params/primaries")
+        .unwrap_or_default();
+    let plane_depth_str = mpv
+        .get_property_string("video-params/plane-depth")
+        .unwrap_or_default();
+    let pixel_format = mpv
+        .get_property_string("video-params/pixelformat")
+        .unwrap_or_default();
+    // При аппаратном декодировании (d3d11va/hwdec) настоящий формат исходника
+    // часто лежит в hw-pixelformat (напр. `p010`), а `pixelformat`/`plane-depth`
+    // уже отражают программный фолбэк или выход VO (8 бит после дитеринга).
+    let hw_pixel_format = mpv
+        .get_property_string("video-params/hw-pixelformat")
+        .unwrap_or_default();
+
+    let hdr_info = resolve_hdr_info(&gamma, &colormatrix);
+    let color_space = resolve_color_space(&primaries, &colormatrix);
+    let bit_depth =
+        resolve_bit_depth(&plane_depth_str, &[&pixel_format, &hw_pixel_format]);
 
     Ok(MediaInfo {
         path: current_path,
-        duration: mpv
-            .get_property_double("duration")
-            .unwrap_or(0.0),
+        duration,
         position: mpv
             .get_property_double("time-pos")
             .unwrap_or(0.0),
@@ -491,47 +831,14 @@ pub fn get_media_info(
         fps: mpv
             .get_property_double("container-fps")
             .unwrap_or(0.0),
-        width: {
-            let dw = mpv
-                .get_property_double("video-params/dw")
-                .unwrap_or(0.0);
-            if dw > 0.0 {
-                dw as i64
-            } else {
-                let dwidth = mpv
-                    .get_property_double("dwidth")
-                    .unwrap_or(0.0);
-                if dwidth > 0.0 {
-                    dwidth as i64
-                } else {
-                    mpv.get_property_double("width")
-                        .unwrap_or(0.0)
-                        as i64
-                }
-            }
-        },
-        height: {
-            let dh = mpv
-                .get_property_double("video-params/dh")
-                .unwrap_or(0.0);
-            if dh > 0.0 {
-                dh as i64
-            } else {
-                let dheight = mpv
-                    .get_property_double("dheight")
-                    .unwrap_or(0.0);
-                if dheight > 0.0 {
-                    dheight as i64
-                } else {
-                    mpv.get_property_double("height")
-                        .unwrap_or(0.0)
-                        as i64
-                }
-            }
-        },
-        video_codec: mpv
-            .get_property_string("video-codec")
-            .unwrap_or_default(),
+        width: output_status.width,
+        height: output_status.height,
+        video_track: output_status.video_track,
+        has_video: output_status.has_video,
+        video_ready: output_status.ready,
+        video_codec: normalize_video_codec(
+            &mpv.get_property_string("video-codec").unwrap_or_default(),
+        ),
         audio_codec: mpv
             .get_property_string("audio-codec-name")
             .unwrap_or_default(),
@@ -545,9 +852,7 @@ pub fn get_media_info(
         volume: mpv
             .get_property_double("volume")
             .unwrap_or(100.0),
-        file_size: mpv
-            .get_property_double("file-size")
-            .unwrap_or(0.0),
+        file_size,
         audio_channels: mpv
             .get_property_string(
                 "audio-params/channel-count",
@@ -555,53 +860,40 @@ pub fn get_media_info(
             .unwrap_or_default(),
         audio_bitrate: {
             let ab = mpv
-                .get_property_double(
-                    "packet-audio-bitrate",
-                )
+                .get_property_double("audio-bitrate")
                 .unwrap_or(0.0);
             if ab > 0.0 {
                 ab
             } else {
-                mpv.get_property_double("audio-bitrate")
-                    .unwrap_or(0.0)
+                mpv.get_property_double(
+                    "packet-audio-bitrate",
+                )
+                .unwrap_or(0.0)
             }
         },
         video_bitrate: {
             let vb = mpv
-                .get_property_double(
-                    "packet-video-bitrate",
-                )
+                .get_property_double("video-bitrate")
                 .unwrap_or(0.0);
             if vb > 0.0 {
                 vb
             } else {
-                mpv.get_property_double("video-bitrate")
-                    .unwrap_or(0.0)
+                mpv.get_property_double(
+                    "packet-video-bitrate",
+                )
+                .unwrap_or(0.0)
             }
         },
-        total_bitrate: {
-            let size = mpv
-                .get_property_double("file-size")
-                .unwrap_or(0.0);
-            let dur = mpv
-                .get_property_double("duration")
-                .unwrap_or(0.0);
-            if dur > 0.0 {
-                (size * 8.0) / dur
-            } else {
-                0.0
-            }
-        },
-        hdr_info: mpv
-            .get_property_string(
-                "video-params/colorlevels",
-            )
-            .unwrap_or_default(),
+        total_bitrate,
+        hdr_info,
         dropped_frames: mpv
             .get_property_double(
                 "vo-delayed-frame-count",
             )
             .unwrap_or(0.0) as i64,
+        color_space,
+        bit_depth,
+        pixel_format,
     })
 }
 
@@ -613,23 +905,94 @@ pub fn get_playback_state(
     state.mpv.get_playback_state_snapshot()
 }
 
-/// Получение только точных размеров видео
+/// Получение фактических размеров сконфигурированного видеовыхода.
 #[tauri::command]
 pub fn get_video_dimensions(
     state: State<'_, PlayerState>,
 ) -> Result<(i64, i64), String> {
     let mpv = &state.mpv;
-    let w = mpv
-        .get_property_double("video-params/dw")
-        .unwrap_or_else(|_| {
-            mpv.get_property_double("width")
-                .unwrap_or(0.0)
-        }) as i64;
-    let h = mpv
-        .get_property_double("video-params/dh")
-        .unwrap_or_else(|_| {
-            mpv.get_property_double("height")
-                .unwrap_or(0.0)
-        }) as i64;
-    Ok((w, h))
+    let current_path =
+        mpv.get_property_string("path").unwrap_or_default();
+    let status = mpv.video_output_status_for(&current_path);
+    if status.width > 0 && status.height > 0 {
+        crate::window_aspect_ratio::set_current_aspect_ratio(
+            status.width as f64 / status.height as f64,
+        );
+    } else if current_path.is_empty() {
+        crate::window_aspect_ratio::reset_aspect_ratio();
+    }
+    Ok((status.width, status.height))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_hdr_info() {
+        assert_eq!(resolve_hdr_info("pq", "bt.2020"), "HDR10");
+        assert_eq!(resolve_hdr_info("smpte2084", "bt.2020"), "HDR10");
+        assert_eq!(resolve_hdr_info("hlg", "bt.2020"), "HLG");
+        assert_eq!(resolve_hdr_info("dovi", "bt.2020"), "Dolby Vision");
+        assert_eq!(resolve_hdr_info("linear", "bt.2020"), "HDR (BT.2020)");
+        assert_eq!(resolve_hdr_info("bt.1886", "bt.709"), "SDR");
+        assert_eq!(resolve_hdr_info("", ""), "SDR");
+    }
+
+    #[test]
+    fn test_resolve_color_space() {
+        assert_eq!(resolve_color_space("bt.2020", "bt.2020"), "BT.2020");
+        assert_eq!(resolve_color_space("bt.709", ""), "BT.709");
+        assert_eq!(resolve_color_space("dci-p3", ""), "DCI-P3");
+        assert_eq!(resolve_color_space("display-p3", ""), "DCI-P3");
+        assert_eq!(resolve_color_space("smpte170m", ""), "BT.601");
+        assert_eq!(resolve_color_space("bt.601", ""), "BT.601");
+        assert_eq!(resolve_color_space("", "bt.709"), "BT.709");
+        assert_eq!(resolve_color_space("adobe-rgb", ""), "ADOBE-RGB");
+        assert_eq!(resolve_color_space("", ""), "—");
+    }
+
+    #[test]
+    fn test_normalize_video_codec() {
+        assert_eq!(
+            normalize_video_codec("hevc - H.265 / HEVC"),
+            "H265/HEVC"
+        );
+        assert_eq!(
+            normalize_video_codec("h264 - H.264 / AVC / MPEG-4 AVC"),
+            "H264/AVC"
+        );
+        assert_eq!(normalize_video_codec("av1"), "AV1");
+        assert_eq!(normalize_video_codec("vp9"), "VP9");
+        assert_eq!(normalize_video_codec("mpeg4"), "MPEG-4");
+        assert_eq!(normalize_video_codec("mpeg2video"), "MPEG-2");
+        assert_eq!(normalize_video_codec(""), "");
+        // Неизвестный кодек — верхний регистр короткого имени без расшифровки.
+        assert_eq!(
+            normalize_video_codec("svq3 - Sorenson Vector Quantizer 3"),
+            "SVQ3"
+        );
+    }
+
+    #[test]
+    fn test_resolve_bit_depth() {
+        let r = |plane: &str, fmts: &[&str]| resolve_bit_depth(plane, fmts);
+        assert_eq!(r("10", &["yuv420p"]), "10-bit");
+        assert_eq!(r("8", &["yuv420p"]), "8-bit");
+        assert_eq!(r("0", &["yuv420p10le"]), "10-bit");
+        assert_eq!(r("", &["p010"]), "10-bit");
+        assert_eq!(r("", &["yuv420p12le"]), "12-bit");
+        assert_eq!(r("", &["yuv420p16le"]), "16-bit");
+        assert_eq!(r("", &["yuv420p"]), "8-bit");
+        assert_eq!(r("", &["", ""]), "—");
+        // Баг «пишет 8, а по факту 10»: plane-depth — выход VO после
+        // дитеринга, исходник — 10-битный. Берём максимум.
+        assert_eq!(r("8", &["yuv420p10le"]), "10-bit");
+        assert_eq!(r("8", &["yuv420p12le"]), "12-bit");
+        assert_eq!(r("8", &["yuv420p", "p010"]), "10-bit");
+        assert_eq!(r("0", &["yuv420p", "p010"]), "10-bit");
+        // `yuv410p`/`yuv411p` — 8-битные, цифры в имени не глубина.
+        assert_eq!(r("", &["yuv410p"]), "8-bit");
+        assert_eq!(r("", &["yuv411p"]), "8-bit");
+    }
 }

@@ -7,7 +7,16 @@ use crate::ambient::AmbientSettings;
 use crate::mpv_manager::MpvManager;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
+
+static SETTINGS_FILE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+struct SettingsFileGuard {
+    _file: std::fs::File,
+    _process_guard: std::sync::MutexGuard<'static, ()>,
+}
 
 /// Вспомогательная функция десериализации для полей `bool` с дефолтом `true`.
 pub fn default_true() -> bool {
@@ -48,6 +57,18 @@ pub struct UiSettings {
     #[serde(default)]
     pub show_track_names: Option<bool>,
     #[serde(default)]
+    pub volume_indicator_enabled: Option<bool>,
+    #[serde(default)]
+    pub timeline_preview_enabled: Option<bool>,
+    #[serde(default)]
+    pub explorer_playable_only: Option<bool>,
+    #[serde(default)]
+    pub navigation_panel_pin: Option<serde_json::Value>,
+    #[serde(default)]
+    pub volume_indicator_osd: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub favorite_upscale_model: Option<String>,
+    #[serde(default)]
     pub playlist_width: Option<u32>,
     #[serde(default)]
     pub custom_colors: Option<Vec<String>>,
@@ -55,6 +76,24 @@ pub struct UiSettings {
     pub visible_buttons: Option<HashMap<String, bool>>,
     #[serde(default)]
     pub custom_hotkeys: Option<HashMap<String, Vec<String>>>,
+    #[serde(default)]
+    pub hotkeys_schema_version: Option<u32>,
+    #[serde(default)]
+    pub language: Option<String>,
+    #[serde(default)]
+    pub settings_style: Option<String>,
+    #[serde(default)]
+    pub hide_controls_in_upper_half: Option<bool>,
+    #[serde(default)]
+    pub hotload_enabled: Option<bool>,
+    #[serde(default)]
+    pub save_tracks_to_video_dir: Option<bool>,
+    #[serde(default)]
+    pub skip_opening_seconds: Option<u32>,
+    #[serde(default)]
+    pub visualizer_config: Option<serde_json::Value>,
+    #[serde(default)]
+    pub heatmap_config: Option<serde_json::Value>,
 }
 
 /// Конфигурация приложения, сохраняемая в config/settings.json.
@@ -91,6 +130,70 @@ pub struct AppSettings {
     /// Визуальные настройки интерфейса (шрифт, тема, масштабирование, цвета и т.д.).
     #[serde(default)]
     pub ui: UiSettings,
+
+    // ─── Настройки оптимизации видео- и аудиотракта ───
+
+    /// Пиковый лимитер аудио (lavfi alimiter) — защита от перегруза при громкости 101–150%.
+    /// `None` = включён по умолчанию.
+    #[serde(default)]
+    pub audio_limiter_enabled: Option<bool>,
+
+    /// Алгоритм тонемаппинга HDR: `"auto"` / `"bt.2446a"` / `"spline"` / `"bt.2390"`.
+    /// `None` = дефолт mpv (`"auto"`).
+    #[serde(default)]
+    pub tone_mapping: Option<String>,
+
+    /// Сила восстановления контраста HDR (0.0 = выкл, 1.0 = 100%, 0.5 = 50%).
+    /// `None` = дефолт mpv (0.0 = отключено).
+    #[serde(default)]
+    pub hdr_contrast_recovery: Option<f64>,
+
+    /// Глубина дизеринга: `"auto"` / `"8"` / `"10"` / `"0"` (выкл).
+    /// `None` = дефолт mpv (`"auto"`).
+    #[serde(default)]
+    pub dither_depth: Option<String>,
+
+    /// Включён ли GPU-шейдер дебандинга (opt-in, по умолчанию выкл).
+    /// `None` = выключён.
+    #[serde(default)]
+    pub deband_enabled: Option<bool>,
+
+    /// Пресет дебандинга: `"light"` / `"balanced"` / `"strong"`.
+    /// `None` = `"balanced"` (сбалансированный).
+    #[serde(default)]
+    pub deband_preset: Option<String>,
+
+    /// Фикс проглатывания звука (связка audio-stream-silence + audio-wait-open).
+    /// `None` = включён по умолчанию.
+    #[serde(default)]
+    pub audio_latency_fix: Option<bool>,
+
+    // ─── Деинтерлейсинг, декодирование, нормализация, буфер ───
+
+    /// Режим деинтерлейсинга: `"no"` (выкл) / `"auto"` / `"yadif"` / `"yadif2x"`.
+    /// `None` = дефолт mpv (`"auto"`).
+    #[serde(default)]
+    pub deinterlace_mode: Option<String>,
+
+    /// Аппаратное декодирование: `"auto-safe"` / `"auto-copy"` / `"no"`.
+    /// `None` = `"auto-safe"`.
+    #[serde(default)]
+    pub hwdec_mode: Option<String>,
+
+    /// Нормализация громкости: `"no"` / `"dynaudnorm"` / `"loudnorm"`.
+    /// `None` = `"no"`.
+    #[serde(default)]
+    pub audio_normalize: Option<String>,
+
+    /// Размер буфера демаксера: `"50"` / `"150"` / `"500"` / `"1024"` (МБ).
+    /// `None` = `"64"` (текущий захардкоженный дефолт).
+    #[serde(default)]
+    pub demuxer_cache_mb: Option<String>,
+
+    /// Приоритет процесса для Windows: `"normal"` / `"abovenormal"` / `"high"`.
+    /// `None` = `"abovenormal"` (повышенный для предотвращения микрофризов и дропов кадров).
+    #[serde(default)]
+    pub process_priority: Option<String>,
 }
 
 impl Default for AppSettings {
@@ -107,82 +210,364 @@ impl Default for AppSettings {
             postponed_until_launch: 0,
             last_version: String::new(),
             ui: UiSettings::default(),
+            // Новые поля оптимизации — None гарантирует чтение старых settings.json без ошибок.
+            audio_limiter_enabled: None,
+            tone_mapping: None,
+            hdr_contrast_recovery: None,
+            dither_depth: None,
+            deband_enabled: None,
+            deband_preset: None,
+            audio_latency_fix: None,
+            deinterlace_mode: None,
+            hwdec_mode: None,
+            audio_normalize: None,
+            demuxer_cache_mb: None,
+            process_priority: None,
         }
     }
 }
 
 impl AppSettings {
-    pub fn load(config_dir: &std::path::Path) -> Self {
-        let settings_path = if config_dir.ends_with("config") {
+    fn settings_path(config_dir: &Path) -> PathBuf {
+        if config_dir.ends_with("config") {
             config_dir.join("settings.json")
         } else {
             config_dir.join("config").join("settings.json")
-        };
+        }
+    }
 
+    fn lock_settings_file(
+        config_dir: &Path,
+    ) -> Result<SettingsFileGuard, String> {
+        let process_guard = SETTINGS_FILE_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let target_dir = if config_dir.ends_with("config") {
+            config_dir.to_path_buf()
+        } else {
+            config_dir.join("config")
+        };
+        Ok(SettingsFileGuard {
+            _file: super::file_lock::acquire(&target_dir, ".settings.os-lock")?,
+            _process_guard: process_guard,
+        })
+    }
+
+    fn load_unlocked(config_dir: &Path) -> Self {
+        let settings_path = Self::settings_path(config_dir);
         if settings_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&settings_path) {
                 if let Ok(settings) = serde_json::from_str::<AppSettings>(&content) {
-                    return settings;
+                    let mut normalized = settings;
+                    normalized.ambient = normalized.ambient.normalized();
+                    // Существующие пользователи L-MPV обновляются со старых версий,
+                    // где язык был исключительно русским: сохраняем "ru".
+                    if normalized.ui.language.is_none() {
+                        normalized.ui.language = Some("ru".to_string());
+                    }
+                    // В старых версиях окно настроек всегда было классическим модальным:
+                    if normalized.ui.settings_style.is_none() {
+                        normalized.ui.settings_style = Some("modal".to_string());
+                    }
+                    return normalized;
                 }
                 eprintln!("L-MPV: Предупреждение: ошибка полного парсинга settings.json, попытка частичного восстановления");
-                // Попытка частичного восстановления параметров из JSON
-                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) {
                     let mut fallback = AppSettings::default();
-                    if let Some(ui_val) = val.get("ui") {
-                        if let Ok(ui_parsed) = serde_json::from_value::<UiSettings>(ui_val.clone()) {
-                            fallback.ui = ui_parsed;
+                    if let Some(ui_value) = value.get("ui") {
+                        if let Ok(ui) = serde_json::from_value::<UiSettings>(ui_value.clone()) {
+                            fallback.ui = ui;
                         }
                     }
-                    if let Some(amb_val) = val.get("ambient") {
-                        if let Ok(amb_parsed) = serde_json::from_value::<AmbientSettings>(amb_val.clone()) {
-                            fallback.ambient = amb_parsed;
+                    if fallback.ui.language.is_none() {
+                        fallback.ui.language = Some("ru".to_string());
+                    }
+                    if fallback.ui.settings_style.is_none() {
+                        fallback.ui.settings_style = Some("modal".to_string());
+                    }
+                    if let Some(ambient_value) = value.get("ambient") {
+                        if let Ok(ambient) = serde_json::from_value::<AmbientSettings>(ambient_value.clone()) {
+                            fallback.ambient = ambient.normalized();
                         }
                     }
-                    if let Some(scr) = val.get("screenshot_directory").and_then(|v| v.as_str()) {
-                        fallback.screenshot_directory = Some(scr.to_string());
+                    if let Some(path) = value.get("screenshot_directory").and_then(|item| item.as_str()) {
+                        fallback.screenshot_directory = Some(path.to_string());
+                    }
+                    if let Some(value) = value.get("allow_multi_instance").and_then(|item| item.as_bool()) {
+                        fallback.allow_multi_instance = value;
+                    }
+                    if let Some(value) = value.get("auto_load_tracks").and_then(|item| item.as_bool()) {
+                        fallback.auto_load_tracks = value;
+                    }
+                    if let Some(value) = value.get("auto_select_external_audio").and_then(|item| item.as_bool()) {
+                        fallback.auto_select_external_audio = value;
+                    }
+                    if let Some(value) = value.get("subtitles_avoid_ui").and_then(|item| item.as_bool()) {
+                        fallback.subtitles_avoid_ui = value;
+                    }
+                    if let Some(value) = value.get("play_next_on_end").and_then(|item| item.as_bool()) {
+                        fallback.play_next_on_end = value;
+                    }
+                    if let Some(value) = value.get("launch_count").and_then(|item| item.as_u64()) {
+                        fallback.launch_count = value;
+                    }
+                    if let Some(value) = value.get("postponed_until_launch").and_then(|item| item.as_u64()) {
+                        fallback.postponed_until_launch = value;
+                    }
+                    if let Some(value) = value.get("last_version").and_then(|item| item.as_str()) {
+                        fallback.last_version = value.to_string();
                     }
                     return fallback;
                 }
             }
         }
-        AppSettings::default()
+        Self::default()
     }
 
-    pub fn save(
+    fn save_unlocked(
         &self,
-        config_dir: &std::path::Path,
+        config_dir: &Path,
     ) -> Result<(), String> {
         let target_dir = if config_dir.ends_with("config") {
             config_dir.to_path_buf()
         } else {
             config_dir.join("config")
         };
-        std::fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(&target_dir)
+            .map_err(|error| error.to_string())?;
         let settings_path = target_dir.join("settings.json");
-        let json = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
-        std::fs::write(&settings_path, json).map_err(|e| e.to_string())
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|error| error.to_string())?;
+        write_atomic(&settings_path, json.as_bytes(), true)
+    }
+
+    fn load_result(config_dir: &Path) -> Result<Self, String> {
+        let _guard = Self::lock_settings_file(config_dir)?;
+        Ok(Self::load_unlocked(config_dir))
+    }
+
+    pub fn update<F>(
+        config_dir: &Path,
+        update: F,
+    ) -> Result<Self, String>
+    where
+        F: FnOnce(&mut Self),
+    {
+        let _guard = Self::lock_settings_file(config_dir)?;
+        let mut settings = Self::load_unlocked(config_dir);
+        update(&mut settings);
+        settings.save_unlocked(config_dir)?;
+        Ok(settings)
+    }
+
+    pub fn update_portable<F>(
+        update: F,
+    ) -> Result<Self, String>
+    where
+        F: FnOnce(&mut Self),
+    {
+        let dir = get_app_dir()?;
+        Self::update(&dir, update)
+    }
+
+    pub fn load_portable_result() -> Result<Self, String> {
+        let dir = get_app_dir()?;
+        Self::load_result(&dir)
     }
 
     /// Загрузка настроек из локальной портативной папки config/settings.json.
     pub fn load_portable() -> Self {
-        if let Ok(dir) = get_app_dir() {
-            Self::load(&dir)
-        } else {
-            Self::default()
+        Self::load_portable_result().unwrap_or_default()
+    }
+}
+
+/// Ограничивает количество резервных копий одного файла до `limit`.
+fn prune_backups(backups_dir: &Path, file_name: &str, limit: usize) {
+    if let Ok(entries) = std::fs::read_dir(backups_dir) {
+        let prefix = format!("{}.", file_name);
+        let mut matching: Vec<std::path::PathBuf> = entries
+            .flatten()
+            .filter_map(|e| {
+                let p = e.path();
+                if p.is_file() {
+                    let name = p.file_name()?.to_str()?;
+                    if name.starts_with(&prefix) && name.ends_with(".bak") {
+                        return Some(p);
+                    }
+                }
+                None
+            })
+            .collect();
+        if matching.len() > limit {
+            matching.sort_by_key(|p| {
+                p.metadata()
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+            });
+            for old in matching.iter().take(matching.len() - limit) {
+                let _ = std::fs::remove_file(old);
+            }
+        }
+    }
+}
+
+/// Очищает устаревшие временные файлы атомарной записи (.tmp) в указанном каталоге.
+pub fn clean_stale_temp_files(dir: &Path) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.starts_with('.') && name.ends_with(".tmp") {
+                        // Maintenance may run alongside active writes/other windows.
+                        // Only remove old crash leftovers, never a fresh atomic temp.
+                        let stale = entry.metadata().and_then(|m| m.modified()).ok()
+                            .and_then(|time| time.elapsed().ok())
+                            .is_some_and(|age| age >= std::time::Duration::from_secs(24 * 60 * 60));
+                        if stale { let _ = std::fs::remove_file(path); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Атомарная замена файла через системные вызовы Windows (MoveFileExW) или rename.
+pub fn replace_file_atomic(temp_path: &Path, target_path: &Path) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows::core::PCWSTR;
+        use windows::Win32::Storage::FileSystem::{
+            MoveFileExW, MOVEFILE_REPLACE_EXISTING,
+            MOVEFILE_WRITE_THROUGH,
+        };
+
+        let temp_wide = temp_path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect::<Vec<_>>();
+        let target_wide = target_path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect::<Vec<_>>();
+        let mut last_err = None;
+        for attempt in 0..3 {
+            let res = unsafe {
+                MoveFileExW(
+                    PCWSTR(temp_wide.as_ptr()),
+                    PCWSTR(target_wide.as_ptr()),
+                    MOVEFILE_REPLACE_EXISTING
+                        | MOVEFILE_WRITE_THROUGH,
+                )
+            };
+            if res.is_ok() {
+                return Ok(());
+            }
+            last_err = Some(res);
+            if attempt < 2 {
+                std::thread::sleep(std::time::Duration::from_millis(15));
+            }
+        }
+        last_err
+            .unwrap_or(Ok(()))
+            .map_err(|error| {
+                format!(
+                    "Не удалось атомарно заменить файл {}: {}",
+                    target_path.display(),
+                    error
+                )
+            })
+    }
+    #[cfg(not(windows))]
+    {
+        std::fs::rename(temp_path, target_path)
+            .map_err(|error| error.to_string())
+    }
+}
+
+static ATOMIC_TEMP_COUNTER: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
+/// Атомарная запись данных в файл с предварительной записью во временный файл
+/// в том же каталоге и атомарной заменой (MoveFileExW на Windows / rename на Unix).
+///
+/// Предотвращает повреждение JSON и порчу пользовательских файлов настроек
+/// и пресетов при сбое питания или падении процесса.
+///
+/// Если `create_backup` равен true и целевой файл существует, создаётся
+/// резервная копия в `config/backups/<имя_файла>.<метка_времени>.bak` (хранятся до 10 последних копий).
+pub fn write_atomic(target_path: &Path, data: &[u8], create_backup: bool) -> Result<(), String> {
+    let parent = target_path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+
+    std::fs::create_dir_all(parent)
+        .map_err(|e| format!("Не удалось создать каталог {}: {}", parent.display(), e))?;
+
+    // Создание резервной копии перед перезаписью
+    if create_backup && target_path.exists() {
+        if let Ok(app_dir) = get_app_dir() {
+            let backups_dir = app_dir.join("config").join("backups");
+            if std::fs::create_dir_all(&backups_dir).is_ok() {
+                let file_name = target_path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("file");
+                let timestamp = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0);
+                let backup_path = backups_dir.join(format!("{}.{}.bak", file_name, timestamp));
+                let _ = std::fs::copy(target_path, backup_path);
+
+                // Ограничиваем количество резервных копий до 10 для каждого имени файла
+                prune_backups(&backups_dir, file_name, 10);
+            }
         }
     }
 
-    /// Сохранение настроек в локальную портативную папку config/settings.json.
-    pub fn save_portable(&self) -> Result<(), String> {
-        let dir = get_app_dir()?;
-        self.save(&dir)
+    let file_stem = target_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("tmp");
+    let counter = ATOMIC_TEMP_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let temp_path = parent.join(format!(".{}.{}.{}.tmp", file_stem, std::process::id(), counter));
+
+    let write_res = (|| {
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(&temp_path)
+            .map_err(|e| format!("Не удалось открыть временный файл {}: {}", temp_path.display(), e))?;
+        file.write_all(data)
+            .map_err(|e| format!("Ошибка записи во временный файл {}: {}", temp_path.display(), e))?;
+        file.sync_all()
+            .map_err(|e| format!("Ошибка синхронизации временного файла {}: {}", temp_path.display(), e))?;
+        // Закрываем дескриптор файла до системного вызова MoveFileExW,
+        // чтобы избежать ошибок совместного доступа к файлу в Windows.
+        drop(file);
+        replace_file_atomic(&temp_path, target_path)
+    })();
+
+    if write_res.is_err() {
+        let _ = std::fs::remove_file(&temp_path);
     }
+
+    write_res
 }
 
 // ─── Состояние плеера ─────────────────────────────────────
 
 /// Состояние плеера, передаваемое через Tauri State.
 pub struct PlayerState {
+    /// Only the first CLI file is held until the visible frontend is ready.
+    pub startup_playback: Mutex<Option<String>>,
     /// Главный контекст mpv.
     pub mpv: Arc<MpvManager>,
     /// Контроллер подсветки полос (Ambient Light).
@@ -213,10 +598,17 @@ pub struct MediaInfo {
     pub frame_count: i64,
     /// Частота кадров (FPS).
     pub fps: f64,
-    /// Ширина видео в пикселях.
+    /// Фактическая ширина видеовыхода после фильтров и коррекции пропорций.
     pub width: i64,
-    /// Высота видео в пикселях.
+    /// Фактическая высота видеовыхода после фильтров и коррекции пропорций.
     pub height: i64,
+    /// Есть ли видеодорожка в списке дорожек (`None` — список ещё не заполнен).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub video_track: Option<bool>,
+    /// Выбрана ли видеодорожка.
+    pub has_video: bool,
+    /// Сконфигурирован ли видеовыход и готовы ли его размеры.
+    pub video_ready: bool,
     /// Видеокодек.
     pub video_codec: String,
     /// Аудиокодек.
@@ -241,6 +633,15 @@ pub struct MediaInfo {
     pub hdr_info: String,
     /// Количество пропущенных кадров (dropped).
     pub dropped_frames: i64,
+    /// Цветовое пространство видеопотока (например, "BT.709", "BT.2020", "DCI-P3").
+    #[serde(default)]
+    pub color_space: String,
+    /// Глубина цвета / разрядность видеопотока (например, "10-bit", "8-bit", "12-bit").
+    #[serde(default)]
+    pub bit_depth: String,
+    /// Исходный формат пикселей (например, "yuv420p10le", "nv12").
+    #[serde(default)]
+    pub pixel_format: String,
 }
 
 /// Динамическое состояние воспроизведения для легкого регулярного поллинга.
@@ -268,14 +669,25 @@ pub struct PlaybackState {
     pub stream_pos: f64,
     /// Путь к текущему медиафайлу
     pub path: String,
-    /// Ширина видео
+    /// Фактическая ширина видеовыхода после фильтров и коррекции пропорций.
     pub video_width: i64,
-    /// Высота видео
+    /// Фактическая высота видеовыхода после фильтров и коррекции пропорций.
     pub video_height: i64,
-    /// Текущая активная аудиодорожка
+    /// Есть ли видеодорожка в списке дорожек (`None` — список ещё не заполнен).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub video_track: Option<bool>,
+    /// Выбрана ли видеодорожка.
+    pub has_video: bool,
+    /// Сконфигурирован ли видеовыход и готовы ли его размеры.
+    pub video_ready: bool,
+    /// Текущая активная аудиодорожка.
     pub current_aid: String,
-    /// Текущая активная дорожка субтитров
+    /// Текущая активная дорожка субтитров.
     pub current_sid: String,
+    /// Текущая активная видеодорожка.
+    pub current_vid: String,
+    /// Общее количество обнаруженных дорожек в контейнере/плеере.
+    pub track_count: i64,
     /// Флаг достижения конца файла (EOF).
     pub eof_reached: bool,
 }
@@ -431,6 +843,7 @@ pub fn is_video_extension(ext: &str) -> bool {
             | "3gp"
             | "ogv"
             | "vob"
+            | "yuv"
     )
 }
 
@@ -536,5 +949,235 @@ pub fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod settings_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEST_ID: AtomicU64 = AtomicU64::new(0);
+
+    fn test_dir(name: &str) -> PathBuf {
+        let id = TEST_ID.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "l-mpv-{name}-{}-{id}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&path);
+        std::fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    #[test]
+    fn settings_round_trip_preserves_ui_fields() {
+        let root = test_dir("settings-round-trip");
+        let mut settings = AppSettings {
+            screenshot_directory: Some("captures".to_string()),
+            ..AppSettings::default()
+        };
+        settings.ui.settings_style =
+            Some("sidebar".to_string());
+        settings.ui.language = Some("en".to_string());
+        settings.ui.timeline_preview_enabled = Some(false);
+        settings.ui.explorer_playable_only = Some(false);
+        settings.ui.navigation_panel_pin = Some(serde_json::json!({"top": 90.5, "height": 420.0}));
+        settings.ui.skip_opening_seconds = Some(120);
+        settings.ui.visualizer_config = Some(
+            serde_json::json!({
+                "enabled": true,
+                "placement": "toolbar",
+                "mode": "bars",
+                "theme": "neon",
+                "height": 24
+            }),
+        );
+
+        AppSettings::update(&root, |stored| {
+            *stored = settings.clone();
+        })
+        .unwrap();
+        let loaded = AppSettings::load_result(&root).unwrap();
+
+        assert_eq!(
+            loaded.screenshot_directory.as_deref(),
+            Some("captures")
+        );
+        assert_eq!(
+            loaded.ui.settings_style.as_deref(),
+            Some("sidebar")
+        );
+        assert_eq!(loaded.ui.language.as_deref(), Some("en"));
+        assert_eq!(loaded.ui.timeline_preview_enabled, Some(false));
+        assert_eq!(loaded.ui.explorer_playable_only, Some(false));
+        assert_eq!(loaded.ui.navigation_panel_pin, settings.ui.navigation_panel_pin);
+        assert_eq!(loaded.ui.skip_opening_seconds, Some(120));
+        assert!(loaded.ui.visualizer_config.is_some());
+        assert!(root
+            .join("config")
+            .join(".settings.os-lock")
+            .exists());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn malformed_settings_recovers_valid_fields() {
+        let root = test_dir("settings-recovery");
+        let config = root.join("config");
+        std::fs::create_dir_all(&config).unwrap();
+        std::fs::write(
+            config.join("settings.json"),
+            r#"{
+                "screenshot_directory": "shots",
+                "allow_multi_instance": true,
+                "auto_load_tracks": true,
+                "ambient": "invalid",
+                "ui": {
+                    "settings_style": "sidebar",
+                    "language": "en"
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let loaded = AppSettings::load_result(&root).unwrap();
+        assert_eq!(
+            loaded.screenshot_directory.as_deref(),
+            Some("shots")
+        );
+        assert!(loaded.allow_multi_instance);
+        assert!(loaded.auto_load_tracks);
+        assert_eq!(
+            loaded.ui.settings_style.as_deref(),
+            Some("sidebar")
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn legacy_settings_without_language_migrates_to_russian() {
+        let root = test_dir("settings-legacy-ru");
+        let config = root.join("config");
+        std::fs::create_dir_all(&config).unwrap();
+        std::fs::write(
+            config.join("settings.json"),
+            r##"{
+                "screenshot_directory": "shots",
+                "ui": {
+                    "accent_color": "#7fc7ff"
+                }
+            }"##,
+        )
+        .unwrap();
+
+        let loaded = AppSettings::load_result(&root).unwrap();
+        assert_eq!(loaded.ui.language.as_deref(), Some("ru"));
+        assert_eq!(loaded.ui.settings_style.as_deref(), Some("modal"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn concurrent_updates_do_not_lose_changes() {
+        let root = Arc::new(test_dir("settings-concurrent"));
+        let mut threads = Vec::new();
+        for _ in 0..8 {
+            let path = Arc::clone(&root);
+            threads.push(std::thread::spawn(move || {
+                for _ in 0..25 {
+                    AppSettings::update(&path, |settings| {
+                        settings.launch_count =
+                            settings.launch_count.saturating_add(1);
+                    })
+                    .unwrap();
+                }
+            }));
+        }
+        for thread in threads {
+            thread.join().unwrap();
+        }
+
+        let loaded = AppSettings::load_result(root.as_ref()).unwrap();
+        assert_eq!(loaded.launch_count, 200);
+        let _ = std::fs::remove_dir_all(root.as_ref());
+    }
+
+    #[test]
+    fn test_video_audio_settings_backward_compatibility() {
+        // Проверяем, что старый settings.json без новых полей читается без ошибок,
+        // а новые поля инициализируются как None.
+        let root = test_dir("settings-legacy-audio-video");
+        let config = root.join("config");
+        std::fs::create_dir_all(&config).unwrap();
+        std::fs::write(
+            config.join("settings.json"),
+            r##"{
+                "screenshot_directory": "shots",
+                "ui": {
+                    "accent_color": "#7fc7ff"
+                }
+            }"##,
+        )
+        .unwrap();
+
+        let loaded = AppSettings::load_result(&root).unwrap();
+        assert_eq!(loaded.audio_limiter_enabled, None);
+        assert_eq!(loaded.tone_mapping, None);
+        assert_eq!(loaded.hdr_contrast_recovery, None);
+        assert_eq!(loaded.dither_depth, None);
+        assert_eq!(loaded.deband_enabled, None);
+        assert_eq!(loaded.deband_preset, None);
+        assert_eq!(loaded.audio_latency_fix, None);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn test_video_audio_settings_round_trip() {
+        // Проверяем сохранение и чтение всех новых полей оптимизации.
+        let root = test_dir("settings-audio-video-roundtrip");
+        let config = root.join("config");
+        std::fs::create_dir_all(&config).unwrap();
+
+        AppSettings::update(&root, |s| {
+            s.audio_limiter_enabled = Some(false);
+            s.tone_mapping = Some("bt.2446a".to_string());
+            s.hdr_contrast_recovery = Some(0.3);
+            s.dither_depth = Some("10".to_string());
+            s.deband_enabled = Some(true);
+            s.deband_preset = Some("strong".to_string());
+            s.audio_latency_fix = Some(true);
+        })
+        .unwrap();
+
+        let loaded = AppSettings::load_result(&root).unwrap();
+        assert_eq!(loaded.audio_limiter_enabled, Some(false));
+        assert_eq!(loaded.tone_mapping.as_deref(), Some("bt.2446a"));
+        assert_eq!(loaded.hdr_contrast_recovery, Some(0.3));
+        assert_eq!(loaded.dither_depth.as_deref(), Some("10"));
+        assert_eq!(loaded.deband_enabled, Some(true));
+        assert_eq!(loaded.deband_preset.as_deref(), Some("strong"));
+        assert_eq!(loaded.audio_latency_fix, Some(true));
+        let _ = std::fs::remove_dir_all(root);
+    }
+}
+
+#[cfg(test)]
+mod temp_cleanup_tests {
+    use super::*;
+    #[test]
+    fn deferred_cleanup_preserves_fresh_atomic_writes() {
+        let root = std::env::temp_dir().join(format!("lmpv-stale-temp-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let fresh = root.join(".settings.fresh.tmp");
+        let old = root.join(".settings.old.tmp");
+        std::fs::write(&fresh, "active").unwrap();
+        std::fs::write(&old, "abandoned").unwrap();
+        let old_time = std::time::SystemTime::now() - std::time::Duration::from_secs(48 * 60 * 60);
+        std::fs::File::options().write(true).open(&old).unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(old_time)).unwrap();
+        clean_stale_temp_files(&root);
+        assert_eq!(std::fs::read_to_string(&fresh).unwrap(), "active");
+        assert!(!old.exists());
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

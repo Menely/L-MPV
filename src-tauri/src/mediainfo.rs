@@ -22,6 +22,7 @@ pub struct DetailedMediaInfo {
 }
 
 static MEDIAINFO_API: OnceLock<Result<MediaInfoApi, String>> = OnceLock::new();
+static REPORT_CACHE: OnceLock<std::sync::Mutex<crate::media_report_cache::ReportCache<DetailedMediaInfo>>> = OnceLock::new();
 
 /// Набор динамически загружаемых символов C-API MediaInfo.
 struct MediaInfoApi {
@@ -96,7 +97,7 @@ impl MediaInfoApi {
 }
 
 /// Поиск пути к файлу библиотеки mediainfo.dll по списку стандартных кандидатов.
-fn find_mediainfo_dll() -> Result<PathBuf, String> {
+pub fn find_mediainfo_dll() -> Result<PathBuf, String> {
     let mut candidates = Vec::new();
 
     // 1. Каталог исполняемого файла процесса
@@ -124,6 +125,23 @@ fn find_mediainfo_dll() -> Result<PathBuf, String> {
         "Файл библиотеки mediainfo.dll не найден. Проверенные пути: {:?}",
         candidates
     ))
+}
+
+/// Получение версии библиотеки MediaInfo через вызов C-API функции Option("Info_Version").
+pub fn get_mediainfo_version() -> Result<String, String> {
+    let api = MediaInfoApi::get()?;
+    let option = to_wide("Info_Version");
+    let empty = to_wide("");
+    unsafe {
+        let ptr = (api.option_fn)(std::ptr::null_mut(), option.as_ptr(), empty.as_ptr());
+        let ver = from_wide_ptr(ptr);
+        let trimmed = ver.trim();
+        if trimmed.is_empty() {
+            Ok("MediaInfo (версия не определена)".to_string())
+        } else {
+            Ok(trimmed.to_string())
+        }
+    }
 }
 
 /// Конвертация строкового среза в нуль-терминированный UTF-16 буфер.
@@ -215,7 +233,9 @@ pub async fn get_detailed_media_info(
     };
 
     tokio::task::spawn_blocking(move || {
-        analyze_media_file(&file_path)
+        REPORT_CACHE.get_or_init(|| std::sync::Mutex::new(crate::media_report_cache::ReportCache::new()))
+            .lock().map_err(|e| e.to_string())?
+            .get_or_load(Path::new(&file_path), || analyze_media_file(&file_path))
     })
     .await
     .map_err(|e| format!("Ошибка задачи асинхронного анализа MediaInfo: {e}"))?
@@ -242,31 +262,47 @@ pub fn get_standalone_mediainfo_path() -> Option<String> {
     STANDALONE_PATH.lock().ok().and_then(|lock| lock.clone())
 }
 
-/// Отображение и передача пути в предварительно инициализированное окно MediaInfo.
+/// Create the window on first use, then retain/reuse it on subsequent opens.
+/// Call from setup or an async command, never a synchronous Windows event handler.
 pub fn open_or_update_mediainfo_window(app: &tauri::AppHandle, path: &str) -> Result<(), String> {
     use tauri::{Emitter, Manager};
     set_standalone_target_path(path);
 
-    if let Some(win) = app.get_webview_window("mediainfo") {
-        let _ = win.set_always_on_top(true);
-        let _ = win.show();
-        let _ = win.unminimize();
-        let _ = win.set_focus();
-        let _ = win.emit("load-mediainfo-path", path);
-        let _ = app.emit("mediainfo-window-opened", ());
-        return Ok(());
-    }
-
-    Err("Окно 'mediainfo' не найдено в конфигурации приложения".to_string())
+    let win = if let Some(win) = app.get_webview_window("mediainfo") {
+        win
+    } else {
+        let config = app
+            .config()
+            .app
+            .windows
+            .iter()
+            .find(|config| config.label == "mediainfo")
+            .ok_or_else(|| "Окно 'mediainfo' не найдено в конфигурации приложения".to_string())?;
+        let created = tauri::WebviewWindowBuilder::from_config(app, config)
+            .map_err(|e| e.to_string())?
+            .build()
+            .map_err(|e| e.to_string())?;
+        let _ = created.set_always_on_top(true);
+        created
+    };
+    let _ = win.show();
+    let _ = win.unminimize();
+    let _ = win.set_focus();
+    let _ = win.emit("load-mediainfo-path", path);
+    let _ = app.emit("mediainfo-window-opened", ());
+    Ok(())
 }
+
+static MEDIAINFO_OPEN_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Команда открытия автономного окна MediaInfo из интерфейса плеера.
 #[tauri::command]
-pub fn open_mediainfo_window(
+pub async fn open_mediainfo_window(
     app: tauri::AppHandle,
     path: Option<String>,
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    let _opening = MEDIAINFO_OPEN_LOCK.lock().await;
     let file_path = match path {
         Some(p) if !p.trim().is_empty() => p,
         _ => {
@@ -282,11 +318,12 @@ pub fn open_mediainfo_window(
 
 /// Команда переключения (показать/скрыть) независимого окна MediaInfo.
 #[tauri::command]
-pub fn toggle_mediainfo_window(
+pub async fn toggle_mediainfo_window(
     app: tauri::AppHandle,
     path: Option<String>,
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    let _opening = MEDIAINFO_OPEN_LOCK.lock().await;
     use tauri::{Emitter, Manager};
 
     let file_path = match path {

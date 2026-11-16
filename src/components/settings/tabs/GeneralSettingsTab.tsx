@@ -1,0 +1,1018 @@
+import { isTimelinePreviewEnabled, setTimelinePreviewEnabled } from "../../../utils/timelinePreviewPreference";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
+import {
+  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, AudioWaveform, Sparkles,
+  MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles, Globe,
+  Volume2, Tv2, HardDrive, Clapperboard
+} from "lucide-react";
+import {
+  isWaveformEnabled,
+  setWaveformEnabled,
+} from "../../player/heatmap";
+
+import { invoke } from "@tauri-apps/api/core";
+import { AccordionSection } from "../components/AccordionSection";
+import { ContextMenuSettingsTab } from "./ContextMenuSettingsTab";
+import { SectionHeader } from "../components/SettingBlocks";
+import {
+  OptionCard,
+  OptionBlock,
+  OptionToggleRow,
+} from "../components/OptionTile";
+import { useTranslation } from "../../../i18n/LanguageContext";
+import { usePlayerState } from "../../../contexts/PlayerStateContext";
+import type { Locale } from "../../../i18n/types";
+import { isVolumeIndicatorEnabled, setVolumeIndicatorEnabled, isVolumeOsdEnabled, setVolumeOsdEnabled } from "../../../utils/volumeFeedback";
+
+/* ── Допустимые значения настроек видео/аудио ───────────────
+   Держатся здесь, а не внутри разметки: и кнопки, и сравнение
+   со значением по умолчанию, и подсказки берутся из одного места. */
+const DEINTERLACE_OPTIONS = ["no", "auto", "yadif", "yadif2x"] as const;
+
+const HWDEC_OPTIONS = ["auto-safe", "auto-copy", "no"] as const;
+
+const AUDIO_NORMALIZE_OPTIONS = ["no", "dynaudnorm", "loudnorm"] as const;
+const AUDIO_NORMALIZE_KEY_MAP = {
+  no: "audioNormalizeOff",
+  dynaudnorm: "audioNormalizeDyn",
+  loudnorm: "audioNormalizeLoud",
+} as const;
+const DEBAND_PRESET_OPTIONS = ["light", "balanced", "strong"] as const;
+
+const DEMUXER_CACHE_OPTIONS = [50, 150, 500, 1024] as const;
+
+interface GeneralSettingsTabProps {
+  multiInstance: boolean;
+  setMultiInstance: (v: boolean) => void;
+  saveTracksToVideoDir: boolean;
+  setSaveTracksToVideoDir: (v: boolean) => void;
+  autoLoadTracks: boolean;
+  setAutoLoadTracks: (v: boolean) => void;
+  autoSelectExternalAudio: boolean;
+  setAutoSelectExternalAudio: (v: boolean) => void;
+  playNextOnEnd: boolean;
+  setPlayNextOnEnd: (v: boolean) => void;
+  hotloadEnabled: boolean;
+  setHotloadEnabled: (v: boolean) => void;
+  hideControlsInUpperHalf: boolean;
+  setHideControlsInUpperHalf: (v: boolean) => void;
+  openSections: Record<string, boolean>;
+  onToggleSection: (id: string) => void;
+  screenshotDir: string;
+  handlePickFolder: () => void;
+  handleResetDefault: () => void;
+  showTrackNames: boolean;
+  setShowTrackNames: (v: boolean) => void;
+  subtitlesAvoidUi: boolean;
+  setSubtitlesAvoidUi: (v: boolean) => void;
+}
+
+export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
+  const {
+    multiInstance, setMultiInstance,
+    saveTracksToVideoDir, setSaveTracksToVideoDir,
+    autoLoadTracks, setAutoLoadTracks,
+    autoSelectExternalAudio, setAutoSelectExternalAudio,
+    playNextOnEnd, setPlayNextOnEnd,
+    hotloadEnabled, setHotloadEnabled,
+    hideControlsInUpperHalf, setHideControlsInUpperHalf,
+    openSections, onToggleSection: toggleSection,
+    screenshotDir, handlePickFolder, handleResetDefault,
+    showTrackNames, setShowTrackNames,
+    subtitlesAvoidUi, setSubtitlesAvoidUi
+  } = props;
+
+  const { dict, locale, setLocale } = useTranslation();
+  const { loadTracks } = usePlayerState();
+  const isRu = locale === "ru";
+
+  const deinterlaceLabels = useMemo<Record<(typeof DEINTERLACE_OPTIONS)[number], string>>(() => ({
+    no: isRu ? "Выкл" : "Off",
+    auto: isRu ? "Авто" : "Auto",
+    yadif: "Yadif",
+    yadif2x: "2x",
+  }), [isRu]);
+
+  const hwdecLabels = useMemo<Record<(typeof HWDEC_OPTIONS)[number], string>>(() => ({
+    "auto-safe": "Auto Safe",
+    "auto-copy": "Auto Copy",
+    no: isRu ? "Прог." : "SW",
+  }), [isRu]);
+
+  const debandPresetLabels = useMemo<Record<(typeof DEBAND_PRESET_OPTIONS)[number], string>>(() => ({
+    light: isRu ? "Лёгкий" : "Light",
+    balanced: isRu ? "Сбаланс." : "Balanced",
+    strong: isRu ? "Сильный" : "Strong",
+  }), [isRu]);
+
+  // ── Состояние настроек оптимизации видео/аудио ──
+  const [volumeOsd, setVolumeOsdState] = useState(isVolumeOsdEnabled);
+  const [audioLimiter, setAudioLimiter] = useState(true);
+  const [volumeIndicatorEnabled, setVolumeIndicatorEnabledState] = useState(isVolumeIndicatorEnabled);
+  const [debandEnabled, setDebandEnabled] = useState(false);
+  const [debandPreset, setDebandPreset] = useState("balanced");
+  const [audioLatencyFix, setAudioLatencyFix] = useState(true);
+  const [deinterlaceMode, setDeinterlaceMode] = useState("auto");
+  const [hwdecMode, setHwdecMode] = useState("auto-safe");
+  const [audioNormalize, setAudioNormalize] = useState("no");
+  const [demuxerCacheMb, setDemuxerCacheMb] = useState(64);
+  const [timelinePreviewEnabled, setTimelinePreviewEnabledState] = useState(isTimelinePreviewEnabled);
+  const [waveformEnabled, setWaveformEnabledState] = useState<boolean>(isWaveformEnabled);
+
+  useEffect(() => {
+    const handleSettingsChanged = () => {
+      setWaveformEnabledState(isWaveformEnabled());
+      setTimelinePreviewEnabledState(isTimelinePreviewEnabled());
+      setVolumeIndicatorEnabledState(isVolumeIndicatorEnabled());
+      setVolumeOsdState(isVolumeOsdEnabled());
+    };
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    };
+  }, []);
+
+  // Загрузка сохранённых настроек при открытии панели
+  useEffect(() => {
+    invoke<{
+      audio_limiter_enabled: boolean;
+      deband_enabled: boolean;
+      deband_preset: string;
+      audio_latency_fix: boolean;
+      deinterlace_mode: string;
+      hwdec_mode: string;
+      audio_normalize: string;
+      demuxer_cache_mb: string;
+    }>("get_video_audio_settings")
+      .then((s) => {
+        setAudioLimiter(s.audio_limiter_enabled);
+        setDebandEnabled(s.deband_enabled);
+        setDebandPreset(s.deband_preset);
+        setAudioLatencyFix(s.audio_latency_fix);
+        setDeinterlaceMode(s.deinterlace_mode);
+        setHwdecMode(s.hwdec_mode);
+        setAudioNormalize(s.audio_normalize);
+        // settings.json хранит буфер строкой; нечисловое значение игнорируем.
+        const parsed = Number.parseInt(s.demuxer_cache_mb, 10);
+        setDemuxerCacheMb(Number.isFinite(parsed) && parsed> 0 ? parsed : 64);
+      })
+      .catch(() => {
+        // Бэкенд недоступен — оставляем дефолты
+      });
+  }, []);
+
+  // ── Применение настроек видео/аудио с откатом состояния ──
+  // Общий помощник: оптимистично обновляем локальное состояние, при
+  // ошибке IPC возвращаем прежнее значение — иначе переключатель
+  // расходился бы с реальным состоянием mpv.
+  const runSetting = useCallback(
+    async (label: string, apply: () => Promise<unknown>, revert: () => void) => {
+      try {
+        await apply();
+      } catch (err) {
+        revert();
+        console.error(`Ошибка применения настройки «${label}»:`, err);
+      }
+    },
+    [],
+  );
+
+  const selectDeinterlace = useCallback(
+    (mode: string) => {
+      const prev = deinterlaceMode;
+      setDeinterlaceMode(mode);
+      void runSetting("деинтерлейсинг", () => invoke("set_deinterlace_mode_setting", { mode }), () => setDeinterlaceMode(prev));
+    },
+    [deinterlaceMode, runSetting],
+  );
+
+  const selectHwdec = useCallback(
+    (mode: string) => {
+      const prev = hwdecMode;
+      setHwdecMode(mode);
+      void runSetting("hwdec", () => invoke("set_hwdec_mode_setting", { mode }), () => setHwdecMode(prev));
+    },
+    [hwdecMode, runSetting],
+  );
+
+  const selectAudioNormalize = useCallback(
+    (mode: string) => {
+      const prev = audioNormalize;
+      setAudioNormalize(mode);
+      void runSetting("нормализация звука", () => invoke("set_audio_normalize_setting", { mode }), () => setAudioNormalize(prev));
+    },
+    [audioNormalize, runSetting],
+  );
+
+
+
+  const selectDebandPreset = useCallback(
+    (preset: string) => {
+      const prev = debandPreset;
+      setDebandPreset(preset);
+      void runSetting("пресет дебандинга", () => invoke("set_deband_preset_setting", { preset }), () => setDebandPreset(prev));
+    },
+    [debandPreset, runSetting],
+  );
+
+  const selectDemuxerCache = useCallback(
+    (megabytes: number) => {
+      const prev = demuxerCacheMb;
+      setDemuxerCacheMb(megabytes);
+      void runSetting("буфер демаксера", () => invoke("set_demuxer_cache_setting", { megabytes }), () => setDemuxerCacheMb(prev));
+    },
+    [demuxerCacheMb, runSetting],
+  );
+
+  const setAudioLimiterSafe = useCallback(
+    (enabled: boolean) => {
+      const prev = audioLimiter;
+      setAudioLimiter(enabled);
+      void runSetting("лимитер аудио", () => invoke("set_audio_limiter_setting", { enabled }), () => setAudioLimiter(prev));
+    },
+    [audioLimiter, runSetting],
+  );
+
+  const setDebandEnabledSafe = useCallback(
+    (enabled: boolean) => {
+      const prev = debandEnabled;
+      setDebandEnabled(enabled);
+      void runSetting("дебандинг", () => invoke("set_deband_setting", { enabled }), () => setDebandEnabled(prev));
+    },
+    [debandEnabled, runSetting],
+  );
+
+  const setAudioLatencyFixSafe = useCallback(
+    (enabled: boolean) => {
+      const prev = audioLatencyFix;
+      setAudioLatencyFix(enabled);
+      void runSetting("фикс задержки", () => invoke("set_audio_latency_fix_setting", { enabled }), () => setAudioLatencyFix(prev));
+    },
+    [audioLatencyFix, runSetting],
+  );
+
+  // Собственный тон карточки определяется её глубиной в текущей теме.
+  const cardStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "var(--space-4)",
+    padding: "var(--padding-card)",
+    background: "var(--surface-card)",
+    borderRadius: "var(--radius-md)",
+    border: "1px solid var(--border)",
+    boxShadow: "var(--shadow-card)",
+    transition: "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
+  };
+
+  return (
+    <div className="modal__section settings-stack">
+
+      {/* ── 0. Язык интерфейса ── */}
+      <AccordionSection
+        isOpen={openSections["gen_language"] === true}
+        onToggle={() => toggleSection("gen_language")}
+        icon={<Globe size={18} />}
+        title={dict.settings.general.languageSection}
+        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+          <div style={cardStyle} className="theme-card">
+            <SectionHeader
+              icon={<Globe size={14} />}
+              title={dict.settings.general.languageTitle}
+              desc={dict.settings.general.languageDesc}
+            />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)", marginTop: "var(--space-2)" }}>
+              <button
+                type="button"
+                className={`compact-segment-btn ${locale === "ru" ? "compact-segment-btn--active" : ""}`}
+                style={{
+                  height: 38,
+                  padding: "0 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                  gap: "var(--space-4)",
+                }}
+                onClick={() => setLocale("ru" as Locale)}
+                >
+                <span
+                  style={{
+                    fontSize: "var(--fs-2xs)",
+                    fontWeight: 700,
+                    letterSpacing: "0.5px",
+                    padding: "2px 5px",
+                    borderRadius: "var(--radius-xs)",
+                    background: locale === "ru" ? "var(--accent)" : "rgba(255, 255, 255, 0.08)",
+                    color: locale === "ru" ? "var(--on-accent)" : "var(--text-muted)",
+                    lineHeight: 1,
+                  }}
+                  >
+                  RU
+                </span>
+                <span
+                  style={{
+                    fontSize: "var(--fs-sm)",
+                    fontWeight: 600,
+                    color: locale === "ru" ? "var(--text-primary)" : "var(--text-secondary)",
+                  }}
+                  >
+                  {dict.settings.general.languageRu}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`compact-segment-btn ${locale === "en" ? "compact-segment-btn--active" : ""}`}
+                style={{
+                  height: 38,
+                  padding: "0 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                  gap: "var(--space-4)",
+                }}
+                onClick={() => setLocale("en" as Locale)}
+                >
+                <span
+                  style={{
+                    fontSize: "var(--fs-2xs)",
+                    fontWeight: 700,
+                    letterSpacing: "0.5px",
+                    padding: "2px 5px",
+                    borderRadius: "var(--radius-xs)",
+                    background: locale === "en" ? "var(--accent)" : "rgba(255, 255, 255, 0.08)",
+                    color: locale === "en" ? "var(--on-accent)" : "var(--text-muted)",
+                    lineHeight: 1,
+                  }}
+                  >
+                  EN
+                </span>
+                <span
+                  style={{
+                    fontSize: "var(--fs-sm)",
+                    fontWeight: 600,
+                    color: locale === "en" ? "var(--text-primary)" : "var(--text-secondary)",
+                  }}
+                  >
+                  {dict.settings.general.languageEn}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </AccordionSection>
+
+      {/* ── 1. Скриншоты и медиатека ── */}
+      <AccordionSection
+        isOpen={openSections["gen_screenshots"] === true}
+        onToggle={() => toggleSection("gen_screenshots")}
+        icon={<Camera size={18} />}
+        title={dict.settings.general.screenshotsSection}
+        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+          <div style={cardStyle} className="theme-card">
+            <SectionHeader
+              icon={<Camera size={14} />}
+              title={dict.settings.general.screenshotFolder}
+              right={
+                <span className="t-hint">
+                  {dict.settings.general.screenshotHotkey} <strong className="t-accent">S</strong>
+                </span>
+              }
+            />
+            
+            <span className="t-label-xs">
+              {dict.settings.general.screenshotFolderDesc}
+            </span>
+
+            <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "center", marginTop: "var(--space-2)" }}>
+              <input
+                type="text"
+                readOnly
+                value={screenshotDir || dict.settings.general.loading}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  background: "rgba(0, 0, 0, 0.4)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--text-primary)",
+                  fontSize: "var(--fs-sm)",
+                  fontFamily: "var(--font-mono, monospace)",
+                  outline: "none",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+                title={screenshotDir}
+              />
+              <button
+                type="button"
+                onClick={handlePickFolder}
+                className="btn btn--secondary btn--sm"
+                style={{
+                  height: 32,
+                  padding: "0 12px",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: "var(--fs-xs)",
+                  fontWeight: 600,
+                  gap: "var(--space-3)",
+                  display: "flex",
+                  alignItems: "center",
+                  flexShrink: 0,
+                }}
+                >
+                <FolderOpen size={14} /> {dict.settings.general.browse}
+              </button>
+              <button
+                type="button"
+                onClick={handleResetDefault}
+                className="btn btn--secondary btn--icon"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "var(--radius-sm)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+
+                >
+                <RotateCcw size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </AccordionSection>
+
+      {/* ── 2. Воспроизведение и окна ── */}
+      <AccordionSection
+        isOpen={openSections["gen_playback"] === true}
+        onToggle={() => toggleSection("gen_playback")}
+        icon={<Play size={18} />}
+        title={dict.settings.general.playbackSection}
+        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+          
+          {/* 1.1 Поведение по окончании видео (Сегментный селектор) */}
+          <div style={cardStyle} className="theme-card">
+            <SectionHeader
+              icon={<Film size={14} />}
+              title={dict.settings.general.endOfVideoTitle}
+              desc={dict.settings.general.endOfVideoDesc}
+            />
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)", marginTop: "var(--space-2)" }}>
+              <button
+                type="button"
+                className={`compact-segment-btn ${playNextOnEnd ? "compact-segment-btn--active" : ""}`}
+                style={{ minHeight: 48, height: "auto", whiteSpace: "normal", overflowWrap: "anywhere", padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: "var(--space-1)" }}
+                onClick={async () => {
+                  setPlayNextOnEnd(true);
+                  try {
+                    await invoke("set_play_next_on_end", { enabled: true });
+                  } catch (err) {
+                    setPlayNextOnEnd(false);
+                    console.error("Ошибка сохранения настройки play_next_on_end:", err);
+                  }
+                }}
+                >
+                <span style={{ fontSize: "var(--fs-xs)", fontWeight: 600, color: playNextOnEnd ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                  {dict.settings.general.playNextOption}
+                </span>
+                <span style={{ fontSize: "var(--fs-2xs)", color: "var(--text-muted)", fontWeight: 400 }}>
+                  {dict.settings.general.playNextOptionDesc}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className={`compact-segment-btn ${!playNextOnEnd ? "compact-segment-btn--active" : ""}`}
+                style={{ minHeight: 48, height: "auto", whiteSpace: "normal", overflowWrap: "anywhere", padding: "6px 10px", flexDirection: "column", alignItems: "flex-start", textAlign: "left", gap: "var(--space-1)" }}
+                onClick={async () => {
+                  setPlayNextOnEnd(false);
+                  try {
+                    await invoke("set_play_next_on_end", { enabled: false });
+                  } catch (err) {
+                    setPlayNextOnEnd(true);
+                    console.error("Ошибка сохранения настройки play_next_on_end:", err);
+                  }
+                }}
+                >
+                <span style={{ fontSize: "var(--fs-xs)", fontWeight: 600, color: !playNextOnEnd ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                  {dict.settings.general.stopOption}
+                </span>
+                <span style={{ fontSize: "var(--fs-2xs)", color: "var(--text-muted)", fontWeight: 400 }}>
+                  {dict.settings.general.stopOptionDesc}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* 1.2 Режим нескольких окон (Multi-instance) */}
+          <div style={cardStyle} className="theme-card">
+            <label className="option-row">
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                
+                checked={multiInstance}
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setMultiInstance(val);
+                  try {
+                    await invoke("set_multi_instance", { allow: val });
+                  } catch (err) {
+                    setMultiInstance(!val);
+                    console.error(err);
+                  }
+                }}
+              />
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <Monitor size={14} className="t-accent" />
+                  <span className="t-label">
+                    {dict.settings.general.multiInstanceTitle}
+                  </span>
+                </div>
+                <span className="t-label-xs">
+                  {dict.settings.general.multiInstanceDesc}
+                  <span style={{ color: "var(--accent-text)", marginLeft: "var(--space-2)" }}>
+                    {dict.settings.general.multiInstanceRestart}
+                  </span>
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* 1.3 Скрытие интерфейса в полноэкранном режиме */}
+          <div style={cardStyle} className="theme-card">
+            <label className="option-row">
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                
+                checked={hideControlsInUpperHalf}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setHideControlsInUpperHalf(val);
+                  localStorage.setItem('l-mpv-hide-controls-upper-half', val ? 'true' : 'false');
+                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                }}
+              />
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <MousePointer2 size={14} className="t-accent" />
+                  <span className="t-label">
+                    {dict.settings.general.hideControlsTitle}
+                  </span>
+                </div>
+                <span className="t-label-xs">
+                  {dict.settings.general.hideControlsDesc}
+                </span>
+              </div>
+            </label>
+          </div>
+
+          <div style={cardStyle} className="theme-card">
+            <label className="option-row">
+              <input type="checkbox" className="ui-checkbox" checked={timelinePreviewEnabled}
+                onChange={event => {
+                  setTimelinePreviewEnabled(event.target.checked);
+                  setTimelinePreviewEnabledState(event.target.checked);
+                }} />
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <Film size={14} className="t-accent" />
+                  <span className="t-label">{dict.settings.general.timelinePreviewTitle}</span>
+                </div>
+                <span className="t-label-xs">{dict.settings.general.timelinePreviewDesc}</span>
+              </div>
+            </label>
+          </div>
+
+        </div>
+      </AccordionSection>
+
+      {/* ── 3. Аудиодорожки и субтитры ── */}
+      <AccordionSection
+        isOpen={openSections["gen_tracks"] === true}
+        onToggle={() => toggleSection("gen_tracks")}
+        icon={<AudioLines size={18} />}
+        title={dict.settings.general.tracksSection}
+        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+          
+          {/* 2.1 Автоматический подхват внешних дорожек */}
+          <div style={cardStyle} className="theme-card">
+            <label className="option-row">
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                
+                checked={autoLoadTracks}
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setAutoLoadTracks(val);
+                  try {
+                    await invoke("set_auto_load_tracks", { enabled: val });
+                    if (val) {
+                      await loadTracks();
+                      setTimeout(() => { void loadTracks(); }, 200);
+                      setTimeout(() => { void loadTracks(); }, 600);
+                    }
+                  } catch (err) {
+                    setAutoLoadTracks(!val);
+                    console.error("Ошибка сохранения настройки auto_load_tracks:", err);
+                  }
+                }}
+              />
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <AudioLines size={14} className="t-accent" />
+                  <span className="t-label">
+                    {dict.settings.general.autoLoadTracksTitle}
+                  </span>
+                </div>
+                <span className="t-label-xs">
+                  {dict.settings.general.autoLoadTracksDesc}
+                </span>
+              </div>
+            </label>
+
+            {/* Вложенная опция: авто-переключение на подхваченную дорожку */}
+            {autoLoadTracks && (
+              <div
+                style={{
+                  marginTop: "var(--space-3)",
+                  marginLeft: 26,
+                  paddingLeft: "var(--space-6)",
+                  borderLeft: "2px solid var(--accent)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "var(--space-2)",
+                }}
+                >
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-4)", cursor: "pointer", userSelect: "none" }}>
+                  <input
+                    type="checkbox"
+                    className="ui-checkbox"
+                    
+                    checked={autoSelectExternalAudio}
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      setAutoSelectExternalAudio(val);
+                      try {
+                        await invoke("set_auto_select_external_audio", { enabled: val });
+                      } catch (err) {
+                        setAutoSelectExternalAudio(!val);
+                        console.error("Ошибка сохранения настройки auto_select_external_audio:", err);
+                      }
+                    }}
+                  />
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+                    <div className="row-center row-gap-2">
+                      <CornerDownRight size={13} className="t-accent" />
+                      <span style={{ fontSize: "var(--fs-xs)", fontWeight: 600, color: "var(--text-primary)" }}>
+                        {dict.settings.general.autoSelectExternalAudioTitle}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", marginTop: "var(--space-1)", lineHeight: 1.3 }}>
+                      {dict.settings.general.autoSelectExternalAudioDesc}
+                    </span>
+                  </div>
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* 2.2 Хотлоад дорожек перетаскиванием (Drag & Drop) */}
+          <div style={cardStyle} className="theme-card">
+            <label className="option-row">
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                
+                checked={hotloadEnabled}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setHotloadEnabled(val);
+                  localStorage.setItem('l-mpv-hotload-enabled', val ? 'true' : 'false');
+                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                }}
+              />
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <Sparkles size={14} className="t-accent" />
+                  <span className="t-label">
+                    {dict.settings.general.hotloadTitle}
+                  </span>
+                </div>
+                <span className="t-label-xs">
+                  {dict.settings.general.hotloadDesc}
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* 2.3 Названия дорожек на панели управления */}
+          <div style={cardStyle} className="theme-card">
+            <label className="option-row">
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                
+                checked={showTrackNames}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setShowTrackNames(val);
+                  localStorage.setItem('l-mpv-show-track-names', val ? 'true' : 'false');
+                  window.dispatchEvent(new Event('l-mpv-settings-changed'));
+                }}
+              />
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <AudioLines size={14} className="t-accent" />
+                  <span className="t-label">
+                    {dict.settings.general.showTrackNamesTitle}
+                  </span>
+                </div>
+                <span className="t-label-xs">
+                  {dict.settings.general.showTrackNamesDesc}
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* 2.4 Привязка субтитров к интерфейсу */}
+          <div style={cardStyle} className="theme-card">
+            <label className="option-row">
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                
+                checked={subtitlesAvoidUi}
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setSubtitlesAvoidUi(val);
+                  try {
+                    await invoke("set_subtitles_avoid_ui_setting", { enabled: val });
+                  } catch (err) {
+                    setSubtitlesAvoidUi(!val);
+                    console.error("Ошибка сохранения настройки subtitles_avoid_ui:", err);
+                    return;
+                  }
+                  localStorage.setItem("l-mpv-subtitles-avoid-ui", val ? "true" : "false");
+                  window.dispatchEvent(new Event("l-mpv-settings-changed"));
+                }}
+              />
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <Subtitles size={14} className="t-accent" />
+                  <span className="t-label">
+                    {dict.settings.general.subAvoidUiTitle}
+                  </span>
+                </div>
+                <span className="t-label-xs">
+                  {dict.settings.general.subAvoidUiDesc}
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* 2.5 Папка для извлечения аудио и субтитров */}
+          <div style={cardStyle} className="theme-card">
+            <label className="option-row">
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                
+                checked={saveTracksToVideoDir}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setSaveTracksToVideoDir(val);
+                  try {
+                    localStorage.setItem("l-mpv-save-tracks-to-video-dir", val ? "true" : "false");
+                    window.dispatchEvent(new Event("l-mpv-settings-changed"));
+                  } catch (err) {
+                    setSaveTracksToVideoDir(!val);
+                    console.error(err);
+                  }
+                }}
+              />
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <Download size={14} className="t-accent" />
+                  <span className="t-label">
+                    {dict.settings.general.saveTracksToDirTitle}
+                  </span>
+                </div>
+                <span className="t-label-xs">
+                  {dict.settings.general.saveTracksToDirDesc}
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {/* 2.6 Звуковая тепловая карта (Waveform Activity Strip) */}
+          <div style={cardStyle} className="theme-card">
+            <label className="option-row">
+              <input
+                type="checkbox"
+                className="ui-checkbox"
+                checked={waveformEnabled}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setWaveformEnabledState(val);
+                  setWaveformEnabled(val);
+                }}
+              />
+              <div className="option-body">
+                <div className="row-center row-gap-3">
+                  <AudioWaveform size={14} className="t-accent" />
+                  <span className="t-label">
+                    {dict.settings.general.waveformActivityTitle}
+                  </span>
+                </div>
+                <span className="t-label-xs">
+                  {dict.settings.general.waveformActivityDesc}
+                </span>
+              </div>
+            </label>
+          </div>
+
+        </div>
+      </AccordionSection>
+
+      {/* ── 4. Настройки видео и звука ── */}
+      <AccordionSection
+        isOpen={openSections["gen_video_audio"] === true}
+        onToggle={() => toggleSection("gen_video_audio")}
+        icon={<Clapperboard size={18} />}
+        title={dict.settings.general.videoAudioSection}
+        >
+        <div className="option-tiles-grid">
+          {/* 4.1 Обработка кадра */}
+          <OptionCard
+            icon={<Tv2 size={15} />}
+            title={dict.settings.general.tileFrameTitle}
+            titleHint={dict.settings.general.tileFrameDesc}
+            >
+            <OptionBlock
+              title={dict.settings.general.deinterlaceTitle}
+              value={deinterlaceMode}
+              columns="1fr 1fr 1fr 1fr"
+              resetValue="auto"
+              resetTitle={dict.settings.general.resetDeinterlace}
+              onReset={() => selectDeinterlace("auto")}
+              onSelect={(v) => selectDeinterlace(String(v))}
+              options={DEINTERLACE_OPTIONS.map((v) => ({
+                value: v,
+                label: deinterlaceLabels[v],
+                title: dict.settings.general.DEINTERLACE_TIPS[v],
+              }))}
+            />
+
+            <OptionBlock
+              title={dict.settings.general.hwdecTitle}
+              value={hwdecMode}
+              columns="1fr 1fr 1fr"
+              resetValue="auto-safe"
+              resetTitle={dict.settings.general.resetHwdec}
+              onReset={() => selectHwdec("auto-safe")}
+              onSelect={(v) => selectHwdec(String(v))}
+              options={HWDEC_OPTIONS.map((v) => ({
+                value: v,
+                label: hwdecLabels[v],
+                title: dict.settings.general.HWDEC_TIPS[v],
+              }))}
+            />
+          </OptionCard>
+
+          {/* 4.2 Аудиотракт */}
+          <OptionCard
+            icon={<Volume2 size={15} />}
+            title={dict.settings.general.tileAudioTitle}
+            titleHint={dict.settings.general.tileAudioDesc}
+            >
+            <OptionToggleRow
+              checked={audioLimiter}
+              resetValue
+              resetTitle={dict.settings.general.audioLimiterTitle}
+              onReset={() => setAudioLimiterSafe(true)}
+              onChange={(v) => setAudioLimiterSafe(v)}
+              label={dict.settings.general.audioLimiterTitle}
+              title={dict.settings.general.audioLimiterDesc}
+            />
+
+            <OptionBlock
+              title={dict.settings.general.audioNormalizeTitle}
+              value={audioNormalize}
+              columns="1fr 1fr 1fr"
+              resetValue="no"
+              resetTitle={dict.settings.general.resetAudioNormalize}
+              onReset={() => selectAudioNormalize("no")}
+              onSelect={(v) => selectAudioNormalize(String(v))}
+              hint={dict.settings.general.audioNormalizeShort}
+              options={AUDIO_NORMALIZE_OPTIONS.map((v) => ({
+                value: v,
+                label: dict.settings.general[AUDIO_NORMALIZE_KEY_MAP[v]],
+                title: dict.settings.general.AUDIO_NORMALIZE_TIPS[v],
+              }))}
+            />
+
+            <OptionToggleRow
+              checked={audioLatencyFix}
+              resetValue
+              resetTitle={dict.settings.general.audioLatencyFixTitle}
+              onReset={() => setAudioLatencyFixSafe(true)}
+              onChange={(v) => setAudioLatencyFixSafe(v)}
+              label={dict.settings.general.audioLatencyFixTitle}
+              title={dict.settings.general.audioLatencyFixDesc}
+            />
+            <div className="volume-indicator-options">
+            <OptionToggleRow
+              checked={volumeIndicatorEnabled}
+              onChange={setVolumeIndicatorEnabled}
+              label={dict.settings.general.volumeIndicatorTitle}
+              title={dict.settings.general.volumeIndicatorDesc}
+            />
+              <label className="volume-indicator-options__osd">
+                <input type="checkbox" className="ui-checkbox" checked={volumeOsd}
+                  disabled={!volumeIndicatorEnabled} onChange={e => setVolumeOsdEnabled(e.target.checked)} />
+                <span>OSD</span>
+              </label>
+            </div>
+          </OptionCard>
+
+          {/* 4.3 Устранение артефактов (дебандинг) */}
+          <OptionCard
+            icon={<Sparkles size={15} />}
+            title={dict.settings.general.tileHdrTitle}
+            titleHint={dict.settings.general.tileHdrDesc}
+            >
+            <OptionToggleRow
+              checked={debandEnabled}
+              resetValue={false}
+              resetTitle={dict.settings.general.debandTitle}
+              onReset={() => setDebandEnabledSafe(false)}
+              onChange={(v) => setDebandEnabledSafe(v)}
+              label={dict.settings.general.debandTitle}
+              title={dict.settings.general.debandWarning}
+            />
+
+            {debandEnabled && (
+              <OptionBlock
+                title={dict.settings.general.debandPresetTitle}
+                value={debandPreset}
+                columns="1fr 1fr 1fr"
+                resetValue="balanced"
+                resetTitle={dict.settings.general.resetDebandPreset}
+                onReset={() => selectDebandPreset("balanced")}
+                onSelect={(v) => selectDebandPreset(String(v))}
+                options={DEBAND_PRESET_OPTIONS.map((v) => ({
+                  value: v,
+                  label: debandPresetLabels[v],
+                }))}
+              />
+            )}
+          </OptionCard>
+
+          {/* 4.4 Буфер демаксера */}
+          <OptionCard
+            icon={<HardDrive size={15} />}
+            title={dict.settings.general.tileBufferTitle}
+            titleHint={dict.settings.general.tileBufferDesc}
+            >
+            <OptionBlock
+              value={demuxerCacheMb}
+              columns="1fr 1fr 1fr 1fr"
+              resetValue={64}
+              resetTitle={dict.settings.general.resetDemuxerCache}
+              onReset={() => selectDemuxerCache(64)}
+              onSelect={(v) => selectDemuxerCache(Number(v))}
+              options={DEMUXER_CACHE_OPTIONS.map((val) => ({
+                value: val,
+                label: `${val} ${isRu ? "МБ" : "MB"}`,
+                title: dict.settings.general.DEMUXER_CACHE_TIPS[val],
+              }))}
+            />
+          </OptionCard>
+        </div>
+      </AccordionSection>
+
+      {/* ── 5. Настройка контекстного меню (ПКМ) ── */}
+      <AccordionSection
+        isOpen={openSections["gen_context_menu"] === true}
+        onToggle={() => toggleSection("gen_context_menu")}
+        icon={<MousePointerClick size={18} />}
+        title={dict.settings.general.contextMenuSection}
+        >
+        <div className="mt-4">
+          <ContextMenuSettingsTab />
+        </div>
+      </AccordionSection>
+
+    </div>
+  );
+}

@@ -5,31 +5,35 @@
 <h1 align="center"> <img src="https://github.com/Menely/L-MPV/blob/main/src-tauri/icons/icon.png" width="50" height="50" align="absmiddle"> L-MPV — Modern & Portable Media Player</h1>
 
 <p align="center">
-  <b>Высокопроизводительный, эстетичный и портативный медиаплеер нового поколения.</b><br>
-  Построен на базе <b>Tauri v2</b>, <b>React 19</b>, <b>Direct3D 11</b> и нативного движка <b>libmpv</b> (C-FFI) с поддержкой <b>Real-Time 4K AI Upscaling</b>.
+  <b>A customizable media player for Windows.</b><br>
+  Built on <b>Tauri v2</b>, <b>React 19</b>, <b>Direct3D 11</b>, and the native <b>libmpv</b> engine (C-FFI) with <b>Real-Time 4K AI Upscaling</b> support.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.5.4-blueviolet?style=for-the-badge" alt="Version 2.5.4">
+  <img src="https://img.shields.io/badge/Version-2.7.4-blueviolet?style=for-the-badge" alt="Version 2.7.4">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
-  <img src="https://img.shields.io/badge/Tauri-v2.1-blue?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri v2">
-  <img src="https://img.shields.io/badge/React-19.1-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19">
-  <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Tauri-v2-blue?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri v2">
+  <img src="https://img.shields.io/badge/React-19.3-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19">
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Rust-2021-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
   <img src="https://img.shields.io/badge/MPV-libmpv--2-red?style=for-the-badge&logo=mpv&logoColor=white" alt="libmpv">
   <img src="https://img.shields.io/badge/AI%20Upscale-4K%20DirectML%20%7C%20TensorRT-success?style=for-the-badge" alt="AI Upscale">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge" alt="GPLv3 License"></a>
 </p>
 
+<p align="center">
+  <b>English</b> | <a href="README.ru.md">Русский</a>
+</p>
+
 ---
 
-## 🌟 О проекте
+## 🌟 About the Project
 
-<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** — это современный настольный медиаплеер для Windows, объединяющий эталонное качество воспроизведения нативного видеодвижка **MPV** (`vo=gpu-next`, Direct3D 11, HDR, WASAPI, студийный 32-tap sinc-ресемплинг), аппаратный **Real-Time 4K AI Апскейлинг** ( ONNX инференс через DirectML и TensorRT) с утонченным, отзывчивым интерфейсом в стиле **Glassmorphism**, созданным на **React 19** и **TypeScript**.
+<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** is a modern desktop media player for Windows that brings together the playback capabilities of the native **MPV** video engine (`vo=gpu-next`, Direct3D 11, HDR tone-mapping, WASAPI, sinc resampling) and hardware-accelerated **Real-Time 4K AI Upscaling** (ONNX inference via DirectML and TensorRT) with a customizable **Glassmorphic** interface crafted in **React 19** and **TypeScript**.
 
-Плеер спроектирован по строгой концепции **True Portable Architecture (Zero-Install)**: он полностью автономен и не создает мусор в системных каталогах пользователя. Все конфигурации, кэш, скриншоты, универсальная папка ONNX-моделей (`models/onnx/`) и нативные бинарные библиотеки (`libmpv-2.dll`, `ffmpeg.exe`, `mediainfo.dll`) расположены непосредственно в каталоге приложения.
+L-MPV keeps its settings, cache, screenshots, ONNX models and native libraries in the application folder. WebView2 Runtime is required; AI components are downloaded separately. File associations and Explorer integration are optional.
 
 <p align="center">
   <img src="./assets/interface-player.png?v=2" alt="L-MPV Player Interface" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
@@ -37,68 +41,68 @@
 
 ---
 
-## 💖 Благодарности
+## 💖 Acknowledgements
 
-Создание и развитие медиаплеера **L-MPV** стало возможным благодаря невероятным опенсорс-проектам и талантливым людям:
+The creation and ongoing evolution of **L-MPV** have been made possible thanks to open-source projects and their contributors:
 
-- **[LANKETT](https://github.com/LANKETT)** — огромная благодарность дизайнеру за разработку фирменной иконки и визуального логотипа!
+- **[LANKETT](https://github.com/LANKETT)** — Thank you to the designer for creating the signature app icon and visual brand identity!
   - GitHub: **[@LANKETT](https://github.com/LANKETT)**
-  - Telegram-канал: **[LANKETT WORK](https://t.me/lankett_work)**
-- **[mpv](https://mpv.io/)** ([GitHub](https://github.com/mpv-player/mpv)) — за эталонный, мощный и гибкий нативный видеодвижок, обеспечивающий бескомпромиссное качество воспроизведения.
-- **[mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai)** & **[the-database](https://github.com/the-database)** — за революционный видеофильтр `vf_animejanai` и возможность воспроизведения нейросетевого 4K-апскейлинга в реальном времени.
-- **[Tauri](https://tauri.app/)** ([GitHub](https://github.com/tauri-apps/tauri)) — за легковесный, безопасный и сверхбыстрый кроссплатформенный фреймворк нового поколения на базе Rust и веб-технологий.
-- **[dnd-kit](https://dndkit.com/)** ([GitHub](https://github.com/clauderic/dnd-kit)) — за современный, гибкий и высокопроизводительный набор Drag & Drop примитивов для React, обеспечивающий интуитивное интерактивное перетаскивание.
+  - Telegram Channel: **[LANKETT WORK](https://t.me/lankett_work)**
+- **[mpv](https://mpv.io/)** ([GitHub](https://github.com/mpv-player/mpv)) — For the flexible and high-performance native media engine.
+- **[mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai)** & **[the-database](https://github.com/the-database)** — For the `vf_animejanai` video filter and real-time neural 4K upscaling implementation.
+- **[Tauri](https://tauri.app/)** ([GitHub](https://github.com/tauri-apps/tauri)) — For the lightweight and performant framework powered by Rust and modern web technologies.
+- **[dnd-kit](https://dndkit.com/)** ([GitHub](https://github.com/clauderic/dnd-kit)) — For the flexible and reliable Drag & Drop toolkit for React.
 
 ---
 
-## 📸 Скриншоты Интерфейса
+## 📸 Interface Screenshots
 
 <table width="100%">
   <tr>
     <td width="50%" align="center">
-      <b>🌌 Аппаратная Подсветка Полос</b><br>
-      <sub>Шейдерное размытие краев видео (Ambient)</sub><br><br>
-      <a href="./assets/ambient-light-demo.png"><img src="./assets/ambient-light-demo.png" alt="Ambient Light" style="border-radius: 8px;"></a>
+      <b>🌌 Hardware Letterbox Illumination</b><br>
+      <sub>Shader-based video edge blurring (Blur)</sub><br><br>
+      <a href="./assets/ambient-light-demo.png"><img src="./assets/ambient-light-demo.png" alt="Blur" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
-      <b>📑 Выдвижная Панель Плейлиста</b><br>
-      <sub>Автоматическое сканирование каталога, фильтрация и живой поиск</sub><br><br>
+      <b>📑 Slide-out Playlist Drawer</b><br>
+      <sub>Automatic directory scanning, filtering, and live search</sub><br><br>
       <a href="./assets/playlist-drawer.png"><img src="./assets/playlist-drawer.png" alt="Playlist Drawer" style="border-radius: 8px;"></a>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
-      <b>🎧 Управление Дорожками и Экспорт в 1 Клик</b><br>
-      <sub>Быстрая смена аудио/субтитров и скачивание</sub><br><br>
+      <b>🎧 Track Management & 1-Click Export</b><br>
+      <sub>Audio/subtitle switching and lossless extraction</sub><br><br>
       <a href="./assets/audio-window.png"><img src="./assets/audio-window.png" alt="Audio & Subtitles" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
-      <b>🔖 Интерактивная Навигация по Главам</b><br>
-      <sub>Список глав с таймкодами и подсветкой активной части видео</sub><br><br>
+      <b>🔖 Interactive Chapter Navigation</b><br>
+      <sub>Chapter list with timestamps and active section highlight</sub><br><br>
       <a href="./assets/interface-chapter-player.png"><img src="./assets/interface-chapter-player.png" alt="Chapters Modal" style="border-radius: 8px;"></a>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
-      <b>⚙️ Центр Настроек</b><br>
-      <sub>Выбор языка, горячих клавиш, управление аудио, сабами и меню</sub><br><br>
+      <b>⚙️ Settings Hub</b><br>
+      <sub>Language selection, hotkeys, audio & subtitle controls, and context menu</sub><br><br>
       <a href="./assets/settings-general-player.png"><img src="./assets/settings-general-player.png" alt="General Settings" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
-      <b>🎨 Кастомизация</b><br>
-      <sub>Акцентные цвета, 10 палитр аудио-визуализатора</sub><br><br>
+      <b>🎨 Customization Suite</b><br>
+      <sub>Accent color themes, 10 audio visualizer palettes</sub><br><br>
       <a href="./assets/settings-customization-player.png"><img src="./assets/settings-customization-player.png" alt="Customization & Hotkeys" style="border-radius: 8px;"></a>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
-      <b>💬 Интерактивный Поиск и Окно Субтитров</b><br>
-      <sub>Полнотекстовый поиск, следование за речью и ASS-инспектор</sub><br><br>
+      <b>💬 Interactive Subtitle Browser & Inspector</b><br>
+      <sub>Full-text search, live speech tracking, and ASS inspector</sub><br><br>
       <a href="./assets/subtitled-window-player.png"><img src="./assets/subtitled-window-player.png" alt="Searchable Subtitles Browser" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center">
-      <b>⚡Real-Time 4K AI Upscaling (До и После)</b><br>
-      <sub>Аппаратная реконструкция линий и текстур в реальном времени</sub><br><br>
+      <b>⚡ Real-Time 4K AI Upscaling (Before & After)</b><br>
+      <sub>Hardware-accelerated edge and texture reconstruction in real time</sub><br><br>
       <a href="./assets/ai-upscale.png"><img src="./assets/ai-upscale.png" alt="AI Upscaling Before and After" style="border-radius: 8px;"></a>
     </td>
   </tr>
@@ -106,582 +110,646 @@
 
 ---
 
-## ✨ Ключевые Возможности
+## ✨ Key Features
 
 <details>
-<summary><b>🚀 Real-Time 4K AI Upscaling (Нейросетевой Апскейлинг Аниме и Видео)</b></summary>
+<summary><b>🚀 Real-Time 4K AI Upscaling (Neural Anime & Video Upscaling)</b></summary>
 
 <p align="center">
   <img src="./assets/ai-upscale.png" alt="Real-Time 4K AI Upscaling Before / After" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
 </p>
 
-- **Нативный инференс в видеопотоке:** интеграция фильтра `vf_animejanai` на базе `the-database/mpv-AnimeJaNai` и моста `aji.dll` с аппаратным выводом кадров в 4K Ultra HD в реальном времени.
-- **Два режима работы:** переключатель **«Выкл»** и **«AI Upscaling»** в Настройках (`F2`) — пользователь сам решает, когда задействовать искусственный интеллект.
-- **Два движка инференса (Backend):**
-  - **DirectML:** универсальный инференс через DirectX 12 для любых видеокарт (AMD Radeon, Intel Arc/Iris, NVIDIA GeForce) с максимальной стабильностью.
-  - **TensorRT:** максимальная скорость и частота кадров для видеокарт NVIDIA GeForce RTX (поддержка архитектур от `sm75` до новейшей Blackwell `sm120`).
-- **Умный автозагрузчик компонентов («Скачать движок»):**
-  - Автоматическое определение установленного GPU и скачивание точного набора библиотек.
-  - Потоковая индикация процентов, объема (МБ), аккуратный статус распаковки и фиксация 100% готовности в течение 3 секунд.
-  - Неблокирующая фоновая распаковка через `spawn_blocking` без зависаний UI и без всплывающих консольных окон.
-- **Предварительная компиляция TensorRT 1080p (.engine):**
-  - Фоновая оптимизация ONNX моделей под разрешение 1080p -> 4K с многоступенчатым отслеживанием фаз (разбор ONNX, тактики CUDA, оптимизация графа, сериализация).
-  - Компиляция через нативный `aji_harness.exe` с точным соответствием динамических осей `dyn-HW` и оптимизационных параметров.
-  - Устранение задержек при первом включении видео и поддержка перекомпиляции в один клик.
-- **Автоматическая FP16-нормализация и поддержка моделей всех поколений (V1, V2, V3):**
-  - Встроенный алгоритм аппаратной валидации и автоконвертации типов ONNX: модели в формате FP32 автоматически приводятся к стандарту IEEE Float16 перед компиляцией.
-  - Полное устранение артефактов «радужного шума» и расхождения памяти шейдера: идеальная четкость и чистота картинки как на компактных сетях V2, так и на тяжелых моделях V1 и HD V3 / V3Sharp1.
-- **Универсальная библиотека ONNX (`models/onnx/`):**
-  - Возможность использования любых сторонних моделей формата `.onnx`.
-  - Кнопка **«Папка моделей»** для быстрого перехода в Проводник Windows.
-  - Переключатель скрытия/отображения названий моделей (маскировка точками).
-  - Интерактивное перемещение порядка моделей мышкой (`@dnd-kit/sortable`) за ручку захвата с сохранением в `config/models_order.json`.
-  - Унифицированные компактные элементы управления в карточке модели единой высоты (24px) и парящие тени на фоне карточек.
-  - Персональное назначение горячих клавиш и кнопок мыши в едином стиле вкладки хоткеев с отменой по Esc и клику вне.
-- **Переключение нейросетей на лету по горячим клавишам:**
-  - `Ctrl+J` — Информационный OSD-оверлей статуса и статистики апскейлинга (активный движок, выбранная модель, слот, разрешение видео -> 4K);
-  - `Shift+1` — Выключить апскейлинг;
-  - `Shift+2` — Включить Нейросеть #1;
-  - `Shift+3` — Включить Нейросеть #2;
-  - `Shift+4` — Включить Нейросеть #3;
-  - Мгновенное OSD-уведомление с отображением реального названия активированной модели.
-  - Принудительная перерисовка кадра на паузе при смене модели.
+- **Native In-Stream Video Inference:** Deep integration of the `vf_animejanai` filter powered by the updated `mpv-AnimeJaNai 3.10.0` stack (`aji` v0.25.0 bridge, NVIDIA TensorRT 11.4.0.106, and DirectML DirectX 12), outputting real-time hardware-accelerated 4K Ultra HD frames.
+- **Two Operational Modes:** A simple **"Off"** and **"AI Upscaling"** toggle in Settings (`F2`) — you decide when to engage neural enhancement.
+- **Dual Inference Backends:**
+  - **DirectML:** DirectX 12 inference for compatible AMD, Intel and NVIDIA GPUs. Model support and speed depend on the hardware.
+  - **TensorRT:** Inference for supported NVIDIA GPUs, including architectures from `sm75` to Blackwell `sm120`.
+- **Component Downloader ("Download Engine"):**
+  - Identifies the GPU and selects matching libraries when you click Download or Update engine.
+  - Live progress display (percentages, downloaded MBs), clean extraction status, and persistent 100% completion notice for 3 seconds.
+  - Non-blocking background extraction via `spawn_blocking` in the background and no intrusive console popups.
+- **TensorRT 1080p Precompilation (.engine):**
+  - Old or unverified caches are flagged for rebuilding. Verified engines can be retained after a libmpv/aji update when the model, GPU and TensorRT core remain compatible. Valid input profiles for different resolutions can coexist; 1080p readiness is shown separately. Update engine and Rebuild actions require your click, and ONNX models are retained. Loaded DLLs require restarting before replacement.
+  - A failed download or extraction leaves the existing runtime and its verification record intact. The new package is checked before replacing installed components.
+  - Background optimization of ONNX models for 1080p -> 4K upscaling with multi-stage phase tracking (ONNX parsing, CUDA tactics profiling, graph optimization, engine serialization).
+  - Compiled with `trtexec.exe` using a 1080p input profile.
+  - Precompilation can reduce startup delays for the matching model and input profile. Models can be recompiled from settings.
+- **FP16 Conversion and Model Compatibility:**
+  - FP32-to-FP16 conversion before compilation requires the bundled converter or Python with `onnx` and `onnxconverter-common`.
+  - Model compatibility, output quality and performance depend on the model and inference backend.
+- **Universal ONNX Model Library (`models/onnx/`):**
+  - Add compatible AnimeJaNai `.onnx` models; arbitrary ONNX architectures are not supported.
+  - **"Open Models Folder"** button to open the folder in Windows Explorer.
+  - Toggle to hide or reveal model names (privacy dot masking).
+  - Interactive drag-and-drop model reordering (`@dnd-kit/sortable`) via grab handles, automatically persisted in `config/models_order.json`.
+  - Model keyboard and mouse bindings are edited in the Hotkeys tab; model cards do not contain binding controls.
+- **On-the-Fly Neural Network Switching via Hotkeys (up to 9 models):**
+  - `Ctrl+J` — Informative OSD overlay displaying upscale status and statistics (active backend, selected model, slot index, video resolution -> 4K);
+  - **Favorite upscaling model:** Mark one model with a star and toggle it with `U`. The selection is saved with the portable settings and follows the model filename when the list is reordered. If no favorite is selected or its file is missing, the player shows a message.
+  - `Shift+Backquote` — Disable upscaling (the key below Esc, also marked Ё on Russian layouts);
+  - `Shift+1` .. `Shift+9` — Enable Neural Network #1 .. #9 (the first 9 models have hotkey slots);
+  - OSD notification showing the actual name of the activated model;
+  - Forced frame redrawing on pause when switching models.
+  - Updates migrate the previous default shortcuts while preserving custom assignments and disabled actions.
 
 </details>
 
 <details>
-<summary><b>⚡ Рендеринг Нового Поколения (<code>vo=gpu-next</code>)</b></summary>
+<summary><b>🌍 Multilingual Interface (English / Russian)</b></summary>
 
-- **GPU-HQ пайплайн:** профиль `profile=gpu-hq`, нативный Direct3D 11 (`gpu-api=d3d11`) и аппаратное декодирование `hwdec=auto-safe`.
-- **Прецизионное масштабирование:** алгоритмы интерполяции `scale=spline36` и `cscale=spline36` для идеальной четкости деталей и цветовых переходов.
-- **Интеллектуальный HDR:** автоматическая передача метаданных в дисплей (`target-colorspace-hint=yes`), динамический расчет пиков яркости (`hdr-compute-peak=yes`) и адаптивный tone mapping.
-- **Zero-Flicker жизненный цикл:** окно создается в скрытом режиме, рассчитывает истинный Display Aspect Ratio видео, центрируется и отображается (`window.show()`) строго тогда, когда интерфейс и первый видеокадр готовы к показу, исключая любые рывки геометрии и мерцания.
-- **Прямой вывод в окно:** видеопоток отрисовывается в нативный Win32 HWND через C-FFI с нулевой задержкой под полностью прозрачным DOM-слоем WebView2 (`transparent: true`).
-
-</details>
-
-<details>
-<summary><b>🎵 Нативный Аудио-Визуалайзер (WASAPI Loopback Capture / FFT 1024)</b></summary>
-
-- **Студийный спектральный анализ:** нативный захват системного звука через Windows WASAPI Loopback Capture в фоновом Rust-потоке с вычислением 1024-точечного БПФ (Cooley-Tukey Radix-2 FFT) со сглаживающим окном Ханна.
-- **32 студийные частотные полосы:** детальное частотное разрешение 46.8 Гц на бин. Логарифмическое распределение от 25 Гц до 19 000 Гц со строгой монотонностью полос (суб-бас, панч, вокал, презенс, кристальный верх).
-- **Сведение 5.1 / 7.1 Surround для кино:** интеллектуальное подмешивание низкочастотного канала сабвуфера (LFE) и центрального канала голоса — любые взрывы, стрельба и спецэффекты вызывают мощную динамическую реакцию!
-- **Логарифмическая шкала в децибелах (dBFS):** динамический диапазон от -46 dB до 0 dB с частотной компенсацией спада розового шума (+0.75 dB/полоса) и отвязкой от уровня громкости плеера.
-- **9 стилей визуализации:** такие как `Waveform` (многослойная волна с динамическими спектральными гармониками), `Spectrum` (32-полосный эквалайзер) и `Bars` (ритм-капсулы Apple Music / Spotify style) и так далее.
-- **Студийная баллистика и физика пиков (Peak Hold & Drop):** мгновенная атака за 1 кадр и плавное опадание светящихся пиковых маркеров с ускорением свободного падения.
-- **Нулевая нагрузка на процессор (0.0% CPU):** при паузе, сворачивании, отключении или в IDLE-режиме (когда элементы управления скрываются) поток захвата уходит в глубокий сон без обращения к WASAPI.
+- **Dual language support out of the box:** The entire interface is localized in English and Russian.
+- **Live language switching:** Changing the language in settings takes effect immediately without restarting the player.
+- **Automatic language detection:** The player automatically detects and applies your Windows system language on first launch (Russian for Russian-locale systems, English fallback for all others).
+- **Bilingual Windows Installer:** The NSIS setup wizard supports language selection (English / Russian) with automated system locale preselection and fully localized dialogs.
 
 </details>
 
 <details>
-<summary><b>🌌 Аппаратная Подсветка Полос (Ambient Light / GPU Blur)</b></summary>
+<summary><b>⚡ Video Rendering (<code>vo=gpu-next</code>) & Adaptive Window Geometry</b></summary>
 
-- **Устранение черных полос:** при несовпадении пропорций видео и монитора (21:9 на 16:9, 4:3, нестандартные форматы) края видеокадра аппаратно проецируются и размываются в областях letterbox и pillarbox на базе шейдеров `libplacebo` без нагрузки на процессор.
-- **3 режима работы:**
-  - `Off` — классические черные полосы;
-  - `Blur` — аппаратное шейдерное размытие кадра в реальном времени с плавной регулировкой радиуса (от 10 до 150 px);
-  - `Color` — мягкая заливка акцентным цветом плеера (включая системный цвет Windows Accent) или кастомным оттенком HEX.
-- **Производительность 60 FPS:** мгновенный GPU-предпросмотр (`apply_ambient_preview`) без блокирующего дискового ввода-вывода с дебаунсом сохранения на диск (400 мс).
-- **Быстрое управление:** переключение по горячей клавише `B`, в контекстном меню (ПКМ) и в Настройках.
-
-</details>
-
-<details>
-<summary><b>🎧 Студийный Аудиофильский Звук и Усиление до 150% (Audiophile Profile)</b></summary>
-
-- **Низколатентный вывод:** нативный драйвер Windows WASAPI (`ao=wasapi`) с оптимизированным буфером 0.2 с.
-- **Софтверный буст громкости (до 150%):** возможность усиления тихих аудиодорожек до 150% без искажений и клиппинга (`volume-max=150.0`).
-- **Студийный 32-точечный sinc-ресемплинг:** фильтр `audio-resample-filter-size=32`, 16 384 фазы сдвига (`audio-resample-phase-shift=14`) и линейная интерполяция между отсчетами (`audio-resample-linear=yes`).
-- **Нормализованный даунмикс:** автоматическое безопасное сведение многоканального аудио 5.1/7.1 в стерео (`audio-normalize-downmix=yes`) с аппаратной защитой от перегрузок и клиппинга.
-- **Коррекция тона:** сохранение естественной высоты тона звука при изменении скорости (`audio-pitch-correction=yes`, scaletempo2).
+- **High-Quality Pipeline:** Powered by `vo=gpu-next`, native Direct3D 11 (`gpu-api=d3d11`), hardware decoding (`hwdec=auto-safe`), and perceptual gamut mapping (`gamut-mapping-mode=perceptual`).
+- **Image Scaling:** Reference `scale=spline36` and `cscale=spline36` interpolation algorithms delivering image scaling and color interpolation.
+- **HDR and tone mapping:** Automatic tone mapping and display color-space hints, with configurable HDR processing options.
+- **Dithering & Debanding:** Adaptive spatial-temporal blue-noise dithering (`dither-depth=auto`) matched to your monitor bit-depth, and an optional GPU debanding shader (`deband`) with balanced strength presets to reduce visible gradient bands in anime and web rips.
+- **Automatic window sizing:** Adapts window geometry to the video aspect ratio and monitor scaling. Fit mode, fullscreen and size constraints can still leave black bars.
+- **Automatic zoom and pan reset:** Resets video zoom and pan when opening a new media file.
+- **Startup:** When launched with a file, the player prepares it on pause, sizes and shows the window, then starts playback. An explicitly configured pause is preserved. Startup time depends on the file and system.
+- **Native video output:** mpv renders to a Windows HWND beneath the transparent WebView2 interface.
+- **YUV file recognition:** `.yuv` files appear in file selection and folder playlists and can use optional Windows associations. Raw-video parameters are not configured automatically.
 
 </details>
 
 <details>
-<summary><b>📥 Мгновенное Извлечение и Экспорт Дорожек (Track Extraction)</b></summary>
+<summary><b>🎵 Native Audio Visualizer (WASAPI Loopback Capture / FFT 1024)</b></summary>
 
-- **Экспорт звука и субтитров в 1 клик:** встроенные кнопки скачивания в меню аудиодорожек и субтитров на нижней панели и в контекстном меню (ПКМ).
-- **Direct Stream Copy (`-c copy`):** мгновенное извлечение без перекодирования и без малейшей потери исходного качества за считанные секунды.
-- **Умный многопоточный фоллбек (`-threads 0`):** автоматическая конвертация несовместимых кодеков (например, субтитры `mov_text` автоматически конвертируются в формат `.srt`).
-- **Прямое копирование внешних файлов:** мгновенное копирование уже подключенных внешних субтитров без обращения к FFmpeg.
-- **Гибкие пути сохранения:** возможность автоматического сохранения рядом с видеофайлом либо через системный проводник.
-- **Анимированная индикация:** спиннер в меню и статусная строка прогресса на панели управления.
+- **Spectral Analysis:** Low-overhead system audio capture via Windows WASAPI Loopback Capture in a dedicated background Rust thread, running a 1024-point Cooley-Tukey Radix-2 FFT with a Hann smoothing window.
+- **32 Frequency Bands:** Detailed 46.8 Hz per-bin resolution. Logarithmic band distribution spanning 25 Hz to 19,000 Hz with strictly monotonic grouping (sub-bass, punch, midrange/vocals, presence, brilliant highs).
+- **5.1 / 7.1 surround downmix:** Includes the center and LFE channels when preparing audio for the visualizer.
+- **Logarithmic display scale:** A -46 to 0 dB display range with frequency compensation. Visual gain compensation also depends on player volume.
+- **9 Visualization Styles:** Including `Waveform` (multi-layered waves with dynamic spectral harmonics), `Spectrum` (32-band equalizer), and `Bars` (Apple Music / Spotify style rhythm capsules), among others.
+- **Peak markers:** Peak hold and gradual decay show changes in the signal level.
+- **Reduced background activity:** Audio capture stops while paused or inactive. The capture thread periodically checks whether it should resume.
 
 </details>
 
 <details>
-<summary><b>💬 Интерактивный Поиск и Окно Субтитров (Searchable Subtitles Browser)</b></summary>
+<summary><b>🌌 Hardware Letterbox Blur (GPU)</b></summary>
+
+- **Letterbox and pillarbox blur:** Fills unused areas around the video with a GPU-blurred background when the video and window aspect ratios differ.
+- **2 Operating Modes:**
+  - `Off` — Classic black letterbox bars;
+  - `Blur` — Real-time hardware shader blur with smooth radius adjustment (5px to 150px);
+- **Live preview:** Changes are previewed immediately; saving settings is debounced by 400 ms. The achieved frame rate depends on the hardware and video.
+- **Quick Access:** Toggle on the fly via hotkey `B` (`Off → Blur → Off`), context menu (Right-Click), or the Settings panel.
+
+</details>
+
+<details>
+<summary><b>🎧 Audio output and volume boost</b></summary>
+
+- Windows WASAPI output with a configured 0.2-second audio buffer.
+- Volume adjustment up to 150% and an optional sample-peak limiter (`alimiter`, `limit=1`). Inter-sample peaks are not measured.
+- Audio device latency options to reduce missing audio at startup on some devices.
+- Sinc resampling (`audio-resample-filter-size=32`, `cutoff=0.97`) with high-pass triangular dithering (`triangular_hp`), gapless audio, normalized multichannel downmixing, and pitch correction when changing playback speed.
+- **Volume indicator:** An optional scale below the screen center or a text OSD in the upper-left corner. Disabled by default; enable it under Video & Audio Settings → Audio Path, then use the OSD checkbox to select its appearance.
+
+</details>
+
+<details>
+<summary><b>🎧 Track Management & 1-Click Export (Track Popover & FFmpeg)</b></summary>
+
+- **Ergonomic Track Popover Menus:** Compact audio and subtitle popover on the bottom control bar; fixed **320px** width prevents layout shifts and size jumps when switching between tracks with short or long titles; displays up to 7 tracks cleanly without scrolling, features smooth vertical scrolling for long lists, and automatically centers on the active stream on open.
+- **Middle Truncation & Compact Indicators:**
+  - `truncateMiddle` algorithm (35-character threshold) gracefully shortens oversized track names in the middle, keeping key beginning and ending identifiers intact (e.g., `Subtitles [Dubbing...FullHD].ass`), preventing CSS ellipsis right-edge clipping while full names remain accessible via hover tooltip;
+  - Sleek vector micro-icon `ExternalLink` with tooltip replaces the bulky `EXT` text badge for loaded external tracks;
+  - Expanded track title width limit up to 260–280px in fullscreen mode to show more of each title.
+- **Adaptive Style-Matching Design:**
+  - In **"Capsule"** style: Popovers feature floating cards: a header card with stream count badge and quick shortcut to Subtitle Search (`Ctrl+F`), a standalone card for quickly disabling subtitles, and a unified track list card;
+  - In **"Modern"** and **"Classic"** styles: Elegant cohesive window with frosted glass backdrop;
+  - Luminous active stream dots replace heavy checkmarks;
+  - 1-click track export directly inside the menu;
+  - Opening animations adapted to the selected interface style.
+- **Subtitle & Audio Disabling (Mpv Property Alignment):** selecting "Disable Subtitles" reliably dispatches native mpv `sid: "no"` (`aid: "no"` for audio), optimistically clearing active UI tracks and displaying an informative OSD confirmation.
+- **Track Titles (MP4 / MOV ↔ MKV):** Cascade metadata lookup (`title` → QuickTime/MP4 `metadata/name` from `udta/name` atom → `metadata/title` → `metadata/handler_name`). Track titles (e.g., "Dubbing", "Original Atmos") display consistently and accurately in MP4 and MOV files just like in MKV.
+- **Closing track menus:** Click the video to close an open audio or subtitle list without pausing or resuming playback. The next video click works normally.
+- **Track button controls:** By default, left-click cycles the track and right-click opens its selection menu. Keyboard shortcuts `A` and `V` cycle audio and subtitle tracks. Mouse bindings can be changed in settings.
+- **1-Click Audio & Subtitle Export:** Integrated download buttons within the bottom bar popover and context menu (Right-Click).
+- **Stream copy:** Extracts compatible audio and subtitle tracks without re-encoding. The time required depends on the file and storage speed.
+- **Multi-Threaded Fallback (`-threads 0`):** Automatic transcoding for incompatible container formats (e.g., `mov_text` subtitle streams convert into `.srt`).
+- **Direct Copy for External Files:** duplicates loaded external subtitles without invoking FFmpeg (with robust relative path resolution).
+- **Flexible Output Paths:** Save extracted files alongside the video or choose any custom destination via Windows Explorer.
+- **Animated Feedback:** Inline spinner inside the menu and a sleek progress status bar on the control panel.
+
+</details>
+
+<details>
+<summary><b>💬 Interactive Subtitle Browser & Inspector (Searchable Subtitles Browser)</b></summary>
 
 <p align="center">
   <img src="./assets/subtitled-window-player.png" alt="Searchable Subtitles Browser Interface" width="100%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
 </p>
 
-- **Мгновенный полнотекстовый поиск:** живой поиск по всей дорожке субтитров с моментальной подсветкой совпадений, счетчиком найденных реплик и быстрой навигацией клавишами `Вверх` / `Вниз` / `Enter`.
-- **Интерактивная навигация и переход:** клик по любой строке диалога мгновенно перематывает воспроизведение на точный таймкод фразы.
-- **Режим «Следить за речью» (Follow Playback):** автоматическое отслеживание произносимой реплики во время воспроизведения в реальном времени с адаптивным плавным автоскроллом (rAF-цикл).
-- **Два режима отображения:**
-  - *Обычный (Текст)*: чистый отформатированный текст диалогов без мусора разметки, таймкод начала, длительность и имя персонажа/актёра.
-  - *Технический (ASS-инспектор)*: профессиональный разбор разметки ASS (`[Ht]` HTML-превью, `[Ae]` Raw ASS), подробные бейджи стилей (название стиля, актёр, шрифт, размер, цвет HEX/BGR, слой MarginV/Layer, координаты и теги эффектов).
-- **Тонкая регулировка задержки (Sub Delay):** точная подстройка смещения тайминга субтитров с шагом 50/100 мс прямо из строки поиска.
-- **Быстрый селектор дорожек (Track Picker):** переключение между встроенными и внешними дорожками, подключение новых файлов `.srt`/`.ass` и отключение субтитров в 1 клик.
-- **Свободная геометрия и позиционирование:** изменение ширины окна перетаскиванием границ (Resize), горизонтальное перемещение окна (Drag & Drop за шапку), автоподстройка ширины под режим и сохранение геометрии.
-- **Настройка непрозрачности (Glass / Solid):** выбор между полупрозрачным Glassmorphism стилем и контрастным плотным фоном для комфортного чтения поверх ярких сцен.
-- **Высокопроизводительная DOM-виртуализация:** моментальная плавная прокрутка тысяч строк субтитров без лагов и с минимальной нагрузкой на процессор.
+- **High-Performance Native Rust Matroska (MKV / WebM) Parser:**
+  - Extracts embedded ASS/SSA/SRT subtitle streams in Rust without decoding video frames. Analysis time depends on the file and its index.
+  - Two-tier extraction architecture: ultra-fast index lookup via `Cues` table directly addressing subtitle clusters, and streaming seek-forward fallback over heavy video/audio blocks when `Cues` are absent;
+  - Full `ContentEncodings` compression support: `zlib` stream decompression for styles headers and subtitle frames via `flate2`, and `Header Stripping` prefix reconstruction;
+  - Authentic ASS/SSA document reconstruction preserving styles, coordinates, actors, layers, margins, and override tags, along with standard SRT;
+  - Versioned `l_mpv_sub_v4` disk cache for repeat lookups without re-parsing.
+- **Full-Text Search:** Real-time searching across the entire subtitle track with match highlighting, match counters, and quick navigation via `Up` / `Down` / `Enter`.
+- **Interactive Jump to Timestamp:** Clicking any line immediately seeks playback to the exact dialogue timestamp.
+- **"Follow Playback" Mode:** Highlights the current dialogue and follows playback and seeks. Manual scrolling pauses following until you enable it again. Searching temporarily pauses following; clearing the query resumes it if the mode remains enabled.
+- **Virtualized dialogue list:** Long tracks render a moving window of rows while search covers the entire track. Highlighting and auto-scrolling remain synchronized as that window changes.
+- **Dual Inspection Modes:**
+  - *Standard (Text)*: Clean, formatted dialogue text free of formatting tags, showing start timestamp, duration, and character/actor name.
+  - *Technical (ASS Inspector)*: In-depth parsing of Advanced SubStation Alpha tags (`[Ht]` HTML preview, `[Ae]` Raw ASS), complete style badges (style name, actor, font family, font size, HEX/BGR color, MarginV/Layer, coordinates, and override tags).
+- **Fine Subtitle Delay Tuning:** Adjust subtitle timing by 100 ms from the search bar, or 500 ms while holding Shift.
+- **Quick Track Picker:** Switch between embedded and external tracks, load new `.srt`/`.ass` files, or disable subtitles in a single click.
+- **Window geometry:** Resize the subtitle panel width, move it horizontally by its header and save the layout. Width also adapts to the inspection mode.
+- **Adjustable Opacity (Glass / Solid):** Toggle between a translucent Glassmorphic backdrop and a solid high-contrast dark theme for optimal readability over vibrant scenes.
+- **Modular Island Architecture & Ergonomic Hitboxes:**
+  - Organized into 4 distinct floating surface islands ("Header", "Search & Timing", "Transcript List", "Inspector");
+  - Enlarged click hitboxes (28px minimum) for match navigation arrows (`∧`, `∨`), search reset (`X`), and timing delay adjusters (`−`, `+`);
+  - Harmonized border-radius styling for the "Standard / Inspector" mode switcher.
+- **Subtitle Virtualization:** Renders a window of visible lines (activated when a track exceeds 50 dialogue lines), reducing the number of simultaneously mounted DOM elements for long tracks.
+- **Speech Tokenizer & Tempo Metrics (Intl.Segmenter):** Text segmentation with native support for spaceless CJK languages (Japanese, Chinese), automated ISO 639 to BCP-47 locale normalization, real-time speech rate analysis (WPM — words per minute, CPS — characters per second), and color-coded speech tempo badges in the ASS inspector (relaxed, brisk, rapid).
+- **Subtitle and Sign Rendering:** Rendering of stylized ASS/SSA subtitles, karaoke animations, and on-screen signs:
+  - *Video-frame placement*: Subtitle margin settings keep rendering aligned with the video frame.
+  - *Author styling*: `sub-ass-override=no` is the default; UI avoidance temporarily enables positioning without forcing replacement fonts or colors. Explicit ASS coordinates (`\pos`/`\move`) are preserved and may overlap the controls;
+  - *UI avoidance*: ordinary text subtitles move above the visible controls using the selected style (Modern, Classic, Capsule), UI scale and window size; the previous position is restored when controls hide;
+  - *Subpixel Precision & Typography (`sub-ass-hinting=none`, `sub-ass-shaper=harfbuzz`, `embeddedfonts=yes`)*: Unlocks HarfBuzz OpenType shaping, loads embedded MKV fonts, and disables FreeType hinting for subtitle rendering;
+  - *Aspect Protection (`stretch-image-subs-to-screen=no`)*: Prevents PGS and VobSub bitmap subtitles from stretching during aspect ratio adjustments.
 
 </details>
 
 <details>
-<summary><b>🎨 Премиальный Glassmorphic UX/UI, Дизайн-Система и Шрифты</b></summary>
+<summary><b>🎨 Interface, themes and custom fonts</b></summary>
 
-- **11 Кинематографичных тем оформления плеера:** *Тёмный графит*, *Discord Gray*, *Глубокий OLED*, *Сапфировая полночь*, *Холодный Норд*, *Лавандовый индиго*, *Тёмный изумруд*, *Лесной шалфей*, *Мятный нефрит*, *Аметист*, *Коралловый закат* с выкатными интерактивными pill-метками и динамической гармонизацией фона, текста, поверхностей и акцентов.
-- **Единая Дизайн-Система Поверхностей (Elevation Surfaces):**
-  - *Level 1 (`.glass-panel`)*: главные парящие панели, выпадающие меню и модальные окна (`blur(28px)`).
-  - *Level 2 (`.glass-section`)*: группирующие секции и функциональные блоки настроек.
-  - *Level 3 (`.glass-tile`)*: интерактивные карточки опций и нейросетей с физическим откликом и неоновой окантовкой активного состояния (`.glass-tile--active`).
-- **Автономная шрифтовая экосистема и кастомные шрифты (UI Font):**
-  - **Полная автономность и резкость DirectWrite:** все шрифты встроены локально, устранены внешние сетевые запросы Google Fonts (FOUT) и паразитные композитные GPU-слои для кристальной четкости DirectWrite ClearType на Full HD мониторах.
-  - **5 встроенных гарнитур:** *Inter*, *Outfit*, *Plus Jakarta Sans*, *Manrope*, *JetBrains Mono* + *Системный* шрифт ОС.
-  - **Поддержка пользовательских шрифтов:** локальная папка `fonts/` рядом с исполняемым файлом `l-mpv.exe` с автоматической распаковкой при первом запуске/обновлении. Пользователь может добавить любые файлы `.ttf`, `.otf`, `.woff`, `.woff2`.
-  - **Кнопка «Открыть папку со шрифтами»:** кнопка с иконкой папки в шапке карточки «Шрифты» открывает каталог в Проводнике Windows, а список доступных шрифтов обновляется мгновенно на лету при возврате фокуса в плеер.
-  - Мгновенное переключение во вкладке «Кастом» с сохранением в `localStorage`, `config/settings.json` и синхронизацией между окнами.
-- **Интерактивная секция «Цветовое оформление»:** живой аутентичный предпросмотр сочетания расцветки плеера, контрастности текста и подсветки элементов в реальном времени.
-- **Адаптивный неоновый глоу (Glow Intensity):** 4 уровня свечения (*Off*, *Soft*, *Medium*, *Cyber Intense*) с вектором рассеивания `drop-shadow` и подсветкой таймлайна.
-- **Кастомный Color Picker и палитра 4×4:** модальное окно выбора цвета с кругом спектра HSV/RGB/HEX, слайдером яркости, 16 пастельными и 16 стандартными пресетами, а также персистентной сохранённой палитрой (до 15 своих цветов).
-- **Многопозиционная система времени (6 вариантов расположения):**
-  - Возможность выбора идеального положения времени в Настройках (`F2`) или в ПКМ-меню:
-    - *Слева от таймлайна* — классическое положение перед полосой.
-    - *Справа от таймлайна* — стандартное расположение.
-    - *Справа от громкости* — в левой группе кнопок тулбара рядом с аудио-визуализатором.
-    - *Справа в тулбаре кнопок* — в правом блоке кнопок перед сервисными иконками (таймлайн на 100% ширины).
-    - *По центру над таймлайном* — парящая неоновая капсула со стеклянным размытием `backdrop-filter: blur(12px)`, центрированная над полосой перемотки (таймлайн на 100% ширины).
-    - *В заголовке окна (Titlebar)* — интерактивный бейдж времени в верхней шапке окна слева от кнопок окна; полностью освобождает нижнюю панель управления.
-  - При выборе любой позиции вне таймлайна полоса перемотки автоматически раскрывается на 100% ширины панели (`.timeline-row--full`).
-- **4 интерактивных формата времени и переключение в 1 клик:**
-  - Поддержка форматов: *Прошедшее / Общее*, *Только оставшееся*, *Расчет времени окончания видео* (с учетом скорости `speed`) и *Высокоточный тайминг с миллисекундами*.
-  - Интерактивная смена формата по клику непосредственно на время в любой точке интерфейса с OSD-уведомлением.
-- **Стили панели управления («Парящий остров» и «Пристыкованная плашка»):**
-  - Выбор между воздушной капсулой с отступами от краев окна и монолитной пристыкованной полосой во всю ширину окна.
-  - Детализированные интерактивные мини-превью плеера `148×64px` в Настройках с неоновой подсветкой активного выбора.
-- **Эргономичный редизайн вкладки «Кастом»:**
-  - Верхний горизонтальный слайдер прозрачности интерфейса (от 20% до 100%).
-  - Симметричная трёхколоночная сетка: Скругление углов (карточки 2x2 + вертикальный ползунок) | Масштабирование UI Scale (карточки 2x2 + вертикальный ползунок + кнопка «A» авто-масштаба) | Шрифты (список 6 гарнитур + кастомные шрифты пользователя с кнопкой папки).
-  - Нижний блок: стиль панели управления с мини-превью (слева) + компактные сетки выбора позиций времени (3x2) и формата времени (2x2) (справа).
-- **Динамическая система скругления углов (UI Corner Radius):** 4 уровня скругления (*Без скругления 0px*, *Умеренное 8px*, *Закругленное 14px*, *Овальное 20px/Pill*) с моментальным применением ко всем окнам, кнопкам и плашкам интерфейса.
-- **Плавающая панель управления:** минималистичная нижняя «таблетка» с акцентной подсветкой, быстрым доступом к аудио, субтитрам, главам, скриншотам, скорости и плейлисту.
-- **Мягкое контурное свечение (Vector Drop-Shadow):** филигранное рассеивание света строго по контуру векторных SVG-иконок с плавным градиентным угасанием без грубых круговых ареолов.
-- **Многоуровневая адаптивность (Container Queries):** многоступенчатое умное сжатие и скрытие подписей дорожек, компактное масштабирование аудио-визуализатора и второстепенных кнопок при сужении окна.
-- **Умное автоскрытие в Fullscreen:** возможность мгновенного скрытия всего интерфейса при подведении курсора к верхнему краю экрана.
-
-</details>
-
-<details>
-<summary><b>🔍 Аппаратный Zoom & Pan и Колесо Мыши</b></summary>
-
-- **Плавное масштабирование кадра:** центрированный зум относительно курсора по комбинации `Ctrl` + Колесо мыши с частотой до 60 FPS.
-- **Магнитная привязка:** автоматическое прилипание к исходному масштабу (100%) при приближении к нулевому зуму.
-- **Мгновенный сброс:** возврат к 100% масштабу и центрированию по клавише `Ctrl + 0`.
-- **Регулировка громкости:** прокрутка колеса мыши над видео без клавиши `Ctrl` плавно меняет громкость (до 150%) с шагом 5% и сохранением уровня.
-
-</details>
-
-<details>
-<summary><b>🖥️ Smart Fullscreen, PiP и Оконный Режим</b></summary>
-
-- **Настоящий полноэкранный режим:** гарантированное скрытие панели задач Windows через Win32 флаг `HWND_TOPMOST` и DWM Cloaking без смещения кадра в угол (0, 0).
-- **Динамический Z-порядок (`handle_window_focus`):** при переключении на другое приложение (`Alt+Tab`) плеер автоматически снимает статус Topmost, позволяя окнам свободно открываться поверх плеера, и мгновенно восстанавливает его при возврате фокуса.
-- **Режим PiP (Поверх всех окон):** фиксация компактного окна плеера поверх остальных окон клавишей `T` или кнопкой-булавкой.
-- **Чистый жизненный цикл процесса:** гарантированное моментальное закрытие фонового процесса `L-MPV.exe` в диспетчере задач Windows при выходе из приложения.
-- **Пропорции и поворот:** изменение соотношения сторон (Оригинальное, 16:9, 21:9 CinemaScope, 4:3) и поворот видеокадра на 0°, 90°, 180°, 270°.
-
-</details>
-
-<details>
-<summary><b>📋 Буфер Обмена и Чистые Скриншоты</b></summary>
-
-- **Кадр в буфер обмена по `Ctrl + C`:** мгновенный захват текущего кадра без OSD напрямую в буфер обмена Windows через нативную команду `copy_frame_to_clipboard` (без сохранения временных файлов).
-- **Чистый скриншот:** сохранение кадра в высоком качестве (PNG) по клавише `S` или иконке камеры с уведомлением в OSD.
-- **Пользовательская папка:** выбор папки сохранения в настройках или сброс на локальную папку `screenshots/`.
-
-</details>
-
-<details>
-<summary><b>📑 Умный Плейлист и Навигация</b></summary>
-
-- **Автоматический плейлист с Natural Sort:** при открытии файла плеер находит все видео в директории и выстраивает плейлист в естественном порядке нумерации файлов.
-- **Выдвижная панель Playlist Drawer (`L` / `P`):** мгновенный поиск, фильтрация, подсветка активного трека и переключение в один клик.
-- **Drag & Drop:** поддержка перетаскивания файлов и сетевых URL напрямую в окно плеера.
-- **Режимы повтора и Shuffle:** циклическое воспроизведение текущего файла, всего плейлиста или случайный порядок.
-- **Главы (Chapters):** модальное окно навигации по встроенным главам файла с интерактивными таймкодами.
-- **Возобновление просмотра (Resume Playback):** сохранение последней позиции для каждого просмотренного файла.
-- **Интеграция с Windows Taskbar:** отображение индикатора прогресса воспроизведения прямо на иконке плеера в панели задач Windows.
+- **Translucent Panels:**
+  - **Interface Opacity (10..100%):** Precise opacity control for control bars, dialogs, and popovers while preserving text contrast and legibility.
+  - **Borders and shadows:** Panel borders and shadows distinguish interface surfaces.
+  - **Transparent panels:** The interface overlays native mpv output. CSS backdrop blur does not provide video-aware blur of that separate native layer.
+- **15 UI Themes:** *Dark Graphite*, *Deep OLED*, *Night Cobalt*, *Dark Emerald*, *Black Orchid*, *Northern Mist*, *Discord Gray*, *Forest Sage*, *Mint Jade*, *Terracotta*, *Twilight Iris*, *Plum Velvet*, *Dark Bronze*, *Ink Ocean*, *Warm Titanium* with matching surface and text colors and customizable accents.
+- **Settings controls:** Options share theme-aware highlights and corner styles. Selected options use an accent tint; hovering adds feedback without changing their size.
+- **Unified Elevation Surfaces System:**
+  - *Level 1 (`.glass-panel`)*: Main floating bars, dropdown menus, and modal dialogs.
+  - *Level 2 (`.glass-section`)*: Grouping sections and functional settings containers.
+  - *Level 3 (`.glass-tile`)*: Interactive option cards and model tiles with accent selection and hover feedback.
+- **Self-Contained Font Ecosystem & Custom Fonts (UI Font):**
+  - **Local fonts:** Bundled fonts load without requests to Google Fonts.
+  - **5 Built-in Font Families:** *Inter*, *Outfit*, *Plus Jakarta Sans*, *Manrope*, *JetBrains Mono*, plus the Windows *System Default* font.
+  - **Custom fonts:** Add `.ttf`, `.otf`, `.woff` or `.woff2` files to the `fonts/` folder next to `l-mpv.exe`.
+  - **"Open Fonts Folder" Shortcut:** The folder icon button in the Fonts header opens the directory in Windows Explorer, and the available font list refreshes automatically upon regaining window focus.
+  - Switch fonts under “Appearance”; the choice is saved and synchronized between windows.
+- **Interactive Color Scheme Section:** Live authentic preview simulating player palette combinations, text contrast, and luminous element highlights.
+- **Adaptive Neon Glow (Glow Intensity):** 4 illumination intensity tiers (*Off*, *Soft*, *Medium*, *Cyber Intense*) with vector `drop-shadow` diffusion and timeline backlighting.
+- **Modular Color Picker Redesign & Precision Controls:**
+  - Modular implementation across all 3 interface styles (*Modern*, *Classic*, and floating island *Capsule*);
+  - Canvas spectral wheel with antialiasing and interactive hue ring accent;
+  - Linear lightness gradient slider with exact percentage readout;
+  - Quick-pick preset strip (10 curated shades) and dual comparison swatch (Current vs Original with 1-click revert);
+  - Monospace numeric inputs with 1-click clipboard copy for both HEX and RGB values;
+  - Persistent user palette (up to 15 custom colors) with seamless cross-tab synchronization.
+- **Mathematical Control Bar Rhythm & Optical Centering:**
+  - Strict 40px center-to-center grid rhythm and 22px visual gap across audio tracks, subtitles, and volume buttons;
+  - Micro-optical compensation for circular Play/Pause button (`transform: translateX(1px)`) aligning the triangle centroid;
+  - Standardized transport button scale (`size=18` for Repeat and Shuffle) and relaxed token spacing (`gap: var(--space-2)`) for Skip Opening;
+  - Enhanced nested card opacity differentiation for Capsule mode (`--capsule-island-fill`);
+  - First-line alignment for settings checkboxes and options with unified `SettingsIcon` slots.
+- **Multi-Position Time Display (6 Layout Options):**
+  - Choose your ideal timestamp layout in Settings (`F2`) or the Right-Click menu:
+    - *Left of Timeline* — Classic position before the seek bar.
+    - *Right of Timeline* — Standard placement after the seek bar.
+    - *Right of Volume Slider* — Grouped in the left toolbar next to the audio visualizer.
+    - *Right Toolbar Cluster* — Placed in the right button group before utility icons (expands timeline to full width).
+    - *Centered Over Timeline* — A separate time badge above the seek bar, styled for Modern, Classic or Capsule.
+    - *Window Titlebar* — Interactive time badge inside the top window header to the left of window controls; leaves the bottom control bar uncluttered.
+  - Selecting any off-timeline position automatically expands the seek bar to span the full bar width (`.timeline-row--full`).
+- **Playback Speed Control & Popover (v2.7.0):**
+  - *Context-Aware Visibility*: The speed button dynamically surfaces in the right control group whenever playback speed differs from 1.0x (or can be permanently pinned via Settings).
+  - *1-Click Interaction*:
+    - **Left Click**: Rapidly cycles playback speeds (0.25x -> 0.5x -> 0.75x -> 1.0x -> 1.25x -> 1.5x -> 1.75x -> 2.0x);
+    - **Right Click**: Opens the compact speed selection popover menu.
+  - *Adaptive Style-Matching Architecture*:
+    - In **"Capsule"** style: Displays as a standalone floating island card, with floating header islands and monolithic list card;
+    - In **"Modern"** & **"Classic"** styles: Unified monolithic button and seamless frosted glass menu window.
+  - *Luminous Radio-Dots*: Selected speed is indicated by an elegant neon dot matching the audio and subtitle track popover design language.
+  - *Positioning & HiDPI Scaling*: Popover floats precisely centered above the speed button with mathematical zoom scaling normalization on 2K/4K and Fullscreen displays.
+- **4 Interactive Time Formats with 1-Click Toggle:**
+  - Supports: *Elapsed / Total*, *Elapsed / Remaining*, *Remaining Only*, and *Estimated End Time* (adjusted for playback speed).
+  - Click directly on the timestamp anywhere in the UI to cycle through formats with an OSD confirmation.
+- **Three Distinct Player Styles:**
+  - **Capsule**: Modular interface built from independent floating cards:
+    - *Independent Functional Islands*: Dedicated cards for streams (audio + subtitles), volume slider, playback controls, utilities, and fullscreen toggle;
+    - *Floating Timeline & Time Card*: Seekbar and time badge float independently with soft backlighting; clicking the time card cycles time formats;
+    - *Centered Playback Controls*: Play/pause and seek buttons stay strictly locked to the center of the window regardless of track label lengths;
+    - *Multi-Tier Adaptive Layout*: Flexible island stations with overflow guards (`min-width: 0`), volume slider sizing (`flex-shrink: 0`), automatic switching of track buttons to clean 32×32 px icon-only mode when scaling down (`≤ 1080px`), and compact scaling of the toolbar audio visualizer, to fit controls into narrower windows.
+  - **Modern**: Elegant floating unified pill with integrated seekbar and comfortable window margins.
+  - **Classic**: Familiar full-width edge-docked control panel pinned to the bottom edge.
+  - Interactive mini-previews under Settings (`F2` → "Appearance") for 1-click visual switching.
+- **Ergonomic "Appearance" Tab Redesign:**
+  - Global UI Opacity slider (10–100%) with seamless real-time reactivity across `--ui-opacity` and `--bg-glass` design tokens.
+  - Responsive 3-column grid (collapses to 1 column on widths ≤ 480px): Corner Radius (2x2 cards + compact slider) | UI Scaling (2x2 cards + slider + "A" auto-scale toggle) | Typography (6 font options + custom user fonts with folder button).
+  - Bottom section: Player Style with visual mini-previews (left) + compact grids for Time Position (3x2) and Time Format (2x2) (right).
+- **Floating Quick-Control Pill & Default Button Suite:** Minimalist bottom toolbar with accent lighting and a configurable button set: audio tracks, subtitles, volume, previous/next file, seek backward/forward, play/pause, anime opening skip, always-on-top, screenshot, playlist drawer, and fullscreen.
+- **Tabular numbers:** Equal-width digits help keep timestamps, bitrate values and counters aligned as values change.
+- **Unified Kinetic Motion Tokens:** Standardized 5-tier duration system (`--t-instant`, `--t-fast`, `--t-base`, `--t-pop`, `--t-drawer`) and 4 curated cubic-bezier curves (`--ease-smooth`, `--ease-decelerate`, `--ease-accelerate`, `--ease-spring-smooth`), shared between CSS and TypeScript runtime.
+- **Informative User-Facing Error OSD:** High-contrast coral-amber error notifications (`.frame-osd--error`) with a dedicated global API `showOsd(message, { isError: true })` for in-player diagnostics.
+- **Subtle Vector Contour Glow (Vector Drop-Shadow):** Precise light diffusion wrapping vector SVG icons with smooth gradient falloff, avoiding muddy circular halos.
+- **Container Query Responsiveness:** Responsive layout rules hiding verbose track labels and scaling down the audio visualizer and secondary controls on narrow windows.
+- **Fullscreen Auto-Hide:** Option to immediately conceal all UI elements when moving the cursor near the top edge of the display.
+- **Chromium & Web Platform Features:**
+  - `scrollbar-gutter: stable` (CSS): Reserves scrollbar space where configured to reduce horizontal layout shifts.
+  - Parent selector `:has()` (Chromium 105+): Dynamic styling of cards, toggles, checkboxes, and search containers responding to descendant states without superfluous React state or re-renders;
+  - Scroll-Driven Animations (`animation-timeline: scroll()`, Chromium 115+): Fluid adaptive header drop-shadows as content scrolls, executed directly on Chromium's GPU compositor without JavaScript scroll event listeners.
 
 </details>
 
 <details>
-<summary><b>⚙️ Гибридная Система Кастомизации Управления</b></summary>
+<summary><b>⚙️ Settings Interface: Sidebar Panel or Modal Dialog</b></summary>
 
-- **Полная перепривязка хоткеев:** поддержка комбинаций клавиш с модификаторами (`Ctrl`, `Shift`, `Alt`) и кликов мыши (`MouseLeft`, `MouseRight`, `MouseMiddle`, `MouseLeftDoubleClick`).
-- **Раздельные действия:** индивидуальные бинды для смены аудио/субтитров кликом и открытия их меню.
-- **Точечный сброс:** персональная кнопка сброса «По умолчанию» рядом с каждым действием.
-- **Ассоциации файлов:** регистрация медиафайлов в реестре Windows и быстрый переход в параметры Windows «Приложения по умолчанию».
-
-</details>
-
-<details>
-<summary><b>📊 Анализ Свойств Медиаконтейнера (MediaInfo.dll C-API)</b></summary>
-
-- **Нативный анализ без внешних консолей:** прямое C-FFI связывание с `mediainfo.dll` через `libloading` для мгновенного сбора исчерпывающей информации обо всех видео, аудио и субтитрах.
-- **Полноценное независимое окно ОС Windows (565×685 px):** окно MediaInfo можно свободно перемещать за пределы плеера на любой монитор; открывается поверх плеера с возможностью открепления кнопкой-булавкой (Pin / `alwaysOnTop`).
-- **Автономный режим просмотра ("Открыть в L-MPV MediaInfo"):** быстрый просмотр технической информации о файле напрямую из контекстного меню Проводника Windows без запуска основного плеера.
-- **Интерактивный функционал:** поддержка Drag & Drop новых файлов в окно, мгновенный поиск по свойствам (Ctrl+F), экспорт в .txt, копирование в буфер обмена и переключение языков (RU/EN).
+- **Two Form Factors, One Codebase:** Choose your preferred layout (Sidebar drawer or centered modal dialog) under "Appearance"; your selection is saved and applied immediately without restarting the player.
+- **Context Preservation Across Layouts:** Active category, tab, expanded accordions, scroll position, and draft preset name persist when switching between Sidebar and Modal views.
+- **UI Scaling:** Panel width is computed from actual window dimensions factoring in `UI Scale`, to account for display scaling.
+- **Exclusive Single-Accordion Mode:** Expanding any settings category automatically and smoothly collapses sibling categories, maintaining a clean and focused workspace in both Sidebar and Modal layouts.
+- **Adaptive Settings Grids & Clean Visuals:** Blocks dynamically collapse from three columns to single-column layouts on compact windows without label truncation. Accordion headers are free of distracting technical badges, and inner preview cards and color pickers adhere to concentric border radius geometry.
+- **Reliable Vertical Scrolling:** Seamless, uninterrupted mousewheel and trackpad scrolling across all player styles (Capsule, Modern, Classic).
+- **Video & Audio Settings Section:** Dedicated accordion in the General tab, laid out as four compact tiles in a two-column grid. *Frame Processing* (deinterlacing `no`/`auto`/`yadif`/`yadif2x`, hardware decoding `auto-safe`/`auto-copy`/`no`), *Audio Path* (peak limiter, volume normalization `dynaudnorm`/`loudnorm`, device latency fix), *Artifact Reduction* (debanding with strength presets: Light, Balanced, Strong), and *Data Buffer* (50–1024 MB). The icon lives on the tile only, and every segment block has a reset-to-default button plus a hover tooltip.
 
 </details>
 
 <details>
-<summary><b>📁 Модульная Система Пресетов Настроек и Файлов</b></summary>
+<summary><b>✨ Interactive Timeline: Neon Pulse Wave & Live Scrubbing</b></summary>
 
-- **Индивидуальные файлы пресетов (`config/presets/<название>.json`):** каждый созданный пресет сохраняется в собственный независимый JSON-файл в портативной папке, исключая смешивание настроек. Пресетами легко делиться, копировать и бэкапить через проводник.
-- **Нативный экспорт и импорт:** системные диалоги Проводника Windows (`save` / `open`) для сохранения файла пресета в любую удобную папку на компьютере или загрузки стороннего стиля.
-- **Быстрый переход в проводник:** кнопка «Папка» открывает каталог `config/presets/` в Проводнике Windows в один клик.
-- **Автоматическая синхронизация на лету:** список пресетов мгновенно обновляется при возврате фокуса в окно плеера (например, после ручного изменения или добавления `.json` файлов) или по кнопке «Обновить».
+- **Segmented Chapter Hover Adaptation:** when hovering over a video with chapters, only the segment of the chapter under the cursor smoothly expands in height (from 5px to 8px) with vertical centering, while neighboring segments maintain their sleek default thickness. For single-chapter or non-chapter videos, the entire timeline expands uniformly as before.
+- **Kinematic Neon Pulse Wave:** Compact glowing neon ring expanding from the click point along the progress track, styled to match the active player accent theme. Automatically suppressed when animations are disabled, so the ring can never linger over the control buttons.
+- **Live scrubbing:** Pointer movement updates the preview position while dragging the timeline.
+- **Frame preview on hover:** Local videos show a thumbnail with the time and chapter. General → Playback provides a persistent preview toggle. For 4K, cached thumbnails and keyframes appear during movement, followed by an exact frame after the pointer rests. Previews use an independent in-process libmpv decoder and bounded memory/disk caches. Time and chapter tooltips remain available when previews are disabled.
+- **Preview and exact seeking:** Dragging uses keyframe preview seeks; releasing the pointer requests an exact seek to the selected position.
+- **Release Position Calculation:** The final seek position is computed from a freshly measured track rectangle (invalidated on window resize), so auto window resizing can no longer misplace the playhead.
+- **No Stray Focus Ring:** Clicking the timeline no longer leaves a green `:focus-visible` outline floating over the video; keyboard focus indication is preserved via the progress track growing from 5px to 8px.
+- **Synchronized & Customizable Seek Step:** Control bar buttons and keyboard arrow keys (`←` / `→`) share a unified seek step (default 10 seconds; customizable between 1–300 seconds in Settings).
+- **Seek overlay:** Shows the direction and configured duration with signed text and a directional ruler. Quick repeats in the same direction add up on screen.
+- **Reliable Navigation Ergonomics:** Clicking the timeline no longer steals spacebar focus (resuming/pausing video works immediately on first press), and seeking via arrow keys avoids unwanted popup of hidden controls.
+- **Centered Floating Time:** The badge matches the selected player style and keeps the full time format without increasing the control bar height.
 
 </details>
 
 <details>
-<summary><b>🖱️ Настраиваемое Контекстное Меню (ПКМ) и Drag-and-Drop Конфигуратор</b></summary>
+<summary><b>📊 Timeline activity heatmap</b></summary>
 
-- **Интерактивный Drag-and-Drop редактор:** визуальный конфигуратор в Настройках (`F2` -> «Основные» -> «Контекстное меню (ПКМ)») на базе движка `@dnd-kit` с поддержкой перетаскивания как за ручку-хват (Grip), так и за всю карточку пункта.
-- **22 функциональных действия и подменю:** управление дорожками аудио и субтитров, главами, скоростью, соотношением сторон, поворотом кадра, подсветкой полос, информацией MediaInfo, таймером сна и пресетами оформления.
-- **Динамические интеллектуальные подменю:**
-  - *«Пресеты настроек»*: выбор сохраненных пресетов пользователя и готовых стилей с отметкой активного выбора.
-  - *«AI-Апскейлинг»*: мгновенное включение/выключение и выбор модели нейросети из папки `models/onnx/`.
-  - *«Кнопки панели управления»*: 10 индивидуальных переключателей видимости элементов нижней панели.
-- **Вставка разделителей (`divider`):** добавление горизонтальных черт в любое место меню для аккуратной группировки.
-- **Портативное хранение (`config/context_menu.json`):** все изменения раскладки сохраняются локально в папке плеера. Кнопка «Сброс» позволяет в один клик вернуть эталонный заводской вид.
+- Audio RMS and peak levels in dBFS, or video bitrate with one-second detail.
+- Audio is decoded with FFmpeg and analyzed in Rust. Video packets are analyzed without decoding frames, using a Rust reader for supported Matroska/WebM files and FFmpeg as a fallback.
+- Six graph styles: bars, spline, blocks, filled relief, stepped contour and dotted relief. Eight palettes: Theme, Thermal, Cyberpunk, Monochrome, Sunset, Aurora, Ocean and Plasma.
+- Adjustable height, opacity and placement above the timeline or control bar. Disabled by default; available in settings.
+- Hover to see RMS/peak levels or average bitrate for the selected interval. Video bitrate uses a balanced scale and adapts the number of visible columns to the window width.
+- Audio and video profiles are cached separately in `data/cache/waveforms/audio/` and `data/cache/waveforms/video_bitrate/`. BLAKE3 keys account for file metadata and track selection. Switching the source cancels outdated analysis.
+- System → Cache shows disk cache sizes and provides cleanup. Legacy cache directories migrate into data/cache; settings, history and models are preserved.
+
+- Settings include a preview and a cache-clearing button.
+
+</details>
+
+<details>
+<summary><b>🔍 Hardware Zoom & Pan & Mouse Wheel Controls</b></summary>
+
+- **Cursor-Centered Zoom:** Cursor-centered zooming via `Ctrl` + Mouse Wheel at up to 60 FPS.
+- **Magnetic Snap:** Automatically snaps to native scale (100%) when approaching zero zoom.
+- **Reset Zoom:** Return to 100% scale and center position with `0`.
+- **Volume wheel control:** The wheel over video without Ctrl adjusts volume in 5% steps, up to 150%, and saves the level. When the indicator is enabled, wheel and keyboard changes display either a scale with 50/100% references or a text OSD.
+
+</details>
+
+<details>
+<summary><b>🖥️ Fullscreen & Window Management</b></summary>
+
+- **Fullscreen mode:** Native Windows window management is used for fullscreen playback.
+- **Dynamic Z-Order Management (`handle_window_focus`):** When switching tasks (`Alt+Tab`), the player releases Topmost status so other applications open smoothly over it, and restores it immediately upon regaining focus.
+- **Always on Top:** Keep the player window over other apps with hotkey `T` or the titlebar pin icon.
+- **Application exit:** Closing the main player window saves playback history and exits the application.
+- **Video Frame Scaling & Rotation:** Scale the frame in the window three ways — *Stretch to window size* (fills the window ignoring proportions), *Fit inside window* (whole frame visible, letterbox/pillarbox bars), *Fill screen and crop frame* (fills the window, edges cropped) — plus rotation by 0°, 90°, 180°, or 270°. The active mode is read back from mpv and marked in the context menu.
+- **Aspect ratio lock:** Native Windows resizing keeps the selected aspect ratio when dragging window edges and corners. The ratio follows the video and defaults to 16:9 when idle.
+
+</details>
+
+<details>
+<summary><b>📋 Clipboard Integration & Clean Screenshots</b></summary>
+
+- **Frame to clipboard (`Ctrl+C`):** Copies the current video frame without the interface or OSD. The current implementation uses an intermediate JPEG file in the local `data/` folder.
+- **PNG screenshots:** Save a video frame with `S` or the camera button. The output depends on the source and mpv screenshot settings.
+- **Custom Directory:** Set a custom screenshots directory in Settings or reset to the local `screenshots/` folder.
+
+</details>
+
+<details>
+<summary><b>📑 Playlist & File Navigation</b></summary>
+
+- **Your own playlists:** Choose the current video's folder or a named collection in the same panel. Create and rename lists, add audio and video from different folders, reorder by dragging or using buttons, and remove entries without deleting files. Edits save automatically; import and export M3U8 to share lists. Selecting a collection only shows its contents; choose a file to play it in that collection's order.
+- **Playlist menus and file drops:** The source selector and actions use popups matching the player's style, with context-specific actions and a dot marking the selected source. Drop multiple video/audio files onto the panel to add them; in folder mode this creates a named collection. Pinning and position survive restarts and WebView cache cleanup; short lists shrink the card while its top stays in place. Explorer's file filter is in its ⋯ menu beside Refresh.
+- **Explorer file filter:** “Playable files only” is enabled by default and shows folders, video, audio and playlists. Turn it off to see images, subtitles and other files too; unsupported files cannot be launched. The preference is stored in portable settings.
+- **Explorer in the side panel:** Playlist and Explorer share the `L` / `P` shortcut and remember the last selected tab. Browse folders and supported media, move to the parent folder, choose a folder and search by name. Browsing leaves playback unchanged; selecting subtitles attaches them to the open media. Mouse Back/Forward buttons navigate folder history while the panel is open. Pin the panel to keep its position and height, then use the header grip to move it vertically. The current media file is marked with a Play icon.
+- **Startup and buffering:** Playback starts without waiting for the entire buffer to fill. Read-ahead helps absorb brief storage slowdowns; if data runs out, the player waits for more and resumes. Background scanning and full heatmap analysis are deferred during file opening and yield to video reads during seeking or low-buffer conditions. Startup speed depends on the file and storage device.
+- **Auto-Playlist with Natural Sort:** Opening a file automatically populates the playlist with all sibling media in the directory, ordered by natural human numerical sorting.
+- **Slide-out Playlist Drawer (`L` / `P`):** Search, file filtering, active track highlighting, and one-click playback switching.
+- **Adaptive Style-Matching Design:**
+  - In **"Capsule"** style: The playlist drawer is separated into floating cards: a header badge with file count, action buttons, a seamless search bar, and an independent track list container;
+  - In **"Modern"** and **"Classic"** styles: Features a cohesive frosted glass panel.
+- **Playlist scrolling:** Search and playback indicators are displayed within a scrollable file list.
+- **Elegant Active Media Marker:** A circular accent badge with subtle neon backlighting marks the currently playing file instead of heavy bounding boxes, ensuring text readability.
+- **Drag & Drop:** While dragging video, audio or subtitle files over the player, a label beside the pointer shows the first file's name and an icon for its type; videos use the L-MPV icon. Long names retain their extension, and multiple files show an additional-file count. Releasing opens or attaches the first file according to the current hotload setting.
+- **Loop Modes & Shuffle:** Loop current file, loop entire playlist, or play in random order. The toolbar button and the *Repeat Mode* submenu share a single `set_repeat_mode` command that always sets both loop properties together; the submenu marks the active mode immediately and confirms the change with an OSD toast.
+- **Watch Progress Bar (Netflix / YouTube Style):** Elegant bottom accent line under every playlist card reflecting saved playback progress (`get_watch_history_batch`). Fully watched episodes (ending reached) are marked with a dedicated `completed` flag, displaying a crisp green `CheckCircle2` badge and a completed progress line, with live progress tracking of the actively playing media.
+- **Resilient Compact Geometry & Non-Compressing Items:** Playlist items strictly preserve vertical layout (`flex-shrink: 0; min-height: 38px`), providing smooth native vertical scrolling without vertical crushing or element collisions even in compact player windows.
+- **Chapter Navigation:** Interactive chapters modal with timestamps and jump-to-chapter shortcuts.
+- **Resume playback:** Saves the last playback position for up to 300 files in `config/history.json` and restores it when a file is reopened.
+- **Windows Taskbar Progress:** Displays playback progress bars directly over the player's icon in the Windows taskbar.
+
+</details>
+
+<details>
+<summary><b>💻 System Components, Diagnostics & Windows Integration</b></summary>
+
+- **System overview:** Player specifications, cache and Windows integrations use a shared accordion. The cache table shows folder paths, sizes and file counts, with cleanup for individual categories or all caches. Click a path to copy it. The chart uses separated rounded segments in the Capsule player style and a continuous ring in the other styles. Diagnostics are preloaded and can be refreshed or copied as a report.
+- **Neural Inference Monitoring (AnimeJaNai / aji):** Accurately surfaces installed runtimes (`TensorRT 11`, `DirectML`, `aji v0.25.0`), along with ONNX model and compiled `.engine` counters, avoiding false "Not installed" noise.
+- **Hardware Acceleration (GPU):** Displays detected graphics hardware, dedicated video memory (VRAM), and compute microarchitecture (`sm120`, `sm89`, `sm86`, etc.).
+- **Windows File Associations:** One-click registration for video and audio formats in the Windows Registry, safe unlinking, and shortcut to Windows Default Apps settings.
+- **Explorer Context Menu:** Integrates “L-MPV MediaInfo” into the Windows Explorer right-click context menu for instant media analysis without launching playback.
+- **Support Report Generation:** “Copy Report” creates a clean, structured diagnostic report including paths, versions, and hardware specs ready for GitHub Issues.
+- **Collapsible Windows integration:** File associations and the Explorer context menu have separate collapsible sections. The menu status refreshes on opening and with Refresh, including changes made outside the player.
+- **Operation log:** Appears when there are results or errors and can be collapsed.
+
+</details>
+
+<details>
+<summary><b>⚙️ Hybrid Input Customization System</b></summary>
+
+- **Full Hotkey Rebinding:** Configure keyboard shortcuts with modifiers (`Ctrl`, `Shift`, `Alt`) and mouse inputs (`MouseLeft`, `MouseRight`, `MouseMiddle`, `MouseLeftDoubleClick`).
+- **Granular Actions:** Separate binds for cycling tracks via click vs. opening their respective selection popovers.
+- **Per-Action Reset:** Individual "Reset to Default" button next to every action entry.
+- **File Associations:** One-click registration in Windows Registry and shortcut to Windows "Default Apps" settings.
+
+</details>
+
+<details>
+<summary><b>📊 Media Container Property Inspector (MediaInfo.dll C-API)</b></summary>
+
+- **Native In-Memory Inspection:** Direct C-FFI binding to `mediainfo.dll` via `libloading` for extraction of video, audio, and subtitle streams without external command-line shells.
+- **Independent Desktop Window (655×685 px):** The MediaInfo window moves freely across monitors beyond the main player; launches over the player (`Shift+F10`) with an Always-on-Top pin button (`alwaysOnTop`).
+- **Recent report cache:** reopening the same unchanged file keeps its completed report on screen. Analysis runs again if the file changes or its report is no longer in the current process cache.
+- **Standalone inspection ("Open with L-MPV MediaInfo"):** View file metadata from the Windows Explorer context menu without showing the main window or starting playback.
+- **Style & Color Theme Harmonization:** MediaInfo fully adapts to the selected player style (Capsule, Modern, Classic) and automatically inherits the active color theme, even when opened directly from Windows Explorer. In Capsule mode, elements are organized into floating cards with balanced symmetry.
+- **Interactive Stream Filter Tabs (Quick Filter):** Filter tracks (*"All"*, *"General"*, *"Video"*, *"Audio"*, *"Subtitles"*, *"Chapters"*) with informative stream count badges and 6px rounded pills matching the design system.
+- **Collapsible Stream Accordions:** Collapse or expand individual streams or all at once ("Expand/Collapse All"), with auto-expansion during `Ctrl+F` search.
+- **Native Drag-and-Drop:** Drop any media file straight into the open MediaInfo window with a translucent overlay (`FileUp`) for analysis.
+- **Compact overlay (`I`):** Three tabs — Summary, Rendering and Tracks — selected by clicking or pressing `1` / `2` / `3`. Rendering shows process/system CPU and RAM, GPU and VRAM information, decoder, color, display refresh rate and A/V sync. Metric availability depends on the system and file; GPU utilization is not measured. The GPU shown is the adapter with the most dedicated memory and may differ from the one used for playback; VRAM usage is for the L-MPV process, not the whole system. Tracks lets you select audio and subtitles, disable the active track by clicking it again, and jump to chapters. The Summary video bitrate graph is smoothed, may fall back to metadata; it is not a raw packet measurement.
+- **Productivity Features:** Property search with highlighting (`Ctrl+F`), export to `.txt`, copy to clipboard, and bilingual interface (EN/RU). Action buttons feature clean minimalist vector icons without redundant borders or text.
+
+</details>
+
+<details>
+<summary><b>📁 Modular Presets System & Configuration Files</b></summary>
+
+- **Five built-in styles:** Classic L-MPV (graphite / sky blue), Twilight Iris (indigo / pink), Midnight Cinema (OLED / amber), Quiet Titanium (titanium / silver) and Forest Jade (forest sage / mint). Each sets the theme, accent, toolbar style, font, corner radius, opacity and effects. The heatmap is disabled in all five.
+- **Individual Preset Files (`config/presets/<name>.json`):** Every user preset is stored as an independent JSON file in the portable directory, preventing configuration collisions. Easily share, copy, and back up presets via Explorer.
+- **Native Export & Import:** Windows Explorer system dialogs (`save` / `open`) to export presets anywhere on your drive or import shared community styles.
+- **Quick Explorer Access:** The "Open Folder" button opens `config/presets/` in Windows Explorer with one click.
+- **Live Auto-Synchronization:** Preset lists refresh whenever the player regains focus (e.g., after modifying `.json` files manually) or via the refresh button.
+
+</details>
+
+<details>
+<summary><b>🖱️ Customizable Context Menu (Right-Click) & Drag-and-Drop Editor</b></summary>
+
+- **Adaptive Style-Matching Design:**
+  - In **"Capsule"** style: The main context menu forms sleek floating card islands matching the control bar and playlist aesthetic;
+  - In **"Modern"** and **"Classic"** styles: The menu and submenus feature a classic cohesive frosted glass window.
+- **Minimalist Radio-Dot Markers:** Active options and toggles across all menu styles feature clean accent dot indicators instead of cumbersome checkmarks and bulky outlines.
+- **Menu text:** Menu appearance follows the selected font and interface style.
+- **Scrollbar-Free Fluid Scrolling:** Long submenus hide the visible scrollbar while preserving mouse wheel navigation, featuring an ergonomic 10px spacing from the main menu (`SUBMENU_GAP`) and click-outside dismissal that keeps submenus open while toggling settings.
+- **Control labels:** Buttons use accessible labels; some controls also show browser tooltips.
+- **Interactive Drag-and-Drop Editor:** Visual layout customizer under Settings (`F2` -> "General" -> "Context Menu") powered by `@dnd-kit`, supporting dragging via grab handles or the entire card.
+- **Context menu actions:** Audio and subtitle tracks, chapters, playback speed, frame fitting, rotation, letterbox blur, MediaInfo and appearance presets.
+- **Dynamic Submenus:**
+  - *"Style Presets"*: Browse user presets and pre-packaged styles with active indicators.
+  - *"AI Upscaling"*: Quick toggle and model selector scanning `models/onnx/`.
+  - *"Control Bar Buttons"*: Individual visibility controls for toolbar buttons, including seeking, playback speed and opening skip.
+- **Reactive UI Opacity:** The context menu and submenus strictly inherit the global `--bg-glass` token and `--ui-opacity` setting, smoothly adapting their translucency to match the player's interface opacity slider.
+- **Right-Click Toggle:** Right-clicking while the context menu is open cleanly closes it without awkward reposition flashes or redundant reopening.
+- **Menu Dividers (`divider`):** Insert clean separator lines anywhere to organize your menu items.
+- **Portable Storage (`config/context_menu.json`):** Custom menu layouts are stored locally in the player directory. A one-click "Reset" button restores default factory ordering at any time.
+
+</details>
+
+<details>
+<summary><b>🛡️ Configuration storage and background tasks</b></summary>
+
+- Configurable process priority and a Windows multimedia scheduling profile for video rendering. These settings cannot guarantee the absence of dropped frames.
+- Settings, history, presets, context menu layouts and subtitle cache use temporary files and atomic replacement to reduce the risk of incomplete writes.
+- Settings and history use process-owned locks that are released after a crash. History preserves the latest save when completion, backward seeking or replay occur within the same second.
+- Settings and context menu layout writes create rotating backups, keeping up to 10 versions per file. Backups are not enabled for every file type.
+- FFmpeg tasks use process ownership and cancellation. External utilities have time limits: GPU queries (4 seconds), archive extraction (120 seconds) and TensorRT builds (15 minutes).
+- TensorRT compilation is limited to one model at a time.
+
+</details>
+
+<details>
+<summary><b>🔄 Update Integrity Verification & Seamless Rollback (BLAKE3 & Checksums)</b></summary>
+
+- **Cryptographic Integrity Verification (BLAKE3):**
+  - Automatically verifies hashes of downloaded binaries and libraries (`l-mpv.exe`, `libmpv-2.dll`, `mediainfo.dll`) on the fly, rejecting corrupted or partially downloaded assets before installation.
+- **User-Facing `checksums.json` Manifest:**
+  - Validated manifests are copied directly into the user's portable player directory upon update, as well as pre-packaged inside `L-MPV-v*-portable.zip`.
+- **Staged installation and rollback:** Downloads use separate staging directories; applying updates is serialized between player instances. If a replacement fails, the updater attempts to restore old files and remove newly added components, retaining recovery files when needed.
+- **Built-in Legacy Hashes for Rollback (v2.0.0 – v2.5.6):**
+  - BLAKE3 checksums for supported older releases are stored in `updater.rs` and used to verify files during rollback.
+- **Renamed Executable Support:**
+  - If the user renames the player executable (e.g. `L-MPV.exe`), the updater automatically syncs the binary name before replacing it, ensuring smooth in-place upgrades.
+
+</details>
+
+<details>
+<summary><b>🎛️ Audio normalization and night mode</b></summary>
+
+- **Dynamic normalization:** Uses `dynaudnorm` to reduce loudness differences between quiet and loud passages.
+- **Night mode:** Uses an RMS compressor (`acompressor`) to reduce loud peaks. Its effect on dialogue depends on the recording level; speech is not detected separately.
+- Normalization and the peak limiter can be enabled independently.
+- Disabling both clears the player-managed `af` chain. Other audio processing, resampling and device settings may still affect the output.
 
 </details>
 
 ---
 
-## 🏗️ Стек Технологий
-
-<table>
-  <tr>
-    <th>Уровень</th>
-    <th>Технологический стек</th>
-    <th>Назначение</th>
-  </tr>
-  <tr>
-    <td><b>Frontend</b></td>
-    <td>React 19, TypeScript 5.8, Vite 7, Lucide Icons, Vanilla CSS</td>
-    <td>Сверхбыстрый Glassmorphic интерфейс, дизайн-система на CSS Custom Properties, микроанимации</td>
-  </tr>
-  <tr>
-    <td><b>DnD Engine</b></td>
-    <td><code>@dnd-kit/core</code>, <code>@dnd-kit/sortable</code></td>
-    <td>Интерактивное физическое перетаскивание пунктов меню с кастомными сенсорами без привязки к Pointer Events</td>
-  </tr>
-  <tr>
-    <td><b>Backend & Shell</b></td>
-    <td>Rust (2021 edition), Tauri v2, Tokio</td>
-    <td>Низкоуровневая интеграция с Win32 API, многопоточный IPC-мост, управление окнами и DWM</td>
-  </tr>
-  <tr>
-    <td><b>Media Engine</b></td>
-    <td><code>libmpv-2.dll</code> (сборка <code>the-database/mpv-winbuild</code>) via dynamic FFI (<code>libloading</code>)</td>
-    <td>Аппаратный рендеринг <code>vo=gpu-next</code>, Direct3D 11, HDR tone-mapping, demuxing</td>
-  </tr>
-  <tr>
-    <td><b>AI Upscaling</b></td>
-    <td><code>vf_animejanai</code> + <code>aji.dll</code> (DirectML / TensorRT) + ONNX</td>
-    <td>Аппаратный апскейлинг видео в реальном времени до 4K на любых GPU</td>
-  </tr>
-  <tr>
-    <td><b>MediaInfo Engine</b></td>
-    <td><code>mediainfo.dll</code> via dynamic C-FFI</td>
-    <td>Извлечение исчерпывающего технического отчёта о видеоконтейнере и потоках данных</td>
-  </tr>
-  <tr>
-    <td><b>Audio Engine</b></td>
-    <td>Windows WASAPI, 32-tap Sinc Resampler, Scaletempo2</td>
-    <td>Студийный 32-точечный ресемплинг, безопасный даунмикс 5.1/7.1 в стерео, pitch correction</td>
-  </tr>
-  <tr>
-    <td><b>Track Extraction</b></td>
-    <td>Встроенный FFmpeg (<code>ffmpeg.exe</code>)</td>
-    <td>Прямой экспорт потоков аудио/субтитров (<code>-c copy</code>) и интеллектуальный fallback-транскодинг</td>
-  </tr>
-  <tr>
-    <td><b>Платформа</b></td>
-    <td>Windows 10 / 11 x64</td>
-    <td>Аппаратное ускорение DXVA2/D3D11VA, Windows Explorer Context Menu API, Taskbar API</td>
-  </tr>
-</table>
-
----
-
-## 📂 Структура Проекта
+## 📂 Project Structure
 
 ```text
 L-MPV/
-├── assets/                               # Статические изображения и баннеры
-├── src/                                  # Фронтенд (React 19 + TypeScript)
-│   ├── assets/                           # Локальные шрифты (Inter, JetBrainsMono, Manrope, Outfit, PlusJakartaSans)
-│   ├── components/                       # Компоненты интерфейса (feature-папки с barrel index.ts)
-│   │   ├── player/                       # Оболочка плеера: Titlebar, PlayerControls, Timeline,
-│   │   │                                # TimeDisplay, ContextMenu, PlaylistDrawer, AudioVisualizer
-│   │   ├── modals/                       # Окна: SettingsModal, MediaInfoModal, DetailedMediaInfoModal,
-│   │   │                                # StandaloneMediaInfoWindow, ChaptersModal, UpdateModal, ColorPickerModal
-│   │   ├── common/                       # Переиспользуемое: MarkdownRenderer
-│   │   ├── settings/                     # Вкладки и секции Центра настроек (18 модулей):
-│   │   │   ├── GeneralSettingsTab.tsx    # Основные (скриншоты, воспроизведение и окна, аудиодорожки и субтитры — в т.ч. названия дорожек на панели, меню ПКМ)
-│   │   │   ├── AppearanceSettingsTab.tsx # Эргономичный дизайн: темы, прозрачность, скругление, масштаб, шрифты, стиль панели, 6 позиций времени, 4 формата
-│   │   │   ├── HotkeysSettingsTab.tsx    # Управление горячими клавишами и биндами
-│   │   │   ├── IntegrationSettingsTab.tsx # Системная интеграция и ассоциации файлов в Windows
-│   │   │   ├── ContextMenuSettingsTab.tsx # Визуальный Drag-and-Drop редактор контекстного меню (@dnd-kit)
-│   │   │   ├── UpscalingSettingsSection.tsx # Управление 4K AI апскейлингом (DirectML / TensorRT, библиотека ONNX моделей, порядок моделей мышкой, хоткеи)
-│   │   │   ├── VisualizerSettingsSection.tsx # Настройки аудио-визуалайзера (режимы, стили, баллистика)
-│   │   │   ├── ColorSchemeSection.tsx    # Секция цветового оформления с живым предпросмотром
-│   │   │   ├── PresetsSection.tsx        # Секция управления пресетами («Мои пресеты» и «Готовые стили») с унифицированными кнопками
-│   │   │   ├── VisualizerPreviewCard.tsx # Интерактивная карточка предпросмотра аудио-визуализатора (Canvas + FFT-ритм)
-│   │   │   ├── ControlButtonsPreviewCard.tsx # Живое превью кнопок панели управления
-│   │   │   ├── AccordionSection.tsx      # Переиспользуемая collapsible-секция настроек
-│   │   │   ├── SettingBlocks.tsx         # Базовые блоки и EmptyState настроек
-│   │   │   ├── ContextMenuEntryCard.tsx  # Карточка пункта DnD-редактора меню
-│   │   │   ├── settingsTabPreload.ts     # Предзагрузка данных тяжёлых вкладок
-│   │   │   ├── useSettingsTabTransition.ts # Анимация переходов между вкладками
-│   │   │   ├── visualizerConstants.ts    # Константы визуалайзера
-│   │   │   └── optionCardStyles.ts       # Общие стили карточек опций
-│   │   ├── upscale/                      # Модульные подкомпоненты апскейлинга:
-│   │   │   ├── types.ts                  # Модели данных и событий прогресса
-│   │   │   ├── GpuHardwareCard.tsx       # Информационная карточка обнаруженного GPU (VRAM, архитектура, рекомендации)
-│   │   │   ├── BackendSelector.tsx       # Селектор DirectML / TensorRT, скачивание движков, удаление, индикация прогресса
-│   │   │   ├── ModelListItem.tsx         # Карточка модели нейросети с Drag-and-Drop мышкой (@dnd-kit/sortable), высотой 24px и React.memo
-│   │   │   ├── ModelTensorRtAction.tsx   # Статус 1080p готов, микро-прогрессбар компиляции, кнопки сборки/перекомпиляции 24px (React.memo)
-│   │   │   └── ModelHotkeyButton.tsx     # Компактная кнопка назначения хоткея активации модели в едином стиле хоткеев (React.memo)
-│   │   ├── subtitles/                    # Окно субтитров: SubtitlesSearchModal (корневой контейнер),
-│   │   │                                # строки, шапка, поиск, бейджи, TrackPicker, 6 хуков
-│   │   │                                # (useSubtitlesAnalysis, useModalGeometry, useActiveLineIndex,
-│   │   │                                #  useFollowPlayback, useSearchNavigation, usePersistentState)
-│   │   ├── contexts/                         # Реактивные контексты состояния
-│   │   │   └── PlayerStateContext.tsx        # Трёхуровневый контекст: PlayerStateContext + LiveStateContext + PlayerProgressContext
-│   │   ├── i18n/                             # Локализация (RU/EN)
-│   │   │   ├── LanguageContext.tsx           # Провайдер языка и хук useTranslation
-│   │   │   ├── types.ts                      # Типы словарей
-│   │   │   ├── index.ts                      # Реэкспорт и helpers (getDict, getEffectiveLocale, saveLocale)
-│   │   │   └── locales/                      # Словари ru.ts / en.ts
-│   ├── styles/                           # Модульная система стилей (16 модулей Vanilla CSS)
-│   │   ├── variables.css                 # CSS-переменные, палитры, UI Scale, параметры свечения
-│   │   ├── base.css                      # Глобальный сброс, IDLE-режим, OSD
-│   │   ├── titlebar.css                  # Шапка окна и бейдж времени
-│   │   ├── video-area.css                # Видеообласть
-│   │   ├── controls.css                  # Панель управления, таймлайн, парящий бейдж времени, регулятор громкости
-│   │   ├── visualizer.css                # Стили аудио-визуализатора (над таймлайном и тулбар)
-│   │   ├── presets.css                   # Стили менеджера пресетов
-│   │   ├── context-menu.css              # ПКМ-меню
-│   │   ├── modals.css                    # Модальные окна (Настройки с эргономичными сетками, MediaInfo, Chapters, редактор меню)
-│   │   ├── mediainfo-modal.css           # Стили кастомного окна и модального отчёта MediaInfo
-│   │   ├── side-panel.css                # Панель глав
-│   │   ├── track-popover.css             # Меню дорожек
-│   │   ├── overlays.css                  # Overlay-элементы (Drag&Drop, Playlist Drawer и др.)
-│   │   └── responsive.css                # Адаптивность и медиа-запросы
-│   ├── utils/                            # Вспомогательные утилиты
-│   │   ├── contextMenuRegistry.ts        # Типизированный реестр 22 доступных элементов меню
-│   │   ├── contextMenuLayout.ts          # Сохранение и синхронизация раскладки меню (config/context_menu.json)
-│   │   ├── timePositionUtils.ts          # 6 вариантов расположения времени (таймлайн, тулбар, парящий бейдж, Titlebar)
-│   │   ├── timeFormatUtils.ts            # 4 формата отображения времени (прошедшее/общее, оставшееся, расчет окончания, миллисекунды)
-│   │   ├── controlBarStyleUtils.ts       # Стили нижней панели управления («Парящий остров» и «Пристыкованная плашка»)
-│   │   ├── uiThemeUtils.ts               # Управление скруглением углов, масштабом (UI Scale), прозрачностью и шрифтами (UI Font)
-│   │   ├── uiSettingsSync.ts             # Синхронизация системных CSS-переменных, палитр и стилей оформления с DOM
-│   │   ├── colorUtils.ts                 # Цветовые темы, генерация градиентов и HSL/RGB преобразования
-│   │   ├── hotkeyUtils.ts                # Реестр действий, обработка биндов и локальное сохранение
-│   │   ├── mediaInfoParser.ts            # Модуль парсинга и русского перевода свойств MediaInfo
-│   │   ├── presetsUtils.ts               # Управление, импорт и экспорт пользовательских пресетов
-│   │   ├── recentFilesUtils.ts           # Управление списком недавних файлов и синхронизация с локальной историей
-│   │   └── timeUtils.ts                  # Высокоточное форматирование временных меток
-│   ├── App.tsx                           # Главный контейнер (IDLE, Hotkeys, Zoom/Pan, Drag&Drop, OSD)
-│   ├── index.css                         # Единый импорт модулей стилей
-│   └── main.tsx                          # Точка входа React
-├── src-tauri/                            # Бэкенд (Rust + Tauri v2)
-│   ├── src/
-│   │   ├── main.rs                       # Точка входа приложения
-│   │   ├── lib.rs                        # Инициализация Tauri, HWND-привязка, изоляция WebView2, реестр IPC-команд
-│   │   ├── commands/                     # Модульные IPC #[tauri::command] обработчики:
-│   │   │   ├── mod.rs                    # Реэкспорт всех подмодулей IPC-команд
-│   │   │   ├── dir_scan.rs               # Однократный листинг каталога + счётчик поколений фоновых задач открытия
-│   │   │   ├── types.rs                  # Общие DTO и структуры данных для обмена с фронтендом
-│   │   │   ├── playback.rs               # Управление воспроизведением, навигацией, громкостью, скоростью, скриншотами
-│   │   │   ├── tracks.rs                 # Управление аудио/видео дорожками, субтитрами и экспорт через FFmpeg
-│   │   │   ├── subtitles.rs              # Поиск, парсинг ASS/SRT/VTT субтитров, временные метки и стили
-│   │   │   ├── system.rs                 # Системная интеграция, оконный менеджмент, диалоги выбора файлов, ассоциации
-│   │   │   ├── config.rs                 # Загрузка и атомарное сохранение настроек AppSettings (config/settings.json)
-│   │   │   ├── presets.rs                # Сохранение, загрузка, экспорт и импорт пресетов конфигурации
-│   │   │   ├── playlist.rs               # Управление плейлистом, навигация по файлам в папке, Natural Sort
-│   │   │   └── history.rs                # Персистентная история воспроизведения и позиций файлов (config/history.json)
-│   │   ├── upscale/                      # Модульная подсистема 4K AI апскейлинга:
-│   │   │   ├── mod.rs                    # Фасад подсистемы, IPC-команды, unit-тесты
-│   │   │   ├── types.rs                  # Модели данных: ModelFileItem, UpscaleSettings, GpuHardwareInfo, Progress
-│   │   │   ├── hardware.rs               # Диагностика GPU через Win32 DXGI, определение SM-архитектуры NVIDIA
-│   │   │   ├── config.rs                 # Разрешение путей, окружение DLL PATH, сканирование models/onnx/, upscale.conf
-│   │   │   ├── downloader.rs             # Асинхронная потоковая загрузка DirectML/TensorRT, распаковка архивов
-│   │   │   ├── engine_builder.rs         # Сборка движков TensorRT (.engine), автоконвертация FP32 в FP16, aji_harness и trtexec
-│   │   │   └── controller.rs             # Управление libmpv фильтром, фоновая компиляция TensorRT .engine, хоткеи
-│   │   ├── ambient.rs                    # Контроллер подсветки черных полос (GPU Blur / Color / Off)
-│   │   ├── audio_capture.rs              # Нативный захват звука WASAPI Loopback, быстрый БПФ (FFT Radix-2), 32 полосы
-│   │   ├── fonts_bundle.rs               # Автономная распаковка шрифтов, GDI-регистрация, IPC шрифтов
-│   │   ├── mediainfo.rs                  # FFI-интеграция с mediainfo.dll и управление автономным окном
-│   │   ├── mpv_manager.rs                # FFI-обертка libmpv (vo=gpu-next, WASAPI, D3D11, vf_animejanai, sinc-фильтр)
-│   │   ├── system_integration.rs         # Интеграция с Проводником Windows (контекстное меню, ассоциации файлов)
-│   │   └── updater.rs                    # Модуль фонового и ручного обновления
-│   ├── capabilities/default.json         # Манифест разрешений Tauri v2
-│   ├── icons/                            # Иконки приложения
-│   ├── nsis/                             # Хуки NSIS-инсталлятора
-│   ├── build.rs                          # Build-скрипт Tauri
-│   ├── Cargo.toml                        # Зависимости бэкенда Rust
-│   ├── tauri.conf.json                   # Конфигурация Tauri v2
-│   └── binaries/                         # Нативные бинарники для dev-сборки и bundle resources (gitignored):
-│       ├── libmpv-2.dll                  # Медиадвижок MPV (со встроенным vf_animejanai)
-│       ├── mediainfo.dll                 # Подробный анализ MediaInfo
-│       └── ffmpeg.exe                    # Прямой экспорт дорожек
-├── tools/                                # Вспомогательные скрипты
-│   └── build_check.bat                   # Быстрый cargo check бэкенда
-├── docs/
-│   └── archive/old-banners/              # Архив старых баннеров
-├── scripts/                              # Python-утилиты (convert_fp16.py — конвертация ONNX в FP16)
-├── models/                               # Каталог нейросетей
-│   └── onnx/                             # Универсальная папка для размещения ONNX-моделей
-├── inference/                            # Папка библиотек инференса (aji.dll, DirectML, TensorRT)
-└── Portable-L-MPV/                       # Автономный портативный дистрибутив
-    ├── L-MPV.exe                         # Главный исполняемый файл
-    ├── libmpv-2.dll                      # Нативная библиотека медиадвижка MPV (со встроенным vf_animejanai)
-    ├── mediainfo.dll                     # Нативная библиотека подробного анализа MediaInfo
-    ├── ffmpeg.exe                        # Встроенный модуль для прямого экспорта дорожек
-    ├── models/onnx/                      # Папка для пользовательских ONNX-моделей
-    ├── inference/                        # Библиотеки инференса
-    ├── config/                           # Локальные конфигурации (settings.json, context_menu.json, presets/...)
-    ├── data/                             # Рабочие данные (data/webview/ — профиль WebView2, data/thumbs/ — кэш обложек)
-    ├── logs/                             # Локальные логи (mpv.log, crash.log)
-    └── screenshots/                      # Каталог сохранения снимков экрана по умолчанию
+├── src/                          # React and TypeScript interface
+│   ├── components/               # Player, settings, subtitles and dialogs
+│   ├── contexts/                 # Shared player state
+│   ├── hooks/                    # UI hooks
+│   ├── i18n/                     # Russian and English translations
+│   ├── styles/                   # CSS styles and themes
+│   └── utils/                    # Settings and utilities
+├── src-tauri/                    # Rust backend and Tauri configuration
+│   ├── src/commands/             # Player commands and media analysis
+│   ├── src/upscale/              # AI upscaling and its components
+│   ├── src/mpv_manager.rs        # libmpv integration
+│   ├── capabilities/             # Application permissions
+│   ├── nsis/                     # Windows installer hooks
+│   ├── Cargo.toml                # Rust dependencies
+│   └── tauri.conf.json           # Windows, resources and build settings
+├── assets/                       # Screenshots and artwork
+├── scripts/                      # Checks and dependency packaging
+├── docs/                         # Project documentation
+├── .github/workflows/            # Build and release workflows
+├── package.json                  # npm dependencies and commands
+└── PROJECT_KNOWLEDGE.md          # Detailed project knowledge base
 ```
+
+Detailed architecture and file descriptions: [Project knowledge](PROJECT_KNOWLEDGE.md).
 
 ---
 
-## ⌨️ Горячие Клавиши (Default Hotkeys)
+<details>
+<summary><b>⌨️ Default Hotkeys</b></summary>
 
-Все сочетания клавиш и кнопок мыши можно настроить под себя в окне **Настроек** (*Горячие клавиши*).
+Every keyboard shortcut and mouse button action can be customized to your preference in **Settings** (*Hotkeys*).
 
-| Категория | Действие | Горячие клавиши по умолчанию |
+| Category | Action | Default Hotkey |
 | :--- | :--- | :--- |
-| **Апскейлинг 4K** | Выключить апскейлинг | `Shift + 1` |
-| | Включить Нейросеть #1 | `Shift + 2` |
-| | Включить Нейросеть #2 | `Shift + 3` |
-| | Включить Нейросеть #3 | `Shift + 4` |
-| **Воспроизведение** | Воспроизведение / Пауза | `Space` или Клик ЛКМ по видео |
-| | Режим повтора (Loop) | `R` |
-| | Случайный порядок (Shuffle) | Кнопка на панели управления |
-| **Перемотка** | Перемотка назад / вперед (5 сек) | `←` / `→` |
-| | Перемотка назад / вперед (10 сек) | Кнопки `-10` / `+10` на панели управления |
-| | Покадровый шаг назад / вперед | `,` (`Б`) / `.` (`Ю`) |
-| **Звук** | Громкость ±5% | `↑` / `↓` или Колесо мыши над видео |
-| | Включить / выключить звук (Mute) | `M` |
-| | Смена аудиодорожки | `A` или Клик ЛКМ по кнопке Audio |
-| | Меню аудиодорожек и скачивание | Клик ПКМ по кнопке Audio |
-| **Субтитры** | Смена дорожки субтитров | `V` или Клик ЛКМ по кнопке Subtitles |
-| | Меню субтитров и скачивание | Клик ПКМ по кнопке Subtitles |
-| | Интерактивное окно и поиск по субтитрам | `Ctrl + F` |
-| **Скорость** | Замедлить / Ускорить (±0.25x) | `[` / `]` |
-| | Сброс скорости к нормальной (1.0x) | `Backspace` |
-| **Интерфейс и Окно** | Полноэкранный режим (Fullscreen) | `F`, `F11` или Двойной клик ЛКМ |
-| | Поверх всех окон (PiP) | `T` |
-| | Настройки плеера | `F2` |
-| | Главы видео (Chapters) | `C` |
-| | Аудио-визуалайзер (Вкл/Выкл) | `W` |
-| | Сменить стиль визуализатора | `Shift + W` (3 стиля) |
-| | Поворот видео на 90° | `Alt + R` |
-| | Масштабирование видео (Zoom & Pan) | `Ctrl` + Колесо мыши |
-| | Сброс масштаба к 100% | `0` |
-| | Подсветка полос (Ambient Light) | `B` (циклически: Off → Blur → Color) |
-| | Копировать кадр в буфер обмена | `Ctrl + C` |
-| | Сохранить кадр (Скриншот PNG) | `S` |
-| | Информация о видео (Компактная) | `I` |
-| | Свойства MediaInfo (MPC) | `Shift + F10` |
-| | Открыть контекстное меню | Клик ПКМ по видео |
-| **Плейлист и Файлы** | Боковая панель плейлиста | `L` |
-| | Предыдущий / следующий файл | `PageUp` / `PageDown` |
-| | Открыть файл | `Ctrl + O` или `O` |
+| **4K AI Upscaling** | Disable Upscaling | `Shift + Backquote` (key below Esc) |
+| | Toggle the favorite model | `U` |
+| | Enable Neural Model #1 .. #9 | `Shift + 1` .. `Shift + 9` (up to 9 models) |
+| **Playback** | Play / Pause | `Space` or Left Click on video |
+| | Repeat Mode (Loop) | `R` |
+| | Shuffle Mode | Bottom bar shuffle button |
+| **Seeking** | Seek backward / forward (10 sec, customizable) | `←` / `→` |
+| | Seek buttons backward / forward (customizable) | `-10` / `+10` buttons on bottom bar |
+| | Frame step backward / forward | `,` / `.` |
+| **Audio** | Volume ±5% | `↑` / `↓` or Mouse Wheel over video |
+| | Mute / Unmute | `M` |
+| | Cycle Audio Track | `A` or left-click the audio button |
+| | Audio Track Popover & Export | Right-click the audio button |
+| **Subtitles** | Cycle Subtitle Track | `V` or left-click the subtitles button |
+| | Subtitle Track Popover & Export | Right-click the subtitles button |
+| | Interactive Subtitle Browser & Search | `Ctrl + F` |
+| **Playback Speed** | Decrease / Increase Speed (±0.25x) | `[` / `]` |
+| | Reset Speed to Normal (1.0x) | `Backspace` |
+| **Interface & Window** | Toggle Fullscreen | `F`, `F11` or Double Left Click |
+| | Always on Top | `T` |
+| | Open Settings | `F2` |
+| | Chapters Navigation | `C` |
+| | Toggle Audio Visualizer | `W` |
+| | Cycle Visualizer Style | `Shift + W` (9 styles) |
+| | Rotate Video 90° | `Alt + R` |
+| | Zoom & Pan Video | `Ctrl` + Mouse Wheel |
+| | Reset Zoom to 100% | `0` |
+| | Toggle Blur | `B` (cycles: Off → Blur → Off) |
+| | Copy Current Frame to Clipboard | `Ctrl + C` |
+| | Save Lossless Screenshot (PNG) | `S` |
+| | Show Compact Video Info | `I` (bitrate with live Sparkline graph, color space, true source bit depth) — closes only via `X`, `Escape` or `I` |
+| | Inspect MediaInfo Properties | `Shift + F10` |
+| | Open Context Menu | Right Click on video |
+| **Playlist & Files** | Toggle Playlist Drawer | `L` / `P` |
+| | Previous / Next File | `PageUp` / `PageDown` |
+| | Open File Dialog | `Ctrl + O` or `O` |
+
+</details>
 
 ---
 
-## ⚡ IPC-Архитектура (Rust ↔ React)
+## 🚀 Building and running
 
-Связь интерфейса React с движком MPV, подсистемой апскейлинга и системными модулями осуществляется через **114 нативные IPC-команды**, гарантирующие мгновенный отклик и отсутствие задержек:
+These instructions target **Windows 10/11 x64** and PowerShell. Run all commands after cloning from the repository root. To use the player without building it, download a release from the [releases page](https://github.com/Menely/L-MPV/releases).
 
-- **Апскейлинг и AI Модели (11 команд):** `get_upscale_status`, `get_system_gpu_info`, `scan_onnx_models`, `open_models_folder`, `open_inference_folder`, `apply_upscale_settings`, `download_inference_engine`, `delete_inference_engine`, `switch_upscale_network_hotkey`, `precompile_model_engine_1080p`, `save_models_order`.
-- **Воспроизведение и Плейлист (17 команд):** `open_file`, `toggle_pause`, `set_pause`, `seek`, `seek_absolute`, `frame_step`, `frame_back_step`, `playlist_prev`, `playlist_next`, `get_playlist`, `play_playlist_item`, `reload_folder_playlist`, `set_loop_file`, `set_loop_playlist`, `toggle_shuffle`, `get_play_next_on_end`, `set_play_next_on_end`.
-- **Громкость и Скорость (2 команды):** `set_volume`, `set_speed`.
-- **Дорожки, Субтитры и FFmpeg (18 команд):** `get_tracks`, `set_audio_track`, `set_subtitle_track`, `disable_subtitles`, `set_sub_delay`, `get_sub_delay`, `load_subtitle_file`, `load_audio_file`, `set_video_track`, `extract_track`, `get_auto_load_tracks`, `set_auto_load_tracks`, `get_auto_select_external_audio`, `set_auto_select_external_audio`, `load_external_tracks_for_file`, `get_subtitles_avoid_ui`, `set_subtitles_avoid_ui_setting`, `update_subtitles_avoid_ui`.
-- **Вид, Зумирование и Окно (6 команд):** `set_aspect_ratio`, `set_rotation`, `set_video_zoom_and_pan`, `get_video_zoom`, `get_video_dimensions`, `toggle_fullscreen`.
-- **Анализ MediaInfo (5 команд):** `get_detailed_media_info`, `is_standalone_mode`, `get_standalone_mediainfo_path`, `open_mediainfo_window`, `toggle_mediainfo_window`.
-- **Скриншоты и Буфер Обмена (4 команды):** `take_screenshot`, `copy_frame_to_clipboard`, `get_screenshot_dir`, `set_screenshot_dir`.
-- **Главы (2 команды):** `get_chapters`, `seek_chapter`.
-- **Метаданные и Позиция (13 команд):** `get_position`, `get_duration`, `get_frame_number`, `get_frame_count`, `get_fps`, `get_media_info`, `get_playback_state`, `get_last_position`, `save_position`, `save_current_position`, `get_app_version`, `get_active_subtitle_lines`, `analyze_subtitle_track`.
-- **Интеграция с Windows (9 команд):** `register_file_associations`, `unregister_file_associations`, `open_default_apps_settings`, `register_explorer_context_menu`, `unregister_explorer_context_menu`, `is_explorer_context_menu_registered`, `get_windows_accent_color`, `get_multi_instance`, `set_multi_instance`.
-- **Подсветка Полос / Ambient Light (4 команды):** `get_ambient_settings`, `apply_ambient_preview`, `set_ambient_settings`, `toggle_ambient_mode`.
-- **Пресеты настроек и Файлы (8 команд):** `get_settings_presets`, `save_settings_presets`, `save_single_preset`, `delete_preset_file`, `rename_preset_file`, `open_presets_folder`, `write_text_file`, `read_text_file`.
-- **Аудио-визуалайзер (2 команды):** `get_audio_spectrum`, `set_visualizer_active`.
-- **Раскладка ПКМ-меню (2 команды):** `get_context_menu_layout`, `save_context_menu_layout`.
-- **UI-настройки (2 команды):** `get_ui_settings`, `save_ui_settings`.
-- **Шрифтовая экосистема (3 команды):** `open_fonts_folder`, `get_custom_fonts`, `load_font_data`.
-- **Прогресс на панели задач (1 команда):** `update_taskbar_progress`.
-- **Автообновление (5 команд):** `check_launch_and_update`, `check_for_updates`, `get_available_releases`, `download_and_install_update`, `postpone_update`.
+### Prerequisites
 
----
+- **Git** to clone the repository.
+- **Node.js 22.12+** with npm. Node.js 20 is also supported starting from 20.19.
+- **Rust** installed through [rustup](https://rustup.rs/), using the stable `stable-x86_64-pc-windows-msvc` toolchain.
+- **Microsoft C++ Build Tools** with the “Desktop development with C++” workload, x64 MSVC tools and a Windows SDK.
+- **Microsoft Edge WebView2 Runtime** to display the interface.
 
-## 🚀 Сборка и Запуск
+Installation links are available in the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/#windows). Reopen PowerShell after installing the tools.
 
-### Требования к окружению
-- **Node.js** v20+ и менеджер пакетов **npm**
-- **Rust** (toolchain `stable-x86_64-pc-windows-msvc`)
-- Нативные бинарники в папке `src-tauri/binaries/` (gitignored, скачать вручную):
-  - `libmpv-2.dll` из релиза `the-database/mpv-winbuild` (с фильтром `vf_animejanai`)
-  - `ffmpeg.exe` для прямого экспорта дорожек и `mediainfo.dll` для детального анализа
+### 1. Clone and install dependencies
 
-### Режим разработки (Development)
-```bash
-# 1. Установка зависимостей фронтенда
-npm install
-
-# 2. Запуск Vite + Tauri в режиме горячей перезагрузки (Live Reload)
-npm run tauri dev
-```
-
-### Сборка Исполняемого Файла (Production Build)
-```bash
-# Быстрая сборка только автономного файла .exe с встроенным фронтендом (без инсталлятора):
-npm run build:exe
-# (или: npm run tauri build -- --no-bundle)
-
-# Полная сборка с созданием Windows-инсталлятора (NSIS):
-npm run build:bundle
-# (или: npm run tauri build)
-```
-
-Готовый бинарный файл создается по пути `src-tauri/target/release/l-mpv.exe`.
-
-### Формирование Портативной Версии
-Для развертывания в папку `Portable-L-MPV/` (exe + нативные библиотеки из `src-tauri/binaries/`):
 ```powershell
-Copy-Item -Path "src-tauri/target/release/l-mpv.exe" -Destination "Portable-L-MPV/L-MPV.exe" -Force
-Copy-Item -Path "src-tauri/binaries/libmpv-2.dll", "src-tauri/binaries/ffmpeg.exe", "src-tauri/binaries/mediainfo.dll" -Destination "Portable-L-MPV/" -Force
+git clone https://github.com/Menely/L-MPV.git
+Set-Location L-MPV
+rustup toolchain install stable-x86_64-pc-windows-msvc
+rustup override set stable-x86_64-pc-windows-msvc
+npm ci
 ```
+
+### 2. Native libraries
+
+The files `libmpv-2.dll`, `ffmpeg.exe` and `mediainfo.dll` are not stored in Git. Download the package from the `deps-v1` release, also used by the project's automated build:
+
+```powershell
+New-Item -ItemType Directory -Force -Path src-tauri/binaries | Out-Null
+Invoke-WebRequest -Uri "https://github.com/Menely/L-MPV/releases/download/deps-v1/mpv_libs.zip" -OutFile "mpv_libs.zip"
+Expand-Archive -LiteralPath "mpv_libs.zip" -DestinationPath "src-tauri/binaries" -Force
+Remove-Item -LiteralPath "mpv_libs.zip"
+
+foreach ($name in @("libmpv-2.dll", "ffmpeg.exe", "mediainfo.dll")) {
+    $nativeFile = Join-Path "src-tauri/binaries" $name
+    if (!(Test-Path -LiteralPath $nativeFile) -or (Get-Item -LiteralPath $nativeFile).Length -eq 0) {
+        throw "Missing or empty file: $nativeFile"
+    }
+}
+```
+
+If the download is unavailable, open the [deps-v1 release](https://github.com/Menely/L-MPV/releases/tag/deps-v1), download `mpv_libs.zip` manually and extract the three files directly into `src-tauri/binaries/`.
+
+### 3. Run in development mode
+
+Place the native libraries next to the debug executable so they can be found regardless of the working directory:
+
+```powershell
+New-Item -ItemType Directory -Force -Path src-tauri/target/debug | Out-Null
+Copy-Item -Path "src-tauri/binaries/*" -Destination "src-tauri/target/debug/" -Force
+npm run tauri -- dev
+```
+
+This starts Vite and the native Tauri window. The first run compiles Rust and downloads dependencies, which may take several minutes. Running `npm run dev` alone starts only the web interface; Rust/libmpv playback is unavailable in a regular browser.
+
+AI components are optional for normal playback. To use upscaling, download an engine in the player settings and add a compatible ONNX model to `models/onnx/` next to the running `l-mpv.exe`. Performance depends on the GPU and model.
+
+### Build and run the release version
+
+```powershell
+npm run build:exe
+if ($LASTEXITCODE -ne 0) { throw "Build failed" }
+Copy-Item -Path "src-tauri/binaries/*" -Destination "src-tauri/target/release/" -Force
+& "./src-tauri/target/release/l-mpv.exe"
+```
+
+The executable is located at `src-tauri/target/release/l-mpv.exe`. Keep the native libraries next to it; settings and working data are created in the same directory. To move the player, copy the executable and the contents of `src-tauri/binaries/` into a separate writable folder.
+
+To create an NSIS installer:
+
+```powershell
+npm run build:bundle
+```
+
+The installer is written to `src-tauri/target/release/bundle/nsis/`. Tauri may download packaging tools during the first build.
+
+### Pre-release checks
+
+```powershell
+npm run build
+cargo test --manifest-path src-tauri/Cargo.toml --locked
+```
+
+Vite may warn that the main JavaScript file exceeds 500 kB. This warning alone does not indicate a build failure.
 
 ---
 
-## ☕ Поддержать автора / На чай
+## ☕ Support the Author / Tips
 
-Если вам нравится медиаплеер **L-MPV** и вы хотите поддержать дальнейшую разработку и развитие проекта:
+If you enjoy using **L-MPV** and would like to support ongoing development and feature expansion:
 
-| Валюта / Сеть | Адрес кошелька |
+| Currency / Network | Wallet Address |
 | :--- | :--- |
 | 💵 **USDT (TRC-20)** | `TBXxG4qgXWfTHFAeHy2WkrPE4K82DsGn9d` |
 | 🔷 **USDT (ERC-20)** | `0x14c3eac6b0629a7437e50dc5831b53c0d752b85c` |
@@ -690,9 +758,9 @@ Copy-Item -Path "src-tauri/binaries/libmpv-2.dll", "src-tauri/binaries/ffmpeg.ex
 
 ---
 
-## 💬 Сообщество и Связь
+## 💬 Community & Support
 
-Присоединяйтесь к нашему комьюнити и телеграм каналу: <br>
+Join our Telegram channels and community groups: <br>
 <table>
   <thead>
     <tr>
@@ -716,7 +784,6 @@ Copy-Item -Path "src-tauri/binaries/libmpv-2.dll", "src-tauri/binaries/ffmpeg.ex
 
 ---
 
-## 📄 Лицензия
+## 📄 License
 
-Проект распространяется под свободной лицензией **GNU General Public License v3.0 (GPLv3)**. Подробная информация доступна в файле [LICENSE](./LICENSE).
-
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)**. For complete terms and conditions, refer to the [LICENSE](./LICENSE) file.

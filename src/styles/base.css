@@ -93,12 +93,39 @@ textarea {
   -webkit-appearance: none !important;
 }
 
+/* ─── Стабильный желоб скроллбара (ликвидация дёрганья интерфейса) ── */
+:where(
+  .modal__body,
+  .settings-panel__body,
+  .settings-panel__content,
+  .settings-side-panel__scroll,
+  .side-panel__content,
+  .side-panel__list,
+  .mediainfo-floating-window__content,
+  .mediainfo-floating-window__body,
+  .mediainfo-standalone__body,
+  .cmenu-editor__column-list,
+  .cmenu-editor__list,
+  .cmenu-editor__available-list,
+  .version-picker-popover,
+  .scrollable-container,
+  [data-scrollable="true"]
+) {
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+/* Keep rem tokens based on the browser's default (normally 16px).
+   Applying --fs-base to html would shrink the entire rem scale to 87.5%. */
+html {
+  font-size: 100%;
+}
+
 html, body, #root {
   width: 100%;
   height: 100%;
   overflow: hidden;
   font-family: var(--font-family);
-  font-size: var(--fs-base);
   color: var(--text-primary);
   background: transparent;
   -webkit-font-smoothing: subpixel-antialiased;
@@ -108,6 +135,10 @@ html, body, #root {
   font-synthesis: none;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   user-select: none;
+}
+
+body, #root {
+  font-size: var(--fs-base);
 }
 
 /* ─── Контейнер приложения ───────────────────────────── */
@@ -145,61 +176,28 @@ html, body, #root {
   cursor: none;
 }
 
-/* ─── Режим Mini Player (PiP) ─── */
-.app-container--mini .titlebar {
-  opacity: 0;
-  transform: translateY(-10px);
-  pointer-events: none;
-}
-
-.app-container--mini .player-controls-wrapper {
-  opacity: 0;
-  transform: translateY(14px);
-  pointer-events: none;
-}
-
-.app-container--mini:hover .player-controls-wrapper {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-.app-container--mini .player-controls {
-  padding: 4px 10px;
-  border-radius: 12px;
-}
-.app-container--mini .controls-row__left .control-btn,
-.app-container--mini .controls-row__right .control-btn {
-  display: none; /* Скрываем второстепенные кнопки в мини-плеере */
-}
-.app-container--mini .controls-row__right #btn-speed,
-.app-container--mini .controls-row__right #btn-always-on-top {
-  display: flex; /* Оставляем только важные кнопки */
-}
-
 /* OSD отображения кадров и статистики в левом верхнем углу */
 .frame-osd {
   position: fixed;
   top: 48px;
   left: 24px;
-  z-index: 1000;
+  z-index: var(--z-float);
   background: rgba(10, 12, 18, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-md);
-  padding: 8px 18px;
-  font-size: 1.2rem;
+  padding: var(--space-4) 18px;
+  font-size: var(--fs-xl);
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: 0.5px;
   font-variant-numeric: tabular-nums;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
   pointer-events: none;
-  animation: fadeIn 150ms var(--ease-out);
+  animation: fadeIn var(--t-fast) var(--ease-decelerate);
 }
 
 .frame-osd--closing {
-  animation: osdFadeOut 200ms var(--ease-out) forwards !important;
+  animation: osdFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 
@@ -217,88 +215,90 @@ html, body, #root {
 .frame-osd--multiline {
   white-space: pre-line;
   line-height: 1.5;
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 500;
-  padding: 12px 20px;
+  padding: var(--space-6) 20px;
   border-left: 3.5px solid var(--accent);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 16px var(--accent-glass);
 }
 
-/* ─── Всплывающая плашка времени на таймлайне ─── */
+/* Состояние ошибки (User-Facing error notification) */
+.frame-osd--error {
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-left: 4px solid #ef4444;
+  background: rgba(28, 10, 14, 0.94);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75), 0 0 20px var(--danger-glow);
+  color: #fef2f2;
+}
+
+/* ─── Всплывающая плашка времени на таймлайне (Zero-Blur DirectWrite ClearType) ─── */
 .timeline-preview-card {
   position: absolute;
   bottom: calc(100% + 10px);
   transform: translateX(-50%);
-  background: rgba(10, 12, 18, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  /* Глубокая монолитная подложка без backdrop-filter для сохранения кристальной четкости DirectWrite ClearType на 96 DPI */
+  background: var(--bg-modal-solid, #11141c);
   border: 1px solid var(--border-pill);
-  border-radius: var(--radius-sm);
-  padding: 4px 10px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  border-radius: var(--radius-md);
+  padding: 5px 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65),
+              0 1px 3px rgba(0, 0, 0, 0.45),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
   pointer-events: none;
-  z-index: 1000;
+  z-index: var(--z-float);
   white-space: nowrap;
-  /* БЕЗ entrance-анимации: элемент пересоздаётся на каждый rAF-кадр ховера,
-     любая анимация рестартовала бы 60 раз/сек и давала мерцание.
-     Позиция обновляется через rAF-троттлинг в Timeline.tsx. */
+  user-select: none;
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
   opacity: 1;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  will-change: transform;
-  contain: layout paint;
+}
+
+.timeline-preview-card--with-chapter {
+  padding: 6px 14px 7px;
+  gap: 3px;
+}
+
+/* Смещение карточки превью выше парящей звуковой карты (зазор 8px над тепловой картой) */
+.timeline:has(.waveform-activity-strip--visible) .timeline-preview-card,
+.player-controls:has(.waveform-activity-strip--visible) .timeline-preview-card {
+  bottom: calc(100% + var(--heatmap-strip-height, 34px) + 18px);
+}
+
+.player-controls--has-visualizer-above .timeline:has(.waveform-activity-strip--visible) .timeline-preview-card,
+.player-controls--has-visualizer-above:has(.waveform-activity-strip--visible) .timeline-preview-card {
+  bottom: calc(100% + var(--visualizer-height, 22px) + var(--heatmap-strip-height, 34px) + 18px);
 }
 
 .timeline-preview-card__time {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.4px;
+  font-feature-settings: "tnum";
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  -webkit-font-smoothing: subpixel-antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .timeline-preview-card__chapter {
-  font-size: 0.65rem;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--text-secondary);
-  margin-top: 2px;
-  max-width: 150px;
+  line-height: 1.25;
+  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* ─── Унифицированное центрированное вращение крестиков (Close & Clear) ── */
-.modal__close svg,
-.titlebar__btn--close svg,
-.playlist-drawer__close svg,
-.side-panel__close svg,
-.mediainfo-floating-window__btn--close svg,
-.mediainfo-standalone__control-btn--close svg,
-.update-toast__close svg,
-.mediainfo-standalone__btn-icon svg,
-.mediainfo-floating-window__search-clear svg,
-.color-circle__remove-btn svg {
-  display: block;
-  flex-shrink: 0;
-  margin: 0;
-  padding: 0;
-  transform-origin: center center;
-  transform: rotate(0deg);
-  transition: transform var(--t-spring, 260ms) var(--ease-spring-smooth);
-}
-
-.modal__close:hover svg,
-.titlebar__btn--close:hover svg,
-.playlist-drawer__close:hover svg,
-.side-panel__close:hover svg,
-.mediainfo-floating-window__btn--close:hover svg,
-.mediainfo-standalone__control-btn--close:hover svg,
-.update-toast__close:hover svg,
-.mediainfo-standalone__btn-icon:hover svg,
-.mediainfo-floating-window__search-clear:hover svg,
-.color-circle__remove-btn:hover svg {
-  transform: rotate(90deg);
+  -webkit-font-smoothing: subpixel-antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 /* ─── Отключение анимаций при выключении в настройках ──
@@ -358,6 +358,18 @@ html.no-animations .control-btn--play::before {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Scroll-Driven Animation: Динамическая тень шапки при скролле (Chromium 115+) ─── */
+@keyframes headerScrollElevation {
+  from {
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    border-bottom-color: var(--border, rgba(255, 255, 255, 0.08));
+  }
+  to {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.45);
+    border-bottom-color: rgba(255, 255, 255, 0.18);
   }
 }
 

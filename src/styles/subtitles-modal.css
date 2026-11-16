@@ -1,0 +1,4 @@
+/* ─── Модульная архитектура стилей окна поиска по субтитрам ─────────── */
+@import "./subtitles-modal/subtitles-modal-base.css";
+@import "./subtitles-modal/subtitles-modal-capsule.css";
+

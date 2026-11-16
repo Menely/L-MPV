@@ -19,7 +19,7 @@ export interface ModelTensorRtActionProps {
 /**
  * Компактный и визуально унифицированный блок управления компиляцией
  * TensorRT-движка (.engine) для разрешения 1080p.
- * Все элементы жестко выровнены по высоте 24px и имеют единый радиус скругления 6px.
+ * Все элементы жестко выровнены по высоте 28px и имеют единый радиус скругления 6px.
  */
 export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.memo(({
   model,
@@ -49,29 +49,29 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
-          gap: 2,
+          gap: "var(--space-1)",
           width: 150,
           minWidth: 150,
           maxWidth: 150,
-          height: 24,
+          height: "var(--size-action-compact)",
           boxSizing: "border-box",
         }}
-      >
+        >
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            fontSize: "0.70rem",
+            fontSize: "var(--fs-2xs)",
             color: isCompileError
-              ? "#e74c3c"
+              ? "var(--danger-text)"
               : isCompileFinished
-              ? "#2ecc71"
-              : "var(--accent)",
+              ? "var(--success-text)"
+              : "var(--accent-text)",
             fontWeight: 600,
             lineHeight: 1,
           }}
-        >
+          >
           <span
             style={{
               overflow: "hidden",
@@ -79,7 +79,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
               whiteSpace: "nowrap",
               maxWidth: 105,
             }}
-          >
+            >
             {compileProgressItem?.stage || dict.settings.upscaling.compilingProgress}
           </span>
           <span style={{ fontVariantNumeric: "tabular-nums" }}>
@@ -99,7 +99,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
             borderRadius: 2,
             overflow: "hidden",
           }}
-        >
+          >
           <div
             style={{
               width: isCompileError
@@ -116,8 +116,8 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
               borderRadius: 2,
               transition: "width 0.25s ease-out",
               boxShadow: isCompileFinished
-                ? "0 0 6px rgba(46, 204, 113, 0.4)"
-                : "0 0 6px rgba(127, 199, 255, 0.4)",
+                ? "0 0 6px var(--success-glow)"
+                : "0 0 6px var(--surface-accent-glow)",
             }}
           />
         </div>
@@ -128,47 +128,48 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
   // 2. Модель уже скомпилирована под 1080p: бейдж статуса + кнопка повтора
   if (model.has_engine_1080p) {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <div className="row-center row-gap-2">
         <span
           className="badge badge--success"
           style={{
-            height: 24,
+            height: "var(--size-action-compact)",
             padding: "0 8px",
-            borderRadius: "var(--radius-sm, 6px)",
-            fontSize: "0.76rem",
+            borderRadius: "var(--radius-control)",
+            fontSize: "var(--fs-xs)",
             fontWeight: 600,
             display: "inline-flex",
             alignItems: "center",
-            gap: 5,
+            gap: "var(--space-2)",
             boxSizing: "border-box",
             lineHeight: 1,
           }}
           title={dict.settings.upscaling.trtReadyTitle}
-        >
-          <CheckCircle2 size={13} />
+          >
+          <CheckCircle2 size={14} />
           <span>{dict.settings.upscaling.trtReadyBadge}</span>
         </span>
 
         <button
           type="button"
-          className="btn btn--secondary"
+          className="btn btn--secondary model-compile-action"
           onClick={onPrecompile}
           disabled={!!compilingModel}
+          aria-label={dict.settings.upscaling.trtRecompileTitle}
           title={dict.settings.upscaling.trtRecompileTitle}
           style={{
-            width: 24,
-            height: 24,
-            minWidth: 24,
-            padding: 0,
-            borderRadius: "var(--radius-sm, 6px)",
+            width: "var(--size-action-compact)",
+            height: "var(--size-action-compact)",
+            minWidth: "var(--size-action-compact)",
+            padding: "var(--space-0)",
+            borderRadius: "var(--radius-control)",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             boxSizing: "border-box",
             cursor: "pointer",
           }}
-        >
-          <RefreshCw size={12} />
+          >
+          <RefreshCw size={14} />
         </button>
       </div>
     );
@@ -178,26 +179,26 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
   return (
     <button
       type="button"
-      className="btn btn--secondary"
+      className="btn btn--secondary model-compile-action"
       onClick={onPrecompile}
       disabled={!!compilingModel}
-      title={dict.settings.upscaling.trtCompileTitle}
+      title={model.engine_outdated ? dict.settings.upscaling.trtRebuildRequired : dict.settings.upscaling.trtCompileTitle}
       style={{
-        height: 24,
-        padding: "0 9px",
-        borderRadius: "var(--radius-sm, 6px)",
-        fontSize: "0.76rem",
+        height: "var(--size-action-compact)",
+        padding: "0 8px",
+        borderRadius: "var(--radius-control)",
+        fontSize: "var(--fs-xs)",
         fontWeight: 600,
         display: "inline-flex",
         alignItems: "center",
-        gap: 5,
+        gap: "var(--space-2)",
         boxSizing: "border-box",
         lineHeight: 1,
         cursor: "pointer",
       }}
-    >
-      <Zap size={12} color="var(--accent)" />
-      <span>{dict.settings.upscaling.trtCompileBadge}</span>
+      >
+      {model.engine_outdated ? <RefreshCw size={14} color="var(--warning-text)" /> : <Zap size={14} color="var(--accent-text, var(--accent))" />}
+      <span>{model.engine_outdated ? dict.settings.upscaling.trtRebuildBadge : dict.settings.upscaling.trtCompileBadge}</span>
     </button>
   );
 });

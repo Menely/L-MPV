@@ -1,18 +1,24 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { X, Plus } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Palette, X } from "lucide-react";
 import { hslToRgb, rgbToHex, hexToRgb, rgbToHsl } from "../../utils/colorUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
+import { getSavedControlBarStyle, ControlBarStyle } from "../../utils/controlBarStyleUtils";
+import {
+  ColorPickerModalProps,
+  ColorWheel,
+  BrightnessSlider,
+  PresetsRow,
+  ValuesCard,
+  ActionButtons,
+} from "./color-picker";
 
-interface ColorPickerModalProps {
-  initialColor?: string;
-  onSelectColor: (hex: string) => void;
-  onClose: () => void;
-}
+export type { ColorPickerModalProps };
 
 /**
- * Кастомное модальное окно выбора цвета с интерактивным кругом спектра,
- * слайдером яркости, полями ввода HEX и RGB.
+ * Модульное окно выбора цвета (ColorPicker) L-MPV.
+ * Поддерживает стили: «Модерн», «Классический» и островной «Капсула».
  */
 export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   initialColor = "#7fc7ff",
@@ -20,52 +26,79 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   onClose,
 }) => {
   const { dict } = useTranslation();
-  // Начальное состояние цвета
-  const initRgb = hexToRgb(initialColor) || { r: 127, g: 199, b: 255 };
-  const initHsl = rgbToHsl(initRgb.r, initRgb.g, initRgb.b);
 
+  // Отслеживание текущего стиля оформления плеера
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+
+  useEffect(() => {
+    const handleStyleChange = () => {
+      setControlBarStyle(getSavedControlBarStyle());
+    };
+    window.addEventListener("l-mpv-settings-changed", handleStyleChange);
+    return () => window.removeEventListener("l-mpv-settings-changed", handleStyleChange);
+  }, []);
+
+  const isCapsule = controlBarStyle === "capsule";
+  const isModern = controlBarStyle === "modern";
+
+  // Нормализованный начальный цвет
+  const normalizedInitial = useMemo(() => {
+    const parsed = hexToRgb(initialColor);
+    return parsed ? rgbToHex(parsed.r, parsed.g, parsed.b).toUpperCase() : "#7FC7FF";
+  }, [initialColor]);
+
+  const initRgb = useMemo(() => hexToRgb(normalizedInitial) || { r: 127, g: 199, b: 255 }, [normalizedInitial]);
+  const initHsl = useMemo(() => rgbToHsl(initRgb.r, initRgb.g, initRgb.b), [initRgb]);
+
+  // Цветовые компоненты HSL
   const [hue, setHue] = useState<number>(initHsl.h);
   const [saturation, setSaturation] = useState<number>(initHsl.s);
   const [lightness, setLightness] = useState<number>(initHsl.l);
 
-  const [hexInput, setHexInput] = useState<string>(initialColor.toUpperCase());
+  // Значения полей ввода
+  const [hexInput, setHexInput] = useState<string>(normalizedInitial.replace(/^#/, ""));
   const [rInput, setRInput] = useState<number>(initRgb.r);
   const [gInput, setGInput] = useState<number>(initRgb.g);
   const [bInput, setBInput] = useState<number>(initRgb.b);
 
-  const wheelCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const isDraggingRef = useRef<boolean>(false);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const [isClosing, setIsClosing] = useState<boolean>(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { isClosing, handleClose } = useOverlayDismiss({
+    onClose,
+    kind: "base",
+    closeOnEscape: true,
+  });
 
-  const handleClose = useCallback(() => {
-    if (isClosing) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-      setIsClosing(false);
-    }, getCloseTimeoutMs("base"));
-  }, [isClosing, onClose]);
-
+  // Управление фокусом при монтировании и размонтировании
   useEffect(() => {
+    returnFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusFrame = requestAnimationFrame(() => closeButtonRef.current?.focus());
     return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
+      cancelAnimationFrame(focusFrame);
+      returnFocusRef.current?.focus();
     };
   }, []);
 
-  // Закрытие модального окна по нажатию клавиши Escape
+  // Ловушка фокуса (Focus Trap)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        handleClose();
+      if (e.key !== "Tab" || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      ));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !dialogRef.current.contains(document.activeElement))) {
+        e.preventDefault();
+        first.focus();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -73,133 +106,68 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   }, [handleClose]);
 
   // Текущий вычисленный цвет
-  const currentRgb = hslToRgb(hue, saturation, lightness);
-  const currentHex = rgbToHex(currentRgb.r, currentRgb.g, currentRgb.b).toUpperCase();
+  const currentRgb = useMemo(() => hslToRgb(hue, saturation, lightness), [hue, saturation, lightness]);
+  const currentHex = useMemo(
+    () => rgbToHex(currentRgb.r, currentRgb.g, currentRgb.b).toUpperCase(),
+    [currentRgb]
+  );
 
-  // Оптимизированный цвет середины спектра для слайдера яркости
+  // Цвет середины спектра для слайдера яркости
   const sliderMidHex = useMemo(() => {
     const mid = hslToRgb(hue, saturation, 50);
     return rgbToHex(mid.r, mid.g, mid.b);
   }, [hue, saturation]);
 
-  // Отрисовка цветового круга спектра на Canvas
+  // Синхронизация полей ввода при изменении HSL
   useEffect(() => {
-    const canvas = wheelCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const size = canvas.width;
-    const center = size / 2;
-    const radius = center - 2;
-
-    const imgData = ctx.createImageData(size, size);
-    const data = imgData.data;
-
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const dx = x - center;
-        const dy = y - center;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        const index = (y * size + x) * 4;
-
-        if (dist <= radius) {
-          // Угол в градусах (0 - 360)
-          let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-          if (angle < 0) angle += 360;
-
-          // Насыщенность от 0 (в центре) до 100 (на краю)
-          const sat = Math.min(100, (dist / radius) * 100);
-
-          // Базовый спектр при 50% lightness
-          const rgb = hslToRgb(angle, sat, 50);
-
-          data[index] = rgb.r;
-          data[index + 1] = rgb.g;
-          data[index + 2] = rgb.b;
-          data[index + 3] = 255;
-        } else {
-          data[index + 3] = 0; // Прозрачный за границей круга
-        }
-      }
-    }
-
-    ctx.putImageData(imgData, 0, 0);
-  }, []);
-
-  // Синхронизация полей ввода при изменении hue/saturation/lightness
-  useEffect(() => {
-    setHexInput(currentHex);
+    setHexInput(currentHex.replace(/^#/, ""));
     setRInput(currentRgb.r);
     setGInput(currentRgb.g);
     setBInput(currentRgb.b);
-  }, [hue, saturation, lightness]);
+  }, [currentHex, currentRgb]);
 
-  // Обработка клика/перетаскивания по кругу
-  const handleWheelPointer = useCallback((clientX: number, clientY: number) => {
-    const canvas = wheelCanvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-
-    const center = rect.width / 2;
-    const dx = x - center;
-    const dy = y - center;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const maxRadius = center - 2;
-
-    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    if (angle < 0) angle += 360;
-
-    const sat = Math.min(100, Math.max(0, (dist / maxRadius) * 100));
-
-    setHue(Math.round(angle));
-    setSaturation(Math.round(sat));
+  // Обработчики изменений
+  const handleWheelChange = useCallback((newHue: number, newSat: number) => {
+    setHue(newHue);
+    setSaturation(newSat);
   }, []);
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    isDraggingRef.current = true;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    handleWheelPointer(e.clientX, e.clientY);
-  };
+  const handleBrightnessChange = useCallback((newLight: number) => {
+    setLightness(newLight);
+  }, []);
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (isDraggingRef.current) {
-      handleWheelPointer(e.clientX, e.clientY);
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    isDraggingRef.current = false;
-    try {
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch (_) {}
-  };
-
-  // Позиция маркера на круге
-  const wheelRadiusPx = 90; // половина 180px
-  const markerAngleRad = (hue * Math.PI) / 180;
-  const markerDist = (saturation / 100) * (wheelRadiusPx - 4);
-  const markerX = wheelRadiusPx + markerDist * Math.cos(markerAngleRad);
-  const markerY = wheelRadiusPx + markerDist * Math.sin(markerAngleRad);
-
-  // Ручной ввод HEX
-  const handleHexChange = (val: string) => {
-    setHexInput(val);
-    const parsedHex = val.startsWith("#") ? val : "#" + val;
-    const rgb = hexToRgb(parsedHex);
+  const handlePresetSelect = useCallback((presetHex: string) => {
+    const rgb = hexToRgb(presetHex);
     if (rgb) {
       const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
       setHue(hsl.h);
       setSaturation(hsl.s);
       setLightness(hsl.l);
     }
-  };
+  }, []);
 
-  // Ручной ввод RGB
-  const handleRgbChange = (r: number, g: number, b: number) => {
+  const handleRevertToInitial = useCallback(() => {
+    handlePresetSelect(normalizedInitial);
+  }, [handlePresetSelect, normalizedInitial]);
+
+  const handleHexChange = useCallback((val: string) => {
+    const clean = val.replace(/[^0-9A-Fa-f]/g, "").slice(0, 6);
+    setHexInput(clean);
+    if (clean.length === 6 || clean.length === 3) {
+      const full = clean.length === 3
+        ? clean.split("").map((c) => c + c).join("")
+        : clean;
+      const rgb = hexToRgb("#" + full);
+      if (rgb) {
+        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+        setHue(hsl.h);
+        setSaturation(hsl.s);
+        setLightness(hsl.l);
+      }
+    }
+  }, []);
+
+  const handleRgbChange = useCallback((r: number, g: number, b: number) => {
     setRInput(r);
     setGInput(g);
     setBInput(b);
@@ -207,244 +175,145 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     setHue(hsl.h);
     setSaturation(hsl.s);
     setLightness(hsl.l);
-  };
+  }, []);
 
-  return (
+  const handleConfirm = useCallback(() => {
+    onSelectColor(currentHex);
+    handleClose();
+  }, [onSelectColor, currentHex, handleClose]);
+
+  // Общий контент органов управления
+  const renderControls = () => (
+    <>
+      <PresetsRow currentHex={currentHex} onSelectPreset={handlePresetSelect} />
+      <ColorWheel
+        hue={hue}
+        saturation={saturation}
+        currentHex={currentHex}
+        onChange={handleWheelChange}
+      />
+      <BrightnessSlider
+        lightness={lightness}
+        sliderMidHex={sliderMidHex}
+        label={dict.settings.appearance.colorScheme.brightness}
+        onChange={handleBrightnessChange}
+      />
+      <ValuesCard
+        currentHex={currentHex}
+        initialHex={normalizedInitial}
+        hexInput={hexInput}
+        rInput={rInput}
+        gInput={gInput}
+        bInput={bInput}
+        onRevertToInitial={handleRevertToInitial}
+        onHexChange={handleHexChange}
+        onRgbChange={handleRgbChange}
+        onConfirm={handleConfirm}
+      />
+    </>
+  );
+
+  const renderActions = () => (
+    <ActionButtons
+      cancelLabel={dict.settings.appearance.colorScheme.cancel}
+      addLabel={dict.settings.appearance.colorScheme.add}
+      onCancel={handleClose}
+      onConfirm={handleConfirm}
+    />
+  );
+
+  return createPortal(
     <div
-      className={`modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`}
-      style={{
-        zIndex: 11000,
-        background: "rgba(0, 0, 0, 0.65)",
-        backdropFilter: "blur(10px)",
+      className={`modal-overlay color-picker-overlay ${isClosing ? "modal-overlay--closing" : ""}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleClose();
       }}
-      onClick={handleClose}
     >
-      <div
-        className={`modal color-picker-modal ${isClosing ? "modal--closing" : ""}`}
-        style={{
-          width: 330,
-          maxWidth: "92vw",
-          borderRadius: "16px",
-          padding: "18px 20px",
-          background: "linear-gradient(180deg, rgba(24, 28, 38, 0.98) 0%, rgba(14, 16, 24, 0.98) 100%)",
-          border: "1px solid rgba(255, 255, 255, 0.12)",
-          boxShadow: `0 20px 50px rgba(0, 0, 0, 0.65), 0 0 30px ${currentHex}30`,
-          overflow: "visible",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Шапка модалки */}
+      {isCapsule ? (
+        /* ─── АДАПТИВНЫЙ РЕЖИМ «КАПСУЛА» (Островные карточки) ─── */
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 16,
-          }}
+          ref={dialogRef}
+          className={`modal color-picker-modal color-picker-modal--capsule ${isClosing ? "modal--closing" : ""}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label={dict.settings.appearance.colorScheme.colorPickerTitle}
+          onClick={(e) => e.stopPropagation()}
         >
-          <span style={{ fontSize: "0.96rem", fontWeight: 700, color: "var(--text-primary)" }}>
-            {dict.settings.appearance.colorScheme.colorPickerTitle}
-          </span>
-          <button
-            onClick={handleClose}
-            className="modal__close"
-            title={dict.settings.appearance.colorScheme.colorPickerClose}
-            aria-label={dict.settings.appearance.colorScheme.colorPickerClose}
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Цветовой круг */}
-        <div
-          style={{
-            position: "relative",
-            width: 180,
-            height: 180,
-            margin: "0 auto 16px auto",
-            userSelect: "none",
-          }}
-        >
-          <canvas
-            ref={wheelCanvasRef}
-            width={180}
-            height={180}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            style={{
-              width: 180,
-              height: 180,
-              borderRadius: "50%",
-              cursor: "crosshair",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.4), inset 0 0 2px rgba(255,255,255,0.3)",
-              touchAction: "none",
-            }}
-          />
-          {/* Прицел-маркер на круге */}
-          <div
-            style={{
-              position: "absolute",
-              left: markerX,
-              top: markerY,
-              width: 14,
-              height: 14,
-              borderRadius: "50%",
-              border: "2px solid #ffffff",
-              boxShadow: "0 0 6px rgba(0,0,0,0.8), inset 0 0 2px rgba(0,0,0,0.8)",
-              transform: "translate(-50%, -50%)",
-              pointerEvents: "none",
-              backgroundColor: currentHex,
-            }}
-          />
-        </div>
-
-        {/* Слайдер яркости (Lightness) */}
-        <div style={{ marginBottom: 16 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: "0.78rem",
-              color: "var(--text-secondary)",
-              marginBottom: 6,
-            }}
-          >
-            <span>Яркость</span>
-            <span style={{ fontWeight: 600 }}>{lightness}%</span>
-          </div>
-          <input
-            type="range"
-            min="5"
-            max="95"
-            value={lightness}
-            onChange={(e) => setLightness(Number(e.target.value))}
-            style={{
-              width: "100%",
-              height: 8,
-              borderRadius: 4,
-              outline: "none",
-              appearance: "none",
-              background: `linear-gradient(90deg, #000000 0%, ${sliderMidHex} 50%, #ffffff 100%)`,
-              cursor: "pointer",
-            }}
-          />
-        </div>
-
-        {/* Блок превью и значений (HEX / RGB) */}
-        <div
-          style={{
-            background: "rgba(0, 0, 0, 0.35)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            borderRadius: "10px",
-            padding: "10px 12px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            marginBottom: 16,
-          }}
-        >
-          {/* Превью + HEX */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: "8px",
-                backgroundColor: currentHex,
-                boxShadow: `0 0 12px ${currentHex}80`,
-                border: "1px solid rgba(255,255,255,0.2)",
-                flexShrink: 0,
-              }}
-            />
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", fontWeight: 600 }}>
-                HEX:
+          {/* Верхний ряд островков: Заголовок и кнопка закрытия */}
+          <div className="color-picker-capsule-header">
+            <div className="color-picker-card color-picker-capsule-card--header">
+              <Palette size={16} className="t-accent" />
+              <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
+                {dict.settings.appearance.colorScheme.colorPickerTitle}
               </span>
-              <input
-                type="text"
-                value={hexInput}
-                onChange={(e) => handleHexChange(e.target.value)}
-                maxLength={7}
-                style={{
-                  width: "100%",
-                  padding: "5px 8px",
-                  background: "rgba(255, 255, 255, 0.06)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "6px",
-                  color: "#ffffff",
-                  fontSize: "0.84rem",
-                  fontFamily: "monospace",
-                  fontWeight: 600,
-                  outline: "none",
-                }}
-              />
+            </div>
+            <div className="color-picker-card color-picker-capsule-card--close">
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={handleClose}
+                className="island-action"
+                aria-label={dict.settings.appearance.colorScheme.colorPickerClose}
+              >
+                <X size={16} />
+              </button>
             </div>
           </div>
 
-          {/* RGB Поля */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", fontWeight: 600, width: 28 }}>
-              RGB:
-            </span>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, flex: 1 }}>
-              {(["R", "G", "B"] as const).map((ch, idx) => {
-                const val = idx === 0 ? rInput : idx === 1 ? gInput : bInput;
-                return (
-                  <div key={ch} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>{ch}</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={255}
-                      value={val}
-                      onChange={(e) => {
-                        const num = Math.min(255, Math.max(0, Number(e.target.value) || 0));
-                        if (idx === 0) handleRgbChange(num, gInput, bInput);
-                        else if (idx === 1) handleRgbChange(rInput, num, bInput);
-                        else handleRgbChange(rInput, gInput, num);
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "4px 4px",
-                        background: "rgba(255, 255, 255, 0.06)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "6px",
-                        color: "#ffffff",
-                        fontSize: "0.78rem",
-                        fontFamily: "monospace",
-                        textAlign: "center",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+          {/* Центральный остров: Контролы выбора цвета */}
+          <div className="color-picker-card color-picker-capsule-card--body">
+            {renderControls()}
+          </div>
+
+          {/* Нижний остров: Симметричные кнопки действий */}
+          <div className="color-picker-card color-picker-capsule-card--footer">
+            {renderActions()}
           </div>
         </div>
+      ) : (
+        /* ─── АДАПТИВНЫЕ РЕЖИМЫ «МОДЕРН» И «КЛАССИЧЕСКИЙ» ─── */
+        <div
+          ref={dialogRef}
+          className={`modal color-picker-modal ${
+            isModern ? "color-picker-modal--modern" : "color-picker-modal--docked"
+          } ${isClosing ? "modal--closing" : ""}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label={dict.settings.appearance.colorScheme.colorPickerTitle}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Шапка модального окна */}
+          <div className="modal__header">
+            <div className="row-center row-gap-3">
+              <Palette size={16} className="t-accent" />
+              <span className="modal__title" style={{ fontSize: "var(--fs-base)" }}>
+                {dict.settings.appearance.colorScheme.colorPickerTitle}
+              </span>
+            </div>
+            <button
+              ref={closeButtonRef}
+              type="button"
+              onClick={handleClose}
+              className="modal__close"
+              aria-label={dict.settings.appearance.colorScheme.colorPickerClose}
+            >
+              <X size={16} />
+            </button>
+          </div>
 
-        {/* Кнопки действий */}
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button
-            onClick={onClose}
-            className="settings-action-btn settings-action-btn--secondary"
-            style={{ height: 32, padding: "0 14px", fontSize: "0.82rem" }}
-          >
-            {dict.settings.appearance.colorScheme.cancel}
-          </button>
-          <button
-            onClick={() => {
-              onSelectColor(currentHex);
-              onClose();
-            }}
-            className="settings-action-btn settings-action-btn--primary"
-            style={{ height: 32, padding: "0 16px", fontSize: "0.82rem", gap: 6 }}
-          >
-            <Plus size={15} /> {dict.settings.appearance.colorScheme.add}
-          </button>
+          {/* Тело модального окна */}
+          <div className="modal__body">
+            {renderControls()}
+          </div>
+
+          {/* Футер модального окна */}
+          <div className="color-picker-modal__footer">
+            {renderActions()}
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </div>,
+    document.querySelector<HTMLElement>(".app-container") || document.body,
   );
 };

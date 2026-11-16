@@ -1,0 +1,542 @@
+/* ─── Стиль «Капсула»: общий dock с группами + отдельный таймлайн ── */
+/* Обертка капсулы: стандартная высота от нижнего края экрана (12px) */
+.player-controls-wrapper--capsule {
+  bottom: 12px;
+}
+
+.player-controls--capsule {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.player-controls--capsule:hover {
+  box-shadow: none !important;
+}
+
+.controls-island {
+  position: relative;
+  background: var(--bg-pill);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-pill);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+}
+
+/* Верхний ряд: парящий таймлайн и отдельная карточка времени */
+.controls-timeline-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+
+.controls-island--timeline {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 14px;
+  min-height: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.controls-island--timeline .timeline {
+  margin-bottom: 0;
+}
+
+/* Явная привязка геометрии таймлайна в стиле «Капсула» */
+.controls-island--timeline .timeline-col,
+.timeline-col--capsule {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* Позиционирование всплывающей плашки времени над таймлайном в стиле «Капсула» */
+.player-controls--capsule .timeline-preview-card,
+.controls-island--timeline .timeline-preview-card,
+.timeline-col--capsule .timeline-preview-card {
+  bottom: calc(100% + 15px);
+}
+
+/* Карточка времени — полноценный интерактивный элемент <button> с кликом по всей площади */
+button.controls-island--time,
+.controls-island--time {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-pill);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-pill);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  flex-shrink: 0;
+  min-height: 28px;
+  cursor: pointer;
+  user-select: none;
+  font: inherit;
+  color: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+.controls-island--time:active {
+  transform: scale(0.97);
+}
+
+.controls-island--time:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.controls-island--time .time-display {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-primary);
+  height: auto;
+  padding: 0;
+  background: transparent !important;
+  border-radius: 0;
+  pointer-events: none; /* Клик ловит вся карточка-кнопка целиком */
+}
+
+.controls-island--time .time-display:focus-visible {
+  outline: none !important;
+}
+
+.controls-island--time:hover .time-display {
+  background: transparent !important;
+  color: var(--accent-text);
+}
+
+/* Нижний ряд: единая внешняя карточка-панель (Floating Dock).
+   Объединяет все нижние островки в одну общую просторную стеклянную подложку,
+   строго согласованную по длине с верхней строкой таймлайна. */
+.controls-islands-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  --dock-padding-y: 7px;
+  --dock-padding-x: 10px;
+  --dock-border: 1px;
+  padding: var(--dock-padding-y) var(--dock-padding-x);
+  background: var(--bg-pill);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 18px);
+  box-shadow: var(--shadow-pill);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  box-sizing: border-box;
+}
+
+/* Группы карточек слева и справа: прозрачные флекс-контейнеры с комфортными отступами */
+.controls-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+/* Левая станция: дорожки, звук, визуализатор (прижаты к левому краю) */
+.controls-group--left {
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Правая станция: служебные утилиты и полный экран (прижаты к правому краю) */
+.controls-group--right {
+  justify-self: end;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Все дочерние карточки-островки: уменьшенные, компактные, изящные на фоне крупной подложки.
+   Концентрическое скругление: внутренний радиус = внешний радиус − отступы − рамка.
+   Радиус берётся у РЕАЛЬНОГО внешнего контейнера (--radius-controls), а не у
+   --radius-surface: иначе внутренние карточки «схлопывались» в почти прямые
+   углы (5×8px) и кнопка во всю ширину превращалась в квадрат. */
+.controls-islands-row .controls-island {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 42px;
+  background: var(--capsule-island-fill, var(--surface-level-3));
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  --island-radius-x: max(var(--radius-control), calc(var(--radius-controls, 16px) - var(--dock-padding-x) - var(--dock-border)));
+  --island-radius-y: max(var(--radius-control), calc(var(--radius-controls, 16px) - var(--dock-padding-y) - var(--dock-border)));
+  /* Each axis includes the current dock padding and its outer border. */
+  border-radius: var(--island-radius-x) / var(--island-radius-y);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-sizing: border-box;
+}
+
+/* Островок 1: Аудиодорожки и субтитры */
+.controls-island--tracks {
+  gap: var(--space-2);
+  padding: 0 8px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.player-controls--capsule .controls-island--tracks .control-btn--with-label {
+  min-width: 32px;
+  max-width: 140px;
+  flex-shrink: 1;
+  border-radius: var(--radius-control) !important;
+}
+
+.player-controls--capsule .controls-island--tracks .control-btn__label {
+  min-width: 0;
+  flex-shrink: 1;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* В полноэкранном режиме или на широких экранах увеличиваем ограничение на названия дорожек */
+.player-controls--capsule.player-controls--fullscreen .controls-island--tracks .control-btn--with-label,
+.player-controls-wrapper--fullscreen .player-controls--capsule .controls-island--tracks .control-btn--with-label {
+  max-width: 260px !important;
+}
+
+.player-controls--capsule.player-controls--fullscreen .controls-island--tracks .control-btn__label,
+.player-controls-wrapper--fullscreen .player-controls--capsule .controls-island--tracks .control-btn__label {
+  max-width: 210px !important;
+  display: block !important;
+}
+
+@container controls (min-width: 1300px) {
+  .player-controls--capsule .controls-island--tracks .control-btn--with-label {
+    max-width: 260px;
+  }
+  .player-controls--capsule .controls-island--tracks .control-btn__label {
+    max-width: 210px;
+  }
+}
+
+/* Островок 2: Звук (громкость) — математически выверенная зеркальная симметрия */
+.controls-island--volume {
+  gap: var(--space-2);
+  padding: 0 8px;
+  min-width: 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.player-controls--capsule .controls-island--volume .volume-slider {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.player-controls--capsule .controls-island--volume .volume-slider #btn-volume {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+}
+
+.player-controls--capsule .controls-island--volume .volume-slider__value {
+  min-width: 0;
+  padding: 0;
+  margin: 0 0 0 4px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transition: margin var(--t-fast) var(--ease-smooth);
+}
+
+.player-controls--capsule .controls-island--volume .volume-slider:hover .volume-slider__value,
+.player-controls--capsule .controls-island--volume .volume-slider:focus-within .volume-slider__value {
+  margin-left: 6px;
+}
+
+/* Островок 3: Аудиовизуализатор (отдельная самостоятельная карточка) */
+.controls-island--visualizer {
+  justify-content: center;
+  padding: 0 8px;
+  min-width: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.player-controls--capsule .controls-island--visualizer .audio-visualizer--toolbar {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  height: 26px;
+  padding: 0;
+  width: 64px;
+  min-width: 48px;
+  max-width: 80px;
+}
+
+/* Островок 4: Центральный транспорт (Play/Pause/Seek) — строго по центру */
+.controls-island--transport {
+  justify-self: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 16px;
+  flex-shrink: 0;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+/* Островок 5: Кнопки утилит (+90c, закрепление, субтитры, плейлист) */
+.controls-island--utilities {
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: 0 10px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+/* Островок 6: Отдельная карточка полноэкранного режима */
+.controls-island--fullscreen {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  padding: 0;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.controls-island--fullscreen #btn-fullscreen {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+}
+
+/* ─── Адаптивные медиа-правила стиля «Капсула» ─── */
+
+/* 1. Плавная адаптация при умеренном сужении окна (<= 1240px) */
+@container controls (max-width: 1240px) {
+  .controls-islands-row {
+    column-gap: 8px;
+  }
+  .player-controls--capsule .controls-island--tracks .control-btn__label {
+    max-width: 65px;
+  }
+  .controls-island--transport {
+    gap: 8px;
+    padding: 0 12px;
+  }
+}
+
+/* 2. Компактный оконный режим (<= 1080px, стандартные окна 1024px и меньше) */
+@container controls (max-width: 1080px) {
+  .controls-islands-row {
+    column-gap: 6px;
+    --dock-padding-y: 6px;
+    --dock-padding-x: 8px;
+  }
+  .controls-group {
+    gap: 5px;
+  }
+  .controls-island--transport {
+    gap: 6px;
+    padding: 0 10px;
+  }
+  /* Компактный режим кнопок дорожек: текстовые метки скрываются, остаются аккуратные иконки 32x32px */
+  .player-controls--capsule .controls-island--tracks .control-btn__label {
+    display: none !important;
+  }
+  .player-controls--capsule .controls-island--tracks .control-btn--with-label {
+    width: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  /* Компактная кнопка пропуска опенинга: подпись скрыта, иконка 32x32px сохраняется в панели */
+  .player-controls--capsule #btn-skip-opening .control-btn__label {
+    display: none !important;
+  }
+  .player-controls--capsule #btn-skip-opening {
+    width: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  /* Компактный тулбарный спектроанализатор */
+  .player-controls--capsule .controls-island--visualizer .audio-visualizer--toolbar {
+    max-width: 52px;
+    width: 52px;
+  }
+}
+
+/* 3. Малый оконный режим (<= 760px) */
+@container controls (max-width: 760px) {
+  .player-controls--capsule {
+    max-width: 100%;
+  }
+  .controls-islands-row {
+    column-gap: 5px;
+    --dock-padding-y: 4px;
+    --dock-padding-x: 4px;
+    min-height: 44px;
+  }
+  .controls-islands-row .controls-island {
+    height: 36px;
+    /* Radius follows dock padding and border from the shared island rule. */
+  }
+  .controls-group {
+    gap: 4px;
+  }
+  .controls-island--transport {
+    padding: 0 6px;
+    gap: 4px;
+  }
+  .controls-timeline-wrap {
+    gap: 6px;
+  }
+  .controls-island--time {
+    padding: 0 8px;
+  }
+  .controls-island--fullscreen {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+  .controls-island--fullscreen #btn-fullscreen {
+    width: 28px;
+    height: 28px;
+  }
+  .player-controls--capsule .control-btn--with-label {
+    padding: 0 !important;
+    min-width: 28px !important;
+    width: 28px !important;
+  }
+}
+
+@container controls (max-width: 600px) {
+  .player-controls--capsule {
+    gap: 4px;
+  }
+  .controls-islands-row {
+    min-height: 44px;
+    gap: 6px;
+  }
+  .controls-group {
+    gap: 4px;
+  }
+  .controls-island--tracks,
+  .controls-island--volume,
+  .controls-island--visualizer,
+  .controls-island--transport,
+  .controls-island--speed,
+  .controls-island--utilities,
+  .controls-island--fullscreen {
+    --fullscreen-island-size: 44px;
+    --fullscreen-button-size: 30px;
+    height: 44px;
+  }
+  .controls-island--tracks {
+    padding: 4px 6px;
+  }
+  .controls-island--volume {
+    padding: 4px 6px;
+  }
+  .controls-island--visualizer {
+    padding: 4px 6px;
+  }
+  .controls-island--utilities {
+    padding: 4px 6px;
+  }
+  .controls-island--fullscreen {
+    padding: 4px;
+  }
+  .controls-island--fullscreen #btn-fullscreen {
+    width: var(--fullscreen-button-size);
+    height: var(--fullscreen-button-size);
+  }
+  .controls-island--timeline,
+  .controls-island--time {
+    min-height: 26px;
+    padding: 4px 10px;
+  }
+}
+
+/* Скругление кнопок дорожек с подписями в стиле «Капсула» */
+.player-controls--capsule .control-btn--with-label {
+  border-radius: var(--radius-control) !important;
+}
+
+
+/* Кнопки в группе — самостоятельные действия; их форма не зависит от padding группы. */
+.player-controls--capsule .control-btn {
+  border-radius: var(--radius-control);
+}
+
+/* Fullscreen hover fill follows the actual inset inside its island. */
+.controls-islands-row .controls-island--fullscreen {
+  --fullscreen-island-size: 42px;
+  --fullscreen-button-size: 32px;
+  width: var(--fullscreen-island-size);
+  min-width: var(--fullscreen-island-size);
+  height: var(--fullscreen-island-size);
+}
+.controls-islands-row .controls-island--fullscreen #btn-fullscreen {
+  --fullscreen-inset: calc((var(--fullscreen-island-size) - var(--fullscreen-button-size)) / 2);
+  width: var(--fullscreen-button-size);
+  height: var(--fullscreen-button-size);
+  /* Радиус кнопки не может стать нулевым (иначе кнопка в островке
+     выглядит квадратом) и не может превышать радиус самого островка. */
+  border-radius: min(var(--radius-control), max(6px, calc(var(--island-radius-x) - var(--fullscreen-inset)))) / min(var(--radius-control), max(6px, calc(var(--island-radius-y) - var(--fullscreen-inset))));
+}
+@container controls (max-width: 760px) {
+  .controls-islands-row .controls-island--fullscreen {
+    --fullscreen-island-size: 36px;
+    --fullscreen-button-size: 28px;
+  }
+}
+@container controls (max-width: 600px) {
+  .controls-islands-row .controls-island--fullscreen {
+    --fullscreen-island-size: 44px;
+    --fullscreen-button-size: 30px;
+  }
+}

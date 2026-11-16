@@ -15,17 +15,22 @@ import { TrackPicker } from "./TrackPicker";
 import { SubtitlesModalHeader } from "./SubtitlesModalHeader";
 import { SubtitleSearchBar } from "./SubtitleSearchBar";
 import { SubtitleEmptyState } from "./SubtitleEmptyState";
-import { useSubtitlesAnalysis } from "./useSubtitlesAnalysis";
-import { useModalGeometry } from "./useModalGeometry";
-import { useActiveLineIndex } from "./useActiveLineIndex";
-import { useFollowPlayback } from "./useFollowPlayback";
-import { useSearchNavigation } from "./useSearchNavigation";
-import { usePersistentState } from "./usePersistentState";
+import { useSubtitlesAnalysis } from "./hooks/useSubtitlesAnalysis";
+import { useModalGeometry } from "./hooks/useModalGeometry";
+import { useActiveLineIndex } from "./hooks/useActiveLineIndex";
+import { useFollowPlayback } from "./hooks/useFollowPlayback";
+import { useSearchNavigation } from "./hooks/useSearchNavigation";
+import { usePersistentState } from "./hooks/usePersistentState";
+import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
+import {
+  getSavedControlBarStyle,
+  type ControlBarStyle,
+} from "../../utils/controlBarStyleUtils";
 import {
   MIN_MODAL_WIDTH,
   TECH_MODAL_MIN_WIDTH,
-  VIRTUAL_WINDOW_SIZE,
   ESTIMATED_ROW_HEIGHT_NORMAL,
   ESTIMATED_ROW_HEIGHT_TECH,
   SUBTITLE_VIEW_MODE_KEY,
@@ -38,6 +43,9 @@ import {
   type SubtitleViewMode,
   type SubtitlesSearchModalProps,
 } from "./subtitleTypes";
+import {
+  normalizeSubtitleLocale,
+} from "./subtitleTokenizer";
 
 /**
  * Интерактивный браузер и поиск по субтитрам (Searchable Subtitles Browser).
@@ -51,7 +59,7 @@ import {
  * заглушки — `SubtitleEmptyState`, строка списка — `SubtitleLineRow`.
  */
 export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
-  const { dict } = useTranslation();
+  const { dict, locale: appLocale } = useTranslation();
   const { seekTo } = usePlayerState();
   const { position } = usePlayerProgress();
 
@@ -107,6 +115,31 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   );
 
   // ── Непрозрачность окна ────────────────────────────────────────────────────
+  // ── Стиль панели управления (Капсула / Модерн / Классический) ──────────────
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
+    getSavedControlBarStyle()
+  );
+
+  useEffect(() => {
+    const handleStyleChanged = () => {
+      setControlBarStyle(getSavedControlBarStyle());
+    };
+    window.addEventListener("l-mpv-settings-changed", handleStyleChanged);
+    window.addEventListener(
+      "l-mpv-control-bar-style-changed",
+      handleStyleChanged
+    );
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", handleStyleChanged);
+      window.removeEventListener(
+        "l-mpv-control-bar-style-changed",
+        handleStyleChanged
+      );
+    };
+  }, []);
+
+  const isCapsule = controlBarStyle === "capsule";
+
   const [isOpaque, setIsOpaque] = usePersistentState<boolean>(
     SUBTITLE_OPAQUE_KEY,
     getInitialSubtitlesOpaque,
@@ -120,7 +153,11 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   // ── Базовые UI-состояния ───────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
   const [followPlayback, setFollowPlayback] = useState(true);
-  const [isClosing, setIsClosing] = useState(false);
+  const { isClosing, handleClose } = useOverlayDismiss({
+    onClose,
+    kind: "pop",
+    closeOnEscape: false,
+  });
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [clickedLineIndex, setClickedLineIndex] = useState<number | null>(
     null
@@ -136,10 +173,8 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const trackPickerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isClosingRef = useRef(false);
   const expectedScrollTopRef = useRef<number>(NaN);
   const lastManualNavTimeRef = useRef<number>(0);
 
@@ -184,10 +219,8 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   // ── Гарантированная очистка таймеров при размонтировании ──────────────────
   useEffect(() => {
     return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       if (clickedTimerRef.current) clearTimeout(clickedTimerRef.current);
-      isClosingRef.current = false;
     };
   }, []);
 
@@ -197,6 +230,32 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     const q = searchQuery.toLowerCase().trim();
     return lines.filter((l) => l.text.toLowerCase().includes(q));
   }, [lines, searchQuery]);
+
+  // ── Языковая локаль дорожки субтитров (ISO 639 -> BCP-47) ─────────────────
+  const activeSubLocale = useMemo(() => {
+    const trackLang = currentDisplayedTrack?.lang || activeTrack?.lang;
+    return normalizeSubtitleLocale(
+      trackLang,
+      appLocale === "ru" ? "ru-RU" : "en-US"
+    );
+  }, [currentDisplayedTrack?.lang, activeTrack?.lang, appLocale]);
+
+  // ── Статистика корпуса слов (быстрый подсчёт без блокировки UI) ─────────────
+  const corpusStats = useMemo(() => {
+    if (!lines || lines.length === 0) {
+      return { totalWords: 0, totalLines: 0, uniqueWords: 0, averageWpm: 0 };
+    }
+    // Быстрый неблокирующий подсчет слов для заголовка окна
+    let count = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const txt = lines[i].text;
+      if (txt) {
+        const words = txt.match(/[\p{L}\p{N}]+/gu);
+        if (words) count += words.length;
+      }
+    }
+    return { totalWords: count, totalLines: lines.length, uniqueWords: 0, averageWpm: 0 };
+  }, [lines]);
 
   // ── Активная реплика ───────────────────────────────────────────────────────
   const activeLineIndex = useActiveLineIndex({
@@ -245,24 +304,23 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   });
 
   // ── Виртуализация списка (Phantom Spacer) ──────────────────────────────────
-  // Для списков до 2500 строк виртуализация не требуется: WebView2 мгновенно
-  // рендерит легковесные мемоизированные элементы, гарантируя абсолютную плавность скролла.
+  // Виртуализируем всегда, когда строк больше 50 (на экран помещается ~12-16 строк).
+  // Это кардинально ускоряет монтирование модального окна и исключает лаги инспектора DevTools.
   const { visibleLines, paddingTop, paddingBottom } = useMemo(() => {
     const total = filteredLines.length;
-    if (total <= 2500) {
+    if (total <= 50) {
       return { visibleLines: filteredLines, paddingTop: 0, paddingBottom: 0 };
     }
 
-    const overscan = 50;
-    // Для сверхдлинных списков (> 2500 строк) окно отслеживает реальный скролл
-    // без скачков paddingTop при смене отдельной реплики
+    const overscan = 20;
+    const windowSize = 60;
     const center = Math.floor(scrollOffset / estimatedRowHeight);
 
     const start = Math.max(
       0,
-      Math.min(center - overscan, total - VIRTUAL_WINDOW_SIZE)
+      Math.min(center - overscan, Math.max(0, total - windowSize))
     );
-    const end = Math.min(total, start + VIRTUAL_WINDOW_SIZE);
+    const end = Math.min(total, start + windowSize);
 
     return {
       visibleLines: filteredLines.slice(start, end),
@@ -274,22 +332,6 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     scrollOffset,
     estimatedRowHeight,
   ]);
-
-  // ── Плавное закрытие окна ──────────────────────────────────────────────────
-  const handleClose = useCallback(() => {
-    if (isClosingRef.current) return;
-    isClosingRef.current = true;
-    setIsClosing(true);
-
-    const isNoAnim =
-      typeof document !== "undefined" &&
-      document.documentElement.classList.contains("no-animations");
-    if (isNoAnim) {
-      onClose();
-      return;
-    }
-    closeTimerRef.current = setTimeout(onClose, 155);
-  }, [onClose]);
 
   // ── Глобальные горячие клавиши (Escape, Ctrl+F, стрелки) ──────────────────
   useEffect(() => {
@@ -304,9 +346,14 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
         handleClose();
         return;
       }
+      const customHotkeys = getCustomHotkeys();
+      const searchKeys = customHotkeys.searchSubtitles || ["Ctrl+KeyF"];
+      const isSearchHotkey = searchKeys.some((k) => isKeyboardEventMatch(e, k));
+
       if (
-        (e.ctrlKey || e.metaKey) &&
-        (e.key === "f" || e.key === "F" || e.code === "KeyF")
+        isSearchHotkey ||
+        ((e.ctrlKey || e.metaKey) &&
+          (e.key === "f" || e.key === "F" || e.code === "KeyF"))
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -343,11 +390,23 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     const container = listContainerRef.current;
     if (!container) return;
     const currentTop = container.scrollTop;
-    if (Math.abs(currentTop - scrollOffsetRef.current) > 15) {
-      scrollOffsetRef.current = currentTop;
-      setScrollOffset(currentTop);
-    }
-    if (Math.abs(container.scrollTop - expectedScrollTopRef.current) <= 2) {
+    // Программная прокрутка уже обновляет ref до события scroll.
+    // Окно виртуализации сравниваем с React-состоянием, иначе оно застывает.
+    scrollOffsetRef.current = currentTop;
+    setScrollOffset((previous) =>
+      Math.abs(currentTop - previous) > 15 ? currentTop : previous
+    );
+    // Фильтрация и смена режима могут уменьшить scrollHeight: браузер
+    // ограничит прежнюю программную позицию новыми границами списка.
+    const expectedTop = Math.max(
+      0,
+      Math.min(
+        expectedScrollTopRef.current,
+        Math.max(0, container.scrollHeight - container.clientHeight)
+      )
+    );
+    if (Math.abs(currentTop - expectedTop) <= 2) {
+      expectedScrollTopRef.current = expectedTop;
       return;
     }
     lastManualNavTimeRef.current = Date.now();
@@ -413,13 +472,17 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
           ? "width 0.22s cubic-bezier(0.16, 1, 0.3, 1), right 0.22s cubic-bezier(0.16, 1, 0.3, 1)"
           : "none",
         pointerEvents: "none",
-        zIndex: 500,
+        zIndex: "var(--z-controls)",
         display: "flex",
         flexDirection: "column",
       }}
-    >
+      >
       <div
         className={`media-info__section subtitles-search-card ${
+          isCapsule ? "subtitles-search-card--capsule" : ""
+        } ${
+          isOpaque ? "subtitles-search-card--opaque" : ""
+        } ${
           isClosing ? "subtitles-search-card--closing" : ""
         } ${
           isResizing || isDragging ? "subtitles-search-card--resizing" : ""
@@ -429,28 +492,15 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
           flexDirection: "column",
           height: "100%",
           maxHeight: "100%",
-          overflow: "hidden",
-          background: isOpaque ? "#0b0f15" : "var(--bg-pill)",
-          backdropFilter: isOpaque ? "none" : "var(--ui-backdrop)",
-          WebkitBackdropFilter: isOpaque ? "none" : "var(--ui-backdrop)",
-          border: isOpaque
-            ? "1px solid rgba(255, 255, 255, 0.15)"
-            : "1px solid var(--border-pill)",
-          borderRadius: "var(--radius-lg)",
-          padding: "16px",
-          boxShadow: isOpaque
-            ? "0 10px 40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.08)"
-            : "var(--shadow-lg), 0 0 35px rgba(0, 0, 0, 0.5)",
           pointerEvents: "auto",
         }}
         onClick={(e) => e.stopPropagation()}
-      >
+        >
         {/* Ручка изменения ширины слева */}
         <div
           className="subtitles-search-card__resize-handle"
           onMouseDown={handleResizeStart}
           onDoubleClick={handleResetWidth}
-          title={dict.subtitlesSearch.resizeTooltip}
         />
 
         {/* Шапка */}
@@ -458,6 +508,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
           viewMode={viewMode}
           isOpaque={isOpaque}
           isAnalyzing={isAnalyzing}
+          isCapsule={isCapsule}
           onToggleViewMode={handleToggleViewMode}
           onToggleOpaque={handleToggleOpaque}
           onReanalyze={handleReanalyze}
@@ -468,76 +519,117 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
 
         {/* Панель дорожек */}
         {subTracks.length > 0 ? (
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              alignItems: "center",
-              marginBottom: "10px",
-              flexShrink: 0,
-            }}
-          >
-            <TrackPicker
-              subTracks={subTracks}
-              activeTrack={activeTrack}
-              currentDisplayedTrack={currentDisplayedTrack}
-              selectedTrackId={selectedTrackId}
-              isOpen={isTrackPickerOpen}
-              onToggle={() => setIsTrackPickerOpen((prev) => !prev)}
-              onSelect={handlePickTrack}
-              onDisable={handlePickerDisable}
-              pickerRef={trackPickerRef}
-            />
-
-            <button
-              type="button"
-              onClick={() => setFollowPlayback((prev) => !prev)}
+          isCapsule ? (
+            <div
+              className={`subtitles-capsule-row subtitles-capsule-row--tracks ${
+                isTrackPickerOpen ? "subtitles-capsule-row--open" : ""
+              }`}
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                padding: "7px 12px",
-                background: followPlayback
-                  ? "rgba(var(--accent-rgb, 127, 199, 255), 0.20)"
-                  : "rgba(255, 255, 255, 0.05)",
-                border: "1px solid",
-                borderColor: followPlayback
-                  ? "var(--accent)"
-                  : "var(--border-pill)",
-                borderRadius: "var(--radius-xs)",
-                color: followPlayback
-                  ? "var(--accent)"
-                  : "var(--text-secondary)",
-                fontSize: "0.8rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                flexShrink: 0,
-                transition: "all 0.15s ease",
+                position: "relative",
+                zIndex: isTrackPickerOpen ? 30 : 3,
               }}
-              className="hover-bright"
-              title={dict.subtitlesSearch.followTooltip}
             >
-              <Radio
-                size={13}
-                className={followPlayback ? "pulse-subtle" : ""}
+              {/* Карточка 1: Выбор дорожки */}
+              <div className="subtitles-card subtitles-card--track-picker">
+                <TrackPicker
+                  subTracks={subTracks}
+                  activeTrack={activeTrack}
+                  currentDisplayedTrack={currentDisplayedTrack}
+                  selectedTrackId={selectedTrackId}
+                  isOpen={isTrackPickerOpen}
+                  onToggle={() => setIsTrackPickerOpen((prev) => !prev)}
+                  onSelect={handlePickTrack}
+                  onDisable={handlePickerDisable}
+                  pickerRef={trackPickerRef}
+                />
+              </div>
+
+              {/* Карточка 2: Отслеживание (кнопка следования за речью) */}
+              <button
+                type="button"
+                onClick={() => setFollowPlayback((prev) => !prev)}
+                className={`subtitles-card subtitles-card--follow-btn hover-bright ${
+                  followPlayback ? "subtitles-card--follow-btn--active" : ""
+                }`}
+                title={dict.subtitlesSearch.followTooltip}
+              >
+                <Radio size={14} />
+                <span>{dict.subtitlesSearch.tracking}</span>
+              </button>
+            </div>
+          ) : (
+            <div
+              className={`subtitles-search-card__track-row ${
+                isTrackPickerOpen ? "subtitles-search-card__track-row--open" : ""
+              }`}
+              style={{
+                display: "flex",
+                gap: "var(--space-4)",
+                alignItems: "center",
+                marginBottom: "var(--space-5)",
+                flexShrink: 0,
+                position: "relative",
+                zIndex: isTrackPickerOpen ? 30 : 3,
+              }}
+            >
+              <TrackPicker
+                subTracks={subTracks}
+                activeTrack={activeTrack}
+                currentDisplayedTrack={currentDisplayedTrack}
+                selectedTrackId={selectedTrackId}
+                isOpen={isTrackPickerOpen}
+                onToggle={() => setIsTrackPickerOpen((prev) => !prev)}
+                onSelect={handlePickTrack}
+                onDisable={handlePickerDisable}
+                pickerRef={trackPickerRef}
               />
-              <span>
-                {followPlayback
-                  ? dict.subtitlesSearch.followSpeech
-                  : dict.subtitlesSearch.followOff}
-              </span>
-            </button>
-          </div>
+
+              <button
+                type="button"
+                onClick={() => setFollowPlayback((prev) => !prev)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "var(--space-3)",
+                  padding: "7px 12px",
+                  background: followPlayback
+                    ? "var(--surface-accent-subtle)"
+                    : "var(--surface-level-3)",
+                  border: "1px solid",
+                  borderColor: followPlayback
+                    ? "var(--accent)"
+                    : "var(--border-pill)",
+                  borderRadius: "var(--radius-control)",
+                  color: followPlayback
+                    ? "var(--accent-text)"
+                    : "var(--text-secondary)",
+                  fontSize: "var(--fs-sm)",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  transition: "all 0.15s ease",
+                }}
+                className={`subtitles-search-card__follow-btn hover-bright ${
+                  followPlayback ? "subtitles-search-card__follow-btn--active" : ""
+                }`}
+                title={dict.subtitlesSearch.followTooltip}
+              >
+                <Radio size={13} />
+                <span>{dict.subtitlesSearch.tracking}</span>
+              </button>
+            </div>
+          )
         ) : (
           <div
+            className={`subtitles-search-card__no-tracks ${isCapsule ? "subtitles-card" : ""}`}
             style={{
               padding: "8px 12px",
-              background: "rgba(255, 255, 255, 0.03)",
-              borderRadius: "var(--radius-xs)",
+              background: isCapsule ? undefined : "rgba(255, 255, 255, 0.03)",
+              borderRadius: isCapsule ? undefined : "var(--radius-control)",
               color: "var(--text-muted)",
-              fontSize: "0.8rem",
-              marginBottom: "10px",
+              fontSize: "var(--fs-sm)",
+              marginBottom: isCapsule ? 0 : "var(--space-5)",
               textAlign: "center",
             }}
           >
@@ -549,6 +641,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
         <SubtitleSearchBar
           searchQuery={searchQuery}
           totalLines={lines.length}
+          totalWords={corpusStats.totalWords}
           filteredCount={filteredLines.length}
           navAnchor={navAnchor}
           navPos={navPos}
@@ -581,22 +674,25 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
             if (
               followPlayback &&
               e.deltaY !== 0 &&
-              Math.abs(e.deltaY) > Math.abs(e.deltaX)
+              Math.abs(e.deltaY)> Math.abs(e.deltaX)
             ) {
               setFollowPlayback(false);
             }
           }}
-          className="custom-scrollbar"
+          className="custom-scrollbar subtitles-search-card__list"
           style={{
             flex: 1,
             minHeight: 0,
             overflowY: "auto",
+            // Смещение при замене виртуального окна контролирует сам список.
+            overflowAnchor: "none",
+            scrollbarGutter: "stable",
             display: "flex",
             flexDirection: "column",
-            gap: "4px",
-            paddingRight: "4px",
+            gap: "var(--space-2)",
+            paddingRight: "var(--space-2)",
           }}
-        >
+          >
           {/* Пустые состояния */}
           {(isAnalyzing && lines.length === 0) ||
           lines.length === 0 ||
@@ -615,9 +711,9 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                 paddingBottom: `${paddingBottom}px`,
                 display: "flex",
                 flexDirection: "column",
-                gap: "4px",
+                gap: "var(--space-2)",
               }}
-            >
+              >
               {visibleLines.map((line) => {
                 const isActive = line.index === activeLineIndex;
                 return (
@@ -625,7 +721,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                     key={line.index}
                     ref={isActive ? activeLineElRef : null}
                     data-sub-idx={line.index}
-                  >
+                    >
                     <SubtitleLineRow
                       line={line}
                       isActive={isActive}
@@ -634,6 +730,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                       isCopied={copiedIndex === line.index}
                       viewMode={viewMode}
                       rawFormat={rawFormat}
+                      locale={activeSubLocale}
                       onToggleRawFormat={setRawFormat}
                       onSeek={handleSeek}
                       onCopy={handleCopyText}

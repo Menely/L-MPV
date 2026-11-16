@@ -2,11 +2,15 @@
 //! и универсальной библиотекой ONNX-моделей.
 
 pub mod config;
+pub mod compatibility;
 pub mod controller;
 pub mod downloader;
 pub mod engine_builder;
 pub mod hardware;
 pub mod types;
+mod verification_cache;
+mod archive_integrity;
+mod operation;
 
 // Реэкспорт моделей данных для использования внешними модулями
 pub use config::{
@@ -14,6 +18,7 @@ pub use config::{
     get_inference_dir, get_models_dir, get_upscale_conf_path, scan_onnx_models_internal,
     write_upscale_conf,
 };
+pub use engine_builder::shutdown_active_processes;
 pub use hardware::{detect_system_gpu, determine_nvidia_sm};
 pub use types::{GpuHardwareInfo, ModelFileItem, UpscaleSettings, UpscaleStatus};
 
@@ -24,32 +29,26 @@ use tauri::State;
 
 /// Получение статуса подсистемы апскейлинга и списка моделей
 #[tauri::command]
-pub fn get_upscale_status() -> UpscaleStatus {
-    std::panic::catch_unwind(config::check_upscale_status_internal).unwrap_or_else(|e| {
-        eprintln!("[L-MPV][Upscale] Ошибка получения статуса апскейлинга: {:?}", e);
-        UpscaleStatus {
-            filter_supported: true,
-            aji_present: false,
-            directml_present: false,
-            tensorrt_present: false,
-            models_count: 0,
-            models_dir: String::new(),
-            models: Vec::new(),
-            gpu_info: hardware::detect_system_gpu(),
-        }
-    })
+pub async fn get_upscale_status() -> Result<UpscaleStatus, String> {
+    tauri::async_runtime::spawn_blocking(config::check_upscale_status_internal)
+        .await
+        .map_err(|e| format!("Upscale status verification failed: {e}"))
 }
 
 /// Получение детальных сведений об аппаратном видеоадаптере (GPU)
 #[tauri::command]
-pub fn get_system_gpu_info() -> GpuHardwareInfo {
-    hardware::detect_system_gpu()
+pub async fn get_system_gpu_info() -> Result<GpuHardwareInfo, String> {
+    tauri::async_runtime::spawn_blocking(hardware::detect_system_gpu)
+        .await
+        .map_err(|e| format!("GPU detection failed: {e}"))
 }
 
 /// Сканирование универсальной папки моделей `models/onnx/`
 #[tauri::command]
-pub fn scan_onnx_models() -> Vec<ModelFileItem> {
-    config::scan_onnx_models_internal()
+pub async fn scan_onnx_models() -> Result<Vec<ModelFileItem>, String> {
+    tauri::async_runtime::spawn_blocking(config::scan_onnx_models_internal)
+        .await
+        .map_err(|e| format!("Model verification failed: {e}"))
 }
 
 /// Открытие папки моделей в системном Проводнике Windows
@@ -66,11 +65,16 @@ pub fn open_inference_folder() -> Result<(), String> {
 
 /// Применение настроек апскейлинга (режим, бэкенд, активный слот)
 #[tauri::command]
-pub fn apply_upscale_settings(
+pub async fn apply_upscale_settings(
     state: State<'_, PlayerState>,
     settings: UpscaleSettings,
 ) -> Result<(), String> {
-    controller::apply_upscale_settings_impl(&state, settings)
+    let mpv = state.mpv.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        controller::apply_upscale_settings_impl(&mpv, settings)
+    })
+    .await
+    .map_err(|e| format!("Upscale activation failed: {e}"))?
 }
 
 /// Фоновая загрузка библиотек движка инференса (DirectML / TensorRT)
@@ -84,18 +88,25 @@ pub async fn download_inference_engine(
 
 /// Удаление библиотек выбранного движка инференса из каталога inference/
 #[tauri::command]
-pub fn delete_inference_engine(backend: String) -> Result<String, String> {
-    downloader::delete_inference_engine_impl(backend)
+pub async fn delete_inference_engine(backend: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || downloader::delete_inference_engine_impl(backend))
+        .await
+        .map_err(|e| format!("Runtime deletion failed: {e}"))?
 }
 
 /// Переключение видов нейросетей по горячим клавишам Shift+1..4 на лету
 #[tauri::command]
-pub fn switch_upscale_network_hotkey(
+pub async fn switch_upscale_network_hotkey(
     state: State<'_, PlayerState>,
     slot: u32,
     backend: Option<String>,
 ) -> Result<(), String> {
-    controller::switch_upscale_network_hotkey_impl(&state, slot, backend)
+    let mpv = state.mpv.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        controller::switch_upscale_network_hotkey_impl(&mpv, slot, backend)
+    })
+    .await
+    .map_err(|e| format!("Upscale switching failed: {e}"))?
 }
 
 /// Предварительная фоновая компиляция TensorRT .engine для конкретной модели под 1080p
@@ -129,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_gpu_detection() {
-        let gpu = get_system_gpu_info();
+        let gpu = hardware::detect_system_gpu();
         println!("\n=== Тест распознавания GPU ===");
         println!("Имя: {}", gpu.name);
         println!("Производитель: {}", gpu.vendor);

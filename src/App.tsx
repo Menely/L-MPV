@@ -1,42 +1,62 @@
+import { toggleAmbientMode } from "./utils/ambientPreviewQueue";
+import { upscaleErrorMessage } from "./utils/upscaleCompatibility";
 import {
   useState,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   lazy,
   Suspense,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
-import { isMotionAllowed, CLOSE_OSD_MS } from "./utils/animationUtils";
 import { usePlayerState } from "./contexts/PlayerStateContext";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { useOsd, showOsd } from "./hooks/useOsd";
+import { useAutoUpscale } from "./hooks/useAutoUpscale";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Play } from "lucide-react";
 import "./index.css";
 import { Titlebar } from "./components/player/Titlebar";
+import { FileDragPreview } from "./components/player/FileDragPreview";
 import { PlayerControls } from "./components/player/PlayerControls";
 import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
+import { SeekIndicator } from "./components/player/SeekIndicator";
+import { VolumeIndicator } from "./components/player/VolumeIndicator";
+import { triggerVolumeFeedback } from "./utils/volumeFeedback";
 import { UpdateInfo } from "./components/modals/UpdateModal";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
 import { applyAccentColor } from "./utils/colorUtils";
-import { getCustomHotkeys, isKeyboardEventMatch } from "./utils/hotkeyUtils";
+import {
+  getCustomHotkeys,
+  isKeyboardEventMatch,
+  VIDEO_MOUSE_ACTIONS,
+} from "./utils/hotkeyUtils";
+import { getFavoriteModel } from "./utils/favoriteModel";
+import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
-
-// Тяжёлые модалки грузятся лениво: в стартовый бандл не попадают,
-// парсятся только при первом открытии (dnd-kit едет вместе с настройками).
+import { useTranslation } from "./i18n/LanguageContext";
+import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
+import { getSavedSeekStepSeconds, triggerSeekIndicator } from "./utils/seekUtils";
+import { subtitleControlsOffset } from "./utils/subtitleUiGeometry";
+import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
+import {
+  SettingsModalView as SettingsModal,
+  SettingsPanelView as SettingsPanel,
+  useSettingsModulePreload,
+} from "./components/settings/lib/settingsModulePreload";
+// Settings stay out of the startup bundle; warm the selected view after the first frame.
 const MediaInfoModal = lazy(() =>
   import("./components/modals/MediaInfoModal").then((m) => ({ default: m.MediaInfoModal }))
 );
 const ChaptersModal = lazy(() =>
   import("./components/modals/ChaptersModal").then((m) => ({ default: m.ChaptersModal }))
 );
-const SettingsModal = lazy(() =>
-  import("./components/modals/SettingsModal").then((m) => ({ default: m.SettingsModal }))
-);
+
+
 const UpdateModal = lazy(() =>
   import("./components/modals/UpdateModal").then((m) => ({ default: m.UpdateModal }))
 );
@@ -48,6 +68,7 @@ const SubtitlesSearchModal = lazy(() =>
 );
 
 function App() {
+  const { dict } = useTranslation();
   const {
     hasMedia,
     isIdle,
@@ -55,18 +76,23 @@ function App() {
     isPlaylistOpen,
     setIsPlaylistOpen,
     togglePause,
+    seekBy,
     setVolume,
     isFullscreen,
     toggleFullscreen,
     cycleAudioTrack,
     cycleSubTrack,
     loadTracks,
+    prolongControlsIfActive,
   } = usePlayerState();
   
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
   } | null>(null);
+  const contextMenuRef = useRef(contextMenu);
+  contextMenuRef.current = contextMenu;
+  const lastContextMenuCloseTimeRef = useRef<number>(0);
 
   const [showMediaInfo, setShowMediaInfo] = useState(false);
   const [isMediaInfoOpen, setIsMediaInfoOpen] = useState(false);
@@ -76,8 +102,7 @@ function App() {
   const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showUpdateToast, setShowUpdateToast] = useState(false);
-  const [osdText, setOsdText] = useState<string | null>(null);
-  const [isOsdClosing, setIsOsdClosing] = useState<boolean>(false);
+  const { osdText, isOsdClosing, isOsdError, triggerOsd, clearOsd, getOsdText } = useOsd();
   const [isCursorInUpperHalf, setIsCursorInUpperHalf] = useState(false);
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => {
     try {
@@ -94,10 +119,74 @@ function App() {
     }
   });
   
+  const [settingsStyle, setSettingsStyle] = useState<UiSettingsStyle>(getSavedUiSettingsStyle);
+  useSettingsModulePreload(
+    hasMedia && Boolean(mediaInfo?.video_ready || mediaInfo?.video_track === false),
+    settingsStyle,
+  );
+  const settingsWasOpenRef = useRef(false);
+
+  const openSettings = useCallback(() => {
+    setIsPlaylistOpen(false);
+    setShowMediaInfo(false);
+    setShowChapters(false);
+    setShowSubtitlesSearch(false);
+    setShowUpdateToast(false);
+    setContextMenu(null);
+    setShowSettings(true);
+  }, []);
+
+  const closeSettings = useCallback(() => {
+    setShowSettings(false);
+  }, []);
+
+  const toggleSettings = useCallback(() => {
+    if (showSettings) {
+      setShowSettings(false);
+    } else {
+      setIsPlaylistOpen(false);
+      setShowMediaInfo(false);
+      setShowChapters(false);
+      setShowSubtitlesSearch(false);
+      setShowUpdateToast(false);
+      setContextMenu(null);
+      setShowSettings(true);
+    }
+  }, [showSettings]);
+
+  useEffect(() => {
+    const handleSettingsStyleChanged = (e: Event) => {
+      const ce = e as CustomEvent<UiSettingsStyle>;
+      if (ce.detail === "modal" || ce.detail === "sidebar") {
+        setSettingsStyle(ce.detail);
+      }
+    };
+    window.addEventListener("l-mpv-ui-settings-style-changed", handleSettingsStyleChanged);
+    return () => window.removeEventListener("l-mpv-ui-settings-style-changed", handleSettingsStyleChanged);
+  }, []);
+
+  useEffect(() => {
+    if (!showSettings) {
+      setSettingsStyle(getSavedUiSettingsStyle());
+    }
+  }, [showSettings]);
+
+  useLayoutEffect(() => {
+    if (settingsWasOpenRef.current && !showSettings) {
+      resetSettingsViewSession();
+    }
+    settingsWasOpenRef.current = showSettings;
+    document.body.classList.toggle(
+      "settings-open",
+      showSettings && settingsStyle === "sidebar",
+    );
+    return () => {
+      document.body.classList.remove("settings-open");
+    };
+  }, [showSettings, settingsStyle]);
+
   const mediaTitle = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "";
 
-  const osdTimerRef = useRef<number | null>(null);
-  const osdFadeTimerRef = useRef<number | null>(null);
   const clickTimerRef = useRef<number | null>(null);
   const hasMediaRef = useRef(hasMedia);
   const isSteppingRef = useRef(false);
@@ -106,36 +195,7 @@ function App() {
   const videoPanYRef = useRef<number>(0);
   const rafIdRef = useRef<number | null>(null);
 
-  const triggerOsd = useCallback((text: string, durationMs: number = 1400) => {
-    if (osdTimerRef.current !== null) {
-      window.clearTimeout(osdTimerRef.current);
-      osdTimerRef.current = null;
-    }
-    if (osdFadeTimerRef.current !== null) {
-      window.clearTimeout(osdFadeTimerRef.current);
-      osdFadeTimerRef.current = null;
-    }
-    setIsOsdClosing(false);
-    setOsdText(text);
 
-    const fadeDuration = isMotionAllowed() ? CLOSE_OSD_MS : 0;
-
-    osdTimerRef.current = window.setTimeout(() => {
-      if (fadeDuration > 0) {
-        setIsOsdClosing(true);
-        osdFadeTimerRef.current = window.setTimeout(() => {
-          setOsdText(null);
-          setIsOsdClosing(false);
-          osdFadeTimerRef.current = null;
-        }, fadeDuration);
-      } else {
-        setOsdText(null);
-        setIsOsdClosing(false);
-      }
-      osdTimerRef.current = null;
-    }, durationMs);
-  }, []);
-  
   useEffect(() => {
     hasMediaRef.current = hasMedia;
     videoZoomRef.current = 0;
@@ -147,10 +207,10 @@ function App() {
     if (isPlaylistOpen) {
       setShowChapters(false);
       setShowMediaInfo(false);
-      setShowSettings(false);
+      closeSettings();
       setShowSubtitlesSearch(false);
     }
-  }, [isPlaylistOpen]);
+  }, [closeSettings, isPlaylistOpen]);
 
   useEffect(() => {
     const savedVol = localStorage.getItem('l-mpv-volume');
@@ -224,7 +284,7 @@ function App() {
       // Расширенная буферная зона (320px от правого края), чтобы интерфейс не исчезал при подведении мыши левее кнопок
       const target = e.target as HTMLElement | null;
       const isOverWindowControls = Boolean(target?.closest(".titlebar__controls"));
-      const isWindowControlsArea = e.clientX >= window.innerWidth - 320;
+      const isWindowControlsArea = e.clientX>= window.innerWidth - 320;
 
       // Если курсор находится над крестиком, кнопками окна или на подходе к ним — ни в коем случае не скрываем интерфейс
       if (isOverWindowControls || isWindowControlsArea) {
@@ -252,75 +312,66 @@ function App() {
 
   const shouldHideControlsInUpperHalf = hasMedia && hideControlsInUpperHalf && isCursorInUpperHalf;
   const isControlsVisible = hasMedia && !isIdle && !shouldHideControlsInUpperHalf;
-  const lastAppliedAvoidControlsRef = useRef<boolean | null>(null);
-  const lastAvoidMediaPathRef = useRef<string | undefined>(undefined);
-  const lastWindowHeightRef = useRef<number>(window.innerHeight);
-
-  // Динамическое смещение субтитров выше интерфейса при его активности
+  const subtitleUpdateQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  // Measure the rendered panel: capsule, modern, docked and CSS zoom have
+  // different heights. Layout changes must update subtitles without mouse input.
   useEffect(() => {
     if (!hasMedia) {
-      lastAppliedAvoidControlsRef.current = null;
-      lastAvoidMediaPathRef.current = undefined;
+      subtitleUpdateQueueRef.current = subtitleUpdateQueueRef.current.catch(() => {}).then(() =>
+        invoke("update_subtitles_avoid_ui", { controlsVisible: false }),
+      ).catch(console.error);
       return;
     }
-
-    const isNewMedia = lastAvoidMediaPathRef.current !== mediaInfo?.path;
-    lastAvoidMediaPathRef.current = mediaInfo?.path;
-    if (isNewMedia) {
-      lastAppliedAvoidControlsRef.current = null;
-    }
-
-    const targetVisible = subtitlesAvoidUi ? isControlsVisible : false;
-
-    const applySubtitlePosition = () => {
-      lastWindowHeightRef.current = window.innerHeight;
-      invoke("update_subtitles_avoid_ui", {
-        controlsVisible: targetVisible,
-        windowHeight: window.innerHeight,
-      }).catch(console.error);
-    };
-
-    const heightChanged = Math.abs(window.innerHeight - lastWindowHeightRef.current) > 2;
-    if (lastAppliedAvoidControlsRef.current !== targetVisible || isNewMedia || (targetVisible && heightChanged)) {
-      lastAppliedAvoidControlsRef.current = targetVisible;
-      applySubtitlePosition();
-    }
-
-    // При изменении размера окна или переключении fullscreen пересчитываем позицию
-    const handleResize = () => {
-      if (subtitlesAvoidUi && isControlsVisible) {
-        if (Math.abs(window.innerHeight - lastWindowHeightRef.current) > 2) {
-          applySubtitlePosition();
+    const wrapper = document.querySelector<HTMLElement>(".player-controls-wrapper");
+    let cancelled = false;
+    let pending = false;
+    let running = false;
+    let lastApplied = "";
+    const apply = async () => {
+      pending = true;
+      if (running) return;
+      running = true;
+      while (pending && !cancelled) {
+        pending = false;
+        const controls = wrapper?.querySelector<HTMLElement>(".player-controls");
+        const bottom = wrapper ? parseFloat(getComputedStyle(wrapper).bottom) || 0 : 0;
+        const offset = controls ? subtitleControlsOffset(
+          controls.getBoundingClientRect().height, controls.offsetHeight, bottom,
+        ) : 0;
+        const controlsVisible = subtitlesAvoidUi && isControlsVisible && offset > 0;
+        const args = { controlsVisible, windowHeight: window.innerHeight, controlsBottom: offset };
+        const key = JSON.stringify(args);
+        if (key === lastApplied) continue;
+        try {
+          const update = subtitleUpdateQueueRef.current.catch(() => {}).then(() => {
+            if (!cancelled) return invoke("update_subtitles_avoid_ui", args);
+          });
+          subtitleUpdateQueueRef.current = update;
+          await update;
+          lastApplied = key;
+        } catch (error) {
+          console.error("Subtitle UI positioning failed:", error);
         }
       }
+      running = false;
     };
-
-    window.addEventListener("resize", handleResize);
+    const observer = new ResizeObserver(() => { void apply(); });
+    // The wrapper survives style switches; its panel subtree does not.
+    if (wrapper) observer.observe(wrapper);
+    const update = () => { void apply(); };
+    window.addEventListener("resize", update);
+    window.addEventListener("l-mpv-settings-changed", update);
+    void apply();
     return () => {
-      window.removeEventListener("resize", handleResize);
+      cancelled = true;
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+      window.removeEventListener("l-mpv-settings-changed", update);
     };
   }, [hasMedia, mediaInfo?.path, subtitlesAvoidUi, isControlsVisible, isFullscreen]);
 
   const isStandaloneModeRef = useRef(false);
 
-  useEffect(() => {
-    const handleOsd = (e: Event) => {
-      const text = (e as CustomEvent).detail;
-      triggerOsd(text, 1400);
-    };
-    window.addEventListener("show-osd", handleOsd);
-    return () => {
-      window.removeEventListener("show-osd", handleOsd);
-      if (osdTimerRef.current !== null) {
-        window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = null;
-      }
-      if (osdFadeTimerRef.current !== null) {
-        window.clearTimeout(osdFadeTimerRef.current);
-        osdFadeTimerRef.current = null;
-      }
-    };
-  }, [triggerOsd]);
 
   useEffect(() => {
     invoke<boolean>("is_standalone_mode")
@@ -330,7 +381,11 @@ function App() {
       .catch(console.error);
 
     const unlistenFile = listen<string>('open-file-cli', (event) => {
-      invoke("open_file", { path: event.payload }).catch(console.error);
+      invoke("open_file", { path: event.payload }).catch((err) => {
+        console.error("Ошибка открытия файла из CLI:", err);
+        const dict = getDict(getEffectiveLocale());
+        triggerOsd(dict.osd.openFileErr, 3200, true);
+      });
     });
 
     const unlistenMediaInfo = listen<string>('open-mediainfo-cli', (event) => {
@@ -357,12 +412,47 @@ function App() {
   }, [mediaInfo?.path]);
 
   const isWindowRevealedRef = useRef(false);
+  const startupRetryRef = useRef<number | null>(null);
+  const startupRetryActiveRef = useRef(true);
+  useEffect(() => {
+    startupRetryActiveRef.current = true;
+    return () => {
+      startupRetryActiveRef.current = false;
+      if (startupRetryRef.current !== null) window.clearTimeout(startupRetryRef.current);
+    };
+  }, []);
+
+  const revealWindow = useCallback(async () => {
+    if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
+      try {
+        await getCurrentWindow().show();
+        isWindowRevealedRef.current = true;
+      } catch { return; }
+    }
+    if (isWindowRevealedRef.current && hasMediaRef.current && !isStandaloneModeRef.current) {
+      // Let React's transparent video surface commit before releasing initial audio.
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      try {
+        if (await invoke<boolean>("complete_startup_playback")) {
+          if (startupRetryRef.current !== null) window.clearTimeout(startupRetryRef.current);
+          startupRetryRef.current = null;
+          window.dispatchEvent(new Event("l-mpv-force-poll"));
+        } else if (startupRetryRef.current === null && startupRetryActiveRef.current) {
+          // Track auto-selection may finish without changing video dimensions.
+          startupRetryRef.current = window.setTimeout(() => {
+            startupRetryRef.current = null;
+            void revealWindow();
+          }, 100);
+        }
+      } catch (error) { console.error("Startup playback completion failed:", error); }
+    }
+  }, []);
 
   // ─── Автоматическая подгонка окна под размер и пропорции видео ───
   const resizeWindowForVideo = useCallback(async (w: number, h: number) => {
     try {
       const appWindow = getCurrentWindow();
-      if (w > 0 && h > 0) {
+      if (w> 0 && h> 0) {
         const isFs = await appWindow.isFullscreen();
         const isMax = await appWindow.isMaximized();
         if (!isFs && !isMax) {
@@ -377,16 +467,16 @@ function App() {
           const MAX_COMFORTABLE_WIDTH = 1280;
           const MAX_COMFORTABLE_HEIGHT = 720;
 
-          const maxWidth = Math.min(window.screen.availWidth * 0.50, MAX_COMFORTABLE_WIDTH);
-          const maxHeight = Math.min(window.screen.availHeight * 0.50, MAX_COMFORTABLE_HEIGHT);
+          const maxWidth = Math.min(window.screen.availWidth * 0.85, MAX_COMFORTABLE_WIDTH);
+          const maxHeight = Math.min(window.screen.availHeight * 0.85, MAX_COMFORTABLE_HEIGHT);
           
-          if (targetWidth > maxWidth || targetHeight > maxHeight) {
+          if (targetWidth> maxWidth || targetHeight> maxHeight) {
             const ratio = Math.min(maxWidth / targetWidth, maxHeight / targetHeight);
             targetWidth = targetWidth * ratio;
             targetHeight = targetHeight * ratio;
           }
           
-          // Ограничиваем снизу
+          // Ограничиваем снизу для сохранения читаемости UI и пропорций
           const MIN_WIDTH = 560;
           const MIN_HEIGHT = 180;
           
@@ -396,71 +486,72 @@ function App() {
             targetHeight = targetHeight * ratio;
           }
           
-          const physWidth = Math.round(targetWidth * scaleFactor);
-          const physHeight = Math.round(physWidth / videoAspect);
+          // Четные физические размеры исключают субпиксельные 1px полосы рассинхронизации DirectX swapchain
+          let physWidth = Math.round(targetWidth * scaleFactor);
+          if (physWidth % 2 !== 0) physWidth += 1;
+          let physHeight = Math.round(physWidth / videoAspect);
+          if (physHeight % 2 !== 0) physHeight += 1;
           
           await appWindow.setSize(new PhysicalSize(physWidth, physHeight));
           await appWindow.center();
         }
       }
 
-      // Показываем окно строго ПОСЛЕ изменения размера и готовности первого кадра
-      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-        isWindowRevealedRef.current = true;
-        await appWindow.show();
-      }
+      await revealWindow();
       return true;
     } catch (e) {
       console.error("Ошибка при изменении размера окна:", e);
-      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-        isWindowRevealedRef.current = true;
-        getCurrentWindow().show().catch(() => {});
-      }
+      await revealWindow();
     }
     return false;
-  }, []);
+  }, [revealWindow]);
 
-  // Флаг того, что начальный размер окна под первое видео в текущей сессии уже был применён
-  const hasInitialVideoSizedRef = useRef<boolean>(false);
+  // Хранилище параметров последнего спозиционированного видеофайла
+  const lastSizedVideoRef = useRef<{
+    path: string;
+    width: number;
+    height: number;
+  } | null>(null);
 
   useEffect(() => {
-    if (mediaInfo?.path && mediaInfo.width > 0 && mediaInfo.height > 0) {
-      // Подгоняем окно под размер видео СТРОГО один раз за сессию для самого первого открытого видео.
-      // Любое последующее переключение видео (кнопки, плейлист, хоткей, drag&drop)
-      // или хотлоад дорожек/субтитров не сбрасывает размер окна, сохраняя выбор пользователя.
-      if (!hasInitialVideoSizedRef.current) {
-        hasInitialVideoSizedRef.current = true;
-        resizeWindowForVideo(mediaInfo.width, mediaInfo.height);
-      } else {
-        // Окно уже было спозиционировано под первое видео — просто гарантируем видимость
-        if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-          isWindowRevealedRef.current = true;
-          getCurrentWindow().show().catch(() => {});
+    if (mediaInfo?.path && mediaInfo.width> 0 && mediaInfo.height> 0) {
+      const prev = lastSizedVideoRef.current;
+      const isNewFile = !prev || prev.path !== mediaInfo.path;
+      const prevAspect = prev && prev.height> 0 ? prev.width / prev.height : 0;
+      const curAspect = mediaInfo.width / mediaInfo.height;
+      const isAspectChanged = Math.abs(prevAspect - curAspect)> 0.01;
+
+      if (isNewFile || isAspectChanged) {
+        if (isNewFile) {
+          videoZoomRef.current = 0;
+          videoPanXRef.current = 0;
+          videoPanYRef.current = 0;
         }
+        lastSizedVideoRef.current = {
+          path: mediaInfo.path,
+          width: mediaInfo.width,
+          height: mediaInfo.height,
+        };
+        void resizeWindowForVideo(mediaInfo.width, mediaInfo.height);
+      } else {
+        // Окно уже спозиционировано под текущее видео — сохраняем выбор пользователя и гарантируем видимость
+        revealWindow();
       }
-    } else if (mediaInfo?.path) {
-      // Аудиофайл или файл без видеоряда
-      if (!isWindowRevealedRef.current && !isStandaloneModeRef.current) {
-        isWindowRevealedRef.current = true;
-        getCurrentWindow().show().catch(() => {});
-      }
+    } else if (mediaInfo?.path && mediaInfo.video_track === false) {
+      // Аудиофайл или файл без видеоряда: список дорожек уже известен и видео в нём точно нет.
+      revealWindow();
     }
-  }, [mediaInfo?.path, mediaInfo?.width, mediaInfo?.height, resizeWindowForVideo]);
+  }, [
+    mediaInfo?.path,
+    mediaInfo?.width,
+    mediaInfo?.height,
+    mediaInfo?.video_track,
+    mediaInfo?.video_ready,
+    resizeWindowForVideo,
+    revealWindow,
+  ]);
 
-  // Автоматическое применение AI Upscaling при загрузке нового файла
-  useEffect(() => {
-    if (mediaInfo?.path) {
-      const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
-      if (mode === "ai") {
-        const slot = parseInt(localStorage.getItem("l-mpv-upscale-slot") || "1001", 10);
-        const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
-        const selectedModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
-        invoke("apply_upscale_settings", { 
-          settings: { mode, active_slot: slot, backend, selected_model: selectedModel }
-        }).catch(console.error);
-      }
-    }
-  }, [mediaInfo?.path]);
+  useAutoUpscale(mediaInfo?.path);
 
   // Защитный таймер безопасности (на случай долгого ответа декодера или ошибок)
   useEffect(() => {
@@ -471,10 +562,7 @@ function App() {
         isStandaloneModeRef.current = isStandalone;
         if (!isStandalone) {
           timer = window.setTimeout(() => {
-            if (!isWindowRevealedRef.current) {
-              isWindowRevealedRef.current = true;
-              getCurrentWindow().show().catch(() => {});
-            }
+            revealWindow();
           }, 1500);
         }
       })
@@ -483,7 +571,7 @@ function App() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, []);
+  }, [revealWindow]);
 
   // ─── Отображение OSD кадра в левом верхнем углу ────
   const triggerFrameOsd = useCallback(async () => {
@@ -491,19 +579,14 @@ function App() {
       await new Promise(r => setTimeout(r, 60));
       const frame = await invoke<number>("get_frame_number");
       const count = await invoke<number>("get_frame_count");
-      setOsdText(`${frame} / ${count}`);
-      if (osdTimerRef.current !== null) {
-        window.clearTimeout(osdTimerRef.current);
-      }
-      osdTimerRef.current = window.setTimeout(() => {
-        setOsdText(null);
-      }, 2000);
+      triggerOsd(`${frame} / ${count}`, 2000);
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [triggerOsd]);
 
   const closeContextMenu = useCallback(() => {
+    lastContextMenuCloseTimeRef.current = Date.now();
     setContextMenu(null);
   }, []);
 
@@ -514,6 +597,7 @@ function App() {
     mediaInfo,
     isFullscreen,
     togglePause,
+    seekBy,
     setVolume,
     toggleFullscreen,
     cycleAudioTrack,
@@ -521,7 +605,9 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
+    showSettings,
     hotkeys,
+    prolongControlsIfActive,
   });
 
   latestRef.current = {
@@ -529,6 +615,7 @@ function App() {
     mediaInfo,
     isFullscreen,
     togglePause,
+    seekBy,
     setVolume,
     toggleFullscreen,
     cycleAudioTrack,
@@ -536,7 +623,9 @@ function App() {
     loadTracks,
     isPlaylistOpen,
     setIsPlaylistOpen,
+    showSettings,
     hotkeys,
+    prolongControlsIfActive,
   };
 
   const handleOpenFile = useCallback(async (filePath?: string) => {
@@ -557,6 +646,7 @@ function App() {
               "avi",
               "mov",
               "webm",
+              "yuv",
             ],
           },
         ],
@@ -566,20 +656,25 @@ function App() {
       }
     } catch (err) {
       console.error("Ошибка открытия файла:", err);
+      const dict = getDict(getEffectiveLocale());
+      triggerOsd(dict.osd.openFileErr, 3200, true);
     }
-  }, []);
+  }, [triggerOsd]);
 
   const executeAction = useCallback(async (actionId: string, coords?: { x: number; y: number }) => {
     const {
       hasMedia: curHasMedia,
       mediaInfo: curMediaInfo,
       togglePause: curTogglePause,
+      seekBy: curSeekBy,
       setVolume: curSetVolume,
       toggleFullscreen: curToggleFullscreen,
       cycleAudioTrack: curCycleAudioTrack,
       cycleSubTrack: curCycleSubTrack,
       isPlaylistOpen: curIsPlaylistOpen,
       setIsPlaylistOpen: curSetIsPlaylistOpen,
+      showSettings: curShowSettings,
+      prolongControlsIfActive: curProlongControlsIfActive,
     } = latestRef.current;
 
     const curLocale = getEffectiveLocale();
@@ -587,6 +682,7 @@ function App() {
 
     switch (actionId) {
       case "togglePause":
+        curProlongControlsIfActive();
         if (curHasMedia) {
           try {
             await curTogglePause();
@@ -595,31 +691,61 @@ function App() {
           }
         }
         break;
-      case "seekBack":
-        await invoke("seek", { seconds: -5 });
+      case "seekBack": {
+        curProlongControlsIfActive();
+        const step = getSavedSeekStepSeconds();
+        triggerSeekIndicator("left", step);
+        await curSeekBy(-step);
         break;
-      case "seekForward":
-        await invoke("seek", { seconds: 5 });
+      }
+      case "seekForward": {
+        curProlongControlsIfActive();
+        const step = getSavedSeekStepSeconds();
+        triggerSeekIndicator("right", step);
+        await curSeekBy(step);
         break;
-      case "seekBack10":
-        await invoke("seek", { seconds: -10 });
+      }
+      case "seekBack10": {
+        curProlongControlsIfActive();
+        triggerSeekIndicator("left", 10);
+        await curSeekBy(-10);
         break;
-      case "seekForward10":
-        await invoke("seek", { seconds: 10 });
+      }
+      case "seekForward10": {
+        curProlongControlsIfActive();
+        triggerSeekIndicator("right", 10);
+        await curSeekBy(10);
         break;
+      }
       case "skipOpening": {
-        const seconds = Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90);
-        await invoke("seek", { seconds });
+        curProlongControlsIfActive();
+        const raw = localStorage.getItem('l-mpv-skip-opening-seconds');
+        const seconds = Number(raw || 90);
+        await curSeekBy(seconds);
         break;
       }
       case "volumeUp":
-        if (curMediaInfo) curSetVolume(Math.min(150, (curMediaInfo.volume ?? 100) + 5));
+        curProlongControlsIfActive();
+        if (curMediaInfo) {
+          const volume = Math.min(150, (curMediaInfo.volume ?? 100) + 5);
+          curSetVolume(volume);
+          triggerVolumeFeedback(volume);
+        }
         break;
       case "volumeDown":
-        if (curMediaInfo) curSetVolume(Math.max(0, (curMediaInfo.volume ?? 100) - 5));
+        curProlongControlsIfActive();
+        if (curMediaInfo) {
+          const volume = Math.max(0, (curMediaInfo.volume ?? 100) - 5);
+          curSetVolume(volume);
+          triggerVolumeFeedback(volume);
+        }
         break;
       case "toggleMute":
-        if (curMediaInfo) curSetVolume(curMediaInfo.volume === 0 ? 100 : 0);
+        if (curMediaInfo) {
+          const volume = curMediaInfo.volume === 0 ? 100 : 0;
+          curSetVolume(volume);
+          triggerVolumeFeedback(volume);
+        }
         break;
       case "fullscreen":
         curToggleFullscreen();
@@ -650,9 +776,7 @@ function App() {
       case "copyFrame":
         try {
           await invoke("copy_frame_to_clipboard");
-          setOsdText(dict.osd.frameCopied);
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+          triggerOsd(dict.osd.frameCopied, 2000);
         } catch (err) {
           console.error(err);
         }
@@ -660,9 +784,7 @@ function App() {
       case "screenshot":
         try {
           await invoke("take_screenshot");
-          setOsdText(dict.osd.frameSaved);
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+          triggerOsd(dict.osd.frameSaved, 2000);
         } catch (err) {
           console.error(err);
         }
@@ -701,15 +823,17 @@ function App() {
         });
         break;
       case "settings":
-        setShowSettings((v) => !v);
+        if (curShowSettings) {
+          closeSettings();
+        } else {
+          openSettings();
+        }
         break;
       case "toggleVisualizer": {
         const cfg = getVisualizerConfig();
         const nextEnabled = !cfg.enabled;
         saveVisualizerConfig({ ...cfg, enabled: nextEnabled });
-        setOsdText(dict.osd.visualizerStatus(nextEnabled));
-        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        triggerOsd(dict.osd.visualizerStatus(nextEnabled), 1500);
         break;
       }
       case "cycleVisualizerMode": {
@@ -718,9 +842,7 @@ function App() {
         const nextIdx = (modes.indexOf(cfg.mode) + 1) % modes.length;
         const nextMode = modes[nextIdx];
         saveVisualizerConfig({ ...cfg, enabled: true, mode: nextMode });
-        setOsdText(dict.osd.visualizerMode(nextMode));
-        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        triggerOsd(dict.osd.visualizerMode(nextMode), 1500);
         break;
       }
       case "rotateVideo": {
@@ -728,9 +850,8 @@ function App() {
           const curRot = (mediaInfo as any)?.rotation || 0;
           const nextRot = (curRot + 90) % 360;
           await invoke("set_rotation", { degrees: nextRot });
-          setOsdText(dict.osd.rotation(nextRot));
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+          window.dispatchEvent(new Event("l-mpv-preview-transform-changed"));
+          triggerOsd(dict.osd.rotation(nextRot), 1500);
         } catch (e) {
           console.error(e);
         }
@@ -742,9 +863,7 @@ function App() {
         const langName = nextLocale === "ru" ? "Русский" : "English";
         const nextDict = getDict(nextLocale);
         const osdMsg = nextDict.osd.languageSwitched(langName);
-        setOsdText(osdMsg);
-        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        triggerOsd(osdMsg, 1500);
         break;
       }
       case "resetZoom":
@@ -752,15 +871,15 @@ function App() {
         videoPanXRef.current = 0;
         videoPanYRef.current = 0;
         invoke("set_video_zoom_and_pan", { zoom: 0, panX: 0, panY: 0 }).catch(console.error);
-        setOsdText(dict.osd.zoomReset);
-        if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-        osdTimerRef.current = window.setTimeout(() => setOsdText(null), 1500);
+        triggerOsd(dict.osd.zoomReset, 1500);
         break;
       case "playlist":
         curSetIsPlaylistOpen(!curIsPlaylistOpen);
         break;
       case "openContextMenu":
-        if (coords) {
+        if (contextMenuRef.current || (Date.now() - lastContextMenuCloseTimeRef.current < 250)) {
+          closeContextMenu();
+        } else if (coords) {
           setContextMenu({ x: coords.x, y: coords.y });
         } else {
           setContextMenu({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
@@ -815,25 +934,20 @@ function App() {
         break;
       case "toggleAmbient":
         try {
-          const res = await invoke<{ mode: string }>("toggle_ambient_mode");
-          const labels: Record<string, string> = curLocale === "en" ? {
-            off: "Off",
-            blur: "Blur (GPU)",
-            color: "Color Ambient",
-          } : {
-            off: "Выкл",
-            blur: "Размытие (GPU)",
-            color: "Цветной Ambient",
+          const res = normalizeAmbientSettings(await toggleAmbientMode());
+          const labels: Record<string, string> = {
+            off: dict.settings.cmenuUI.ambientOff,
+            blur: dict.settings.cmenuUI.ambientBlur,
           };
-          setOsdText(dict.osd.ambientMode(labels[res.mode] || res.mode));
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
-          window.dispatchEvent(new Event("l-mpv-ambient-changed"));
+          triggerOsd(dict.osd.ambientMode(labels[res.mode] || res.mode), 2000);
+          window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: res }));
+          window.dispatchEvent(new Event("l-mpv-settings-changed"));
         } catch (e) {
           console.error("Ошибка переключения подсветки полос:", e);
         }
         break;
       case "upscaleStats": {
+
         try {
           const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
           const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
@@ -841,9 +955,9 @@ function App() {
           const selectedModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
 
           // Если OSD со статистикой уже открыто, повторное нажатие хоткея скрывает его (toggle)
-          if (osdText && osdText.startsWith("✨ 4K AI Upscaling")) {
-            if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-            setOsdText(null);
+          const currentOsd = getOsdText();
+          if (currentOsd && currentOsd.startsWith("✨ 4K AI Upscaling")) {
+            clearOsd();
             break;
           }
 
@@ -879,18 +993,15 @@ function App() {
             }
 
             const message = dict.osd.upscaleStatsAi(slot, modelName, backendDesc, videoStats);
-            setOsdText(message);
+            triggerOsd(message, 3500);
           } else {
             let gpuHint = "";
             if (status?.gpu_info?.name) {
               gpuHint = `\nGPU: ${status.gpu_info.name} (${status.gpu_info.recommended_backend})`;
             }
             const message = dict.osd.upscaleStatsOff(gpuHint);
-            setOsdText(message);
+            triggerOsd(message, 3500);
           }
-
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 3500);
         } catch (e) {
           console.error("Ошибка отображения статистики апскейлинга:", e);
         }
@@ -901,12 +1012,55 @@ function App() {
           const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
           await invoke("switch_upscale_network_hotkey", { slot: 0, backend });
           localStorage.setItem("l-mpv-upscale-mode", "off");
-          setOsdText(dict.osd.upscaleOff);
-          if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-          osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+          triggerOsd(dict.osd.upscaleOff, 2000);
           window.dispatchEvent(new Event("l-mpv-settings-changed"));
-        } catch (e) { console.error("Ошибка отключения апскейлинга:", e); }
+        } catch (e) { console.error("Ошибка отключения апскейлинга:", e); triggerOsd(dict.osd.upscaleError(upscaleErrorMessage(e, dict)), 3000, true); }
         break;
+      case "upscaleFavorite": {
+        try {
+          const favorite = getFavoriteModel();
+          if (!favorite) {
+            triggerOsd(dict.osd.upscaleNoFavorite, 2500);
+            break;
+          }
+          const models = await invoke<Array<{ slot: number; display_name: string; filename: string }>>("scan_onnx_models").catch(() => []);
+          const targetModel = models.find((m) => m.filename === favorite);
+
+          if (!targetModel) {
+            triggerOsd(dict.osd.upscaleFavoriteNotFound(favorite), 2500);
+            break;
+          }
+
+          const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
+          const mode = localStorage.getItem("l-mpv-upscale-mode") || "off";
+          const curSlot = Number(localStorage.getItem("l-mpv-upscale-slot") || 1001);
+          const curModel = localStorage.getItem("l-mpv-upscale-selected-model") || "";
+          const isFavoriteActive = mode === "ai" && (curModel ? curModel === targetModel.filename : curSlot === targetModel.slot);
+
+          if (isFavoriteActive) {
+            await invoke("switch_upscale_network_hotkey", { slot: 0, backend });
+            localStorage.setItem("l-mpv-upscale-mode", "off");
+            triggerOsd(dict.osd.upscaleOff, 2000);
+          } else {
+            await invoke("switch_upscale_network_hotkey", { slot: targetModel.slot, backend });
+            localStorage.setItem("l-mpv-upscale-mode", "ai");
+            localStorage.setItem("l-mpv-upscale-slot", String(targetModel.slot));
+            localStorage.setItem("l-mpv-upscale-selected-model", targetModel.filename);
+
+            const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
+            const modelTitle = isHideModelNames
+              ? (curLocale === "en" ? "Favorite model" : "Избранная модель")
+              : targetModel.display_name;
+            triggerOsd(dict.osd.upscaleModel(modelTitle), 2000);
+          }
+
+          window.dispatchEvent(new Event("l-mpv-settings-changed"));
+        } catch (e) {
+          console.error("Ошибка переключения избранной модели по хоткею:", e);
+          triggerOsd(dict.osd.upscaleError(upscaleErrorMessage(e, dict)), 3000, true);
+        }
+        break;
+      }
       case "upscaleNet1":
       case "upscaleNet2":
       case "upscaleNet3":
@@ -915,10 +1069,7 @@ function App() {
       case "upscaleNet6":
       case "upscaleNet7":
       case "upscaleNet8":
-      case "upscaleNet9":
-      case "upscaleNet10":
-      case "upscaleNet11":
-      case "upscaleNet12": {
+      case "upscaleNet9": {
         try {
           const index = parseInt(actionId.replace("upscaleNet", ""), 10) - 1;
           const models = await invoke<Array<{ slot: number; display_name: string; filename: string }>>("scan_onnx_models").catch(() => []);
@@ -929,32 +1080,28 @@ function App() {
             const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
 
             // При выборе любой модели по хоткею гарантированно активируем режим "ai"
+            await invoke("switch_upscale_network_hotkey", { slot, backend });
             localStorage.setItem("l-mpv-upscale-mode", "ai");
             localStorage.setItem("l-mpv-upscale-slot", String(slot));
             localStorage.setItem("l-mpv-upscale-selected-model", targetModel.filename);
 
-            await invoke("switch_upscale_network_hotkey", { slot, backend });
-
             const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
             const modelTitle = isHideModelNames ? (curLocale === "en" ? `Model #${index + 1}` : `Модель #${index + 1}`) : targetModel.display_name;
 
-            setOsdText(dict.osd.upscaleModel(modelTitle));
-            if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-            osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+            triggerOsd(dict.osd.upscaleModel(modelTitle), 2000);
 
             window.dispatchEvent(new Event("l-mpv-settings-changed"));
           } else {
-            setOsdText(dict.osd.upscaleModelNotFound(index + 1));
-            if (osdTimerRef.current !== null) window.clearTimeout(osdTimerRef.current);
-            osdTimerRef.current = window.setTimeout(() => setOsdText(null), 2000);
+            triggerOsd(dict.osd.upscaleModelNotFound(index + 1), 2000);
           }
         } catch (e) {
           console.error("Ошибка переключения нейросети по хоткею:", e);
+          triggerOsd(dict.osd.upscaleError(upscaleErrorMessage(e, dict)), 3000, true);
         }
         break;
       }
     }
-  }, [handleOpenFile, triggerFrameOsd]);
+  }, [clearOsd, closeSettings, getOsdText, handleOpenFile, openSettings, triggerFrameOsd, triggerOsd]);
 
   const handleVideoClick = useCallback(
     (e: React.MouseEvent) => {
@@ -969,20 +1116,8 @@ function App() {
       let singleClickAction: string | null = null;
       let doubleClickAction: string | null = null;
 
-      // Действия, которые разрешены для клика непосредственно по видео
-      const allowedVideoActions = [
-        "togglePause",
-        "fullscreen",
-        "openContextMenu",
-        "fileInfo",
-        "screenshot",
-        "resetZoom",
-        "copyFrame",
-        "toggleRepeat",
-        "playlist",
-      ];
-
-      for (const actionId of allowedVideoActions) {
+      // Поиск действий, относящихся исключительно к контексту видео-полотна
+      for (const actionId of VIDEO_MOUSE_ACTIONS) {
         const codes = curHotkeys[actionId] || [];
         if (codes.includes("MouseLeft")) {
           singleClickAction = actionId;
@@ -992,7 +1127,7 @@ function App() {
         }
       }
 
-      // Безусловный дефолт для клика по видео
+      // Гарантированные безопасные дефолты при клике по видео
       if (!singleClickAction) {
         singleClickAction = "togglePause";
       }
@@ -1030,10 +1165,17 @@ function App() {
         return;
       }
 
+      // Если контекстное меню уже открыто или только что закрыто,
+      // повторное нажатие ПКМ должно закрыть меню и не открывать его заново.
+      if (contextMenuRef.current || (Date.now() - lastContextMenuCloseTimeRef.current < 250)) {
+        closeContextMenu();
+        return;
+      }
+
       const curHotkeys = latestRef.current.hotkeys;
       let action: string | null = null;
-      const allowedContextMenuActions = ["openContextMenu", "fileInfo", "togglePause", "fullscreen"];
-      for (const actionId of allowedContextMenuActions) {
+      for (const actionId of VIDEO_MOUSE_ACTIONS) {
+        if (actionId === "openContextMenu") continue;
         const codes = curHotkeys[actionId] || [];
         if (codes.includes("MouseRight")) {
           action = actionId;
@@ -1048,7 +1190,7 @@ function App() {
         setContextMenu(coords);
       }
     },
-    [executeAction]
+    [closeContextMenu, executeAction]
   );
 
   const handleVideoAuxClick = useCallback(
@@ -1061,7 +1203,8 @@ function App() {
         }
         const curHotkeys = latestRef.current.hotkeys;
         let action: string | null = null;
-        for (const [actionId, codes] of Object.entries(curHotkeys)) {
+        for (const actionId of VIDEO_MOUSE_ACTIONS) {
+          const codes = curHotkeys[actionId] || [];
           if (codes.includes("MouseMiddle")) {
             action = actionId;
             break;
@@ -1084,10 +1227,36 @@ function App() {
   // ─── Горячие клавиши ──────────────────────────────
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target?.closest(".color-picker-modal")) return;
+      if (target?.closest(".navigation-popover, .saved-playlists__source-trigger")) return;
+
+      const isSlider = target?.getAttribute("role") === "slider" && !target?.closest(".timeline");
+      const isEditing = target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || target?.isContentEditable
+        || isSlider;
+      if (isEditing) return;
+
+      // Если сфокусирована интерактивная кнопка, отдаём Space и Enter её локальному обработчику
+      const isButton = target instanceof HTMLButtonElement
+        || target?.getAttribute("role") === "button";
+      if (isButton && (e.code === "Space" || e.code === "Enter" || e.key === " " || e.key === "Enter")) {
+        return;
+      }
+
+      const inSettings = latestRef.current.showSettings
+        && Boolean(target?.closest(".settings-side-panel, .modal--settings"));
+      const curHotkeys = latestRef.current.hotkeys;
+      if (inSettings) {
+        if (e.key === "Escape") return;
+        const settingsCodes = curHotkeys.settings || [];
+        if (!settingsCodes.some((code) => isKeyboardEventMatch(e, code))) {
+          return;
+        }
+        e.preventDefault();
+        executeAction("settings");
         return;
       }
 
@@ -1097,7 +1266,6 @@ function App() {
         return;
       }
 
-      const curHotkeys = latestRef.current.hotkeys;
       for (const actionId of Object.keys(curHotkeys)) {
         const customCodes = curHotkeys[actionId] || [];
         const isMatch = customCodes.some(c => isKeyboardEventMatch(e, c));
@@ -1115,10 +1283,8 @@ function App() {
     };
   }, [executeAction]);
 
-  // ─── Обработка перетаскивания (Drag & Drop / Хотлоад) ─────────
-  useEffect(() => {
-    let unlistenFn: (() => void) | undefined;
-
+  // ─── Открытие файла / подключение внешней дорожки ─────────
+  const handleDroppedFile = useCallback(async (file: string) => {
     const isAudioFile = (p: string) => {
       const ext = p.split('.').pop()?.toLowerCase() || '';
       return ['mka', 'm4a', 'aac', 'mp3', 'ogg', 'opus', 'flac', 'wav', 'ac3', 'eac3', 'dts', 'thd', 'wma', 'aiff', 'ape'].includes(ext);
@@ -1129,69 +1295,37 @@ function App() {
       return ['srt', 'ass', 'ssa', 'vtt', 'sub', 'idx', 'sup'].includes(ext);
     };
 
-    const setupDragDrop = async () => {
-      const webview = getCurrentWebview();
-      const unlisten = await webview.onDragDropEvent(
-        async (event) => {
-          if (
-            event.payload.type === "drop" &&
-            event.payload.paths.length > 0
-          ) {
-            const file = event.payload.paths[0];
-            const curHasMedia = latestRef.current.hasMedia;
-            const hotloadEnabled = localStorage.getItem('l-mpv-hotload-enabled') === 'true';
+    const curHasMedia = latestRef.current.hasMedia;
+    const hotloadEnabled = localStorage.getItem('l-mpv-hotload-enabled') === 'true';
+    const d = getDict(getEffectiveLocale());
 
-            if (hotloadEnabled && curHasMedia && isAudioFile(file)) {
-              try {
-                await invoke("load_audio_file", { path: file });
-                await latestRef.current.loadTracks();
-                const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-                const d = getDict(getEffectiveLocale());
-                window.dispatchEvent(
-                  new CustomEvent("show-osd", { detail: d.osd.audioLoaded(fileName) })
-                );
-              } catch (err) {
-                console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
-              }
-            } else if (hotloadEnabled && curHasMedia && isSubtitleFile(file)) {
-              try {
-                await invoke("load_subtitle_file", { path: file });
-                await latestRef.current.loadTracks();
-                const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-                const d = getDict(getEffectiveLocale());
-                window.dispatchEvent(
-                  new CustomEvent("show-osd", { detail: d.osd.subsLoaded(fileName) })
-                );
-              } catch (err) {
-                console.error("Ошибка подключения субтитров (Хотлоад):", err);
-              }
-            } else {
-              try {
-                await invoke("open_file", { path: file });
-              } catch (err) {
-                console.error("Ошибка открытия файла:", err);
-              }
-            }
-          }
-        }
-      );
-      return unlisten;
-    };
-
-    let isMounted = true;
-
-    setupDragDrop().then((unlisten) => {
-      if (!isMounted) {
-        unlisten();
-      } else {
-        unlistenFn = unlisten;
+    if (hotloadEnabled && curHasMedia && isAudioFile(file)) {
+      try {
+        await invoke("load_audio_file", { path: file });
+        await latestRef.current.loadTracks();
+        const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
+        showOsd(d.osd.audioLoaded(fileName));
+      } catch (err) {
+        console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
       }
-    });
-
-    return () => {
-      isMounted = false;
-      if (unlistenFn) unlistenFn();
-    };
+    } else if (hotloadEnabled && curHasMedia && isSubtitleFile(file)) {
+      try {
+        await invoke("load_subtitle_file", { path: file });
+        await latestRef.current.loadTracks();
+        const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
+        showOsd(d.osd.subsLoaded(fileName));
+      } catch (err) {
+        console.error("Ошибка подключения субтитров (Хотлоад):", err);
+        showOsd(d.osd.subtitlesLoadErr, { isError: true });
+      }
+    } else {
+      try {
+        await invoke("open_file", { path: file });
+      } catch (err) {
+        console.error("Ошибка открытия файла:", err);
+        showOsd(d.osd.openFileErr, { isError: true });
+      }
+    }
   }, []);
 
   const handleDragOver = useCallback(
@@ -1214,16 +1348,19 @@ function App() {
       } ${isPlaylistOpen ? "app-container--playlist-open" : ""}`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
-    >
+      >
+      <FileDragPreview onFileDrop={handleDroppedFile} />
       <Titlebar title="L-MPV" mediaTitle={mediaTitle} />
 
       {/* OSD подписи текущего кадра и статистики */}
       {osdText && (
         <div
           className={`frame-osd ${osdText.includes("\n") ? "frame-osd--multiline" : ""} ${
-            isOsdClosing ? "frame-osd--closing" : ""
-          }`}
-        >
+            isOsdError ? "frame-osd--error" : ""
+          } ${isOsdClosing ? "frame-osd--closing" : ""}`}
+          role={isOsdError ? "alert" : "status"}
+          aria-live={isOsdError ? "assertive" : "polite"}
+          >
           {osdText}
         </div>
       )}
@@ -1291,10 +1428,11 @@ function App() {
               const delta = e.deltaY < 0 ? 5 : -5;
               const newVol = Math.max(0, Math.min(150, currentVol + delta));
               setVolume(newVol);
+              triggerVolumeFeedback(newVol);
             }
           }
         }}
-      >
+        >
         {!hasMedia && (
           <div className="video-area__placeholder">
             <div className="video-area__placeholder-icon">
@@ -1304,7 +1442,7 @@ function App() {
               L-MPV
             </div>
             <div className="video-area__placeholder-hint">
-              Перетащите файл или нажмите ПКМ → Открыть
+              {dict.controls.placeholderHint}
             </div>
           </div>
         )}
@@ -1312,6 +1450,7 @@ function App() {
 
       {hasMedia && (
         <PlayerControls
+          onOpenSettings={openSettings}
           showMediaInfo={showMediaInfo}
           showDetailedMediaInfo={isMediaInfoOpen}
           showChapters={showChapters}
@@ -1340,6 +1479,10 @@ function App() {
           }}
         />
       )}
+
+      {/* Всплывающий оверлей быстрой перемотки в стиле YouTube */}
+      <SeekIndicator />
+      <VolumeIndicator />
 
       {contextMenu && (
         <ContextMenu
@@ -1373,12 +1516,7 @@ function App() {
             setShowSubtitlesSearch(true);
             closeContextMenu();
           }}
-          onShowSettings={() => {
-            setIsPlaylistOpen(false);
-            setShowMediaInfo(false);
-            setShowSettings(true);
-            closeContextMenu();
-          }}
+           onShowSettings={toggleSettings}
         />
       )}
 
@@ -1408,15 +1546,18 @@ function App() {
 
       {showSettings && (
         <Suspense fallback={null}>
-          <SettingsModal
-            onClose={() => setShowSettings(false)}
-            onShowUpdate={(info) => {
-              setShowSettings(false);
+          {(() => {
+            const handleShowUpdateFromSettings = (info: UpdateInfo) => {
+              closeSettings();
               setShowUpdateToast(false);
               setPendingUpdate(info);
               setShowUpdateModal(true);
-            }}
-          />
+            };
+            const SettingsView = settingsStyle === "modal"
+              ? SettingsModal
+              : SettingsPanel;
+            return <SettingsView onClose={closeSettings} onShowUpdate={handleShowUpdateFromSettings} />;
+          })()}
         </Suspense>
       )}
 

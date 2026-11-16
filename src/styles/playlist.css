@@ -1,0 +1,4 @@
+/* ─── Стили окна плейлиста (модульный импорт) ────────────────────────── */
+@import "./playlist/playlist-base.css";
+@import "./playlist/playlist-capsule.css";
+

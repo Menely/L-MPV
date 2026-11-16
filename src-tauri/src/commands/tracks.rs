@@ -5,7 +5,7 @@
 //! и извлечение дорожек через FFmpeg.
 
 use super::dir_scan::{
-    current_open_generation, dir_mtime, list_folder,
+    current_open_generation, dir_mtime, list_folder_while,
 };
 use super::subtitles::{
     MAX_SUBTITLE_STDOUT_BYTES, decode_subtitle_bytes,
@@ -25,6 +25,11 @@ use std::sync::{Mutex, OnceLock};
 use std::time::SystemTime;
 use tauri::State;
 
+#[path = "subtitle_io.rs"]
+mod subtitle_io;
+static SUBTITLE_ANALYSIS_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static SUBTITLE_ANALYSIS_LOCK: OnceLock<std::sync::Arc<tokio::sync::Mutex<()>>> = OnceLock::new();
+
 // ─── Переключение дорожек ───────────────────────────────
 
 /// Переключение аудиодорожки по ID.
@@ -33,20 +38,29 @@ pub fn set_audio_track(
     state: State<'_, PlayerState>,
     track_id: i64,
 ) -> Result<(), String> {
-    state
-        .mpv
-        .set_property_string("aid", &track_id.to_string())
+    if track_id <= 0 {
+        state.mpv.set_property_string("aid", "no")
+    } else {
+        state
+            .mpv
+            .set_property_string("aid", &track_id.to_string())
+    }
 }
 
 /// Переключение субтитров по ID.
+/// Если track_id <= 0, субтитры полностью отключаются (sid = "no").
 #[tauri::command]
 pub fn set_subtitle_track(
     state: State<'_, PlayerState>,
     track_id: i64,
 ) -> Result<(), String> {
-    state
-        .mpv
-        .set_property_string("sid", &track_id.to_string())
+    if track_id <= 0 {
+        state.mpv.set_property_string("sid", "no")
+    } else {
+        state
+            .mpv
+            .set_property_string("sid", &track_id.to_string())
+    }
 }
 
 /// Отключение субтитров.
@@ -145,7 +159,7 @@ pub fn load_audio_file(
 
     // Шаг 1: добавляем дорожку без немедленного переключения
     state.mpv.command(&format!(
-        "audio-add \"{}\" cached",
+        "audio-add \"{}\" auto",
         safe_path
     ))?;
 
@@ -199,143 +213,39 @@ pub fn set_video_track(
 }
 
 /// Получение списка всех доступных дорожек (аудио, субтитры, видео).
+///
+/// Обеспечивает мгновенную синхронную доступность встроенных дорожек: если
+/// демультиплексор mpv только начинает чтение контейнера после loadfile,
+/// выполняет ультракороткое адаптивное ожидание (до 60 мс с шагом 5 мс),
+/// после чего атомарно собирает снимок за один захват мьютекса mpv.
 #[tauri::command]
 pub fn get_tracks(
     state: State<'_, PlayerState>,
 ) -> Result<Vec<TrackInfo>, String> {
     let mpv = &state.mpv;
-    let count = mpv
+    let mut count = mpv
         .get_property_double("track-list/count")
         .unwrap_or(0.0) as i64;
-    let mut tracks = Vec::new();
 
-    let current_aid =
-        mpv.get_property_string("aid").unwrap_or_default();
-    let current_sid =
-        mpv.get_property_string("sid").unwrap_or_default();
-    let current_vid =
-        mpv.get_property_string("vid").unwrap_or_default();
-
-    for i in 0..count {
-        let track_type = mpv
-            .get_property_string(&format!(
-                "track-list/{}/type",
-                i
-            ))
-            .unwrap_or_default();
-        let id = mpv
-            .get_property_double(&format!(
-                "track-list/{}/id",
-                i
-            ))
-            .unwrap_or(0.0) as i64;
-        let title = mpv
-            .get_property_string(&format!(
-                "track-list/{}/title",
-                i
-            ))
-            .unwrap_or_default();
-        let lang = mpv
-            .get_property_string(&format!(
-                "track-list/{}/lang",
-                i
-            ))
-            .unwrap_or_default();
-
-        let is_selected_by_list = mpv
-            .get_property_string(&format!(
-                "track-list/{}/selected",
-                i
-            ))
-            .unwrap_or_default()
-            == "yes";
-
-        // Синхронизация статуса активности с актуальными свойствами aid/sid/vid плеера,
-        // чтобы исключить задержку обновления track-list при смене дорожки демуксером.
-        let selected = match track_type.as_str() {
-            "audio" => {
-                if current_aid == "no" {
-                    false
-                } else if let Ok(aid_id) =
-                    current_aid.parse::<i64>()
-                {
-                    id == aid_id
-                } else {
-                    is_selected_by_list
+    // Если список пуст, но файл уже открыт демуксером, ожидаем готовности
+    // встроенных дорожек (типичный парсинг MKV/MP4 занимает 2-10 мс).
+    if count == 0 {
+        let current_path =
+            mpv.get_property_string("path").unwrap_or_default();
+        if !current_path.is_empty() {
+            for _ in 0..12 {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+                count = mpv
+                    .get_property_double("track-list/count")
+                    .unwrap_or(0.0) as i64;
+                if count > 0 {
+                    break;
                 }
             }
-            "sub" => {
-                if current_sid == "no" {
-                    false
-                } else if let Ok(sid_id) =
-                    current_sid.parse::<i64>()
-                {
-                    id == sid_id
-                } else {
-                    is_selected_by_list
-                }
-            }
-            "video" => {
-                if current_vid == "no" {
-                    false
-                } else if let Ok(vid_id) =
-                    current_vid.parse::<i64>()
-                {
-                    id == vid_id
-                } else {
-                    is_selected_by_list
-                }
-            }
-            _ => is_selected_by_list,
-        };
-
-        let codec = mpv
-            .get_property_string(&format!(
-                "track-list/{}/codec",
-                i
-            ))
-            .unwrap_or_default();
-
-        let external = mpv
-            .get_property_string(&format!(
-                "track-list/{}/external",
-                i
-            ))
-            .unwrap_or_default()
-            == "yes";
-
-        let external_filename = if external {
-            mpv.get_property_string(&format!(
-                "track-list/{}/external-filename",
-                i
-            ))
-            .unwrap_or_default()
-        } else {
-            String::new()
-        };
-
-        let ff_index = mpv
-            .get_property_double(&format!(
-                "track-list/{}/ff-index",
-                i
-            ))
-            .map(|f| f as i64)
-            .unwrap_or(-1);
-
-        tracks.push(TrackInfo {
-            id,
-            track_type,
-            title,
-            lang,
-            selected,
-            codec,
-            external,
-            external_filename,
-            ff_index,
-        });
+        }
     }
 
-    Ok(tracks)
+    mpv.get_tracks_snapshot()
 }
 
 /// Сканирование и загрузка внешних дорожек и субтитров для указанного медиафайла.
@@ -425,10 +335,12 @@ pub async fn extract_track(
     // 1. Проверка внешнего файла: если дорожка уже из внешнего файла
     if let Some(ref ext_path) = external_filename {
         if !ext_path.is_empty() {
-            let src = std::path::Path::new(ext_path);
-            if src.exists() {
+            let resolved = resolve_external_subtitle_path(ext_path, &video_path)
+                .unwrap_or_else(|| std::path::PathBuf::from(ext_path));
+            if resolved.exists() {
+                let resolved_str = resolved.to_string_lossy().to_string();
                 // Если исходный файл aac, а целевой контейнер m4a — упаковываем через FFmpeg
-                if ext_path
+                if resolved_str
                     .to_lowercase()
                     .ends_with(".aac")
                     && effective_target_path
@@ -436,45 +348,42 @@ pub async fn extract_track(
                         .ends_with(".m4a")
                 {
                     let mut cmd =
-                        std::process::Command::new(
+                        tokio::process::Command::new(
                             &ffmpeg_path,
                         );
                     cmd.args([
                         "-y",
                         "-i",
-                        ext_path,
+                        &resolved_str,
                         "-c",
                         "copy",
                         &effective_target_path,
                     ]);
+                    cmd.kill_on_drop(true);
                     #[cfg(target_os = "windows")]
                     {
-                        use std::os::windows::process::CommandExt;
                         const CREATE_NO_WINDOW: u32 =
                             0x08000000;
                         cmd.creation_flags(
                             CREATE_NO_WINDOW,
                         );
                     }
-                    let out =
-                        tokio::task::spawn_blocking(
-                            move || cmd.output(),
+                    let out = tokio::time::timeout(
+                        std::time::Duration::from_secs(60),
+                        cmd.output(),
+                    )
+                    .await
+                    .map_err(|_| {
+                        "Таймаут упаковки AAC в M4A через FFmpeg (60 сек). Процесс остановлен."
+                            .to_string()
+                    })?
+                    .map_err(|e| {
+                        format!(
+                            "Не удалось запустить \
+                             FFmpeg: {}",
+                            e
                         )
-                        .await
-                        .map_err(|e| {
-                            format!(
-                                "Сбой задачи упаковки \
-                                 AAC в M4A: {}",
-                                e
-                            )
-                        })?
-                        .map_err(|e| {
-                            format!(
-                                "Не удалось запустить \
-                                 FFmpeg: {}",
-                                e
-                            )
-                        })?;
+                    })?;
                     if out.status.success() {
                         return Ok(
                             effective_target_path,
@@ -482,7 +391,7 @@ pub async fn extract_track(
                     }
                 }
 
-                std::fs::copy(src, &effective_target_path)
+                std::fs::copy(&resolved, &effective_target_path)
                     .map_err(|e| {
                         format!(
                             "Ошибка копирования \
@@ -491,6 +400,11 @@ pub async fn extract_track(
                         )
                     })?;
                 return Ok(effective_target_path);
+            } else {
+                return Err(format!(
+                    "Файл внешней дорожки не найден: {}",
+                    ext_path
+                ));
             }
         }
     }
@@ -510,7 +424,7 @@ pub async fn extract_track(
 
     // Спецификатор потока для FFmpeg: используем точный ff_index (если доступен), иначе тип:индекс
     let stream_specifier = if let Some(ffi) = ff_index {
-        if ffi >= 0 {
+        if ffi > 0 || (ffi == 0 && track_type != "sub") {
             format!("0:{}", ffi)
         } else if track_type == "audio" {
             format!("0:a:{}", track_index.max(0))
@@ -524,8 +438,7 @@ pub async fn extract_track(
     };
 
     // Попытка 1: Прямое копирование потока (-c copy)
-    let mut cmd =
-        std::process::Command::new(&ffmpeg_path);
+    let mut cmd = tokio::process::Command::new(&ffmpeg_path);
     cmd.args([
         "-y",
         "-i",
@@ -536,35 +449,25 @@ pub async fn extract_track(
         "copy",
         &effective_target_path,
     ]);
+    cmd.kill_on_drop(true);
 
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
 
-    let mut output =
-        tokio::task::spawn_blocking(move || cmd.output())
-            .await
-            .map_err(|e| {
-                format!(
-                    "Сбой задачи извлечения дорожки: {}",
-                    e
-                )
-            })?
-            .map_err(|e| {
-                format!(
-                    "Не удалось запустить FFmpeg: {}",
-                    e
-                )
-            })?;
+    let mut output = match tokio::time::timeout(std::time::Duration::from_secs(60), cmd.output()).await {
+        Ok(res) => res.map_err(|e| format!("Не удалось запустить FFmpeg: {}", e))?,
+        Err(_) => {
+            return Err("Время извлечения дорожки через FFmpeg истекло (таймаут 60 сек). Процесс остановлен.".to_string());
+        }
+    };
 
     // Попытка 2 (Fallback): Если прямое копирование потока завершилось ошибкой,
     // пробуем извлечь с автоматической конвертацией FFmpeg
     if !output.status.success() {
-        let mut retry_cmd =
-            std::process::Command::new(&ffmpeg_path);
+        let mut retry_cmd = tokio::process::Command::new(&ffmpeg_path);
         retry_cmd.args([
             "-y",
             "-i",
@@ -575,21 +478,22 @@ pub async fn extract_track(
             "0",
             &effective_target_path,
         ]);
+        retry_cmd.kill_on_drop(true);
         #[cfg(target_os = "windows")]
         {
-            use std::os::windows::process::CommandExt;
             const CREATE_NO_WINDOW: u32 = 0x08000000;
             retry_cmd.creation_flags(CREATE_NO_WINDOW);
         }
 
-        if let Ok(Ok(retry_output)) =
-            tokio::task::spawn_blocking(move || {
-                retry_cmd.output()
-            })
-            .await
-        {
-            if retry_output.status.success() {
+        match tokio::time::timeout(std::time::Duration::from_secs(120), retry_cmd.output()).await {
+            Ok(Ok(retry_output)) => {
                 output = retry_output;
+            }
+            Ok(Err(e)) => {
+                eprintln!("[L-MPV] Не удалось запустить повторную конвертацию FFmpeg: {}", e);
+            }
+            Err(_) => {
+                return Err("Время перекодирования дорожки через FFmpeg истекло (таймаут 120 сек).".to_string());
             }
         }
     }
@@ -868,18 +772,17 @@ fn is_track_matching_video(
     }
 }
 
-/// Сканирование родительской директории видео (уровень 0) и прямых дочерних папок (уровень 1).
-/// Не спускается глубже 1 уровня вложенности («дальше в подпапку лезть не надо»).
 // ─── Кэш сканирования внешних дорожек ────────────────
 
-/// Закэшированный результат скана одного каталога.
+/// Результат скана конкретного видео с проверкой mtime родителя и прямых подкаталогов.
 ///
-/// Фронтенд вызывает `load_external_tracks_for_file` следом за `open_file`
-/// для того же файла, а навигация Next/Prev ходит по той же папке.
-/// Повторный `read_dir` при неизменном mtime каталога не нужен: отдаём
-/// копию закэшированных списков.
+/// Списки уже отфильтрованы по имени видео; соседняя серия не может использовать
+/// этот кэш. Проверки зависимостей выполняются без удержания мьютекса кэша.
+#[derive(Clone)]
 struct ExternalScanCache {
+    video_path: PathBuf,
     dir: PathBuf,
+    subdir_mtimes: Vec<(PathBuf, Option<SystemTime>)>,
     mtime: Option<SystemTime>,
     audio: Vec<PathBuf>,
     subtitles: Vec<PathBuf>,
@@ -898,32 +801,25 @@ static EXTERNAL_SCAN_CACHE: OnceLock<
 static EXTERNAL_LOAD_LOCK: OnceLock<Mutex<()>> =
     OnceLock::new();
 
-/// Проверка, что фоновая задача ещё актуальна.
-///
-/// `generation` отсекает устаревшие задачи прошлых открытий, а сравнение
-/// текущего пути mpv — случай, когда пользователь уже переключил файл
-/// (Next/Prev) посреди фоновой задачи: чужие дорожки подмешивать нельзя.
-/// `prev_path` — путь, игравший ДО `loadfile`: пока mpv его показывает,
-/// загрузка нового файла ещё идёт и задача актуальна.
+/// Принудительный сброс кэша сканирования внешних дорожек (например, при включении настройки подхвата на лету).
+pub fn invalidate_external_scan_cache() {
+    if let Some(lock) = EXTERNAL_SCAN_CACHE.get() {
+        if let Ok(mut slot) = lock.lock() {
+            *slot = None;
+        }
+    }
+}
+
+/// Only the loaded target may receive tracks, including post-load aid/sid restoration.
 fn task_still_current(
     mpv: &MpvManager,
     video_path: &Path,
-    prev_path: &str,
+    _prev_path: &str,
     generation: Option<u64>,
 ) -> bool {
-    if let Some(gen) = generation {
-        if current_open_generation() != gen {
-            return false;
-        }
-    }
+    if generation.is_some_and(|g| current_open_generation() != g) { return false; }
     let current = mpv.get_property_string("path").unwrap_or_default();
-    if current.trim().is_empty() {
-        return true;
-    }
-    let norm = |s: &str| s.replace('\\', "/").to_lowercase();
-    let current_norm = norm(&current);
-    current_norm == norm(&video_path.to_string_lossy())
-        || current_norm == norm(prev_path)
+    !current.is_empty() && super::background_io::same_path(&current, &video_path.to_string_lossy())
 }
 
 /// Скан внешних дорожек с mtime-кэшем по родительскому каталогу.
@@ -932,46 +828,53 @@ fn task_still_current(
 /// обращения к диску, кроме одного `metadata()` для сверки mtime.
 fn cached_scan_external_tracks(
     video_path: &Path,
-) -> (Vec<PathBuf>, Vec<PathBuf>) {
+    keep_reading: &mut impl FnMut() -> bool,
+) -> Option<(Vec<PathBuf>, Vec<PathBuf>)> {
     let parent = match video_path.parent() {
         Some(p) => p.to_path_buf(),
-        None => return (Vec::new(), Vec::new()),
+        None => return Some((Vec::new(), Vec::new())),
     };
     let mtime = dir_mtime(&parent);
     let cache_lock = EXTERNAL_SCAN_CACHE
         .get_or_init(|| Mutex::new(None));
-    if let Ok(slot) = cache_lock.lock() {
-        if let Some(cache) = slot.as_ref() {
-            if cache.dir == parent && cache.mtime == mtime {
-                return (
-                    cache.audio.clone(),
-                    cache.subtitles.clone(),
-                );
-            }
+    let cached = cache_lock.lock().ok().and_then(|slot| slot.as_ref()
+        .filter(|cache| cache.video_path == video_path && cache.dir == parent && cache.mtime == mtime)
+        .cloned());
+    if let Some(cache) = cached {
+        let mut fresh = true;
+        for (subdir, modified) in &cache.subdir_mtimes {
+            if !keep_reading() { return None; }
+            if dir_mtime(subdir) != *modified { fresh = false; break; }
         }
+        if fresh { return Some((cache.audio, cache.subtitles)); }
     }
-    let (audio, subtitles) =
-        scan_external_tracks(video_path);
+    let (audio, subtitles, subdir_mtimes) = scan_external_tracks(video_path, keep_reading)?;
     if let Ok(mut slot) = cache_lock.lock() {
         *slot = Some(ExternalScanCache {
+            video_path: video_path.to_path_buf(),
+            subdir_mtimes,
             dir: parent,
             mtime,
             audio: audio.clone(),
             subtitles: subtitles.clone(),
         });
     }
-    (audio, subtitles)
+    Some((audio, subtitles))
 }
+
+type ExternalTrackScan = (Vec<PathBuf>, Vec<PathBuf>, Vec<(PathBuf, Option<SystemTime>)>);
 
 fn scan_external_tracks(
     video_path: &std::path::Path,
-) -> (Vec<std::path::PathBuf>, Vec<std::path::PathBuf>) {
+    keep_reading: &mut impl FnMut() -> bool,
+) -> Option<ExternalTrackScan> {
     let mut audio_files = Vec::new();
     let mut subtitle_files = Vec::new();
+    let mut subdir_mtimes = Vec::new();
 
     let parent = match video_path.parent() {
         Some(p) => p,
-        None => return (audio_files, subtitle_files),
+        None => return Some((audio_files, subtitle_files, subdir_mtimes)),
     };
 
     // Имя видеофайла в нижнем регистре: тот же каталог => совпадение
@@ -985,11 +888,11 @@ fn scan_external_tracks(
         .and_then(|s| s.to_str())
     {
         Some(s) => s,
-        None => return (audio_files, subtitle_files),
+        None => return Some((audio_files, subtitle_files, subdir_mtimes)),
     };
 
     // Один проход по каталогу вместо stat-сисколла на файл.
-    let listing = list_folder(parent);
+    let listing = list_folder_while(parent, keep_reading)?;
     let mut direct_subdirs = Vec::new();
 
     // 1. Уровень 0: каталог рядом с видеофайлом
@@ -1022,7 +925,9 @@ fn scan_external_tracks(
 
     // 2. Уровень 1: прямые подкаталоги (например, Subs, Audio, Subtitles и др.), без рекурсии дальше
     for subdir in direct_subdirs {
-        for entry in list_folder(&subdir)
+        if !keep_reading() { return None; }
+        subdir_mtimes.push((subdir.clone(), dir_mtime(&subdir)));
+        for entry in list_folder_while(&subdir, keep_reading)?
             .entries
             .iter()
             .filter(|e| e.is_file)
@@ -1070,7 +975,7 @@ fn scan_external_tracks(
         natural_cmp(&na, &nb)
     });
 
-    (audio_files, subtitle_files)
+    Some((audio_files, subtitle_files, subdir_mtimes))
 }
 
 /// Внутренняя функция автоподхвата внешних дорожек и субтитров для медиафайла.
@@ -1091,8 +996,11 @@ pub fn load_external_tracks_internal(
     if !task_still_current(mpv, video_path, prev_path, generation) {
         return Ok(());
     }
-    let (audio_files, subtitle_files) =
-        cached_scan_external_tracks(video_path);
+    let target = video_path.to_string_lossy();
+    let mut scan_gate = generation.map(|g| super::background_io::ScanGate::new(mpv, &target, "", g));
+    let mut keep_reading = || scan_gate.as_mut().is_none_or(|gate| gate.keep_reading());
+    let Some((audio_files, subtitle_files)) =
+        cached_scan_external_tracks(video_path, &mut keep_reading) else { return Ok(()); };
 
     if audio_files.is_empty()
         && subtitle_files.is_empty()
@@ -1110,9 +1018,12 @@ pub fn load_external_tracks_internal(
         return Ok(());
     }
 
-    // Запоминаем текущую активную аудиодорожку перед добавлением внешних файлов
+    // Запоминаем текущие активные аудиодорожку и субтитры перед добавлением внешних файлов
     let original_aid = mpv
         .get_property_string("aid")
+        .unwrap_or_default();
+    let original_sid = mpv
+        .get_property_string("sid")
         .unwrap_or_default();
 
     // Собираем уже загруженные внешние файлы для предотвращения повторной загрузки
@@ -1140,13 +1051,16 @@ pub fn load_external_tracks_internal(
 
     // Подключение найденных внешних аудиодорожек
     for audio_path in audio_files {
+        if !keep_reading() { return Ok(()); }
+        let _transition = super::dir_scan::lock_open_transition()?;
+        if !task_still_current(mpv, video_path, prev_path, generation) { return Ok(()); }
         let path_str = audio_path.to_string_lossy();
         let safe_path = escape_mpv_path(&path_str);
         let norm_path = safe_path.to_lowercase();
 
         if !existing_external_files.contains(&norm_path) {
             let cmd = format!(
-                "audio-add \"{}\" cached",
+                "audio-add \"{}\" auto",
                 safe_path
             );
             if let Err(e) = mpv.command(&cmd) {
@@ -1167,6 +1081,8 @@ pub fn load_external_tracks_internal(
     // Если автовыбор ВЫКЛЮЧЕН (по умолчанию), принудительно восстанавливаем исходную дорожку видео.
     // Если автовыбор ВКЛЮЧЕН, переключаем на последнюю внешнюю дорожку.
     if newly_added_audio {
+        let _transition = super::dir_scan::lock_open_transition()?;
+        if !task_still_current(mpv, video_path, "", generation) { return Ok(()); }
         if !auto_select_audio {
             if !original_aid.is_empty() {
                 let _ = mpv
@@ -1206,15 +1122,20 @@ pub fn load_external_tracks_internal(
         }
     }
 
-    // Подключение найденных внешних субтитров с флагом "cached" (без принудительной активации)
+    let mut newly_added_sub = false;
+
+    // Подключение найденных внешних субтитров с флагом "auto" (без принудительной активации)
     for sub_path in subtitle_files {
+        if !keep_reading() { return Ok(()); }
+        let _transition = super::dir_scan::lock_open_transition()?;
+        if !task_still_current(mpv, video_path, prev_path, generation) { return Ok(()); }
         let path_str = sub_path.to_string_lossy();
         let safe_path = escape_mpv_path(&path_str);
         let norm_path = safe_path.to_lowercase();
 
         if !existing_external_files.contains(&norm_path) {
             let cmd = format!(
-                "sub-add \"{}\" cached",
+                "sub-add \"{}\" auto",
                 safe_path
             );
             if let Err(e) = mpv.command(&cmd) {
@@ -1226,7 +1147,24 @@ pub fn load_external_tracks_internal(
             } else {
                 existing_external_files
                     .insert(norm_path);
+                newly_added_sub = true;
             }
+        }
+    }
+
+    // Гарантируем, что подключение внешних субтитров не собьёт и не включит субтитры насильно:
+    // сохраняем исходное состояние выбора субтитров (включая "no").
+    if newly_added_sub && !original_sid.is_empty() {
+        let _transition = super::dir_scan::lock_open_transition()?;
+        if !task_still_current(mpv, video_path, "", generation) { return Ok(()); }
+        let current_sid = mpv
+            .get_property_string("sid")
+            .unwrap_or_default();
+        if current_sid != original_sid {
+            let _ = mpv.set_property_string(
+                "sid",
+                &original_sid,
+            );
         }
     }
 
@@ -1249,9 +1187,20 @@ pub async fn analyze_subtitle_track(
     state: State<'_, PlayerState>,
     track_id: Option<i64>,
 ) -> Result<Vec<SubtitleLineInfo>, String> {
+    let generation = SUBTITLE_ANALYSIS_GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+    // Only one resource budget is live at a time. A replacement request cancels
+    // FFmpeg cooperatively; superseded queued requests never start extraction.
+    let _analysis = std::sync::Arc::new(SUBTITLE_ANALYSIS_LOCK
+        .get_or_init(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
+        .clone().lock_owned().await);
+    if SUBTITLE_ANALYSIS_GENERATION.load(std::sync::atomic::Ordering::SeqCst) != generation {
+        return Err("Subtitle extraction cancelled".into());
+    }
     // 1. Получаем путь к медиафайлу
     let video_path_str = state.mpv.get_property_string("path").unwrap_or_default();
 
+    let cancelled = || SUBTITLE_ANALYSIS_GENERATION.load(std::sync::atomic::Ordering::SeqCst) != generation
+        || !super::background_io::same_path(&state.mpv.get_property_string("path").unwrap_or_default(), &video_path_str);
     // 2. Получаем список всех дорожек
     let all_tracks = get_tracks(state.clone())?;
     let sub_tracks: Vec<TrackInfo> = all_tracks.into_iter().filter(|t| t.track_type == "sub").collect();
@@ -1304,14 +1253,22 @@ pub async fn analyze_subtitle_track(
 
     if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
         if let Some(cached_lines) = read_subtitles_cache(cache_dir, key) {
-            return Ok(cached_lines);
+            // Защита от повреждённого кэша: если файл длиннее 2 минут, но в кэше <= 10 строк,
+            // кэш считается неполным фрагментом плейхеда и выполняется повторный скан.
+            let duration = state.mpv.get_property_double("duration").unwrap_or(0.0);
+            if duration <= 120.0 || cached_lines.len() > 10 {
+                return Ok(cached_lines);
+            }
         }
     }
 
     // 4. Если дорожка внешняя — читаем файл напрямую с диска.
     // Путь от mpv может быть относительным: ищем рядом с видеофайлом.
     // Декодируем с учётом кодировки (UTF-8/UTF-16/windows-1251).
-    if target.external && !target.external_filename.is_empty() {
+    if target.external {
+        if target.external_filename.is_empty() {
+            return Err("Файл внешних субтитров не указан".to_string());
+        }
         let ext_path_opt = resolve_external_subtitle_path(
             &target.external_filename,
             &video_path_str,
@@ -1325,33 +1282,33 @@ pub async fn analyze_subtitle_track(
             ));
         }
         if let Some(ext_path) = ext_path_opt {
-            if let Ok(bytes) = std::fs::read(&ext_path) {
-                let content = decode_subtitle_bytes(&bytes);
-                let ext = ext_path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("")
-                    .to_lowercase();
-                let parsed = if ext == "ass" || ext == "ssa" {
-                    parse_ass(&content)
-                } else {
-                    parse_srt_or_vtt(&content)
-                };
-                if !parsed.is_empty() {
-                    if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
-                        write_subtitles_cache(cache_dir, key, &parsed);
-                    }
-                    return Ok(parsed);
-                }
-                if is_bitmap_subtitle(&target.codec, &ext) {
-                    return Err(
-                        "Графические субтитры (PGS/VobSub/SUP): \
-                         в них нет текстового слоя, распознавание \
-                         (OCR) не поддерживается"
-                            .to_string(),
-                    );
+            let bytes = subtitle_io::read_file(&ext_path, MAX_SUBTITLE_STDOUT_BYTES).await?;
+            if cancelled() { return Err("Subtitle extraction cancelled".into()); }
+            let ext = ext_path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            if is_bitmap_subtitle(&target.codec, &ext) {
+                return Err(
+                    "Графические субтитры (PGS/VobSub/SUP): \
+                     в них нет текстового слоя, распознавание \
+                     (OCR) не поддерживается"
+                        .to_string(),
+                );
+            }
+            let content = decode_subtitle_bytes(&bytes);
+            let parsed = if ext == "ass" || ext == "ssa" {
+                parse_ass(&content)
+            } else {
+                parse_srt_or_vtt(&content)
+            };
+            if !parsed.is_empty() {
+                if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
+                    write_subtitles_cache(cache_dir, key, &parsed);
                 }
             }
+            return Ok(parsed);
         }
     }
 
@@ -1360,13 +1317,75 @@ pub async fn analyze_subtitle_track(
     let embedded_bitmap =
         !target.external && is_bitmap_subtitle(&target.codec, "");
 
-    // 5. Если дорожка встроенная в локальный видеофайл — извлекаем все реплики через FFmpeg
     let vpath = std::path::Path::new(&video_path_str);
-    if !embedded_bitmap && vpath.exists() && vpath.is_file() {
+
+    // 5. Первичный и ультрабыстрый источник для MKV / WebM:
+    // прямой легковесный Rust-парсер контейнера Matroska (аналогично алгоритму Aegisub).
+    // Сканирует заголовки кластеров и делает seek-прыжки через видеокадры,
+    // извлекая полный текст субтитров за ~50–150 мс даже из файлов по 40–80 ГБ.
+    let lower_path = video_path_str.to_lowercase();
+    let is_matroska_file = lower_path.ends_with(".mkv")
+        || lower_path.ends_with(".webm")
+        || lower_path.ends_with(".mka");
+
+    if !target.external && !embedded_bitmap && is_matroska_file && vpath.exists() && vpath.is_file() {
+        let embedded_subs: Vec<&TrackInfo> =
+            sub_tracks.iter().filter(|t| !t.external).collect();
+        let embedded_sub_index = embedded_subs
+            .iter()
+            .position(|t| t.id == target.id)
+            .unwrap_or(0);
+
+        // Разбор выполняется в пуле блокирующих задач, чтобы дисковый
+        // ввод-вывод не занимал рабочие потоки асинхронного рантайма.
+        let mkv_path = vpath.to_path_buf();
+        let mkv_title = target.title.clone();
+        let mkv_lang = target.lang.clone();
+        let analysis = _analysis.clone();
+        let mkv_result = tauri::async_runtime::spawn_blocking(move || {
+            // A dropped IPC future must not admit another resource budget
+            // while this non-abortable blocking parser is still running.
+            let _analysis = analysis;
+            let query = super::matroska::MatroskaTrackQuery {
+                embedded_index: embedded_sub_index,
+                title: &mkv_title,
+                lang: &mkv_lang,
+            };
+            super::matroska::extract_matroska_subtitles(&mkv_path, &query)
+        })
+        .await
+        .unwrap_or_else(|e| {
+            Err(format!("Задача разбора Matroska аварийно завершилась: {}", e))
+        });
+        if cancelled() { return Err("Subtitle extraction cancelled".into()); }
+
+        match mkv_result {
+            Ok(lines) => {
+                if !lines.is_empty() {
+                    if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
+                        write_subtitles_cache(cache_dir, key, &lines);
+                    }
+                    return Ok(lines);
+                }
+            }
+            Err(err) => {
+                eprintln!(
+                    "[L-MPV MatroskaParser] Ошибка прямого извлечения MKV (fallback на FFmpeg): {}",
+                    err
+                );
+            }
+        }
+    }
+
+    // 6. Резервный источник: для форматов MP4/AVI/TS или в случае нестандартного контейнера
+    // извлекаем дорожку через встроенный FFmpeg с флагами -vn -an и -c:s copy.
+    if !target.external && !embedded_bitmap && vpath.exists() && vpath.is_file() {
         let exe_dir = get_app_dir()?;
         let mut ffmpeg_path = exe_dir.join("ffmpeg.exe");
         if !ffmpeg_path.exists() {
-            if std::path::Path::new("ffmpeg.exe").exists() {
+            if exe_dir.join("binaries").join("ffmpeg.exe").exists() {
+                ffmpeg_path = exe_dir.join("binaries").join("ffmpeg.exe");
+            } else if std::path::Path::new("ffmpeg.exe").exists() {
                 ffmpeg_path = std::path::PathBuf::from("ffmpeg.exe");
             } else if std::path::Path::new("src-tauri/binaries/ffmpeg.exe").exists() {
                 ffmpeg_path = std::path::PathBuf::from("src-tauri/binaries/ffmpeg.exe");
@@ -1377,62 +1396,96 @@ pub async fn analyze_subtitle_track(
             }
         }
 
-        let sub_index = sub_tracks.iter().position(|t| t.id == target.id).unwrap_or(0);
-        let stream_specifier = if target.ff_index >= 0 {
-            format!("0:{}", target.ff_index)
-        } else {
-            format!("0:s:{}", sub_index)
-        };
+        // Индекс среди встроенных субтитров видеофайла для спецификатора FFmpeg
+        let embedded_subs: Vec<&TrackInfo> =
+            sub_tracks.iter().filter(|t| !t.external).collect();
+        let embedded_sub_index = embedded_subs
+            .iter()
+            .position(|t| t.id == target.id)
+            .unwrap_or(0);
 
-        let prefers_ass = target.codec.to_lowercase().contains("ass")
-            || target.codec.to_lowercase().contains("ssa")
-            || video_path_str.to_lowercase().ends_with(".mkv")
-            || target.codec.is_empty();
+        // Список спецификаторов: первичный 0:s:{embedded_sub_index} (строго субтитры),
+        // вторичный 0:{ff_index} (если ff_index > 0 и не совпадает).
+        let mut stream_specifiers = vec![format!("0:s:{}", embedded_sub_index)];
+        if target.ff_index > 0 && target.ff_index != embedded_sub_index as i64 {
+            stream_specifiers.push(format!("0:{}", target.ff_index));
+        }
+
+        let is_srt = target.codec.to_lowercase().contains("srt")
+            || target.codec.to_lowercase().contains("subrip");
+        let prefers_ass = !is_srt
+            && (target.codec.to_lowercase().contains("ass")
+                || target.codec.to_lowercase().contains("ssa")
+                || video_path_str.to_lowercase().ends_with(".mkv")
+                || target.codec.is_empty());
 
         let formats = if prefers_ass { ["ass", "srt"] } else { ["srt", "ass"] };
-        for fmt in formats {
-            let target_video_path = video_path_str.clone();
-            let target_ffmpeg = ffmpeg_path.clone();
-            let target_spec = stream_specifier.clone();
+        for target_spec in &stream_specifiers {
+            for fmt in formats {
+                let target_video_path = video_path_str.clone();
+                let target_ffmpeg = ffmpeg_path.clone();
 
-            let extract_result = tokio::task::spawn_blocking(move || {
-                let mut cmd = std::process::Command::new(&target_ffmpeg);
-                cmd.args([
-                    "-y",
-                    "-loglevel", "error",
-                    "-i", &target_video_path,
-                    "-map", &target_spec,
-                    "-f", fmt,
-                    "-"
-                ]);
-                #[cfg(target_os = "windows")]
+                let extract_result = {
+                    let mut cmd = tokio::process::Command::new(&target_ffmpeg);
+                    cmd.args([
+                        "-y",
+                        "-loglevel", "error",
+                        "-i", &target_video_path,
+                        "-map", target_spec,
+                        "-vn",
+                        "-an",
+                        "-c:s", "copy",
+                        "-f", fmt,
+                        "-"
+                    ]);
+                    cmd.kill_on_drop(true);
+                    #[cfg(target_os = "windows")]
+                    {
+                        const CREATE_NO_WINDOW: u32 = 0x08000000;
+                        cmd.creation_flags(CREATE_NO_WINDOW);
+                    }
+                    subtitle_io::output(&mut cmd, MAX_SUBTITLE_STDOUT_BYTES,
+                        std::time::Duration::from_secs(45), &cancelled, _analysis.clone()).await
+                };
+
+                let output = match extract_result {
+                    Ok(output) => output,
+                    Err(error) if error == "Subtitle extraction cancelled" || error == "Subtitle stream limit exceeded" => return Err(error),
+                    Err(error) => {
+                        // Preserve alternate-format/mpv fallback for missing tools,
+                        // unsupported inputs and timeout; never retry a resource breach.
+                        eprintln!("[L-MPV] Subtitle extraction ({fmt}, {target_spec}): {error}");
+                        continue;
+                    }
+                };
                 {
-                    use std::os::windows::process::CommandExt;
-                    const CREATE_NO_WINDOW: u32 = 0x08000000;
-                    cmd.creation_flags(CREATE_NO_WINDOW);
-                }
-                cmd.output()
-            }).await;
-
-            if let Ok(Ok(output)) = extract_result {
-                if output.status.success() && !output.stdout.is_empty() {
-                    if output.stdout.len() > MAX_SUBTITLE_STDOUT_BYTES {
-                        eprintln!(
-                            "[L-MPV] Поток субтитров превышает лимит {} байт для формата {}",
-                            MAX_SUBTITLE_STDOUT_BYTES, fmt
-                        );
-                    } else {
-                        let text = decode_subtitle_bytes(&output.stdout);
-                        let lines = if fmt == "ass" {
-                            parse_ass(&text)
+                    if output.status.success() && !output.stdout.is_empty() {
+                        if output.stdout.len() > MAX_SUBTITLE_STDOUT_BYTES {
+                            eprintln!(
+                                "[L-MPV] Поток субтитров превышает лимит {} байт для формата {}",
+                                MAX_SUBTITLE_STDOUT_BYTES, fmt
+                            );
                         } else {
-                            parse_srt_or_vtt(&text)
-                        };
-                        if !lines.is_empty() {
-                            if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
-                                write_subtitles_cache(cache_dir, key, &lines);
+                            let text = decode_subtitle_bytes(&output.stdout);
+                            let lines = if fmt == "ass" {
+                                parse_ass(&text)
+                            } else {
+                                parse_srt_or_vtt(&text)
+                            };
+                            if !lines.is_empty() {
+                                if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
+                                    write_subtitles_cache(cache_dir, key, &lines);
+                                }
+                                return Ok(lines);
                             }
-                            return Ok(lines);
+                        }
+                    } else if !output.status.success() {
+                        let err_msg = String::from_utf8_lossy(&output.stderr);
+                        if !err_msg.trim().is_empty() {
+                            eprintln!(
+                                "[L-MPV] FFmpeg вернул ошибку при извлечении субтитров ({}, spec {}): {}",
+                                fmt, target_spec, err_msg.trim()
+                            );
                         }
                     }
                 }
@@ -1440,20 +1493,16 @@ pub async fn analyze_subtitle_track(
         }
     }
 
-    // 6. Резервный источник: чтение sub-lines из памяти mpv (для стриминга или сетевых URL)
+    // 7. Резервный источник: чтение sub-lines из памяти mpv (для стриминга или сетевых URL).
+    // Не сохраняем этот фрагмент в дисковый кэш, так как sub-lines содержит
+    // только реплики вокруг текущей позиции воспроизведения.
     if let Ok(lines) = state.mpv.get_sub_lines("sub-lines") {
         if !lines.is_empty() {
-            if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
-                write_subtitles_cache(cache_dir, key, &lines);
-            }
             return Ok(lines);
         }
     }
     if let Ok(lines) = state.mpv.get_sub_lines("secondary-sub-lines") {
         if !lines.is_empty() {
-            if let (Some(ref cache_dir), Some(ref key)) = (&cache_dir_opt, &cache_key_opt) {
-                write_subtitles_cache(cache_dir, key, &lines);
-            }
             return Ok(lines);
         }
     }
@@ -1476,4 +1525,36 @@ pub async fn get_active_subtitle_lines(
     state: State<'_, PlayerState>,
 ) -> Result<Vec<SubtitleLineInfo>, String> {
     analyze_subtitle_track(state, None).await
+}
+
+#[cfg(test)]
+mod external_cache_tests {
+    use super::*;
+    #[test]
+    fn external_cache_is_scoped_to_video_and_invalidates_on_subfolder_changes() {
+        let root = std::env::temp_dir().join(format!("lmpv-track-cache-{}", std::process::id()));
+        let subs = root.join("Subs");
+        std::fs::create_dir_all(&subs).unwrap();
+        for name in ["Show.S01E01.mkv", "Show.S01E02.mkv", "Show.S01E01.aac", "Show.S01E02.aac"] {
+            std::fs::write(root.join(name), []).unwrap();
+        }
+        std::fs::write(subs.join("Show.S01E01.srt"), []).unwrap();
+        let first = root.join("Show.S01E01.mkv");
+        let second = root.join("Show.S01E02.mkv");
+        let (audio1, sub1) = cached_scan_external_tracks(&first, &mut || true).unwrap();
+        let (audio2, sub2) = cached_scan_external_tracks(&second, &mut || true).unwrap();
+        assert_eq!(audio1, vec![root.join("Show.S01E01.aac")]);
+        assert_eq!(audio2, vec![root.join("Show.S01E02.aac")]);
+        assert_eq!(sub1, vec![subs.join("Show.S01E01.srt")]);
+        assert!(sub2.is_empty());
+        cached_scan_external_tracks(&first, &mut || true).unwrap();
+        let parent_mtime = dir_mtime(&root);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        std::fs::remove_file(subs.join("Show.S01E01.srt")).unwrap();
+        std::fs::write(subs.join("Show.S01E01.vtt"), []).unwrap();
+        assert_eq!(dir_mtime(&root), parent_mtime);
+        let (_, subtitles) = cached_scan_external_tracks(&first, &mut || true).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+        assert_eq!(subtitles, vec![subs.join("Show.S01E01.vtt")]);
+    }
 }

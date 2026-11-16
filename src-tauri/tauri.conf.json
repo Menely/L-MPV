@@ -26,8 +26,9 @@
       },
       {
         "label": "mediainfo",
+        "create": false,
         "title": "L-MPV MediaInfo",
-        "width": 565,
+        "width": 655,
         "height": 685,
         "minWidth": 460,
         "minHeight": 360,
@@ -48,16 +49,21 @@
     "targets": ["nsis"],
     "windows": {
       "nsis": {
-        "installerHooks": "nsis/installer_hooks.nsh"
+        "installerHooks": "nsis/installer_hooks.nsh",
+        "languages": [
+          "English",
+          "Russian"
+        ],
+        "displayLanguageSelector": true
       },
       "digestAlgorithm": "sha256",
       "timestampUrl": "http://timestamp.digicert.com"
     },
-    "resources": [
-      "binaries/libmpv-2.dll",
-      "binaries/ffmpeg.exe",
-      "binaries/mediainfo.dll"
-    ],
+    "resources": {
+      "binaries/libmpv-2.dll": "libmpv-2.dll",
+      "binaries/ffmpeg.exe": "ffmpeg.exe",
+      "binaries/mediainfo.dll": "mediainfo.dll"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

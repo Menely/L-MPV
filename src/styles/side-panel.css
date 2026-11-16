@@ -6,14 +6,16 @@
   bottom: 0;
   width: 280px;
   background: var(--bg-glass);
-  backdrop-filter: var(--ui-backdrop);
-  -webkit-backdrop-filter: var(--ui-backdrop);
   border-left: 1px solid var(--border);
-  z-index: 900;
+  box-shadow: -12px 0 36px rgba(0, 0, 0, 0.55);
+  z-index: var(--z-side);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   animation: slidePanelIn 160ms var(--ease-out);
+  transition: border-color var(--t-fast) var(--ease-smooth);
 }
+
 
 @keyframes slidePanelIn {
   0% {
@@ -44,7 +46,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: var(--space-6) 16px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -64,7 +66,7 @@
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   transform-origin: center center;
   transition: transform var(--t-fast) var(--ease-spring-smooth),
               color var(--t-fast) var(--ease-smooth),
@@ -80,7 +82,7 @@
 }
 
 .side-panel__close:hover {
-  background: var(--bg-hover);
+  background: var(--action-hover-veil);
   color: var(--text-primary);
 }
 
@@ -91,21 +93,24 @@
 .side-panel__list {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  scrollbar-gutter: stable;
+  padding: var(--space-4);
 }
 
 .side-panel__item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border: 1.5px solid transparent;
+  gap: var(--space-5);
+  padding: var(--space-4) 12px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  box-sizing: border-box;
   background: transparent;
   color: var(--text-primary);
   font-size: var(--fs-sm);
   font-family: var(--font-family);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-list-row);
   width: 100%;
   text-align: left;
   transform-origin: center center;
@@ -116,7 +121,7 @@
 }
 
 .side-panel__item:hover {
-  background: var(--bg-hover);
+  background: var(--hover-veil);
 }
 
 .side-panel__item:active {
@@ -124,10 +129,10 @@
 }
 
 .side-panel__item--active {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
+  background: var(--surface-accent-subtle) !important;
   color: var(--text-primary) !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  border-color: var(--selection-frame) !important;
+  box-shadow: inset 0 0 0 1.5px transparent !important;
 }
 
 .side-panel__item--active svg {

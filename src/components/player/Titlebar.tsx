@@ -4,6 +4,7 @@ import { useCallback, useMemo, memo, useState, useEffect } from "react";
 import {
   Minus,
   Square,
+  Copy,
   X,
 } from "lucide-react";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
@@ -41,6 +42,45 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
   const { dict } = useTranslation();
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
+  const [isMaximized, setIsMaximized] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    let unlisten: (() => void) | null = null;
+
+    const checkMaximized = async () => {
+      try {
+        const maximized = await appWindow.isMaximized();
+        if (isMounted) {
+          setIsMaximized(maximized);
+        }
+      } catch (_) {}
+    };
+
+    checkMaximized();
+
+    appWindow
+      .onResized(() => {
+        if (isMounted) {
+          checkMaximized();
+        }
+      })
+      .then((fn) => {
+        if (!isMounted) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [appWindow]);
 
   useEffect(() => {
     const updateSettings = () => {
@@ -61,7 +101,7 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
         detail: dict.osd.timeFormat(option?.label || nextFormat),
       })
     );
-  }, [timeFormat]);
+  }, [timeFormat, dict.osd]);
 
   const handleMinimize = useCallback(() => {
     appWindow.minimize();
@@ -72,11 +112,13 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
       await toggleFullscreen();
       return;
     }
-    const isMaximized = await appWindow.isMaximized();
-    if (isMaximized) {
+    const maximized = await appWindow.isMaximized();
+    if (maximized) {
       await appWindow.unmaximize();
+      setIsMaximized(false);
     } else {
       await appWindow.maximize();
+      setIsMaximized(true);
     }
   }, [appWindow, isFullscreen, toggleFullscreen]);
 
@@ -103,7 +145,7 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
           <span
             className="titlebar__filename"
             data-tauri-drag-region={dragAttr}
-          >
+            >
             {mediaTitle}
           </span>
         </div>
@@ -121,25 +163,38 @@ export const Titlebar = memo(function Titlebar({ title, mediaTitle }: TitlebarPr
         )}
         <div className="titlebar__controls">
           <button
+            type="button"
             className="titlebar__btn"
             onClick={handleMinimize}
             id="titlebar-minimize"
-          >
-            <Minus size={14} strokeWidth={1.5} />
+
+            aria-label={dict.titlebar.minimize}
+            >
+            <Minus size={18} strokeWidth={2.2} />
           </button>
           <button
+            type="button"
             className="titlebar__btn"
             onClick={handleMaximize}
             id="titlebar-maximize"
-          >
-            <Square size={12} strokeWidth={1.5} />
+
+            aria-label={isMaximized ? dict.titlebar.restore : dict.titlebar.maximize}
+            >
+            {isMaximized ? (
+              <Copy size={16} strokeWidth={2.2} />
+            ) : (
+              <Square size={16} strokeWidth={2.2} />
+            )}
           </button>
           <button
+            type="button"
             className="titlebar__btn titlebar__btn--close"
             onClick={handleClose}
             id="titlebar-close"
-          >
-            <X size={14} strokeWidth={1.5} />
+
+            aria-label={dict.titlebar.close}
+            >
+            <X size={18} strokeWidth={2.2} />
           </button>
         </div>
       </div>

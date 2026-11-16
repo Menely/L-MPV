@@ -1,243 +1,517 @@
-import React, { useState, useRef, useCallback, useMemo } from "react";
+import { isTimelinePreviewEnabled } from "../../utils/timelinePreviewPreference";
+import { supportsTimelineThumbnail, thumbnailWidth as pickThumbnailWidth } from "../../utils/timelineThumbnail";
+import { prewarmTimelineThumbnail, useTimelineStoryboard } from "../../hooks/useTimelineStoryboard";
+import { getActiveUiScale } from "../../utils/uiThemeUtils";
+import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
+import { useTranslation } from "../../i18n/LanguageContext";
 import { formatTime } from "../../utils/timeUtils";
 import { AudioVisualizer } from "./AudioVisualizer";
+import { useLiveScrubbing } from "./useLiveScrubbing";
+import { TimelinePreview } from "./timeline/TimelinePreview";
+import { useNeonPulse } from "./useNeonPulse";
+import { isMotionAllowed } from "../../utils/animationUtils";
+import { getSavedSeekStepSeconds, triggerSeekIndicator } from "../../utils/seekUtils";
 
+export interface TimelineSegmentData {
+  start: number;
+  end: number;
+  title: string;
+}
+
+/**
+ * Нормализация и разбивка шкалы на непрерывные сегменты глав [0, duration].
+ * Гарантирует покрытие 100% даже при несортированных или смещённых метках.
+ */
+export function buildTimelineSegments(
+  chapters: Array<{ time: number; title: string }>,
+  duration: number,
+  fallbackTitle: string,
+  startLabel: string = "Начало",
+  chapterItemFn: (i: number) => string = (i) => `Глава ${i}`
+): TimelineSegmentData[] {
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
+  if (safeDuration <= 0) return [{ start: 0, end: 0, title: fallbackTitle }];
+  if (!chapters || chapters.length === 0) return [{ start: 0, end: safeDuration, title: fallbackTitle }];
+
+  const valid = chapters
+    .filter((ch) => Number.isFinite(ch.time) && ch.time >= 0 && ch.time < safeDuration)
+    .sort((a, b) => a.time - b.time);
+
+  if (valid.length === 0) return [{ start: 0, end: safeDuration, title: fallbackTitle }];
+
+  const segs: TimelineSegmentData[] = [];
+  if (valid[0].time > 0.05) {
+    segs.push({ start: 0, end: valid[0].time, title: fallbackTitle || startLabel });
+  }
+
+  for (let i = 0; i < valid.length; i++) {
+    const start = valid[i].time;
+    const end = i + 1 < valid.length ? valid[i + 1].time : safeDuration;
+    if (end > start) {
+      segs.push({ start, end, title: valid[i].title || chapterItemFn(i + 1) });
+    }
+  }
+
+  return segs.length > 0 ? segs : [{ start: 0, end: safeDuration, title: fallbackTitle }];
+}
+
+/** Процент заполнения отрезка [segStart, segEnd] относительно позиции time. */
+function calcSegPercent(time: number, segStart: number, segEnd: number): number {
+  if (time>= segEnd) return 100;
+  if (time <= segStart) return 0;
+  return ((time - segStart) / (segEnd - segStart)) * 100;
+}
+
+// ─── Вспомогательные функции Pointer Capture ─────────────────────────────────
+
+function tryCapture(el: Element, pointerId: number): void {
+  try { el.setPointerCapture(pointerId); } catch { /* noop: не все env поддерживают */ }
+}
+
+function tryRelease(el: Element, pointerId: number): void {
+  try {
+    if (el.hasPointerCapture(pointerId)) el.releasePointerCapture(pointerId);
+  } catch { /* noop */ }
+}
+
+/** Конвертация clientX в позицию [0, duration] без layout thrashing. */
+function clientXToSeconds(clientX: number, rect: DOMRect, duration: number): number {
+  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+  return rect.width> 0 ? (x / rect.width) * duration : 0;
+}
+
+/** Конвертация clientX в ratio [0, 1]. */
+function clientXToRatio(clientX: number, rect: DOMRect): number {
+  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+  return rect.width> 0 ? x / rect.width : 0;
+}
+
+// ─── Мемоизированные sub-компоненты ──────────────────────────────────────────
+
+interface TimelineSegmentProps {
+  flexBasis: number;
+  segProgress: number;
+  segGhostProgress: number;
+  isHovered?: boolean;
+}
+
+const TimelineSegment = React.memo<TimelineSegmentProps>(
+  ({ flexBasis, segProgress, segGhostProgress, isHovered = false }) => (
+    <div
+      className={`timeline__segment ${isHovered ? "timeline__segment--hovered" : ""}`}
+      style={{
+        flexBasis: `${flexBasis}%`,
+      }}
+      >
+      <div className="timeline__segment-bg" />
+      {segGhostProgress> 0 && (
+        <div
+          className="timeline__segment-ghost"
+          style={{ width: `${segGhostProgress}%` }}
+        />
+      )}
+      {segProgress> 0 && (
+        <div
+          className="timeline__segment-progress"
+          style={{ width: `${segProgress}%` }}
+        />
+      )}
+    </div>
+  )
+  );
+TimelineSegment.displayName = "TimelineSegment";
+
+// ─── Главный компонент ────────────────────────────────────────────────────────
+
+/**
+ * Высокопроизводительный таймлайн плеера L-MPV.
+ *
+ * Архитектура:
+ * - useLiveScrubbing: throttled invoke("seek_preview") во время drag, с
+ *   автоматическим перепланированием rAF если throttle ещё не истёк;
+ * - useNeonPulse: CSS-анимация волны от точки клика;
+ * - Pointer Capture API: без глобальных window-слушателей и залипаний;
+ * - Единый rAF-батчер hover/drag обновлений (0 layout thrashing);
+ * - WAI-ARIA slider + полная клавиатурная навигация.
+ */
 export const Timeline = React.memo(() => {
-  const { mediaInfo, chapters, seekTo } = usePlayerState();
+  const { dict } = useTranslation();
+  const {
+    mediaInfo,
+    tracks,
+    chapters,
+    seekTo,
+    seekBy,
+    togglePause,
+    setPause,
+    prolongControlsIfActive,
+  } = usePlayerState();
   const { position, duration, seeking, seekTarget } = usePlayerProgress();
+  const [previewEnabled, setPreviewEnabled] = useState(isTimelinePreviewEnabled);
+  useEffect(() => {
+    const sync = () => setPreviewEnabled(isTimelinePreviewEnabled());
+    window.addEventListener("l-mpv-settings-changed", sync);
+    return () => window.removeEventListener("l-mpv-settings-changed", sync);
+  }, []);
   const mediaPath = mediaInfo?.path || "";
+  const selectedVideoTrack = tracks.find((track) => track.type === "video" && track.selected)?.id ?? null;
+  const thumbnailsEnabled = previewEnabled && supportsTimelineThumbnail(mediaPath, mediaInfo?.has_video ?? false);
+  const [thumbnailWidth, setThumbnailWidth] = useState(() => pickThumbnailWidth(window.devicePixelRatio, getActiveUiScale()));
+  useEffect(() => {
+    const sync = () => setThumbnailWidth(pickThumbnailWidth(window.devicePixelRatio, getActiveUiScale()));
+    window.addEventListener("resize", sync);
+    window.addEventListener("l-mpv-ui-scale-changed", sync);
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("l-mpv-ui-scale-changed", sync);
+    };
+  }, []);
+  // Storyboard tiles are built right after a file opens, before the first hover.
+  useTimelineStoryboard(mediaPath, selectedVideoTrack, thumbnailsEnabled, thumbnailWidth);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!thumbnailsEnabled) return;
+    // Entering the controls area starts loading the file in the preview decoder.
+    const area = timelineRef.current?.closest(".player-controls") ?? timelineRef.current;
+    if (!area) return;
+    const prewarm = () => prewarmTimelineThumbnail(mediaPath, selectedVideoTrack, thumbnailWidth);
+    area.addEventListener("pointerenter", prewarm);
+    return () => area.removeEventListener("pointerenter", prewarm);
+  }, [thumbnailsEnabled, mediaPath, selectedVideoTrack, thumbnailWidth]);
 
-  // Локальная позиция мыши — только во время drag
+  const { scheduleScrub, cancelScrub } = useLiveScrubbing();
+  const { pulse, firePulse, dismissPulse } = useNeonPulse();
+
   const [mousePosition, setMousePosition] = useState<number | null>(null);
   const [isDraggingState, setIsDraggingState] = useState(false);
   const isDragging = useRef(false);
-  const timelineRef = useRef<HTMLDivElement>(null);
+  const wasPlayingRef = useRef(false);
+  const mediaInfoRef = useRef(mediaInfo);
+  mediaInfoRef.current = mediaInfo;
+  const cachedRectRef = useRef<DOMRect | null>(null);
+  const dragStartXRef = useRef<number | null>(null);
 
-  // Вычисление отображаемой позиции: единый источник правды
-  // Приоритет: drag мышью > seek в процессе > реальная позиция
-  const displayPosition = mousePosition !== null
-    ? mousePosition
-    : (seeking && seekTarget !== null ? seekTarget : position);
+  // ─── Производные значения ────────────────────────────────────
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
+  const rawPos = mousePosition ?? (seeking && seekTarget !== null ? seekTarget : position);
+  const displayPos = Number.isFinite(rawPos) ? Math.max(0, Math.min(safeDuration, rawPos)) : 0;
+  const thumbPct = safeDuration > 0 ? Math.max(0, Math.min(100, (displayPos / safeDuration) * 100)) : 0;
 
-  const progress = duration > 0 ? Math.max(0, Math.min(100, (displayPosition / duration) * 100)) : 0;
+  const segments = useMemo(
+    () => buildTimelineSegments(
+      chapters,
+      safeDuration,
+      mediaPath,
+      dict.chapters.start,
+      dict.chapters.chapterItem
+    ),
+    [chapters, safeDuration, mediaPath, dict.chapters.start, dict.chapters.chapterItem]
+  );
 
-  // Сборка сегментов по главам
-  const segments = useMemo(() => {
-    if (chapters.length === 0 || duration <= 0) {
-      return [{ start: 0, end: duration, title: mediaPath }];
-    }
-    const segs = [];
-    for (let i = 0; i < chapters.length; i++) {
-      const start = chapters[i].time;
-      const end = (i + 1 < chapters.length) ? chapters[i + 1].time : duration;
-      segs.push({ start, end, title: chapters[i].title });
-    }
-    return segs;
-  }, [chapters, duration, mediaPath]);
+  const hasChapters = segments.length> 1;
 
-  // Hover-превью
+  // ─── Hover rAF-батчер ────────────────────────────────────────
   const [hoverInfo, setHoverInfo] = useState<{ ratio: number; time: number } | null>(null);
-  const hoverRafRef = useRef<number | null>(null);
-  const hoverPendingRef = useRef<{ ratio: number; time: number } | null>(null);
+  const rafId = useRef<number | null>(null);
+  const pendingClientX = useRef<{ x: number; rect: DOMRect; drag: boolean } | null>(null);
 
-  // rAF-троттлинг hover: без ре-рендера на каждый пиксель, превью не мигает
-  const flushHover = useCallback(() => {
-    hoverRafRef.current = null;
-    if (hoverPendingRef.current) {
-      setHoverInfo(hoverPendingRef.current);
-      hoverPendingRef.current = null;
+  const hoveredSegIndex = useMemo(() => {
+    if (!hoverInfo || !hasChapters) return -1;
+    const t = hoverInfo.time;
+    const idx = segments.findIndex((s) => t>= s.start && t <= s.end);
+    if (idx !== -1) return idx;
+    if (t>= segments[segments.length - 1].start) return segments.length - 1;
+    if (t <= segments[0].end) return 0;
+    return -1;
+  }, [hoverInfo, hasChapters, segments]);
+
+  // applyHover вызывается только из rAF — всегда имеет актуальный safeDuration
+  const applyHoverRef = useRef(() => {});
+  applyHoverRef.current = () => {
+    rafId.current = null;
+    const p = pendingClientX.current;
+    if (!p || safeDuration <= 0) return;
+    const ratio = clientXToRatio(p.x, p.rect);
+    const time = ratio * safeDuration;
+    if (p.drag) {
+      setMousePosition(time);
+      // Во время перетаскивания используем быстрые ключевые кадры (exact=false),
+      // чтобы не перегружать декодер на паузе, и игнорируем микро-сдвиги (< 3px) при обычном клике.
+      const movedDistance = dragStartXRef.current !== null ? Math.abs(p.x - dragStartXRef.current) : 999;
+      if (movedDistance > 3) {
+        scheduleScrub(time, false);
+      }
+    }
+    setHoverInfo({ ratio, time });
+  };
+
+  const scheduleHover = useCallback((x: number, rect: DOMRect, drag: boolean) => {
+    pendingClientX.current = { x, rect, drag };
+    if (rafId.current === null) {
+      rafId.current = requestAnimationFrame(applyHoverRef.current);
     }
   }, []);
 
-  const handleTimelineMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!timelineRef.current || duration <= 0) return;
-    const rect = timelineRef.current.getBoundingClientRect();
-    const hoverX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const ratio = hoverX / rect.width;
-    hoverPendingRef.current = { ratio, time: ratio * duration };
-    if (hoverRafRef.current === null) {
-      hoverRafRef.current = requestAnimationFrame(flushHover);
-    }
-  }, [duration, flushHover]);
+  // Сброс rAF/флагов при размонтировании + инвалидация кэша геометрии
+  // при ресайзе (иначе stale-rect даёт сик мимо цели).
+  useEffect(() => {
+    const invalidateRect = () => {
+      cachedRectRef.current = null;
+    };
+    window.addEventListener("resize", invalidateRect);
+    return () => {
+      window.removeEventListener("resize", invalidateRect);
+      if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
+      cachedRectRef.current = null;
+      cancelScrub();
+      if (isDragging.current && wasPlayingRef.current) {
+        setPause(false);
+      }
+      isDragging.current = false;
+    };
+  }, [setPause, cancelScrub]);
 
-  const handleTimelineMouseLeave = useCallback(() => {
-    if (hoverRafRef.current !== null) {
-      cancelAnimationFrame(hoverRafRef.current);
-      hoverRafRef.current = null;
+  // ─── Pointer handlers ────────────────────────────────────────
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || safeDuration <= 0) return;
+    tryCapture(e.currentTarget, e.pointerId);
+    // Снимаем фокус мышью: иначе он залипает после клика и Chromium рисует
+    // вокруг шкалы зелёную рамку глобального focus-visible (дефект UI).
+    if (document.activeElement === e.currentTarget) {
+      e.currentTarget.blur();
     }
-    hoverPendingRef.current = null;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    cachedRectRef.current = rect;
+    dragStartXRef.current = e.clientX;
+    isDragging.current = true;
+    setIsDraggingState(true);
+
+    const isCurrentlyPlaying = mediaInfoRef.current ? !mediaInfoRef.current.paused : false;
+    wasPlayingRef.current = isCurrentlyPlaying;
+    if (isCurrentlyPlaying) {
+      setPause(true);
+    }
+
+    const ratio = clientXToRatio(e.clientX, rect);
+    const time = ratio * safeDuration;
+
+    // При выключенных анимациях волну не запускаем: без animationEnd
+    // страховка всё равно уберёт её через 600мс, но лучше не создавать DOM.
+    if (isMotionAllowed()) {
+      firePulse(ratio * 100);
+    }
+    setMousePosition(time);
+    setHoverInfo({ ratio, time });
+  }, [safeDuration, firePulse, setPause]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (safeDuration <= 0) return;
+    scheduleHover(
+      e.clientX,
+      cachedRectRef.current ?? e.currentTarget.getBoundingClientRect(),
+      isDragging.current
+    );
+  }, [safeDuration, scheduleHover]);
+
+  const stopDrag = useCallback((
+    e: React.PointerEvent<HTMLDivElement>,
+    commit: boolean
+  ) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    dragStartXRef.current = null;
+    setIsDraggingState(false);
+
+    const shouldResume = wasPlayingRef.current;
+    wasPlayingRef.current = false;
+
+    if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
+    pendingClientX.current = null;
+    cancelScrub();
+    tryRelease(e.currentTarget, e.pointerId);
+
+    // Свежая геометрия на отпускании: кэш мог устареть при ресайзе окна.
+    const rect = e.currentTarget.getBoundingClientRect();
+    cachedRectRef.current = null;
+
+    if (commit) {
+      if (rect.width <= 0 || safeDuration <= 0) {
+        setMousePosition(null);
+        if (shouldResume) {
+          setPause(false);
+        }
+        return;
+      }
+      const finalPos = clientXToSeconds(e.clientX, rect, safeDuration);
+      setMousePosition(null);
+      // Единственный точный сик за жест; превью драга — лёгкие keyframes.
+      seekTo(finalPos);
+
+      // Скрыть подсказку если отпускание произошло вне шкалы
+      const outside =
+        e.clientX < rect.left || e.clientX > rect.right ||
+        e.clientY < rect.top || e.clientY > rect.bottom;
+      if (outside) setHoverInfo(null);
+    } else {
+      // cancel: откатываем без seek
+      setMousePosition(null);
+    }
+
+    if (shouldResume) {
+      setPause(false);
+    }
+
+    // Снимаем фокус с таймлайна, чтобы он не перехватывал последующие клавиатурные команды
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }, [safeDuration, cancelScrub, seekTo, setPause]);
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => stopDrag(e, true),
+    [stopDrag]
+  );
+  const handlePointerCancel = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => stopDrag(e, false),
+    [stopDrag]
+  );
+
+  const handlePointerLeave = useCallback(() => {
+    if (isDragging.current) return;
+    if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
+    pendingClientX.current = null;
     setHoverInfo(null);
   }, []);
 
-  // Вычислить позицию по клику мыши
-  const calcPositionFromMouse = useCallback((clientX: number): number => {
-    if (!timelineRef.current || duration <= 0) return 0;
-    const rect = timelineRef.current.getBoundingClientRect();
-    if (rect.width <= 0) return 0;
-    const clickX = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    return Math.max(0, Math.min((clickX / rect.width) * duration, duration));
-  }, [duration]);
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (safeDuration <= 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    prolongControlsIfActive();
+    const step = e.shiftKey ? 1 : 5;
+    seekBy(e.deltaY < 0 ? step : -step);
+  }, [safeDuration, seekBy, prolongControlsIfActive]);
 
-  const dragCleanupRef = useRef<(() => void) | null>(null);
-  const dragRafRef = useRef<number | null>(null);
-  const dragPendingXRef = useRef<number | null>(null);
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (safeDuration <= 0 || isDragging.current) return;
 
-  // Очистка глобальных обработчиков перетаскивания при размонтировании компонента
-  React.useEffect(() => {
-    return () => {
-      if (dragCleanupRef.current) {
-        dragCleanupRef.current();
-        dragCleanupRef.current = null;
-      }
-      if (hoverRafRef.current !== null) {
-        cancelAnimationFrame(hoverRafRef.current);
-        hoverRafRef.current = null;
-      }
-      if (dragRafRef.current !== null) {
-        cancelAnimationFrame(dragRafRef.current);
-        dragRafRef.current = null;
-      }
+    if (e.key === " " || e.key === "Spacebar") {
+      e.preventDefault();
+      e.stopPropagation();
+      prolongControlsIfActive();
+      togglePause();
+      return;
+    }
+
+    const actions: Record<string, () => void> = {
+      ArrowLeft: () => {
+        prolongControlsIfActive();
+        const step = e.shiftKey ? 1 : getSavedSeekStepSeconds();
+        triggerSeekIndicator("left", step);
+        seekBy(-step);
+      },
+      ArrowRight: () => {
+        prolongControlsIfActive();
+        const step = e.shiftKey ? 1 : getSavedSeekStepSeconds();
+        triggerSeekIndicator("right", step);
+        seekBy(step);
+      },
+      Home: () => {
+        prolongControlsIfActive();
+        seekTo(0);
+      },
+      End: () => {
+        prolongControlsIfActive();
+        seekTo(safeDuration);
+      },
     };
-  }, []);
+    const action = actions[e.key];
+    if (action) {
+      e.preventDefault();
+      e.stopPropagation();
+      action();
+    }
+  }, [safeDuration, seekBy, seekTo, togglePause, prolongControlsIfActive]);
 
-  const handleTimelineMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0 || duration <= 0) return;
-    isDragging.current = true;
-    setIsDraggingState(true);
-    const newPos = calcPositionFromMouse(e.clientX);
-    setMousePosition(newPos);
-
-    const cleanup = () => {
-      if (dragRafRef.current !== null) {
-        cancelAnimationFrame(dragRafRef.current);
-        dragRafRef.current = null;
-      }
-      dragPendingXRef.current = null;
-      window.removeEventListener("mousemove", handleGlobalMouseMove);
-      window.removeEventListener("mouseup", handleGlobalMouseUp);
-      dragCleanupRef.current = null;
-    };
-
-    const flushDrag = () => {
-      dragRafRef.current = null;
-      if (isDragging.current && dragPendingXRef.current !== null) {
-        setMousePosition(calcPositionFromMouse(dragPendingXRef.current));
-        dragPendingXRef.current = null;
-      }
-    };
-
-    const handleGlobalMouseMove = (moveEvent: MouseEvent) => {
-      if (isDragging.current) {
-        dragPendingXRef.current = moveEvent.clientX;
-        if (dragRafRef.current === null) {
-          dragRafRef.current = requestAnimationFrame(flushDrag);
-        }
-      }
-    };
-
-    const handleGlobalMouseUp = (upEvent: MouseEvent) => {
-      if (isDragging.current) {
-        isDragging.current = false;
-        setIsDraggingState(false);
-        const finalPos = calcPositionFromMouse(upEvent.clientX);
-        setMousePosition(null);
-        seekTo(finalPos);
-        cleanup();
-      }
-    };
-
-    dragCleanupRef.current = cleanup;
-    window.addEventListener("mousemove", handleGlobalMouseMove);
-    window.addEventListener("mouseup", handleGlobalMouseUp);
-  }, [calcPositionFromMouse, seekTo]);
+  // ─── Рендер ──────────────────────────────────────────────────
 
   return (
     <div
-      className={`timeline ${isDraggingState ? "timeline--dragging" : ""}`}
       ref={timelineRef}
-      onMouseDown={handleTimelineMouseDown}
-      onMouseMove={handleTimelineMouseMove}
-      onMouseLeave={handleTimelineMouseLeave}
-    >
-      {/* Визуализатор внутри таймлайна (SoundCloud Style) */}
+      className={`timeline ${isDraggingState ? "timeline--dragging" : ""} ${
+        hasChapters ? "timeline--has-chapters" : ""
+      }`}
+      role="slider"
+      tabIndex={0}
+      aria-label={dict.controls.timelineAriaLabel}
+      aria-valuemin={0}
+      aria-valuemax={safeDuration}
+      aria-valuenow={Math.round(displayPos)}
+      aria-valuetext={formatTime(displayPos)}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onPointerLeave={handlePointerLeave}
+      onWheel={handleWheel}
+      onKeyDown={handleKeyDown}
+      >
       <AudioVisualizer placement="inside_timeline" />
 
-      {hoverInfo && (() => {
-        const activeSegment = segments.find(seg => hoverInfo.time >= seg.start && hoverInfo.time <= seg.end);
-        const showChapter = activeSegment && activeSegment.title && activeSegment.title !== mediaPath;
-        return (
-          <div className="timeline-preview-card" style={{ left: `clamp(42px, ${hoverInfo.ratio * 100}%, calc(100% - 42px))` }}>
-            <div className="timeline-preview-card__time">{formatTime(hoverInfo.time)}</div>
-            {showChapter && <div className="timeline-preview-card__chapter">{activeSegment.title}</div>}
-          </div>
-        );
-      })()}
+      {hoverInfo && (
+        <TimelinePreview previewEnabled={previewEnabled} hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath}
+          hasVideo={mediaInfo?.has_video ?? false} fps={mediaInfo?.fps ?? 0} thumbnailWidth={thumbnailWidth}
+          videoTrack={selectedVideoTrack} />
+      )}
+
+
+      {pulse && (
+        <div
+          key={pulse.key}
+          className="timeline__pulse"
+          style={{ left: `${pulse.pct}%` }}
+          onAnimationEnd={dismissPulse}
+        />
+      )}
 
       <div className="timeline__track">
-        <div style={{ display: 'flex', width: '100%', height: '100%', gap: chapters.length > 1 ? '3px' : '0' }}>
+        <div
+          className="timeline__segments"
+          style={{
+            gap: hasChapters ? "3px" : "0px",
+          }}
+          >
           {segments.map((seg, i) => {
-            const segDuration = seg.end - seg.start;
-            const flexBasis = duration > 0 ? (segDuration / duration) * 100 : 100;
-            
-            let segProgress = 0;
-            if (segDuration > 0) {
-              if (displayPosition >= seg.end) {
-                segProgress = 100;
-              } else if (displayPosition > seg.start) {
-                segProgress = ((displayPosition - seg.start) / segDuration) * 100;
-              }
-            }
-
-            let segGhostProgress = 0;
-            if (hoverInfo && segDuration > 0) {
-              if (hoverInfo.time >= seg.end) {
-                segGhostProgress = 100;
-              } else if (hoverInfo.time > seg.start) {
-                segGhostProgress = ((hoverInfo.time - seg.start) / segDuration) * 100;
-              }
-            }
+            const segDur = seg.end - seg.start;
+            const flexBasis = safeDuration> 0 ? (segDur / safeDuration) * 100 : 100;
+            const segProgress = segDur> 0 ? calcSegPercent(displayPos, seg.start, seg.end) : 0;
+            const segGhost = hoverInfo && segDur> 0
+              ? calcSegPercent(hoverInfo.time, seg.start, seg.end)
+              : 0;
+            const isHovered = hasChapters && i === hoveredSegIndex;
 
             return (
-              <div
+              <TimelineSegment
                 key={`${seg.start}-${i}`}
-                style={{
-                  flexBasis: `${flexBasis}%`,
-                  position: 'relative',
-                  height: '100%',
-                  borderRadius: 'var(--radius-xs, 4px)',
-                  overflow: 'hidden'
-                }}
-              >
-                <div className="timeline__segment-bg" />
-                {segGhostProgress > 0 && (
-                  <div
-                    className="timeline__segment-ghost"
-                    style={{
-                      width: `${segGhostProgress}%`,
-                      borderRadius: 'var(--radius-xs, 4px)'
-                    }}
-                  />
-                )}
-                {segProgress > 0 && (
-                  <div
-                    className="timeline__segment-progress"
-                    style={{
-                      width: `${segProgress}%`,
-                      borderRadius: 'var(--radius-xs, 4px)'
-                    }}
-                  />
-                )}
-              </div>
+                flexBasis={flexBasis}
+                segProgress={segProgress}
+                segGhostProgress={segGhost}
+                isHovered={isHovered}
+              />
             );
           })}
         </div>
 
         <div
           className={`timeline__thumb ${isDraggingState ? "timeline__thumb--dragging" : ""}`}
-          style={{ left: `${progress}%` }}
+          style={{ left: `${thumbPct}%` }}
         />
       </div>
     </div>
   );
 });
+
+Timeline.displayName = "Timeline";

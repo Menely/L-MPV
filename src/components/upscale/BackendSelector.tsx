@@ -1,3 +1,4 @@
+import { SectionHeader } from "../settings/components/SettingBlocks";
 import React, { useState } from "react";
 import {
   Cpu,
@@ -12,6 +13,7 @@ import {
 import { UpscaleSettings, UpscaleStatus, DownloadProgressPayload } from "./types";
 import { GpuHardwareCard } from "./GpuHardwareCard";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { backendNeedsUpdate, backendReady } from "../../utils/upscaleCompatibility";
 
 interface BackendSelectorProps {
   status: UpscaleStatus | null;
@@ -48,8 +50,8 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
   const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
-  const isCurrentBackendInstalled =
-    settings.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
+  const needsUpdate = backendNeedsUpdate(status, settings.backend);
+  const isCurrentBackendInstalled = backendReady(status, settings.backend);
   const isAnyEnginePresent = isDmlInstalled || isTrtInstalled;
 
   const isFinished = !!(downloadProgress && downloadProgress.is_finished && !downloadProgress.error);
@@ -61,7 +63,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
     : Math.min(100, Math.max(0, Math.round(downloadProgress?.percent || 0)));
 
   return (
-    <div className="glass-section glass-section--compact" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="glass-section glass-section--compact settings-group-card col col-gap-4">
       <div
         role="button"
         tabIndex={0}
@@ -75,42 +77,16 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
         }}
         style={{
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "space-between",
           flexWrap: "nowrap",
-          gap: 12,
+          gap: "var(--space-6)",
           cursor: "pointer",
         }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <h3
-            style={{
-              fontSize: "1.02rem",
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              whiteSpace: "nowrap",
-            }}
-          >
-            <Cpu size={17} color="var(--accent)" /> {dict.settings.upscaling.backendTitle}
-          </h3>
-          <p
-            style={{
-              fontSize: "0.8rem",
-              color: "var(--text-muted)",
-              marginTop: 2,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {dict.settings.upscaling.backendDesc}
-          </p>
-        </div>
+        >
+        <div style={{ flex: 1, minWidth: 0 }}><SectionHeader icon={<Cpu size={16} />} title={dict.settings.upscaling.backendTitle} desc={dict.settings.upscaling.backendDesc} /></div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "center", flexShrink: 0 }}>
           <button
             type="button"
             className="btn btn--secondary btn--icon"
@@ -119,8 +95,8 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               setIsOpen((prev) => !prev);
             }}
             aria-expanded={isOpen}
-            title={isOpen ? dict.settings.upscaling.btnCollapseEngines : dict.settings.upscaling.btnExpandEngines}
-          >
+
+            >
             <ChevronDown
               size={16}
               style={{
@@ -138,7 +114,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               onOpenInferenceFolder();
             }}
             title={dict.settings.upscaling.backendOpenFolderTitle}
-          >
+            >
             <FolderOpen size={16} />
           </button>
 
@@ -153,12 +129,12 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: "50%",
-                color: "#2ecc71",
+                color: "var(--success-text)",
                 background: "rgba(46, 204, 113, 0.12)",
                 border: "1px solid rgba(46, 204, 113, 0.28)",
                 flexShrink: 0,
               }}
-            >
+              >
               <CheckCircle2 size={18} />
             </span>
           ) : (
@@ -169,10 +145,10 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 event.stopPropagation();
                 onDownloadEngine();
               }}
-              disabled={isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)}
+              disabled={!!status?.player_update_required || isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)}
               title={dict.settings.upscaling.btnDownloadLibsTitle}
               style={{ minWidth: 145, height: 32 }}
-            >
+              >
               {isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished) ? (
                 <RefreshCw size={15} className="spin" />
               ) : (
@@ -180,7 +156,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               )}
               {isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)
                 ? dict.settings.upscaling.downloadingProgress(activePercent)
-                : dict.settings.upscaling.btnDownloadEngine}
+                : needsUpdate ? dict.settings.upscaling.btnUpdateEngine : dict.settings.upscaling.btnDownloadEngine}
             </button>
           )}
 
@@ -193,7 +169,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 onDeleteEngine();
               }}
               disabled={isDeletingEngine || isDownloadingEngine}
-            >
+              >
               {isDeletingEngine ? (
                 <RefreshCw size={14} className="spin" />
               ) : (
@@ -204,6 +180,12 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
         </div>
       </div>
 
+      {(needsUpdate || status?.player_update_required) && (
+        <div role="status" className="upscale-compatibility-notice" style={{ color: "var(--warning-text)", fontSize: "var(--fs-sm)", lineHeight: 1.5 }}>
+          <p>{status?.player_update_required ? dict.settings.upscaling.playerUpdateRequired : dict.settings.upscaling.runtimeUpdateRequired}</p>
+          {!status?.player_update_required && status?.runtime_restart_required && <p>{dict.settings.upscaling.runtimeRestartRequired}</p>}
+        </div>
+      )}
       <div className={`collapse-fold ${isOpen ? "collapse-fold--open" : ""}`}>
         <div className="collapse-fold__inner">
           <div className="collapse-fold__body backend-selector-content">
@@ -217,48 +199,48 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             padding: "12px 16px",
             borderRadius: "var(--radius-md)",
             background: isError
-              ? "rgba(231, 76, 60, 0.08)"
+              ? "var(--danger-surface)"
               : isFinished
-              ? "rgba(46, 204, 113, 0.08)"
-              : "rgba(127, 199, 255, 0.08)",
+              ? "var(--success-surface)"
+              : "var(--surface-accent-subtle)",
             border: `1px solid ${
               isError
-                ? "rgba(231, 76, 60, 0.35)"
+                ? "var(--danger-border)"
                 : isFinished
-                ? "rgba(46, 204, 113, 0.35)"
-                : "rgba(127, 199, 255, 0.3)"
+                ? "var(--success-border)"
+                : "var(--border-pill)"
             }`,
             display: "flex",
             flexDirection: "column",
-            gap: 8,
+            gap: "var(--space-4)",
             transition: "all 0.25s ease",
           }}
-        >
+          >
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 10,
+              gap: "var(--space-5)",
             }}
-          >
+            >
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
-                fontSize: "0.83rem",
+                gap: "var(--space-4)",
+                fontSize: "var(--fs-sm)",
                 color: "var(--text-primary)",
                 fontWeight: 500,
                 minWidth: 0,
               }}
-            >
+              >
               {isError ? (
-                <X size={15} color="#e74c3c" style={{ flexShrink: 0 }} />
+                <X size={15} color="var(--danger-text)" className="no-shrink" />
               ) : isFinished ? (
-                <CheckCircle2 size={15} color="#2ecc71" style={{ flexShrink: 0 }} />
+                <CheckCircle2 size={15} color="var(--success-text)" className="no-shrink" />
               ) : (
-                <RefreshCw size={14} className="spin" color="var(--accent)" style={{ flexShrink: 0 }} />
+                <RefreshCw size={14} className="spin no-shrink" color="var(--accent-text, var(--accent))"  />
               )}
               <span
                 style={{
@@ -266,13 +248,13 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                   color: isError
-                    ? "#e74c3c"
+                    ? "var(--danger-text)"
                     : isFinished
-                    ? "#2ecc71"
+                    ? "var(--success-text)"
                     : "var(--text-primary)",
                   fontWeight: isFinished ? 600 : 500,
                 }}
-              >
+                >
                 {downloadProgress?.stage || downloadProgressText || dict.settings.upscaling.downloadingLibs}
               </span>
             </div>
@@ -281,22 +263,22 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
-                fontSize: "0.82rem",
+                gap: "var(--space-4)",
+                fontSize: "var(--fs-sm)",
                 fontWeight: 700,
-                color: isError ? "#e74c3c" : isFinished ? "#2ecc71" : "var(--accent)",
+                color: isError ? "var(--danger-text)" : isFinished ? "var(--success-text)" : "var(--accent-text)",
                 fontVariantNumeric: "tabular-nums",
                 flexShrink: 0,
               }}
-            >
-              {downloadProgress && downloadProgress.total_bytes > 0 ? (
+              >
+              {downloadProgress && downloadProgress.total_bytes> 0 ? (
                 <span
                   style={{
                     color: "var(--text-muted)",
                     fontWeight: 400,
-                    fontSize: "0.77rem",
+                    fontSize: "var(--fs-xs)",
                   }}
-                >
+                  >
                   {(downloadProgress.downloaded_bytes / (1024 * 1024)).toFixed(1)} MB / {(downloadProgress.total_bytes / (1024 * 1024)).toFixed(1)} MB
                 </span>
               ) : (downloadProgress?.stage?.includes("Распаковка") || downloadProgress?.stage?.toLowerCase().includes("extract")) ? (
@@ -304,9 +286,9 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                   style={{
                     color: "var(--text-muted)",
                     fontWeight: 400,
-                    fontSize: "0.77rem",
+                    fontSize: "var(--fs-xs)",
                   }}
-                >
+                  >
                   {dict.settings.upscaling.extractingArchive}
                 </span>
               ) : null}
@@ -321,13 +303,13 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             style={{
               width: "100%",
               height: 7,
-              background: "rgba(255, 255, 255, 0.08)",
+              background: "var(--surface-level-3-hover)",
               borderRadius: "var(--radius-xs, 4px)",
               overflow: "hidden",
               position: "relative",
               transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
             }}
-          >
+            >
             <div
               style={{
                 width: isError ? "100%" : `${activePercent}%`,
@@ -339,10 +321,10 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                   : "linear-gradient(90deg, #3498db, var(--accent), #2ecc71)",
                 borderRadius: "var(--radius-xs, 4px)",
                 boxShadow: isError
-                  ? "0 0 8px rgba(231, 76, 60, 0.4)"
+                  ? "0 0 8px var(--danger-glow)"
                   : isFinished
-                  ? "0 0 10px rgba(46, 204, 113, 0.4)"
-                  : "0 0 8px rgba(127, 199, 255, 0.5)",
+                  ? "0 0 10px var(--success-glow)"
+                  : "var(--selection-shadow)",
                 transition: "width 0.25s ease-out, border-radius var(--t-spring) var(--ease-spring-smooth)",
               }}
             />
@@ -354,8 +336,8 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
       {engineSuccessMessage && !isDownloadingEngine && !showDownloadBar && (
         <div
           className="badge badge--success"
-          style={{ width: "100%", padding: "8px 14px", height: "auto", fontSize: "0.82rem", borderRadius: "var(--radius-md)", boxSizing: "border-box" }}
-        >
+          style={{ width: "100%", padding: "8px 14px", height: "auto", fontSize: "var(--fs-sm)", borderRadius: "var(--radius-md)", boxSizing: "border-box" }}
+          >
           <CheckCircle2 size={15} />
           <span>{engineSuccessMessage}</span>
         </div>
@@ -365,15 +347,15 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
       {errorMessage && !isDownloadingEngine && !isFinished && !engineSuccessMessage && (
         <div
           className="badge badge--danger"
-          style={{ width: "100%", padding: "8px 14px", height: "auto", fontSize: "0.82rem", borderRadius: "var(--radius-md)", boxSizing: "border-box" }}
-        >
+          style={{ width: "100%", padding: "8px 14px", height: "auto", fontSize: "var(--fs-sm)", borderRadius: "var(--radius-md)", boxSizing: "border-box" }}
+          >
           <X size={15} />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {/* Выбор между DirectML и TensorRT */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
         {/* Карточка DirectML */}
         <div
           className={`glass-tile glass-tile--clickable ${
@@ -385,30 +367,30 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             }
           }}
           style={{ padding: "12px 14px" }}
-        >
+          >
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: 4,
+              marginBottom: "var(--space-2)",
             }}
-          >
+            >
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
+                gap: "var(--space-3)",
                 flexWrap: "wrap",
               }}
-            >
+              >
               <span
                 style={{
-                  fontSize: "0.9rem",
+                  fontSize: "var(--fs-base)",
                   fontWeight: 600,
                   color: "var(--text-primary)",
                 }}
-              >
+                >
                 DirectML
               </span>
               <span className={`badge ${isDmlInstalled ? "badge--success" : "badge--warning"}`}>
@@ -421,16 +403,16 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               )}
             </div>
             {settings.backend === "DirectML" && (
-              <CheckCircle2 size={16} color="var(--accent)" />
+              <CheckCircle2 size={16} color="var(--accent-text, var(--accent))" />
             )}
           </div>
           <p
             style={{
-              fontSize: "0.78rem",
+              fontSize: "var(--fs-xs)",
               color: "var(--text-muted)",
               lineHeight: 1.3,
             }}
-          >
+            >
             {dict.settings.upscaling.dmlDesc}
           </p>
         </div>
@@ -460,30 +442,30 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             opacity:
               status?.gpu_info && !status.gpu_info.supports_tensorrt ? 0.6 : 1,
           }}
-        >
+          >
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: 4,
+              marginBottom: "var(--space-2)",
             }}
-          >
+            >
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
+                gap: "var(--space-3)",
                 flexWrap: "wrap",
               }}
-            >
+              >
               <span
                 style={{
-                  fontSize: "0.9rem",
+                  fontSize: "var(--fs-base)",
                   fontWeight: 600,
                   color: "var(--text-primary)",
                 }}
-              >
+                >
                 TensorRT (NVIDIA)
               </span>
               <span className={`badge ${isTrtInstalled ? "badge--success" : "badge--warning"}`}>
@@ -496,16 +478,16 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               )}
             </div>
             {settings.backend === "TensorRT" && (
-              <CheckCircle2 size={16} color="var(--accent)" />
+              <CheckCircle2 size={16} color="var(--accent-text, var(--accent))" />
             )}
           </div>
           <p
             style={{
-              fontSize: "0.78rem",
+              fontSize: "var(--fs-xs)",
               color: "var(--text-muted)",
               lineHeight: 1.3,
             }}
-          >
+            >
             {dict.settings.upscaling.trtDesc}
           </p>
         </div>

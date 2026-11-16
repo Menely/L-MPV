@@ -1,0 +1,349 @@
+use std::{
+    collections::VecDeque,
+    fs,
+    io::Read,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::UNIX_EPOCH,
+};
+
+pub(super) const MAX_JPEG_BYTES: usize = 512 * 1024;
+const MEMORY_BYTES: usize = 4 * 1024 * 1024;
+const MEMORY_ENTRIES: usize = 64;
+const DISK_BYTES: u64 = 64 * 1024 * 1024;
+
+pub(super) fn valid_jpeg(bytes: &[u8]) -> bool {
+    bytes.len() > 4
+        && bytes.len() <= MAX_JPEG_BYTES
+        && bytes.starts_with(&[0xff, 0xd8])
+        && bytes.ends_with(&[0xff, 0xd9])
+}
+
+/// Идентичность файла: путь, размер, время изменения и создания.
+/// Считается при разрешении источника, а не на каждый запрос кадра.
+pub(super) fn source_identity(path: &Path) -> Result<String, String> {
+    let metadata = path.metadata().map_err(|e| e.to_string())?;
+    if !metadata.is_file() {
+        return Err("THUMBNAIL_UNAVAILABLE".into());
+    }
+    let mut hash = blake3::Hasher::new();
+    hash.update(path.to_string_lossy().as_bytes());
+    hash.update(&metadata.len().to_le_bytes());
+    hash.update(
+        &metadata
+            .modified()
+            .map_err(|e| e.to_string())?
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_nanos()
+            .to_le_bytes(),
+    );
+    if let Ok(created) = metadata.created() {
+        hash.update(
+            &created
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+                .to_le_bytes(),
+        );
+    }
+    Ok(hash.finalize().to_hex().to_string())
+}
+
+/// Ключ кадра без системных вызовов. `stream` включает дорожку, преобразования,
+/// профиль и размер миниатюры.
+pub(super) fn cache_key(
+    identity: &str,
+    stream: &str,
+    color: u8,
+    seconds: f64,
+    exact: bool,
+) -> String {
+    let mut hash = blake3::Hasher::new();
+    // Bump when dimensions, conversion or selection rules change.
+    hash.update(b"lmpv-timeline-v9");
+    hash.update(identity.as_bytes());
+    hash.update(stream.as_bytes());
+    hash.update(&[color, u8::from(exact)]);
+    hash.update(&((seconds * 1000.0).round() as u64).to_le_bytes());
+    hash.finalize().to_hex().to_string()
+}
+
+#[derive(Default)]
+pub(super) struct FrameCache {
+    entries: VecDeque<(String, Arc<[u8]>)>,
+    bytes: usize,
+}
+
+impl FrameCache {
+    pub fn video_directory(root: &Path, source: &Path, identity: &str) -> PathBuf {
+        let stem = source.file_stem().unwrap_or_default().to_string_lossy();
+        let name: String = stem
+            .chars()
+            .take(40)
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        root.join(format!(
+            "video-{name}-{}",
+            &identity[..16.min(identity.len())]
+        ))
+    }
+
+    /// Получение миниатюры из оперативной памяти без глубокого копирования буфера (O(1)).
+    pub fn get(&mut self, key: &str) -> Option<Arc<[u8]>> {
+        let index = self.entries.iter().position(|entry| entry.0 == key)?;
+        let entry = self.entries.remove(index)?;
+        let result = Arc::clone(&entry.1);
+        self.entries.push_back(entry);
+        Some(result)
+    }
+
+    /// Вставка кадра в LRU-кеш памяти с контролем объема памяти и числа записей.
+    pub fn insert(&mut self, key: String, bytes: Arc<[u8]>) {
+        if !valid_jpeg(&bytes) {
+            return;
+        }
+        if let Some(index) = self.entries.iter().position(|entry| entry.0 == key) {
+            if let Some(old) = self.entries.remove(index) {
+                self.bytes -= old.1.len();
+            }
+        }
+        self.bytes += bytes.len();
+        self.entries.push_back((key, bytes));
+        while self.bytes > MEMORY_BYTES || self.entries.len() > MEMORY_ENTRIES {
+            if let Some(old) = self.entries.pop_front() {
+                self.bytes -= old.1.len();
+            }
+        }
+    }
+
+    /// Чтение миниатюры из дискового кеша с быстрой валидацией целостности.
+    ///
+    /// Проверяет допустимый размер файла, наличие маркеров JPEG (SOI/EOI)
+    /// и совпадение габаритов по заголовку без полной декомпрессии пикселей на CPU.
+    /// Файл открывается только на чтение; обновление mtime для LRU делает
+    /// фоновый писатель (`DiskWriter::touch`), а не путь запроса.
+    pub fn read_disk(dir: &Path, key: &str, size: (u32, u32)) -> Option<Arc<[u8]>> {
+        let path = dir.join(format!("{key}.jpg"));
+        let mut file = fs::File::open(&path).ok()?;
+        if file.metadata().ok()?.len() > MAX_JPEG_BYTES as u64 {
+            return None;
+        }
+        let mut bytes = Vec::new();
+        file.by_ref()
+            .take(MAX_JPEG_BYTES as u64 + 1)
+            .read_to_end(&mut bytes)
+            .ok()?;
+        let dimensions =
+            image::ImageReader::with_format(std::io::Cursor::new(&bytes), image::ImageFormat::Jpeg)
+                .into_dimensions()
+                .ok();
+        // Быстрая проверка целостности миниатюры перед декодированием ограниченного изображения:
+        // валидация маркеров начала/конца кадра и чтение геометрии из заголовка SOF.
+        if valid_jpeg(&bytes) && dimensions == Some(size) {
+            Some(Arc::from(bytes.into_boxed_slice()))
+        } else {
+            drop(file);
+            let _ = fs::remove_file(path);
+            None
+        }
+    }
+
+    pub fn write_disk(&mut self, dir: &Path, key: &str, bytes: &[u8]) {
+        if !valid_jpeg(bytes) || fs::create_dir_all(dir).is_err() {
+            return;
+        }
+        // Cache writes are expendable; corrupt or interrupted entries are ignored on read.
+        let temporary = dir.join(format!("{key}.part"));
+        let destination = dir.join(format!("{key}.jpg"));
+        if fs::write(&temporary, bytes).is_err() {
+            let _ = fs::remove_file(&temporary);
+            return;
+        }
+        // Requests are serialized; readers see either the complete old file or
+        // the complete new file. On Windows an existing destination may win.
+        if fs::rename(&temporary, &destination).is_err() {
+            let _ = fs::remove_file(&temporary);
+        }
+    }
+}
+
+/// Обновляет mtime файла кеша (LRU). Вызывается из фонового писателя.
+pub(super) fn touch(path: &Path) {
+    if let Ok(file) = fs::OpenOptions::new().write(true).open(path) {
+        let _ = file.set_times(fs::FileTimes::new().set_modified(std::time::SystemTime::now()));
+    }
+}
+
+pub(super) fn prune_disk(dir: &Path) {
+    let Ok(files) = fs::read_dir(dir) else {
+        return;
+    };
+    let roots: Vec<PathBuf> = files
+        .flatten()
+        .filter_map(|entry| {
+            entry
+                .file_type()
+                .ok()
+                .filter(|kind| kind.is_dir() && !kind.is_symlink())
+                .map(|_| entry.path())
+        })
+        .collect();
+    let entries = std::iter::once(dir.to_owned())
+        .chain(roots.iter().cloned())
+        .flat_map(|root| fs::read_dir(root).into_iter().flatten().flatten());
+    let mut files: Vec<(PathBuf, u64, std::time::SystemTime)> = entries
+        .filter_map(|entry| {
+            let path = entry.path();
+            // Кадры и файлы раскадровки делят один лимит кеша.
+            if !matches!(path.extension()?.to_str()?, "jpg" | "lmsb") {
+                return None;
+            }
+            if !entry.file_type().ok()?.is_file() {
+                return None;
+            }
+            let meta = entry.metadata().ok()?;
+            if !meta.is_file() {
+                return None;
+            }
+            Some((path, meta.len(), meta.modified().unwrap_or(UNIX_EPOCH)))
+        })
+        .collect();
+    let mut bytes: u64 = files.iter().map(|entry| entry.1).sum();
+    let mut count = files.len();
+    files.sort_by_key(|entry| entry.2);
+    for (path, size, _) in files {
+        if bytes <= DISK_BYTES && count <= 1024 {
+            break;
+        }
+        if fs::remove_file(path).is_ok() {
+            bytes = bytes.saturating_sub(size);
+            count -= 1;
+        }
+    }
+    for root in roots {
+        let _ = fs::remove_dir(root);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn bounds_memory_and_keeps_recent_entries() {
+        let mut cache = FrameCache::default();
+        let mut frame = vec![0; 128 * 1024];
+        frame[..2].copy_from_slice(&[0xff, 0xd8]);
+        let n = frame.len();
+        frame[n - 2..].copy_from_slice(&[0xff, 0xd9]);
+        let frame_arc: Arc<[u8]> = Arc::from(frame.into_boxed_slice());
+        for i in 0..120 {
+            cache.insert(i.to_string(), Arc::clone(&frame_arc));
+        }
+        assert!(cache.bytes <= MEMORY_BYTES);
+        assert!(cache.get("0").is_none());
+        assert!(cache.get("119").is_some());
+        cache.insert("broken".into(), Arc::from(vec![0; 8].into_boxed_slice()));
+        assert!(cache.get("broken").is_none());
+    }
+
+    #[test]
+    fn identity_and_cache_modes_do_not_collide() {
+        let dir = std::env::temp_dir().join(format!("lmpv-thumb-cache-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("movie.mkv");
+        fs::write(&source, b"test video").unwrap();
+        let identity = source_identity(&source).unwrap();
+        let first = cache_key(&identity, "0:0", 0, 5.0, false);
+        assert_ne!(first, cache_key(&identity, "0:1", 0, 5.0, false));
+        assert_ne!(first, cache_key(&identity, "0:0", 0, 5.0, true));
+        assert_ne!(first, cache_key(&identity, "0:0", 1, 5.0, false));
+        assert_eq!(first, cache_key(&identity, "0:0", 0, 5.0, false));
+        fs::write(&source, b"new video content").unwrap();
+        assert_ne!(identity, source_identity(&source).unwrap());
+        let before_mtime = source_identity(&source).unwrap();
+        let file = fs::OpenOptions::new().write(true).open(&source).unwrap();
+        let changed =
+            file.metadata().unwrap().modified().unwrap() + std::time::Duration::from_secs(2);
+        file.set_times(fs::FileTimes::new().set_modified(changed))
+            .unwrap();
+        drop(file);
+        assert_ne!(before_mtime, source_identity(&source).unwrap());
+        let mut cache = FrameCache::default();
+        let mut bytes = Vec::new();
+        let image = image::RgbImage::from_pixel(320, 180, image::Rgb([255, 0, 0]));
+        image::codecs::jpeg::JpegEncoder::new(&mut bytes)
+            .encode_image(&image)
+            .unwrap();
+        cache.write_disk(&dir, &first, &bytes);
+        assert_eq!(
+            &*FrameCache::read_disk(&dir, &first, (320, 180)).unwrap(),
+            bytes.as_slice()
+        );
+        let file_path = dir.join(format!("{first}.jpg"));
+        let old_time = std::time::SystemTime::now() - std::time::Duration::from_secs(10);
+        let f = fs::OpenOptions::new().write(true).open(&file_path).unwrap();
+        f.set_times(fs::FileTimes::new().set_modified(old_time))
+            .unwrap();
+        drop(f);
+        let _ = FrameCache::read_disk(&dir, &first, (320, 180));
+        // Чтение больше не пишет в файл: mtime обновляет только фоновый писатель.
+        assert_eq!(file_path.metadata().unwrap().modified().unwrap(), old_time);
+        touch(&file_path);
+        assert!(file_path.metadata().unwrap().modified().unwrap() > old_time);
+        cache.write_disk(&dir, &first, &bytes);
+        assert_eq!(
+            &*FrameCache::read_disk(&dir, &first, (320, 180)).unwrap(),
+            bytes.as_slice()
+        );
+        assert!(!dir.join(format!("{first}.part")).exists());
+        let identity = source_identity(&source).unwrap();
+        let video_dir = FrameCache::video_directory(&dir, &source, &identity);
+        assert_eq!(video_dir.parent(), Some(dir.as_path()));
+        assert_eq!(
+            video_dir,
+            FrameCache::video_directory(&dir, &source, &identity)
+        );
+        let other = dir.join("other.mkv");
+        fs::write(&other, b"another video").unwrap();
+        assert_ne!(
+            video_dir,
+            FrameCache::video_directory(&dir, &other, &source_identity(&other).unwrap())
+        );
+        fs::create_dir_all(&video_dir).unwrap();
+        fs::write(video_dir.join("huge.jpg"), vec![0; 1024]).unwrap();
+        fs::write(dir.join("bad.jpg"), b"interrupted").unwrap();
+        assert!(FrameCache::read_disk(&dir, "bad", (320, 180)).is_none());
+        let huge = fs::File::create(dir.join("oversized.jpg")).unwrap();
+        huge.set_len(DISK_BYTES + 1).unwrap();
+        drop(huge);
+        prune_disk(&dir);
+        let bytes: u64 = fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "jpg"))
+            .map(|entry| entry.metadata().unwrap().len())
+            .sum();
+        assert!(bytes <= DISK_BYTES);
+        fs::create_dir_all(&video_dir).unwrap();
+        for i in 0..1030 {
+            fs::write(video_dir.join(format!("{i}.jpg")), b"x").unwrap();
+        }
+        prune_disk(&dir);
+        let nested_count = fs::read_dir(&video_dir).unwrap().count();
+        let root_count = fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.path().extension().is_some_and(|x| x == "jpg"))
+            .count();
+        assert!(nested_count + root_count <= 1024);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+}
