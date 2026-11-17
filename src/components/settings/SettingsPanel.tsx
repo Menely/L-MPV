@@ -195,7 +195,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.7.4");
+  const [appVersion, setAppVersion] = useState<string>("2.7.5");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => getSavedSkipOpeningSeconds());
   const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
