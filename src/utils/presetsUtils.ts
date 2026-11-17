@@ -63,7 +63,12 @@ import {
 import type { AmbientPresetSettings } from "./ambientSettingsUtils";
 import { normalizeAmbientSettings } from "./ambientSettingsUtils";
 import { getEffectiveLocale, saveLocale, type Locale } from "../i18n/index";
-import { getSavedSeekStepSeconds, saveSeekStepSeconds } from "./seekUtils";
+import {
+  getSavedSeekStepSeconds,
+  getSavedSkipOpeningSeconds,
+  saveSeekStepSeconds,
+  saveSkipOpeningSeconds,
+} from "./seekUtils";
 import { getUserPresetsCache, setUserPresetsCache, userPresetsCacheRevision } from "./userPresetsCache";
 
 export interface SettingsPresetData {
@@ -458,7 +463,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
   const heatmap = getHeatmapConfig();
   const saveTracksToVideoDir = localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false";
   const hotloadEnabled = localStorage.getItem("l-mpv-hotload-enabled") === "true";
-  const skipOpeningSeconds = Number(localStorage.getItem("l-mpv-skip-opening-seconds") || 90);
+  const skipOpeningSeconds = getSavedSkipOpeningSeconds();
   const seekStepSeconds = getSavedSeekStepSeconds();
   const customHotkeys = getCustomHotkeys();
   const uiRadius = getSavedUiRadius();
@@ -626,10 +631,10 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
     localStorage.setItem("l-mpv-hotload-enabled", data.hotloadEnabled ? "true" : "false");
   }
   if (typeof data.skipOpeningSeconds === "number") {
-    localStorage.setItem("l-mpv-skip-opening-seconds", data.skipOpeningSeconds.toString());
+    saveSkipOpeningSeconds(data.skipOpeningSeconds, false);
   }
   if (typeof data.seekStepSeconds === "number") {
-    saveSeekStepSeconds(data.seekStepSeconds);
+    saveSeekStepSeconds(data.seekStepSeconds, false);
   }
 
   // 11. Горячие клавиши (если сохранены в пресете)

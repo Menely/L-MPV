@@ -77,7 +77,7 @@ export const MediaInfoTracksSection: React.FC<MediaInfoTracksSectionProps> = ({
                     isSelected ? "media-info__stream-item--active" : ""
                   }`}
                   onClick={() => onSelectAudioTrack(track.id)}
-                  title={`${title} (${track.codec})`}
+                  title={track.codec ? `${title} (${track.codec})` : title}
                 >
                   <div className="media-info__stream-left">
                     {langBadge && (
@@ -128,7 +128,7 @@ export const MediaInfoTracksSection: React.FC<MediaInfoTracksSectionProps> = ({
                     isSelected ? "media-info__stream-item--active" : ""
                   }`}
                   onClick={() => onSelectSubtitleTrack(track.id)}
-                  title={`${title} (${track.codec})`}
+                  title={track.codec ? `${title} (${track.codec})` : title}
                 >
                   <div className="media-info__stream-left">
                     {langBadge && (

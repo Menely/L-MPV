@@ -1,5 +1,6 @@
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { ControlButtonsPreviewCard } from "./ControlButtonsPreviewCard";
+import { SecondsInput } from "./SecondsInput";
 import "../../../styles/settings-control-buttons.css";
 
 interface Props {
@@ -9,19 +10,6 @@ interface Props {
   onSeekStepChange: (value: number) => void;
   skipOpeningSeconds: number;
   onSkipOpeningChange: (value: number) => void;
-}
-
-function SecondsInput({ name, label, unit, value, enabled, maximum, fallback, onChange }: {
-  name: string; label: string; unit: string; value: number; enabled: boolean;
-  maximum: number; fallback: number; onChange: (value: number) => void;
-}) {
-  return <label className="control-buttons-settings__seconds">
-    <input name={name} type="text" inputMode="numeric" autoComplete="off"
-      aria-label={`${label}, ${unit}`} value={value} disabled={!enabled}
-      onChange={event => onChange(Math.min(maximum, Number(event.target.value.replace(/\D/g, ""))))}
-      onBlur={() => { if (value <= 0) onChange(fallback); }} />
-    <span aria-hidden="true">{unit}</span>
-  </label>;
 }
 
 export function ControlButtonsSettings({ visibleButtons, onVisibilityChange, seekStepSeconds,

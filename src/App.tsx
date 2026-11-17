@@ -41,7 +41,11 @@ import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
 import { useTranslation } from "./i18n/LanguageContext";
 import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
-import { getSavedSeekStepSeconds, triggerSeekIndicator } from "./utils/seekUtils";
+import {
+  getSavedSeekStepSeconds,
+  getSavedSkipOpeningSeconds,
+  triggerSeekIndicator,
+} from "./utils/seekUtils";
 import { subtitleControlsOffset } from "./utils/subtitleUiGeometry";
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
 import {
@@ -705,22 +709,9 @@ function App() {
         await curSeekBy(step);
         break;
       }
-      case "seekBack10": {
-        curProlongControlsIfActive();
-        triggerSeekIndicator("left", 10);
-        await curSeekBy(-10);
-        break;
-      }
-      case "seekForward10": {
-        curProlongControlsIfActive();
-        triggerSeekIndicator("right", 10);
-        await curSeekBy(10);
-        break;
-      }
       case "skipOpening": {
         curProlongControlsIfActive();
-        const raw = localStorage.getItem('l-mpv-skip-opening-seconds');
-        const seconds = Number(raw || 90);
+        const seconds = getSavedSkipOpeningSeconds();
         await curSeekBy(seconds);
         break;
       }

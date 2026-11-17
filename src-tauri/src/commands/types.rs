@@ -91,6 +91,8 @@ pub struct UiSettings {
     #[serde(default)]
     pub skip_opening_seconds: Option<u32>,
     #[serde(default)]
+    pub seek_step_seconds: Option<u32>,
+    #[serde(default)]
     pub visualizer_config: Option<serde_json::Value>,
     #[serde(default)]
     pub heatmap_config: Option<serde_json::Value>,
@@ -984,6 +986,7 @@ mod settings_tests {
         settings.ui.explorer_playable_only = Some(false);
         settings.ui.navigation_panel_pin = Some(serde_json::json!({"top": 90.5, "height": 420.0}));
         settings.ui.skip_opening_seconds = Some(120);
+        settings.ui.seek_step_seconds = Some(15);
         settings.ui.visualizer_config = Some(
             serde_json::json!({
                 "enabled": true,
@@ -1013,6 +1016,7 @@ mod settings_tests {
         assert_eq!(loaded.ui.explorer_playable_only, Some(false));
         assert_eq!(loaded.ui.navigation_panel_pin, settings.ui.navigation_panel_pin);
         assert_eq!(loaded.ui.skip_opening_seconds, Some(120));
+        assert_eq!(loaded.ui.seek_step_seconds, Some(15));
         assert!(loaded.ui.visualizer_config.is_some());
         assert!(root
             .join("config")

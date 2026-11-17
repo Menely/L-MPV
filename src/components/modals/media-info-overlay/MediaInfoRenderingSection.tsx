@@ -39,11 +39,11 @@ export const MediaInfoRenderingSection: React.FC<MediaInfoRenderingSectionProps>
   }
 
   const cpuText = stats
-    ? `L-MPV: ${stats.cpu_app_percent.toFixed(1)}% | ПК: ${stats.cpu_total_percent.toFixed(1)}%`
+    ? `L-MPV: ${stats.cpu_app_percent.toFixed(1)}% | ${dict.mediaInfoModal.pcLabel}: ${stats.cpu_total_percent.toFixed(1)}%`
     : "—";
 
   const ramText = stats
-    ? `L-MPV: ${formatBytes(stats.ram_app_bytes)} | ПК: ${formatBytes(
+    ? `L-MPV: ${formatBytes(stats.ram_app_bytes)} | ${dict.mediaInfoModal.pcLabel}: ${formatBytes(
         stats.ram_total_used_bytes
       )} / ${formatBytes(stats.ram_total_bytes)}`
     : "—";
@@ -81,7 +81,7 @@ export const MediaInfoRenderingSection: React.FC<MediaInfoRenderingSectionProps>
       : "—";
 
   const delayedText = stats
-    ? `${stats.vo_delayed_frames} delayed / ${stats.vo_mistimed_frames} mistimed`
+    ? `${stats.vo_delayed_frames} ${dict.mediaInfoModal.delayedWord} / ${stats.vo_mistimed_frames} ${dict.mediaInfoModal.mistimedWord}`
     : "—";
 
   return (

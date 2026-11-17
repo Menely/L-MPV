@@ -23,14 +23,19 @@ export const MediaInfoAudioSection: React.FC<MediaInfoAudioSectionProps> = ({
   audioBitrate,
   currentVolume,
 }) => {
-  const { dict } = useTranslation();
+  const { dict, locale } = useTranslation();
+  const numberLocale = locale === "en" ? "en-US" : "ru-RU";
 
-  const audioText = mediaInfo?.audio_codec
-    ? `${mediaInfo.audio_codec}${
-        mediaInfo.audio_channels
-          ? ` (${mediaInfo.audio_channels} ${dict.mediaInfoModal.ch})`
-          : ""
-      }`
+  const channelsCount = Number(mediaInfo?.audio_channels);
+  const validChannels =
+    Number.isFinite(channelsCount) && channelsCount > 0
+      ? String(channelsCount)
+      : "";
+  const audioCodec = mediaInfo?.audio_codec?.trim() || "";
+  const audioText = audioCodec
+    ? `${audioCodec}${validChannels ? ` (${validChannels} ${dict.mediaInfoModal.ch})` : ""}`
+    : validChannels
+    ? `${validChannels} ${dict.mediaInfoModal.ch}`
     : "—";
 
   return (
@@ -43,7 +48,7 @@ export const MediaInfoAudioSection: React.FC<MediaInfoAudioSectionProps> = ({
         <span className="media-info__label">{dict.mediaInfoModal.bitrate}</span>
         <span className="media-info__value">
           {audioBitrate > 0
-            ? `${Math.round(audioBitrate / 1000).toLocaleString("ru-RU")} ${dict.mediaInfoModal.kbps}`
+            ? `${Math.round(audioBitrate / 1000).toLocaleString(numberLocale)} ${dict.mediaInfoModal.kbps}`
             : "—"}
         </span>
       </div>

@@ -18,6 +18,17 @@ import {
   isMouseScopeCompatible,
 } from "../../../utils/hotkeyUtils";
 import { AccordionSection } from "../components/AccordionSection";
+import { SecondsInput } from "../components/SecondsInput";
+import {
+  DEFAULT_SEEK_STEP_SECONDS,
+  DEFAULT_SKIP_OPENING_SECONDS,
+  MAX_SEEK_STEP_SECONDS,
+  MAX_SKIP_OPENING_SECONDS,
+  getSavedSeekStepSeconds,
+  getSavedSkipOpeningSeconds,
+  saveSeekStepSeconds,
+  saveSkipOpeningSeconds,
+} from "../../../utils/seekUtils";
 import { useTranslation } from "../../../i18n/LanguageContext";
 
 export interface HotkeysSettingsTabProps {
@@ -175,6 +186,8 @@ export function HotkeysSettingsTab({
   );
   const customHotkeysRef = useRef(customHotkeys);
   customHotkeysRef.current = customHotkeys;
+  const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
+  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => getSavedSkipOpeningSeconds());
 
   const [recordingAction, setRecordingAction] = useState<{
     id: string;
@@ -218,15 +231,27 @@ export function HotkeysSettingsTab({
     setConflict(null);
   }, []);
 
-  // Синхронизация локального состояния вкладки при сбросе настроек или применении пресетов
+  // Синхронизация локального состояния вкладки при сбросе настроек, изменении шага перемотки или применении пресетов
   useEffect(() => {
     const handleSettingsChanged = () => {
       setCustomHotkeys(getCustomHotkeys());
+      setSeekStepSeconds(getSavedSeekStepSeconds());
+      setSkipOpeningSeconds(getSavedSkipOpeningSeconds());
     };
     window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
     return () => {
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
     };
+  }, []);
+
+  const handleSeekStepChange = useCallback((value: number) => {
+    setSeekStepSeconds(value);
+    if (value > 0) saveSeekStepSeconds(value);
+  }, []);
+
+  const handleSkipOpeningChange = useCallback((value: number) => {
+    setSkipOpeningSeconds(value);
+    if (value > 0) saveSkipOpeningSeconds(value);
   }, []);
 
   // Запись с проверкой конфликта: чужой владелец -> диалог, свой -> тихо
@@ -449,9 +474,42 @@ export function HotkeysSettingsTab({
                           gap: "var(--space-5)",
                         }}
                         >
-                        <span style={{ color: "var(--text-primary)", fontSize: "var(--fs-base)", fontWeight: 500, flex: 1, minWidth: 200 }}>
-                          {itemLabel}
-                        </span>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "var(--space-3)",
+                            flex: "1 1 200px",
+                            minWidth: 0,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span style={{ color: "var(--text-primary)", fontSize: "var(--fs-base)", fontWeight: 500 }}>
+                            {itemLabel}
+                          </span>
+                          {(item.id === "seekBack" || item.id === "seekForward") && (
+                            <SecondsInput
+                              name={`hotkey-${item.id}-seconds`}
+                              label={itemLabel}
+                              unit={dict.settings.appearance.secSuffix}
+                              value={seekStepSeconds}
+                              maximum={MAX_SEEK_STEP_SECONDS}
+                              fallback={DEFAULT_SEEK_STEP_SECONDS}
+                              onChange={handleSeekStepChange}
+                            />
+                          )}
+                          {item.id === "skipOpening" && (
+                            <SecondsInput
+                              name="hotkey-skip-opening-seconds"
+                              label={itemLabel}
+                              unit={dict.settings.appearance.secSuffix}
+                              value={skipOpeningSeconds}
+                              maximum={MAX_SKIP_OPENING_SECONDS}
+                              fallback={DEFAULT_SKIP_OPENING_SECONDS}
+                              onChange={handleSkipOpeningChange}
+                            />
+                          )}
+                        </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
                           {currentCodes.map((code, idx) => {
                             const isRecording = recordingAction?.id === item.id && recordingAction.index === idx;

@@ -30,7 +30,8 @@ export const MediaInfoVideoSection: React.FC<MediaInfoVideoSectionProps> = ({
   bitrateHistory,
   droppedFrames,
 }) => {
-  const { dict } = useTranslation();
+  const { dict, locale } = useTranslation();
+  const numberLocale = locale === "en" ? "en-US" : "ru-RU";
 
   const hasVideo = Boolean(
     mediaInfo?.has_video ||
@@ -93,7 +94,7 @@ export const MediaInfoVideoSection: React.FC<MediaInfoVideoSectionProps> = ({
           <BitrateSparkline data={bitrateHistory} />
           <span className="media-info__value">
             {currentVideoBitrate > 0
-              ? `${Math.round(currentVideoBitrate / 1000).toLocaleString("ru-RU")} ${dict.mediaInfoModal.kbps}`
+              ? `${Math.round(currentVideoBitrate / 1000).toLocaleString(numberLocale)} ${dict.mediaInfoModal.kbps}`
               : "—"}
           </span>
         </div>
@@ -102,7 +103,7 @@ export const MediaInfoVideoSection: React.FC<MediaInfoVideoSectionProps> = ({
         <span className="media-info__label">{dict.mediaInfoModal.totalBitrate}</span>
         <span className="media-info__value">
           {mediaInfo?.total_bitrate && mediaInfo.total_bitrate > 0
-            ? `${Math.round(mediaInfo.total_bitrate / 1000).toLocaleString("ru-RU")} ${dict.mediaInfoModal.kbps}`
+            ? `${Math.round(mediaInfo.total_bitrate / 1000).toLocaleString(numberLocale)} ${dict.mediaInfoModal.kbps}`
             : "—"}
         </span>
       </div>

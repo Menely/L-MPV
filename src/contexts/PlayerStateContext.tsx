@@ -31,7 +31,7 @@ export interface MediaInfo {
   speed: number;
   volume: number;
   file_size: number;
-  audio_channels: number;
+  audio_channels: string;
   audio_bitrate: number;
   video_bitrate: number;
   total_bitrate: number;
@@ -223,6 +223,45 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const currentVidRef = useRef<string>("");
   const trackCountRef = useRef<number>(0);
   const mediaInfoRef = useRef<MediaInfo | null>(null);
+  const mediaInfoLoadSeqRef = useRef<number>(0);
+
+  const refreshMediaInfo = useCallback(async (expectedPath?: string) => {
+    const reqSeq = ++mediaInfoLoadSeqRef.current;
+    const targetPath = expectedPath ?? currentPathRef.current;
+    try {
+      const latestInfo = await invoke<MediaInfo>("get_media_info");
+      if (
+        reqSeq !== mediaInfoLoadSeqRef.current ||
+        !latestInfo.path ||
+        (targetPath && latestInfo.path !== targetPath) ||
+        latestInfo.path !== currentPathRef.current
+      ) {
+        return;
+      }
+      setMediaInfo((prev) => {
+        const effectiveWidth =
+          latestInfo.width > 0 ? latestInfo.width : (prev?.width ?? 0);
+        const effectiveHeight =
+          latestInfo.height > 0 ? latestInfo.height : (prev?.height ?? 0);
+        const hasVideoDimensions = effectiveWidth > 0 && effectiveHeight > 0;
+        const next: MediaInfo = {
+          ...(prev ?? latestInfo),
+          ...latestInfo,
+          duration:
+            latestInfo.duration > 0 ? latestInfo.duration : (prev?.duration ?? 0),
+          width: effectiveWidth,
+          height: effectiveHeight,
+          video_ready: Boolean(
+            (latestInfo.video_ready || prev?.video_ready) && hasVideoDimensions
+          ),
+        };
+        mediaInfoRef.current = next;
+        return next;
+      });
+    } catch (e) {
+      console.error("Ошибка обновления метаданных медиафайла", e);
+    }
+  }, []);
 
   const loadTracks = useCallback(async () => {
     const reqSeq = ++tracksLoadSeqRef.current;
@@ -502,10 +541,11 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
               tracksRef.current = [];
               setTracks([]);
             }
-            currentAidRef.current = "";
-            currentSidRef.current = "";
-            currentVidRef.current = "";
-            trackCountRef.current = 0;
+            currentAidRef.current = dynState.current_aid;
+            currentSidRef.current = dynState.current_sid;
+            currentVidRef.current = dynState.current_vid;
+            trackCountRef.current = dynState.track_count;
+            mediaInfoLoadSeqRef.current += 1;
             // Metadata is initialized even for live streams with no known duration.
             hasMediaInfoRef.current = true;
             currentPositionRef.current = fullInfo.position;
@@ -560,6 +600,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             currentPositionRef.current = 0;
             hasMediaInfoRef.current = false;
             mediaInfoRef.current = null;
+            mediaInfoLoadSeqRef.current += 1;
             tracksLoadSeqRef.current += 1;
             tracksMediaPathRef.current = "";
             tracksRef.current = [];
@@ -603,6 +644,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             currentVidRef.current = dynState.current_vid;
             trackCountRef.current = dynState.track_count;
             loadTracks();
+            if (aidChanged || vidChanged) {
+              void refreshMediaInfo(dynState.path);
+            }
           }
 
           // Проверяем, доехал ли mpv до цели seek или истек таймаут
@@ -776,7 +820,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       }
       window.removeEventListener("l-mpv-force-poll", handleForcePoll);
     };
-  }, [loadTracks, refreshPlaylist]);
+  }, [loadTracks, refreshPlaylist, refreshMediaInfo]);
 
   // ─── Единая точка входа для seek ───
   const seekTo = useCallback(async (seconds: number) => {
@@ -1074,10 +1118,12 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         invoke("show_osd", { text: offText }).catch(() => {});
       }
       await loadTracks();
+      await refreshMediaInfo();
+      window.dispatchEvent(new Event("l-mpv-force-poll"));
     } catch (e) {
       console.error("Ошибка при выборе аудиодорожки", e);
     }
-  }, [loadTracks]);
+  }, [loadTracks, refreshMediaInfo]);
   
   const disableSubtitles = useCallback(async () => {
     try {

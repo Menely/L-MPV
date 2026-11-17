@@ -30,7 +30,10 @@ import {
 import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
 import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
 import { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
-import { saveSeekStepSeconds } from "../../../utils/seekUtils";
+import {
+  saveSeekStepSeconds,
+  saveSkipOpeningSeconds,
+} from "../../../utils/seekUtils";
 import type { AmbientMode } from "../../../utils/ambientSettingsUtils";
 import type { AmbientSettings } from "../../modals/SettingsModal";
 
@@ -1041,10 +1044,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                   skipOpeningSeconds={skipOpeningSeconds}
                   onSkipOpeningChange={value => {
                     setSkipOpeningSeconds(value);
-                    if (value > 0) {
-                      localStorage.setItem("l-mpv-skip-opening-seconds", String(value));
-                      window.dispatchEvent(new Event("l-mpv-settings-changed"));
-                    }
+                    if (value > 0) saveSkipOpeningSeconds(value);
                   }}
                 />
               </AccordionSection>

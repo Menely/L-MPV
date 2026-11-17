@@ -1476,11 +1476,27 @@ impl MpvManager {
             let speed = if speed_raw <= 0.0 { 1.0 } else { speed_raw };
             let volume = Self::get_double_raw(&self.api, handle, c"volume");
 
-            let ab = Self::get_double_raw(&self.api, handle, c"audio-bitrate");
-            let audio_bitrate = if ab > 0.0 {
-                ab
+            // aid/sid/vid дешёвые (по 1 FFI) и меняются при переключении
+            // дорожек при том же count — читаем каждый тик.
+            // Дорогой скан video_present (до 256 FFI) кэшируем по (path,count).
+            let track_count = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"track-list/count",
+            ) as i64;
+            let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
+            let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
+            let current_vid = Self::get_string_raw(&self.api, handle, c"vid");
+
+            let audio_bitrate = if current_aid == "no" {
+                0.0
             } else {
-                Self::get_double_raw(&self.api, handle, c"packet-audio-bitrate")
+                let ab = Self::get_double_raw(&self.api, handle, c"audio-bitrate");
+                if ab > 0.0 {
+                    ab
+                } else {
+                    Self::get_double_raw(&self.api, handle, c"packet-audio-bitrate")
+                }
             };
 
             let vb = Self::get_double_raw(&self.api, handle, c"video-bitrate");
@@ -1496,18 +1512,6 @@ impl MpvManager {
                 c"vo-delayed-frame-count",
             ) as i64;
             let stream_pos = Self::get_double_raw(&self.api, handle, c"stream-pos");
-
-            // aid/sid/vid дешёвые (по 1 FFI) и меняются при переключении
-            // дорожек при том же count — читаем каждый тик.
-            // Дорогой скан video_present (до 256 FFI) кэшируем по (path,count).
-            let track_count = Self::get_double_raw(
-                &self.api,
-                handle,
-                c"track-list/count",
-            ) as i64;
-            let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
-            let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
-            let current_vid = Self::get_string_raw(&self.api, handle, c"vid");
             let video_track_present = self
                 .track_cache
                 .lock()
@@ -1798,6 +1802,76 @@ impl MpvManager {
         })
     }
 
+    /// Возвращает `(кодек, число_каналов)` активной аудиодорожки.
+    ///
+    /// Для числа каналов приоритет отдаётся `track-list/{i}/demux-channel-count`,
+    /// чтобы при включённом `audio-channels=auto-safe` и стереовыходе WASAPI
+    /// отображалось реальное число каналов исходного потока (например, `6` для 5.1),
+    /// а не результат даунмикса до `2`. При отключённом звуке (`aid = "no"`)
+    /// возвращает пустые строки.
+    pub fn get_active_audio_info(&self) -> (String, String) {
+        self.with_handle(|handle| unsafe {
+            let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
+            if current_aid == "no" {
+                return Ok((String::new(), String::new()));
+            }
+
+            let target_aid = current_aid.trim().parse::<i64>().ok();
+            let count_raw = Self::get_double_raw(&self.api, handle, c"track-list/count");
+            let count = if count_raw > 0.0 {
+                (count_raw as i64).min(256)
+            } else {
+                0
+            };
+
+            let mut track_codec = String::new();
+            let mut demux_channels = String::new();
+            let mut prop_buf = [0u8; 64];
+
+            for i in 0..count {
+                let track_type = Self::get_track_prop_string_raw(
+                    &self.api, handle, i, "type", &mut prop_buf,
+                );
+                if track_type != "audio" {
+                    continue;
+                }
+
+                let is_match = if let Some(aid_id) = target_aid {
+                    Self::get_track_prop_int_raw(&self.api, handle, i, "id", &mut prop_buf)
+                        == Some(aid_id)
+                } else {
+                    Self::track_prop_equals_raw(
+                        &self.api, handle, i, "selected", b"yes", &mut prop_buf,
+                    )
+                };
+
+                if is_match {
+                    track_codec = Self::get_track_prop_string_raw(
+                        &self.api, handle, i, "codec", &mut prop_buf,
+                    );
+                    demux_channels = Self::get_track_prop_string_raw(
+                        &self.api, handle, i, "demux-channel-count", &mut prop_buf,
+                    );
+                    break;
+                }
+            }
+
+            let prop_codec = Self::get_string_raw(&self.api, handle, c"audio-codec-name");
+            let prop_channels =
+                Self::get_string_raw(&self.api, handle, c"audio-params/channel-count");
+
+            let codec = if !track_codec.trim().is_empty() {
+                track_codec.trim().to_string()
+            } else {
+                prop_codec.trim().to_string()
+            };
+            let channels = resolve_audio_channel_count(&demux_channels, &prop_channels);
+
+            Ok((codec, channels))
+        })
+        .unwrap_or_default()
+    }
+
     /// Активирует фильтр AI-апскейлинга AnimeJaNai в mpv или переключает слот инференса
     pub fn enable_ai_upscale(
         &self,
@@ -2001,6 +2075,24 @@ impl MpvManager {
     }
 }
 
+/// Определяет отображаемое количество аудиоканалов.
+/// Приоритет: исходное число каналов демуксера (`demux-channel-count`), затем
+/// `audio-params/channel-count` как резервный источник. Значения `<= 0` игнорируются.
+pub(crate) fn resolve_audio_channel_count(
+    demux_channel_count: &str,
+    param_channel_count: &str,
+) -> String {
+    for raw in [demux_channel_count, param_channel_count] {
+        let trimmed = raw.trim();
+        if let Ok(count) = trimmed.parse::<u32>() {
+            if count > 0 {
+                return count.to_string();
+            }
+        }
+    }
+    String::new()
+}
+
 /// Очистка текста субтитров.
 ///
 /// Единая реализация живёт в `crate::commands::subtitles`,
@@ -2181,5 +2273,15 @@ mod tests {
         }
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn resolve_audio_channel_count_prefers_demux_channels() {
+        assert_eq!(resolve_audio_channel_count("6", "2"), "6");
+        assert_eq!(resolve_audio_channel_count(" 8 ", "2"), "8");
+        assert_eq!(resolve_audio_channel_count("", "2"), "2");
+        assert_eq!(resolve_audio_channel_count("0", "6"), "6");
+        assert_eq!(resolve_audio_channel_count("0", "0"), "");
+        assert_eq!(resolve_audio_channel_count("", ""), "");
     }
 }

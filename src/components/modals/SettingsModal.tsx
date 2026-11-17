@@ -73,7 +73,10 @@ import {
   normalizeAmbientSettings,
 } from "../../utils/ambientSettingsUtils";
 import type { AmbientSettings } from "../../utils/ambientSettingsUtils";
-import { getSavedSeekStepSeconds } from "../../utils/seekUtils";
+import {
+  getSavedSeekStepSeconds,
+  getSavedSkipOpeningSeconds,
+} from "../../utils/seekUtils";
 import { UpdateInfo } from "./UpdateModal";
 import { PresetsSection } from "../settings/sections/PresetsSection";
 import { UpscalingSettingsSection } from "../settings/sections/UpscalingSettingsSection";
@@ -159,7 +162,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
   const [appVersion, setAppVersion] = useState<string>("2.7.4");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
-  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
+  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => getSavedSkipOpeningSeconds());
   const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => localStorage.getItem('l-mpv-hide-controls-upper-half') === 'true');
@@ -365,6 +368,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       setTimeFormat(getSavedTimeFormat());
       setControlBarStyle(getSavedControlBarStyle());
       setSubtitlesAvoidUi(localStorage.getItem('l-mpv-subtitles-avoid-ui') === 'true');
+      setSkipOpeningSeconds(getSavedSkipOpeningSeconds());
       setSeekStepSeconds(getSavedSeekStepSeconds());
     };
     window.addEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);

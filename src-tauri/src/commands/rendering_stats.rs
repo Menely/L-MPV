@@ -177,7 +177,7 @@ mod win_hardware {
                 sys_user: filetime_to_u64(sys_user),
             };
 
-            let mut lock = LAST_CPU.lock().unwrap();
+            let mut lock = LAST_CPU.lock().unwrap_or_else(|e| e.into_inner());
             let result = if let Some(prev) = *lock {
                 let elapsed = current.time.duration_since(prev.time);
                 if elapsed.as_secs() > 5 {
@@ -379,8 +379,13 @@ pub fn get_rendering_and_system_stats(
 
     let pixel_format = mpv
         .get_property_string("video-params/hw-pixelformat")
-        .or_else(|_| mpv.get_property_string("video-params/pixelformat"))
-        .unwrap_or_default();
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            mpv.get_property_string("video-params/pixelformat")
+                .unwrap_or_default()
+        });
 
     let color_range = mpv
         .get_property_string("video-params/colorlevels")

@@ -10,7 +10,7 @@ const moduleScope = { exports: {} };
 new Function("module", "exports", "require", compiled.outputFiles[0].text)(
   moduleScope, moduleScope.exports, () => ({ invoke }));
 const cache = moduleScope.exports;
-assert.equal(cache.formatCachePath(String.raw`\\?\D:\My-programs\L-MPV\data\cache`), String.raw`D:\My-programs\L-MPV\data\cache`);
+assert.equal(cache.formatCachePath(String.raw`\\?\C:\Apps\L-MPV\data\cache`), String.raw`C:\Apps\L-MPV\data\cache`);
 assert.equal(cache.formatCachePath(String.raw`\\?\UNC\server\share\cache`), String.raw`\\server\share\cache`);
 for (const path of [String.raw`D:\data\cache`, String.raw`\\server\share\cache`, "/home/player/cache", ""]) {
   assert.equal(cache.formatCachePath(path), path, "ordinary paths remain unchanged");

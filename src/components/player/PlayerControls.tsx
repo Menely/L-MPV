@@ -46,7 +46,11 @@ import {
 
 
 
-import { getSavedSeekStepSeconds, triggerSeekIndicator } from "../../utils/seekUtils";
+import {
+  getSavedSeekStepSeconds,
+  getSavedSkipOpeningSeconds,
+  triggerSeekIndicator,
+} from "../../utils/seekUtils";
 import { getCustomHotkeys } from "../../utils/hotkeyUtils";
 import {
   TimeDisplayPosition,
@@ -172,9 +176,9 @@ export function PlayerControls({
 
   const [visualizerConfig, setVisualizerConfig] = useState<VisualizerConfig>(() => getVisualizerConfig());
 
-  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => {
-    return Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90);
-  });
+  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() =>
+    getSavedSkipOpeningSeconds()
+  );
 
   const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
 
@@ -200,7 +204,7 @@ export function PlayerControls({
       const savedBtns = localStorage.getItem('l-mpv-visible-buttons');
       if (savedBtns) setVisibleButtons(JSON.parse(savedBtns));
       setVisualizerConfig(getVisualizerConfig());
-      setSkipOpeningSeconds(Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
+      setSkipOpeningSeconds(getSavedSkipOpeningSeconds());
       setSeekStepSeconds(getSavedSeekStepSeconds());
       setHotkeys(getCustomHotkeys());
       setTimePosition(getSavedTimePosition());

@@ -30,8 +30,6 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   searchSubtitles: ["Ctrl+KeyF"],
   playlistPrev: ["PageUp"],
   playlistNext: ["PageDown"],
-  seekBack10: [],
-  seekForward10: [],
   skipOpening: [],
   toggleRepeat: ["KeyR"],
   toggleShuffle: [],
@@ -67,10 +65,8 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "toggleShuffle", label: "Случайный порядок", defaultKeys: DEFAULT_HOTKEYS["toggleShuffle"], category: "playback" },
 
   // Перемотка
-  { id: "seekBack", label: "Перемотка назад (-5 сек)", defaultKeys: DEFAULT_HOTKEYS["seekBack"], category: "seeking" },
-  { id: "seekForward", label: "Перемотка вперед (+5 сек)", defaultKeys: DEFAULT_HOTKEYS["seekForward"], category: "seeking" },
-  { id: "seekBack10", label: "Перемотка назад (-10 сек)", defaultKeys: DEFAULT_HOTKEYS["seekBack10"], category: "seeking" },
-  { id: "seekForward10", label: "Перемотка вперед (+10 сек)", defaultKeys: DEFAULT_HOTKEYS["seekForward10"], category: "seeking" },
+  { id: "seekBack", label: "Перемотка назад", defaultKeys: DEFAULT_HOTKEYS["seekBack"], category: "seeking" },
+  { id: "seekForward", label: "Перемотка вперед", defaultKeys: DEFAULT_HOTKEYS["seekForward"], category: "seeking" },
   { id: "skipOpening", label: "Перемотка опенинга", defaultKeys: DEFAULT_HOTKEYS["skipOpening"], category: "seeking" },
   { id: "frameBack", label: "Кадр назад", defaultKeys: DEFAULT_HOTKEYS["frameBack"], category: "seeking" },
   { id: "frameForward", label: "Кадр вперед", defaultKeys: DEFAULT_HOTKEYS["frameForward"], category: "seeking" },
@@ -254,14 +250,72 @@ export function migrateUpscaleHotkeys(raw: Record<string, string | string[]>): R
   return result;
 }
 
+export const HOTKEYS_SCHEMA_VERSION = 4;
+
+/** Переносит привязки устаревших действий seekBack10/seekForward10 в единые seekBack/seekForward. */
+export function migrateSeekHotkeys(
+  raw: Record<string, string | string[]>
+): Record<string, string | string[]> {
+  if (!("seekBack10" in raw) && !("seekForward10" in raw)) {
+    return raw;
+  }
+
+  const result: Record<string, string | string[]> = { ...raw };
+  const toList = (val: string | string[] | undefined): string[] =>
+    Array.isArray(val) ? val : typeof val === "string" && val ? [val] : [];
+
+  const pairs: Array<[string, string]> = [
+    ["seekBack10", "seekBack"],
+    ["seekForward10", "seekForward"],
+  ];
+
+  const takenByOthers = (targetId: string): Set<string> => {
+    const used = new Set<string>();
+    for (const [id, val] of Object.entries(result)) {
+      if (id === targetId || id === "seekBack10" || id === "seekForward10") continue;
+      for (const code of toList(val)) {
+        if (!code.startsWith("Mouse") || !isMouseScopeCompatible(targetId, id)) {
+          used.add(code);
+        }
+      }
+    }
+    return used;
+  };
+
+  for (const [legacyId, targetId] of pairs) {
+    const legacyCodes = toList(result[legacyId]);
+    delete result[legacyId];
+    if (legacyCodes.length === 0) continue;
+
+    const current = toList(result[targetId]);
+    const occupied = takenByOthers(targetId);
+    const merged = [...current];
+    for (const code of legacyCodes) {
+      if (!merged.includes(code) && !occupied.has(code)) {
+        merged.push(code);
+      }
+    }
+    result[targetId] = merged;
+  }
+
+  return result;
+}
+
 export function getCustomHotkeys(): Record<string, string[]> {
   try {
     const saved = localStorage.getItem("l-mpv-custom-hotkeys");
     if (saved) {
       const raw = JSON.parse(saved);
-      const parsed = localStorage.getItem("l-mpv-hotkeys-schema") === "3" ? raw : migrateUpscaleHotkeys(raw);
+      const schemaVersion = Number(localStorage.getItem("l-mpv-hotkeys-schema") || "0");
+      const withUpscale = schemaVersion >= 3 ? raw : migrateUpscaleHotkeys(raw);
+      const parsed =
+        schemaVersion >= HOTKEYS_SCHEMA_VERSION &&
+        !("seekBack10" in withUpscale) &&
+        !("seekForward10" in withUpscale)
+          ? withUpscale
+          : migrateSeekHotkeys(withUpscale);
       localStorage.setItem("l-mpv-custom-hotkeys", JSON.stringify(parsed));
-      localStorage.setItem("l-mpv-hotkeys-schema", "3");
+      localStorage.setItem("l-mpv-hotkeys-schema", String(HOTKEYS_SCHEMA_VERSION));
       const migrated: Record<string, string[]> = {};
       
       // Считываем сохранённые пользователем настройки горячих клавиш.
@@ -348,12 +402,23 @@ export function getCustomHotkeys(): Record<string, string[]> {
   return copy;
 }
 
-export function saveCustomHotkeys(hotkeys: Record<string, string[]>, schemaVersion = 3) {
-  if (schemaVersion < 3) hotkeys = migrateUpscaleHotkeys(hotkeys) as Record<string, string[]>;
+export function saveCustomHotkeys(
+  hotkeys: Record<string, string[]>,
+  schemaVersion = HOTKEYS_SCHEMA_VERSION
+) {
+  let normalized: Record<string, string | string[]> = hotkeys;
+  if (schemaVersion < 3) normalized = migrateUpscaleHotkeys(normalized);
+  if (
+    schemaVersion < HOTKEYS_SCHEMA_VERSION ||
+    "seekBack10" in normalized ||
+    "seekForward10" in normalized
+  ) {
+    normalized = migrateSeekHotkeys(normalized);
+  }
   try {
-    localStorage.setItem("l-mpv-custom-hotkeys", JSON.stringify(hotkeys));
+    localStorage.setItem("l-mpv-custom-hotkeys", JSON.stringify(normalized));
     localStorage.setItem(HOTKEYS_MIGRATION_V2_KEY, "true");
-    localStorage.setItem("l-mpv-hotkeys-schema", "3");
+    localStorage.setItem("l-mpv-hotkeys-schema", String(HOTKEYS_SCHEMA_VERSION));
     window.dispatchEvent(new Event("l-mpv-settings-changed"));
   } catch (e) {
     console.error("Ошибка сохранения горячих клавиш:", e);
@@ -364,7 +429,7 @@ export function resetCustomHotkeys() {
   try {
     localStorage.removeItem("l-mpv-custom-hotkeys");
     localStorage.setItem(HOTKEYS_MIGRATION_V2_KEY, "true");
-    localStorage.setItem("l-mpv-hotkeys-schema", "3");
+    localStorage.setItem("l-mpv-hotkeys-schema", String(HOTKEYS_SCHEMA_VERSION));
     window.dispatchEvent(new Event("l-mpv-settings-changed"));
   } catch (e) {
     console.error("Ошибка сброса горячих клавиш:", e);

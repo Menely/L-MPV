@@ -58,7 +58,10 @@ import {
   updateSettingsViewSession,
 } from "./lib/settingsViewSession";
 import { SettingsPreset } from "../../utils/presetsUtils";
-import { getSavedSeekStepSeconds } from "../../utils/seekUtils";
+import {
+  getSavedSeekStepSeconds,
+  getSavedSkipOpeningSeconds,
+} from "../../utils/seekUtils";
 import {
   UiRadiusLevel,
   UI_RADIUS_PRESETS,
@@ -194,7 +197,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
   const [appVersion, setAppVersion] = useState<string>("2.7.4");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
-  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
+  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => getSavedSkipOpeningSeconds());
   const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => localStorage.getItem('l-mpv-hide-controls-upper-half') === 'true');
@@ -462,8 +465,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
       setHotloadEnabled(localStorage.getItem("l-mpv-hotload-enabled") === "true");
       setHideControlsInUpperHalf(localStorage.getItem("l-mpv-hide-controls-upper-half") === "true");
       setSaveTracksToVideoDir(localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false");
-      const skipSeconds = Number(localStorage.getItem("l-mpv-skip-opening-seconds") || 90);
-      setSkipOpeningSeconds(Number.isFinite(skipSeconds) ? Math.min(600, Math.max(1, skipSeconds)) : 90);
+      setSkipOpeningSeconds(getSavedSkipOpeningSeconds());
       setSeekStepSeconds(getSavedSeekStepSeconds());
       try {
         const rawButtons = localStorage.getItem("l-mpv-visible-buttons");

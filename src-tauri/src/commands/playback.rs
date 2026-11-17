@@ -819,6 +819,8 @@ pub fn get_media_info(
     let color_space = resolve_color_space(&primaries, &colormatrix);
     let bit_depth =
         resolve_bit_depth(&plane_depth_str, &[&pixel_format, &hw_pixel_format]);
+    let (audio_codec, audio_channels) = mpv.get_active_audio_info();
+    let audio_disabled = audio_codec.is_empty() && audio_channels.is_empty();
 
     Ok(MediaInfo {
         path: current_path.clone(),
@@ -841,9 +843,7 @@ pub fn get_media_info(
         video_codec: normalize_video_codec(
             &mpv.get_property_string("video-codec").unwrap_or_default(),
         ),
-        audio_codec: mpv
-            .get_property_string("audio-codec-name")
-            .unwrap_or_default(),
+        audio_codec,
         paused: mpv
             .get_property_string("pause")
             .unwrap_or_default()
@@ -855,12 +855,10 @@ pub fn get_media_info(
             .get_property_double("volume")
             .unwrap_or(100.0),
         file_size,
-        audio_channels: mpv
-            .get_property_string(
-                "audio-params/channel-count",
-            )
-            .unwrap_or_default(),
-        audio_bitrate: {
+        audio_channels,
+        audio_bitrate: if audio_disabled {
+            0.0
+        } else {
             let ab = mpv
                 .get_property_double("audio-bitrate")
                 .unwrap_or(0.0);

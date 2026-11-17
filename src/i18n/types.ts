@@ -1085,6 +1085,9 @@ export interface TranslationDict {
     displayFps: string;
     avSync: string;
     voDelayed: string;
+    pcLabel: string;
+    delayedWord: string;
+    mistimedWord: string;
     // Секция дорожек и глав
     audioTracksTitle: string;
     subTracksTitle: string;

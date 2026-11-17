@@ -60,7 +60,17 @@ import {
   saveTimeFormat,
   TimeFormatMode,
 } from "./timeFormatUtils";
-import { getCustomHotkeys, saveCustomHotkeys } from "./hotkeyUtils";
+import {
+  getCustomHotkeys,
+  HOTKEYS_SCHEMA_VERSION,
+  saveCustomHotkeys,
+} from "./hotkeyUtils";
+import {
+  getSavedSeekStepSeconds,
+  getSavedSkipOpeningSeconds,
+  saveSeekStepSeconds,
+  saveSkipOpeningSeconds,
+} from "./seekUtils";
 import { saveLocale, getEffectiveLocale, type Locale } from "../i18n/index";
 import {
   getHeatmapConfig,
@@ -109,6 +119,7 @@ export interface UiSettings {
   hotload_enabled?: boolean;
   save_tracks_to_video_dir?: boolean;
   skip_opening_seconds?: number;
+  seek_step_seconds?: number;
   visualizer_config?: StoredVisualizerSettings;
   heatmap_config?: HeatmapConfig;
 }
@@ -262,13 +273,14 @@ export function collectCurrentUiSettings(): UiSettings {
     custom_colors: getCustomColors(),
     visible_buttons: visibleButtons,
     custom_hotkeys: getCustomHotkeys(),
-    hotkeys_schema_version: 3,
+    hotkeys_schema_version: HOTKEYS_SCHEMA_VERSION,
     language: getEffectiveLocale(),
     settings_style: getSavedUiSettingsStyle(),
     hide_controls_in_upper_half: localStorage.getItem("l-mpv-hide-controls-upper-half") === "true",
     hotload_enabled: localStorage.getItem("l-mpv-hotload-enabled") === "true",
     save_tracks_to_video_dir: localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false",
-    skip_opening_seconds: Math.min(600, Math.max(1, Number(localStorage.getItem("l-mpv-skip-opening-seconds")) || 90)),
+    skip_opening_seconds: getSavedSkipOpeningSeconds(),
+    seek_step_seconds: getSavedSeekStepSeconds(),
     visualizer_config: visualizerConfig,
     heatmap_config: getHeatmapConfig(),
   };
@@ -450,8 +462,11 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
     restored = true;
   }
   if (typeof ui.skip_opening_seconds === "number" && Number.isFinite(ui.skip_opening_seconds)) {
-    const skipSeconds = Math.min(600, Math.max(1, Math.round(ui.skip_opening_seconds)));
-    localStorage.setItem("l-mpv-skip-opening-seconds", skipSeconds.toString());
+    saveSkipOpeningSeconds(ui.skip_opening_seconds, false);
+    restored = true;
+  }
+  if (typeof ui.seek_step_seconds === "number" && Number.isFinite(ui.seek_step_seconds)) {
+    saveSeekStepSeconds(ui.seek_step_seconds, false);
     restored = true;
   }
   if (ui.visualizer_config && typeof ui.visualizer_config === "object") {

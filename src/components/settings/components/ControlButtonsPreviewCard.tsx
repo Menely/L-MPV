@@ -36,7 +36,7 @@ interface ControlButtonsPreviewCardProps {
 export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps> = ({
   visibleButtons,
   skipOpeningSeconds,
-  seekStepSeconds: _seekStepSeconds = 10,
+  seekStepSeconds = 10,
 }) => {
   const { dict } = useTranslation();
   const isBtnVisible = (id: string, def = true) => {
@@ -236,7 +236,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             </div>
             {isBtnVisible("seekButtons", true) && (
               <div
-
+                title={dict.settings.appearance.controlButtons.seekBack(seekStepSeconds)}
                 style={roundIconBtnStyle}
                 >
                 <Undo size={13} />
@@ -262,7 +262,7 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
 
             {isBtnVisible("seekButtons", true) && (
               <div
-
+                title={dict.settings.appearance.controlButtons.seekForward(seekStepSeconds)}
                 style={roundIconBtnStyle}
                 >
                 <Redo size={13} />
