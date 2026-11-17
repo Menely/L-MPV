@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X } from "lucide-react";
-import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
+import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
+import { MotionSurface } from "../motion/MotionSurface";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { formatTime } from "../../utils/timeUtils";
@@ -18,7 +19,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
   const { chapters, seekTo } = usePlayerState();
   const { position } = usePlayerProgress();
   const { dict } = useTranslation();
-  const { isClosing, handleClose } = useOverlayDismiss({ onClose, kind: "pop" });
+  const { handleClose } = useSurfaceDismiss({ onClose });
 
   // Локальный выбор главы пользователем для мгновенного тактильного отклика
   const [selectedChapterIndex, setSelectedChapterIndex] = useState<number | null>(null);
@@ -51,8 +52,8 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
 
   return (
     <div className="chapters-modal-overlay" onClick={handleClose}>
-      <div 
-        className={`chapters-modal-card ${isClosing ? "chapters-modal-card--closing" : ""}`}
+      <MotionSurface kind="popover"
+        className={`chapters-modal-card `}
         role="dialog"
         aria-modal="true"
         aria-labelledby="chapters-modal-title"
@@ -62,7 +63,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
           <h2 id="chapters-modal-title" className="chapters-modal-title">
             {dict.chapters.title(chapters.length)}
           </h2>
-          <button 
+          <button
             type="button"
             className="modal__close"
             onClick={handleClose}
@@ -105,7 +106,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
             </div>
           )}
         </div>
-      </div>
+      </MotionSurface>
     </div>
   );
 }

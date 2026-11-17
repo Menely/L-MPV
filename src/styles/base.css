@@ -197,6 +197,7 @@ body, #root {
 }
 
 .frame-osd--closing {
+  opacity: 0;
   animation: osdFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
@@ -335,6 +336,7 @@ html.no-animations .control-btn--play:hover,
 html.no-animations .control-btn:active,
 html.no-animations .control-btn--play:active,
 html.no-animations .control-btn:hover svg,
+html.no-animations .control-btn:active svg,
 html.no-animations .control-btn--play:hover svg,
 html.no-animations .track-popover__item:hover,
 html.no-animations .side-panel__item:hover,

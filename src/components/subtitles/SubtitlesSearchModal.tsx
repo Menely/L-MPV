@@ -23,7 +23,8 @@ import { useSearchNavigation } from "./hooks/useSearchNavigation";
 import { usePersistentState } from "./hooks/usePersistentState";
 import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
-import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
+import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
+import { MotionSurface } from "../motion/MotionSurface";
 import {
   getSavedControlBarStyle,
   type ControlBarStyle,
@@ -153,9 +154,8 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
   // ── Базовые UI-состояния ───────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
   const [followPlayback, setFollowPlayback] = useState(true);
-  const { isClosing, handleClose } = useOverlayDismiss({
+  const { isPresent, handleClose } = useSurfaceDismiss({
     onClose,
-    kind: "pop",
     closeOnEscape: false,
   });
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -290,7 +290,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
 
   // ── rAF-следование за речью ────────────────────────────────────────────────
   useFollowPlayback({
-    followPlayback,
+    followPlayback: followPlayback && isPresent,
     searchQuery,
     lines,
     activeLineIndex,
@@ -335,6 +335,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
 
   // ── Глобальные горячие клавиши (Escape, Ctrl+F, стрелки) ──────────────────
   useEffect(() => {
+    if (!isPresent) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -369,7 +370,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [handleClose, isTrackPickerOpen, handleStepSubtitleRef]);
+  }, [handleClose, isTrackPickerOpen, handleStepSubtitleRef, isPresent]);
 
   // ── Обёртки выбора дорожки ─────────────────────────────────────────────────
   const handlePickTrack = useCallback(
@@ -477,13 +478,13 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
         flexDirection: "column",
       }}
       >
-      <div
+      <MotionSurface kind="popover"
         className={`media-info__section subtitles-search-card ${
           isCapsule ? "subtitles-search-card--capsule" : ""
         } ${
           isOpaque ? "subtitles-search-card--opaque" : ""
         } ${
-          isClosing ? "subtitles-search-card--closing" : ""
+          ""
         } ${
           isResizing || isDragging ? "subtitles-search-card--resizing" : ""
         }`}
@@ -608,7 +609,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
                   fontWeight: 600,
                   cursor: "pointer",
                   flexShrink: 0,
-                  transition: "all 0.15s ease",
+                  transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), filter var(--t-fast) var(--ease-smooth)",
                 }}
                 className={`subtitles-search-card__follow-btn hover-bright ${
                   followPlayback ? "subtitles-search-card__follow-btn--active" : ""
@@ -741,7 +742,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
             </div>
           )}
         </div>
-      </div>
+      </MotionSurface>
     </div>
   );
 }

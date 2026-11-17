@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
+import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
+import { MotionSurface } from "../motion/MotionSurface";
 import {
   Download,
   Loader2,
@@ -498,9 +499,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     }
   };
 
-  const { isClosing, handleClose } = useOverlayDismiss({
+  const { handleClose } = useSurfaceDismiss({
     onClose,
-    kind: "base",
     disabled: isDownloading && !errorMessage,
     closeOnEscape: true,
   });
@@ -533,8 +533,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     : dict.updateModal.changelogInfo;
 
   return (
-    <div
-      className={`modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`}
+    <MotionSurface kind="backdrop"
+      className={`modal-overlay `}
       onClick={handleClose}
       style={{
         zIndex: "var(--z-modal)",
@@ -546,8 +546,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     >
       {!isCapsule ? (
         /* ─── КЛАССИЧЕСКИЙ РЕЖИМ (Модерн, Прикрепленный) ─── */
-        <div
-          className={`modal-container update-modal-card update-modal--${controlBarStyle} ${isClosing ? "update-modal-card--closing" : ""}`}
+        <MotionSurface kind="dialog"
+          className={`modal-container update-modal-card update-modal--${controlBarStyle} `}
           role="dialog"
           aria-modal="true"
           aria-labelledby="update-modal-title"
@@ -567,7 +567,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               : "0 20px 50px rgba(0, 0, 0, 0.6)",
             overflow: "hidden",
             color: "var(--text, #fff)",
-            animation: "updateModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
             transition: "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
           }}
         >
@@ -696,7 +695,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                     fontSize: "var(--fs-xs)",
                     color: "var(--accent-text)",
                     cursor: "pointer",
-                    transition: "all var(--t-fast) var(--ease-smooth)",
+                    transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), filter var(--t-fast) var(--ease-smooth)",
                   }}
                   className="hover-bright"
                 >
@@ -801,11 +800,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               />
             </div>
           </div>
-        </div>
+        </MotionSurface>
       ) : (
         /* ─── ОСТРОВНОЙ РЕЖИМ (Стиль «Капсула») ─── */
-        <div
-          className={`modal-container update-modal-capsule ${isExpanded ? "update-modal-capsule--expanded" : ""} ${isClosing ? "update-modal-capsule--closing" : ""}`}
+        <MotionSurface kind="dialog"
+          className={`modal-container update-modal-capsule ${isExpanded ? "update-modal-capsule--expanded" : ""} `}
           role="dialog"
           aria-modal="true"
           aria-labelledby="update-modal-title"
@@ -947,9 +946,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               />
             </div>
           </div>
-        </div>
+        </MotionSurface>
       )}
-    </div>
+    </MotionSurface>
   );
 };
 
@@ -968,9 +967,8 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   onClose,
 }) => {
   const { dict } = useTranslation();
-  const { isClosing, handleClose } = useOverlayDismiss({
+  const { handleClose } = useSurfaceDismiss({
     onClose,
-    kind: "fast",
     closeOnEscape: true,
   });
 
@@ -979,7 +977,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   };
 
   return (
-    <div className={`update-toast ${isClosing ? "update-toast--closing" : ""}`}>
+    <MotionSurface kind="popover" className={`update-toast `}>
       <div className="update-toast__header">
         <div className="update-toast__title-group">
           <div className="update-toast__icon">
@@ -1015,6 +1013,6 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
           {dict.updateModal.toastUpdate}
         </button>
       </div>
-    </div>
+    </MotionSurface>
   );
 };

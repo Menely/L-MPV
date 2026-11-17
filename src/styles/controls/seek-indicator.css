@@ -9,7 +9,7 @@
   filter: none;
   transform: translateY(-50%);
   animation: seek-ruler-appear 120ms ease-out;
-  transition: opacity 180ms ease-out;
+  transition: opacity var(--t-feedback-exit) var(--ease-accelerate);
 }
 .seek-indicator--ruler.seek-indicator--closing {
   opacity: 0;

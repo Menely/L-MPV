@@ -279,7 +279,7 @@
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  transition: all var(--t-fast) var(--ease-smooth) !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth) !important;
 }
 
 .subtitles-search-card--capsule .subtitles-card--follow-btn:hover {

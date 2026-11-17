@@ -1,3 +1,4 @@
+import { AnimatePresence } from "motion/react";
 import { SettingsIcon } from "./SettingsIcon";
 import { ColorSwatch, ColorSwatchGrid } from "./ColorSwatch";
 import { optionResetBtnStyle } from "./optionCardStyles";
@@ -242,7 +243,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
             borderRadius: "var(--radius-control)",
             padding: "6px 14px 8px",
             boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
-            transition: "all var(--t-fast) var(--ease-smooth)",
+            transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), border-radius var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
           }}
           >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
@@ -506,13 +507,16 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
       </div>
 
       {/* Модальное окно выбора цвета (Color Picker) */}
-      {showColorPicker && (
-        <ColorPickerModal
-          initialColor={activeColor.startsWith("#") ? activeColor : "#7fc7ff"}
-          onSelectColor={handleAddCustomColor}
-          onClose={() => setShowColorPicker(false)}
-        />
-      )}
+      <AnimatePresence propagate>
+        {showColorPicker && (
+          <ColorPickerModal
+            key="color-picker"
+            initialColor={activeColor.startsWith("#") ? activeColor : "#7fc7ff"}
+            onSelectColor={handleAddCustomColor}
+            onClose={() => setShowColorPicker(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 };

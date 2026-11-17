@@ -1,3 +1,4 @@
+import { AnimatePresence } from "motion/react";
 import { toggleAmbientMode } from "./utils/ambientPreviewQueue";
 import { upscaleErrorMessage } from "./utils/upscaleCompatibility";
 import {
@@ -44,10 +45,9 @@ import { getSavedSeekStepSeconds, triggerSeekIndicator } from "./utils/seekUtils
 import { subtitleControlsOffset } from "./utils/subtitleUiGeometry";
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
 import {
-  SettingsModalView as SettingsModal,
-  SettingsPanelView as SettingsPanel,
   useSettingsModulePreload,
 } from "./components/settings/lib/settingsModulePreload";
+import { SettingsPresence } from "./components/settings/SettingsPresence";
 // Settings stay out of the startup bundle; warm the selected view after the first frame.
 const MediaInfoModal = lazy(() =>
   import("./components/modals/MediaInfoModal").then((m) => ({ default: m.MediaInfoModal }))
@@ -1450,6 +1450,7 @@ function App() {
 
       {hasMedia && (
         <PlayerControls
+          controlsVisible={isControlsVisible}
           onOpenSettings={openSettings}
           showMediaInfo={showMediaInfo}
           showDetailedMediaInfo={isMediaInfoOpen}
@@ -1484,104 +1485,106 @@ function App() {
       <SeekIndicator />
       <VolumeIndicator />
 
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={closeContextMenu}
-          onOpenFile={handleOpenFile}
-          onShowMediaInfo={() => {
-            setIsPlaylistOpen(false);
-            setShowChapters(false);
-            setShowMediaInfo(true);
-            closeContextMenu();
-          }}
-          onShowDetailedMediaInfo={() => {
-            setIsPlaylistOpen(false);
-            setShowChapters(false);
-            setShowMediaInfo(false);
-            invoke("open_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
-            closeContextMenu();
-          }}
-          onShowChapters={() => {
-            setIsPlaylistOpen(false);
-            setShowMediaInfo(false);
-            setShowChapters(true);
-            closeContextMenu();
-          }}
-          onShowSubtitlesSearch={() => {
-            setIsPlaylistOpen(false);
-            setShowMediaInfo(false);
-            setShowChapters(false);
-            setShowSubtitlesSearch(true);
-            closeContextMenu();
-          }}
-           onShowSettings={toggleSettings}
-        />
-      )}
-
-      {showMediaInfo && (
-        <Suspense fallback={null}>
-          <MediaInfoModal
-            onClose={() => setShowMediaInfo(false)}
-          />
-        </Suspense>
-      )}
-
-      {showChapters && (
-        <Suspense fallback={null}>
-          <ChaptersModal
-            onClose={() => setShowChapters(false)}
-          />
-        </Suspense>
-      )}
-
-      {showSubtitlesSearch && (
-        <Suspense fallback={null}>
-          <SubtitlesSearchModal
-            onClose={() => setShowSubtitlesSearch(false)}
-          />
-        </Suspense>
-      )}
-
-      {showSettings && (
-        <Suspense fallback={null}>
-          {(() => {
-            const handleShowUpdateFromSettings = (info: UpdateInfo) => {
-              closeSettings();
-              setShowUpdateToast(false);
-              setPendingUpdate(info);
-              setShowUpdateModal(true);
-            };
-            const SettingsView = settingsStyle === "modal"
-              ? SettingsModal
-              : SettingsPanel;
-            return <SettingsView onClose={closeSettings} onShowUpdate={handleShowUpdateFromSettings} />;
-          })()}
-        </Suspense>
-      )}
-
-      {showUpdateModal && pendingUpdate && (
-        <Suspense fallback={null}>
-          <UpdateModal
-            updateInfo={pendingUpdate}
-            onClose={() => setShowUpdateModal(false)}
-          />
-        </Suspense>
-      )}
-
-      {showUpdateToast && pendingUpdate && !showUpdateModal && (
-        <Suspense fallback={null}>
-          <UpdateToast
-            updateInfo={pendingUpdate}
-            onOpenModal={() => {
-              setShowUpdateToast(false);
-              setShowUpdateModal(true);
+      <AnimatePresence>
+        {contextMenu && (
+          <ContextMenu
+            key="context-menu"
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={closeContextMenu}
+            onOpenFile={handleOpenFile}
+            onShowMediaInfo={() => {
+              setIsPlaylistOpen(false);
+              setShowChapters(false);
+              setShowMediaInfo(true);
+              closeContextMenu();
             }}
-            onClose={() => setShowUpdateToast(false)}
+            onShowDetailedMediaInfo={() => {
+              setIsPlaylistOpen(false);
+              setShowChapters(false);
+              setShowMediaInfo(false);
+              invoke("open_mediainfo_window", { path: mediaInfo?.path || null }).catch(console.error);
+              closeContextMenu();
+            }}
+            onShowChapters={() => {
+              setIsPlaylistOpen(false);
+              setShowMediaInfo(false);
+              setShowChapters(true);
+              closeContextMenu();
+            }}
+            onShowSubtitlesSearch={() => {
+              setIsPlaylistOpen(false);
+              setShowMediaInfo(false);
+              setShowChapters(false);
+              setShowSubtitlesSearch(true);
+              closeContextMenu();
+            }}
+             onShowSettings={toggleSettings}
           />
-        </Suspense>
-      )}
+        )}
+
+        {showMediaInfo && (
+          <Suspense key="media-info" fallback={null}>
+            <MediaInfoModal
+              onClose={() => setShowMediaInfo(false)}
+            />
+          </Suspense>
+        )}
+
+        {showChapters && (
+          <Suspense key="chapters" fallback={null}>
+            <ChaptersModal
+              onClose={() => setShowChapters(false)}
+            />
+          </Suspense>
+        )}
+
+        {showSubtitlesSearch && (
+          <Suspense key="subtitles" fallback={null}>
+            <SubtitlesSearchModal
+              onClose={() => setShowSubtitlesSearch(false)}
+            />
+          </Suspense>
+        )}
+
+      </AnimatePresence>
+
+      <SettingsPresence
+        isOpen={showSettings}
+        viewStyle={settingsStyle}
+        onClose={closeSettings}
+        onShowUpdate={(info) => {
+          closeSettings();
+          setShowUpdateToast(false);
+          setPendingUpdate(info);
+          setShowUpdateModal(true);
+        }}
+      />
+
+      <AnimatePresence>
+        {showUpdateModal && pendingUpdate && (
+          <Suspense key="update-dialog" fallback={null}>
+            <UpdateModal
+              updateInfo={pendingUpdate}
+              onClose={() => setShowUpdateModal(false)}
+            />
+          </Suspense>
+        )}
+
+        {showUpdateToast && pendingUpdate && !showUpdateModal && (
+          <Suspense key="update-toast" fallback={null}>
+            <UpdateToast
+              updateInfo={pendingUpdate}
+              onOpenModal={() => {
+                setShowUpdateToast(false);
+                setShowUpdateModal(true);
+              }}
+              onClose={() => setShowUpdateToast(false)}
+            />
+          </Suspense>
+        )}
+
+      </AnimatePresence>
 
       <PlaylistDrawer />
     </div>

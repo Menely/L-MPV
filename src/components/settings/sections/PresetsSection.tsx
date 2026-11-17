@@ -1,6 +1,6 @@
 import { SettingsIcon } from "../components/SettingsIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useId } from "react";
 import {
   Sparkles,
   Plus,
@@ -85,6 +85,8 @@ interface PresetsSectionProps {
  */
 export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied }) => {
   const { dict, locale } = useTranslation();
+  const userPresetsId = useId();
+  const builtInPresetsId = useId();
   // Синхронное чтение предзагруженного кэша: первый paint уже полный,
   // окно настроек не прыгает после прилёта данных.
   const [userPresets, setUserPresets] = useState<SettingsPreset[]>(() => getPreloadedUserPresets() ?? []);
@@ -794,7 +796,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             color: "var(--text-primary)",
             fontSize: "var(--fs-sm)",
             fontWeight: 500,
-            animation: "presetsFadeIn 0.2s ease",
+            animation: "fadeIn var(--t-fast) var(--ease-decelerate)",
           }}
           >
           {toastMessage}
@@ -807,6 +809,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           <button
             type="button"
             className="presets-section-heading__title"
+            aria-expanded={isUserPresetsOpen}
+            aria-controls={userPresetsId}
             onClick={() => setIsUserPresetsOpen((prev) => {
               const next = !prev;
               writeGroupOpen(PRESETS_USER_OPEN_KEY, next);
@@ -871,7 +875,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           Группа всегда смонтирована: раскрытие идёт плавной складкой
           collapse-fold (как аккордеон), высота вкладки не прыгает.
         */}
-        <div className={`collapse-fold ${isUserPresetsOpen ? "collapse-fold--open" : ""}`}>
+        <div id={userPresetsId} className={`collapse-fold ${isUserPresetsOpen ? "collapse-fold--open" : ""}`} inert={!isUserPresetsOpen} aria-hidden={!isUserPresetsOpen}>
           <div className="collapse-fold__inner">
             <div className="collapse-fold__body mt-4">
               {userPresets.length === 0 ? (
@@ -896,6 +900,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           <button
             type="button"
             className="presets-section-heading__title"
+            aria-expanded={isBuiltInPresetsOpen}
+            aria-controls={builtInPresetsId}
             onClick={() => setIsBuiltInPresetsOpen((prev) => {
               const next = !prev;
               writeGroupOpen(PRESETS_BUILTIN_OPEN_KEY, next);
@@ -913,7 +919,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           </button>
         </div>
 
-        <div className={`collapse-fold ${isBuiltInPresetsOpen ? "collapse-fold--open" : ""}`}>
+        <div id={builtInPresetsId} className={`collapse-fold ${isBuiltInPresetsOpen ? "collapse-fold--open" : ""}`} inert={!isBuiltInPresetsOpen} aria-hidden={!isBuiltInPresetsOpen}>
           <div className="collapse-fold__inner">
             <div className="collapse-fold__body mt-4">
               <div className="presets-list">

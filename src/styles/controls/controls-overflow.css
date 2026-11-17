@@ -20,12 +20,6 @@ button.controls-island--compact-time,
   border-radius: var(--radius-surface);
   box-shadow: var(--shadow-elevated);
   z-index: var(--z-float);
-  animation: fadeIn var(--t-fast) var(--ease-decelerate);
-}
-
-.controls-overflow--closing {
-  animation: modalOverlayFadeOut var(--t-close-fast) var(--ease-accelerate) forwards;
-  pointer-events: none;
 }
 
 .controls-overflow__title {

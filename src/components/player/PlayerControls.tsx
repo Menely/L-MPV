@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { AnimatePresence } from "motion/react";
+import { useControlPopover } from "./controls/useControlPopover";
+import { ControlsVisibilityContext } from "./controls/ControlsVisibilityContext";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { showOsd } from "../../hooks/useOsd";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -73,6 +75,7 @@ import { SpeedPopover, formatSpeedValue, SPEED_PRESETS, SpeedIcon } from "./cont
 import { ControlsOverflow, type OverflowAction } from "./controls/ControlsOverflow";
 
 export function PlayerControls({
+  controlsVisible = true,
   onShowMediaInfo,
   onToggleMediaInfo,
   showMediaInfo,
@@ -83,6 +86,7 @@ export function PlayerControls({
   onOpenSubtitlesSearch,
   onOpenSettings,
 }: {
+  controlsVisible?: boolean;
   onShowMediaInfo?: () => void;
   onToggleMediaInfo?: () => void;
   showMediaInfo?: boolean;
@@ -117,76 +121,15 @@ export function PlayerControls({
     isSubDownloading,
     handleDownloadTrack,
   } = usePlayerState();
-  const [localVolume, setLocalVolume] = useState<number | null>(null);
-  const volume = localVolume !== null ? localVolume : contextVolume;
+  const volume = contextVolume;
   const [isControlsHovered, setIsControlsHovered] = useState(false);
   const [isStripHovered, setIsStripHovered] = useState(false);
 
-  // Состояния для всплывающих окон дорожек с поддержкой exit-анимации
-  const [activePopover, setActivePopover] = useState<"audio" | "sub" | "speed" | "more" | null>(null);
-  const [closingPopover, setClosingPopover] = useState<"audio" | "sub" | "speed" | "more" | null>(null);
+  const { activePopover, displayedPopover, immediateExit, openPopover, closePopover, onExitComplete } = useControlPopover();
   const morePopoverRef = useRef<HTMLDivElement | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement | null>(null);
   const speedPopoverRef = useRef<HTMLDivElement | null>(null);
   const speedButtonRef = useRef<HTMLButtonElement | null>(null);
-  const closePopoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const closePopover = useCallback((immediate: boolean = false) => {
-    if (closePopoverTimerRef.current) {
-      clearTimeout(closePopoverTimerRef.current);
-      closePopoverTimerRef.current = null;
-    }
-    const currentType = activePopover;
-    // Opening an external overlay can request a close with no popover open.
-    // Do not focus unrelated controls in that case.
-    if (!currentType) {
-      setClosingPopover(null);
-      return;
-    }
-    const restoreFocus = () => {
-      const id = currentType === "audio" ? "btn-audio-tracks"
-        : currentType === "sub" ? "btn-sub-tracks"
-        : currentType === "speed" ? "btn-playback-speed" : "btn-controls-more";
-      const target = document.getElementById(id);
-      const fallback = moreButtonRef.current;
-      if (target?.getClientRects().length) target.focus();
-      else if (fallback?.getClientRects().length) fallback.focus();
-      else document.getElementById("btn-play-pause")?.focus();
-    };
-    if (immediate || !isMotionAllowed()) {
-      setActivePopover(null);
-      setClosingPopover(null);
-      restoreFocus();
-      return;
-    }
-    setActivePopover((current) => {
-      if (!current) return null;
-      setClosingPopover(current);
-      closePopoverTimerRef.current = setTimeout(() => {
-        setClosingPopover(null);
-        closePopoverTimerRef.current = null;
-        restoreFocus();
-      }, getCloseTimeoutMs("fast"));
-      return null;
-    });
-  }, [activePopover]);
-
-  const openPopover = useCallback((type: "audio" | "sub" | "speed" | "more") => {
-    if (closePopoverTimerRef.current) {
-      clearTimeout(closePopoverTimerRef.current);
-      closePopoverTimerRef.current = null;
-    }
-    setClosingPopover(null);
-    setActivePopover(type);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (closePopoverTimerRef.current) {
-        clearTimeout(closePopoverTimerRef.current);
-      }
-    };
-  }, []);
 
   // Закрытие активного поповера по Escape
   useEffect(() => {
@@ -498,14 +441,7 @@ export function PlayerControls({
     }
   }, []);
 
-  const handleVolumeChange = (newVol: number, commit: boolean = true) => {
-    if (commit) {
-      setLocalVolume(null);
-      setVolume(newVol);
-    } else {
-      setLocalVolume(newVol);
-    }
-  };
+  const handleVolumeChange = (newVol: number) => setVolume(newVol);
 
   const handleTakeScreenshot = useCallback(async () => {
     try {
@@ -652,14 +588,11 @@ export function PlayerControls({
     ] : []),
   ];
 
-  const displayedPopover = activePopover || closingPopover;
-  const isPopoverClosing = !activePopover && Boolean(closingPopover);
-
   const renderTrackPopovers = () => (
-    <>
-      <TrackPopovers
-        displayedPopover={displayedPopover === "audio" || displayedPopover === "sub" ? displayedPopover : null}
-        isPopoverClosing={isPopoverClosing}
+    <AnimatePresence custom={immediateExit} onExitComplete={onExitComplete}>
+      {(activePopover === "audio" || activePopover === "sub") && <TrackPopovers
+        key="tracks"
+        displayedPopover={activePopover}
         popoverRef={popoverRef}
         activeTrackItemRef={activeTrackItemRef}
         controlBarStyle={controlBarStyle}
@@ -671,11 +604,11 @@ export function PlayerControls({
         onClose={closePopover}
         onDownloadTrack={handleDownloadTrack}
         onOpenSubtitlesSearch={onOpenSubtitlesSearch}
-      />
-      {displayedPopover === "speed" && (
+      />}
+      {activePopover === "speed" && (
         <SpeedPopover
+          key="speed"
           currentSpeed={mediaInfo?.speed ?? 1.0}
-          isClosing={isPopoverClosing}
           popoverRef={speedPopoverRef}
           anchorRef={speedButtonRef}
           containerRef={controlsPillRef}
@@ -687,11 +620,11 @@ export function PlayerControls({
           onClose={closePopover}
         />
       )}
-      {displayedPopover === "more" && (
+      {activePopover === "more" && (
         <ControlsOverflow
+          key="more"
           popoverRef={morePopoverRef}
           triggerRef={moreButtonRef}
-          isClosing={isPopoverClosing}
           actions={overflowActions}
           volume={volume}
           speed={mediaInfo?.speed ?? 1}
@@ -702,7 +635,7 @@ export function PlayerControls({
           onClose={closePopover}
         />
       )}
-    </>
+    </AnimatePresence>
   );
 
   const renderAudioVisualizerAbove = () => (
@@ -802,7 +735,7 @@ export function PlayerControls({
       onWheel={(e) => {
         const delta = e.deltaY < 0 ? 5 : -5;
         const newVol = Math.max(0, Math.min(150, volume + delta));
-        handleVolumeChange(newVol, true);
+        handleVolumeChange(newVol);
       }}
     >
       <button
@@ -831,13 +764,7 @@ export function PlayerControls({
           } as React.CSSProperties}
           aria-label={dict.controls.volume}
           onChange={(e) =>
-            handleVolumeChange(Number(e.target.value), false)
-          }
-          onMouseUp={(e) => 
-            handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
-          }
-          onTouchEnd={(e) => 
-            handleVolumeChange(Number((e.target as HTMLInputElement).value), true)
+            handleVolumeChange(Number(e.target.value))
           }
           id="slider-volume"
         />
@@ -1204,9 +1131,11 @@ export function PlayerControls({
         setIsStripHovered(false);
       }}
     >
-      {controlBarStyle === "capsule" && <CapsuleControlsLayout {...layoutProps} />}
-      {controlBarStyle === "modern" && <ModernControlsLayout {...layoutProps} />}
-      {controlBarStyle === "docked" && <DockedControlsLayout {...layoutProps} />}
+      <ControlsVisibilityContext value={controlsVisible}>
+        {controlBarStyle === "capsule" && <CapsuleControlsLayout {...layoutProps} />}
+        {controlBarStyle === "modern" && <ModernControlsLayout {...layoutProps} />}
+        {controlBarStyle === "docked" && <DockedControlsLayout {...layoutProps} />}
+      </ControlsVisibilityContext>
     </div>
   );
 }

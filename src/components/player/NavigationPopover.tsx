@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { useIsPresent } from "motion/react";
 import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import { getSavedControlBarStyle } from "../../utils/controlBarStyleUtils";
 import "../../styles/navigation-popover.css";
@@ -10,11 +11,13 @@ interface Props {
 }
 /** Popup surfaces live outside the clipped drawer; coordinates use visual viewport pixels. */
 export function NavigationPopover({ anchor, onClose, children, label, role = "menu", matchWidth = false, id }: Props) {
+  const isPresent = useIsPresent();
   const panel = useRef<HTMLDivElement>(null);
   const close = useRef(onClose); close.current = onClose;
   const [position, setPosition] = useState({ left: 0, top: 0, width: 240, maxHeight: 320, zoom: getActiveUiScale(), ready: false });
   const [style, setStyle] = useState(getSavedControlBarStyle);
   useLayoutEffect(() => {
+    if (!isPresent) return;
     let frame: number | null = null;
     const place = () => {
       frame = null;
@@ -58,12 +61,14 @@ export function NavigationPopover({ anchor, onClose, children, label, role = "me
       window.removeEventListener("l-mpv-settings-changed", refresh);
       window.removeEventListener("l-mpv-ui-scale-changed", refresh);
     };
-  }, [anchor, matchWidth, role]);
+  }, [anchor, isPresent, matchWidth, role]);
   return createPortal(<div ref={panel} id={id} role={role} aria-label={label} data-style={style}
     data-navigation-popover data-saved-playlist-editor className="navigation-popover"
+    inert={!isPresent} aria-hidden={!isPresent || undefined}
     style={{ left: position.left, top: position.top, width: position.width, maxHeight: position.maxHeight,
       zoom: position.zoom, visibility: position.ready ? "visible" : "hidden" }}
     onKeyDown={event => {
+      if (!isPresent) return;
       if (event.key === "Escape") {
         event.preventDefault(); event.stopPropagation(); close.current();
         const trigger = anchor.current?.matches("button") ? anchor.current : anchor.current?.querySelector<HTMLElement>("button");

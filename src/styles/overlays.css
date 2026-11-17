@@ -54,13 +54,7 @@
   padding: var(--space-7);
   box-shadow: var(--shadow-elevated);
   pointer-events: auto;
-  animation: mediaInfoFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: bottom right;
-}
-
-.chapters-modal-card--closing {
-  animation: mediaInfoFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
-  pointer-events: none;
 }
 
 .chapters-modal-header {
@@ -234,32 +228,6 @@
 }
 
 /* ─── Модальное окно автообновления (UpdateModal) ── */
-@keyframes updateModalFadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes updateModalFadeOut {
-  from {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: scale(0.96) translateY(6px);
-  }
-}
-
-.update-modal-card--closing {
-  animation: updateModalFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
-  pointer-events: none;
-}
 
 @keyframes spin {
   from {
@@ -308,33 +276,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  animation: updateToastSpringIn var(--t-spring) var(--ease-out);
   transition: bottom var(--t-base) var(--ease-smooth);
-}
-
-@keyframes updateToastSpringIn {
-  0% {
-    transform: translate3d(0, 14px, 0) scale(0.96);
-  }
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-.update-toast--closing {
-  animation: updateToastSpringOut 120ms var(--ease-out) forwards !important;
-  pointer-events: none;
-}
-
-@keyframes updateToastSpringOut {
-  0% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(0, 14px, 0) scale(0.96);
-  }
 }
 
 .update-toast__header {

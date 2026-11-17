@@ -843,7 +843,7 @@ export const ru: TranslationDict = {
     hotkeys: {
       hotkeysSection: "Горячие клавиши",
       fallbackOwner: "Выключение апскейлинга",
-      helpText: "💡 Нажмите на любую клавишу в списке ниже, чтобы назначить свою комбинацию!",
+      helpText: "Выберите сочетание в списке, чтобы изменить его",
       btnReset: "Сбросить",
       sectionTitle: "Назначения горячих клавиш",
       pressKey: "Нажмите…",
@@ -1222,7 +1222,7 @@ export const ru: TranslationDict = {
       telegramTooltip: "Telegram-канал автора",
       checkUpdates: "Проверить обновления",
       checking: "Проверка…",
-      upToDate: "Установлена актуальная версия",
+      upToDate: "Актуальная версия",
       updateFound: (version: string) => `Доступна версия ${version}`,
       checkFailed: "Не удалось проверить обновления",
       portableEdition: "Portable-редакция",

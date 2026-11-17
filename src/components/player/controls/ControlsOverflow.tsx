@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { Check, Settings, Volume2, VolumeX } from "lucide-react";
+import { MotionSurface } from "../../motion/MotionSurface";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { SPEED_PRESETS, formatSpeedValue } from "./SpeedPopover";
 
@@ -15,7 +16,6 @@ export interface OverflowAction {
 interface ControlsOverflowProps {
   popoverRef: RefObject<HTMLDivElement | null>;
   triggerRef: RefObject<HTMLButtonElement | null>;
-  isClosing: boolean;
   actions: OverflowAction[];
   volume: number;
   speed: number;
@@ -28,7 +28,7 @@ interface ControlsOverflowProps {
 
 /** Visibility follows the same container queries as the toolbar, including UI zoom. */
 export function ControlsOverflow({
-  popoverRef, triggerRef, isClosing, actions, volume, speed,
+  popoverRef, triggerRef, actions, volume, speed,
   onVolumeChange, onMute, onSpeedChange, onOpenSettings, onClose,
 }: ControlsOverflowProps) {
   const { dict } = useTranslation();
@@ -70,13 +70,13 @@ export function ControlsOverflow({
   }, [popoverRef, triggerRef]);
 
   return (
-    <div
+    <MotionSurface
+      kind="popover"
       ref={popoverRef}
       id="player-controls-overflow"
       role="dialog"
       aria-label={dict.controls.more}
-      className={`controls-overflow ${isClosing ? "controls-overflow--closing" : ""}`}
-      inert={isClosing}
+      className="controls-overflow"
     >
       <div className="controls-overflow__title">{dict.controls.more}</div>
       <div className="controls-overflow__actions">
@@ -124,6 +124,6 @@ export function ControlsOverflow({
           <Settings size={18} aria-hidden="true" /><span>{dict.settings.title}</span>
         </button>
       )}
-    </div>
+    </MotionSurface>
   );
 }

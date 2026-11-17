@@ -1,3 +1,4 @@
+import { SelectionRail } from "../../motion/SelectionRail";
 import React from "react";
 import { ChevronsUpDown } from "lucide-react";
 import { CategoryKey, MediaInfoCategoryTab } from "./mediaInfoTypes";
@@ -25,13 +26,14 @@ export const MediaInfoTabsBar: React.FC<MediaInfoTabsBarProps> = React.memo(({
 
   return (
     <div className="mediainfo-standalone__tabs-bar" style={style}>
-      <div className="mediainfo-standalone__tabs-list">
+      <SelectionRail activeKey={activeCategory} className="mediainfo-standalone__tabs-list">
         {tabs.map((tab) => {
           const isActive = activeCategory === tab.key;
           return (
             <button
               key={tab.key}
               type="button"
+              aria-current={isActive ? "true" : undefined}
               className={`mediainfo-tab-chip ${isActive ? "mediainfo-tab-chip--active" : ""}`}
               onClick={() => onSelectCategory(isActive && tab.key !== "all" ? "all" : tab.key)}
             >
@@ -42,7 +44,7 @@ export const MediaInfoTabsBar: React.FC<MediaInfoTabsBarProps> = React.memo(({
             </button>
           );
         })}
-      </div>
+      </SelectionRail>
 
       <button
         type="button"

@@ -19,10 +19,6 @@
   background: transparent;
 }
 
-.settings-panel-overlay--closing {
-  pointer-events: none;
-}
-
 .settings-side-panel {
   position: fixed;
   inset: var(--settings-panel-top-inset, calc(var(--radius-controls, 16px) * 0.5)) auto var(--player-controls-bottom, 12px) var(--settings-panel-left-inset, 0px);
@@ -38,7 +34,6 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-surface);
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35), 0 0 1px rgba(255, 255, 255, 0.08);
-  animation: settingsPanelIn 220ms var(--ease-out);
   transform-origin: left center;
   container-type: inline-size;
   container-name: settings-shell;
@@ -61,22 +56,6 @@
 }
 
 /* Options inside a card carry their own hover/focus, not its outer frame. */
-
-
-@keyframes settingsPanelIn {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
-}
-
-.settings-side-panel--closing {
-  animation: settingsPanelOut var(--t-close-base) var(--ease-out) forwards !important;
-  pointer-events: none;
-}
-
-@keyframes settingsPanelOut {
-  from { transform: translateX(0); }
-  to { transform: translateX(-100%); }
-}
 
 .settings-side-panel__nav {
   display: flex;
@@ -450,10 +429,6 @@ body.settings-open .player-controls-wrapper--docked {
   .settings-side-panel {
     animation: none;
     transform: translateX(0);
-  }
-
-  .settings-side-panel--closing {
-    animation: none;
   }
 
   .settings-side-panel__scroll {

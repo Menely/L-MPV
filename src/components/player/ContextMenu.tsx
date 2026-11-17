@@ -35,7 +35,8 @@ import {
   getSavedActivePresetId,
   type SettingsPreset,
 } from "../../utils/presetsUtils";
-import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
+import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
+import { MotionSurface } from "../motion/MotionSurface";
 import type { ModelFileItem, UpscaleStatus, UpscaleSettings } from "../upscale/types";
 import type { AmbientMode } from "../../utils/ambientSettingsUtils";
 import { normalizeAmbientSettings } from "../../utils/ambientSettingsUtils";
@@ -378,12 +379,15 @@ export function ContextMenu({
     }
   }, []);
 
-  const { isClosing, handleClose } = useOverlayDismiss({
+  const { handleClose, isPresent } = useSurfaceDismiss({
     onClose,
-    kind: "pop",
     closeOnEscape: true,
     onBeforeClose: clearSubmenuTimers,
   });
+
+  useEffect(() => {
+    if (!isPresent) clearSubmenuTimers();
+  }, [clearSubmenuTimers, isPresent]);
 
   useEffect(() => {
     return () => {
@@ -1107,21 +1111,18 @@ export function ContextMenu({
   let renderedItemCount = 0;
 
   return (
-    <div
+    <MotionSurface kind="popover" ready={positioned}
       ref={menuRef}
       role="menu"
       aria-label={dict.controls.contextMenu}
       className={`context-menu ${
         isCapsule ? "context-menu--capsule" : ""
-      } ${isClosing ? "context-menu--closing" : ""}`}
+      } `}
       style={{
         left: adjustedPos.x,
         top: adjustedPos.y,
         transformOrigin: menuOrigin,
         visibility: positioned ? "visible" : "hidden",
-        animation: positioned && !isClosing
-          ? "contextMenuFadeIn var(--t-fast) var(--ease-out)"
-          : undefined,
       }}
       >
       {isCapsule
@@ -1144,6 +1145,6 @@ export function ContextMenu({
             </div>
           ))
         : menuItems.map((item, index) => renderItem(item, index, false))}
-    </div>
+    </MotionSurface>
   );
 }

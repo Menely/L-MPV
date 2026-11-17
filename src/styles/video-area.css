@@ -20,12 +20,6 @@
   align-items: center;
   gap: 18px;
   color: var(--text-muted);
-  animation: placeholderPulse 3s ease-in-out infinite;
-}
-
-@keyframes placeholderPulse {
-  0%, 100% { opacity: 0.6; }
-  50%      { opacity: 1;   }
 }
 
 .video-area__placeholder-icon {

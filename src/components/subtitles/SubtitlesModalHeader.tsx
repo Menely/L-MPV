@@ -1,3 +1,4 @@
+import { SelectionRail } from "../motion/SelectionRail";
 /**
  * Шапка окна поиска по субтитрам:
  * - В стиле «Капсула» (isCapsule): 3 независимых парящих островка (иконка, переключатель, кнопки).
@@ -56,7 +57,7 @@ export function SubtitlesModalHeader({
         </div>
 
         {/* Карточка 2: Самостоятельный переключатель режимов: Обычный / Инспектор */}
-        <div className="subtitles-card subtitles-card--mode-switch">
+        <SelectionRail activeKey={viewMode} className="subtitles-card subtitles-card--mode-switch">
           <button
             type="button"
             onClick={() => onToggleViewMode("normal")}
@@ -65,6 +66,7 @@ export function SubtitlesModalHeader({
                 ? "subtitles-search-card__mode-btn--active"
                 : ""
             }`}
+            aria-pressed={viewMode === "normal"}
             title={dict.subtitlesSearch.modeNormalTooltip}
           >
             {dict.subtitlesSearch.modeNormal}
@@ -77,6 +79,7 @@ export function SubtitlesModalHeader({
                 ? "subtitles-search-card__mode-btn--active"
                 : ""
             }`}
+            aria-pressed={viewMode === "technical"}
             title={dict.subtitlesSearch.modeTechTooltip}
           >
             <SlidersHorizontal
@@ -88,7 +91,7 @@ export function SubtitlesModalHeader({
             />
             <span>{dict.subtitlesSearch.modeTech}</span>
           </button>
-        </div>
+        </SelectionRail>
 
         {/* Карточка 3: Кнопки действий (Eye/EyeOff, Refresh, Close) */}
         <div className="subtitles-card subtitles-card--actions">
@@ -192,7 +195,7 @@ export function SubtitlesModalHeader({
         }}
       >
         {/* Переключатель режимов: Обычный / Инспектор */}
-        <div className="subtitles-search-card__mode-switch">
+        <SelectionRail activeKey={viewMode} className="subtitles-search-card__mode-switch">
           <button
             type="button"
             onClick={() => onToggleViewMode("normal")}
@@ -201,6 +204,7 @@ export function SubtitlesModalHeader({
                 ? "subtitles-search-card__mode-btn--active"
                 : ""
             }`}
+            aria-pressed={viewMode === "normal"}
             title={dict.subtitlesSearch.modeNormalTooltip}
           >
             {dict.subtitlesSearch.modeNormal}
@@ -213,6 +217,7 @@ export function SubtitlesModalHeader({
                 ? "subtitles-search-card__mode-btn--active"
                 : ""
             }`}
+            aria-pressed={viewMode === "technical"}
             title={dict.subtitlesSearch.modeTechTooltip}
           >
             <SlidersHorizontal
@@ -224,7 +229,7 @@ export function SubtitlesModalHeader({
             />
             <span>{dict.subtitlesSearch.modeTech}</span>
           </button>
-        </div>
+        </SelectionRail>
 
         {/* Непрозрачность */}
         <button

@@ -106,7 +106,7 @@
   border-color: var(--border-pill-hover);
   color: #ffffff;
   box-shadow: var(--shadow-card-hover);
-  transform: translateY(-1px);
+  transform: none;
 }
 
 .time-display--floating-center:focus-visible {
@@ -225,7 +225,6 @@
               box-shadow var(--t-base) var(--ease-smooth);
   z-index: var(--z-in-thumb);
   pointer-events: none;
-  will-change: transform;
 }
 
 .timeline:hover .timeline__thumb,
@@ -277,6 +276,10 @@ html.no-animations .timeline__pulse {
   display: none;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .timeline__pulse { display: none; }
+}
+
 
 /* ─── Кнопки управления (Grid с математическим центрированием) ── */
 .controls-row {
@@ -323,10 +326,8 @@ html.no-animations .timeline__pulse {
   cursor: pointer;
   border-radius: 50%;
   transform-origin: center center;
-  transform: translateZ(0) scale(1);
-  will-change: transform;
-  backface-visibility: hidden;
-  transition: transform var(--t-spring) var(--ease-spring-smooth),
+  transform: none;
+  transition: transform var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth);
   flex-shrink: 0;
   padding: 0;
@@ -380,13 +381,15 @@ html.no-animations .timeline__pulse {
   display: block;
   flex-shrink: 0;
   transform-origin: center center;
-  transition: color var(--t-fast) var(--ease-smooth);
+  transform-box: border-box;
+  transition: transform var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
 }
 
 .control-btn:hover {
   background: transparent;
   color: var(--accent-text);
-  transform: translateZ(0) scale(1.08);
+  transform: none;
   box-shadow: none;
 }
 
@@ -396,28 +399,29 @@ html.no-animations .timeline__pulse {
 
 .control-btn--with-label svg {
   transform-origin: center center;
-  transform: translateZ(0) scale(1);
-  will-change: transform;
-  backface-visibility: hidden;
-  transition: transform var(--t-spring) var(--ease-spring-smooth);
+  transform: none;
+  transition: transform var(--t-fast) var(--ease-smooth);
 }
 
 .control-btn--with-label:hover svg {
-  transform: translateZ(0) scale(1.08);
+  transform: scale(1.06);
 }
 
 .control-btn:hover svg {
+  transform: scale(1.06);
   filter: var(--hover-icon-glow, none);
 }
 
 .control-btn:active {
-  transform: translateZ(0) scale(0.92);
-  transition: transform var(--t-fast) var(--ease-spring-smooth);
+  transform: none;
+  transition: transform var(--t-fast) var(--ease-smooth);
 }
 
+.control-btn:active svg { transform: scale(0.97); }
+
 .control-btn--with-label:active svg {
-  transform: translateZ(0) scale(0.92);
-  transition: transform var(--t-fast) var(--ease-spring-smooth);
+  transform: scale(0.97);
+  transition: transform var(--t-fast) var(--ease-smooth);
 }
 
 /* Кнопка Play / Pause с интерактивным живым шейпом */
@@ -429,10 +433,8 @@ html.no-animations .timeline__pulse {
   background: transparent;
   box-shadow: none;
   transform-origin: center center;
-  transform: translateZ(0) scale(1);
-  will-change: transform;
-  backface-visibility: hidden;
-  transition: transform var(--t-spring) var(--ease-spring-smooth),
+  transform: none;
+  transition: transform var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth);
 }
 
@@ -444,16 +446,17 @@ html.no-animations .timeline__pulse {
   flex-shrink: 0;
   filter: none;
   transform-origin: center center;
-  /* Keep both states on the same centre; the button handles press feedback. */
+  /* Keep play/pause on the same centre; only the glyph handles hover/press. */
   transform: none;
-  transition: color var(--t-fast) var(--ease-smooth),
+  transition: transform var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
               filter var(--t-fast) var(--ease-smooth);
 }
 
 .control-btn--play:hover {
   color: var(--accent-text);
   background: transparent;
-  transform: translateZ(0) scale(1.08);
+  transform: none;
   box-shadow: none;
 }
 
@@ -462,8 +465,8 @@ html.no-animations .timeline__pulse {
 }
 
 .control-btn--play:active {
-  transform: translateZ(0) scale(0.92);
-  transition: transform var(--t-fast) var(--ease-spring-smooth);
+  transform: none;
+  transition: transform var(--t-fast) var(--ease-smooth);
 }
 
 /* Анимация переключения громкости (Mute/Unmute) — срабатывает только при смене иконки (key), не при каждом шаге громкости */
@@ -502,7 +505,9 @@ html.no-animations .timeline__pulse {
 
 .control-btn--active svg {
   filter: var(--active-icon-glow, none);
-  transition: filter var(--t-fast) var(--ease-smooth);
+  transition: transform var(--t-fast) var(--ease-smooth),
+              filter var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
 }
 
 .control-btn--active:hover svg {
@@ -1116,7 +1121,7 @@ html[data-glow="off"] .timeline__thumb {
   padding: 1px 6px;
   font-size: 9px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth);
 }
 
 .waveform-activity-strip__retry-btn:hover {

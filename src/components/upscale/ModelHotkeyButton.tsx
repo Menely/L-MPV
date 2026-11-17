@@ -87,7 +87,7 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
         boxSizing: "border-box",
         lineHeight: 1,
         whiteSpace: "nowrap",
-        transition: "all var(--t-fast, 0.15s) var(--ease-smooth)",
+        transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth)",
       }}
       >
       <Keyboard size={13} />

@@ -6,7 +6,8 @@ import {
   useLiveState,
 } from "../../../contexts/PlayerStateContext";
 import { useTranslation } from "../../../i18n/LanguageContext";
-import { useOverlayDismiss } from "../../../hooks/useOverlayDismiss";
+import { useSurfaceDismiss } from "../../motion/useSurfaceDismiss";
+import { MotionSurface } from "../../motion/MotionSurface";
 import { useVideoBitrate } from "../../../hooks/useVideoBitrate";
 import {
   ControlBarStyle,
@@ -43,6 +44,7 @@ export interface MediaInfoOverlayProps {
  */
 export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) => {
   const { dict } = useTranslation();
+  const { isPresent, handleClose } = useSurfaceDismiss({ onClose });
   const {
     mediaInfo,
     tracks,
@@ -133,6 +135,7 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
 
   // Навигация по вкладкам через клавиши 1, 2, 3
   useEffect(() => {
+    if (!isPresent) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.altKey || e.metaKey || e.repeat) {
         return;
@@ -159,7 +162,7 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isPresent]);
 
   // Итоговые актуальные метрики
   const currentPos = position || mediaInfo?.position || 0;
@@ -168,12 +171,10 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
   const droppedFrames = liveState?.dropped_frames ?? mediaInfo?.dropped_frames ?? 0;
   const currentVolume = liveState?.volume ?? mediaInfo?.volume ?? 100;
 
-  const { isClosing, handleClose } = useOverlayDismiss({ onClose, kind: "pop" });
 
   const rootClass = [
     "media-info-overlay",
     isCapsule ? "media-info-overlay--capsule" : "",
-    isClosing ? "media-info-overlay--closing" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -210,7 +211,7 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
   );
 
   return (
-    <div
+    <MotionSurface kind="popover"
       className={rootClass}
       role="dialog"
       aria-labelledby="media-info-title"
@@ -269,6 +270,6 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
           />
         )}
       </div>
-    </div>
+    </MotionSurface>
   );
 };

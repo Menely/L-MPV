@@ -33,8 +33,8 @@ export const CLOSE_BUFFER_MS = 40;
 /* Обратная совместимость: старые экспорты → псевдонимы */
 /** @deprecated Используй CLOSE_POP_MS */
 export const CLOSE_BASE_MS = CLOSE_POP_MS;
-/** @deprecated Используй T_POP_MS */
-export const CLOSE_OSD_MS  = T_POP_MS;
+/** @deprecated Используй CLOSE_POP_MS */
+export const CLOSE_OSD_MS  = CLOSE_POP_MS;
 
 export type CloseKind = "fast" | "pop" | "panel" | "modal" | "base" | "osd";
 
@@ -46,7 +46,7 @@ export function getCloseCssMs(kind: CloseKind): number {
     case "modal": return CLOSE_MODAL_MS;
     /* обратная совместимость */
     case "base":  return CLOSE_POP_MS;
-    case "osd":   return CLOSE_PANEL_MS;
+    case "osd":   return CLOSE_OSD_MS;
     default:      return CLOSE_POP_MS;
   }
 }

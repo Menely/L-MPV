@@ -1,4 +1,7 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import { useMotionAllowed } from "../motion/useMotionAllowed";
+import { useCanvasVisibility } from "../../hooks/useCanvasVisibility";
+import React, { useRef, useEffect, useState, useCallback, useContext } from "react";
+import { ControlsVisibilityContext } from "./controls/ControlsVisibilityContext";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 
@@ -735,23 +738,18 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
   const { mediaInfo, hasMedia, isIdle } = usePlayerState();
   const { duration } = usePlayerProgress();
 
-  const [isDocVisible, setIsDocVisible] = useState(() => !document.hidden);
+  const motionAllowed = useMotionAllowed();
+  const controlsVisible = useContext(ControlsVisibilityContext);
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { canvasRef, bindCanvas, isCanvasVisible } = useCanvasVisibility();
 
   const realSpectrumRef = useRef<number[]>(new Array(32).fill(0));
   const isFetchingRef = useRef<boolean>(false);
 
-  useEffect(() => {
-    const onVisibilityChange = () => setIsDocVisible(!document.hidden);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, []);
-
   const isPaused = !hasMedia || (mediaInfo?.paused ?? true) || duration <= 0;
   const rawVolume = mediaInfo?.volume ?? 100;
   const speed = mediaInfo?.speed ?? 1.0;
-  const shouldBeActive = !isPaused && !isIdle && isDocVisible;
+  const shouldBeActive = motionAllowed && controlsVisible && !isPaused && !isIdle && isCanvasVisible;
 
   // Управление аппаратным захватом звука через WASAPI
   useEffect(() => {
@@ -764,8 +762,8 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
   const animStateRef = useRef<VisualizerAnimState>(createInitialAnimState());
 
   // Refs для стабильного rAF-цикла: эффект не пересоздаётся при паузе/громкости.
-  const liveRef = useRef({ isPaused, rawVolume, speed, shouldBeActive, isIdle, isDocVisible, config });
-  liveRef.current = { isPaused, rawVolume, speed, shouldBeActive, isIdle, isDocVisible, config };
+  const liveRef = useRef({ isPaused, rawVolume, speed, shouldBeActive, isIdle, isCanvasVisible, motionAllowed, config });
+  liveRef.current = { isPaused, rawVolume, speed, shouldBeActive, isIdle, isCanvasVisible, motionAllowed, config };
 
   const handleToggleStyle = useCallback((e: React.MouseEvent) => {
     if (placement !== "toolbar" && !onCycleMode) return;
@@ -792,7 +790,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !container) return;
+    if (!canvas || !container || !isCanvasVisible || isIdle || !controlsVisible) return;
 
     // Кэшируем 2d-контекст один раз: getContext() каждый кадр — лишний
     // dictionary-lookup + сброс state в Chromium, давал микро-джиттер.
@@ -808,8 +806,9 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       // затухание продолжается, CPU почти не тратится, цикл не умирает.
       // Возврат к 60fps занимает не более одного сонного тика (~120мс).
       const live = liveRef.current;
+      if (!live.motionAllowed) return;
       const quiet =
-        !live.shouldBeActive || live.isIdle || !live.isDocVisible || animStateRef.current.currentAmp < 0.01;
+        !live.shouldBeActive || live.isIdle || !live.isCanvasVisible || animStateRef.current.currentAmp < 0.01;
       if (quiet) {
         if (sleepTimer === null) {
           sleepTimer = window.setTimeout(() => {
@@ -837,7 +836,10 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
     };
 
     updateCanvasSize();
-    const resizeObserver = new ResizeObserver(updateCanvasSize);
+    const resizeObserver = new ResizeObserver(() => {
+      updateCanvasSize();
+      if (!liveRef.current.motionAllowed) render(performance.now());
+    });
     resizeObserver.observe(container);
 
     const render = (time: number) => {
@@ -852,7 +854,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       const h = canvas.height / dpr;
 
       // Пауза кадра без смерти цикла: затухание + планирование через scheduleFrame
-      if (live.isIdle || !live.isDocVisible) {
+      if (live.isIdle || !live.isCanvasVisible) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         // Плавное затухание энергии чтобы не было щелчка при возврате
         const spec = realSpectrumRef.current;
@@ -898,7 +900,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
         dt,
         {
           isAudible,
-          isPaused: live.isPaused,
+          isPaused: live.isPaused || !live.motionAllowed,
           speed: live.speed,
         }
       );
@@ -907,7 +909,8 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       scheduleFrame();
     };
 
-    scheduleFrame();
+    if (motionAllowed) scheduleFrame();
+    else render(performance.now());
     return () => {
       if (animId !== null) cancelAnimationFrame(animId);
       if (sleepTimer !== null) {
@@ -916,7 +919,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       }
       resizeObserver.disconnect();
     };
-  }, [config.mode, config.theme, placement]);
+  }, [config, placement, motionAllowed, isCanvasVisible, isIdle, controlsVisible, canvasRef]);
 
   const height = placement === "toolbar"
     ? (config.mode === "circular" || config.mode === "blob" ? 34 : 22)
@@ -931,7 +934,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       style={placement === "inside_timeline" ? undefined : { height: `${height}px` }}
       onClick={placement === "toolbar" ? handleToggleStyle : undefined}
       >
-      <canvas ref={canvasRef} className="audio-visualizer__canvas" />
+      <canvas ref={bindCanvas} className="audio-visualizer__canvas" />
     </div>
   );
 });

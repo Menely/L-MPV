@@ -293,7 +293,7 @@
   justify-content: center !important;
   gap: 5px !important;
   box-sizing: border-box !important;
-  transition: all var(--t-fast) var(--ease-smooth) !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth) !important;
   box-shadow: none !important;
 }
 
@@ -357,7 +357,7 @@
   font-size: var(--fs-2xs, 11px) !important;
   font-weight: 500 !important;
   gap: 6px !important;
-  transition: all var(--t-fast) var(--ease-smooth) !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-tab-chip:hover {
@@ -447,7 +447,7 @@
   padding: 5px 10px !important;
   gap: 8px !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
-  transition: all var(--t-fast) var(--ease-smooth) !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-section__collapse-trigger:hover {
@@ -488,7 +488,7 @@
   border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08)) !important;
   background: var(--surface-level-3) !important;
   color: var(--text-secondary, #94a3b8) !important;
-  transition: all var(--t-fast) var(--ease-smooth) !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth) !important;
 }
 
 .mediainfo-standalone--capsule .mediainfo-section__copy-btn:hover {

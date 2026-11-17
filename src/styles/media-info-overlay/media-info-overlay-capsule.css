@@ -96,7 +96,7 @@
   cursor: pointer !important;
   border: 1px solid transparent !important;
   background: transparent !important;
-  transition: all var(--t-fast) var(--ease-smooth) !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth) !important;
   white-space: nowrap !important;
   box-sizing: border-box !important;
   min-width: 0 !important;

@@ -44,20 +44,6 @@
   }
 }
 
-.context-menu--closing {
-  animation: contextMenuFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
-  pointer-events: none;
-}
-
-@keyframes contextMenuFadeOut {
-  0% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
 .context-menu__item {
   display: flex;
   align-items: center;

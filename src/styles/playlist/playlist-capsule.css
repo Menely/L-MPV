@@ -8,6 +8,8 @@
    [ 3 🎬 Название видео 3                ] */
 
 .playlist-drawer.playlist-drawer--capsule {
+  --navigation-action-size: 28px;
+  --navigation-actions-slot: calc(3 * var(--navigation-action-size) + 18px);
   background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
@@ -19,6 +21,14 @@
   flex-direction: column !important;
   gap: 6px !important;
   overflow: visible !important;
+}
+
+.playlist-drawer--capsule.playlist-drawer--pinned {
+  --navigation-actions-slot: calc(4 * var(--navigation-action-size) + 20px);
+}
+
+@media (max-width: 560px) {
+  .playlist-drawer.playlist-drawer--capsule { --navigation-action-size: 24px; }
 }
 
 /* Шапка плейлиста в капсульном стиле: прозрачная строка между островками */
@@ -34,10 +44,11 @@
   background: transparent !important;
   border-bottom: none !important;
   padding: 0 !important;
-  display: flex !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) var(--navigation-actions-slot);
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 6px !important;
+  gap: 12px !important;
 }
 
 /* Островок 1: Название («Плейлист» и счётчик) */
@@ -66,6 +77,8 @@
 
 /* Островок 2: Действия («Обновить» и «Закрыть») */
 .playlist-drawer--capsule .playlist-drawer__header-actions {
+  justify-self: end;
+  width: max-content;
   background: var(--bg-glass);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-controls, 16px);
@@ -83,7 +96,7 @@
 
 .playlist-drawer--capsule .playlist-drawer__action-btn,
 .playlist-drawer--capsule .playlist-drawer__close {
-  width: 28px;
+  width: var(--navigation-action-size);
   height: 28px;
   border-radius: var(--radius-control);
 }

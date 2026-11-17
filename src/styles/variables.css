@@ -181,6 +181,7 @@
 
   /* Entry durations (появление / вход на экран) */
   --t-instant:           100ms; /* Тактильный отклик: :active, checkbox-toggle, flash-badge */
+  --t-feedback-exit:     180ms; /* Seek/volume fade; hold time belongs to JS. */
   --t-fast:              160ms; /* Микро-переходы: hover-кнопки, тултипы, badge-цвета       */
   --t-pop:               220ms; /* Локальные оверлеи: поповеры дорожек, контекстное меню    */
   --t-panel:             280ms; /* Структурные панели: плейлист, idle-hide, drawer           */

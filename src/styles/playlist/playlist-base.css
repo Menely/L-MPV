@@ -20,7 +20,6 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: playlistFadeIn var(--t-panel) var(--ease-decelerate);
   transform-origin: bottom right;
   -webkit-font-smoothing: subpixel-antialiased;
   text-rendering: optimizeLegibility;
@@ -84,29 +83,6 @@
 }
 
 /* ─── Анимации прозрачностью (без замыливания шрифтов) ──────── */
-@keyframes playlistFadeIn {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-.playlist-drawer--closing {
-  animation: playlistFadeOut var(--t-close-panel) var(--ease-accelerate)
-    forwards !important;
-  pointer-events: none;
-}
-
-@keyframes playlistFadeOut {
-  0% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
 
 /* ─── Шапка плейлиста ────────────────────────────────────────── */
 .playlist-drawer__header {

@@ -1,3 +1,4 @@
+import { SelectionRail } from "../motion/SelectionRail";
 import React, {
   useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo,
 } from "react";
@@ -5,7 +6,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState, usePlayerProgress, PlaylistItem } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { showOsd } from "../../hooks/useOsd";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { AnimatePresence } from "motion/react";
+import { MotionSurface } from "../motion/MotionSurface";
 import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2, Pin, GripVertical } from "lucide-react";
 import { EmptyState } from "../settings/components/SettingBlocks";
@@ -276,44 +278,6 @@ export function PlaylistDrawer() {
     }
   }, []);
 
-  const [shouldRender, setShouldRender] = useState(isPlaylistOpen);
-  const [isClosing, setIsClosing] = useState(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (isPlaylistOpen) {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = null;
-      }
-      setIsClosing(false);
-      setShouldRender(true);
-    } else {
-      // isPlaylistOpen переключился в false (по кнопке в панели, хоткею или клику мимо)
-      if (!isMotionAllowed()) {
-        setShouldRender(false);
-        setIsClosing(false);
-        return;
-      }
-      setIsClosing(true);
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = setTimeout(() => {
-        setShouldRender(false);
-        setIsClosing(false);
-        closeTimerRef.current = null;
-      }, getCloseTimeoutMs("panel"));
-    }
-  }, [isPlaylistOpen]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = null;
-      }
-    };
-  }, []);
-
   const handleClose = useCallback(() => {
     setIsPlaylistOpen(false);
   }, [setIsPlaylistOpen]);
@@ -496,175 +460,179 @@ export function PlaylistDrawer() {
     return curIdx>= 0 ? `${curIdx + 1} / ${total}` : `${total}`;
   }, [playlist]);
 
-  const pinnedPanel = usePinnedNavigationPanel(drawerRef, isPlaylistOpen && shouldRender);
-
-  if (!shouldRender) return null;
+  const pinnedPanel = usePinnedNavigationPanel(drawerRef, isPlaylistOpen);
 
   return (
-    <div
-      ref={drawerRef}
-      className={`playlist-drawer ${isCapsule ? "playlist-drawer--capsule" : ""} ${pinnedPanel.pinned ? "playlist-drawer--pinned" : ""} ${isClosing ? "playlist-drawer--closing" : ""} ${
-        isResizing ? "playlist-drawer--resizing" : ""
-      }`}
-      style={{
-        width: `${drawerWidth}px`,
-        maxWidth: "calc(100% - 28px)",
-        minWidth: `min(${MIN_NAVIGATION_WIDTH}px, calc(100% - 28px))`,
-        ...(pinnedPanel.geometry ? {
-          top: `${pinnedPanel.geometry.top}px`,
-          bottom: "auto", maxHeight: `${pinnedPanel.geometry.height}px`,
-        } : {}),
-      }}
-      >
-      <div
-        className="playlist-drawer__resize-handle"
-        onMouseDown={handleResizeStart}
-        onDoubleClick={handleResetWidth}
-      />
-      <div className="playlist-drawer__header">
-      <div className="playlist-drawer__header-left navigation-panel__tabs" role="tablist" aria-label={dict.playlist.tabsLabel}>
-        {(["playlist", "explorer"] as const).map(tab => <button key={tab} type="button" role="tab"
-          id={`navigation-tab-${tab}`} aria-selected={activeTab === tab} aria-controls={`navigation-${tab}`}
-          tabIndex={activeTab === tab ? 0 : -1} className="navigation-panel__tab"
-          onClick={() => changeTab(tab)} onKeyDown={event => {
-            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-            event.preventDefault(); event.stopPropagation();
-            const next = event.key === "Home" ? "playlist" : event.key === "End" ? "explorer" : tab === "playlist" ? "explorer" : "playlist";
-            changeTab(next);
-            event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`#navigation-tab-${next}`)?.focus();
-          }}><span>{tab === "playlist" ? dict.playlist.title : dict.explorer.title}</span>
-            {tab === "playlist" && !savedSource && countBadge && <span className="playlist-drawer__badge" aria-hidden="true">{countBadge}</span>}
-          </button>)}
-      </div>
-        <div className="playlist-drawer__header-actions">
-          {activeTab === "playlist" && !savedSource && <button
-            type="button"
-            className={`playlist-drawer__action-btn ${isRefreshing ? "playlist-drawer__action-btn--spinning" : ""}`}
-            onClick={handleRefresh}
-            aria-label={dict.playlist.refresh}
-            >
-            <RotateCw size={15} />
-          </button>}
-          {pinnedPanel.pinned && <button id="navigation-panel-drag" type="button" className="playlist-drawer__action-btn navigation-panel__grip"
-            aria-label={dict.playlist.movePanel} title={dict.playlist.movePanel}
-            onPointerDown={pinnedPanel.onGripPointerDown} onKeyDown={pinnedPanel.onGripKeyDown}>
-            <GripVertical size={15} />
-          </button>}
-          <button id="navigation-panel-pin" type="button" className="playlist-drawer__action-btn navigation-panel__pin"
-            aria-pressed={pinnedPanel.pinned} aria-label={pinnedPanel.pinned ? dict.playlist.unpin : dict.playlist.pin}
-            title={pinnedPanel.pinned ? dict.playlist.unpin : dict.playlist.pin} onClick={pinnedPanel.togglePinned}>
-            <Pin size={15} />
-          </button>
-          <button
-            type="button"
-            className="playlist-drawer__close"
-            onClick={handleClose}
-
-            aria-label={dict.playlist.close}
-            >
-            <X size={18} />
-          </button>
-        </div>
-      </div>
-
-      <div className="navigation-panel__explorer-host" hidden={activeTab !== "explorer"}
-        style={activeTab !== "explorer" ? { display: "none" } : undefined} aria-hidden={activeTab !== "explorer"}>
-        <ExplorerPanel active={isPlaylistOpen && activeTab === "explorer"} panelActive={isPlaylistOpen}
-          onRequestActivate={() => changeTab("explorer")} search={explorerSearch} onSearch={setExplorerSearch}
-          initialPath={explorerPath} onLocation={setExplorerPath} />
-      </div>
-      {activeTab === "playlist" && <SavedPlaylistPanel active={isPlaylistOpen} folderPaths={folderPaths}
-        mediaPath={mediaInfo?.path ?? ""} refreshPlaylist={refreshPlaylist} onSourceChange={setSavedSource}
-        onFolderRequested={async () => { await invoke("reload_folder_playlist"); await refreshPlaylist(); }}>
-      <div className="playlist-drawer__search">
-        <Search size={15} className="playlist-drawer__search-icon" />
-        <input
-          type="text"
-          placeholder={dict.playlist.search}
-          aria-label={dict.playlist.search}
-          autoComplete="off"
-          spellCheck={false}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown" && contentContainerRef.current) {
-              e.preventDefault();
-              const firstBtn = contentContainerRef.current.querySelector<HTMLButtonElement>("button.playlist-item");
-              firstBtn?.focus();
-            }
+    <AnimatePresence>
+      {isPlaylistOpen && (
+        <MotionSurface kind="panel" key="navigation"
+          ref={drawerRef}
+          className={`playlist-drawer ${isCapsule ? "playlist-drawer--capsule" : ""} ${pinnedPanel.pinned ? "playlist-drawer--pinned" : ""}  ${
+            isResizing ? "playlist-drawer--resizing" : ""
+          }`}
+          style={{
+            width: `${drawerWidth}px`,
+            maxWidth: "calc(100% - 28px)",
+            minWidth: `min(${MIN_NAVIGATION_WIDTH}px, calc(100% - 28px))`,
+            ...(pinnedPanel.geometry ? {
+              top: `${pinnedPanel.geometry.top}px`,
+              bottom: "auto", maxHeight: `${pinnedPanel.geometry.height}px`,
+            } : {}),
           }}
-          className="playlist-drawer__search-input"
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            className="playlist-drawer__search-clear"
-            onClick={() => setSearchQuery("")}
-
-            aria-label={dict.playlist.clearSearch}
-            >
-            <X size={14} />
-          </button>
-        )}
-      </div>
-
-      {isPlaylistOpen && <PlaylistProgressObserver onChange={setLiveProgress} />}
-      <div ref={contentContainerRef} className="playlist-drawer__content" onScroll={handleListScroll}>
-        {filteredPlaylist.length === 0 ? (
-          <EmptyState
-            icon={<Clapperboard size={24} />}
-            title={searchQuery ? dict.playlist.nothingFound : dict.playlist.empty}
-            desc={
-              searchQuery
-                ? dict.playlist.nothingFoundDesc
-                : dict.playlist.emptyDesc
-            }
+          >
+          <div
+            className="playlist-drawer__resize-handle"
+            onMouseDown={handleResizeStart}
+            onDoubleClick={handleResetWidth}
           />
-        ) : (() => {
-          // Маленькие списки рендерим целиком без оверхеда
-          if (filteredPlaylist.length <= 80) {
-            return filteredPlaylist.map((item) => {
-              const itemProgress = item.current && liveProgress.duration > 0
-                ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
+          <div className="playlist-drawer__header">
+          <SelectionRail activeKey={activeTab} className="playlist-drawer__header-left navigation-panel__tabs" role="tablist" aria-label={dict.playlist.tabsLabel}>
+            {(["playlist", "explorer"] as const).map(tab => <button key={tab} type="button" role="tab"
+              id={`navigation-tab-${tab}`} aria-selected={activeTab === tab} aria-controls={`navigation-${tab}`}
+              tabIndex={activeTab === tab ? 0 : -1} className="navigation-panel__tab"
+              onClick={() => changeTab(tab)} onKeyDown={event => {
+                if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                event.preventDefault(); event.stopPropagation();
+                const next = event.key === "Home" ? "playlist" : event.key === "End" ? "explorer" : tab === "playlist" ? "explorer" : "playlist";
+                changeTab(next);
+                event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`#navigation-tab-${next}`)?.focus();
+              }}><span>{tab === "playlist" ? dict.playlist.title : dict.explorer.title}</span>
+                {tab === "playlist" && !savedSource && countBadge && <span className="playlist-drawer__badge" aria-hidden="true">{countBadge}</span>}
+              </button>)}
+          </SelectionRail>
+            <div className="playlist-drawer__header-actions">
+              <button
+                type="button"
+                hidden={activeTab !== "playlist" || savedSource}
+                disabled={activeTab !== "playlist" || savedSource}
+                className={`playlist-drawer__action-btn playlist-drawer__refresh ${isRefreshing ? "playlist-drawer__action-btn--spinning" : ""}`}
+                onClick={handleRefresh}
+                aria-label={dict.playlist.refresh}
+                >
+                <RotateCw size={15} />
+              </button>
+              {pinnedPanel.pinned && <button id="navigation-panel-drag" type="button" className="playlist-drawer__action-btn navigation-panel__grip"
+                aria-label={dict.playlist.movePanel} title={dict.playlist.movePanel}
+                onPointerDown={pinnedPanel.onGripPointerDown} onKeyDown={pinnedPanel.onGripKeyDown}>
+                <GripVertical size={15} />
+              </button>}
+              <button id="navigation-panel-pin" type="button" className="playlist-drawer__action-btn navigation-panel__pin"
+                aria-pressed={pinnedPanel.pinned} aria-label={pinnedPanel.pinned ? dict.playlist.unpin : dict.playlist.pin}
+                title={pinnedPanel.pinned ? dict.playlist.unpin : dict.playlist.pin} onClick={pinnedPanel.togglePinned}>
+                <Pin size={15} />
+              </button>
+              <button
+                type="button"
+                className="playlist-drawer__close"
+                onClick={handleClose}
+
+                aria-label={dict.playlist.close}
+                >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div className="navigation-panel__explorer-host" hidden={activeTab !== "explorer"}
+            style={activeTab !== "explorer" ? { display: "none" } : undefined} aria-hidden={activeTab !== "explorer"}>
+            <ExplorerPanel active={isPlaylistOpen && activeTab === "explorer"} panelActive={isPlaylistOpen}
+              onRequestActivate={() => changeTab("explorer")} search={explorerSearch} onSearch={setExplorerSearch}
+              initialPath={explorerPath} onLocation={setExplorerPath} />
+          </div>
+          {activeTab === "playlist" && <SavedPlaylistPanel active={isPlaylistOpen} folderPaths={folderPaths}
+            mediaPath={mediaInfo?.path ?? ""} refreshPlaylist={refreshPlaylist} onSourceChange={setSavedSource}
+            onFolderRequested={async () => { await invoke("reload_folder_playlist"); await refreshPlaylist(); }}>
+          <div className="playlist-drawer__search">
+            <Search size={15} className="playlist-drawer__search-icon" />
+            <input
+              type="text"
+              placeholder={dict.playlist.search}
+              aria-label={dict.playlist.search}
+              autoComplete="off"
+              spellCheck={false}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown" && contentContainerRef.current) {
+                  e.preventDefault();
+                  const firstBtn = contentContainerRef.current.querySelector<HTMLButtonElement>("button.playlist-item");
+                  firstBtn?.focus();
+                }
+              }}
+              className="playlist-drawer__search-input"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="playlist-drawer__search-clear"
+                onClick={() => setSearchQuery("")}
+
+                aria-label={dict.playlist.clearSearch}
+                >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {isPlaylistOpen && <PlaylistProgressObserver onChange={setLiveProgress} />}
+          <div ref={contentContainerRef} className="playlist-drawer__content" onScroll={handleListScroll}>
+            {filteredPlaylist.length === 0 ? (
+              <EmptyState
+                icon={<Clapperboard size={24} />}
+                title={searchQuery ? dict.playlist.nothingFound : dict.playlist.empty}
+                desc={
+                  searchQuery
+                    ? dict.playlist.nothingFoundDesc
+                    : dict.playlist.emptyDesc
+                }
+              />
+            ) : (() => {
+              // Маленькие списки рендерим целиком без оверхеда
+              if (filteredPlaylist.length <= 80) {
+                return filteredPlaylist.map((item) => {
+                  const itemProgress = item.current && liveProgress.duration > 0
+                    ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
+                  return (
+                    <PlaylistItemRow
+                      key={item.index}
+                      item={item}
+                      isCurrent={item.current}
+                      onPlay={handlePlayItem}
+                      itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
+                      watchProgress={itemProgress}
+                    />
+                  );
+                });
+              }
+              const total = filteredPlaylist.length;
+              const start = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
+              const end = Math.min(total, Math.ceil((scrollTop + viewHeight) / ROW_H) + OVERSCAN);
+              const slice = filteredPlaylist.slice(start, end);
               return (
-                <PlaylistItemRow
-                  key={item.index}
-                  item={item}
-                  isCurrent={item.current}
-                  onPlay={handlePlayItem}
-                  itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
-                  watchProgress={itemProgress}
-                />
+                <>
+                  {start > 0 && <div style={{ height: start * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
+                  {slice.map((item) => {
+                    const itemProgress = item.current && liveProgress.duration > 0
+                      ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
+                    return (
+                      <PlaylistItemRow
+                        key={item.index}
+                        item={item}
+                        isCurrent={item.current}
+                        onPlay={handlePlayItem}
+                        itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
+                        watchProgress={itemProgress}
+                      />
+                    );
+                  })}
+                  {end < total && <div style={{ height: (total - end) * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
+                </>
               );
-            });
-          }
-          const total = filteredPlaylist.length;
-          const start = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
-          const end = Math.min(total, Math.ceil((scrollTop + viewHeight) / ROW_H) + OVERSCAN);
-          const slice = filteredPlaylist.slice(start, end);
-          return (
-            <>
-              {start > 0 && <div style={{ height: start * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
-              {slice.map((item) => {
-                const itemProgress = item.current && liveProgress.duration > 0
-                  ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
-                return (
-                  <PlaylistItemRow
-                    key={item.index}
-                    item={item}
-                    isCurrent={item.current}
-                    onPlay={handlePlayItem}
-                    itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
-                    watchProgress={itemProgress}
-                  />
-                );
-              })}
-              {end < total && <div style={{ height: (total - end) * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
-            </>
-          );
-        })()}
-      </div>
-      </SavedPlaylistPanel>}
-    </div>
+            })()}
+          </div>
+          </SavedPlaylistPanel>}
+        </MotionSurface>
+      )}
+    </AnimatePresence>
   );
 }

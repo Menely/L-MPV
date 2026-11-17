@@ -3,6 +3,7 @@ import {
   Keyboard,
   RotateCcw,
   Trash2,
+  Info,
   Play, FastForward, Volume2, Subtitles, Gauge, PanelsTopLeft, ListVideo, Scaling,
 } from "lucide-react";
 import {
@@ -353,9 +354,9 @@ export function HotkeysSettingsTab({
         style={{
           padding: "12px 16px",
           borderRadius: "var(--radius-md)",
-          background: "var(--accent-glass)",
+          background: "var(--surface-level-2)",
           border: "1px solid var(--border-pill)",
-          color: "var(--accent-text)",
+          color: "var(--text-secondary)",
           fontSize: "var(--fs-base)",
           lineHeight: "1.4",
           fontWeight: 500,
@@ -366,7 +367,10 @@ export function HotkeysSettingsTab({
           gap: "var(--settings-content-gap)",
         }}
         >
-        <span>{dict.settings.hotkeys.helpText}</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, flex: "1 1 240px" }}>
+          <Info size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
+          {dict.settings.hotkeys.helpText}
+        </span>
         <button
           title={dict.settings.hotkeys.btnReset}
           aria-label={dict.settings.hotkeys.btnReset}

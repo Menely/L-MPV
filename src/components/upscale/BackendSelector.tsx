@@ -1,5 +1,5 @@
 import { SectionHeader } from "../settings/components/SettingBlocks";
-import React, { useState } from "react";
+import React, { useState, useId } from "react";
 import {
   Cpu,
   FolderOpen,
@@ -47,6 +47,8 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
   onError,
 }) => {
   const { dict } = useTranslation();
+  const backendContentId = useId();
+
   const [isOpen, setIsOpen] = useState(false);
   const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
   const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
@@ -68,8 +70,10 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
         role="button"
         tabIndex={0}
         aria-expanded={isOpen}
+        aria-controls={backendContentId}
         onClick={() => setIsOpen((prev) => !prev)}
         onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return;
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             setIsOpen((prev) => !prev);
@@ -95,6 +99,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               setIsOpen((prev) => !prev);
             }}
             aria-expanded={isOpen}
+        aria-controls={backendContentId}
 
             >
             <ChevronDown
@@ -186,7 +191,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
           {!status?.player_update_required && status?.runtime_restart_required && <p>{dict.settings.upscaling.runtimeRestartRequired}</p>}
         </div>
       )}
-      <div className={`collapse-fold ${isOpen ? "collapse-fold--open" : ""}`}>
+      <div id={backendContentId} className={`collapse-fold ${isOpen ? "collapse-fold--open" : ""}`} inert={!isOpen} aria-hidden={!isOpen}>
         <div className="collapse-fold__inner">
           <div className="collapse-fold__body backend-selector-content">
       {/* Аппаратная карточка GPU */}
@@ -213,7 +218,7 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
             display: "flex",
             flexDirection: "column",
             gap: "var(--space-4)",
-            transition: "all 0.25s ease",
+            transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth)",
           }}
           >
           <div

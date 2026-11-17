@@ -1,3 +1,7 @@
+import { SettingsUpdateAction } from "./components/SettingsUpdateAction";
+import { MotionSurface } from "../motion/MotionSurface";
+import { SelectionRail } from "../motion/SelectionRail";
+import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
 import { applyAmbientPreview, saveAmbientSettings } from "../../utils/ambientPreviewQueue";
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -10,7 +14,6 @@ import {
   Loader2,
   Sparkles,
   Layers,
-  RefreshCw,
   X,
   Settings,
   Cpu,
@@ -48,7 +51,7 @@ import {
   preloadUpscaleSettings,
 } from "./lib/settingsTabPreload";
 import { preloadSystemDiagnostics } from "./lib/systemDiagnostics";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { isMotionAllowed } from "../../utils/animationUtils";
 import {
   getSettingsViewSession,
   modalTabForSection,
@@ -206,28 +209,9 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   
   const { dict } = useTranslation();
 
-  const [isClosing, setIsClosing] = useState<boolean>(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleClose = useCallback(() => {
-    if (closeTimerRef.current) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-    }, getCloseTimeoutMs("base"));
-  }, [onClose]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
+  const { isPresent, handleClose } = useSurfaceDismiss({ onClose, closeOnEscape: false });
+  const updatePresentRef = useRef(isPresent);
+  updatePresentRef.current = isPresent;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -290,6 +274,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
 
   // Навигация клавишами
   useEffect(() => {
+    if (!isPresent) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.closest(".color-picker-modal")) return;
@@ -308,7 +293,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [isRecordingHotkey, handleClose]);
+  }, [isRecordingHotkey, handleClose, isPresent]);
 
   const markSectionMounted = useCallback((id: SectionId) => {
     setMountedSections((previous) => {
@@ -542,7 +527,6 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
-  const [isUpdateFound, setIsUpdateFound] = useState<boolean>(false);
   const [foundUpdate, setFoundUpdate] = useState<UpdateInfo | null>(null);
   const [isLoadingVersionInfo, setIsLoadingVersionInfo] = useState<boolean>(false);
   const updateStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -787,6 +771,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   };
 
   const handleCheckForUpdates = async () => {
+    if (isCheckingUpdate || isLoadingVersionInfo || !updatePresentRef.current) return;
     const request = ++updateRequestRef.current;
     setIsCheckingUpdate(true);
     setUpdateStatus(null);
@@ -798,22 +783,19 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
 
     try {
       const info = await invoke<UpdateInfo>("check_for_updates");
-      if (!mountedRef.current || request !== updateRequestRef.current) return;
+      if (!mountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       setFoundUpdate(info);
       if (info.has_update) {
         setUpdateStatus(dict.settings.integration.updateFound(info.latest_version.replace(/^[vV]/, "")));
-        setIsUpdateFound(true);
         onShowUpdate?.(info);
       } else {
         setUpdateStatus(dict.settings.integration.upToDate);
-        setIsUpdateFound(false);
         updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
       }
     } catch (err) {
-      if (!mountedRef.current || request !== updateRequestRef.current) return;
+      if (!mountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       console.error("Ошибка проверки обновлений:", err);
       setUpdateStatus(dict.settings.integration.checkFailed);
-      setIsUpdateFound(false);
       updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
     } finally {
       if (mountedRef.current && request === updateRequestRef.current) {
@@ -823,7 +805,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   };
 
   const handleShowVersionInfo = async () => {
-    if (!onShowUpdate || isLoadingVersionInfo) return;
+    if (!onShowUpdate || isLoadingVersionInfo || isCheckingUpdate || !updatePresentRef.current) return;
 
     if (foundUpdate) {
       onShowUpdate(foundUpdate);
@@ -834,11 +816,11 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     setIsLoadingVersionInfo(true);
     try {
       const info = await invoke<UpdateInfo>("check_for_updates");
-      if (!mountedRef.current || request !== updateRequestRef.current) return;
+      if (!mountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       setFoundUpdate(info);
       onShowUpdate(info);
     } catch (err) {
-      if (!mountedRef.current || request !== updateRequestRef.current) return;
+      if (!mountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       console.warn("Не удалось получить описание версии из сети, открытие резервного окна:", err);
       const fallbackInfo: UpdateInfo = {
         current_version: appVersion,
@@ -983,67 +965,32 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
         <button
           type="button"
           onClick={handleShowVersionInfo}
-          disabled={isLoadingVersionInfo}
+          disabled={isLoadingVersionInfo || isCheckingUpdate}
           className="settings-footer__btn settings-footer__btn--version"
         >
           {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
           <span>v{appVersion}</span>
         </button>
 
-        <button
-          type="button"
-          onClick={handleCheckForUpdates}
-          disabled={isCheckingUpdate}
-          className="settings-footer__btn settings-footer__btn--check"
-        >
-          {isCheckingUpdate ? (
-            <>
-              <Loader2 size={12} className="animate-spin" />
-              <span>{dict.settings.integration.checking}</span>
-            </>
-          ) : (
-            <>
-              <RefreshCw size={12} />
-              <span>{dict.settings.integration.checkUpdates}</span>
-            </>
-          )}
-        </button>
-
-        {updateStatus && (
-          foundUpdate && onShowUpdate ? (
-            <button
-              type="button"
-              onClick={() => onShowUpdate(foundUpdate)}
-              className="settings-footer__btn settings-footer__btn--update"
-            >
-              <Sparkles size={12} />
-              <span>{updateStatus}</span>
-            </button>
-          ) : (
-            <span
-              style={{
-                fontSize: "var(--fs-xs)",
-                color: isUpdateFound ? "var(--accent-text)" : "var(--text-muted)",
-                marginLeft: "var(--space-2)",
-              }}
-            >
-              {updateStatus}
-            </span>
-          )
-        )}
+        <SettingsUpdateAction
+          checking={isCheckingUpdate || isLoadingVersionInfo}
+          status={updateStatus}
+          hasUpdate={foundUpdate?.has_update === true}
+          onCheck={handleCheckForUpdates}
+          onShowUpdate={foundUpdate && onShowUpdate ? () => onShowUpdate(foundUpdate) : undefined}
+        />
       </div>
       <span className="settings-footer__edition">{dict.settings.integration.portableEdition}</span>
     </>
   );
 
   return (
-    <div className={`settings-panel-overlay ${isClosing ? "settings-panel-overlay--closing" : ""}`}>
-      <div
+    <div className="settings-panel-overlay">
+      <MotionSurface kind="sidebar"
         ref={panelRef}
-        className={`settings-side-panel ${isCapsule ? "settings-side-panel--capsule" : ""} ${isClosing ? "settings-side-panel--closing" : ""}`}
+        className={`settings-side-panel ${isCapsule ? "settings-side-panel--capsule" : ""} `}
         role="region"
         aria-label={dict.settings.title}
-        inert={isClosing}
       >
         {isCapsule ? (
           <>
@@ -1062,7 +1009,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
               </div>
 
               {/* Карточка 2: Вкладки-навигация по разделам */}
-              <div className="settings-card settings-card--tabs">
+              <SelectionRail activeKey={activeSection} className="settings-card settings-card--tabs">
                 {SECTION_DEFS.map(({ id, Icon, labelKey }) => {
                   const isActive = activeSection === id;
                   const label = dict.settings.tabs[labelKey as keyof typeof dict.settings.tabs];
@@ -1080,7 +1027,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
                     </button>
                   );
                 })}
-              </div>
+              </SelectionRail>
 
               {/* Карточка 3: Крестик */}
               <div className="settings-card settings-card--close">
@@ -1109,7 +1056,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
           </>
         ) : (
           <>
-            <div className="settings-side-panel__nav">
+            <SelectionRail activeKey={activeSection} className="settings-side-panel__nav">
               <h2 className="settings-side-panel__nav-title" data-tauri-drag-region>
                 <SlidersHorizontal size={19} color="var(--accent-text, var(--accent))" />
                 {dict.settings.title}
@@ -1138,7 +1085,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
               >
                 <X size={18} />
               </button>
-            </div>
+            </SelectionRail>
 
             <div className="settings-side-panel__scroll" ref={scrollRef}>
               {renderSections()}
@@ -1149,7 +1096,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
             </div>
           </>
         )}
-      </div>
+      </MotionSurface>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { backendReady, backendNeedsUpdate, upscaleErrorMessage } from "../../../utils/upscaleCompatibility";
 import { useTranslation } from "../../../i18n/LanguageContext";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useId } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
@@ -73,6 +73,8 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   onRecordingChange,
 }) => {
   const { dict } = useTranslation();
+  const modelListId = useId();
+
   // Синхронное чтение предзагруженного кэша: первый paint уже полный
   // (список моделей + GPU), окно настроек не прыгает после прилёта данных.
   const [status, setStatus] = useState<UpscaleStatus | null>(() => getPreloadedUpscaleStatus());
@@ -665,8 +667,10 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
           role="button"
           tabIndex={0}
           aria-expanded={isModelsListOpen}
+          aria-controls={modelListId}
           onClick={() => setIsModelsListOpen((prev) => !prev)}
           onKeyDown={(event) => {
+            if (event.target !== event.currentTarget) return;
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
               setIsModelsListOpen((prev) => !prev);
@@ -688,6 +692,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   setIsModelsListOpen((prev) => !prev);
                 }}
                 aria-expanded={isModelsListOpen}
+        aria-controls={modelListId}
 
                 >
                 <ChevronDown
@@ -724,7 +729,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
           />
         </div>
 
-        <div className={`collapse-fold ${isModelsListOpen ? "collapse-fold--open" : ""}`}>
+        <div id={modelListId} className={`collapse-fold ${isModelsListOpen ? "collapse-fold--open" : ""}`} inert={!isModelsListOpen} aria-hidden={!isModelsListOpen}>
           <div className="collapse-fold__inner">
             <div className="collapse-fold__body">
               <div

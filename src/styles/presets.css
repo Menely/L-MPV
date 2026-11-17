@@ -111,8 +111,8 @@
   font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: normal;
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -247,7 +247,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: -0.01em;
+  letter-spacing: normal;
 }
 
 .preset-card__rename-input {
@@ -270,8 +270,8 @@
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: normal;
   line-height: 1.4;
   white-space: nowrap;
 }

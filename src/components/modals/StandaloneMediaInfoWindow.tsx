@@ -1,3 +1,4 @@
+import { useMotionAllowed } from "../motion/useMotionAllowed";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
@@ -48,6 +49,7 @@ interface DetailedMediaInfoResponse {
  * по горячей клавише Shift+F10 или по прямому вызову без запуска основного медиаплеера.
  */
 export const StandaloneMediaInfoWindow: React.FC = () => {
+  const motionAllowed = useMotionAllowed();
   const appWindow = useMemo(() => getCurrentWindow(), []);
 
   const [filePath, setFilePath] = useState<string>("");
@@ -352,9 +354,9 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     if (!searchQuery.trim() || !bodyRef.current) return;
     const firstMatch = bodyRef.current.querySelector(".mediainfo-row--match");
     if (firstMatch) {
-      firstMatch.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      firstMatch.scrollIntoView({ block: "nearest", behavior: motionAllowed ? "smooth" : "auto" });
     }
-  }, [searchQuery]);
+  }, [searchQuery, motionAllowed]);
 
   // Копирование полного отчёта в буфер обмена без лишних пробелов перед двоеточием
   const handleCopy = useCallback(async () => {

@@ -1,3 +1,4 @@
+import { SelectionRail } from "../../motion/SelectionRail";
 import React, { useRef } from "react";
 import type { MediaInfoOverlayTab } from "./mediaInfoOverlayUtils";
 import { useTranslation } from "../../../i18n/LanguageContext";
@@ -51,7 +52,7 @@ export const MediaInfoTabs: React.FC<MediaInfoTabsProps> = ({
   };
 
   return (
-    <div
+    <SelectionRail activeKey={activeTab}
       className="media-info__tabs"
       role="tablist"
       aria-label="Вкладки медиаинформации"
@@ -74,7 +75,7 @@ export const MediaInfoTabs: React.FC<MediaInfoTabsProps> = ({
           </button>
         );
       })}
-    </div>
+    </SelectionRail>
   );
 };
 

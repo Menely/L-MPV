@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useId } from "react";
+import React, { useState, useEffect, useId } from "react";
 import { SEEK_INDICATOR_EVENT, type SeekActionDetail } from "../../utils/seekUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { useFeedbackLifetime } from "../../hooks/useFeedbackLifetime";
 
 interface SeekFeedback {
   direction: "left" | "right";
@@ -14,19 +15,18 @@ export const SeekIndicator: React.FC = () => {
   const { dict } = useTranslation();
   const scaleId = useId();
   const [feedback, setFeedback] = useState<SeekFeedback | null>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const removeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { restart, cancel } = useFeedbackLifetime({
+    holdMs: 650,
+    onFade: () => setFeedback(previous => previous ? { ...previous, closing: true } : null),
+    onRemove: () => setFeedback(null),
+  });
 
   useEffect(() => {
-    const clearTimers = () => {
-      if (closeTimer.current) clearTimeout(closeTimer.current);
-      if (removeTimer.current) clearTimeout(removeTimer.current);
-    };
     const onSeek = (event: Event) => {
       const detail = (event as CustomEvent<SeekActionDetail>).detail;
       if (!detail || !Number.isFinite(detail.seconds) || detail.seconds <= 0 ||
           (detail.direction !== "left" && detail.direction !== "right")) return;
-      clearTimers();
+      restart();
       setFeedback(previous => ({
         direction: detail.direction,
         seconds: previous && !previous.closing && previous.direction === detail.direction
@@ -34,17 +34,13 @@ export const SeekIndicator: React.FC = () => {
         generation: (previous?.generation ?? 0) + 1,
         closing: false,
       }));
-      closeTimer.current = setTimeout(() => {
-        setFeedback(previous => previous ? { ...previous, closing: true } : null);
-        removeTimer.current = setTimeout(() => setFeedback(null), 180);
-      }, 650);
     };
     window.addEventListener(SEEK_INDICATOR_EVENT, onSeek);
     return () => {
       window.removeEventListener(SEEK_INDICATOR_EVENT, onSeek);
-      clearTimers();
+      cancel();
     };
-  }, []);
+  }, [cancel, restart]);
 
   if (!feedback) return null;
   const label = `${feedback.direction === "left" ? "−" : "+"}${feedback.seconds}`;

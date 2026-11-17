@@ -15,7 +15,6 @@
   transform-origin: bottom left;
   -webkit-font-smoothing: subpixel-antialiased;
   text-rendering: optimizeLegibility;
-  animation: popoverFadeIn var(--t-pop) var(--ease-decelerate);
 }
 
 /* Монолитный стиль (для стилей «Модерн» и «Классический»):
@@ -34,30 +33,7 @@
 
 /* Стили для .track-popover--speed вынесены в speed-control.css */
 
-/* Анимации только прозрачностью: сдвиг transform размывает текст */
-@keyframes popoverFadeIn {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-.track-popover--closing {
-  animation: popoverFadeOut var(--t-close-pop) var(--ease-accelerate)
-    forwards !important;
-  pointer-events: none;
-}
-
-@keyframes popoverFadeOut {
-  0% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
+/* MotionSurface owns the short rise/fade; positioning transforms stay in CSS. */
 
 /* ─── Шапка: название, счётчик и кнопки действий ─────────────── */
 .track-popover__header {

@@ -1,3 +1,5 @@
+import { useMotionAllowed } from "../../motion/useMotionAllowed";
+import { useCanvasVisibility } from "../../../hooks/useCanvasVisibility";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useEffect, useRef } from "react";
 import {
@@ -21,7 +23,8 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
   isVisible,
 }) => {
   const { dict } = useTranslation();
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const motionAllowed = useMotionAllowed();
+  const { canvasRef, bindCanvas, isCanvasVisible } = useCanvasVisibility();
   const animStateRef = useRef<VisualizerAnimState>(createInitialAnimState());
 
   // Сброс буфера капсул при смене режима визуализации для исключения конфликтов интерполяции
@@ -32,11 +35,11 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
   }, [config.mode]);
 
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible || !isCanvasVisible) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    let animId: number;
+    let animId: number | undefined;
     let lastTime = performance.now();
 
     const updateSize = () => {
@@ -52,18 +55,15 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
     };
 
     updateSize();
-    const ro = new ResizeObserver(updateSize);
+    const ro = new ResizeObserver(() => {
+      updateSize();
+      if (!motionAllowed) render(0);
+    });
     if (canvas.parentElement) {
       ro.observe(canvas.parentElement);
     }
 
     const render = (time: number) => {
-      // Энергосбережение: пропуск отрисовки если документ или вкладка скрыта
-      if (document.hidden) {
-        animId = requestAnimationFrame(render);
-        return;
-      }
-
       const dt = Math.max(0.001, Math.min(64, Math.max(0, time - lastTime))) / 1000;
       lastTime = time;
 
@@ -111,15 +111,16 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
         }
       }
 
-      animId = requestAnimationFrame(render);
+      if (motionAllowed) animId = requestAnimationFrame(render);
     };
 
-    animId = requestAnimationFrame(render);
+    if (motionAllowed) animId = requestAnimationFrame(render);
+    else render(0);
     return () => {
-      cancelAnimationFrame(animId);
+      if (animId !== undefined) cancelAnimationFrame(animId);
       ro.disconnect();
     };
-  }, [config, isVisible]);
+  }, [config, isVisible, isCanvasVisible, motionAllowed, canvasRef]);
 
   const themeColors = getVisualizerThemeColors(config.theme);
 
@@ -170,7 +171,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
           height: 60,
           boxSizing: "border-box",
           boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
-          transition: "all var(--t-fast) var(--ease-smooth)",
+          transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), border-radius var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -201,7 +202,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
                   display: "flex",
                 }}
                 >
-                <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+                <canvas ref={bindCanvas} style={{ width: "100%", height: "100%", display: "block" }} />
               </div>
               <div
                 style={{
@@ -242,7 +243,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
               }}
               >
               <canvas
-                ref={canvasRef}
+                ref={bindCanvas}
                 style={{
                   position: "absolute",
                   left: 0,
@@ -283,7 +284,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
                 flexShrink: 0,
               }}
               >
-              <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+              <canvas ref={bindCanvas} style={{ width: "100%", height: "100%", display: "block" }} />
             </div>
           )}
 

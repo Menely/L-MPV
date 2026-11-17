@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useIsPresent } from "motion/react";
 import { Play, ArrowUp, Folder, FolderOpen, Clapperboard, FileAudio, FileImage, File, ListMusic, Subtitles, Search, X, RotateCw, Loader2, MoreHorizontal, Check, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
@@ -24,6 +25,7 @@ interface Props {
 const icons = { directory: Folder, video: Clapperboard, audio: FileAudio, subtitle: Subtitles, image: FileImage, playlist: ListMusic, file: File };
 
 export function ExplorerPanel({ active, panelActive = active, onRequestActivate, search, onSearch, initialPath, onLocation }: Props) {
+  const isPresent = useIsPresent();
   const { dict } = useTranslation();
   const text = dict.explorer;
   const { hasMedia, loadTracks, mediaInfo } = usePlayerState();
@@ -47,7 +49,7 @@ export function ExplorerPanel({ active, panelActive = active, onRequestActivate,
   const historyActions = useRef({ active, back, forward, canGoBack, canGoForward, onSearch, onRequestActivate });
   historyActions.current = { active, back, forward, canGoBack, canGoForward, onSearch, onRequestActivate };
   useEffect(() => {
-    if (!panelActive) { pendingDirection.current = null; return; }
+    if (!panelActive || !isPresent) { pendingDirection.current = null; return; }
     return bindExplorerHistoryMouse(window, direction => {
       const actions = historyActions.current;
       if (direction < 0 ? !actions.canGoBack : !actions.canGoForward) return;
@@ -59,16 +61,16 @@ export function ExplorerPanel({ active, panelActive = active, onRequestActivate,
       actions.onSearch(""); setOpenError(null);
       void (direction < 0 ? actions.back() : actions.forward());
     });
-  }, [panelActive]);
+  }, [isPresent, panelActive]);
   useEffect(() => {
-    if (!panelActive) { pendingDirection.current = null; return; }
+    if (!panelActive || !isPresent) { pendingDirection.current = null; return; }
     if (!active || pendingDirection.current === null) return;
     const direction = pendingDirection.current;
     pendingDirection.current = null;
     const actions = historyActions.current;
     actions.onSearch(""); setOpenError(null);
     void (direction < 0 ? actions.back() : actions.forward());
-  }, [active, panelActive]);
+  }, [active, isPresent, panelActive]);
   useEffect(() => {
     openingRef.current = false;
     setOpening(null);

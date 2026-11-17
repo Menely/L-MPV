@@ -1,8 +1,8 @@
 const STORAGE_KEY = "l-mpv-timeline-preview-enabled";
 
 export function isTimelinePreviewEnabled(): boolean {
-  try { return localStorage.getItem(STORAGE_KEY) !== "false"; }
-  catch { return true; }
+  try { return localStorage.getItem(STORAGE_KEY) === "true"; }
+  catch { return false; }
 }
 
 export function setTimelinePreviewEnabled(enabled: boolean): void {

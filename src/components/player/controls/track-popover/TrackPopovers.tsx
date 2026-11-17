@@ -1,4 +1,5 @@
 import React from "react";
+import { MotionSurface } from "../../../motion/MotionSurface";
 import type { TrackInfo } from "../../../../contexts/PlayerStateContext";
 import type { ControlBarStyle } from "../../../../utils/controlBarStyleUtils";
 import { useTranslation } from "../../../../i18n/LanguageContext";
@@ -12,8 +13,6 @@ import { TrackRow } from "./TrackRow";
 export interface TrackPopoversProps {
   /** Активный тип открытого окна. */
   displayedPopover: "audio" | "sub" | null;
-  /** Флаг анимации закрытия окна. */
-  isPopoverClosing: boolean;
   /** Реф корня окна для обработки кликов вне зоны. */
   popoverRef: React.RefObject<HTMLDivElement | null>;
   /** Реф активной строки для автопрокрутки. */
@@ -46,7 +45,6 @@ export interface TrackPopoversProps {
  */
 export const TrackPopovers: React.FC<TrackPopoversProps> = ({
   displayedPopover,
-  isPopoverClosing,
   popoverRef,
   activeTrackItemRef,
   controlBarStyle,
@@ -99,13 +97,12 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
   const rootClass = [
     "track-popover",
     controlBarStyle === "capsule" ? "track-popover--capsule" : "",
-    isPopoverClosing ? "track-popover--closing" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <div ref={popoverRef} className={rootClass}>
+    <MotionSurface kind="popover" ref={popoverRef} className={rootClass}>
       <TrackPopoverHeader
         title={isAudio ? dict.controls.audioTracks : dict.controls.subtitles}
         count={kindTracks.length}
@@ -162,6 +159,6 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
           />
         ))}
       </div>
-    </div>
+    </MotionSurface>
   );
 };

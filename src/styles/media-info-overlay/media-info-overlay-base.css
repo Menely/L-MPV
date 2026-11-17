@@ -31,7 +31,6 @@
   transform-origin: bottom left;
   -webkit-font-smoothing: subpixel-antialiased;
   text-rendering: optimizeLegibility;
-  animation: mediaInfoFadeIn var(--t-pop) var(--ease-decelerate);
   transition: bottom var(--t-base) var(--ease-smooth),
               max-height var(--t-base) var(--ease-smooth);
 }
@@ -43,28 +42,6 @@
 }
 
 /* ─── Анимация без сдвига translateY (исключает замыливание шрифтов) ─── */
-@keyframes mediaInfoFadeIn {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-.media-info-overlay--closing {
-  animation: mediaInfoFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
-  pointer-events: none;
-}
-
-@keyframes mediaInfoFadeOut {
-  0% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
 
 /* ─── Шапка окна в монолитном режиме ─────────────────────────────── */
 .media-info__header {

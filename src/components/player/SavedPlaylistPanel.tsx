@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { useIsPresent } from "motion/react";
 import { Plus, MoreHorizontal, FilePlus, Pencil, Trash2, Import, Download, ArrowUp, ArrowDown, GripVertical, Play, Clapperboard, X, Check, Search, Loader2 } from "lucide-react";
 import { useSavedPlaylists } from "../../hooks/useSavedPlaylists";
 import { useTranslation } from "../../i18n/LanguageContext";
@@ -15,6 +16,7 @@ const MEDIA_EXTENSIONS = ["mkv", "mp4", "avi", "mov", "webm", "m4v", "ts", "m2ts
 
 /** Named lists are a source within Playlist; selecting one never starts playback. */
 export function SavedPlaylistPanel({ active, folderPaths, mediaPath, refreshPlaylist, onFolderRequested, onSourceChange, children }: Props) {
+  const isPresent = useIsPresent();
   const { dict } = useTranslation(); const text = dict.savedPlaylist;
   const library = useSavedPlaylists(active);
   const [menu, setMenu] = useState(false), [editor, setEditor] = useState<Editor>(null), [name, setName] = useState("");
@@ -32,7 +34,7 @@ export function SavedPlaylistPanel({ active, folderPaths, mediaPath, refreshPlay
   useEffect(() => { onSourceChange?.(Boolean(library.source)); }, [library.source, onSourceChange]);
   useEffect(() => { setEditor(null); setConfirmDelete(false); setMenu(false); setQuery(""); drag.current = null; movedFocus.current = null; }, [library.source]);
   useEffect(() => {
-    if (!editor && !confirmDelete && !menu && !query) return;
+    if (!isPresent || (!editor && !confirmDelete && !menu && !query)) return;
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (document.querySelector("[data-navigation-popover]")) return;
@@ -44,7 +46,7 @@ export function SavedPlaylistPanel({ active, folderPaths, mediaPath, refreshPlay
     };
     window.addEventListener("keydown", escape, true);
     return () => window.removeEventListener("keydown", escape, true);
-  }, [editor, confirmDelete, menu, query]);
+  }, [editor, confirmDelete, isPresent, menu, query]);
   useLayoutEffect(() => {
     const element = entriesRef.current;
     if (!active || !element) return;

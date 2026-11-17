@@ -1,35 +1,31 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { VOLUME_FEEDBACK_EVENT, isVolumeIndicatorEnabled, isVolumeOsdEnabled } from "../../utils/volumeFeedback";
+import { useFeedbackLifetime } from "../../hooks/useFeedbackLifetime";
 
 /** Isolated trial. Rollback: docs/audits/volume-ruler-experiment-2026-11-08. */
 export function VolumeIndicator() {
   const { dict } = useTranslation();
   const [feedback, setFeedback] = useState<{ volume: number; closing: boolean } | null>(null);
   const [osd, setOsd] = useState(isVolumeOsdEnabled);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const removeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { restart, cancel } = useFeedbackLifetime({
+    holdMs: 900,
+    onFade: () => setFeedback(previous => previous ? { ...previous, closing: true } : null),
+    onRemove: () => setFeedback(null),
+  });
 
   useEffect(() => {
-    const clearTimers = () => {
-      if (closeTimer.current !== null) clearTimeout(closeTimer.current);
-      if (removeTimer.current !== null) clearTimeout(removeTimer.current);
-    };
     const onVolume = (event: Event) => {
       if (!isVolumeIndicatorEnabled()) return;
       const volume = (event as CustomEvent<unknown>).detail;
       if (typeof volume !== "number" || !Number.isFinite(volume)) return;
-      clearTimers();
+      restart();
       setFeedback({ volume: Math.max(0, Math.min(150, volume)), closing: false });
-      closeTimer.current = setTimeout(() => {
-        setFeedback(previous => previous ? { ...previous, closing: true } : null);
-        removeTimer.current = setTimeout(() => setFeedback(null), 180);
-      }, 900);
     };
     const onSettingsChanged = () => {
       setOsd(isVolumeOsdEnabled());
       if (!isVolumeIndicatorEnabled()) {
-        clearTimers();
+        cancel();
         setFeedback(null);
       }
     };
@@ -40,9 +36,9 @@ export function VolumeIndicator() {
       window.removeEventListener(VOLUME_FEEDBACK_EVENT, onVolume);
       window.removeEventListener("l-mpv-settings-changed", onSettingsChanged);
       window.removeEventListener("storage", onSettingsChanged);
-      clearTimers();
+      cancel();
     };
-  }, []);
+  }, [cancel, restart]);
 
   if (!feedback) return null;
   const { volume, closing } = feedback;

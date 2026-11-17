@@ -5,6 +5,13 @@
   transition: none;
 }
 .playlist-drawer .playlist-drawer__header-actions { flex-shrink: 0; }
+/* Keep its slot in both tabs; hiding the unavailable action must not resize tabs. */
+.playlist-drawer:not(.playlist-drawer--capsule) .playlist-drawer__refresh[hidden] {
+  display: inline-flex !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+.playlist-drawer--capsule .playlist-drawer__refresh[hidden] { display: none !important; }
 .playlist-drawer .navigation-panel__tabs { flex: 1; min-width: 0; }
 .playlist-drawer .navigation-panel__tab { min-width: 0; }
 .playlist-drawer .navigation-panel__tab > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

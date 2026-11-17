@@ -1,5 +1,9 @@
+import { SettingsUpdateAction } from "../settings/components/SettingsUpdateAction";
 import { applyAmbientPreview, saveAmbientSettings } from "../../utils/ambientPreviewQueue";
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useIsPresent } from "motion/react";
+import { MotionSurface } from "../motion/MotionSurface";
+import { SelectionRail } from "../motion/SelectionRail";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -45,7 +49,6 @@ import {
   Loader2,
   Sparkles,
   Layers,
-  RefreshCw,
   X,
   Settings,
 } from "lucide-react";
@@ -89,7 +92,6 @@ import {
   preloadUpscaleSettings,
 } from "../settings/lib/settingsTabPreload";
 import { preloadSystemDiagnostics } from "../settings/lib/systemDiagnostics";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
 import { SettingsPreset } from "../../utils/presetsUtils";
 import {
   UiRadiusLevel,
@@ -177,48 +179,47 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const { bodyRef, panelRef, beginSwitch } = useSettingsTabTransition(activeTab, SETTINGS_TABS);
   const { dict } = useTranslation();
 
-  // Единая точка смены вкладки: плавный переход высоты + слайд, логика табов не меняется
+  // Preserve the layout tween; SelectionRail carries navigation motion.
   const handleTabChange = useCallback((next: SettingsTabId) => {
     if (next === "presets") preloadPresetsSettings();
     if (next === "upscaling") preloadUpscaleSettings();
     if (beginSwitch(next)) setActiveTab(next);
   }, [beginSwitch]);
 
-  const [isClosing, setIsClosing] = useState<boolean>(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPresent = useIsPresent();
+  const updatePresentRef = useRef(isPresent);
+  updatePresentRef.current = isPresent;
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
 
-  const handleClose = useCallback(() => {
-    if (closeTimerRef.current) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-    }, getCloseTimeoutMs("base"));
-  }, [onClose]);
+  const handleClose = onClose;
 
   useEffect(() => {
     preloadPresetsSettings();
     returnFocusRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
-    const focusFrame = requestAnimationFrame(() => closeButtonRef.current?.focus());
+    const modal = modalRef.current;
     return () => {
-      cancelAnimationFrame(focusFrame);
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
+      const focused = document.activeElement;
+      if (focused === document.body || (focused && modal?.contains(focused))) {
+        returnFocusRef.current?.focus({ preventScroll: true });
       }
-      returnFocusRef.current?.focus();
     };
   }, []);
 
+  useEffect(() => {
+    if (!isPresent) return;
+    const frame = requestAnimationFrame(() => {
+      if (!modalRef.current?.contains(document.activeElement)) closeButtonRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isPresent]);
+
   // Навигация стрелками влево и вправо для переключения категорий настроек
   useEffect(() => {
+    if (!isPresent) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.closest(".color-picker-modal")) return;
@@ -284,7 +285,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [activeTab, isRecordingHotkey, handleClose, handleTabChange]);
+  }, [activeTab, isRecordingHotkey, handleClose, handleTabChange, isPresent]);
 
   // Синхронизация локальных состояний SettingsModal при применении любого пресета
   const handlePresetApplied = useCallback((preset: SettingsPreset) => {
@@ -421,8 +422,9 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
-  const [isUpdateFound, setIsUpdateFound] = useState<boolean>(false);
   const [foundUpdate, setFoundUpdate] = useState<UpdateInfo | null>(null);
+  const updateMountedRef = useRef(false);
+  const updateRequestRef = useRef(0);
   const [isLoadingVersionInfo, setIsLoadingVersionInfo] = useState<boolean>(false);
   const updateStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -495,7 +497,10 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   // Сброс таймера статуса при размонтировании
   useEffect(() => {
+    updateMountedRef.current = true;
     return () => {
+      updateMountedRef.current = false;
+      updateRequestRef.current += 1;
       if (updateStatusTimerRef.current) {
         clearTimeout(updateStatusTimerRef.current);
       }
@@ -664,6 +669,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   // Ручная проверка обновлений через GitHub Releases API
   const handleCheckForUpdates = async () => {
+    if (isCheckingUpdate || isLoadingVersionInfo || !updatePresentRef.current) return;
+    const request = ++updateRequestRef.current;
     setIsCheckingUpdate(true);
     setUpdateStatus(null);
     setFoundUpdate(null);
@@ -674,43 +681,45 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
     try {
       const info = await invoke<UpdateInfo>("check_for_updates");
+      if (!updateMountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       setFoundUpdate(info);
       if (info.has_update) {
         setUpdateStatus(dict.settings.integration.updateFound(info.latest_version.replace(/^[vV]/, "")));
-        setIsUpdateFound(true);
         if (onShowUpdate) {
           onShowUpdate(info);
         }
       } else {
         setUpdateStatus(dict.settings.integration.upToDate);
-        setIsUpdateFound(false);
         updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
       }
     } catch (err) {
+      if (!updateMountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       console.error("Ошибка проверки обновлений:", err);
       setUpdateStatus(dict.settings.integration.checkFailed);
-      setIsUpdateFound(false);
       updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
     } finally {
-      setIsCheckingUpdate(false);
+      if (updateMountedRef.current && request === updateRequestRef.current) setIsCheckingUpdate(false);
     }
   };
 
   // Показ информации о текущей установленной версии и её чейнджлога (при клике на v{appVersion})
   const handleShowVersionInfo = async () => {
-    if (!onShowUpdate || isLoadingVersionInfo) return;
+    if (!onShowUpdate || isLoadingVersionInfo || isCheckingUpdate || !updatePresentRef.current) return;
 
     if (foundUpdate) {
       onShowUpdate(foundUpdate);
       return;
     }
 
+    const request = ++updateRequestRef.current;
     setIsLoadingVersionInfo(true);
     try {
       const info = await invoke<UpdateInfo>("check_for_updates");
+      if (!updateMountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       setFoundUpdate(info);
       onShowUpdate(info);
     } catch (err) {
+      if (!updateMountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       console.warn("Не удалось получить описание версии из сети, открытие резервного окна:", err);
       const fallbackInfo: UpdateInfo = {
         current_version: appVersion,
@@ -725,7 +734,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       setFoundUpdate(fallbackInfo);
       onShowUpdate(fallbackInfo);
     } finally {
-      setIsLoadingVersionInfo(false);
+      if (updateMountedRef.current && request === updateRequestRef.current) setIsLoadingVersionInfo(false);
     }
   };
 
@@ -831,66 +840,33 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         <button
           type="button"
           onClick={handleShowVersionInfo}
-          disabled={isLoadingVersionInfo}
+          disabled={isLoadingVersionInfo || isCheckingUpdate}
           className="settings-footer__btn settings-footer__btn--version"
         >
           {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
           <span>v{appVersion}</span>
         </button>
 
-        <button
-          type="button"
-          onClick={handleCheckForUpdates}
-          disabled={isCheckingUpdate}
-          className="settings-footer__btn settings-footer__btn--check"
-        >
-          {isCheckingUpdate ? (
-            <>
-              <Loader2 size={12} className="animate-spin" />
-              <span>{dict.settings.integration.checking}</span>
-            </>
-          ) : (
-            <>
-              <RefreshCw size={12} />
-              <span>{dict.settings.integration.checkUpdates}</span>
-            </>
-          )}
-        </button>
-
-        {updateStatus && (
-          foundUpdate && onShowUpdate ? (
-            <button
-              type="button"
-              onClick={() => onShowUpdate(foundUpdate)}
-              className="settings-footer__btn settings-footer__btn--update"
-            >
-              <Sparkles size={12} />
-              <span>{updateStatus}</span>
-            </button>
-          ) : (
-            <span
-              style={{
-                fontSize: "var(--fs-xs)",
-                color: isUpdateFound ? "var(--accent-text)" : "var(--text-muted)",
-                marginLeft: "var(--space-2)",
-              }}
-            >
-              {updateStatus}
-            </span>
-          )
-        )}
+        <SettingsUpdateAction
+          checking={isCheckingUpdate || isLoadingVersionInfo}
+          status={updateStatus}
+          hasUpdate={foundUpdate?.has_update === true}
+          onCheck={handleCheckForUpdates}
+          onShowUpdate={foundUpdate && onShowUpdate ? () => onShowUpdate(foundUpdate) : undefined}
+        />
       </div>
       <span style={{ fontSize: "var(--fs-xs)" }}>{dict.settings.integration.portableEdition}</span>
     </>
   );
 
   return (
-    <div className={`modal-overlay settings-modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`} onClick={handleClose}>
+    <MotionSurface kind="settingsBackdrop" className="modal-overlay settings-modal-overlay" onClick={handleClose}>
       {!isCapsule ? (
         /* ─── КЛАССИЧЕСКИЙ РЕЖИМ (Модерн, Прикрепленный) ─── */
-        <div
+        <MotionSurface
+          kind="settingsDialog"
           ref={modalRef}
-          className={`modal modal--settings ${isClosing ? "modal--closing" : ""}`}
+          className="modal modal--settings"
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
@@ -930,7 +906,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           </div>
 
           {/* Навигация по вкладкам */}
-          <div className="settings-tabs">
+          <SelectionRail activeKey={activeTab} className="settings-tabs">
             {tabItems.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -944,13 +920,14 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     if (tab.id === "integration") preloadSystemDiagnostics();
                   }}
                   className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
+                  aria-current={isActive ? "true" : undefined}
                 >
                   <Icon size={16} className="settings-tab-icon" />
                   <span className="settings-tab-label">{tab.label}</span>
                 </button>
               );
             })}
-          </div>
+          </SelectionRail>
 
           {/* Тело модального окна */}
           <div className="modal__body" ref={bodyRef} style={{ padding: "var(--settings-section-padding) 20px" }}>
@@ -963,12 +940,13 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           <div className="settings-footer">
             {renderFooterContent()}
           </div>
-        </div>
+        </MotionSurface>
       ) : (
         /* ─── ОСТРОВНОЙ РЕЖИМ (Стиль «Капсула») ─── */
-        <div
+        <MotionSurface
+          kind="settingsDialog"
           ref={modalRef}
-          className={`modal modal--settings modal--settings-capsule ${isClosing ? "modal--closing" : ""}`}
+          className="modal modal--settings modal--settings-capsule"
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
@@ -996,7 +974,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             </div>
 
             {/* Карточка 2: Вкладки */}
-            <div className="settings-card settings-card--tabs">
+            <SelectionRail activeKey={activeTab} className="settings-card settings-card--tabs">
               {tabItems.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -1011,13 +989,14 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                     }}
                     className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
                     aria-label={tab.label}
+                    aria-current={isActive ? "true" : undefined}
                   >
                     <Icon size={14} className="settings-tab-icon" />
                     <span className="settings-tab-label">{tab.label}</span>
                   </button>
                 );
               })}
-            </div>
+            </SelectionRail>
 
             {/* Карточка 3: Крестик */}
             <div className="settings-card settings-card--close">
@@ -1047,8 +1026,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           <div className="settings-card settings-card--footer">
             {renderFooterContent()}
           </div>
-        </div>
+        </MotionSurface>
       )}
-    </div>
+    </MotionSurface>
   );
 }

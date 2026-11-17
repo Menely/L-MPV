@@ -839,7 +839,7 @@ export const en: TranslationDict = {
     hotkeys: {
       hotkeysSection: "Hotkeys",
       fallbackOwner: "Turn off upscaling",
-      helpText: "💡 Press any key in the list below to assign your combination!",
+      helpText: "Select a shortcut in the list to change it",
       btnReset: "Reset",
       sectionTitle: "Hotkey Assignments",
       pressKey: "Press…",
@@ -1218,7 +1218,7 @@ export const en: TranslationDict = {
       telegramTooltip: "Author's Telegram",
       checkUpdates: "Check for Updates",
       checking: "Checking…",
-      upToDate: "Up to date",
+      upToDate: "Current version",
       updateFound: (version: string) => `Version ${version} available`,
       checkFailed: "Failed to check updates",
       portableEdition: "Portable Edition",

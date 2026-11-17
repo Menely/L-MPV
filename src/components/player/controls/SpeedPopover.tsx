@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useState } from "react";
 import { X } from "lucide-react";
+import { MotionSurface } from "../../motion/MotionSurface";
 import { SpeedIcon } from "./SpeedIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { getActiveUiScale } from "../../../utils/uiThemeUtils";
@@ -8,8 +9,6 @@ import type { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
 export interface SpeedPopoverProps {
   /** Текущая скорость воспроизведения */
   currentSpeed: number;
-  /** Флаг анимации закрытия всплывающего окна */
-  isClosing: boolean;
   /** Реф на всплывающее окно для обработки кликов снаружи */
   popoverRef: React.RefObject<HTMLDivElement | null>;
   /** Реф кнопки скорости для точного центрирования окна над ней */
@@ -52,7 +51,6 @@ export function formatSpeedValue(speed: number): string {
  */
 export const SpeedPopover: React.FC<SpeedPopoverProps> = ({
   currentSpeed,
-  isClosing,
   popoverRef,
   anchorRef,
   containerRef,
@@ -149,13 +147,13 @@ export const SpeedPopover: React.FC<SpeedPopoverProps> = ({
     "track-popover",
     "track-popover--speed",
     isCapsule ? "track-popover--capsule" : "",
-    isClosing ? "track-popover--closing" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <div
+    <MotionSurface
+      kind="popover"
       ref={popoverRef}
       className={rootClass}
       style={popoverPosStyle}
@@ -220,6 +218,6 @@ export const SpeedPopover: React.FC<SpeedPopoverProps> = ({
           );
         })}
       </div>
-    </div>
+    </MotionSurface>
   );
 };

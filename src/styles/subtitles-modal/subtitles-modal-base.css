@@ -3,7 +3,6 @@
    переключатель режимов и деликатный скроллбар. */
 
 .subtitles-search-card {
-  animation: mediaInfoFadeIn var(--t-pop) var(--ease-decelerate);
   transform-origin: bottom right;
   position: relative;
   display: flex;
@@ -34,11 +33,6 @@
 .subtitles-search-card--resizing {
   user-select: none !important;
   transition: none !important;
-}
-
-.subtitles-search-card--closing {
-  animation: mediaInfoFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
-  pointer-events: none;
 }
 
 /* Ручка изменения ширины слева */

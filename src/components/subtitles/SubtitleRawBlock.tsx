@@ -188,7 +188,7 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "all 0.15s ease",
+            transition: "background-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), filter var(--t-fast) var(--ease-smooth)",
           }}
           className="hover-bright"
           title={

@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import { Palette, X } from "lucide-react";
 import { hslToRgb, rgbToHex, hexToRgb, rgbToHsl } from "../../utils/colorUtils";
 import { useTranslation } from "../../i18n/LanguageContext";
-import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
+import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
+import { MotionSurface } from "../motion/MotionSurface";
 import { getSavedControlBarStyle, ControlBarStyle } from "../../utils/controlBarStyleUtils";
 import {
   ColorPickerModalProps,
@@ -65,9 +66,8 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const { isClosing, handleClose } = useOverlayDismiss({
+  const { isPresent, handleClose } = useSurfaceDismiss({
     onClose,
-    kind: "base",
     closeOnEscape: true,
   });
 
@@ -76,15 +76,20 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     returnFocusRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
+    const dialog = dialogRef.current;
     const focusFrame = requestAnimationFrame(() => closeButtonRef.current?.focus());
     return () => {
       cancelAnimationFrame(focusFrame);
-      returnFocusRef.current?.focus();
+      const focused = document.activeElement;
+      if (focused === document.body || (focused && dialog?.contains(focused))) {
+        returnFocusRef.current?.focus({ preventScroll: true });
+      }
     };
   }, []);
 
   // Ловушка фокуса (Focus Trap)
   useEffect(() => {
+    if (!isPresent) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Tab" || !dialogRef.current) return;
       const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
@@ -103,7 +108,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleClose]);
+  }, [isPresent]);
 
   // Текущий вычисленный цвет
   const currentRgb = useMemo(() => hslToRgb(hue, saturation, lightness), [hue, saturation, lightness]);
@@ -223,8 +228,8 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   );
 
   return createPortal(
-    <div
-      className={`modal-overlay color-picker-overlay ${isClosing ? "modal-overlay--closing" : ""}`}
+    <MotionSurface kind="backdrop"
+      className={`modal-overlay color-picker-overlay `}
       onClick={(e) => {
         e.stopPropagation();
         handleClose();
@@ -232,9 +237,9 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     >
       {isCapsule ? (
         /* ─── АДАПТИВНЫЙ РЕЖИМ «КАПСУЛА» (Островные карточки) ─── */
-        <div
+        <MotionSurface kind="dialog"
           ref={dialogRef}
-          className={`modal color-picker-modal color-picker-modal--capsule ${isClosing ? "modal--closing" : ""}`}
+          className={`modal color-picker-modal color-picker-modal--capsule `}
           role="dialog"
           aria-modal="true"
           aria-label={dict.settings.appearance.colorScheme.colorPickerTitle}
@@ -270,14 +275,14 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
           <div className="color-picker-card color-picker-capsule-card--footer">
             {renderActions()}
           </div>
-        </div>
+        </MotionSurface>
       ) : (
         /* ─── АДАПТИВНЫЕ РЕЖИМЫ «МОДЕРН» И «КЛАССИЧЕСКИЙ» ─── */
-        <div
+        <MotionSurface kind="dialog"
           ref={dialogRef}
           className={`modal color-picker-modal ${
             isModern ? "color-picker-modal--modern" : "color-picker-modal--docked"
-          } ${isClosing ? "modal--closing" : ""}`}
+          } `}
           role="dialog"
           aria-modal="true"
           aria-label={dict.settings.appearance.colorScheme.colorPickerTitle}
@@ -311,9 +316,9 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
           <div className="color-picker-modal__footer">
             {renderActions()}
           </div>
-        </div>
+        </MotionSurface>
       )}
-    </div>,
+    </MotionSurface>,
     document.querySelector<HTMLElement>(".app-container") || document.body,
   );
 };
