@@ -115,7 +115,7 @@ export const en: TranslationDict = {
 
   // ─── Chapters ──────────────────────────────────────────────────
   chapters: {
-    title: (count) => `Chapters (${count})`,
+    title: "Chapters",
     close: "Close (Esc)",
     noChapters: "No chapter markers in this file.",
     start: "Start",

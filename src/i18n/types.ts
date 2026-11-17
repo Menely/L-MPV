@@ -124,7 +124,7 @@ export interface TranslationDict {
 
   // ─── Главы (ChaptersModal) ─────────────────────────────────────
   chapters: {
-    title: (count: number) => string;
+    title: string;
     close: string;
     noChapters: string;
     /** Название первого сегмента шкалы времени до первой главы */

@@ -459,7 +459,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Loop Modes & Shuffle:** Loop current file, loop entire playlist, or play in random order. The toolbar button and the *Repeat Mode* submenu share a single `set_repeat_mode` command that always sets both loop properties together; the submenu marks the active mode immediately and confirms the change with an OSD toast.
 - **Watch Progress Bar (Netflix / YouTube Style):** Elegant bottom accent line under every playlist card reflecting saved playback progress (`get_watch_history_batch`). Fully watched episodes (ending reached) are marked with a dedicated `completed` flag, displaying a crisp green `CheckCircle2` badge and a completed progress line, with live progress tracking of the actively playing media.
 - **Resilient Compact Geometry & Non-Compressing Items:** Playlist items strictly preserve vertical layout (`flex-shrink: 0; min-height: 38px`), providing smooth native vertical scrolling without vertical crushing or element collisions even in compact player windows.
-- **Chapter Navigation:** Interactive chapters modal with timestamps and jump-to-chapter shortcuts.
+- **Chapter Navigation (`C`):** Interactive chapters overlay with timestamps, active chapter highlighting and jump-to-chapter shortcuts; adapts to Capsule (fit-content header island with `current / total` badge, close island and chapter list card), Modern and Classic styles.
 - **Resume playback:** Saves the last playback position for up to 300 files in `config/history.json` and restores it when a file is reopened.
 - **Windows Taskbar Progress:** Displays playback progress bars directly over the player's icon in the Windows taskbar.
 
@@ -484,7 +484,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 
 - **Full Hotkey Rebinding:** Configure keyboard shortcuts with modifiers (`Ctrl`, `Shift`, `Alt`) and mouse inputs (`MouseLeft`, `MouseRight`, `MouseMiddle`, `MouseLeftDoubleClick`).
 - **Granular Actions:** Separate binds for cycling tracks via click vs. opening their respective selection popovers.
-- **Per-Action Reset:** Individual "Reset to Default" button next to every action entry.
+- **Per-Action Reset & Seek Intervals:** Individual "Reset to Default" button next to every action entry, plus inline seconds fields right next to seek backward/forward (`1–300 s`) and skip opening (`1–600 s`) synchronized with toolbar control settings.
 - **File Associations:** One-click registration in Windows Registry and shortcut to Windows "Default Apps" settings.
 
 </details>

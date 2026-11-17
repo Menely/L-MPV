@@ -6,6 +6,10 @@ import { MotionSurface } from "../motion/MotionSurface";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { formatTime } from "../../utils/timeUtils";
+import {
+  type ControlBarStyle,
+  getSavedControlBarStyle,
+} from "../../utils/controlBarStyleUtils";
 
 interface ChaptersModalProps {
   /** Обработчик закрытия панели. */
@@ -20,6 +24,26 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
   const { position } = usePlayerProgress();
   const { dict } = useTranslation();
   const { handleClose } = useSurfaceDismiss({ onClose });
+
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
+    getSavedControlBarStyle()
+  );
+
+  useEffect(() => {
+    const syncStyle = () => {
+      setControlBarStyle(getSavedControlBarStyle());
+    };
+    window.addEventListener("ui-settings-changed", syncStyle);
+    window.addEventListener("l-mpv-control-bar-style-changed", syncStyle);
+    window.addEventListener("l-mpv-settings-changed", syncStyle);
+    return () => {
+      window.removeEventListener("ui-settings-changed", syncStyle);
+      window.removeEventListener("l-mpv-control-bar-style-changed", syncStyle);
+      window.removeEventListener("l-mpv-settings-changed", syncStyle);
+    };
+  }, []);
+
+  const isCapsule = controlBarStyle === "capsule";
 
   // Локальный выбор главы пользователем для мгновенного тактильного отклика
   const [selectedChapterIndex, setSelectedChapterIndex] = useState<number | null>(null);
@@ -36,6 +60,13 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
 
   // Приоритет отдан явно выбранной главе до завершения позиционирования
   const activeIndex = selectedChapterIndex !== null ? selectedChapterIndex : calculatedActiveIndex;
+  const activeOrderIndex = chapters.findIndex((c) => c.index === activeIndex);
+  const countBadge =
+    chapters.length > 0
+      ? activeOrderIndex >= 0
+        ? `${activeOrderIndex + 1} / ${chapters.length}`
+        : `${chapters.length}`
+      : "";
 
   // Автоматический сброс временного выбора, когда воспроизведение подтвердило позицию или по таймауту безопасности
   useEffect(() => {
@@ -52,30 +83,39 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
 
   return (
     <div className="chapters-modal-overlay" onClick={handleClose}>
-      <MotionSurface kind="popover"
-        className={`chapters-modal-card `}
+      <MotionSurface
+        kind="popover"
+        className={`chapters-modal-card${isCapsule ? " chapters-modal-card--capsule" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="chapters-modal-title"
         onClick={(e) => e.stopPropagation()}
-        >
+      >
         <div className="chapters-modal-header">
-          <h2 id="chapters-modal-title" className="chapters-modal-title">
-            {dict.chapters.title(chapters.length)}
-          </h2>
-          <button
-            type="button"
-            className="modal__close"
-            onClick={handleClose}
-
-            aria-label={dict.chapters.close}
+          <div className="chapters-modal-header-left">
+            <h2 id="chapters-modal-title" className="chapters-modal-title">
+              {dict.chapters.title}
+            </h2>
+            {countBadge && (
+              <span className="chapters-modal-badge" aria-hidden="true">
+                {countBadge}
+              </span>
+            )}
+          </div>
+          <div className="chapters-modal-header-actions">
+            <button
+              type="button"
+              className="modal__close chapters-modal__close"
+              onClick={handleClose}
+              aria-label={dict.chapters.close}
             >
-            <X size={18} />
-          </button>
+              <X size={isCapsule ? 16 : 18} strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
         <div className="chapters-list">
-          {chapters.length> 0 ? (
+          {chapters.length > 0 ? (
             chapters.map((chapter) => (
               <button
                 type="button"
@@ -91,9 +131,9 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
                     console.error("Ошибка перехода к главе:", e);
                   }
                 }}
-                >
+              >
                 <span className="chapter-item__title">
-                  {chapter.title}
+                  {chapter.title || dict.chapters.chapterItem(chapter.index + 1)}
                 </span>
                 <span className="chapter-item__time">
                   {formatTime(chapter.time)}

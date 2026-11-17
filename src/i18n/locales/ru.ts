@@ -115,7 +115,7 @@ export const ru: TranslationDict = {
 
   // ─── Главы ─────────────────────────────────────────────────────
   chapters: {
-    title: (count) => `Главы (${count})`,
+    title: "Главы",
     close: "Закрыть (Esc)",
     noChapters: "В этом файле нет размеченных глав.",
     start: "Начало",
