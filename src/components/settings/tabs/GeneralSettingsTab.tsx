@@ -1,14 +1,10 @@
 import { isTimelinePreviewEnabled, setTimelinePreviewEnabled } from "../../../utils/timelinePreviewPreference";
 import React, { useCallback, useEffect, useState, useMemo } from "react";
 import {
-  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, AudioWaveform, Sparkles,
+  FolderOpen, Film, Download, Camera, RotateCcw, Monitor, AudioLines, Sparkles,
   MousePointer2, Play, CornerDownRight, MousePointerClick, Subtitles, Globe,
   Volume2, Tv2, HardDrive, Clapperboard
 } from "lucide-react";
-import {
-  isWaveformEnabled,
-  setWaveformEnabled,
-} from "../../player/heatmap";
 
 import { invoke } from "@tauri-apps/api/core";
 import { AccordionSection } from "../components/AccordionSection";
@@ -117,11 +113,9 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
   const [audioNormalize, setAudioNormalize] = useState("no");
   const [demuxerCacheMb, setDemuxerCacheMb] = useState(64);
   const [timelinePreviewEnabled, setTimelinePreviewEnabledState] = useState(isTimelinePreviewEnabled);
-  const [waveformEnabled, setWaveformEnabledState] = useState<boolean>(isWaveformEnabled);
 
   useEffect(() => {
     const handleSettingsChanged = () => {
-      setWaveformEnabledState(isWaveformEnabled());
       setTimelinePreviewEnabledState(isTimelinePreviewEnabled());
       setVolumeIndicatorEnabledState(isVolumeIndicatorEnabled());
       setVolumeOsdState(isVolumeOsdEnabled());
@@ -809,33 +803,6 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
                 </div>
                 <span className="t-label-xs">
                   {dict.settings.general.saveTracksToDirDesc}
-                </span>
-              </div>
-            </label>
-          </div>
-
-          {/* 2.6 Звуковая тепловая карта (Waveform Activity Strip) */}
-          <div style={cardStyle} className="theme-card">
-            <label className="option-row">
-              <input
-                type="checkbox"
-                className="ui-checkbox"
-                checked={waveformEnabled}
-                onChange={(e) => {
-                  const val = e.target.checked;
-                  setWaveformEnabledState(val);
-                  setWaveformEnabled(val);
-                }}
-              />
-              <div className="option-body">
-                <div className="row-center row-gap-3">
-                  <AudioWaveform size={14} className="t-accent" />
-                  <span className="t-label">
-                    {dict.settings.general.waveformActivityTitle}
-                  </span>
-                </div>
-                <span className="t-label-xs">
-                  {dict.settings.general.waveformActivityDesc}
                 </span>
               </div>
             </label>

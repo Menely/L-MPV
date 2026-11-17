@@ -209,10 +209,8 @@ export interface TranslationDict {
       subAvoidUiDesc: string;
       saveTracksToDirTitle: string;
       saveTracksToDirDesc: string;
-      waveformActivityTitle: string;
       timelinePreviewTitle: string;
       timelinePreviewDesc: string;
-      waveformActivityDesc: string;
 
       // Язык
       languageSection: string;
