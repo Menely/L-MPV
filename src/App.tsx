@@ -22,6 +22,7 @@ import "./index.css";
 import { Titlebar } from "./components/player/Titlebar";
 import { FileDragPreview } from "./components/player/FileDragPreview";
 import { PlayerControls } from "./components/player/PlayerControls";
+import { NativeClassicHost, useNativeClassic } from "./features/liquidGlass/NativeClassicHost";
 import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
 import { SeekIndicator } from "./components/player/SeekIndicator";
@@ -316,6 +317,8 @@ function App() {
 
   const shouldHideControlsInUpperHalf = hasMedia && hideControlsInUpperHalf && isCursorInUpperHalf;
   const isControlsVisible = hasMedia && !isIdle && !shouldHideControlsInUpperHalf;
+  const nativeClassic = useNativeClassic(mediaInfo);
+  const [nativePanelTop, setNativePanelTop] = useState<number | null>(null);
   const subtitleUpdateQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   // Measure the rendered panel: capsule, modern, docked and CSS zoom have
   // different heights. Layout changes must update subtitles without mouse input.
@@ -326,7 +329,7 @@ function App() {
       ).catch(console.error);
       return;
     }
-    const wrapper = document.querySelector<HTMLElement>(".player-controls-wrapper");
+    const wrapper = nativeClassic ? null : document.querySelector<HTMLElement>(".player-controls-wrapper");
     let cancelled = false;
     let pending = false;
     let running = false;
@@ -339,7 +342,7 @@ function App() {
         pending = false;
         const controls = wrapper?.querySelector<HTMLElement>(".player-controls");
         const bottom = wrapper ? parseFloat(getComputedStyle(wrapper).bottom) || 0 : 0;
-        const offset = controls ? subtitleControlsOffset(
+        const offset = nativeClassic ? (nativePanelTop === null ? 0 : (1 - nativePanelTop) * window.innerHeight) : controls ? subtitleControlsOffset(
           controls.getBoundingClientRect().height, controls.offsetHeight, bottom,
         ) : 0;
         const controlsVisible = subtitlesAvoidUi && isControlsVisible && offset > 0;
@@ -372,7 +375,7 @@ function App() {
       window.removeEventListener("resize", update);
       window.removeEventListener("l-mpv-settings-changed", update);
     };
-  }, [hasMedia, mediaInfo?.path, subtitlesAvoidUi, isControlsVisible, isFullscreen]);
+  }, [hasMedia, mediaInfo?.path, subtitlesAvoidUi, isControlsVisible, isFullscreen, nativeClassic, nativePanelTop]);
 
   const isStandaloneModeRef = useRef(false);
 
@@ -1439,7 +1442,11 @@ function App() {
         )}
       </div>
 
-      {hasMedia && (
+      {hasMedia && nativeClassic && (
+        <NativeClassicHost visible={isControlsVisible} fullscreen={isFullscreen} onAction={executeAction}
+          onPanelTop={setNativePanelTop} />
+      )}
+      {hasMedia && !nativeClassic && (
         <PlayerControls
           controlsVisible={isControlsVisible}
           onOpenSettings={openSettings}

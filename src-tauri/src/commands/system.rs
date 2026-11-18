@@ -25,7 +25,7 @@ pub fn take_screenshot(
     // PNG has no 10/12-bit storage: preserve those sources in a 16-bit container.
     // Unknown depth stays high precision rather than silently losing color information.
     state.mpv.set_property_string("screenshot-high-bit-depth", if depth == "8-bit" { "no" } else { "yes" })?;
-    state.mpv.command("screenshot video")
+    state.mpv.capture_clean_frame("screenshot video")
 }
 
 /// Копирование текущего кадра в буфер обмена Windows.
@@ -42,7 +42,7 @@ pub async fn copy_frame_to_clipboard(
 
     let _ = std::fs::remove_file(&temp_path);
 
-    state.mpv.command(&format!(
+    state.mpv.capture_clean_frame(&format!(
         "screenshot-to-file \"{}\" video",
         safe_path
     ))?;

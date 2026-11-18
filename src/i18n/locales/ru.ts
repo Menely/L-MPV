@@ -536,6 +536,8 @@ export const ru: TranslationDict = {
       openFontsFolderTooltip: 'Открыть папку со шрифтами (fonts/)',
       customFontsDivider: 'Пользовательские',
       interfaceTheme: "Тема интерфейса",
+      glassBlur: "Размытие стекла",
+      resetGlassBlur: "Сбросить размытие на 30%",
       classicStyleDesc: "Единые панели с плавающим или прикреплённым управлением",
       panelPlacement: "Вид панели",
       panelFloating: "Плавающая",

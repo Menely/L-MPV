@@ -533,6 +533,8 @@ export const en: TranslationDict = {
       openFontsFolderTooltip: 'Open fonts folder (fonts/)',
       customFontsDivider: 'Custom',
       interfaceTheme: "Interface theme",
+      glassBlur: "Glass blur",
+      resetGlassBlur: "Reset blur to 30%",
       classicStyleDesc: "Unified panels with floating or docked controls",
       panelPlacement: "Panel appearance",
       panelFloating: "Floating",

@@ -5,6 +5,8 @@
  * - "docked": Классический стиль во всю ширину окна внизу без зазоров.
  */
 
+import { getPlayerTheme, readGlassLayout, writeGlassLayout, type PlayerTheme } from "../features/liquidGlass/preferences";
+
 export type ControlBarStyle = "capsule" | "modern" | "docked";
 
 export const CONTROL_BAR_STYLE_STORAGE_KEY = "l-mpv-control-bar-style";
@@ -42,9 +44,9 @@ export const CONTROL_BAR_STYLE_OPTIONS: ControlBarStyleOption[] = [
  * Чтение сохранённого стиля панели управления из localStorage с валидацией
  * и автоматической миграцией устаревшего значения "floating" -> "modern".
  */
-export function getSavedControlBarStyle(): ControlBarStyle {
+export function getSavedControlBarStyle(theme: PlayerTheme = getPlayerTheme()): ControlBarStyle {
   try {
-    const saved = localStorage.getItem(CONTROL_BAR_STYLE_STORAGE_KEY);
+    const saved = theme === "glass" ? readGlassLayout() : localStorage.getItem(CONTROL_BAR_STYLE_STORAGE_KEY);
     if (saved === "floating" || saved === "modern") {
       return "modern";
     }
@@ -60,10 +62,14 @@ export function getSavedControlBarStyle(): ControlBarStyle {
 /**
  * Сохранение стиля панели управления в localStorage и отправка глобального события.
  */
-export function saveControlBarStyle(style: ControlBarStyle | "floating"): void {
+export function saveControlBarStyle(style: ControlBarStyle | "floating", theme: PlayerTheme = getPlayerTheme()): void {
   try {
     const normalizedStyle: ControlBarStyle = style === "floating" ? "modern" : style;
-    localStorage.setItem(CONTROL_BAR_STYLE_STORAGE_KEY, normalizedStyle);
+    if (theme === "glass") {
+      writeGlassLayout(normalizedStyle);
+    } else {
+      localStorage.setItem(CONTROL_BAR_STYLE_STORAGE_KEY, normalizedStyle);
+    }
   } catch (e) {
     console.error("Ошибка сохранения стиля плеера в localStorage:", e);
   }

@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
 import { getDict, getEffectiveLocale } from "../i18n";
 import { playbackPollDelay } from "../utils/playbackPolling";
+import { isNativeControlsInteracting } from "../utils/nativeControlsActivity";
 
 export interface PlaylistItem {
   index: number;
@@ -385,7 +386,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         ".track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
       const isDragging = !!document.querySelector(".timeline--dragging");
-      if (!currentUIOpen && !isDragging) {
+      if (!currentUIOpen && !isDragging && !isNativeControlsInteracting()) {
         isIdleRef.current = true;
         setIsIdle(true);
       } else {
@@ -404,7 +405,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           ".track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
         );
         const isDragging = !!document.querySelector(".timeline--dragging");
-        if (!currentUIOpen && !isDragging) {
+        if (!currentUIOpen && !isDragging && !isNativeControlsInteracting()) {
           isIdleRef.current = true;
           setIsIdle(true);
         } else {

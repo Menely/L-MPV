@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useLiquidGlass } from "../../features/liquidGlass/useLiquidGlass";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
 import { AnimatePresence } from "motion/react";
 import { useControlPopover } from "./controls/useControlPopover";
@@ -216,6 +217,8 @@ export function PlayerControls({
   }, []);
 
   const controlsPillRef = useRef<HTMLDivElement | null>(null);
+  const controlsWrapperRef = useRef<HTMLDivElement | null>(null);
+  useLiquidGlass(controlsWrapperRef);
 
   // Адаптивная синхронизация высоты панели управления с нижними всплывающими окнами (плейлист, главы, инфо о медиа)
   useEffect(() => {
@@ -1122,6 +1125,7 @@ export function PlayerControls({
 
   return (
     <div
+      ref={controlsWrapperRef}
       className={`player-controls-wrapper ${
         isFullscreen ? "player-controls-wrapper--fullscreen" : ""
       } ${

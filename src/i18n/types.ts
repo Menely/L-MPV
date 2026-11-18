@@ -434,6 +434,8 @@ export interface TranslationDict {
       openFontsFolderTooltip: string;
       customFontsDivider: string;
       interfaceTheme: string;
+      glassBlur: string;
+      resetGlassBlur: string;
       classicStyleDesc: string;
       panelPlacement: string;
       panelFloating: string;

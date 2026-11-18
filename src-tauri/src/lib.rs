@@ -9,10 +9,12 @@ mod audio_capture;
 pub mod audio_filter;
 pub mod commands;
 mod fonts_bundle;
+mod liquid_glass;
 pub mod logging;
 mod media_report_cache;
 mod mediainfo;
 mod mpv_manager;
+mod native_classic;
 #[cfg(windows)]
 mod process_job;
 mod startup_runtime;
@@ -155,7 +157,13 @@ pub fn run() {
         .manage(commands::HeatmapTaskManager::new())
         .manage(commands::LiveVideoBitrateService::default())
         .manage(commands::ThumbnailService::default())
+        .manage(liquid_glass::LiquidGlass::default())
+        .manage(native_classic::NativeClassic::default())
         .invoke_handler(tauri::generate_handler![
+            liquid_glass::update_liquid_glass,
+            native_classic::configure_native_classic,
+            native_classic::native_classic_snapshot,
+            native_classic::native_classic_pointer,
             // Управление воспроизведением
             commands::get_timeline_thumbnail,
             commands::cancel_timeline_thumbnail,

@@ -50,6 +50,7 @@ import {
   saveControlBarStyle,
   ControlBarStyle,
 } from "./controlBarStyleUtils";
+import { getGlassBlur, getPlayerTheme, saveGlassBlur, setPlayerTheme } from "../features/liquidGlass/preferences";
 import {
   getSavedTimePosition,
   saveTimePosition,
@@ -98,6 +99,9 @@ export interface UiSettings {
   ui_scale_mode?: string;
   ui_scale_value?: number;
   control_bar_style?: string;
+  player_interface_theme?: string;
+  liquid_glass_control_bar_style?: string;
+  liquid_glass_blur?: number;
   time_position?: string;
   time_format?: string;
   animations_enabled?: boolean;
@@ -258,7 +262,10 @@ export function collectCurrentUiSettings(): UiSettings {
     ui_radius_value: uiRadius.value,
     ui_scale_mode: uiScale.mode,
     ui_scale_value: uiScale.value,
-    control_bar_style: getSavedControlBarStyle(),
+    control_bar_style: getSavedControlBarStyle("lmpv"),
+    player_interface_theme: getPlayerTheme(),
+    liquid_glass_control_bar_style: getSavedControlBarStyle("glass"),
+    liquid_glass_blur: getGlassBlur(),
     time_position: getSavedTimePosition(),
     time_format: getSavedTimeFormat(),
     animations_enabled: localStorage.getItem("l-mpv-animations-enabled") !== "false",
@@ -381,7 +388,19 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
     restored = true;
   }
   if (ui.control_bar_style) {
-    saveControlBarStyle(ui.control_bar_style as ControlBarStyle);
+    saveControlBarStyle(ui.control_bar_style as ControlBarStyle, "lmpv");
+    restored = true;
+  }
+  if (ui.liquid_glass_control_bar_style) {
+    saveControlBarStyle(ui.liquid_glass_control_bar_style as ControlBarStyle, "glass");
+    restored = true;
+  }
+  if (typeof ui.liquid_glass_blur === "number" && Number.isFinite(ui.liquid_glass_blur)) {
+    saveGlassBlur(ui.liquid_glass_blur);
+    restored = true;
+  }
+  if (ui.player_interface_theme === "lmpv" || ui.player_interface_theme === "glass") {
+    setPlayerTheme(ui.player_interface_theme);
     restored = true;
   }
   if (ui.time_position) {

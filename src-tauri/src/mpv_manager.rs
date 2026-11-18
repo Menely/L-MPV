@@ -15,6 +15,7 @@ use crate::audio_filter::{AudioFilterChainBuilder, AudioNormalizeMode};
 
 pub(crate) mod preview;
 mod preview_image;
+mod frame_capture;
 
 // ─── Определения FFI для libmpv C API ───────────────────
 
@@ -1025,7 +1026,7 @@ impl MpvManager {
     where
         F: FnOnce(&[u8], usize, usize, isize) -> Result<R, String>,
     {
-        self.with_handle(|handle| {
+        self.with_clean_frame(|handle| {
             let command = CString::new("screenshot-raw")
                 .map_err(|error| format!("Ошибка CString: {}", error))?;
             let flags =
