@@ -160,6 +160,8 @@ pub fn run() {
             commands::get_timeline_thumbnail,
             commands::cancel_timeline_thumbnail,
             commands::prewarm_timeline_thumbnail,
+            commands::get_chapter_thumbnail,
+            commands::cancel_chapter_thumbnails,
             commands::start_timeline_storyboard,
             commands::stop_timeline_storyboard,
             commands::get_timeline_storyboard,
