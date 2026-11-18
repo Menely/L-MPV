@@ -52,13 +52,13 @@ colors.savePlayerTheme(second);
 assert.notEqual(properties.get("--bg-pill"), initialFill);
 assert.equal(preferences.getPlayerTheme(), "glass");
 
-layout.saveControlBarStyle("capsule");
+layout.saveControlBarStyle("capsule", "glass");
 colors.applyAccentColor("#f04050");
 assert.equal(properties.get("--accent"), "#f04050");
 preferences.setPlayerTheme("lmpv");
 assert.equal(colors.getSavedPlayerTheme(), second);
 preferences.setPlayerTheme("glass");
-assert.equal(layout.getSavedControlBarStyle(), "capsule");
+assert.equal(layout.getSavedControlBarStyle("glass"), "capsule");
 assert.equal(colors.getSavedPlayerTheme(), second);
 assert.equal(preferences.getGlassBlur(), 30);
 preferences.saveGlassBlur(0);

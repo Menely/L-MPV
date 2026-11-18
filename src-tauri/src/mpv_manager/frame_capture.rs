@@ -12,8 +12,6 @@ impl MpvManager {
             let active = unsafe {
                 Self::get_string_raw(&self.api, handle, c"user-data/lmpv-liquid-glass")
                     == "\"active\""
-                    || Self::get_string_raw(&self.api, handle, c"user-data/lmpv-classic-material")
-                        == "true"
             };
             if !active {
                 return capture(handle);

@@ -126,6 +126,14 @@
 }
 
 .player-appearance__style[aria-pressed="true"]:hover { background: var(--surface-accent-hover); }
+.player-appearance__style[data-glass-classic-preview] {
+  background: var(--surface-accent-subtle);
+  border-color: transparent;
+  cursor: default;
+}
+.player-appearance__style[data-glass-classic-preview] .visual-bar-preview__progress {
+  background: #fff;
+}
 .player-appearance__style .visual-bar-preview {
   width: 100%;
   min-width: 0;

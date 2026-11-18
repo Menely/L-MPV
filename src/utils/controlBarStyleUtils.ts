@@ -5,7 +5,7 @@
  * - "docked": Классический стиль во всю ширину окна внизу без зазоров.
  */
 
-import { getPlayerTheme, readGlassLayout, writeGlassLayout, type PlayerTheme } from "../features/liquidGlass/preferences";
+import { readGlassLayout, writeGlassLayout, type PlayerTheme } from "../features/liquidGlass/preferences";
 
 export type ControlBarStyle = "capsule" | "modern" | "docked";
 
@@ -44,7 +44,7 @@ export const CONTROL_BAR_STYLE_OPTIONS: ControlBarStyleOption[] = [
  * Чтение сохранённого стиля панели управления из localStorage с валидацией
  * и автоматической миграцией устаревшего значения "floating" -> "modern".
  */
-export function getSavedControlBarStyle(theme: PlayerTheme = getPlayerTheme()): ControlBarStyle {
+export function getSavedControlBarStyle(theme: PlayerTheme = "lmpv"): ControlBarStyle {
   try {
     const saved = theme === "glass" ? readGlassLayout() : localStorage.getItem(CONTROL_BAR_STYLE_STORAGE_KEY);
     if (saved === "floating" || saved === "modern") {
@@ -62,7 +62,7 @@ export function getSavedControlBarStyle(theme: PlayerTheme = getPlayerTheme()): 
 /**
  * Сохранение стиля панели управления в localStorage и отправка глобального события.
  */
-export function saveControlBarStyle(style: ControlBarStyle | "floating", theme: PlayerTheme = getPlayerTheme()): void {
+export function saveControlBarStyle(style: ControlBarStyle | "floating", theme: PlayerTheme = "lmpv"): void {
   try {
     const normalizedStyle: ControlBarStyle = style === "floating" ? "modern" : style;
     if (theme === "glass") {

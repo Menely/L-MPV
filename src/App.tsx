@@ -7,6 +7,7 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
+  useSyncExternalStore,
   lazy,
   Suspense,
 } from "react";
@@ -22,7 +23,8 @@ import "./index.css";
 import { Titlebar } from "./components/player/Titlebar";
 import { FileDragPreview } from "./components/player/FileDragPreview";
 import { PlayerControls } from "./components/player/PlayerControls";
-import { NativeClassicHost, useNativeClassic } from "./features/liquidGlass/NativeClassicHost";
+import { ClassicHost } from "./features/liquidGlass/ClassicHost";
+import { getPlayerTheme, subscribePlayerTheme } from "./features/liquidGlass/preferences";
 import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
 import { SeekIndicator } from "./components/player/SeekIndicator";
@@ -317,8 +319,9 @@ function App() {
 
   const shouldHideControlsInUpperHalf = hasMedia && hideControlsInUpperHalf && isCursorInUpperHalf;
   const isControlsVisible = hasMedia && !isIdle && !shouldHideControlsInUpperHalf;
-  const nativeClassic = useNativeClassic(mediaInfo);
-  const [nativePanelTop, setNativePanelTop] = useState<number | null>(null);
+  const playerTheme = useSyncExternalStore(subscribePlayerTheme, getPlayerTheme);
+  const useGlassClassic = playerTheme === "glass" && mediaInfo?.video_track !== false;
+  const [glassPanelTop, setGlassPanelTop] = useState<number | null>(null);
   const subtitleUpdateQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   // Measure the rendered panel: capsule, modern, docked and CSS zoom have
   // different heights. Layout changes must update subtitles without mouse input.
@@ -329,7 +332,7 @@ function App() {
       ).catch(console.error);
       return;
     }
-    const wrapper = nativeClassic ? null : document.querySelector<HTMLElement>(".player-controls-wrapper");
+    const wrapper = document.querySelector<HTMLElement>(".player-controls-wrapper");
     let cancelled = false;
     let pending = false;
     let running = false;
@@ -342,7 +345,9 @@ function App() {
         pending = false;
         const controls = wrapper?.querySelector<HTMLElement>(".player-controls");
         const bottom = wrapper ? parseFloat(getComputedStyle(wrapper).bottom) || 0 : 0;
-        const offset = nativeClassic ? (nativePanelTop === null ? 0 : (1 - nativePanelTop) * window.innerHeight) : controls ? subtitleControlsOffset(
+        const offset = useGlassClassic ? (
+          glassPanelTop === null ? 0 : (1 - glassPanelTop) * window.innerHeight
+        ) : controls ? subtitleControlsOffset(
           controls.getBoundingClientRect().height, controls.offsetHeight, bottom,
         ) : 0;
         const controlsVisible = subtitlesAvoidUi && isControlsVisible && offset > 0;
@@ -375,7 +380,7 @@ function App() {
       window.removeEventListener("resize", update);
       window.removeEventListener("l-mpv-settings-changed", update);
     };
-  }, [hasMedia, mediaInfo?.path, subtitlesAvoidUi, isControlsVisible, isFullscreen, nativeClassic, nativePanelTop]);
+  }, [hasMedia, mediaInfo?.path, subtitlesAvoidUi, isControlsVisible, isFullscreen, useGlassClassic, glassPanelTop]);
 
   const isStandaloneModeRef = useRef(false);
 
@@ -1442,11 +1447,11 @@ function App() {
         )}
       </div>
 
-      {hasMedia && nativeClassic && (
-        <NativeClassicHost visible={isControlsVisible} fullscreen={isFullscreen} onAction={executeAction}
-          onPanelTop={setNativePanelTop} />
+      {hasMedia && useGlassClassic && (
+        <ClassicHost visible={isControlsVisible} fullscreen={isFullscreen}
+          togglePause={togglePause} toggleFullscreen={toggleFullscreen} onPanelTop={setGlassPanelTop} />
       )}
-      {hasMedia && !nativeClassic && (
+      {hasMedia && !useGlassClassic && (
         <PlayerControls
           controlsVisible={isControlsVisible}
           onOpenSettings={openSettings}

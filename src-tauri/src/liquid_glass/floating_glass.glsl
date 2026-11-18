@@ -274,28 +274,25 @@ vec4 hook() {
     }
 
     // L-MPV: the blur slider blends the refracted image with the frosted pass.
-    g = mix(HOOKED_tex(q).rgb, g, smoothstep(0.0, 0.55, lg_blur));
+    float clear = 1.0 - clamp(lg_blur, 0.0, 1.0);
+    g = mix(HOOKED_tex(q).rgb, g, 1.0 - clear * clear);
 
     // vibrancy
     float l = dot(g, luma);
     g = clamp(mix(vec3(l), g, 1.35), 0.0, 1.0);
 
-    // legibility: the brighter the picture around it, the deeper the glass (measured over an
-    // area, so a bright spot stays brighter than what is around it); dark ones a faint lift
+    // Darken bright areas for legibility while preserving the video's hue.
     vec2 o = 10.0 * MZG_C_pt;
     float under = dot(MZG_C_tex(q).rgb + MZG_C_tex(q + vec2(o.x, 0.0)).rgb + MZG_C_tex(q - vec2(o.x, 0.0)).rgb
                       + MZG_C_tex(q + vec2(0.0, o.y)).rgb + MZG_C_tex(q - vec2(0.0, o.y)).rgb, luma) / 5.0;
-    g = g * (1.0 - mzg_tone * 0.52 * smoothstep(0.30, 1.0, under)) + mzg_tone * 0.035 * (1.0 - under);
-
-    // the rounded edge darkens toward the rim, so the shape holds over bright pictures
-    g *= 1.0 - alpha * mzg_lens * 0.20 * e * e;
+    g *= 1.0 - mzg_tone * 0.52 * smoothstep(0.30, 1.0, under);
 
     // light: a hairline along the rim, brightest where it faces the light (upper left) and
-    // where the light leaves again (lower right), and a soft glow across the rounded edge
+    // where the light leaves again (lower right).
     float f = dot(n, vec2(-0.6, -0.8));
     float lit = 0.25 + 0.75 * max(f, 0.0) * max(f, 0.0) + 0.45 * max(-f, 0.0) * max(-f, 0.0);
-    float line = exp(-2.0 * (d + 0.8) * (d + 0.8));
-    g += alpha * mzg_lens * lit * (0.32 * line);
+    float line = exp(-3.5 * (d + 0.65) * (d + 0.65));
+    g += alpha * mzg_lens * lit * (0.17 * line);
 
     float m = clamp(0.5 - d, 0.0, 1.0) * mzg_strength * alpha;
     return vec4(mix(c.rgb, g, m), c.a);

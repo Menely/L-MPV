@@ -1,114 +1,161 @@
 use crate::commands::{types::escape_mpv_path, PlayerState};
-use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, sync::Mutex};
+use serde_json::{json, Value};
+use std::{
+    path::{Path, PathBuf},
+    sync::Mutex,
+    time::{SystemTime, UNIX_EPOCH},
+};
 use tauri::State;
 
-const SCRIPT_NAME: &str = "lmpv_liquid_glass";
-const STATUS: &str = "user-data/lmpv-liquid-glass";
+const SCRIPT: &str = "lmpv_liquid_glass";
+const BOUNDS: &str = "user-data/lmpv-liquid-glass-bounds";
+const ACTIONS: &str = "user-data/lmpv-liquid-glass-actions";
+const ASSETS: &[(&str, &str)] = &[
+    (
+        "lmpv_liquid_glass.lua",
+        include_str!("liquid_glass/lmpv_liquid_glass.lua"),
+    ),
+    ("glass.lua", include_str!("liquid_glass/glass.lua")),
+    (
+        "floating_glass.glsl",
+        include_str!("liquid_glass/floating_glass.glsl"),
+    ),
+    (
+        "classic/layout.lua",
+        include_str!("liquid_glass/classic/layout.lua"),
+    ),
+    (
+        "classic/draw.lua",
+        include_str!("liquid_glass/classic/draw.lua"),
+    ),
+    (
+        "classic/icons.lua",
+        include_str!("liquid_glass/classic/icons.lua"),
+    ),
+    (
+        "classic/input.lua",
+        include_str!("liquid_glass/classic/input.lua"),
+    ),
+];
 
 #[derive(Default)]
 pub struct LiquidGlass(Mutex<Option<PathBuf>>);
 
-#[derive(Deserialize, Serialize)]
-pub struct Surface {
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
-    top_radius: f64,
-    bottom_radius: f64,
-    opacity: f64,
+fn clean(directory: &Path) {
+    for (name, _) in ASSETS {
+        let _ = std::fs::remove_file(directory.join(name));
+    }
+    let _ = std::fs::remove_dir(directory.join("classic"));
+    let _ = std::fs::remove_dir(directory);
 }
 
 impl Drop for LiquidGlass {
     fn drop(&mut self) {
-        if let Ok(Some(path)) = self.0.get_mut() {
-            let _ = std::fs::remove_file(path.join(format!("{SCRIPT_NAME}.lua")));
-            let _ = std::fs::remove_file(path.join("glass.glsl"));
-            let _ = std::fs::remove_file(path.join("glass_ui.lua"));
-            let _ = std::fs::remove_file(path.join("glass-output.glsl"));
-            let _ = std::fs::remove_dir(path);
+        if let Ok(Some(directory)) = self.0.get_mut() {
+            clean(directory);
         }
     }
 }
 
+fn install(player: &PlayerState) -> Result<PathBuf, String> {
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_nanos();
+    let directory = std::env::temp_dir().join(format!("lmpv-glass-{}-{stamp}", std::process::id()));
+    std::fs::create_dir(&directory).map_err(|error| error.to_string())?;
+    let result = (|| {
+        std::fs::create_dir(directory.join("classic")).map_err(|error| error.to_string())?;
+        for (name, contents) in ASSETS {
+            std::fs::write(directory.join(name), contents).map_err(|error| error.to_string())?;
+        }
+        let path = directory.join(format!("{SCRIPT}.lua"));
+        player.mpv.command(&format!(
+            "load-script \"{}\"",
+            escape_mpv_path(&path.to_string_lossy())
+        ))
+    })();
+    if let Err(error) = result {
+        clean(&directory);
+        return Err(error);
+    }
+    Ok(directory)
+}
+
 #[tauri::command]
-pub async fn update_liquid_glass(
+pub async fn configure_liquid_glass(
     player: State<'_, PlayerState>,
     glass: State<'_, LiquidGlass>,
-    surfaces: Vec<Surface>,
-    blur: u8,
-    controls: Option<serde_json::Value>,
+    options: Option<Value>,
 ) -> Result<bool, String> {
-    if surfaces.len() > 10
-        || surfaces.iter().any(|r| {
-            ![r.x, r.y, r.w, r.h, r.top_radius, r.bottom_radius, r.opacity]
-                .iter()
-                .all(|v| v.is_finite() && v.abs() <= 2.0)
-                || r.w <= 0.0
-                || r.h <= 0.0
-        })
-    {
-        return Err("Invalid Liquid Glass geometry".into());
-    }
-
-    let mut directory = glass.0.lock().map_err(|e| e.to_string())?;
+    let mut directory = glass.0.lock().map_err(|error| error.to_string())?;
     if directory.is_none() {
-        if surfaces.is_empty() {
+        if options.is_none() {
             return Ok(false);
         }
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|e| e.to_string())?
-            .as_nanos();
-        let dir = std::env::temp_dir().join(format!("lmpv-glass-{}-{stamp}", std::process::id()));
-        std::fs::create_dir(&dir).map_err(|e| e.to_string())?;
-        let script = dir.join(format!("{SCRIPT_NAME}.lua"));
-        let shader = dir.join("glass.glsl");
-        let ui = dir.join("glass_ui.lua");
-        let install = (|| {
-            std::fs::write(&script, include_str!("liquid_glass/lmpv_liquid_glass.lua"))
-                .map_err(|e| e.to_string())?;
-            std::fs::write(&shader, include_str!("liquid_glass/glass.glsl"))
-                .map_err(|e| e.to_string())?;
-            std::fs::write(&ui, include_str!("liquid_glass/glass_ui.lua"))
-                .map_err(|e| e.to_string())?;
-            player.mpv.command(&format!(
-                "load-script \"{}\"",
-                escape_mpv_path(&script.to_string_lossy())
-            ))
-        })();
-        if let Err(error) = install {
-            let _ = std::fs::remove_file(script);
-            let _ = std::fs::remove_file(shader);
-            let _ = std::fs::remove_file(ui);
-            let _ = std::fs::remove_dir(dir);
-            return Err(error);
-        }
-        *directory = Some(dir);
+        *directory = Some(install(&player)?);
     }
-
-    // The Lua client starts asynchronously. It advertises readiness after registering the handler.
-    let status = player.mpv.get_property_string(STATUS).unwrap_or_default();
-    if status.is_empty() || status == "\"failed\"" {
+    // load-script returns before Lua registers its message handlers.
+    if player.mpv.get_property_string(BOUNDS).is_err() {
         return Ok(false);
     }
-    let json = serde_json::to_string(&surfaces).map_err(|e| e.to_string())?;
-    let controls = controls
-        .map(|value| value.to_string())
-        .unwrap_or_else(|| "null".into());
-    if controls.len() > 256 * 1024 {
-        return Err("Liquid Glass controls exceed the frame size limit".into());
+    let json = options.unwrap_or(Value::Null).to_string();
+    if json.len() > 4096 {
+        return Err("Invalid Liquid Glass preferences".into());
     }
-    let native_ready = player
+    let argument = serde_json::to_string(&json).map_err(|error| error.to_string())?;
+    player
         .mpv
-        .get_property_string("user-data/lmpv-liquid-glass-ui")
-        .is_ok_and(|value| value == "true");
-    let controls = serde_json::to_string(&controls).map_err(|e| e.to_string())?;
+        .command(&format!("script-message-to {SCRIPT} config {argument}"))?;
+    Ok(true)
+}
+
+#[tauri::command]
+pub async fn liquid_glass_snapshot(
+    player: State<'_, PlayerState>,
+    acknowledged: u64,
+) -> Result<Value, String> {
+    if acknowledged > 0 {
+        player
+            .mpv
+            .command(&format!("script-message-to {SCRIPT} ack {acknowledged}"))?;
+    }
+    let read = |property| {
+        player
+            .mpv
+            .get_property_string(property)
+            .ok()
+            .and_then(|value| serde_json::from_str::<Value>(&value).ok())
+    };
+    Ok(json!({ "bounds": read(BOUNDS), "actions": read(ACTIONS) }))
+}
+
+#[tauri::command]
+pub async fn liquid_glass_pointer(
+    player: State<'_, PlayerState>,
+    kind: &str,
+    x: f64,
+    y: f64,
+) -> Result<(), String> {
+    if !matches!(
+        kind,
+        "down"
+            | "move"
+            | "up"
+            | "cancel"
+            | "leave"
+            | "dismiss"
+            | "wheel-up"
+            | "wheel-down"
+            | "audio"
+            | "subtitles"
+    ) || ![x, y]
+        .iter()
+        .all(|value| value.is_finite() && value.abs() <= 2.0)
+    {
+        return Err("Invalid Liquid Glass input".into());
+    }
     player.mpv.command(&format!(
-        "script-message-to {SCRIPT_NAME} surfaces \"{}\" {} {controls}",
-        json.replace('"', "\\\""),
-        blur.min(100)
-    ))?;
-    Ok(!surfaces.is_empty() && native_ready)
+        "script-message-to {SCRIPT} pointer {kind} {x:.6} {y:.6}"
+    ))
 }

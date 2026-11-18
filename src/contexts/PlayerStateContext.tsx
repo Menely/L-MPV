@@ -5,7 +5,6 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
 import { getDict, getEffectiveLocale } from "../i18n";
 import { playbackPollDelay } from "../utils/playbackPolling";
-import { isNativeControlsInteracting } from "../utils/nativeControlsActivity";
 
 export interface PlaylistItem {
   index: number;
@@ -383,10 +382,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
     idleTimer.current = window.setTimeout(() => {
       const currentUIOpen = !!document.querySelector(
-        ".track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+        "[data-liquid-glass-menu], .track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
-      const isDragging = !!document.querySelector(".timeline--dragging");
-      if (!currentUIOpen && !isDragging && !isNativeControlsInteracting()) {
+      const isDragging = !!document.querySelector("[data-liquid-glass-drag], .timeline--dragging");
+      if (!currentUIOpen && !isDragging) {
         isIdleRef.current = true;
         setIsIdle(true);
       } else {
@@ -402,10 +401,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
       idleTimer.current = window.setTimeout(() => {
         const currentUIOpen = !!document.querySelector(
-          ".track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+          "[data-liquid-glass-menu], .track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
         );
-        const isDragging = !!document.querySelector(".timeline--dragging");
-        if (!currentUIOpen && !isDragging && !isNativeControlsInteracting()) {
+        const isDragging = !!document.querySelector("[data-liquid-glass-drag], .timeline--dragging");
+        if (!currentUIOpen && !isDragging) {
           isIdleRef.current = true;
           setIsIdle(true);
         } else {
@@ -426,7 +425,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
       // Проверяем, открыты ли какие-либо модальные окна или всплывающие меню
       const isAnyUIOpen = !!document.querySelector(
-        ".track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+        "[data-liquid-glass-menu], .track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
 
       // Продолжаем проверять после закрытия оверлея, даже без движения мыши.
