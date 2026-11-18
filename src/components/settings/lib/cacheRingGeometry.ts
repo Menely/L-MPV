@@ -11,7 +11,7 @@ export function cacheRingSegments(weights: readonly number[]): RingSegment[] {
   const visible = positive.filter(item => item.weight / total >= .003);
   if (!visible.length) visible.push(positive.reduce((a, b) => a.weight > b.weight ? a : b));
   const visibleTotal = visible.reduce((sum, item) => sum + item.weight, 0);
-  const gap = visible.length > 1 ? Math.min(8, 180 / visible.length) : 0;
+  const gap = visible.length > 1 ? Math.min(5, 180 / visible.length) : 0;
   const available = 360 - gap * visible.length;
   let start = gap / 2;
   return visible.map(item => {
