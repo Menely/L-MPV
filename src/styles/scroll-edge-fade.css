@@ -1,0 +1,25 @@
+/* Capsule surfaces hold the card material outside the masked scrollport. */
+.scroll-surface { display: contents; }
+
+/* Alpha fades work with both solid and translucent player surfaces. */
+[data-scroll-fade] {
+  --scroll-fade-top: 0px;
+  --scroll-fade-bottom: 0px;
+  --scroll-fade-left: 0px;
+  --scroll-fade-right: 0px;
+  --scroll-fade-depth: var(--space-6, 12px);
+  mask-image:
+    linear-gradient(to bottom, transparent, #000 var(--scroll-fade-top),
+      #000 calc(100% - var(--scroll-fade-bottom)), transparent),
+    linear-gradient(to right, transparent, #000 var(--scroll-fade-left),
+      #000 calc(100% - var(--scroll-fade-right)), transparent);
+  mask-composite: intersect;
+}
+[data-scroll-fade~="top"] { --scroll-fade-top: var(--scroll-fade-depth); }
+[data-scroll-fade~="bottom"] { --scroll-fade-bottom: var(--scroll-fade-depth); }
+[data-scroll-fade~="left"] { --scroll-fade-left: var(--scroll-fade-depth); }
+[data-scroll-fade~="right"] { --scroll-fade-right: var(--scroll-fade-depth); }
+
+@media (forced-colors: active) {
+  [data-scroll-fade] { mask-image: none; }
+}

@@ -162,7 +162,15 @@
 /* ─── Скролл-контейнер списка файлов ───────────────────────────
    Единый монолитный островок (как в окне поиска субтитров).
    Устраняет рябь и визуальный шум от сотен повторяющихся рамок и теней */
-.playlist-drawer--capsule .playlist-drawer__content {
+.playlist-drawer--capsule .playlist-drawer__list-surface {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+}
+
+.playlist-drawer--capsule .playlist-drawer__list-surface:has(> .playlist-drawer__content) {
   position: relative;
   z-index: 1;
   background: var(--bg-glass) !important;
@@ -171,6 +179,10 @@
   box-shadow: var(--shadow-elevated) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+.playlist-drawer--capsule .playlist-drawer__content {
+  position: relative;
   padding: 8px !important;
   margin: 0 !important;
   display: flex;
@@ -179,6 +191,7 @@
   overflow-y: auto !important;
   overflow-x: hidden !important;
   scrollbar-gutter: auto !important;
+  border-radius: inherit;
 }
 
 /* Деликатный парящий скроллбар: отступы трека сверху и снизу исключают вылезание за скругления */

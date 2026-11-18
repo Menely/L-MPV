@@ -575,43 +575,22 @@ export function PlaylistDrawer() {
           </div>
 
           {isPlaylistOpen && <PlaylistProgressObserver onChange={setLiveProgress} />}
-          <div ref={contentContainerRef} className="playlist-drawer__content" onScroll={handleListScroll}>
-            {filteredPlaylist.length === 0 ? (
-              <EmptyState
-                icon={<Clapperboard size={24} />}
-                title={searchQuery ? dict.playlist.nothingFound : dict.playlist.empty}
-                desc={
-                  searchQuery
-                    ? dict.playlist.nothingFoundDesc
-                    : dict.playlist.emptyDesc
-                }
-              />
-            ) : (() => {
-              // Маленькие списки рендерим целиком без оверхеда
-              if (filteredPlaylist.length <= 80) {
-                return filteredPlaylist.map((item) => {
-                  const itemProgress = item.current && liveProgress.duration > 0
-                    ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
-                  return (
-                    <PlaylistItemRow
-                      key={item.index}
-                      item={item}
-                      isCurrent={item.current}
-                      onPlay={handlePlayItem}
-                      itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
-                      watchProgress={itemProgress}
-                    />
-                  );
-                });
-              }
-              const total = filteredPlaylist.length;
-              const start = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
-              const end = Math.min(total, Math.ceil((scrollTop + viewHeight) / ROW_H) + OVERSCAN);
-              const slice = filteredPlaylist.slice(start, end);
-              return (
-                <>
-                  {start > 0 && <div style={{ height: start * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
-                  {slice.map((item) => {
+          <div className="scroll-surface playlist-drawer__list-surface">
+            <div ref={contentContainerRef} className="playlist-drawer__content" onScroll={handleListScroll}>
+              {filteredPlaylist.length === 0 ? (
+                <EmptyState
+                  icon={<Clapperboard size={24} />}
+                  title={searchQuery ? dict.playlist.nothingFound : dict.playlist.empty}
+                  desc={
+                    searchQuery
+                      ? dict.playlist.nothingFoundDesc
+                      : dict.playlist.emptyDesc
+                  }
+                />
+              ) : (() => {
+                // Маленькие списки рендерим целиком без оверхеда
+                if (filteredPlaylist.length <= 80) {
+                  return filteredPlaylist.map((item) => {
                     const itemProgress = item.current && liveProgress.duration > 0
                       ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
                     return (
@@ -624,11 +603,34 @@ export function PlaylistDrawer() {
                         watchProgress={itemProgress}
                       />
                     );
-                  })}
-                  {end < total && <div style={{ height: (total - end) * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
-                </>
-              );
-            })()}
+                  });
+                }
+                const total = filteredPlaylist.length;
+                const start = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
+                const end = Math.min(total, Math.ceil((scrollTop + viewHeight) / ROW_H) + OVERSCAN);
+                const slice = filteredPlaylist.slice(start, end);
+                return (
+                  <>
+                    {start > 0 && <div style={{ height: start * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
+                    {slice.map((item) => {
+                      const itemProgress = item.current && liveProgress.duration > 0
+                        ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
+                      return (
+                        <PlaylistItemRow
+                          key={item.index}
+                          item={item}
+                          isCurrent={item.current}
+                          onPlay={handlePlayItem}
+                          itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
+                          watchProgress={itemProgress}
+                        />
+                      );
+                    })}
+                    {end < total && <div style={{ height: (total - end) * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
+                  </>
+                );
+              })()}
+            </div>
           </div>
           </SavedPlaylistPanel>}
         </MotionSurface>

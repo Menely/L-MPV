@@ -532,13 +532,18 @@ export const en: TranslationDict = {
       fontSystemLabel: 'System',
       openFontsFolderTooltip: 'Open fonts folder (fonts/)',
       customFontsDivider: 'Custom',
+      interfaceTheme: "Interface theme",
+      classicStyleDesc: "Unified panels with floating or docked controls",
+      panelPlacement: "Panel appearance",
+      panelFloating: "Floating",
+      panelDocked: "Docked",
       controlBarStyleTitle: 'Player Style',
       timePositionTitle: 'Time Position',
       timeFormatTitle: 'Time Format',
       timeFormatEndsAt: (time: string) => `Ends at ${time}`,
       reset100Percent: 'Reset to 100%',
       resetFloating: "Reset to Modern",
-      resetModern: "Reset to Modern",
+      resetModern: "Reset to Classic with floating controls",
       styleCapsule: "Capsule",
       styleCapsuleDesc: "Floating dock with grouped controls and a separate timeline",
       styleModern: "Modern",
@@ -725,7 +730,7 @@ export const en: TranslationDict = {
       builtinPresets: {
         builtin_classic: {
           name: "Classic L-MPV",
-          description: "Dark graphite, sky-blue accents, and a unified Modern toolbar",
+          description: "Dark graphite, sky-blue accents, and a floating Classic toolbar",
         },
         builtin_cyberpunk: {
           name: "Twilight Iris",

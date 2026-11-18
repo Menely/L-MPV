@@ -378,13 +378,24 @@
    По строгому требованию: список субтитров оформлен ЕДИНЫМ монолитным
    островком, а НЕ отдельными карточками для каждого субтитра. Внутри
    строки субтитров идут аккуратными элементами списка с hover-подсветкой. */
-.subtitles-search-card--capsule .subtitles-search-card__list {
+.subtitles-search-card--capsule .subtitles-search-card__list-surface {
   position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
   z-index: 1;
   background: var(--bg-glass) !important;
   border: 1px solid var(--border-pill) !important;
   border-radius: var(--radius-controls, 16px) !important;
   box-shadow: var(--shadow-elevated) !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__list {
+  position: relative;
   padding: 8px !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
@@ -392,9 +403,7 @@
   flex: 1 1 0% !important;
   min-height: 0 !important;
   box-sizing: border-box !important;
-  transition: background var(--t-fast) var(--ease-smooth),
-              border-color var(--t-fast) var(--ease-smooth),
-              box-shadow var(--t-fast) var(--ease-smooth) !important;
+  border-radius: inherit;
 }
 
 /* Деликатный парящий скроллбар: отступы трека сверху и снизу исключают вылезание за скругления */
@@ -452,7 +461,7 @@
 .subtitles-search-card--capsule.subtitles-search-card--opaque .subtitles-card--follow-btn,
 .subtitles-search-card--capsule.subtitles-search-card--opaque .subtitles-search-card__no-tracks,
 .subtitles-search-card--capsule.subtitles-search-card--opaque .subtitles-search-card__bar,
-.subtitles-search-card--capsule.subtitles-search-card--opaque .subtitles-search-card__list {
+.subtitles-search-card--capsule.subtitles-search-card--opaque .subtitles-search-card__list-surface {
   background: var(--surface-tone-1, var(--bg-surface, #0b0f15)) !important;
   border-color: var(--border-pill) !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8) !important;

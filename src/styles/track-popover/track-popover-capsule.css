@@ -104,8 +104,12 @@
 
 /* Скролл-контейнер списка дорожек:
    Единый монолитный островок с мягким фоном и тонким скроллбаром */
-.track-popover--capsule .track-popover__list {
+.track-popover--capsule .track-popover__list-surface {
   position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
   z-index: 1;
   background: var(--bg-glass) !important;
   border: 1px solid var(--border-pill) !important;
@@ -113,6 +117,10 @@
   box-shadow: var(--shadow-elevated) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+.track-popover--capsule .track-popover__list {
+  position: relative;
   padding: 6px 6px !important;
   margin: 0 !important;
   gap: 2px !important;
@@ -121,6 +129,7 @@
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
   scrollbar-gutter: auto !important;
+  border-radius: inherit;
 }
 
 .track-popover--capsule .track-popover__list::-webkit-scrollbar {

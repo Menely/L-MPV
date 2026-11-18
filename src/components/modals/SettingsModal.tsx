@@ -121,6 +121,9 @@ interface SettingsModalProps {
 export { AccordionSection } from "../settings/components/AccordionSection";
 export type { AccordionSectionProps } from "../settings/components/AccordionSection";
 
+// Both appearances share the same viewport budget, including UI zoom.
+const SETTINGS_MODAL_MAX_HEIGHT = "min(80vh, calc(100dvh / var(--ui-scale, 1) - 24px))";
+
 const SETTINGS_TABS = [
   "general",
   "appearance",
@@ -877,7 +880,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           style={{
             width: 720,
             maxWidth: "min(95vw, calc(100vw / var(--ui-scale, 1) - 24px))",
-            maxHeight: "min(75vh, calc(100dvh / var(--ui-scale, 1) - 24px))",
+            maxHeight: SETTINGS_MODAL_MAX_HEIGHT,
             display: "flex",
             flexDirection: "column",
           }}
@@ -957,7 +960,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           style={{
             width: 720,
             maxWidth: "min(95vw, calc(100vw / var(--ui-scale, 1) - 24px))",
-            maxHeight: "min(80vh, calc(100dvh / var(--ui-scale, 1) - 24px))",
+            maxHeight: SETTINGS_MODAL_MAX_HEIGHT,
             display: "flex",
             flexDirection: "column",
           }}

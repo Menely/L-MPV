@@ -535,13 +535,18 @@ export const ru: TranslationDict = {
       fontSystemLabel: 'Системный',
       openFontsFolderTooltip: 'Открыть папку со шрифтами (fonts/)',
       customFontsDivider: 'Пользовательские',
+      interfaceTheme: "Тема интерфейса",
+      classicStyleDesc: "Единые панели с плавающим или прикреплённым управлением",
+      panelPlacement: "Вид панели",
+      panelFloating: "Плавающая",
+      panelDocked: "Прикреплённая",
       controlBarStyleTitle: 'Стиль плеера',
       timePositionTitle: 'Позиция времени',
       timeFormatTitle: 'Формат времени',
       timeFormatEndsAt: (time: string) => `Конец в ${time}`,
       reset100Percent: 'Сбросить на 100%',
       resetFloating: "Сбросить на Модерн",
-      resetModern: "Сбросить на Модерн",
+      resetModern: "Сбросить на Classic с плавающей панелью",
       styleCapsule: "Капсула",
       styleCapsuleDesc: "Парящая панель с группами кнопок и отдельным таймлайном",
       styleModern: "Модерн",
@@ -729,7 +734,7 @@ export const ru: TranslationDict = {
       builtinPresets: {
         builtin_classic: {
           name: "Классический L-MPV",
-          description: "Тёмный графит, небесный акцент и цельная панель «Модерн»",
+          description: "Тёмный графит, небесный акцент и плавающая панель Classic",
         },
         builtin_cyberpunk: {
           name: "Сумеречный ирис",

@@ -133,31 +133,33 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
         </div>
       )}
 
-      <div className="track-popover__list">
-        {isAudio && kindTracks.length === 0 && (
-          <div className="track-popover__empty">
-            {dict.controls.noAudioTracks}
-          </div>
-        )}
-        {kindTracks.map((t) => (
-          <TrackRow
-            key={t.id}
-            label={getLabel(t)}
-            fullTitle={getFullTitle(t)}
-            isActive={t.selected}
-            isExternal={Boolean(t.external)}
-            externalTooltip={dict.controls.externalTrackTooltip}
-            itemRef={t.selected ? activeTrackItemRef : undefined}
-            onSelect={() => select(t.id)}
-            downloadLabel={
-              isAudio
-                ? dict.controls.downloadAudio
-                : dict.controls.downloadSubtitle
-            }
-            isDownloading={downloadingTrackKey === `${t.type}-${t.id}`}
-            onDownload={() => onDownloadTrack(t)}
-          />
-        ))}
+      <div className="scroll-surface track-popover__list-surface">
+        <div className="track-popover__list">
+          {isAudio && kindTracks.length === 0 && (
+            <div className="track-popover__empty">
+              {dict.controls.noAudioTracks}
+            </div>
+          )}
+          {kindTracks.map((t) => (
+            <TrackRow
+              key={t.id}
+              label={getLabel(t)}
+              fullTitle={getFullTitle(t)}
+              isActive={t.selected}
+              isExternal={Boolean(t.external)}
+              externalTooltip={dict.controls.externalTrackTooltip}
+              itemRef={t.selected ? activeTrackItemRef : undefined}
+              onSelect={() => select(t.id)}
+              downloadLabel={
+                isAudio
+                  ? dict.controls.downloadAudio
+                  : dict.controls.downloadSubtitle
+              }
+              isDownloading={downloadingTrackKey === `${t.type}-${t.id}`}
+              onDownload={() => onDownloadTrack(t)}
+            />
+          ))}
+        </div>
       </div>
     </MotionSurface>
   );

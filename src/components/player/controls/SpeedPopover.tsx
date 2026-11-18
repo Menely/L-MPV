@@ -187,36 +187,38 @@ export const SpeedPopover: React.FC<SpeedPopoverProps> = ({
       </div>
 
       {/* Компактный список скоростей */}
-      <div className="track-popover__list speed-popover__list">
-        {SPEED_PRESETS.map((speed) => {
-          const isActive = Math.abs(currentSpeed - speed) < 0.01;
-          const isNormal = Math.abs(speed - 1.0) < 0.01;
-          return (
-            <button
-              key={speed}
-              type="button"
-              className={`track-popover__item speed-popover__item ${
-                isActive
-                  ? "track-popover__item--active speed-popover__item--active"
-                  : ""
-              }`}
-              onClick={() => onSelectSpeed(speed)}
-              role="menuitem"
-            >
-              <span className="track-popover__item-title speed-popover__item-label">
-                {formatSpeedValue(speed)}
-                {isNormal && (
-                  <span className="speed-popover__item-sublabel">
-                    {dict.settings.cmenuUI.speedNormal || " (нормальная)"}
-                  </span>
-                )}
-              </span>
-              <span className="track-popover__item-check" aria-hidden="true">
-                {isActive && <span className="track-radio-dot" />}
-              </span>
-            </button>
-          );
-        })}
+      <div className="scroll-surface track-popover__list-surface">
+        <div className="track-popover__list speed-popover__list">
+          {SPEED_PRESETS.map((speed) => {
+            const isActive = Math.abs(currentSpeed - speed) < 0.01;
+            const isNormal = Math.abs(speed - 1.0) < 0.01;
+            return (
+              <button
+                key={speed}
+                type="button"
+                className={`track-popover__item speed-popover__item ${
+                  isActive
+                    ? "track-popover__item--active speed-popover__item--active"
+                    : ""
+                }`}
+                onClick={() => onSelectSpeed(speed)}
+                role="menuitem"
+              >
+                <span className="track-popover__item-title speed-popover__item-label">
+                  {formatSpeedValue(speed)}
+                  {isNormal && (
+                    <span className="speed-popover__item-sublabel">
+                      {dict.settings.cmenuUI.speedNormal || " (нормальная)"}
+                    </span>
+                  )}
+                </span>
+                <span className="track-popover__item-check" aria-hidden="true">
+                  {isActive && <span className="track-radio-dot" />}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </MotionSurface>
   );

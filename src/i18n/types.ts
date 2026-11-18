@@ -433,6 +433,11 @@ export interface TranslationDict {
       fontSystemLabel: string;
       openFontsFolderTooltip: string;
       customFontsDivider: string;
+      interfaceTheme: string;
+      classicStyleDesc: string;
+      panelPlacement: string;
+      panelFloating: string;
+      panelDocked: string;
       controlBarStyleTitle: string;
       timePositionTitle: string;
       timeFormatTitle: string;

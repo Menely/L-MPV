@@ -152,7 +152,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
   {
     id: "builtin_classic",
     name: "Классический L-MPV",
-    description: "Тёмный графит, небесный акцент и цельная панель «Модерн»",
+    description: "Тёмный графит, небесный акцент и плавающая панель Classic",
     createdAt: 1700000000000,
     isBuiltIn: true,
     data: {
@@ -859,6 +859,11 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
           isBuiltIn: false,
           data: {
              playerTheme: item.data.playerTheme || "graphite",
+            uiFont: typeof item.data.uiFont === "string" && item.data.uiFont.trim() ? item.data.uiFont : undefined,
+            controlBarStyle: item.data.controlBarStyle === "floating" ? "modern"
+              : ["capsule", "modern", "docked"].includes(item.data.controlBarStyle) ? item.data.controlBarStyle : undefined,
+            timePosition: ["timeline_right", "timeline_left", "volume_right", "toolbar_right", "timeline_floating_center", "titlebar"].includes(item.data.timePosition) ? item.data.timePosition : undefined,
+            timeFormat: ["elapsed_total", "elapsed_remaining", "remaining_only", "finish_time"].includes(item.data.timeFormat) ? item.data.timeFormat : undefined,
              settingsStyle: item.data.settingsStyle === "modal" || item.data.settingsStyle === "sidebar" ? item.data.settingsStyle : undefined,
              language: item.data.language === "ru" || item.data.language === "en" ? item.data.language : undefined,
             accentColor: item.data.accentColor || "#7fc7ff",
@@ -948,6 +953,12 @@ export function isSettingsMatchingPreset(
   if (preset.language) {
     if (getEffectiveLocale() !== preset.language) return false;
   }
+
+  // Compare only explicit options: older presets do not constrain missing fields.
+  const normalizeStyle = (value: string | undefined) => value === "floating" ? "modern" : value || "modern";
+  if (preset.controlBarStyle && normalizeStyle(current.controlBarStyle) !== normalizeStyle(preset.controlBarStyle)) return false;
+  if (preset.timePosition && (current.timePosition || "timeline_right") !== preset.timePosition) return false;
+  if (preset.timeFormat && (current.timeFormat || "elapsed_total") !== preset.timeFormat) return false;
 
   // 3. Акцентный цвет
   const curAccent = (current.accentColor || "#7fc7ff").toLowerCase();
