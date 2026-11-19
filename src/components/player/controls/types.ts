@@ -3,11 +3,14 @@ import type { VisualizerConfig } from "../AudioVisualizer";
 import type { TimeDisplayPosition } from "../../../utils/timePositionUtils";
 import type { TimeFormatMode } from "../../../utils/timeFormatUtils";
 import type { MediaInfo } from "../../../contexts/PlayerStateContext";
+import type { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
 
 /**
  * Общие свойства для компонентов представления стилей панели управления.
  */
 export interface ControlsLayoutProps {
+  /** Активный стиль панели управления («Капсула», «Модерн», «Классический»). */
+  controlBarStyle?: ControlBarStyle;
   /** Ссылка на корневой элемент панели для измерений и позиционирования. */
   controlsPillRef: React.RefObject<HTMLDivElement | null>;
   /** Флаг наведения курсора на панель управления. */

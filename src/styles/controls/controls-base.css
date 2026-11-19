@@ -324,7 +324,7 @@ html.no-animations .timeline__pulse {
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  border-radius: 50%;
+  border-radius: var(--radius-control);
   transform-origin: center center;
   transform: none;
   transition: transform var(--t-fast) var(--ease-smooth),
@@ -588,7 +588,7 @@ html.no-animations .timeline__pulse {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: var(--radius-control);
   flex-shrink: 0;
 }
 
@@ -704,7 +704,7 @@ html[data-glow="off"] .timeline__thumb {
   .control-btn--with-label {
     width: 34px !important;
     padding: 0 !important;
-    border-radius: 50% !important;
+    border-radius: var(--radius-control) !important;
   }
   .audio-visualizer--toolbar {
     max-width: 65px;

@@ -28,11 +28,12 @@ export const ModernControlsLayout: React.FC<ControlsLayoutProps> = ({
   renderTransportButtons,
   renderUtilityButtons,
   isFullscreen = false,
+  controlBarStyle = "modern",
 }) => {
   return (
     <div
       ref={controlsPillRef}
-      className={`player-controls ${
+      className={`player-controls player-controls--${controlBarStyle} ${
         isFullscreen ? "player-controls--fullscreen" : ""
       } ${
         visualizerConfig.enabled && visualizerConfig.placement === "above_timeline"

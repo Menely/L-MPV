@@ -1,91 +1,290 @@
 /* ─── Стиль «Модерн» (Единая парящая капсула) ─────────────────── */
-.player-controls {
+.player-controls-wrapper--modern {
+  bottom: 12px;
+}
+
+.player-controls--modern {
   position: relative;
   background: var(--bg-pill);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-controls, 16px);
-  padding: var(--space-2) 16px 8px;
+  padding: 8px 18px 8px;
   box-shadow: var(--shadow-pill);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
   transition: transform var(--t-pop) var(--ease-standard),
               box-shadow var(--t-pop) var(--ease-standard),
               border-color var(--t-fast) var(--ease-smooth),
               border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
-.player-controls:hover {
+.player-controls--modern:hover {
   box-shadow: var(--shadow-pill-hover);
 }
 
 /* Строка таймлайна со временем */
-.timeline-row {
+.player-controls--modern .timeline-row {
   display: flex;
-  align-items: flex-end;
-  gap: var(--space-6);
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  margin-bottom: var(--space-1);
+  margin-bottom: 5px;
 }
 
-.timeline-row--full {
+.player-controls--modern .timeline-row--full {
   gap: 0;
 }
 
-.timeline-row .timeline-col {
+.player-controls--modern .timeline-row .timeline-col {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
   position: relative;
+  height: 20px;
 }
 
-.timeline-row .timeline-col .timeline,
-.timeline-row .timeline {
+.player-controls--modern .timeline-row .timeline-col .timeline,
+.player-controls--modern .timeline-row .timeline {
   width: 100%;
-  margin-bottom: 0;
+  height: 16px;
+  margin: 0;
 }
 
-.timeline-row .time-display {
+/* Трек таймлайна */
+.player-controls--modern .timeline__track {
+  height: 5px;
+}
+
+.player-controls--modern .timeline:not(.timeline--has-chapters):hover .timeline__track,
+.player-controls--modern .timeline:not(.timeline--has-chapters).timeline--dragging .timeline__track,
+.player-controls--modern .timeline:not(.timeline--has-chapters):focus-visible .timeline__track {
+  height: 8px;
+}
+
+.player-controls--modern .timeline--has-chapters .timeline__segment {
+  height: 5px;
+}
+
+.player-controls--modern .timeline--has-chapters .timeline__segment--hovered,
+.player-controls--modern .timeline--has-chapters .timeline__segment:hover,
+.player-controls--modern .timeline--has-chapters:focus-visible .timeline__segment {
+  height: 8px;
+}
+
+.player-controls--modern .timeline__thumb {
+  width: 15px;
+  height: 15px;
+}
+
+/* Время в строке таймлайна: крупнее, четче, центрировано по оси без смещения таймлайна */
+.player-controls--modern .timeline-row .time-display {
   flex-shrink: 0;
-  padding: 0 2px;
+  padding: 1px 5px;
   user-select: none;
-  height: 14px;
-  display: flex;
+  height: 20px;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.35px;
+  line-height: 1;
+  border-radius: var(--radius-xs, 4px);
 }
 
-/* Строка кнопок управления */
-.controls-row {
-  display: flex;
+/* Строка кнопок управления: 3-колоночный изолированный Grid (защита от наложения групп) */
+.player-controls--modern .controls-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   width: 100%;
-  gap: var(--space-4);
+  column-gap: 10px;
   position: relative;
+  min-height: 40px;
 }
 
-.controls-row__left {
+.player-controls--modern .controls-row__left {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  flex: 1;
+  gap: 4px;
   min-width: 0;
+  max-width: 100%;
+  justify-self: start;
 }
 
-.controls-row__center {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+.player-controls--modern .controls-row__center {
+  position: static;
+  transform: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-4);
+  gap: 5px;
+  justify-self: center;
+  flex-shrink: 0;
 }
 
-.controls-row__right {
+.player-controls--modern .controls-row__right {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--space-3);
-  flex: 1;
+  gap: 4px;
   min-width: 0;
+  max-width: 100%;
+  justify-self: end;
+}
+
+/* Размеры кнопок в стиле «Модерн» (36px обычные / 40px Play) */
+.player-controls--modern .control-btn:not(.control-btn--with-label) {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-control);
+  flex-shrink: 0;
+}
+
+.player-controls--modern .control-btn svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 2.2;
+}
+
+/* Главная кнопка Play / Pause */
+.player-controls--modern .control-btn--play {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-control);
+}
+
+.player-controls--modern .control-btn--play svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.3;
+}
+
+/* Кнопки переключения дорожек (с подписями): сбалансированная ширина и защита от переполнения */
+.player-controls--modern .control-btn--with-label {
+  width: auto !important;
+  min-width: 36px;
+  max-width: 140px;
+  flex-shrink: 1;
+  height: 36px;
+  padding: 0 8px;
+  gap: 5px;
+  border-radius: var(--radius-control);
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.player-controls--modern .control-btn__label {
+  display: inline-block;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 36px;
+  max-width: 95px;
+  min-width: 0;
+  flex-shrink: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+}
+
+@container controls (min-width: 1200px) {
+  .player-controls--modern .control-btn--with-label {
+    max-width: 220px;
+  }
+  .player-controls--modern .control-btn__label {
+    max-width: 170px;
+  }
+}
+
+.player-controls--modern.player-controls--fullscreen .control-btn--with-label,
+.player-controls-wrapper--fullscreen .player-controls--modern .control-btn--with-label {
+  max-width: 320px !important;
+}
+
+.player-controls--modern.player-controls--fullscreen .control-btn__label,
+.player-controls-wrapper--fullscreen .player-controls--modern .control-btn__label {
+  max-width: 260px !important;
+  display: inline-block !important;
+}
+
+/* Регулятор громкости */
+.player-controls--modern .volume-slider #btn-volume {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-control);
+}
+
+.player-controls--modern .volume-slider__expandable {
+  height: 30px;
+}
+
+.player-controls--modern .volume-slider:hover .volume-slider__expandable,
+.player-controls--modern .volume-slider__expandable:focus-within {
+  max-width: 74px;
+  padding: 0 4px 0 8px;
+}
+
+/* Визуализатор в тулбаре: комфортный зазор от процента громкости */
+.player-controls--modern .audio-visualizer--toolbar {
+  margin-left: 10px;
+  height: 26px;
+  border-radius: var(--radius-control);
+  flex-shrink: 0;
+  min-width: 60px;
+  max-width: 80px;
+}
+
+/* Виджет времени в тулбаре */
+.player-controls--modern .time-display--toolbar {
+  height: 24px;
+  padding: 0 6px;
+  font-size: var(--fs-xs);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-control);
+}
+
+/* Адаптивные правила при сжатии */
+@container controls (max-width: 920px) {
+  .player-controls--modern .control-btn__label {
+    display: none !important;
+  }
+  .player-controls--modern .control-btn--with-label {
+    width: 36px !important;
+    padding: 0 !important;
+    border-radius: var(--radius-control) !important;
+  }
+}
+
+@container controls (max-width: 580px) {
+  .player-controls--modern {
+    padding: 8px 12px 8px;
+  }
+}
+
+@container controls (max-width: 460px) {
+  .player-controls--modern {
+    padding: 6px 8px 6px;
+    border-radius: var(--radius-controls, 14px);
+  }
+  .player-controls--modern .control-btn:not(.control-btn--with-label) {
+    width: 32px;
+    height: 32px;
+  }
+  .player-controls--modern .control-btn svg {
+    width: 17px;
+    height: 17px;
+  }
+  .player-controls--modern .control-btn--play {
+    width: 36px;
+    height: 36px;
+  }
+  .player-controls--modern .control-btn--play svg {
+    width: 22px;
+    height: 22px;
+  }
 }

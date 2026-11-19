@@ -1346,6 +1346,7 @@ export function PlayerControls({
     isStripHovered,
     setIsStripHovered,
     isFullscreen,
+    controlBarStyle,
   };
 
   return (
@@ -1356,6 +1357,8 @@ export function PlayerControls({
         controlBarStyle === "docked" ? "player-controls-wrapper--docked" : ""
       } ${
         controlBarStyle === "capsule" ? "player-controls-wrapper--capsule" : ""
+      } ${
+        controlBarStyle === "modern" ? "player-controls-wrapper--modern" : ""
       }`}
       onMouseEnter={() => setIsControlsHovered(true)}
       onMouseLeave={() => {
