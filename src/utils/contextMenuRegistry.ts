@@ -45,7 +45,7 @@ export interface MenuItemDescriptor {
 /** Полный реестр всех поддерживаемых пунктов ПКМ-меню. */
 export const MENU_ITEM_REGISTRY: MenuItemDescriptor[] = [
   { id: "open_file", label: "Открыть файл", iconName: "FolderOpen", hasSubmenu: true, description: "Открыть файл с диска или из истории последних файлов" },
-  { id: "audio_track", label: "Аудиодорожка", iconName: "AudioLines", hasSubmenu: true, description: "Выбор активной аудиодорожки из доступных в файле" },
+  { id: "audio_track", label: "Аудиодорожка", iconName: "AudioLines", hasSubmenu: true, description: "Выбор активной аудиодорожки или загрузка внешнего аудиофайла" },
   { id: "subtitle_track", label: "Субтитры", iconName: "Subtitles", hasSubmenu: true, description: "Выбор субтитров или загрузка внешнего файла субтитров" },
   { id: "chapters", label: "Главы", iconName: "BookOpen", hasSubmenu: false, description: "Открыть панель навигации по главам файла" },
   { id: "aspect_ratio", label: "Видеокадр", iconName: "Monitor", hasSubmenu: true, description: "Масштаб кадра в окне: растянуть, вписать или заполнить с обрезкой" },

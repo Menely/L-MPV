@@ -48,6 +48,7 @@ import {
   triggerSeekIndicator,
 } from "./utils/seekUtils";
 import { subtitleControlsOffset } from "./utils/subtitleUiGeometry";
+import { isAudioTrackPath } from "./utils/externalTrackLoader";
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
 import {
   useSettingsModulePreload,
@@ -1277,11 +1278,6 @@ function App() {
 
   // ─── Открытие файла / подключение внешней дорожки ─────────
   const handleDroppedFile = useCallback(async (file: string) => {
-    const isAudioFile = (p: string) => {
-      const ext = p.split('.').pop()?.toLowerCase() || '';
-      return ['mka', 'm4a', 'aac', 'mp3', 'ogg', 'opus', 'flac', 'wav', 'ac3', 'eac3', 'dts', 'thd', 'wma', 'aiff', 'ape'].includes(ext);
-    };
-
     const isSubtitleFile = (p: string) => {
       const ext = p.split('.').pop()?.toLowerCase() || '';
       return ['srt', 'ass', 'ssa', 'vtt', 'sub', 'idx', 'sup'].includes(ext);
@@ -1291,7 +1287,7 @@ function App() {
     const hotloadEnabled = localStorage.getItem('l-mpv-hotload-enabled') === 'true';
     const d = getDict(getEffectiveLocale());
 
-    if (hotloadEnabled && curHasMedia && isAudioFile(file)) {
+    if (hotloadEnabled && curHasMedia && isAudioTrackPath(file)) {
       try {
         await invoke("load_audio_file", { path: file });
         await latestRef.current.loadTracks();
@@ -1299,6 +1295,7 @@ function App() {
         showOsd(d.osd.audioLoaded(fileName));
       } catch (err) {
         console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
+        showOsd(d.osd.audioLoadErr, { isError: true });
       }
     } else if (hotloadEnabled && curHasMedia && isSubtitleFile(file)) {
       try {

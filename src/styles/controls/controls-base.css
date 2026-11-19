@@ -222,16 +222,61 @@
   border-radius: 50%;
   box-shadow: var(--thumb-glow, var(--shadow-glow));
   transition: transform var(--t-spring) var(--ease-spring-bounce),
-              box-shadow var(--t-base) var(--ease-smooth);
+              box-shadow var(--t-base) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth);
   z-index: var(--z-in-thumb);
   pointer-events: none;
 }
 
+/* Колея-лунка под бегунком: углублённый карман в дорожке при зажатии */
+.timeline__thumb::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.5);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.35) 60%, transparent 100%);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+  transition: transform var(--t-fast) var(--ease-smooth),
+              opacity var(--t-fast) var(--ease-smooth);
+}
+
+/* Ховер: бегунок приподнимается над панелью (парящий объём) */
 .timeline:hover .timeline__thumb,
-.timeline--dragging .timeline__thumb,
-.timeline__thumb--dragging,
 .timeline:focus-visible .timeline__thumb {
   transform: translate(-50%, -50%) scale(1.15);
+}
+
+/* Зажатие и перетаскивание: физическое погружение внутрь колеи (Recessed Well) */
+.timeline--dragging .timeline__thumb,
+.timeline__thumb--dragging {
+  transform: translate(-50%, -50%) scale(0.90) !important;
+  border-color: rgba(255, 255, 255, 0.80);
+  box-shadow: 
+    0 0 0 2.5px rgba(0, 0, 0, 0.55),
+    inset 0 2px 4px rgba(0, 0, 0, 0.80),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.30),
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 0 10px var(--accent-glow);
+  transition: transform 0.12s var(--ease-spring-bounce),
+              box-shadow 0.12s var(--ease-smooth),
+              border-color 0.12s var(--ease-smooth);
+}
+
+.timeline--dragging .timeline__thumb::before,
+.timeline__thumb--dragging::before {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.timeline--dragging .timeline__segment-bg {
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.65);
 }
 
 /* ─── Neon Pulse Wave: радиальная волна от точки клика ─── */

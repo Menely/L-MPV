@@ -56,6 +56,7 @@ import {
   groupMenuItems,
   groupSubmenuChildren,
 } from "./contextMenu/contextMenuGrouping";
+import { loadExternalAudioTrack } from "../../utils/externalTrackLoader";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */
@@ -105,7 +106,9 @@ export function ContextMenu({
 
   const {
     mediaInfo,
+    hasMedia,
     tracks,
+    loadTracks,
     selectAudioTrack,
     selectSubTrack,
     disableSubtitles,
@@ -421,6 +424,11 @@ export function ContextMenu({
     await disableSubtitles();
   }, [disableSubtitles]);
 
+  const handleLoadAudioFile = useCallback(async () => {
+    await loadExternalAudioTrack({ hasMedia, loadTracks, dict });
+    handleClose();
+  }, [dict, handleClose, hasMedia, loadTracks]);
+
   const handleLoadSubFile = useCallback(async () => {
     try {
       const file = await open({
@@ -678,6 +686,7 @@ export function ContextMenu({
     () =>
       buildContextMenuItems({
         dict,
+        hasMedia,
         menuLayout,
         recentFiles,
         audioTracks,
@@ -709,6 +718,7 @@ export function ContextMenu({
         handleSelectAudio,
         handleSelectSub,
         handleDisableSubs,
+        handleLoadAudioFile,
         handleLoadSubFile,
         handleSetSpeed,
         handleSetFrameMode,
@@ -734,6 +744,7 @@ export function ContextMenu({
       }),
     [
       dict,
+      hasMedia,
       menuLayout,
       recentFiles,
       audioTracks,
@@ -765,6 +776,7 @@ export function ContextMenu({
       handleSelectAudio,
       handleSelectSub,
       handleDisableSubs,
+      handleLoadAudioFile,
       handleLoadSubFile,
       handleSetSpeed,
       handleSetFrameMode,

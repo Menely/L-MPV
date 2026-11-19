@@ -40,6 +40,7 @@ export interface TranslationDict {
     externalTrackTooltip: string;
     downloadAudio: string;
     downloadSubtitle: string;
+    audioFilter: string;
     downloadingAudio: string;
     downloadingSubtitle: string;
     screenshot: string;
@@ -972,6 +973,7 @@ export interface TranslationDict {
       audioTrack: string;
       trackLabel: (id: string | number, lang: string) => string;
       downloadAudio: string;
+      loadAudio: string;
       noAudio: string;
       subtitles: string;
       subOff: string;
@@ -1222,6 +1224,7 @@ export interface TranslationDict {
     clipboardEmpty: string;
     subtitleDelay: (val: string) => string;
     openFileErr: string;
+    audioLoadErr: string;
     subtitlesLoadErr: string;
     playlistPlayErr: string;
   };
