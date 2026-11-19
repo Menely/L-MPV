@@ -48,7 +48,11 @@ import {
   triggerSeekIndicator,
 } from "./utils/seekUtils";
 import { subtitleControlsOffset } from "./utils/subtitleUiGeometry";
-import { isAudioTrackPath } from "./utils/externalTrackLoader";
+import {
+  getFileNameFromPath,
+  isAudioTrackPath,
+  isSubtitleTrackPath,
+} from "./utils/externalTrackLoader";
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
 import {
   useSettingsModulePreload,
@@ -1278,11 +1282,6 @@ function App() {
 
   // ─── Открытие файла / подключение внешней дорожки ─────────
   const handleDroppedFile = useCallback(async (file: string) => {
-    const isSubtitleFile = (p: string) => {
-      const ext = p.split('.').pop()?.toLowerCase() || '';
-      return ['srt', 'ass', 'ssa', 'vtt', 'sub', 'idx', 'sup'].includes(ext);
-    };
-
     const curHasMedia = latestRef.current.hasMedia;
     const hotloadEnabled = localStorage.getItem('l-mpv-hotload-enabled') === 'true';
     const d = getDict(getEffectiveLocale());
@@ -1291,18 +1290,16 @@ function App() {
       try {
         await invoke("load_audio_file", { path: file });
         await latestRef.current.loadTracks();
-        const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-        showOsd(d.osd.audioLoaded(fileName));
+        showOsd(d.osd.audioLoaded(getFileNameFromPath(file)));
       } catch (err) {
         console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
         showOsd(d.osd.audioLoadErr, { isError: true });
       }
-    } else if (hotloadEnabled && curHasMedia && isSubtitleFile(file)) {
+    } else if (hotloadEnabled && curHasMedia && isSubtitleTrackPath(file)) {
       try {
         await invoke("load_subtitle_file", { path: file });
         await latestRef.current.loadTracks();
-        const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-        showOsd(d.osd.subsLoaded(fileName));
+        showOsd(d.osd.subsLoaded(getFileNameFromPath(file)));
       } catch (err) {
         console.error("Ошибка подключения субтитров (Хотлоад):", err);
         showOsd(d.osd.subtitlesLoadErr, { isError: true });

@@ -397,6 +397,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
           type: "item" as const,
           icon: STATIC_ICONS.openFileSub,
           label: dict.settings.cmenuUI.loadSub,
+          disabled: !hasMedia,
           action: handleLoadSubFile,
         },
       ],

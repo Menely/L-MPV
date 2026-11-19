@@ -6,7 +6,6 @@ import { showOsd } from "../../hooks/useOsd";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getSavedLayout, LAYOUT_CHANGED_EVENT, type LayoutEntry } from "../../utils/contextMenuLayout";
-import { open } from "@tauri-apps/plugin-dialog";
 import { ChevronRight, Download, Loader2, ExternalLink } from "lucide-react";
 import { getCustomHotkeys } from "../../utils/hotkeyUtils";
 import {
@@ -56,7 +55,10 @@ import {
   groupMenuItems,
   groupSubmenuChildren,
 } from "./contextMenu/contextMenuGrouping";
-import { loadExternalAudioTrack } from "../../utils/externalTrackLoader";
+import {
+  loadExternalAudioTrack,
+  loadExternalSubtitleTrack,
+} from "../../utils/externalTrackLoader";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */
@@ -430,20 +432,9 @@ export function ContextMenu({
   }, [dict, handleClose, hasMedia, loadTracks]);
 
   const handleLoadSubFile = useCallback(async () => {
-    try {
-      const file = await open({
-        multiple: false,
-        filters: [{ name: "Subtitles", extensions: ["srt", "ass", "vtt", "sub"] }],
-      });
-      if (file) {
-        await invoke("load_subtitle_file", { path: file });
-      }
-    } catch (e) {
-      console.error("Ошибка загрузки внешних субтитров:", e);
-      showOsd(dict.osd.subtitlesLoadErr, { isError: true });
-    }
+    await loadExternalSubtitleTrack({ hasMedia, loadTracks, dict });
     handleClose();
-  }, [dict.osd.subtitlesLoadErr, handleClose]);
+  }, [dict, handleClose, hasMedia, loadTracks]);
 
   const handleSetSpeed = useCallback(async (speed: number) => {
     try {
