@@ -82,6 +82,15 @@ function getTickAppearance(level: number, volume: number, wave: number): { fill:
   };
 }
 
+/** Цвет зоны усиления (100–150%): линейный переход от #f59e0b к #fb7185, как на линии. */
+export function getBoostColor(volume: number): string {
+  const t = Math.max(0, Math.min(1, (volume - RULER_GEOMETRY.nominalVolume) / 50));
+  const r = Math.round(245 + (251 - 245) * t);
+  const g = Math.round(158 + (113 - 158) * t);
+  const b = Math.round(11 + (133 - 11) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 /** Синхронно обновляет геометрию и цвет всех элементов шкалы для текущего кадра. */
 export function paintVolumeRuler(targets: RulerRenderTargets, v: number): void {
   const { startX, trackWidth, maxVolume, nominalVolume, baseY } = RULER_GEOMETRY;
@@ -106,7 +115,7 @@ export function paintVolumeRuler(targets: RulerRenderTargets, v: number): void {
   if (targets.needleBody) {
     targets.needleBody.setAttribute(
       "fill",
-      isMuted ? "#94a3b8" : isBoost ? "#f59e0b" : "var(--accent)"
+      isMuted ? "#94a3b8" : isBoost ? getBoostColor(v) : "var(--accent)"
     );
   }
 

@@ -25,8 +25,8 @@
   display: inline-flex;
   align-items: baseline;
   gap: 3px;
-  padding: 24px 32px;
-  margin: -24px -32px;
+  padding: 10px 14px;
+  margin: -10px -14px;
   font-size: 30px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -37,16 +37,11 @@
   text-shadow:
     0 1px 3px rgba(0, 0, 0, 0.88),
     0 2px 10px rgba(0, 0, 0, 0.55);
-  transition: color 0.18s ease, text-shadow 0.18s ease;
+  transition: color 0.14s ease;
 }
 
 .volume-feedback--boost .volume-feedback__value {
-  color: #fde68a;
-  text-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.85),
-    0 0 12px rgba(245, 158, 11, 0.16),
-    0 0 24px rgba(245, 158, 11, 0.07),
-    0 2px 8px rgba(0, 0, 0, 0.48);
+  color: #f59e0b;
 }
 
 .volume-feedback--muted .volume-feedback__value {

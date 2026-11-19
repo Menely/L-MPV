@@ -6,6 +6,7 @@ import {
   RULER_MARK_POSITIONS,
   RULER_NOMINAL_X,
   TICK_GEOMETRY,
+  getBoostColor,
   paintVolumeRuler,
 } from "./rulerMath";
 
@@ -99,7 +100,10 @@ export function VolumeRulerOverlay({ volume, label, closing }: VolumeRulerOverla
       aria-atomic="true"
       aria-label={`${label}: ${Math.round(volume)}%`}
     >
-      <span className="volume-feedback__value">
+      <span
+        className="volume-feedback__value"
+        style={isBoost ? { color: getBoostColor(volume) } : undefined}
+      >
         {Math.round(volume)}
         <span className="volume-feedback__unit">%</span>
       </span>
