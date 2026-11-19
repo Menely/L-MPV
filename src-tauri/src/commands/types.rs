@@ -75,6 +75,8 @@ pub struct UiSettings {
     #[serde(default)]
     pub visible_buttons: Option<HashMap<String, bool>>,
     #[serde(default)]
+    pub utility_button_cards: Option<Vec<Vec<String>>>,
+    #[serde(default)]
     pub custom_hotkeys: Option<HashMap<String, Vec<String>>>,
     #[serde(default)]
     pub hotkeys_schema_version: Option<u32>,

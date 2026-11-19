@@ -34,6 +34,7 @@ export const CapsuleControlsLayout: React.FC<ControlsLayoutProps> = ({
   renderVolumeSlider,
   renderTransportButtons,
   renderUtilityButtons,
+  renderUtilityIslands,
   renderSpeedButton,
   renderFullscreenButton,
   isStripHovered = false,
@@ -43,6 +44,15 @@ export const CapsuleControlsLayout: React.FC<ControlsLayoutProps> = ({
   const { dict } = useTranslation();
   const speedButtonNode = renderSpeedButton?.();
   const fullscreenButtonNode = renderFullscreenButton?.();
+  const toolbarRightTimeNode =
+    timePosition === "toolbar_right" ? (
+      <TimeDisplay
+        className="time-display--toolbar"
+        timeFormat={timeFormat}
+        onCycleFormat={onCycleTimeFormat}
+        speed={mediaInfo?.speed}
+      />
+    ) : null;
 
   return (
     <div
@@ -157,31 +167,25 @@ export const CapsuleControlsLayout: React.FC<ControlsLayoutProps> = ({
 
         {/* Правая станция: служебные утилиты и полный экран (прижаты к правому краю) */}
         <div className="controls-group controls-group--right">
-          {/* Островок скорости (отображается только при скорости != 1.0x) */}
-          {speedButtonNode && (
-            <div className="controls-island controls-island--speed">
-              {speedButtonNode}
-            </div>
-          )}
-
-          {/* Островок 4: Время и утилиты */}
-          <div className="controls-island controls-island--utilities">
-            {timePosition === "toolbar_right" && (
-              <TimeDisplay
-                className="time-display--toolbar"
-                timeFormat={timeFormat}
-                onCycleFormat={onCycleTimeFormat}
-                speed={mediaInfo?.speed}
-              />
-            )}
-            {renderUtilityButtons({ excludeFullscreen: true })}
-          </div>
-
-          {/* Островок 5: Отдельная карточка полноэкранного режима */}
-          {fullscreenButtonNode && (
-            <div className="controls-island controls-island--fullscreen">
-              {fullscreenButtonNode}
-            </div>
+          {renderUtilityIslands ? (
+            renderUtilityIslands(toolbarRightTimeNode)
+          ) : (
+            <>
+              {speedButtonNode && (
+                <div className="controls-island controls-island--speed">
+                  {speedButtonNode}
+                </div>
+              )}
+              <div className="controls-island controls-island--utilities">
+                {toolbarRightTimeNode}
+                {renderUtilityButtons({ excludeFullscreen: true })}
+              </div>
+              {fullscreenButtonNode && (
+                <div className="controls-island controls-island--fullscreen">
+                  {fullscreenButtonNode}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

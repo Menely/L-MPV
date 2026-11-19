@@ -403,7 +403,16 @@ export const en: TranslationDict = {
         playPause: 'Play / Pause',
         plus10: '+10 sec',
         next: 'Next file',
-        shuffle: 'Shuffle'
+        shuffle: 'Shuffle',
+        builderTitle: 'Icon order and cards',
+        builderHint: 'Drag icons to reorder and group them into cards',
+        builderOrderTitle: 'Icon order',
+        builderOrderHint: 'Drag icons to reorder them on the bar',
+        addCard: 'Card',
+        removeCard: 'Remove card',
+        resetOrder: 'Reset order and cards',
+        emptyCardHint: 'Drop icon here',
+        allHiddenHint: 'All icons are hidden — enable buttons below'
       },
       ambientLight: {
         mode: 'Mode toggle',

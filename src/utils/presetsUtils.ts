@@ -60,6 +60,11 @@ import {
   getSavedControlBarStyle,
   saveControlBarStyle,
 } from "./controlBarStyleUtils";
+import {
+  type UtilityButtonId,
+  getSavedUtilityCards,
+  saveUtilityCards,
+} from "./controlBarUtilityLayout";
 import type { AmbientPresetSettings } from "./ambientSettingsUtils";
 import { normalizeAmbientSettings } from "./ambientSettingsUtils";
 import { getEffectiveLocale, saveLocale, type Locale } from "../i18n/index";
@@ -105,6 +110,8 @@ export interface SettingsPresetData {
   showTrackNames: boolean;
   /** Карта видимости кнопок нижней панели управления */
   visibleButtons: Record<string, boolean>;
+  /** Распределение и порядок кнопок утилит по карточкам */
+  utilityButtonCards?: UtilityButtonId[][];
   /** Пользовательская сохранённая палитра цветов */
   customColors?: string[];
   /** Параметры подсветки полос (Blur) */
@@ -492,6 +499,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
       animationsEnabled,
       showTrackNames,
       visibleButtons,
+      utilityButtonCards: getSavedUtilityCards(),
       customColors,
       ambient,
       visualizer,
@@ -606,6 +614,9 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   // 6. Видимые кнопки
   if (data.visibleButtons) {
     localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(data.visibleButtons));
+  }
+  if (Array.isArray(data.utilityButtonCards)) {
+    saveUtilityCards(data.utilityButtonCards, { notify: false });
   }
 
   // 7. Пользовательские цвета
@@ -990,13 +1001,18 @@ export function isSettingsMatchingPreset(
   // 9. Названия дорожек
   if (Boolean(current.showTrackNames) !== Boolean(preset.showTrackNames)) return false;
 
-  // 10. Видимые кнопки
+  // 10. Видимые кнопки и карточки утилит
   if (current.visibleButtons && preset.visibleButtons) {
     const allKeys = Array.from(new Set([...Object.keys(current.visibleButtons), ...Object.keys(preset.visibleButtons)]));
     for (const key of allKeys) {
       const curBtn = current.visibleButtons[key] !== false;
       const preBtn = preset.visibleButtons[key] !== false;
       if (curBtn !== preBtn) return false;
+    }
+  }
+  if (preset.utilityButtonCards && current.utilityButtonCards) {
+    if (JSON.stringify(current.utilityButtonCards) !== JSON.stringify(preset.utilityButtonCards)) {
+      return false;
     }
   }
 

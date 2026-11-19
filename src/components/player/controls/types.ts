@@ -40,8 +40,10 @@ export interface ControlsLayoutProps {
   renderVolumeSlider: () => React.ReactNode;
   /** Рендер транспортных кнопок воспроизведения/перемотки. */
   renderTransportButtons: () => React.ReactNode;
-  /** Рендер утилитных кнопок панели (с опцией исключения кнопки полного экрана). */
+  /** Рендер утилитных кнопок панели (в порядке, настроенном пользователем). */
   renderUtilityButtons: (options?: { excludeFullscreen?: boolean }) => React.ReactNode;
+  /** Рендер карточек-островков утилит для стиля «Капсула» по раскладке пользователя. */
+  renderUtilityIslands?: (toolbarRightTimeNode?: React.ReactNode) => React.ReactNode;
   /** Рендер кнопки скорости воспроизведения (отображается при скорости != 1.0). */
   renderSpeedButton?: () => React.ReactNode;
   /** Рендер отдельной кнопки полноэкранного режима. */

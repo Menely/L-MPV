@@ -513,14 +513,18 @@ button.controls-island--time,
 }
 
 /* Fullscreen hover fill follows the actual inset inside its island. */
-.controls-islands-row .controls-island--fullscreen {
+.controls-islands-row .controls-island--fullscreen,
+.controls-islands-row .controls-island--single-icon {
   --fullscreen-island-size: 42px;
   --fullscreen-button-size: 32px;
   width: var(--fullscreen-island-size);
   min-width: var(--fullscreen-island-size);
   height: var(--fullscreen-island-size);
+  padding: 0;
+  justify-content: center;
 }
-.controls-islands-row .controls-island--fullscreen #btn-fullscreen {
+.controls-islands-row .controls-island--fullscreen #btn-fullscreen,
+.controls-islands-row .controls-island--single-icon > .control-btn {
   --fullscreen-inset: calc((var(--fullscreen-island-size) - var(--fullscreen-button-size)) / 2);
   width: var(--fullscreen-button-size);
   height: var(--fullscreen-button-size);
@@ -529,13 +533,15 @@ button.controls-island--time,
   border-radius: min(var(--radius-control), max(6px, calc(var(--island-radius-x) - var(--fullscreen-inset)))) / min(var(--radius-control), max(6px, calc(var(--island-radius-y) - var(--fullscreen-inset))));
 }
 @container controls (max-width: 760px) {
-  .controls-islands-row .controls-island--fullscreen {
+  .controls-islands-row .controls-island--fullscreen,
+  .controls-islands-row .controls-island--single-icon {
     --fullscreen-island-size: 36px;
     --fullscreen-button-size: 28px;
   }
 }
 @container controls (max-width: 600px) {
-  .controls-islands-row .controls-island--fullscreen {
+  .controls-islands-row .controls-island--fullscreen,
+  .controls-islands-row .controls-island--single-icon {
     --fullscreen-island-size: 44px;
     --fullscreen-button-size: 30px;
   }

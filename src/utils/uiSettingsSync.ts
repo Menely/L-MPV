@@ -51,6 +51,11 @@ import {
   ControlBarStyle,
 } from "./controlBarStyleUtils";
 import {
+  getSavedUtilityCards,
+  saveUtilityCards,
+  UTILITY_CARDS_CHANGED_EVENT,
+} from "./controlBarUtilityLayout";
+import {
   getSavedTimePosition,
   saveTimePosition,
   TimeDisplayPosition,
@@ -111,6 +116,7 @@ export interface UiSettings {
   playlist_width?: number;
   custom_colors?: string[];
   visible_buttons?: Record<string, boolean>;
+  utility_button_cards?: string[][];
   custom_hotkeys?: Record<string, string[]>;
   hotkeys_schema_version?: number;
   language?: string;
@@ -272,6 +278,7 @@ export function collectCurrentUiSettings(): UiSettings {
     playlist_width: playlistWidth,
     custom_colors: getCustomColors(),
     visible_buttons: visibleButtons,
+    utility_button_cards: getSavedUtilityCards(),
     custom_hotkeys: getCustomHotkeys(),
     hotkeys_schema_version: HOTKEYS_SCHEMA_VERSION,
     language: getEffectiveLocale(),
@@ -437,6 +444,10 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
     localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(ui.visible_buttons));
     restored = true;
   }
+  if (Array.isArray(ui.utility_button_cards)) {
+    saveUtilityCards(ui.utility_button_cards, { notify: false });
+    restored = true;
+  }
   if (ui.custom_hotkeys && typeof ui.custom_hotkeys === "object") {
     saveCustomHotkeys(ui.custom_hotkeys, ui.hotkeys_schema_version ?? 0);
     restored = true;
@@ -597,6 +608,7 @@ export function initUiSettingsAutoSync(): () => void {
 
   const events = [
     "l-mpv-settings-changed",
+    UTILITY_CARDS_CHANGED_EVENT,
     HEATMAP_CONFIG_CHANGED_EVENT,
     "l-mpv-player-theme-changed",
     "l-mpv-ui-scale-changed",

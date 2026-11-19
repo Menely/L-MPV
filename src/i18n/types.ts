@@ -350,6 +350,15 @@ export interface TranslationDict {
         plus10: string;
         next: string;
         shuffle: string;
+        builderTitle: string;
+        builderHint: string;
+        builderOrderTitle: string;
+        builderOrderHint: string;
+        addCard: string;
+        removeCard: string;
+        resetOrder: string;
+        emptyCardHint: string;
+        allHiddenHint: string;
       };
       ambientLight: {
         mode: string;

@@ -11,7 +11,234 @@
 .control-buttons-settings__seconds input:disabled { opacity: .4; }
 .control-buttons-settings__seconds input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .control-buttons-settings__toggle:has(:focus-visible) { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius-xs); }
-.control-buttons-preview { display: flex; flex-direction: column; gap: var(--settings-content-gap); padding: var(--padding-card); margin-bottom: var(--settings-section-gap); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-child); }
+.control-buttons-preview { display: flex; flex-direction: column; gap: 12px; padding: var(--padding-card); margin-bottom: var(--settings-section-gap); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-child); }
+
+/* ─── Конструктор порядка и карточек иконок ─── */
+.control-buttons-builder__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.control-buttons-builder__title-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.control-buttons-builder__title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.control-buttons-builder__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.control-buttons-builder__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.control-buttons-builder__canvas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 8px 10px;
+  background: var(--bg-pill, rgba(13, 17, 23, 0.72));
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-sizing: border-box;
+}
+
+/* Внешний вид полосы в стиле «Модерн» */
+.control-buttons-builder__canvas--modern {
+  justify-content: flex-end;
+  padding: 7px 12px;
+}
+
+/* Внешний вид полосы в стиле «Классический» (пристыкованная панель) */
+.control-buttons-builder__canvas--docked {
+  justify-content: flex-end;
+  padding: 7px 14px;
+  border-radius: var(--radius-surface, 12px) var(--radius-surface, 12px) 0 0;
+  border-left-color: transparent;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  border-top-color: color-mix(in srgb, var(--accent) 18%, rgba(255, 255, 255, 0.14));
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+}
+
+.control-buttons-builder__flat-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+}
+
+.control-buttons-builder__card {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 38px;
+  padding: 4px 8px;
+  background: var(--capsule-island-fill, var(--surface-level-3));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: max(var(--radius-control, 8px), calc(var(--radius-controls, 16px) - 5px));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+  box-sizing: border-box;
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              background-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.control-buttons-builder__card--empty {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 4px 10px;
+}
+
+.control-buttons-builder__card--over {
+  border-color: var(--selection-frame, var(--accent));
+  box-shadow: 0 0 0 1px var(--selection-frame, var(--accent));
+}
+
+.control-buttons-builder__card-items {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+}
+
+.control-buttons-builder__empty-text {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  padding: 0 4px;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.control-buttons-builder__all-hidden {
+  width: 100%;
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+
+/* Неподвижный слот для точных измерений dnd-kit */
+.control-buttons-builder__slot {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.control-buttons-builder__chip {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: var(--radius-control, 8px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  box-sizing: border-box;
+  will-change: transform;
+  transition: background-color 120ms ease,
+              border-color 120ms ease,
+              color 120ms ease;
+}
+
+.control-buttons-builder__chip:hover {
+  background: var(--hover-veil-float, rgba(255, 255, 255, 0.08));
+  color: var(--accent-text);
+}
+
+.control-buttons-builder__chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.control-buttons-builder__chip--badge {
+  width: auto;
+  padding: 0 7px;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--accent-text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.control-buttons-builder__chip--placeholder {
+  opacity: 0.25;
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+}
+
+.control-buttons-builder__chip--dragging {
+  cursor: grabbing;
+  background: var(--surface-accent-subtle, rgba(127, 199, 255, 0.22));
+  border-color: var(--selection-frame, var(--accent));
+  color: var(--accent-text);
+  box-shadow: var(--shadow-elevated);
+}
+
+.control-buttons-builder__card-remove {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--surface-level-2, #18202c);
+  color: var(--text-secondary);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin-left: 2px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.65;
+  transition: opacity var(--t-fast) var(--ease-smooth),
+              background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth);
+}
+
+.control-buttons-builder__card:hover .control-buttons-builder__card-remove,
+.control-buttons-builder__card--empty .control-buttons-builder__card-remove {
+  opacity: 1;
+}
+
+.control-buttons-builder__card-remove:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+}
+
 @container control-buttons-settings (min-width: 600px) {
   .control-buttons-settings__groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

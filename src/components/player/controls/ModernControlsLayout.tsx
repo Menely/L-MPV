@@ -27,7 +27,6 @@ export const ModernControlsLayout: React.FC<ControlsLayoutProps> = ({
   renderVolumeSlider,
   renderTransportButtons,
   renderUtilityButtons,
-  renderSpeedButton,
   isFullscreen = false,
 }) => {
   return (
@@ -76,7 +75,6 @@ export const ModernControlsLayout: React.FC<ControlsLayoutProps> = ({
               speed={mediaInfo?.speed}
             />
           )}
-          {renderSpeedButton && renderSpeedButton()}
           {renderUtilityButtons()}
         </div>
       </div>

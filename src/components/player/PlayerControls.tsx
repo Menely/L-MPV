@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
 import { AnimatePresence } from "motion/react";
@@ -67,6 +67,11 @@ import {
   ControlBarStyle,
   getSavedControlBarStyle,
 } from "../../utils/controlBarStyleUtils";
+import {
+  type UtilityButtonId,
+  getSavedUtilityCards,
+  UTILITY_CARDS_CHANGED_EVENT,
+} from "../../utils/controlBarUtilityLayout";
 import { TimeDisplay } from "./TimeDisplay";
 import { WaveformActivityStrip } from "./heatmap";
 import {
@@ -186,6 +191,7 @@ export function PlayerControls({
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const [utilityCards, setUtilityCards] = useState<UtilityButtonId[][]>(() => getSavedUtilityCards());
 
 
   const handleCycleTimeFormat = useCallback(() => {
@@ -210,9 +216,14 @@ export function PlayerControls({
       setTimePosition(getSavedTimePosition());
       setTimeFormat(getSavedTimeFormat());
       setControlBarStyle(getSavedControlBarStyle());
+      setUtilityCards(getSavedUtilityCards());
     };
     window.addEventListener('l-mpv-settings-changed', updateSetting);
-    return () => window.removeEventListener('l-mpv-settings-changed', updateSetting);
+    window.addEventListener(UTILITY_CARDS_CHANGED_EVENT, updateSetting);
+    return () => {
+      window.removeEventListener('l-mpv-settings-changed', updateSetting);
+      window.removeEventListener(UTILITY_CARDS_CHANGED_EVENT, updateSetting);
+    };
   }, []);
 
   const controlsPillRef = useRef<HTMLDivElement | null>(null);
@@ -538,6 +549,94 @@ export function PlayerControls({
     saveVisualizerConfig(updated);
   };
 
+  const flatUtilityIds = useMemo(() => utilityCards.flat(), [utilityCards]);
+
+  const utilityOverflowActionById = (id: UtilityButtonId): OverflowAction | null => {
+    switch (id) {
+      case "skipOpening":
+        return visibleButtons.skipOpening !== false
+          ? {
+              id: "skip-opening",
+              label: dict.controls.skipOpening(skipOpeningSeconds),
+              icon: <FastForward size={18} />,
+              priority: "low",
+              onSelect: () => handleSeek(skipOpeningSeconds),
+            }
+          : null;
+      case "info":
+        return visibleButtons.info !== false
+          ? {
+              id: "file-info",
+              label: dict.controls.mediaInfo,
+              icon: <Info size={18} />,
+              priority: "low",
+              onSelect: handleShowFileInfo,
+              active: showMediaInfo,
+            }
+          : null;
+      case "mediaInfo":
+        return visibleButtons.mediaInfo !== false
+          ? {
+              id: "mediainfo",
+              label: dict.controls.detailedMediaInfo,
+              icon: <FileText size={18} />,
+              priority: "low",
+              onSelect: handleShowDetailedInfo,
+              active: showDetailedMediaInfo,
+            }
+          : null;
+      case "visualizer":
+        return visibleButtons.visualizer !== false
+          ? {
+              id: "visualizer",
+              label: dict.controls.visualizer,
+              icon: <AudioWaveform size={18} />,
+              priority: "low",
+              onSelect: handleToggleVisualizer,
+              active: visualizerConfig.enabled,
+            }
+          : null;
+      case "screenshot":
+        return visibleButtons.screenshot !== false
+          ? {
+              id: "screenshot",
+              label: dict.controls.screenshot,
+              icon: <Camera size={18} />,
+              priority: "low",
+              onSelect: handleTakeScreenshot,
+            }
+          : null;
+      case "alwaysOnTop":
+        return visibleButtons.alwaysOnTop !== false
+          ? {
+              id: "always-on-top",
+              label: dict.controls.alwaysOnTop,
+              icon: <Pin size={18} />,
+              priority: "medium",
+              onSelect: handleToggleAlwaysOnTop,
+              active: isAlwaysOnTop,
+            }
+          : null;
+      case "playlist":
+        return visibleButtons.playlist !== false
+          ? {
+              id: "playlist",
+              label: dict.controls.playlist,
+              icon: <ListVideo size={18} />,
+              priority: "medium",
+              onSelect: () => setIsPlaylistOpen(!isPlaylistOpen),
+              active: isPlaylistOpen,
+            }
+          : null;
+      default:
+        return null;
+    }
+  };
+
+  const orderedUtilityOverflow = flatUtilityIds
+    .map((id) => utilityOverflowActionById(id))
+    .filter((action): action is OverflowAction => action !== null);
+
   const overflowActions: OverflowAction[] = [
     ...(visibleButtons.repeat !== false ? [{
       id: "repeat", label: repeatMode === 1 ? dict.controls.repeatOne
@@ -549,41 +648,14 @@ export function PlayerControls({
       id: "shuffle", label: dict.controls.shuffle, icon: <Shuffle size={18} />,
       priority: "low" as const, onSelect: handleShuffle,
     }] : []),
-    ...(visibleButtons.skipOpening !== false ? [{
-      id: "skip-opening", label: dict.controls.skipOpening(skipOpeningSeconds),
-      icon: <FastForward size={18} />, priority: "low" as const,
-      onSelect: () => handleSeek(skipOpeningSeconds),
-    }] : []),
-    ...(visibleButtons.info !== false ? [{
-      id: "file-info", label: dict.controls.mediaInfo, icon: <Info size={18} />,
-      priority: "low" as const, onSelect: handleShowFileInfo, active: showMediaInfo,
-    }] : []),
-    ...(visibleButtons.mediaInfo !== false ? [{
-      id: "mediainfo", label: dict.controls.detailedMediaInfo, icon: <FileText size={18} />,
-      priority: "low" as const, onSelect: handleShowDetailedInfo, active: showDetailedMediaInfo,
-    }] : []),
-    ...(visibleButtons.visualizer !== false ? [{
-      id: "visualizer", label: dict.controls.visualizer, icon: <AudioWaveform size={18} />,
-      priority: "low" as const, onSelect: handleToggleVisualizer, active: visualizerConfig.enabled,
-    }] : []),
-    ...(visibleButtons.screenshot !== false ? [{
-      id: "screenshot", label: dict.controls.screenshot, icon: <Camera size={18} />,
-      priority: "low" as const, onSelect: handleTakeScreenshot,
-    }] : []),
+    ...orderedUtilityOverflow.filter((a) => a.priority === "low"),
     { id: "previous", label: dict.controls.prev, icon: <SkipBack size={18} />,
       priority: "medium", onSelect: handlePlaylistPrev },
     { id: "next", label: dict.controls.next, icon: <SkipForward size={18} />,
       priority: "medium", onSelect: handlePlaylistNext },
-    ...(visibleButtons.alwaysOnTop !== false ? [{
-      id: "always-on-top", label: dict.controls.alwaysOnTop, icon: <Pin size={18} />,
-      priority: "medium" as const, onSelect: handleToggleAlwaysOnTop, active: isAlwaysOnTop,
-    }] : []),
+    ...orderedUtilityOverflow.filter((a) => a.priority === "medium"),
     { id: "audio", label: dict.controls.audioTracks, icon: <AudioLines size={18} />,
       priority: "audio", onSelect: () => toggleTrackPopover("audio") },
-    ...(visibleButtons.playlist !== false ? [{
-      id: "playlist", label: dict.controls.playlist, icon: <ListVideo size={18} />,
-      priority: "medium" as const, onSelect: () => setIsPlaylistOpen(!isPlaylistOpen), active: isPlaylistOpen,
-    }] : []),
     ...(visibleButtons.seekButtons !== false ? [
       { id: "seek-back", label: dict.controls.seekBackward(seekStepSeconds), icon: <Undo size={18} />,
         priority: "compact" as const, onSelect: () => { handleSeek(-seekStepSeconds); triggerSeekIndicator("left", seekStepSeconds); } },
@@ -941,159 +1013,315 @@ export function PlayerControls({
     );
   };
 
-  const renderSpeedButton = () => {
-    // Если кнопка закреплена через настройки, она отображается со всеми кнопками внутри renderUtilityButtons
+  const isSpeedButtonShown = () => {
     if (visibleButtons.speed === true) {
-      return null;
+      return true;
     }
-
     const currentSpeed = mediaInfo?.speed ?? 1.0;
     const isNonStandard = Math.abs(currentSpeed - 1.0) > 0.01;
     const isSpeedPopoverOpen = displayedPopover === "speed";
-
-    if (!isNonStandard && !isSpeedPopoverOpen) {
-      return null;
-    }
-
-    return renderSpeedButtonContent();
+    return isNonStandard || isSpeedPopoverOpen;
   };
 
-  const renderUtilityButtons = (options?: { excludeFullscreen?: boolean }) => (
-    <>
-      {visibleButtons.speed === true && renderSpeedButtonContent()}
-
-      {visibleButtons.skipOpening !== false && (
-        <button
-          className="control-btn control-btn--with-label control-btn--priority-low"
-          onClick={() => handleSeek(skipOpeningSeconds)}
-          id="btn-skip-opening"
-          title={dict.controls.skipOpening(skipOpeningSeconds)}
-          aria-label={dict.controls.skipOpening(skipOpeningSeconds)}
-        >
-          <FastForward size={16} />
-          <span className="control-btn__label t-sub">
-            {dict.controls.skipOpeningShortLabel(skipOpeningSeconds)}
-          </span>
-        </button>
-      )}
-
-      {visibleButtons.alwaysOnTop !== false && (
-        <button
-          className={`control-btn control-btn--priority-medium ${isAlwaysOnTop ? "control-btn--active" : ""}`}
-          id="btn-always-on-top"
-          title={dict.controls.alwaysOnTop}
-          aria-label={dict.controls.alwaysOnTop}
-          onClick={handleToggleAlwaysOnTop}
-        >
-          <Pin size={18} />
-        </button>
-      )}
-
-      {visibleButtons.info !== false && (
-        <button
-          className={`control-btn control-btn--priority-low ${showMediaInfo ? "control-btn--active" : ""}`}
-          id="btn-file-info"
-          title={dict.controls.mediaInfo}
-          aria-label={dict.controls.mediaInfo}
-          onClick={handleShowFileInfo}
-        >
-          <Info size={18} />
-        </button>
-      )}
-
-      {visibleButtons.mediaInfo !== false && (
-        <button
-          className={`control-btn control-btn--priority-low ${showDetailedMediaInfo ? "control-btn--active" : ""}`}
-          id="btn-mediainfo"
-          title={dict.controls.detailedMediaInfo}
-          aria-label={dict.controls.detailedMediaInfo}
-          onClick={handleShowDetailedInfo}
-        >
-          <FileText size={18} />
-        </button>
-      )}
-
-      {visibleButtons.visualizer !== false && (
-        <button
-          className={`control-btn control-btn--priority-low ${
-            visualizerConfig.enabled ? "control-btn--active" : ""
-          }`}
-          id="btn-visualizer"
-          title={dict.controls.visualizer}
-          aria-label={dict.controls.visualizer}
-          onClick={handleToggleVisualizer}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            const modes: VisualizerMode[] = [
-              "waveform",
-              "spectrum",
-              "bars",
-              "matrix",
-              "ribbon",
-              "particles",
-              "circular",
-              "blob",
-              "strings",
-            ];
-            const nextIndex = (modes.indexOf(visualizerConfig.mode) + 1) % modes.length;
-            const updated = { ...visualizerConfig, mode: modes[nextIndex], enabled: true };
-            setVisualizerConfig(updated);
-            saveVisualizerConfig(updated);
-          }}
-        >
-          <AudioWaveform size={18} />
-        </button>
-      )}
-
-      {visibleButtons.playlist !== false && (
-        <button
-          className={`control-btn control-btn--priority-medium ${isPlaylistOpen ? "control-btn--active" : ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsPlaylistOpen(!isPlaylistOpen);
-          }}
-          id="btn-playlist-drawer"
-          title={dict.controls.playlist}
-          aria-label={dict.controls.playlist}
-        >
-          <ListVideo size={18} />
-        </button>
-      )}
-
-      {visibleButtons.screenshot !== false && (
-        <button
-          className="control-btn control-btn--priority-low"
-          onClick={handleTakeScreenshot}
-          id="btn-screenshot"
-          title={dict.controls.screenshot}
-          aria-label={dict.controls.screenshot}
-        >
-          <Camera size={18} />
-        </button>
-      )}
-
-      <button
-        ref={moreButtonRef}
-        type="button"
-        id="btn-controls-more"
-        className={`control-btn controls-overflow-trigger ${activePopover === "more" ? "control-btn--active" : ""}`}
-        aria-label={dict.controls.more}
-        title={dict.controls.more}
-        aria-haspopup="dialog"
-        aria-expanded={activePopover === "more"}
-        aria-controls={displayedPopover === "more" ? "player-controls-overflow" : undefined}
-        onClick={() => {
-          if (activePopover === "more") { closePopover(); return; }
-          if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
-          onCloseChapters?.();
-          openPopover("more");
-        }}
-      >
-        <MoreHorizontal size={18} aria-hidden="true" />
-      </button>
-      {!options?.excludeFullscreen && renderFullscreenButton()}
-    </>
+  const renderMoreButton = () => (
+    <button
+      key="more"
+      ref={moreButtonRef}
+      type="button"
+      id="btn-controls-more"
+      className={`control-btn controls-overflow-trigger ${activePopover === "more" ? "control-btn--active" : ""}`}
+      aria-label={dict.controls.more}
+      title={dict.controls.more}
+      aria-haspopup="dialog"
+      aria-expanded={activePopover === "more"}
+      aria-controls={displayedPopover === "more" ? "player-controls-overflow" : undefined}
+      onClick={() => {
+        if (activePopover === "more") {
+          closePopover();
+          return;
+        }
+        if (showMediaInfo && onToggleMediaInfo) onToggleMediaInfo();
+        onCloseChapters?.();
+        openPopover("more");
+      }}
+    >
+      <MoreHorizontal size={18} aria-hidden="true" />
+    </button>
   );
+
+  const renderUtilityButtonById = (id: UtilityButtonId): React.ReactNode => {
+    switch (id) {
+      case "speed":
+        return isSpeedButtonShown() ? renderSpeedButtonContent() : null;
+      case "skipOpening":
+        return visibleButtons.skipOpening !== false ? (
+          <button
+            key="skipOpening"
+            className="control-btn control-btn--with-label control-btn--priority-low"
+            onClick={() => handleSeek(skipOpeningSeconds)}
+            id="btn-skip-opening"
+            title={dict.controls.skipOpening(skipOpeningSeconds)}
+            aria-label={dict.controls.skipOpening(skipOpeningSeconds)}
+          >
+            <FastForward size={16} />
+            <span className="control-btn__label t-sub">
+              {dict.controls.skipOpeningShortLabel(skipOpeningSeconds)}
+            </span>
+          </button>
+        ) : null;
+      case "alwaysOnTop":
+        return visibleButtons.alwaysOnTop !== false ? (
+          <button
+            key="alwaysOnTop"
+            className={`control-btn control-btn--priority-medium ${isAlwaysOnTop ? "control-btn--active" : ""}`}
+            id="btn-always-on-top"
+            title={dict.controls.alwaysOnTop}
+            aria-label={dict.controls.alwaysOnTop}
+            onClick={handleToggleAlwaysOnTop}
+          >
+            <Pin size={18} />
+          </button>
+        ) : null;
+      case "info":
+        return visibleButtons.info !== false ? (
+          <button
+            key="info"
+            className={`control-btn control-btn--priority-low ${showMediaInfo ? "control-btn--active" : ""}`}
+            id="btn-file-info"
+            title={dict.controls.mediaInfo}
+            aria-label={dict.controls.mediaInfo}
+            onClick={handleShowFileInfo}
+          >
+            <Info size={18} />
+          </button>
+        ) : null;
+      case "mediaInfo":
+        return visibleButtons.mediaInfo !== false ? (
+          <button
+            key="mediaInfo"
+            className={`control-btn control-btn--priority-low ${showDetailedMediaInfo ? "control-btn--active" : ""}`}
+            id="btn-mediainfo"
+            title={dict.controls.detailedMediaInfo}
+            aria-label={dict.controls.detailedMediaInfo}
+            onClick={handleShowDetailedInfo}
+          >
+            <FileText size={18} />
+          </button>
+        ) : null;
+      case "visualizer":
+        return visibleButtons.visualizer !== false ? (
+          <button
+            key="visualizer"
+            className={`control-btn control-btn--priority-low ${
+              visualizerConfig.enabled ? "control-btn--active" : ""
+            }`}
+            id="btn-visualizer"
+            title={dict.controls.visualizer}
+            aria-label={dict.controls.visualizer}
+            onClick={handleToggleVisualizer}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              const modes: VisualizerMode[] = [
+                "waveform",
+                "spectrum",
+                "bars",
+                "matrix",
+                "ribbon",
+                "particles",
+                "circular",
+                "blob",
+                "strings",
+              ];
+              const nextIndex = (modes.indexOf(visualizerConfig.mode) + 1) % modes.length;
+              const updated = { ...visualizerConfig, mode: modes[nextIndex], enabled: true };
+              setVisualizerConfig(updated);
+              saveVisualizerConfig(updated);
+            }}
+          >
+            <AudioWaveform size={18} />
+          </button>
+        ) : null;
+      case "playlist":
+        return visibleButtons.playlist !== false ? (
+          <button
+            key="playlist"
+            className={`control-btn control-btn--priority-medium ${isPlaylistOpen ? "control-btn--active" : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsPlaylistOpen(!isPlaylistOpen);
+            }}
+            id="btn-playlist-drawer"
+            title={dict.controls.playlist}
+            aria-label={dict.controls.playlist}
+          >
+            <ListVideo size={18} />
+          </button>
+        ) : null;
+      case "screenshot":
+        return visibleButtons.screenshot !== false ? (
+          <button
+            key="screenshot"
+            className="control-btn control-btn--priority-low"
+            onClick={handleTakeScreenshot}
+            id="btn-screenshot"
+            title={dict.controls.screenshot}
+            aria-label={dict.controls.screenshot}
+          >
+            <Camera size={18} />
+          </button>
+        ) : null;
+      case "fullscreen":
+        return renderFullscreenButton();
+    }
+  };
+
+  const renderUtilityButtons = (options?: { excludeFullscreen?: boolean }) => {
+    const ids = options?.excludeFullscreen
+      ? flatUtilityIds.filter((id) => id !== "fullscreen")
+      : flatUtilityIds;
+    const rendered = ids
+      .map((id) => ({ id, node: renderUtilityButtonById(id) }))
+      .filter((item): item is { id: UtilityButtonId; node: React.ReactNode } => item.node !== null);
+
+    const lastIsFullscreen =
+      !options?.excludeFullscreen &&
+      rendered.length > 0 &&
+      rendered[rendered.length - 1].id === "fullscreen";
+
+    return (
+      <>
+        {lastIsFullscreen ? (
+          <>
+            {rendered.slice(0, -1).map((item) => (
+              <React.Fragment key={item.id}>{item.node}</React.Fragment>
+            ))}
+            {renderMoreButton()}
+            <React.Fragment key="fullscreen">
+              {rendered[rendered.length - 1].node}
+            </React.Fragment>
+          </>
+        ) : (
+          <>
+            {rendered.map((item) => (
+              <React.Fragment key={item.id}>{item.node}</React.Fragment>
+            ))}
+            {renderMoreButton()}
+          </>
+        )}
+      </>
+    );
+  };
+
+  const renderUtilityIslands = (toolbarRightTimeNode?: React.ReactNode) => {
+    const activeCards = utilityCards
+      .map((cardIds, cardIdx) => ({
+        cardIdx,
+        items: cardIds
+          .map((id) => ({ id, node: renderUtilityButtonById(id) }))
+          .filter((item): item is { id: UtilityButtonId; node: React.ReactNode } => item.node !== null),
+      }))
+      .filter((card) => card.items.length > 0);
+
+    if (activeCards.length === 0) {
+      return (
+        <div
+          className={
+            toolbarRightTimeNode
+              ? "controls-island controls-island--utilities"
+              : "controls-island controls-island--fullscreen controls-island--single-icon controls-island--more-only"
+          }
+        >
+          {toolbarRightTimeNode}
+          {renderMoreButton()}
+        </div>
+      );
+    }
+
+    const firstMultiIdx = activeCards.findIndex(
+      (c) => c.items.length > 1 || c.items[0].id !== "fullscreen",
+    );
+    const timeCardIdx = firstMultiIdx >= 0 ? firstMultiIdx : 0;
+    const moreCardIdx = firstMultiIdx >= 0 ? firstMultiIdx : activeCards.length - 1;
+
+    return (
+      <>
+        {activeCards.map((card, idx) => {
+          const hasTime = Boolean(toolbarRightTimeNode) && idx === timeCardIdx;
+          const hasMore = idx === moreCardIdx;
+          const isSingleIcon =
+            card.items.length === 1 &&
+            !hasTime &&
+            card.items[0].id !== "speed" &&
+            card.items[0].id !== "skipOpening";
+
+          const allLowPriority =
+            !hasTime &&
+            !hasMore &&
+            card.items.every((item) =>
+              ["speed", "skipOpening", "info", "mediaInfo", "visualizer", "screenshot"].includes(
+                item.id,
+              ),
+            );
+          const allMediumOrLowPriority =
+            !hasTime &&
+            !hasMore &&
+            card.items.every((item) => item.id !== "fullscreen");
+
+          const islandClass = isSingleIcon
+            ? "controls-island controls-island--fullscreen controls-island--single-icon"
+            : "controls-island controls-island--utilities";
+
+          const responsiveClass = allLowPriority
+            ? "controls-island--only-low"
+            : allMediumOrLowPriority
+              ? "controls-island--only-medium"
+              : "";
+
+          const lastIsFullscreenInMulti =
+            !isSingleIcon &&
+            hasMore &&
+            card.items.length > 1 &&
+            card.items[card.items.length - 1].id === "fullscreen";
+
+          return (
+            <div key={`utility-island-${card.cardIdx}`} className={`${islandClass} ${responsiveClass}`}>
+              {hasTime && toolbarRightTimeNode}
+              {lastIsFullscreenInMulti ? (
+                <>
+                  {card.items.slice(0, -1).map((item) => (
+                    <React.Fragment key={item.id}>{item.node}</React.Fragment>
+                  ))}
+                  {renderMoreButton()}
+                  <React.Fragment key="fullscreen">
+                    {card.items[card.items.length - 1].node}
+                  </React.Fragment>
+                </>
+              ) : (
+                <>
+                  {card.items.map((item) => (
+                    <React.Fragment key={item.id}>{item.node}</React.Fragment>
+                  ))}
+                  {hasMore && !isSingleIcon && renderMoreButton()}
+                </>
+              )}
+            </div>
+          );
+        })}
+        {activeCards.every(
+          (card, idx) =>
+            idx !== moreCardIdx ||
+            (card.items.length === 1 &&
+              !(Boolean(toolbarRightTimeNode) && idx === timeCardIdx) &&
+              card.items[0].id !== "speed" &&
+              card.items[0].id !== "skipOpening"),
+        ) && (
+          <div className="controls-island controls-island--fullscreen controls-island--single-icon controls-island--more-only">
+            {renderMoreButton()}
+          </div>
+        )}
+      </>
+    );
+  };
 
   const layoutProps = {
     controlsPillRef,
@@ -1113,7 +1341,7 @@ export function PlayerControls({
     renderVolumeSlider,
     renderTransportButtons,
     renderUtilityButtons,
-    renderSpeedButton,
+    renderUtilityIslands,
     renderFullscreenButton,
     isStripHovered,
     setIsStripHovered,
