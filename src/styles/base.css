@@ -182,23 +182,30 @@ body, #root {
   top: 48px;
   left: 24px;
   z-index: var(--z-float);
-  background: rgba(10, 12, 18, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-md);
-  padding: var(--space-4) 18px;
-  font-size: var(--fs-xl);
+  background: var(--bg-pill);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  padding: 8px 18px 8px 14px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.35px;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55),
+              0 0 24px var(--accent-alpha),
+              inset 0 1px 0 rgba(255, 255, 255, 0.20);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
   pointer-events: none;
-  animation: fadeIn var(--t-fast) var(--ease-decelerate);
+  transform-origin: left center;
+  will-change: transform, opacity;
+  animation: glassHudSlideIn var(--t-pop, 200ms) var(--ease-decelerate);
+  transition: border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 .frame-osd--closing {
   opacity: 0;
-  animation: osdFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
+  animation: glassHudSlideOut var(--t-fast) var(--ease-accelerate) forwards !important;
   pointer-events: none;
 }
 

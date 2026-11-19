@@ -26,6 +26,7 @@ import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
 import { SeekIndicator } from "./components/player/SeekIndicator";
 import { VolumeIndicator } from "./components/player/VolumeIndicator";
+import { GlassHud } from "./components/player/GlassHud";
 import { triggerVolumeFeedback } from "./utils/volumeFeedback";
 import { UpdateInfo } from "./components/modals/UpdateModal";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
@@ -1343,18 +1344,12 @@ function App() {
       <FileDragPreview onFileDrop={handleDroppedFile} />
       <Titlebar title="L-MPV" mediaTitle={mediaTitle} />
 
-      {/* OSD подписи текущего кадра и статистики */}
-      {osdText && (
-        <div
-          className={`frame-osd ${osdText.includes("\n") ? "frame-osd--multiline" : ""} ${
-            isOsdError ? "frame-osd--error" : ""
-          } ${isOsdClosing ? "frame-osd--closing" : ""}`}
-          role={isOsdError ? "alert" : "status"}
-          aria-live={isOsdError ? "assertive" : "polite"}
-          >
-          {osdText}
-        </div>
-      )}
+      {/* Футуристичный стеклянный Glass HUD: парящие уведомления и центральный Flash-глиф Play/Pause */}
+      <GlassHud
+        osdText={osdText}
+        isOsdClosing={isOsdClosing}
+        isOsdError={isOsdError}
+      />
 
       <div
         className={`video-area ${!hasMedia ? "video-area--empty" : ""}`}

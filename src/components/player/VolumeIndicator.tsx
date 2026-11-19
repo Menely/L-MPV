@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Volume2, VolumeX } from "lucide-react";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { VOLUME_FEEDBACK_EVENT, isVolumeIndicatorEnabled, isVolumeOsdEnabled } from "../../utils/volumeFeedback";
 import { useFeedbackLifetime } from "../../hooks/useFeedbackLifetime";
@@ -42,12 +43,42 @@ export function VolumeIndicator() {
 
   if (!feedback) return null;
   const { volume, closing } = feedback;
-  if (osd) return (
-    <div className={`volume-feedback-osd${closing ? " volume-feedback-osd--closing" : ""}`}
-      role="status" aria-live="polite" aria-atomic="true">
-      {dict.controls.volume}: <strong>{Math.round(volume)}%</strong>
-    </div>
-  );
+  if (osd) {
+    const isMuted = volume === 0;
+    const isBoosted = volume > 100;
+    const fillPercent = Math.min(100, (volume / 100) * 100);
+
+    return (
+      <div
+        className={`volume-feedback-osd${closing ? " volume-feedback-osd--closing" : ""}`}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <div className="volume-feedback-osd__icon-slot">
+          {isMuted ? (
+            <VolumeX size={18} className="volume-feedback-osd__icon volume-feedback-osd__icon--muted" />
+          ) : (
+            <Volume2 size={18} className="volume-feedback-osd__icon volume-feedback-osd__icon--accent" />
+          )}
+        </div>
+        <div className="volume-feedback-osd__content">
+          <div className="volume-feedback-osd__text">
+            <span className="volume-feedback-osd__label">{dict.controls.volume}</span>
+            <span className={`volume-feedback-osd__value${isBoosted ? " volume-feedback-osd__value--boost" : ""}`}>
+              {Math.round(volume)}%
+            </span>
+          </div>
+          <div className="volume-feedback-osd__bar-track" aria-hidden="true">
+            <div
+              className={`volume-feedback-osd__bar-fill${isBoosted ? " volume-feedback-osd__bar-fill--boost" : ""}`}
+              style={{ width: `${fillPercent}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
   // Keep shadow and foreground as direct geometry to avoid <use> repaint
   // differences when the volume updates in Chromium.
   const ticks = <>

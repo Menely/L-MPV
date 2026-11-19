@@ -599,8 +599,8 @@ export function renderVisualizerFrame(
     const ringCount = placement === "toolbar" ? 1 : Math.max(1, Math.min(5, Math.floor(w / 140)));
     const rayCount = 24;
     const cy = h / 2;
-    const baseR = placement === "toolbar" ? 7.5 : Math.max(3, Math.min(h * 0.35, 16));
-    const maxRay = placement === "toolbar" ? 7.5 : Math.max(2, Math.min(h * 0.45, 18));
+    const baseR = placement === "toolbar" ? Math.max(6, Math.min(h * 0.32, 11)) : Math.max(3, Math.min(h * 0.35, 16));
+    const maxRay = placement === "toolbar" ? Math.max(5, Math.min(h * 0.38, 12)) : Math.max(2, Math.min(h * 0.45, 18));
 
     for (let rIdx = 0; rIdx < ringCount; rIdx++) {
       const cx = ringCount === 1 ? w / 2 : (rIdx + 0.5) * (w / ringCount);
@@ -647,7 +647,7 @@ export function renderVisualizerFrame(
     const blobCount = placement === "toolbar" ? 1 : Math.max(1, Math.min(3, Math.floor(w / 220)));
     const cy = h / 2;
     const numPoints = 16;
-    const baseR = placement === "toolbar" ? 8.5 : Math.max(4, Math.min(h * 0.4, 20));
+    const baseR = placement === "toolbar" ? Math.max(7, Math.min(h * 0.38, 12)) : Math.max(4, Math.min(h * 0.4, 20));
 
     for (let b = 0; b < blobCount; b++) {
       const cx = blobCount === 1 ? w / 2 : (b + 0.5) * (w / blobCount);
@@ -921,17 +921,15 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
     };
   }, [config, placement, motionAllowed, isCanvasVisible, isIdle, controlsVisible, canvasRef]);
 
-  const height = placement === "toolbar"
-    ? (config.mode === "circular" || config.mode === "blob" ? 34 : 22)
-    : placement === "inside_timeline"
-      ? 16
-      : (config.height || 22);
+  const height = placement === "inside_timeline" || placement === "toolbar"
+    ? undefined
+    : (config.height || 22);
 
   return (
     <div
       ref={containerRef}
       className={`audio-visualizer audio-visualizer--${placement} audio-visualizer--mode-${config.mode} ${className}`}
-      style={placement === "inside_timeline" ? undefined : { height: `${height}px` }}
+      style={height !== undefined ? { height: `${height}px` } : undefined}
       onClick={placement === "toolbar" ? handleToggleStyle : undefined}
       >
       <canvas ref={bindCanvas} className="audio-visualizer__canvas" />

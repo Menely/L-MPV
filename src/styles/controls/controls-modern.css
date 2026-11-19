@@ -52,6 +52,23 @@
   margin: 0;
 }
 
+/* Позиционирование всплывающей карточки превью и плашки времени над таймлайном */
+.player-controls--modern .timeline-preview-card {
+  bottom: calc(100% + 22px);
+}
+
+.player-controls--modern:has(.waveform-activity-strip--visible) .timeline-preview-card {
+  bottom: calc(100% + var(--heatmap-strip-height, 34px) + 26px);
+}
+
+.player-controls--modern.player-controls--has-visualizer-above .timeline-preview-card {
+  bottom: calc(100% + var(--visualizer-height, 22px) + 24px);
+}
+
+.player-controls--modern.player-controls--has-visualizer-above:has(.waveform-activity-strip--visible) .timeline-preview-card {
+  bottom: calc(100% + var(--visualizer-height, 22px) + var(--heatmap-strip-height, 34px) + 28px);
+}
+
 /* Трек таймлайна */
 .player-controls--modern .timeline__track {
   height: 5px;
@@ -228,10 +245,10 @@
   padding: 0 4px 0 8px;
 }
 
-/* Визуализатор в тулбаре: комфортный зазор от процента громкости */
+/* Визуализатор в тулбаре: увеличенная высота 30px для идеального баланса */
 .player-controls--modern .audio-visualizer--toolbar {
   margin-left: 10px;
-  height: 26px;
+  height: 30px !important;
   border-radius: var(--radius-control);
   flex-shrink: 0;
   min-width: 60px;
