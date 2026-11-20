@@ -474,6 +474,7 @@ html.no-animations .timeline__pulse {
   position: relative;
   width: 38px;
   height: 38px;
+  overflow: visible;
   color: var(--accent-text);
   background: transparent;
   box-shadow: none;
@@ -489,6 +490,7 @@ html.no-animations .timeline__pulse {
   stroke-width: 2.4;
   display: block;
   flex-shrink: 0;
+  overflow: visible;
   filter: none;
   transform-origin: center center;
   /* Keep play/pause on the same centre; only the glyph handles hover/press. */
@@ -496,6 +498,11 @@ html.no-animations .timeline__pulse {
   transition: transform var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
               filter var(--t-fast) var(--ease-smooth);
+}
+
+.control-btn--play svg.control-btn__app-play-icon {
+  width: 29px;
+  height: 29px;
 }
 
 .control-btn--play:hover {
@@ -844,6 +851,10 @@ html[data-glow="off"] .timeline__thumb {
   .control-btn--play svg {
     width: 20px;
     height: 20px;
+  }
+  .control-btn--play svg.control-btn__app-play-icon {
+    width: 25px;
+    height: 25px;
   }
 }
 

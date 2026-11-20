@@ -313,6 +313,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Mathematical Control Bar Rhythm & Optical Centering:**
   - Strict 40px center-to-center grid rhythm and 22px visual gap across audio tracks, subtitles, and volume buttons;
   - Micro-optical compensation for circular Play/Pause button (`transform: translateX(1px)`) aligning the triangle centroid;
+  - Custom vector **Play** button (`AppPlayIcon`) and empty-state emblem shaped after the L-MPV app icon, automatically tinted to the active theme accent;
   - Standardized transport button scale (`size=18` for Repeat and Shuffle) and relaxed token spacing (`gap: var(--space-2)`) for Skip Opening;
   - Enhanced nested card opacity differentiation for Capsule mode (`--capsule-island-fill`);
   - First-line alignment for settings checkboxes and options with unified `SettingsIcon` slots.

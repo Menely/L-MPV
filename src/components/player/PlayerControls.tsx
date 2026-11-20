@@ -12,7 +12,6 @@ import {
   Redo,
   SkipBack,
   SkipForward,
-  Play,
   Pause,
   Volume1,
   Volume2,
@@ -80,7 +79,7 @@ import {
   DockedControlsLayout,
   TrackPopovers,
 } from "./controls";
-import { SpeedPopover, formatSpeedValue, SPEED_PRESETS, SpeedIcon } from "./controls";
+import { SpeedPopover, formatSpeedValue, SPEED_PRESETS, SpeedIcon, AppPlayIcon } from "./controls";
 import { ControlsOverflow, type OverflowAction } from "./controls/ControlsOverflow";
 
 export function PlayerControls({
@@ -894,7 +893,7 @@ export function PlayerControls({
         aria-label={paused ? dict.controls.play : dict.controls.pause}
       >
         {paused ? (
-          <Play key="play-icon" size={22} fill="currentColor" />
+          <AppPlayIcon key="play-icon" size={28} className="control-btn__app-play-icon" />
         ) : (
           <Pause key="pause-icon" size={22} fill="currentColor" />
         )}

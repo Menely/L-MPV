@@ -280,6 +280,13 @@ pub fn populate_folder_playlist(
             });
 
         if let Some(idx) = target_idx {
+            {
+                let _transition = super::dir_scan::lock_open_transition()?;
+                if current_open_generation() != generation {
+                    return Ok(());
+                }
+                let _ = mpv.command("playlist-clear");
+            }
             // Файлы, идущие ДО текущего по алфавиту, добавляем и перемещаем в начало плейлиста,
             // сдвигая текущий файл на его корректный алфавитный индекс.
             // Проверка поколения на каждой итерации: устаревшая задача обязана

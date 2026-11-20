@@ -1,10 +1,11 @@
 import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import { isMotionAllowed } from "../../../utils/animationUtils";
 import {
+  RULER_BOOST_START_X,
   RULER_BOOST_WIDTH,
   RULER_GEOMETRY,
   RULER_MARK_POSITIONS,
-  RULER_NOMINAL_X,
+  RULER_NORMAL_WIDTH,
   TICK_GEOMETRY,
   getBoostColor,
   paintVolumeRuler,
@@ -16,18 +17,19 @@ interface VolumeRulerOverlayProps {
   closing: boolean;
 }
 
-/** Экранная шкала громкости поверх видеокадра с волной рисок и рельсой. */
+/** Экранная шкала громкости поверх видеокадра с волной рисок и тонкой рельсой. */
 export function VolumeRulerOverlay({ volume, label, closing }: VolumeRulerOverlayProps) {
   const uid = useId().replace(/:/g, "");
   const boostBaseGradId = `${uid}-boost-base`;
   const boostFillGradId = `${uid}-boost-fill`;
-  const needleGlowId = `${uid}-needle-glow`;
+  const needleShadowId = `${uid}-needle-shadow`;
 
   const shadowGroupRef = useRef<SVGGElement | null>(null);
   const fgGroupRef = useRef<SVGGElement | null>(null);
   const railNormalFillRef = useRef<SVGRectElement | null>(null);
   const railBoostFillRef = useRef<SVGRectElement | null>(null);
   const needleGroupRef = useRef<SVGGElement | null>(null);
+  const needleHaloRef = useRef<SVGRectElement | null>(null);
   const needleBodyRef = useRef<SVGRectElement | null>(null);
 
   const targetVolRef = useRef(volume);
@@ -51,6 +53,7 @@ export function VolumeRulerOverlay({ volume, label, closing }: VolumeRulerOverla
           railNormalFill: railNormalFillRef.current,
           railBoostFill: railBoostFillRef.current,
           needleGroup: needleGroupRef.current,
+          needleHalo: needleHaloRef.current,
           needleBody: needleBodyRef.current,
         },
         v
@@ -88,13 +91,16 @@ export function VolumeRulerOverlay({ volume, label, closing }: VolumeRulerOverla
 
   const isMuted = volume === 0;
   const isBoost = volume > RULER_GEOMETRY.nominalVolume;
-  const normalWidth = RULER_NOMINAL_X - RULER_GEOMETRY.startX;
+  const isNominalOrAbove = volume >= RULER_GEOMETRY.nominalVolume;
+  const boostEndX = RULER_GEOMETRY.startX + RULER_GEOMETRY.trackWidth;
 
   return (
     <div
       className={`volume-feedback${closing ? " volume-feedback--closing" : ""}${
         isBoost ? " volume-feedback--boost" : ""
-      }${isMuted ? " volume-feedback--muted" : ""}`}
+      }${isMuted ? " volume-feedback--muted" : ""}${
+        isNominalOrAbove ? " volume-feedback--nominal-or-above" : ""
+      }`}
       role="status"
       aria-live="polite"
       aria-atomic="true"
@@ -115,64 +121,73 @@ export function VolumeRulerOverlay({ volume, label, closing }: VolumeRulerOverla
           aria-hidden="true"
         >
           <defs>
-            <linearGradient id={boostBaseGradId} x1="0" y1="0" x2="1" y2="0">
+            <linearGradient
+              id={boostBaseGradId}
+              gradientUnits="userSpaceOnUse"
+              x1={RULER_BOOST_START_X}
+              y1="0"
+              x2={boostEndX}
+              y2="0"
+            >
               <stop offset="0%" stopColor="rgba(245,158,11,0.34)" />
-              <stop offset="100%" stopColor="rgba(251,113,133,0.42)" />
+              <stop offset="100%" stopColor="rgba(251,113,133,0.40)" />
             </linearGradient>
-            <linearGradient id={boostFillGradId} x1="0" y1="0" x2="1" y2="0">
+
+            <linearGradient
+              id={boostFillGradId}
+              gradientUnits="userSpaceOnUse"
+              x1={RULER_BOOST_START_X}
+              y1="0"
+              x2={boostEndX}
+              y2="0"
+            >
               <stop offset="0%" stopColor="#f59e0b" />
               <stop offset="100%" stopColor="#fb7185" />
             </linearGradient>
-            <filter id={needleGlowId} x="-100%" y="-60%" width="300%" height="220%">
-              <feGaussianBlur stdDeviation="2.2" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+
+            <filter id={needleShadowId} x="-140%" y="-80%" width="380%" height="260%">
+              <feDropShadow dx="0" dy="1" stdDeviation="1.4" floodColor="#000000" floodOpacity="0.55" />
             </filter>
           </defs>
 
+          {/* Слой 1: Направленная тень только снизу каждой риски */}
           <g ref={shadowGroupRef}>
             {TICK_GEOMETRY.map((t) => (
-              <rect
-                key={`shadow-${t.level}`}
-                x={t.x - 0.5}
-                width={3}
-                rx={1.5}
-                fill="rgba(0,0,0,0.52)"
-              />
+              <rect key={`shadow-${t.level}`} x={t.x} width={t.width} rx={t.rx} fill="#000000" />
             ))}
           </g>
 
+          {/* Слой 2: Чёткие риски с 3-уровневым ритмом и волной */}
           <g ref={fgGroupRef}>
             {TICK_GEOMETRY.map((t) => (
-              <rect key={`fg-${t.level}`} x={t.x} width={2} rx={1} />
+              <rect key={`fg-${t.level}`} x={t.x} width={t.width} rx={t.rx} />
             ))}
           </g>
 
+          {/* Слой 3: Тонкая 2px рельса с мягкой тенью снизу и микро-разрывом на 100% */}
           <rect
-            x={RULER_GEOMETRY.startX - 1}
-            y="24"
-            width={RULER_GEOMETRY.trackWidth + 2}
-            height="5"
-            rx="2.5"
-            fill="rgba(0,0,0,0.42)"
+            x={RULER_GEOMETRY.startX}
+            y="26"
+            width={RULER_GEOMETRY.trackWidth}
+            height="2"
+            rx="1"
+            fill="rgba(0,0,0,0.34)"
           />
           <rect
             x={RULER_GEOMETRY.startX}
             y="25"
-            width={normalWidth}
-            height="3"
-            rx="1.5"
+            width={RULER_NORMAL_WIDTH}
+            height="2"
+            rx="1"
             fill="var(--accent)"
             fillOpacity="0.30"
           />
           <rect
-            x={RULER_NOMINAL_X}
+            x={RULER_BOOST_START_X}
             y="25"
             width={RULER_BOOST_WIDTH}
-            height="3"
-            rx="1.5"
+            height="2"
+            rx="1"
             fill={`url(#${boostBaseGradId})`}
           />
 
@@ -181,41 +196,41 @@ export function VolumeRulerOverlay({ volume, label, closing }: VolumeRulerOverla
             x={RULER_GEOMETRY.startX}
             y="25"
             width="0"
-            height="3"
-            rx="1.5"
+            height="2"
+            rx="1"
             fill="var(--accent)"
           />
           <rect
             ref={railBoostFillRef}
-            x={RULER_NOMINAL_X}
+            x={RULER_BOOST_START_X}
             y="25"
             width="0"
-            height="3"
-            rx="1.5"
+            height="2"
+            rx="1"
             fill={`url(#${boostFillGradId})`}
           />
 
-          <rect x={RULER_NOMINAL_X - 1} y="23" width="2" height="7" rx="1" fill="rgba(0,0,0,0.65)" />
-          <rect
-            x={RULER_NOMINAL_X - 0.7}
-            y="23.5"
-            width="1.4"
-            height="6"
-            rx="0.7"
-            fill="rgba(255,255,255,0.85)"
-          />
-
-          <g ref={needleGroupRef} filter={`url(#${needleGlowId})`}>
-            <rect x="-4" y="19" width="8" height="15" rx="4" fill="rgba(0,0,0,0.62)" />
+          {/* Слой 4: Ювелирный вертикальный бегунок без тяжёлой чёрной обводки */}
+          <g ref={needleGroupRef} filter={`url(#${needleShadowId})`}>
+            <rect
+              ref={needleHaloRef}
+              x="-2.5"
+              y="19"
+              width="5"
+              height="14"
+              rx="2.5"
+              fill="var(--accent)"
+              fillOpacity="0.22"
+            />
             <rect
               ref={needleBodyRef}
-              x="-2.2"
+              x="-1.5"
               y="20"
-              width="4.4"
-              height="13"
-              rx="2.2"
+              width="3"
+              height="12"
+              rx="1.5"
               fill="var(--accent)"
-              stroke="rgba(255,255,255,0.90)"
+              stroke="rgba(255,255,255,0.92)"
               strokeWidth="0.9"
             />
           </g>

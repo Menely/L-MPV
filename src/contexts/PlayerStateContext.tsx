@@ -224,6 +224,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const trackCountRef = useRef<number>(0);
   const mediaInfoRef = useRef<MediaInfo | null>(null);
   const mediaInfoLoadSeqRef = useRef<number>(0);
+  const playlistLoadSeqRef = useRef<number>(0);
 
   const refreshMediaInfo = useCallback(async (expectedPath?: string) => {
     const reqSeq = ++mediaInfoLoadSeqRef.current;
@@ -301,8 +302,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshPlaylist = useCallback(async () => {
+    const reqSeq = ++playlistLoadSeqRef.current;
     try {
       const items = await invoke<PlaylistItem[]>("get_playlist");
+      if (reqSeq !== playlistLoadSeqRef.current) return;
       setPlaylist(items);
     } catch (e) {
       console.error("Ошибка обновления плейлиста в контексте:", e);
@@ -535,6 +538,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
             const pathChanged = currentPathRef.current !== fullInfo.path;
             currentPathRef.current = fullInfo.path;
+            if (pathChanged) {
+              playlistLoadSeqRef.current += 1;
+              setPlaylist([]);
+            }
             if (pathChanged || tracksMediaPathRef.current !== fullInfo.path) {
               tracksLoadSeqRef.current += 1;
               tracksMediaPathRef.current = fullInfo.path;

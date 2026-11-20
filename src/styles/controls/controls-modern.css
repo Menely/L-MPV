@@ -179,6 +179,11 @@
   stroke-width: 2.3;
 }
 
+.player-controls--modern .control-btn--play svg.control-btn__app-play-icon {
+  width: 31px;
+  height: 31px;
+}
+
 /* Кнопки переключения дорожек (с подписями): сбалансированная ширина и защита от переполнения */
 .player-controls--modern .control-btn--with-label {
   width: auto !important;
@@ -303,5 +308,9 @@
   .player-controls--modern .control-btn--play svg {
     width: 22px;
     height: 22px;
+  }
+  .player-controls--modern .control-btn--play svg.control-btn__app-play-icon {
+    width: 27px;
+    height: 27px;
   }
 }

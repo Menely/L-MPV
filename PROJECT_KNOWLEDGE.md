@@ -74,6 +74,7 @@ L-MPV/
 │   │   │   │   ├── ControlsOverflow.tsx  # Адаптивное всплывающее меню «Ещё...» переполнения кнопок тулбара при сжатии окна
 │   │   │   │   ├── SpeedPopover.tsx      # Адаптивное всплывающее меню скорости: нормализация scale, авто-центрирование, неоновые точки
 │   │   │   │   ├── SpeedIcon.tsx         # Векторная SVG-иконка спидометра в стиле design tokens
+│   │   │   │   ├── AppPlayIcon.tsx       # Монохромная векторная SVG-иконка Play на основе силуэта логотипа L-MPV (currentColor)
 │   │   │   │   ├── types.ts              # Интерфейсы пропсов и состояний элементов управления
 │   │   │   │   └── track-popover/        # Модульные подкомпоненты всплывающих меню дорожек:
 │   │   │   │       ├── index.ts          # Реэкспорт компонентов дорожек
@@ -2262,7 +2263,6 @@ L-MPV/
   - **Глубокая модульность и принцип единственной ответственности (SRP):** Монолитный файл расщеплен на специализированные независимые компоненты в каталоге `color-picker/`:
     1. `types.ts` — типизация (`ColorPickerModalProps`, `RgbColor`, `HslColor`) и математические константы (`WHEEL_WRAP_SIZE = 192`, `WHEEL_CANVAS_SIZE = 182`, `WHEEL_CENTER = 96`, `WHEEL_RADIUS = 89`);
     2. `ColorWheel.tsx` — изолированный Canvas-спектр с субпиксельным HiDPI сглаживанием, точным хит-тестингом, Pointer Capture и концентрической внешней обводкой (`border: 2px solid`, динамически окрашиваемой в `currentHex` с мягким неоновым свечением и равномерным кольцевым зазором `3px` без субпиксельных перекосов);
-    3. `BrightnessSlider.tsx` — ползунок регулировки яркости с градиентным спектральным треком, анти-блидовой защитой (`background-repeat: no-repeat`, `background-color: #000000`, 3px фиксаторы градиента) и точным процентным индикатором;
   - Ликвидация «нейрослопа»: удалены тяжелые цветные неоновые тени (`boxShadow: ... ${currentHex}30` и `${currentHex}80`), хардкодный градиент фона заменён на семантические токены `var(--bg-glass)` и `var(--bg-modal-solid)`.
   - Внедрена полная адаптация под 3 стиля плеера:
     1. *«Капсула»*: трехуровневый парящий стек независимых карточек-островков (`color-picker-modal--capsule` с `gap: 8px`) — шапка (заголовок слева и кнопка закрытия справа), тело колорпикера со скруглением `var(--radius-controls)` и футер с кнопками действий.
@@ -2373,6 +2373,26 @@ L-MPV/
 - **Унификация загрузки внешних аудиодорожек и субтитров (`src/utils/externalTrackLoader.ts`):**
   - Единая функция `loadExternalTrack("audio" | "subtitle", ...)` объединила открытие нативного диалога, вызов `load_audio_file` / `load_subtitle_file`, обновление `loadTracks()` и OSD-уведомления для `ContextMenu.tsx` (заменив прямой вызов `@tauri-apps/plugin-dialog` в меню).
   - В `contextMenuBuilder.tsx` оба пункта (`loadAudio` и `loadSub`) блокируются (`disabled: !hasMedia`), когда медиафайл не открыт; в `App.tsx` переиспользованы `isAudioTrackPath`, `isSubtitleTrackPath` и `getFileNameFromPath`.
+
+---
+
+</details>
+
+<details>
+<summary><strong>5.44. Изоляция Списка Папки Текущего Видео, Полировка Шкалы Громкости и Фирменная Кнопка Play (AppPlayIcon)</strong></summary>
+
+- **Исправление гонки и залипания плейлиста при смене папки (`playback.rs`, `playlist.rs`, `PlayerStateContext.tsx`):**
+  - В `open_file_internal` (`src-tauri/src/commands/playback.rs`) перед `loadfile ... replace` отправляется `playlist-clear`, а фоновая проверка `wait_for_open` для сбора файлов текущей папки передаёт `&bg_prev_path` и `require_loaded = false`, дожидаясь переключения `mpv` на новый путь вместо чтения предыдущей очереди.
+  - В `populate_folder_playlist` (`src-tauri/src/commands/playlist.rs`) при найденном `target_idx` под мьютексом `lock_open_transition()` и проверкой поколения `current_open_generation() == generation` выполняется повторный `playlist-clear` перед добавлением файлов папки.
+  - В `PlayerStateContext.tsx` добавлен счётчик последовательности `playlistLoadSeqRef`: при смене активного пути список очищается (`setPlaylist([])`), а запоздавшие ответы `get_playlist` от старых запросов отбрасываются.
+- **Уточнение геометрии и контрастности `VolumeIndicator` (`rulerMath.ts`, `VolumeRulerOverlay.tsx`, `volume-indicator.css`):**
+  - Сетка переведена на `viewBoxWidth: 500`, `startX: 10`, `trackWidth: 480` с шагом рисок `16px` и `2px` микро-разрывом рельсы на отметке `100%` (`RULER_NORMAL_WIDTH`, `RULER_BOOST_START_X`, `RULER_BOOST_WIDTH`), а линейный градиент boost-участка переведён на `gradientUnits="userSpaceOnUse"`.
+  - Убран полупрозрачный fade рисок: `getTickAppearance` всегда возвращает `opacity: 1` (пройденные, непройденные `#dce2eb` и boost-зона `100–150%`); добавлен трёхуровневый ритм (`isMajor` — 50, `isQuarter` — 25, обычные — 5) с увеличенной шириной (`3` / `2.4`), высотой `baseH` (`11.5 / 8.5 / 5.8`) и направленной нижней тенью (`opacity * 0.52`).
+  - Рельса уменьшена до `2px`, бегунок дополнен мягким `needleHalo` и тенью `feDropShadow`, а на отметках `>= 100%` метка `100` выделяется через класс `volume-feedback--nominal-or-above`.
+- **Фирменная векторная кнопка Play на основе логотипа (`AppPlayIcon.tsx`, `PlayerControls.tsx`, `App.tsx`):**
+  - Добавлен компонент `src/components/player/controls/AppPlayIcon.tsx` (`viewBox="-1.5 -1.5 27 27"`, `fill="currentColor"`, уплотнённый силуэт иконки `L-MPV`), автоматически окрашиваемый цветом активной темы/акцента (`--accent-text`).
+  - Заменены стандартные иконки `<Play />` из `lucide-react` на `<AppPlayIcon />` в главной кнопке панели управления `#btn-play-pause` (`PlayerControls.tsx`) и на стартовой заглушке при отсутствии видео (`App.tsx`); стандартная иконка `Pause` сохранена без изменений.
+  - В `controls-base.css`, `controls-modern.css` и `controls-docked.css` для `.control-btn--play` и `.control-btn--play svg` задано `overflow: visible` (защита от обрезания свечения и `scale(1.06)` на hover), а для `.control-btn__app-play-icon` настроены пропорциональные размеры во всех трёх стилях и компактном режиме (`<= 460px`).
 
 ---
 

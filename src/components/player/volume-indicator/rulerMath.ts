@@ -1,9 +1,9 @@
-/** Параметры координатной сетки SVG-шкалы громкости. */
+/** Параметры координатной сетки SVG-шкалы громкости (масштаб 1:1 на 500px, шаг рисок 16px). */
 export const RULER_GEOMETRY = {
-  viewBoxWidth: 480,
+  viewBoxWidth: 500,
   viewBoxHeight: 30,
-  startX: 9,
-  trackWidth: 462,
+  startX: 10,
+  trackWidth: 480,
   tickCount: 31,
   maxVolume: 150,
   nominalVolume: 100,
@@ -15,7 +15,11 @@ export const RULER_NOMINAL_X =
   RULER_GEOMETRY.startX +
   RULER_GEOMETRY.trackWidth * (RULER_GEOMETRY.nominalVolume / RULER_GEOMETRY.maxVolume);
 
-export const RULER_BOOST_WIDTH = RULER_GEOMETRY.trackWidth - (RULER_NOMINAL_X - RULER_GEOMETRY.startX);
+/** Границы нормальной и boost-дорожки с чистым микро-разрывом 2px в центре 100%. */
+export const RULER_NORMAL_WIDTH = RULER_NOMINAL_X - RULER_GEOMETRY.startX - 1;
+export const RULER_BOOST_START_X = RULER_NOMINAL_X + 1;
+export const RULER_BOOST_WIDTH =
+  RULER_GEOMETRY.startX + RULER_GEOMETRY.trackWidth - RULER_BOOST_START_X;
 
 /** Позиции числовых меток в процентах ширины шкалы (вычисляются из сетки). */
 export const RULER_MARK_POSITIONS = {
@@ -31,7 +35,10 @@ export const RULER_MARK_POSITIONS = {
 export interface TickGeometry {
   level: number;
   x: number;
+  width: number;
+  rx: number;
   isMajor: boolean;
+  isQuarter: boolean;
 }
 
 export const TICK_GEOMETRY: TickGeometry[] = Array.from(
@@ -41,10 +48,15 @@ export const TICK_GEOMETRY: TickGeometry[] = Array.from(
     const centerX = Math.round(
       RULER_GEOMETRY.startX + (RULER_GEOMETRY.trackWidth * index) / (RULER_GEOMETRY.tickCount - 1)
     );
+    const isMajor = level % 50 === 0;
+    const width = isMajor ? 3 : 2.4;
     return {
       level,
-      x: centerX - 1,
-      isMajor: level % 50 === 0,
+      x: Number((centerX - width / 2).toFixed(2)),
+      width,
+      rx: Number((width / 2).toFixed(2)),
+      isMajor,
+      isQuarter: !isMajor && level % 25 === 0,
     };
   }
 );
@@ -55,30 +67,35 @@ export interface RulerRenderTargets {
   railNormalFill: SVGRectElement | null;
   railBoostFill: SVGRectElement | null;
   needleGroup: SVGGElement | null;
+  needleHalo: SVGRectElement | null;
   needleBody: SVGRectElement | null;
 }
 
-function getTickAppearance(level: number, volume: number, wave: number): { fill: string; opacity: string } {
-  const passed = level <= volume + 0.2 && volume > 0;
-  if (level > RULER_GEOMETRY.nominalVolume) {
-    const boostFactor = (level - RULER_GEOMETRY.nominalVolume) / 50;
-    const g = Math.round(191 - 78 * boostFactor);
-    const b = Math.round(36 + 97 * boostFactor);
+function getTickAppearance(
+  t: TickGeometry,
+  volume: number,
+  wave: number
+): { fill: string; opacity: number } {
+  const passed = t.level <= volume + 0.2 && volume > 0;
+  if (t.level > RULER_GEOMETRY.nominalVolume) {
+    const boostFactor = (t.level - RULER_GEOMETRY.nominalVolume) / 50;
+    const g = Math.round(186 - 78 * boostFactor);
+    const b = Math.round(32 + 98 * boostFactor);
     return {
       fill: `rgb(251, ${g}, ${b})`,
-      opacity: (passed ? 0.90 + wave * 0.10 : 0.50 + wave * 0.30).toFixed(2),
+      opacity: 1,
     };
   }
   if (passed) {
     const accentPct = Math.round(Math.min(1, wave * 1.15) * 100);
     return {
       fill: accentPct > 0 ? `color-mix(in srgb, var(--accent) ${accentPct}%, #ffffff)` : "#ffffff",
-      opacity: (0.84 + wave * 0.16).toFixed(2),
+      opacity: 1,
     };
   }
   return {
-    fill: "#ffffff",
-    opacity: Math.min(0.92, 0.44 + wave * 0.42).toFixed(2),
+    fill: "#dce2eb",
+    opacity: 1,
   };
 }
 
@@ -98,13 +115,19 @@ export function paintVolumeRuler(targets: RulerRenderTargets, v: number): void {
   const isBoost = v > nominalVolume + 0.2;
 
   if (targets.railNormalFill) {
-    const normalRatio = Math.min(nominalVolume, v) / maxVolume;
-    targets.railNormalFill.setAttribute("width", Math.max(0, trackWidth * normalRatio).toFixed(2));
+    const normalRatio = Math.min(nominalVolume, v) / nominalVolume;
+    targets.railNormalFill.setAttribute(
+      "width",
+      Math.max(0, RULER_NORMAL_WIDTH * normalRatio).toFixed(2)
+    );
   }
 
   if (targets.railBoostFill) {
-    const boostWidth = v > nominalVolume ? trackWidth * ((v - nominalVolume) / maxVolume) : 0;
-    targets.railBoostFill.setAttribute("width", Math.max(0, boostWidth).toFixed(2));
+    const boostRatio = v > nominalVolume ? (v - nominalVolume) / 50 : 0;
+    targets.railBoostFill.setAttribute(
+      "width",
+      Math.max(0, RULER_BOOST_WIDTH * boostRatio).toFixed(2)
+    );
   }
 
   if (targets.needleGroup) {
@@ -112,11 +135,12 @@ export function paintVolumeRuler(targets: RulerRenderTargets, v: number): void {
     targets.needleGroup.setAttribute("transform", `translate(${cursorX.toFixed(2)}, 0)`);
   }
 
+  const activeColor = isMuted ? "#94a3b8" : isBoost ? getBoostColor(v) : "var(--accent)";
   if (targets.needleBody) {
-    targets.needleBody.setAttribute(
-      "fill",
-      isMuted ? "#94a3b8" : isBoost ? getBoostColor(v) : "var(--accent)"
-    );
+    targets.needleBody.setAttribute("fill", activeColor);
+  }
+  if (targets.needleHalo) {
+    targets.needleHalo.setAttribute("fill", activeColor);
   }
 
   const fgRects = targets.fgGroup?.children;
@@ -131,17 +155,18 @@ export function paintVolumeRuler(targets: RulerRenderTargets, v: number): void {
 
     const dist = Math.abs(t.level - v);
     const wave = Math.exp(-(dist * dist) / 260);
-    const baseH = t.isMajor ? 10 : 5.5;
-    const h = baseH + wave * (t.isMajor ? 5.5 : 7);
+    const baseH = t.isMajor ? 11.5 : t.isQuarter ? 8.5 : 5.8;
+    const h = baseH + wave * (t.isMajor ? 5.5 : 6.5);
     const y = baseY - h;
 
     fg.setAttribute("y", y.toFixed(2));
     fg.setAttribute("height", h.toFixed(2));
-    shadow.setAttribute("y", (y - 0.5).toFixed(2));
-    shadow.setAttribute("height", (h + 1.2).toFixed(2));
+    shadow.setAttribute("y", (y + 1).toFixed(2));
+    shadow.setAttribute("height", h.toFixed(2));
 
-    const { fill, opacity } = getTickAppearance(t.level, v, wave);
+    const { fill, opacity } = getTickAppearance(t, v, wave);
     fg.setAttribute("fill", fill);
-    fg.setAttribute("opacity", opacity);
+    fg.setAttribute("opacity", opacity.toFixed(2));
+    shadow.setAttribute("opacity", (opacity * 0.52).toFixed(2));
   }
 }

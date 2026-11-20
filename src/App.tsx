@@ -17,7 +17,7 @@ import { useOsd, showOsd } from "./hooks/useOsd";
 import { useAutoUpscale } from "./hooks/useAutoUpscale";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Play } from "lucide-react";
+import { AppPlayIcon } from "./components/player/controls";
 import "./index.css";
 import { Titlebar } from "./components/player/Titlebar";
 import { FileDragPreview } from "./components/player/FileDragPreview";
@@ -1416,7 +1416,7 @@ function App() {
         {!hasMedia && (
           <div className="video-area__placeholder">
             <div className="video-area__placeholder-icon">
-              <Play size={32} />
+              <AppPlayIcon size={42} />
             </div>
             <div className="video-area__placeholder-text">
               L-MPV

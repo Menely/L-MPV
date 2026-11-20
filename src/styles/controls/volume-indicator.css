@@ -1,15 +1,16 @@
 /* ─── Экранный индикатор громкости поверх кадра ────────────────────────── */
 .volume-feedback {
   position: absolute;
-  top: 76%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: calc(76% - 42px);
+  left: 0;
+  right: 0;
+  margin-inline: auto;
   z-index: var(--z-widget);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  width: min(520px, calc(100% - 48px));
+  gap: 10px;
+  width: min(500px, calc(100% - 48px));
   color: #ffffff;
   pointer-events: none;
   user-select: none;
@@ -24,19 +25,20 @@
 .volume-feedback__value {
   display: inline-flex;
   align-items: baseline;
-  gap: 3px;
-  padding: 10px 14px;
-  margin: -10px -14px;
-  font-size: 30px;
-  font-weight: 600;
+  gap: 2.5px;
+  padding: 8px 12px;
+  margin: -8px -12px;
+  font-size: 31px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   white-space: nowrap;
   color: #ffffff;
   text-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.88),
-    0 2px 10px rgba(0, 0, 0, 0.55);
+    0 1px 2px rgba(0, 0, 0, 0.72),
+    0 3px 12px rgba(0, 0, 0, 0.34);
+  -webkit-font-smoothing: subpixel-antialiased;
   transition: color 0.14s ease;
 }
 
@@ -45,13 +47,13 @@
 }
 
 .volume-feedback--muted .volume-feedback__value {
-  color: rgba(255, 255, 255, 0.68);
+  color: rgba(255, 255, 255, 0.66);
 }
 
 .volume-feedback__unit {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
-  opacity: 0.82;
+  opacity: 0.76;
 }
 
 .volume-feedback__ruler {
@@ -69,29 +71,36 @@
 .volume-feedback__marks {
   position: relative;
   width: 100%;
-  height: 18px;
-  margin-top: 4px;
+  height: 16px;
+  margin-top: 3px;
   pointer-events: none;
 }
 
 .volume-feedback__mark {
   position: absolute;
   top: 0;
-  transform: translateX(-50%);
-  font-variant-numeric: tabular-nums;
-  font-size: 13px;
-  font-weight: 600;
+  width: 40px;
+  margin-left: -20px;
+  text-align: center;
+  padding-left: 0.05em;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: proportional-nums;
   line-height: 1.2;
-  letter-spacing: 0.01em;
-  color: rgba(255, 255, 255, 0.90);
-  text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.92),
-    0 2px 6px rgba(0, 0, 0, 0.65);
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.74);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  -webkit-font-smoothing: subpixel-antialiased;
+  transition: color 0.16s ease;
 }
 
 .volume-feedback__mark--nominal {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.90);
+}
+
+.volume-feedback--nominal-or-above .volume-feedback__mark--nominal {
   color: #ffffff;
-  font-weight: 700;
 }
 
 @keyframes volume-feedback-appear {
@@ -110,14 +119,16 @@
 }
 
 html.no-animations .volume-feedback,
-html.no-animations .volume-feedback__value {
+html.no-animations .volume-feedback__value,
+html.no-animations .volume-feedback__mark {
   animation: none;
   transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .volume-feedback,
-  .volume-feedback__value {
+  .volume-feedback__value,
+  .volume-feedback__mark {
     animation: none;
     transition: none;
   }

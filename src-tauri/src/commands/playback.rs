@@ -80,7 +80,8 @@ pub fn open_file_internal(
     let generation = next_open_generation();
     let open_work = super::background_io::OpenWork::begin(generation, true);
 
-    // 1. Ставим открытие выбранного файла в очередь mpv.
+    // 1. Очищаем хвост предыдущего плейлиста и ставим открытие выбранного файла в очередь mpv.
+    let _ = state.mpv.command("playlist-clear");
     state.mpv.command(&format!(
         "loadfile \"{}\" replace",
         safe_target
@@ -131,7 +132,7 @@ pub fn open_file_internal(
             // Фоново формируем плейлист из остальных файлов в той же папке.
             // Каталог читается один раз общим листингом (см. dir_scan).
             if !super::background_io::wait_for_open(
-                &bg_mpv, &target_path.to_string_lossy(), "", generation, true,
+                &bg_mpv, &target_path.to_string_lossy(), &bg_prev_path, generation, false,
             ) { return; }
             let _ = populate_folder_playlist(
                 &bg_mpv,
