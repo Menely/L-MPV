@@ -25,31 +25,46 @@ export const MediaInfoSectionItem: React.FC<MediaInfoSectionItemProps> = React.m
   return (
     <div className="mediainfo-section">
       <div className="mediainfo-section__header">
-        <button
-          type="button"
-          className="mediainfo-section__collapse-trigger"
-          onClick={() => onToggleCollapse(section.id)}
-        >
-          <span className="mediainfo-section__chevron">
-            {effectiveCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-          </span>
-          <span className="mediainfo-section__title">{section.title}</span>
-          <span className="mediainfo-section__count-badge">
-            {section.rows.length} {useRussian ? "свойств" : "props"}
-          </span>
-          {section.matchesCount > 0 && (
-            <span className="mediainfo-section__match-badge">
-              {section.matchesCount} {useRussian ? "совп." : "match"}
+        <div className="mediainfo-section__header-left">
+          <button
+            type="button"
+            className="mediainfo-section__collapse-trigger"
+            onClick={() => onToggleCollapse(section.id)}
+          >
+            <span className="mediainfo-section__chevron">
+              {effectiveCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+            </span>
+            <span className="mediainfo-section__title">{section.title}</span>
+            <span className="mediainfo-section__count-badge">
+              {section.rows.length} {useRussian ? "свойств" : "props"}
+            </span>
+            {section.matchesCount > 0 && (
+              <span className="mediainfo-section__match-badge">
+                {section.matchesCount} {useRussian ? "совп." : "match"}
+              </span>
+            )}
+          </button>
+
+          {section.streamTitle && (
+            <span
+              className="mediainfo-section__stream-title"
+              title={section.streamTitle}
+            >
+              {section.streamTitle}
             </span>
           )}
-        </button>
+        </div>
 
         <button
           type="button"
           className={`mediainfo-section__copy-btn ${
             isCopied ? "mediainfo-section__copy-btn--copied" : ""
           }`}
-          title={useRussian ? `Скопировать категорию «${section.title}»` : `Copy "${section.title}"`}
+          title={
+            useRussian
+              ? `Скопировать категорию «${section.title}${section.streamTitle ? ` — ${section.streamTitle}` : ""}»`
+              : `Copy "${section.title}${section.streamTitle ? ` — ${section.streamTitle}` : ""}"`
+          }
           onClick={() => onCopySection(section.title, section.cleanText)}
         >
           {isCopied ? (

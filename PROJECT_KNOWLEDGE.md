@@ -145,7 +145,7 @@ L-MPV/
 │   │   │   └── mediainfo/                # Модульные компоненты MediaInfo:
 │   │   │       ├── mediaInfoTypes.ts     # Типы данных (MediaSection, QuickFilterId, пропсы)
 │   │   │       ├── MediaInfoTabsBar.tsx  # Интерактивные чипы-вкладки категорий потоков с бейджами дорожек
-│   │   │       ├── MediaInfoSectionList.tsx # Список сворачиваемых секций (Accordion) со связкой с поиском
+│   │   │       ├── MediaInfoSectionList.tsx # Список сворачиваемых секций (Accordion) со связкой с поиском и отображением названия/заголовка потока правее карточки обычным текстом
 │   │   │       └── useMediaInfoDragDrop.ts # Нативный хук обработки перетаскивания файлов (Drag & Drop)
 │   │   ├── common/                       # Переиспользуемые презентационные компоненты:
 │   │   │   ├── index.ts                  # Реэкспорт

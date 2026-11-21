@@ -265,11 +265,32 @@
   margin-top: 0;
 }
 
+.mediainfo-section__header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex: 1;
+  padding-right: var(--space-2);
+}
+
 .mediainfo-section__title {
   color: var(--accent-text);
   font-weight: 700;
   font-size: var(--fs-xs);
   letter-spacing: 0.2px;
+}
+
+.mediainfo-section__stream-title {
+  display: inline-block;
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 520px;
+  letter-spacing: 0.1px;
 }
 
 .mediainfo-section__copy-btn {

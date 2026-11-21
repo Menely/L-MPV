@@ -1416,7 +1416,7 @@ function App() {
         {!hasMedia && (
           <div className="video-area__placeholder">
             <div className="video-area__placeholder-icon">
-              <AppPlayIcon size={42} />
+              <AppPlayIcon size={80} />
             </div>
             <div className="video-area__placeholder-text">
               L-MPV
