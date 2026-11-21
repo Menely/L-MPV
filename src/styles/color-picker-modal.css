@@ -3,9 +3,6 @@
 
 .color-picker-overlay {
   z-index: 11000 !important;
-  background: rgba(0, 0, 0, 0.60) !important;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
 
 /* Базовый контейнер модального окна */
@@ -75,7 +72,7 @@
   padding: 0 !important;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   overflow: visible !important;
 }
 
@@ -93,12 +90,15 @@
 .color-picker-capsule-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   width: 100%;
 }
 
 .color-picker-capsule-card--header {
-  flex: 1;
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: calc(100% - 44px);
   min-width: 0;
   height: 38px;
   display: flex;
@@ -107,21 +107,25 @@
   padding: 0 14px;
 }
 
+.color-picker-capsule-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .color-picker-capsule-card--close {
+  flex: 0 0 38px;
   width: 38px;
   height: 38px;
   min-width: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  background: var(--bg-glass, var(--bg-modal-solid, #141722));
-  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.10));
-  color: var(--text-secondary);
-  border-radius: var(--radius-controls, 16px);
-  padding: 0;
+  padding: 4px;
   margin: 0;
-  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth);
 }
 
 /* Тело капсулы */
@@ -134,7 +138,9 @@
 
 /* Футер капсулы */
 .color-picker-capsule-card--footer {
-  padding: 8px 10px;
+  --cp-footer-pad: 6px;
+  --cp-footer-border: 1px;
+  padding: var(--cp-footer-pad);
   display: flex;
   align-items: center;
   width: 100%;
@@ -175,7 +181,7 @@
 }
 
 .color-picker-swatch-btn--active {
-  box-shadow: 0 0 0 2px var(--bg-panel), 0 0 0 3.5px var(--focus-ring);
+  box-shadow: 0 0 0 2px var(--bg-modal-solid, #11141c), 0 0 0 3.5px var(--focus-ring);
   transform: scale(1.1);
   border-color: #ffffff;
 }
@@ -281,9 +287,9 @@
 
 /* Блок значений (Сплит-превью + инпуты) */
 .color-picker-values-card {
-  background: var(--surface-base, rgba(255, 255, 255, 0.03));
+  background: var(--surface-level-2, rgba(255, 255, 255, 0.03));
   border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  border-radius: max(var(--radius-control), calc(var(--radius-controls, 16px) - 15px));
   padding: 10px 12px;
   display: flex;
   align-items: center;
@@ -507,7 +513,7 @@
 .color-picker-actions-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -520,5 +526,9 @@
   justify-content: center !important;
   width: 100% !important;
   box-sizing: border-box !important;
-  border-radius: var(--radius-control) !important;
+  border-radius: max(var(--radius-control), calc(var(--radius-controls, 16px) - 12px)) !important;
+}
+
+.color-picker-modal--capsule .color-picker-action-btn {
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - var(--cp-footer-pad, 6px) - var(--cp-footer-border, 1px))) !important;
 }

@@ -528,9 +528,9 @@ button.controls-island--time,
   --fullscreen-inset: calc((var(--fullscreen-island-size) - var(--fullscreen-button-size)) / 2);
   width: var(--fullscreen-button-size);
   height: var(--fullscreen-button-size);
-  /* Радиус кнопки не может стать нулевым (иначе кнопка в островке
+  /* Радиус кнопки не может стать нулевым при ненулевом стиле (иначе кнопка в островке
      выглядит квадратом) и не может превышать радиус самого островка. */
-  border-radius: min(var(--radius-control), max(6px, calc(var(--island-radius-x) - var(--fullscreen-inset)))) / min(var(--radius-control), max(6px, calc(var(--island-radius-y) - var(--fullscreen-inset))));
+  border-radius: min(var(--island-radius-x), max(6px, calc(var(--island-radius-x) - var(--fullscreen-inset)))) / min(var(--island-radius-y), max(6px, calc(var(--island-radius-y) - var(--fullscreen-inset))));
 }
 @container controls (max-width: 760px) {
   .controls-islands-row .controls-island--fullscreen,

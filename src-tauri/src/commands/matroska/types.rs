@@ -101,6 +101,12 @@ impl SubtitleTrack {
         c.contains("ASS") || c.contains("SSA")
     }
 
+    /// Проверяет, является ли дорожка WebVTT внутри контейнера WebM (`D_WEBVTT/...`).
+    #[inline]
+    pub fn is_webm_webvtt(&self) -> bool {
+        self.codec_id.to_ascii_uppercase().starts_with("D_WEBVTT/")
+    }
+
     /// Декодирует полезную нагрузку одного кадра данных субтитров.
     pub fn decode_frame(&self, data: Vec<u8>) -> Result<Vec<u8>, String> {
         self.apply_encodings(data, 1)

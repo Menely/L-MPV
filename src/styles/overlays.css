@@ -358,10 +358,7 @@
 .chapters-modal-card--capsule .chapters-modal__close {
   width: 28px;
   height: 28px;
-  border-radius: min(
-    var(--radius-control),
-    max(0px, calc(var(--radius-controls, 16px) - var(--chapters-action-padding, 4px) - var(--chapters-action-border, 1px)))
-  );
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - var(--chapters-action-padding, 4px) - var(--chapters-action-border, 1px)));
   box-sizing: border-box;
 }
 
@@ -380,7 +377,7 @@
 }
 
 .chapters-modal-card--capsule .chapter-item {
-  border-radius: min(var(--radius-list-row), max(0px, calc(var(--radius-controls, 16px) - 7px)));
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 7px));
   border-width: 1px;
   padding: 7px 10px;
 }
@@ -782,28 +779,19 @@
   background: var(--surface-accent-subtle);
   border: 1px solid var(--border-pill);
   color: var(--accent-text);
-  border-radius: min(
-    var(--radius-control),
-    max(0px, calc(var(--radius-controls, 16px) - 7px))
-  );
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 7px));
 }
 
 .update-toast--capsule .update-toast__close {
   width: 100%;
   height: 100%;
   min-height: 30px;
-  border-radius: min(
-    var(--radius-control),
-    max(0px, calc(var(--radius-controls, 16px) - var(--toast-close-pad, 4px) - var(--toast-close-border, 1px)))
-  );
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - var(--toast-close-pad, 4px) - var(--toast-close-border, 1px)));
 }
 
 .update-toast--capsule .update-toast__btn {
   height: 30px;
-  border-radius: min(
-    var(--radius-control),
-    max(0px, calc(var(--radius-controls, 16px) - var(--toast-actions-pad, 5px) - var(--toast-actions-border, 1px)))
-  );
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - var(--toast-actions-pad, 5px) - var(--toast-actions-border, 1px)));
 }
 
 .update-toast--capsule .update-toast__btn--primary {

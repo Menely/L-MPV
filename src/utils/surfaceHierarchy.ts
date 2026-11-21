@@ -9,7 +9,8 @@ const ROOTS = [
   ".subtitles-search-card__track-picker-menu", ".confirm-dialog",
   ".playlist-drawer__header-left", ".playlist-drawer__header-actions", ".playlist-drawer__search-wrapper",
   ".mediainfo-standalone__body", ".mediainfo-standalone__titlebar-left", ".mediainfo-standalone__actions",
-  ".mediainfo-standalone__tabs-bar", ".mediainfo-standalone__search-wrapper", "[data-surface-root]",
+  ".mediainfo-standalone__tabs-bar", ".mediainfo-standalone__search-wrapper", ".color-picker-modal",
+  ".color-picker-card", "[data-surface-root]",
 ].join(", ");
 
 const CARDS = [

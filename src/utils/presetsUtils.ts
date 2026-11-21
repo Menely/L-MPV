@@ -153,6 +153,20 @@ export interface SettingsPreset {
 
 const PRESETS_STORAGE_KEY = "l-mpv-settings-presets";
 
+const BUILTIN_DEFAULT_CARDS: UtilityButtonId[][] = [
+  [
+    "speed",
+    "skipOpening",
+    "alwaysOnTop",
+    "info",
+    "mediaInfo",
+    "visualizer",
+    "playlist",
+    "screenshot",
+  ],
+  ["fullscreen"],
+];
+
 /**
  * Встроенные заводские пресеты для быстрого выбора визуального стиля.
  */
@@ -185,7 +199,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         alwaysOnTop: true,
         info: false,
         mediaInfo: false,
-        visualizer: false,
+        visualizer: true,
         screenshot: true,
         playlist: true,
         fullscreen: true,
@@ -193,6 +207,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         speed: false,
         seekButtons: true,
       },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
       ambient: {
         mode: "blur",
         blur_radius: 35,
@@ -233,9 +248,9 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       showTrackNames: true,
       visibleButtons: {
         repeat: true,
-        shuffle: true,
+        shuffle: false,
         alwaysOnTop: true,
-        info: true,
+        info: false,
         mediaInfo: true,
         visualizer: true,
         screenshot: true,
@@ -245,6 +260,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         speed: false,
         seekButtons: true,
       },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
       ambient: {
         mode: "off",
         blur_radius: 50,
@@ -257,7 +273,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         height: 26,
       },
       saveTracksToVideoDir: true,
-      hotloadEnabled: true,
+      hotloadEnabled: false,
       skipOpeningSeconds: 90,
       seekStepSeconds: 10,
     },
@@ -275,7 +291,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       glowIntensity: "off",
       uiOpacity: 0.96,
       controlBarStyle: "docked",
-      uiRadius: "smooth",
+      uiRadius: "default",
       settingsStyle: "modal",
       uiScale: { mode: "auto" },
       timePosition: "timeline_right",
@@ -297,6 +313,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         speed: false,
         seekButtons: true,
       },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
       ambient: {
         mode: "blur",
         blur_radius: 65,
@@ -308,7 +325,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         theme: "sunset",
         height: 20,
       },
-      saveTracksToVideoDir: false,
+      saveTracksToVideoDir: true,
       hotloadEnabled: false,
       skipOpeningSeconds: 90,
       seekStepSeconds: 10,
@@ -349,6 +366,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         speed: false,
         seekButtons: true,
       },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
       ambient: {
         mode: "off",
         blur_radius: 20,
@@ -393,7 +411,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         alwaysOnTop: true,
         info: false,
         mediaInfo: false,
-        visualizer: false,
+        visualizer: true,
         screenshot: true,
         playlist: true,
         fullscreen: true,
@@ -401,6 +419,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         speed: false,
         seekButtons: true,
       },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
       ambient: {
         mode: "off",
         blur_radius: 35,

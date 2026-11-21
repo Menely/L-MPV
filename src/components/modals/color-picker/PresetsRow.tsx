@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "../../../i18n/LanguageContext";
 import { QUICK_PRESETS } from "./types";
 
 interface PresetsRowProps {
@@ -13,8 +14,11 @@ export const PresetsRow: React.FC<PresetsRowProps> = ({
   currentHex,
   onSelectPreset,
 }) => {
+  const { dict } = useTranslation();
+  const cs = dict.settings.appearance.colorScheme;
+
   return (
-    <div className="color-picker-presets-row" role="radiogroup" aria-label="Быстрые цвета">
+    <div className="color-picker-presets-row" role="radiogroup" aria-label={cs.quickColors}>
       {QUICK_PRESETS.map((preset) => {
         const isSelected = currentHex.toUpperCase() === preset.toUpperCase();
         return (
@@ -25,7 +29,7 @@ export const PresetsRow: React.FC<PresetsRowProps> = ({
             style={{ backgroundColor: preset }}
             onClick={() => onSelectPreset(preset)}
             title={preset}
-            aria-label={`Выбрать ${preset}`}
+            aria-label={cs.selectPresetColor(preset)}
             aria-checked={isSelected}
             role="radio"
           />

@@ -36,7 +36,11 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
       setControlBarStyle(getSavedControlBarStyle());
     };
     window.addEventListener("l-mpv-settings-changed", handleStyleChange);
-    return () => window.removeEventListener("l-mpv-settings-changed", handleStyleChange);
+    window.addEventListener("storage", handleStyleChange);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", handleStyleChange);
+      window.removeEventListener("storage", handleStyleChange);
+    };
   }, []);
 
   const isCapsule = controlBarStyle === "capsule";
@@ -51,10 +55,11 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   const initRgb = useMemo(() => hexToRgb(normalizedInitial) || { r: 127, g: 199, b: 255 }, [normalizedInitial]);
   const initHsl = useMemo(() => rgbToHsl(initRgb.r, initRgb.g, initRgb.b), [initRgb]);
 
-  // Цветовые компоненты HSL
+  // Цветовые компоненты HSL и точный HEX (исключает погрешность округления RGB ↔ HSL при вводе)
   const [hue, setHue] = useState<number>(initHsl.h);
   const [saturation, setSaturation] = useState<number>(initHsl.s);
   const [lightness, setLightness] = useState<number>(initHsl.l);
+  const [exactHex, setExactHex] = useState<string | null>(normalizedInitial);
 
   // Значения полей ввода
   const [hexInput, setHexInput] = useState<string>(normalizedInitial.replace(/^#/, ""));
@@ -111,10 +116,17 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   }, [isPresent]);
 
   // Текущий вычисленный цвет
-  const currentRgb = useMemo(() => hslToRgb(hue, saturation, lightness), [hue, saturation, lightness]);
+  const currentRgb = useMemo(() => {
+    if (exactHex) {
+      const parsed = hexToRgb(exactHex);
+      if (parsed) return parsed;
+    }
+    return hslToRgb(hue, saturation, lightness);
+  }, [exactHex, hue, saturation, lightness]);
+
   const currentHex = useMemo(
-    () => rgbToHex(currentRgb.r, currentRgb.g, currentRgb.b).toUpperCase(),
-    [currentRgb]
+    () => (exactHex || rgbToHex(currentRgb.r, currentRgb.g, currentRgb.b)).toUpperCase(),
+    [exactHex, currentRgb]
   );
 
   // Цвет середины спектра для слайдера яркости
@@ -123,7 +135,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     return rgbToHex(mid.r, mid.g, mid.b);
   }, [hue, saturation]);
 
-  // Синхронизация полей ввода при изменении HSL
+  // Синхронизация полей ввода при смене цвета
   useEffect(() => {
     setHexInput(currentHex.replace(/^#/, ""));
     setRInput(currentRgb.r);
@@ -133,18 +145,22 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
 
   // Обработчики изменений
   const handleWheelChange = useCallback((newHue: number, newSat: number) => {
+    setExactHex(null);
     setHue(newHue);
     setSaturation(newSat);
   }, []);
 
   const handleBrightnessChange = useCallback((newLight: number) => {
+    setExactHex(null);
     setLightness(newLight);
   }, []);
 
   const handlePresetSelect = useCallback((presetHex: string) => {
     const rgb = hexToRgb(presetHex);
     if (rgb) {
+      const normalized = rgbToHex(rgb.r, rgb.g, rgb.b).toUpperCase();
       const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+      setExactHex(normalized);
       setHue(hsl.h);
       setSaturation(hsl.s);
       setLightness(hsl.l);
@@ -156,15 +172,13 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   }, [handlePresetSelect, normalizedInitial]);
 
   const handleHexChange = useCallback((val: string) => {
-    const clean = val.replace(/[^0-9A-Fa-f]/g, "").slice(0, 6);
+    const clean = val.replace(/[^0-9A-Fa-f]/g, "").slice(0, 6).toUpperCase();
     setHexInput(clean);
-    if (clean.length === 6 || clean.length === 3) {
-      const full = clean.length === 3
-        ? clean.split("").map((c) => c + c).join("")
-        : clean;
-      const rgb = hexToRgb("#" + full);
+    if (clean.length === 6) {
+      const rgb = hexToRgb("#" + clean);
       if (rgb) {
         const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+        setExactHex("#" + clean);
         setHue(hsl.h);
         setSaturation(hsl.s);
         setLightness(hsl.l);
@@ -172,11 +186,32 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     }
   }, []);
 
+  const handleHexBlur = useCallback(() => {
+    if (hexInput.length === 3) {
+      const expanded = hexInput.split("").map((c) => c + c).join("").toUpperCase();
+      const rgb = hexToRgb("#" + expanded);
+      if (rgb) {
+        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+        setExactHex("#" + expanded);
+        setHue(hsl.h);
+        setSaturation(hsl.s);
+        setLightness(hsl.l);
+        setHexInput(expanded);
+        return;
+      }
+    }
+    if (hexInput.length !== 6) {
+      setHexInput(currentHex.replace(/^#/, ""));
+    }
+  }, [hexInput, currentHex]);
+
   const handleRgbChange = useCallback((r: number, g: number, b: number) => {
+    const normalized = rgbToHex(r, g, b).toUpperCase();
+    const hsl = rgbToHsl(r, g, b);
+    setExactHex(normalized);
     setRInput(r);
     setGInput(g);
     setBInput(b);
-    const hsl = rgbToHsl(r, g, b);
     setHue(hsl.h);
     setSaturation(hsl.s);
     setLightness(hsl.l);
@@ -187,8 +222,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     handleClose();
   }, [onSelectColor, currentHex, handleClose]);
 
-  // Общий контент органов управления
-  const renderControls = () => (
+  const controlsContent = (
     <>
       <PresetsRow currentHex={currentHex} onSelectPreset={handlePresetSelect} />
       <ColorWheel
@@ -212,13 +246,14 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
         bInput={bInput}
         onRevertToInitial={handleRevertToInitial}
         onHexChange={handleHexChange}
+        onHexBlur={handleHexBlur}
         onRgbChange={handleRgbChange}
         onConfirm={handleConfirm}
       />
     </>
   );
 
-  const renderActions = () => (
+  const actionsContent = (
     <ActionButtons
       cancelLabel={dict.settings.appearance.colorScheme.cancel}
       addLabel={dict.settings.appearance.colorScheme.add}
@@ -228,8 +263,9 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
   );
 
   return createPortal(
-    <MotionSurface kind="backdrop"
-      className={`modal-overlay color-picker-overlay `}
+    <MotionSurface
+      kind="settingsBackdrop"
+      className="modal-overlay color-picker-overlay"
       onClick={(e) => {
         e.stopPropagation();
         handleClose();
@@ -237,9 +273,10 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
     >
       {isCapsule ? (
         /* ─── АДАПТИВНЫЙ РЕЖИМ «КАПСУЛА» (Островные карточки) ─── */
-        <MotionSurface kind="dialog"
+        <MotionSurface
+          kind="dialog"
           ref={dialogRef}
-          className={`modal color-picker-modal color-picker-modal--capsule `}
+          className="modal color-picker-modal color-picker-modal--capsule"
           role="dialog"
           aria-modal="true"
           aria-label={dict.settings.appearance.colorScheme.colorPickerTitle}
@@ -248,8 +285,8 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
           {/* Верхний ряд островков: Заголовок и кнопка закрытия */}
           <div className="color-picker-capsule-header">
             <div className="color-picker-card color-picker-capsule-card--header">
-              <Palette size={16} className="t-accent" />
-              <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)" }}>
+              <Palette size={16} className="t-accent" style={{ flexShrink: 0 }} />
+              <span className="color-picker-capsule-title">
                 {dict.settings.appearance.colorScheme.colorPickerTitle}
               </span>
             </div>
@@ -268,21 +305,22 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
 
           {/* Центральный остров: Контролы выбора цвета */}
           <div className="color-picker-card color-picker-capsule-card--body">
-            {renderControls()}
+            {controlsContent}
           </div>
 
           {/* Нижний остров: Симметричные кнопки действий */}
           <div className="color-picker-card color-picker-capsule-card--footer">
-            {renderActions()}
+            {actionsContent}
           </div>
         </MotionSurface>
       ) : (
         /* ─── АДАПТИВНЫЕ РЕЖИМЫ «МОДЕРН» И «КЛАССИЧЕСКИЙ» ─── */
-        <MotionSurface kind="dialog"
+        <MotionSurface
+          kind="dialog"
           ref={dialogRef}
           className={`modal color-picker-modal ${
             isModern ? "color-picker-modal--modern" : "color-picker-modal--docked"
-          } `}
+          }`}
           role="dialog"
           aria-modal="true"
           aria-label={dict.settings.appearance.colorScheme.colorPickerTitle}
@@ -309,12 +347,12 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
 
           {/* Тело модального окна */}
           <div className="modal__body">
-            {renderControls()}
+            {controlsContent}
           </div>
 
           {/* Футер модального окна */}
           <div className="color-picker-modal__footer">
-            {renderActions()}
+            {actionsContent}
           </div>
         </MotionSurface>
       )}

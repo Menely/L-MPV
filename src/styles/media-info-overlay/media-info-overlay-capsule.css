@@ -148,7 +148,7 @@
 .media-info-overlay--capsule .media-info__close {
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-control);
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - var(--media-action-padding, 4px) - var(--media-action-border, 1px)));
   color: var(--text-secondary);
   display: grid !important;
   place-items: center !important;

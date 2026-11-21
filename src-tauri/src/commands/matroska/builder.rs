@@ -47,7 +47,7 @@ impl<'a> SubtitleDocumentBuilder<'a> {
         let lines = if self.track.is_ass() {
             parse_ass(&self.build_ass(&timed)?)
         } else {
-            parse_srt_or_vtt(&Self::build_srt(&timed))
+            parse_srt_or_vtt(&Self::build_srt(&timed, self.track.is_webm_webvtt()))
         };
         Ok(lines)
     }
@@ -148,14 +148,27 @@ impl<'a> SubtitleDocumentBuilder<'a> {
     }
 
     /// Собирает документ формата SRT для дорожек UTF-8 / WebVTT.
-    fn build_srt(cues: &[TimedCue]) -> String {
+    fn build_srt(cues: &[TimedCue], is_webm_webvtt: bool) -> String {
         let mut doc = String::with_capacity(cues.len() * 80);
         for (i, cue) in cues.iter().enumerate() {
-            let text = cue
-                .payload
-                .replace("\r\n", "\n")
-                .split('\n')
-                .map(str::trim_end)
+            let normalized = cue.payload.replace("\r\n", "\n").replace('\r', "\n");
+            let mut raw_lines: Vec<&str> = normalized.split('\n').map(str::trim_end).collect();
+            if is_webm_webvtt && raw_lines.len() >= 3 {
+                // В спецификации WebM `D_WEBVTT/...` первые две строки блока содержат
+                // идентификатор реплики и настройки позиционирования (например, `align:start`).
+                let settings_line = raw_lines[1].trim();
+                let looks_like_settings = settings_line.is_empty()
+                    || settings_line.contains("align:")
+                    || settings_line.contains("position:")
+                    || settings_line.contains("line:")
+                    || settings_line.contains("size:")
+                    || settings_line.contains("vertical:");
+                if looks_like_settings {
+                    raw_lines.drain(..2);
+                }
+            }
+            let text = raw_lines
+                .into_iter()
                 .filter(|l| !l.is_empty())
                 .collect::<Vec<_>>()
                 .join("\n");
@@ -316,6 +329,23 @@ mod tests {
         let builder = SubtitleDocumentBuilder::new(&track, 1_000_000);
         let lines = builder.build(Vec::new()).unwrap();
         assert!(lines.is_empty());
+    }
+
+    #[test]
+    fn test_build_webm_d_webvtt_strips_settings_header() {
+        let track = SubtitleTrack {
+            codec_id: "D_WEBVTT/SUBTITLES".into(),
+            ..Default::default()
+        };
+        let builder = SubtitleDocumentBuilder::new(&track, 1_000_000);
+        let raw = vec![RawCue {
+            start_ticks: 1000,
+            duration_ticks: 2000,
+            payload: "cue-1\nalign:start position:10%\nПервая реплика\nВторая строка".into(),
+        }];
+        let lines = builder.build(raw).unwrap();
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].text, "Первая реплика\nВторая строка");
     }
 }
 

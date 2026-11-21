@@ -420,6 +420,17 @@ export interface TranslationDict {
         playerThemes: Record<string, string>;
         colorPickerTitle: string;
         colorPickerClose: string;
+        quickColors: string;
+        selectPresetColor: (hex: string) => string;
+        compareResetHint: string;
+        compareResetAria: string;
+        currentColorLabel: (hex: string) => string;
+        initialColorLabel: (hex: string) => string;
+        hexLabel: string;
+        copiedLabel: string;
+        copyHexLabel: string;
+        copyRgbLabel: string;
+        channelLabel: (ch: string) => string;
         brightness: string;
         cancel: string;
         add: string;
