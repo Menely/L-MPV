@@ -29,6 +29,7 @@
 @import './styles/modals.css';
 @import './styles/mediainfo-modal.css';
 @import './styles/color-picker-modal.css';
+@import './styles/open-url-modal.css';
 
 /* 8. Боковая панель (главы) */
 @import './styles/side-panel.css';

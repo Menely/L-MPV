@@ -655,6 +655,11 @@ impl MpvManager {
                 }
             }
 
+            // Сетевые потоки (YouTube и др.): встроенный ytdl_hook + yt-dlp/deno из <exe>/streaming
+            for (name, value) in crate::commands::streaming::mpv_init_options(portable_dir) {
+                Self::set_option(&api, handle, name, &value);
+            }
+
             // Отключаем встроенный OSC и обработку ввода (мы используем свой UI)
             Self::set_option(&api, handle, "osc", "no");
             Self::set_option(&api, handle, "osd-level", "0");

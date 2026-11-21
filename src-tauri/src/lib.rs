@@ -99,6 +99,9 @@ pub fn run() {
     // Полная изоляция WebView2: localStorage, кэш и профиль хранятся строго в папке плеера
     std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", &webview_dir);
 
+    // yt-dlp/deno для сетевых потоков: PATH и кэши задаются до запуска потоков
+    commands::streaming::prepare_environment(&exe_dir);
+
     // Оптимизация рендеринга шрифтов и хинтинга в Chromium WebView2 для экранов Full HD (96 DPI)
     if std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").is_err() {
         std::env::set_var(
@@ -167,6 +170,11 @@ pub fn run() {
             commands::stop_timeline_storyboard,
             commands::get_timeline_storyboard,
             commands::open_file,
+            // Сетевые потоки (YouTube по ссылке)
+            commands::streaming::open_url,
+            commands::streaming::get_streaming_tools_status,
+            commands::streaming::install_streaming_tools,
+            commands::streaming::update_streaming_tools,
             commands::browse_media_directory,
             commands::list_saved_playlists,
             commands::save_saved_playlist,

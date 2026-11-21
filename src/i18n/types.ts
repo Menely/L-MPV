@@ -979,6 +979,7 @@ export interface TranslationDict {
       osdBtn: (label: string, active: boolean) => string;
       openFile: string;
       openDisk: string;
+      openUrl: string;
       clearHistory: string;
       historyEmpty: string;
       audioTrack: string;
@@ -1289,5 +1290,36 @@ export interface TranslationDict {
     toastLater: string;
     toastRestart: string;
     toastMinimizeToWatch: string;
+  };
+  openUrl: {
+    title: string;
+    subtitle: string;
+    placeholder: string;
+    paste: string;
+    open: string;
+    opening: string;
+    cancel: string;
+    close: string;
+    quality: string;
+    qualityBest: string;
+    toolsTitle: string;
+    toolsMissing: string;
+    toolsHint: string;
+    toolsInstall: string;
+    toolsInstalling: string;
+    toolsReady: (ytdlp: string, deno: string) => string;
+    toolsUpdate: string;
+    toolsUpdating: string;
+    toolsUpdated: string;
+    stage: (stage: string) => string;
+    errInvalidUrl: string;
+    errToolsMissing: string;
+    errToolsBusy: string;
+    errInstall: (err: string) => string;
+    osdResolving: string;
+    osdReady: (title: string) => string;
+    osdFailed: (err: string) => string;
+    osdFailedGeneric: string;
+    mediaInfoUnsupported: string;
   };
 }

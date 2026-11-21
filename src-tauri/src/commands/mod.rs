@@ -22,6 +22,7 @@ mod rendering_stats;
 mod subtitles;
 mod system;
 mod startup;
+pub mod streaming;
 mod tracks;
 pub mod thumbnails;
 pub mod types;

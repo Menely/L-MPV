@@ -44,7 +44,7 @@ export function getRecentFiles(): RecentFile[] {
 /**
  * Добавление файла в историю воспроизведения с дедупликацией и перемещением в начало списка.
  */
-export function addRecentFile(fullPath: string): void {
+export function addRecentFile(fullPath: string, displayTitle?: string): void {
   if (
     !fullPath ||
     typeof fullPath !== "string" ||
@@ -57,7 +57,8 @@ export function addRecentFile(fullPath: string): void {
   }
   try {
     const current = getRecentFiles();
-    const title = extractFileNameFromPath(fullPath);
+    // Для ссылок (YouTube и т.п.) имя «файла» бессмысленно — берём заголовок ролика.
+    const title = displayTitle?.trim() || extractFileNameFromPath(fullPath);
     const filtered = current.filter(
       (item) => item.path.toLowerCase() !== fullPath.toLowerCase()
     );

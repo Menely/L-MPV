@@ -15,6 +15,7 @@ import {
   saveHeatmapConfig,
 } from "./heatmapTypes";
 import { WaveformMemoryCache } from "./waveformPalette";
+import { isRemoteMediaPath } from "../../../utils/streamUrl";
 
 export const WAVEFORM_STORAGE_KEY = "l-mpv-waveform-enabled";
 
@@ -64,6 +65,8 @@ export async function preloadWaveform(
   externalTrackPath?: string
 ): Promise<HeatmapDataResponse | null> {
   if (!path) return null;
+  // Сетевой поток (YouTube и т.п.) FFmpeg-анализом не охватывается.
+  if (isRemoteMediaPath(path)) return null;
   if ((dataSource || getHeatmapConfig().dataSource) === "audio" && typeof durationHint === "number" && durationHint <= 0) {
     return null;
   }

@@ -40,6 +40,7 @@ import {
 import { getFavoriteModel } from "./utils/favoriteModel";
 import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
+import { isRemoteMediaPath, looksLikeStreamUrl, streamErrorCode, type StreamOpenStatus } from "./utils/streamUrl";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
 import { useTranslation } from "./i18n/LanguageContext";
 import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
@@ -73,6 +74,9 @@ const UpdateModal = lazy(() =>
 );
 const UpdateToast = lazy(() =>
   import("./components/modals/UpdateModal").then((m) => ({ default: m.UpdateToast }))
+);
+const OpenUrlModal = lazy(() =>
+  import("./components/modals/OpenUrlModal").then((m) => ({ default: m.OpenUrlModal }))
 );
 const SubtitlesSearchModal = lazy(() =>
   import("./components/subtitles/SubtitlesSearchModal").then((m) => ({ default: m.SubtitlesSearchModal }))
@@ -109,6 +113,8 @@ function App() {
   const [isMediaInfoOpen, setIsMediaInfoOpen] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
   const [showSubtitlesSearch, setShowSubtitlesSearch] = useState(false);
+  // Окно «Открыть ссылку»; initialUrl — ссылка из Ctrl+V/CLI.
+  const [openUrlRequest, setOpenUrlRequest] = useState<{ initialUrl: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -204,7 +210,9 @@ function App() {
     };
   }, [showSettings, settingsStyle]);
 
-  const mediaTitle = mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "";
+  // У сетевых потоков имя «файла» бессмысленно (`watch?v=…`) — показываем заголовок ролика.
+  const mediaTitle = mediaInfo?.title
+    || (mediaInfo?.path ? mediaInfo.path.split(/[/\\]/).pop() || "" : "");
 
   const clickTimerRef = useRef<number | null>(null);
   const hasMediaRef = useRef(hasMedia);
@@ -402,6 +410,10 @@ function App() {
     const unlistenFile = listen<string>('open-file-cli', (event) => {
       invoke("open_file", { path: event.payload }).catch((err) => {
         console.error("Ошибка открытия файла из CLI:", err);
+        if (streamErrorCode(err) === "STREAM_TOOLS_MISSING") {
+          setOpenUrlRequest({ initialUrl: event.payload });
+          return;
+        }
         const dict = getDict(getEffectiveLocale());
         triggerOsd(dict.osd.openFileErr, 3200, true);
       });
@@ -425,10 +437,53 @@ function App() {
   // Синхронизация пути воспроизводимого файла с открытым независимым окном MediaInfo и сохранение в недавние
   useEffect(() => {
     if (mediaInfo?.path) {
-      emit("load-mediainfo-path", mediaInfo.path).catch(() => {});
-      addRecentFile(mediaInfo.path);
+      // MediaInfo.dll анализирует только файлы — окно MediaInfo ссылку не получает.
+      if (!isRemoteMediaPath(mediaInfo.path)) {
+        emit("load-mediainfo-path", mediaInfo.path).catch(() => {});
+      }
+      addRecentFile(mediaInfo.path, mediaInfo.title || undefined);
     }
-  }, [mediaInfo?.path]);
+  }, [mediaInfo?.path, mediaInfo?.title]);
+
+  // ─── Сетевые потоки: окно «Открыть ссылку», Ctrl+V со ссылкой, статус загрузки ───
+  useEffect(() => {
+    const openDialog = () => setOpenUrlRequest({ initialUrl: "" });
+    window.addEventListener("l-mpv-open-url", openDialog);
+
+    const onPaste = (e: ClipboardEvent) => {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (
+        target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target?.isContentEditable
+      ) return;
+      const text = e.clipboardData?.getData("text/plain")?.trim() ?? "";
+      if (!looksLikeStreamUrl(text)) return;
+      e.preventDefault();
+      setOpenUrlRequest({ initialUrl: text });
+    };
+    window.addEventListener("paste", onPaste);
+
+    const unlistenStream = listen<StreamOpenStatus>("stream-open-status", (event) => {
+      const d = getDict(getEffectiveLocale());
+      const { state, title, error } = event.payload;
+      if (state === "resolving") {
+        // yt-dlp получает ссылки несколько секунд; OSD держится до ответа.
+        triggerOsd(d.openUrl.osdResolving, 30000);
+      } else if (state === "ready") {
+        if (title) triggerOsd(d.openUrl.osdReady(title), 2500);
+        else clearOsd();
+      } else {
+        triggerOsd(error ? d.openUrl.osdFailed(error) : d.openUrl.osdFailedGeneric, 7000, true);
+      }
+    });
+
+    return () => {
+      window.removeEventListener("l-mpv-open-url", openDialog);
+      window.removeEventListener("paste", onPaste);
+      unlistenStream.then((off) => off());
+    };
+  }, [triggerOsd, clearOsd]);
 
   const isWindowRevealedRef = useRef(false);
   const startupRetryRef = useRef<number | null>(null);
@@ -778,6 +833,9 @@ function App() {
         break;
       case "openFile":
         handleOpenFile();
+        break;
+      case "openUrl":
+        setOpenUrlRequest({ initialUrl: "" });
         break;
       case "copyFrame":
         try {
@@ -1524,6 +1582,15 @@ function App() {
           <Suspense key="chapters" fallback={null}>
             <ChaptersModal
               onClose={() => setShowChapters(false)}
+            />
+          </Suspense>
+        )}
+
+        {openUrlRequest && (
+          <Suspense key="open-url" fallback={null}>
+            <OpenUrlModal
+              initialUrl={openUrlRequest.initialUrl}
+              onClose={() => setOpenUrlRequest(null)}
             />
           </Suspense>
         )}

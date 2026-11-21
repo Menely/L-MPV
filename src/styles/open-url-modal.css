@@ -1,0 +1,237 @@
+/* ─── Окно «Открыть ссылку» (YouTube и др.) ─────────────────── */
+.open-url-modal {
+  width: min(520px, calc(100vw / var(--ui-scale, 1) - 24px));
+}
+
+.open-url-modal__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.open-url-modal__icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-control);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-text);
+}
+
+.open-url-modal__titles {
+  min-width: 0;
+}
+
+.open-url-modal__titles .modal__title {
+  margin: 0;
+}
+
+.open-url-modal__subtitle {
+  margin: 1px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.open-url-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+  padding: var(--space-7) 18px 14px;
+  margin: 0;
+}
+
+.open-url-modal__field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius-control);
+  background: var(--surface-level-3);
+  border: 1px solid var(--border);
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.open-url-modal__field:focus-within {
+  border-color: var(--surface-accent-border);
+  box-shadow: 0 0 0 3px var(--accent-glass);
+}
+
+.open-url-modal__input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 var(--space-4);
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-base);
+}
+
+.open-url-modal__input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.open-url-modal__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.open-url-modal__label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.open-url-modal__segments {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-control);
+  background: var(--surface-level-3);
+  border: 1px solid var(--border-subtle);
+}
+
+.open-url-modal__segment {
+  min-width: 46px;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-radius: var(--radius-list-row);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
+}
+
+.open-url-modal__segment:hover:not(:disabled):not(.open-url-modal__segment--active) {
+  background: var(--hover-veil);
+  color: var(--text-primary);
+}
+
+.open-url-modal__segment:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.open-url-modal__segment--active {
+  background: var(--surface-accent-hover);
+  color: var(--accent-text);
+}
+
+.open-url-modal__segment:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.open-url-modal__tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  border-radius: var(--radius-control);
+  background: var(--surface-level-2);
+  border: 1px solid var(--border-subtle);
+}
+
+.open-url-modal__tools--missing {
+  border-color: var(--border-pill);
+}
+
+.open-url-modal__tools-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 26px;
+}
+
+.open-url-modal__note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.open-url-modal__note--muted {
+  color: var(--text-muted);
+}
+
+.open-url-modal__install {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+}
+
+.open-url-modal__progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.open-url-modal__progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.open-url-modal__progress-num {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.open-url-modal__progress-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-level-3);
+  overflow: hidden;
+}
+
+.open-url-modal__progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--t-fast) linear;
+}
+
+.open-url-modal__message {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--success-text);
+  word-break: break-word;
+}
+
+.open-url-modal__message--error {
+  color: var(--danger-text);
+}
+
+.open-url-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .open-url-modal__progress-fill,
+  .open-url-modal__field,
+  .open-url-modal__segment {
+    transition: none;
+  }
+}

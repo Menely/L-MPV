@@ -141,7 +141,11 @@ export function DetailedMediaInfoModal({
       setData(res);
     } catch (err) {
       console.error("Ошибка вызова get_detailed_media_info:", err);
-      setError(typeof err === "string" ? err : dict.detailedMediaInfoModal.analysisFailed);
+      setError(
+        String(err).includes("STREAM_NOT_SUPPORTED") ? dict.openUrl.mediaInfoUnsupported
+          : typeof err === "string" ? err
+          : dict.detailedMediaInfoModal.analysisFailed
+      );
     } finally {
       setLoading(false);
     }

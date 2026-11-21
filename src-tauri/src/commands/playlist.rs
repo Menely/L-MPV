@@ -118,8 +118,29 @@ pub fn get_playlist(
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
 
-        let title = if !file_name.is_empty() {
+        let remote = super::streaming::is_remote_source(&filename);
+        let current = i == current_pos;
+        // У ссылок «имя файла» бессмысленно (`watch?v=…`): берём заголовок,
+        // который ytdl_hook получил от yt-dlp.
+        let remote_title = remote
+            .then(|| {
+                let property = if current {
+                    "media-title".to_string()
+                } else {
+                    format!("playlist/{}/title", i)
+                };
+                mpv.get_property_string(&property).ok()
+            })
+            .flatten()
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty() && *t != filename);
+
+        let title = if let Some(remote_title) = remote_title {
+            remote_title
+        } else if !file_name.is_empty() && !remote {
             file_name
+        } else if remote {
+            filename.clone()
         } else {
             mpv.get_property_string(&format!(
                 "playlist/{}/title",
@@ -127,8 +148,6 @@ pub fn get_playlist(
             ))
             .unwrap_or_else(|_| filename.clone())
         };
-
-        let current = i == current_pos;
 
         playlist.push(PlaylistItem {
             index: i,

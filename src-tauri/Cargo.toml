@@ -32,6 +32,7 @@ blake3 = "1.8.7"
 flate2 = "1"
 symphonia = { version = "0.6.1", default-features = false, features = ["mkv", "exp-video-codecs"] }
 fast_image_resize = { version = "6", default-features = false, features = ["std"] }
+sha2 = "0.10"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"

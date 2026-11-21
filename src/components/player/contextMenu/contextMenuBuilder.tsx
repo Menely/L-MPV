@@ -25,6 +25,7 @@ import {
   Eye,
   Search,
   Flame,
+  Link2,
 } from "lucide-react";
 import type { TrackInfo } from "../../../contexts/PlayerStateContext";
 import type { TranslationDict } from "../../../i18n/types";
@@ -89,6 +90,7 @@ export const CONTROL_BUTTON_ITEMS = [
 export const STATIC_ICONS = {
   openFile: <FolderOpen size={16} />,
   openFileSub: <FolderOpen size={16} />,
+  openUrl: <Link2 size={16} />,
   film: <Film size={16} />,
   trash: <Trash2 size={16} />,
   search: <Search size={16} />,
@@ -277,6 +279,17 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
           shortcut: getKeyDisplay(hotkeys.openFile?.[0] || "Ctrl+KeyO"),
           action: () => {
             onOpenFile?.();
+            handleClose();
+          },
+        },
+        {
+          type: "item",
+          icon: STATIC_ICONS.openUrl,
+          label: dict.settings.cmenuUI.openUrl,
+          shortcut: hotkeys.openUrl?.[0] ? getKeyDisplay(hotkeys.openUrl[0]) : undefined,
+          action: () => {
+            // App открывает окно «Открыть ссылку» (см. обработчик l-mpv-open-url).
+            window.dispatchEvent(new Event("l-mpv-open-url"));
             handleClose();
           },
         },

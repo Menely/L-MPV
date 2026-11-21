@@ -21,6 +21,7 @@ export const DEFAULT_HOTKEYS: Record<string, string[]> = {
   playlist: ["KeyL", "KeyP"],
   fullscreen: ["KeyF", "F11", "MouseLeftDoubleClick"],
   openFile: ["Ctrl+KeyO", "KeyO"],
+  openUrl: ["Ctrl+KeyU"],
   resetZoom: ["Digit0"],
   openContextMenu: ["MouseRight"],
   cycleAudioTrack: ["KeyA", "MouseLeft"],
@@ -110,6 +111,7 @@ export const HOTKEY_ACTIONS: HotkeyAction[] = [
   { id: "playlistPrev", label: "Предыдущий файл в плейлисте", defaultKeys: DEFAULT_HOTKEYS["playlistPrev"], category: "playlist" },
   { id: "playlistNext", label: "Следующий файл в плейлисте", defaultKeys: DEFAULT_HOTKEYS["playlistNext"], category: "playlist" },
   { id: "openFile", label: "Открыть файл", defaultKeys: DEFAULT_HOTKEYS["openFile"], category: "playlist" },
+  { id: "openUrl", label: "Открыть ссылку (YouTube и др.)", defaultKeys: DEFAULT_HOTKEYS["openUrl"], category: "playlist" },
 
   // Апскейлинг 4K (до 9 моделей)
   { id: "upscaleStats", label: "Статус и статистика 4K AI", defaultKeys: DEFAULT_HOTKEYS["upscaleStats"], category: "upscaling" },

@@ -78,6 +78,11 @@ fn open_file_internal_with_resume(
     explicit_start: Option<f64>,
     app: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
+    // Ссылки (CLI, недавние, история): без сканирования каталога и внешних дорожек.
+    if super::streaming::is_remote_source(path) {
+        let app = app.ok_or("STREAM_NO_APP")?;
+        return super::streaming::open_stream(state, path, None, app).map(|_| ());
+    }
     super::startup::cancel_startup_for_other_file(state, path)?;
     // Сохранение позиции предыдущего файла перед открытием нового
     if !state.mpv.get_property_string("path").unwrap_or_default().is_empty() {
@@ -851,8 +856,19 @@ pub fn get_media_info(
     let (audio_codec, audio_channels) = mpv.get_active_audio_info();
     let audio_disabled = audio_codec.is_empty() && audio_channels.is_empty();
 
+    let title = if super::streaming::is_remote_source(&current_path) {
+        mpv.get_property_string("media-title")
+            .map(|t| t.trim().to_string())
+            .ok()
+            .filter(|t| *t != current_path)
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+
     Ok(MediaInfo {
         path: current_path.clone(),
+        title,
         duration,
         position,
         frame: mpv

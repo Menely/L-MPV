@@ -15,6 +15,8 @@ export interface PlaylistItem {
 
 export interface MediaInfo {
   path: string;
+  /** Заголовок сетевого потока (YouTube и др.); для локальных файлов пусто. */
+  title?: string;
   duration: number;
   position: number;
   frame: number;

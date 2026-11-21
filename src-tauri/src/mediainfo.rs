@@ -231,6 +231,10 @@ pub async fn get_detailed_media_info(
             current
         }
     };
+    // MediaInfo.dll анализирует файлы; страницу сайта (YouTube и т.п.) он не откроет.
+    if crate::commands::streaming::is_remote_source(&file_path) {
+        return Err("STREAM_NOT_SUPPORTED".to_string());
+    }
 
     tokio::task::spawn_blocking(move || {
         REPORT_CACHE.get_or_init(|| std::sync::Mutex::new(crate::media_report_cache::ReportCache::new()))

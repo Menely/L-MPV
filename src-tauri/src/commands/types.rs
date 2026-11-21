@@ -592,6 +592,8 @@ pub struct PlayerState {
 pub struct MediaInfo {
     /// Путь или URL к файлу.
     pub path: String,
+    /// Заголовок сетевого потока (`media-title` от yt-dlp); для файлов пусто.
+    pub title: String,
     /// Длительность в секундах.
     pub duration: f64,
     /// Текущая позиция воспроизведения в секундах.

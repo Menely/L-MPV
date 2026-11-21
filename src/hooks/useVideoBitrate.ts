@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PlaybackState, MediaInfo } from "../contexts/PlayerStateContext";
+import { isRemoteMediaPath } from "../utils/streamUrl";
 import {
   binToSamplePosition,
   checkHasVideoTrack,
@@ -109,7 +110,8 @@ export function useVideoBitrate({
 
   // Синхронизация битрейта и истории строго по индексу полусекундной корзины кадра
   useEffect(() => {
-    if (!activePath || !hasVideo) {
+    // Сетевой поток: точный битрейт по пакетам считается только для файлов на диске.
+    if (!activePath || !hasVideo || isRemoteMediaPath(activePath)) {
       lastResolvedBinRef.current = -1;
       inFlightBinRef.current = -1;
       setBitrate(0);
