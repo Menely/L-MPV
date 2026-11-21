@@ -64,6 +64,8 @@ import {
   type UtilityButtonId,
   getSavedUtilityCards,
   saveUtilityCards,
+  normalizeUtilityCards,
+  UTILITY_CARDS_CHANGED_EVENT,
 } from "./controlBarUtilityLayout";
 import type { AmbientPresetSettings } from "./ambientSettingsUtils";
 import { normalizeAmbientSettings } from "./ambientSettingsUtils";
@@ -590,6 +592,7 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   // 3.6 Стиль панели управления (парящий остров или пристыкованная плашка)
   if (data.controlBarStyle) {
     saveControlBarStyle(data.controlBarStyle);
+    window.dispatchEvent(new CustomEvent("l-mpv-control-bar-style-changed", { detail: data.controlBarStyle }));
   }
 
   if (data.settingsStyle === "modal" || data.settingsStyle === "sidebar") {
@@ -617,6 +620,7 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   }
   if (Array.isArray(data.utilityButtonCards)) {
     saveUtilityCards(data.utilityButtonCards, { notify: false });
+    window.dispatchEvent(new Event(UTILITY_CARDS_CHANGED_EVENT));
   }
 
   // 7. Пользовательские цвета
@@ -862,42 +866,53 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
     const valid: SettingsPreset[] = [];
 
     for (const item of list) {
-      if (item && typeof item.name === "string" && item.data && typeof item.data === "object") {
-        valid.push({
-          id: `preset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          name: `${item.name.replace(/\s*\(Импорт\)\s*/g, "")} (Импорт)`,
-          createdAt: Date.now(),
-          isBuiltIn: false,
-          data: {
-             playerTheme: item.data.playerTheme || "graphite",
-             settingsStyle: item.data.settingsStyle === "modal" || item.data.settingsStyle === "sidebar" ? item.data.settingsStyle : undefined,
-             language: item.data.language === "ru" || item.data.language === "en" ? item.data.language : undefined,
-            accentColor: item.data.accentColor || "#7fc7ff",
-            glowIntensity: item.data.glowIntensity || "medium",
-            uiOpacity: typeof item.data.uiOpacity === "number" ? item.data.uiOpacity : 0.88,
-            uiRadius: item.data.uiRadius,
-            uiScale: item.data.uiScale,
-            animationsEnabled: item.data.animationsEnabled !== false,
-            showTrackNames: item.data.showTrackNames !== false,
-            visibleButtons: item.data.visibleButtons || {},
-            customColors: item.data.customColors || [],
-            ambient: normalizeAmbientSettings(item.data.ambient),
-            visualizer: item.data.visualizer || {
-              enabled: false,
-              placement: "off",
-              mode: "waveform",
-              theme: "accent",
-              height: 22,
-            },
-            heatmap: item.data.heatmap,
-            saveTracksToVideoDir: item.data.saveTracksToVideoDir !== false,
-            hotloadEnabled: item.data.hotloadEnabled === true,
-            skipOpeningSeconds: typeof item.data.skipOpeningSeconds === "number" ? item.data.skipOpeningSeconds : 90,
-            seekStepSeconds: typeof item.data.seekStepSeconds === "number" ? item.data.seekStepSeconds : 10,
-            customHotkeys: item.data.customHotkeys,
+      if (!item || typeof item !== "object") continue;
+      const d = (item.data && typeof item.data === "object") ? item.data : item;
+      const rawName = typeof item.name === "string" ? item.name : "Импортированный пресет";
+
+      valid.push({
+        id: `preset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        name: `${rawName.replace(/\s*\(Импорт\)\s*/g, "")} (Импорт)`,
+        createdAt: Date.now(),
+        isBuiltIn: false,
+        data: {
+          playerTheme: d.playerTheme || "graphite",
+          settingsStyle: d.settingsStyle === "modal" || d.settingsStyle === "sidebar" ? d.settingsStyle : undefined,
+          language: d.language === "ru" || d.language === "en" ? d.language : undefined,
+          uiFont: d.uiFont,
+          timePosition: d.timePosition,
+          timeFormat: d.timeFormat,
+          controlBarStyle: d.controlBarStyle === "capsule" || d.controlBarStyle === "modern" || d.controlBarStyle === "docked"
+            ? d.controlBarStyle
+            : undefined,
+          accentColor: d.accentColor || "#7fc7ff",
+          glowIntensity: d.glowIntensity || "medium",
+          uiOpacity: typeof d.uiOpacity === "number" ? d.uiOpacity : 0.88,
+          uiRadius: d.uiRadius,
+          uiScale: d.uiScale,
+          animationsEnabled: d.animationsEnabled !== false,
+          showTrackNames: d.showTrackNames !== false,
+          visibleButtons: d.visibleButtons || {},
+          utilityButtonCards: Array.isArray(d.utilityButtonCards)
+            ? normalizeUtilityCards(d.utilityButtonCards, true)
+            : undefined,
+          customColors: d.customColors || [],
+          ambient: normalizeAmbientSettings(d.ambient),
+          visualizer: d.visualizer || {
+            enabled: false,
+            placement: "off",
+            mode: "waveform",
+            theme: "accent",
+            height: 22,
           },
-        });
-      }
+          heatmap: d.heatmap,
+          saveTracksToVideoDir: d.saveTracksToVideoDir !== false,
+          hotloadEnabled: d.hotloadEnabled === true,
+          skipOpeningSeconds: typeof d.skipOpeningSeconds === "number" ? d.skipOpeningSeconds : 90,
+          seekStepSeconds: typeof d.seekStepSeconds === "number" ? d.seekStepSeconds : 10,
+          customHotkeys: d.customHotkeys,
+        },
+      });
     }
     return valid;
   } catch (e) {
@@ -1014,6 +1029,19 @@ export function isSettingsMatchingPreset(
     if (JSON.stringify(current.utilityButtonCards) !== JSON.stringify(preset.utilityButtonCards)) {
       return false;
     }
+  }
+
+  // 10.1 Стиль панели управления
+  if (preset.controlBarStyle && current.controlBarStyle) {
+    if (current.controlBarStyle !== preset.controlBarStyle) return false;
+  }
+
+  // 10.2 Положение и формат времени
+  if (preset.timePosition && current.timePosition) {
+    if (current.timePosition !== preset.timePosition) return false;
+  }
+  if (preset.timeFormat && current.timeFormat) {
+    if (current.timeFormat !== preset.timeFormat) return false;
   }
 
   // 11. Blur

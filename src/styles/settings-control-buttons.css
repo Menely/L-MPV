@@ -57,6 +57,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   min-height: 46px;
   padding: 8px 10px;
@@ -64,6 +65,11 @@
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-controls, 16px);
   box-sizing: border-box;
+}
+
+/* Внешний вид полосы в стиле «Капсула» */
+.control-buttons-builder__canvas--capsule {
+  justify-content: flex-end;
 }
 
 /* Внешний вид полосы в стиле «Модерн» */
@@ -185,12 +191,12 @@
 
 .control-buttons-builder__chip--badge {
   width: auto;
-  padding: 0 7px;
+  padding: 0 6px;
   gap: 4px;
   font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--accent-text);
-  background: rgba(255, 255, 255, 0.05);
+  font-weight: 500;
+  color: var(--text-primary);
+  background: transparent;
 }
 
 .control-buttons-builder__chip--placeholder {
