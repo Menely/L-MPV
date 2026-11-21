@@ -29,6 +29,7 @@ import { VolumeIndicator } from "./components/player/VolumeIndicator";
 import { GlassHud } from "./components/player/GlassHud";
 import { triggerVolumeFeedback } from "./utils/volumeFeedback";
 import { UpdateInfo } from "./components/modals/UpdateModal";
+import { useAppUpdater } from "./hooks/useAppUpdater";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
 import { applyAccentColor } from "./utils/colorUtils";
 import {
@@ -112,6 +113,14 @@ function App() {
   const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showUpdateToast, setShowUpdateToast] = useState(false);
+  const appUpdater = useAppUpdater();
+
+  // Когда фоновая загрузка завершилась, показываем тост готовности в правом углу
+  useEffect(() => {
+    if (appUpdater.phase === "ready" && !showUpdateModal) {
+      setShowUpdateToast(true);
+    }
+  }, [appUpdater.phase, showUpdateModal]);
   const { osdText, isOsdClosing, isOsdError, triggerOsd, clearOsd, getOsdText } = useOsd();
   const [isCursorInUpperHalf, setIsCursorInUpperHalf] = useState(false);
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => {
@@ -1546,15 +1555,22 @@ function App() {
           <Suspense key="update-dialog" fallback={null}>
             <UpdateModal
               updateInfo={pendingUpdate}
-              onClose={() => setShowUpdateModal(false)}
+              updater={appUpdater}
+              onClose={() => {
+                setShowUpdateModal(false);
+                if (appUpdater.phase === "downloading" || appUpdater.phase === "ready") {
+                  setShowUpdateToast(true);
+                }
+              }}
             />
           </Suspense>
         )}
 
-        {showUpdateToast && pendingUpdate && !showUpdateModal && (
+        {showUpdateToast && (pendingUpdate || appUpdater.targetRelease) && !showUpdateModal && (
           <Suspense key="update-toast" fallback={null}>
             <UpdateToast
-              updateInfo={pendingUpdate}
+              updateInfo={(appUpdater.targetRelease || pendingUpdate)!}
+              updater={appUpdater}
               onOpenModal={() => {
                 setShowUpdateToast(false);
                 setShowUpdateModal(true);

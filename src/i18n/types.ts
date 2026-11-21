@@ -1266,8 +1266,17 @@ export interface TranslationDict {
     // Toast
     toastTitle: string;
     toastVersion: (version: string) => string;
+    toastVersionArrow: (curVer: string, targetVer: string) => string;
     toastPostpone: string;
     toastUpdate: string;
     toastClose: string;
+    toastChangelog: string;
+    toastQuickInstall: string;
+    toastDownloading: string;
+    toastReadyTitle: string;
+    toastReadyHint: string;
+    toastLater: string;
+    toastRestart: string;
+    toastMinimizeToWatch: string;
   };
 }

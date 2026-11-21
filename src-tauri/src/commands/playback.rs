@@ -7,7 +7,7 @@ use super::dir_scan::{
     current_open_generation, next_open_generation,
 };
 use super::history::{
-    apply_resume_start, save_current_playback_position,
+    save_current_playback_position,
     save_history_to_disk,
 };
 use super::playlist::populate_folder_playlist;
@@ -50,6 +50,34 @@ pub fn open_file_internal(
     path: &str,
     app: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
+    open_file_internal_with_resume(state, path, None, app)
+}
+
+/// Открытие файла после перезапуска в процессе автообновления с восстановлением точной позиции и статуса паузы.
+pub fn open_file_after_update_resume(
+    state: &PlayerState,
+    path: &str,
+    position: f64,
+    paused: bool,
+    app: Option<&tauri::AppHandle>,
+) -> Result<(), String> {
+    if paused {
+        let _ = state.mpv.set_property_string("pause", "yes");
+    }
+    open_file_internal_with_resume(
+        state,
+        path,
+        Some(position.max(0.0)),
+        app,
+    )
+}
+
+fn open_file_internal_with_resume(
+    state: &PlayerState,
+    path: &str,
+    explicit_start: Option<f64>,
+    app: Option<&tauri::AppHandle>,
+) -> Result<(), String> {
     super::startup::cancel_startup_for_other_file(state, path)?;
     // Сохранение позиции предыдущего файла перед открытием нового
     if !state.mpv.get_property_string("path").unwrap_or_default().is_empty() {
@@ -63,7 +91,7 @@ pub fn open_file_internal(
     let safe_target = escape_mpv_path(path);
     // Единственная точка resume: выставляем `start` ДО loadfile,
     // фронтенд второго seek не делает.
-    let _ = apply_resume_start(state, path);
+    let _ = super::history::apply_resume_start_exact(state, path, explicit_start);
 
     // Путь, игравший до loadfile: нужен фоновой задаче, чтобы отличить
     // «новый файл ещё грузится» от «пользователь уже переключил дальше».

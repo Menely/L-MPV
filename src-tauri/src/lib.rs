@@ -148,6 +148,7 @@ pub fn run() {
         }));
     }
 
+    let resume_exe_dir = exe_dir.clone();
     builder
         .plugin(startup_runtime::player_plugin(exe_dir, settings, cli_initial))
         .plugin(tauri_plugin_opener::init())
@@ -293,6 +294,9 @@ pub fn run() {
             updater::check_for_updates,
             updater::get_available_releases,
             updater::download_and_install_update,
+            updater::download_and_stage_update,
+            updater::restart_and_apply_update,
+            updater::get_staged_update_version,
             updater::postpone_update,
             // Аудио-визуализатор и звуковая карта
             commands::get_audio_spectrum,
@@ -357,6 +361,9 @@ pub fn run() {
                     commands::save_current_playback_position(&state);
                     commands::save_history_to_disk();
                     upscale::shutdown_active_processes();
+                    if let Err(err) = updater::apply_staged_update_on_exit() {
+                        eprintln!("[L-MPV] Ошибка отложенного применения обновления при выходе: {err}");
+                    }
                     // Закрытие главного окна плеера обязано полностью завершать процесс приложения
                     window.app_handle().exit(0);
                 }
@@ -366,7 +373,7 @@ pub fn run() {
             }
             _ => {}
         })
-        .setup(|app| {
+        .setup(move |app| {
             let window = app.get_webview_window("main").unwrap();
             let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
                 width: 1280.0,
@@ -432,6 +439,29 @@ pub fn run() {
                     eprintln!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
                     window.show().ok();
                 }
+            } else if let Some(resume) = updater::take_update_resume_session(&resume_exe_dir) {
+                if std::path::Path::new(&resume.path).is_file() {
+                    let state = app.state::<PlayerState>();
+                    let app_h = app.handle().clone();
+                    if !resume.paused {
+                        let _ = commands::arm_startup_playback(&state, &resume.path);
+                    }
+                    if let Err(e) = commands::open_file_after_update_resume(
+                        &state,
+                        &resume.path,
+                        resume.position,
+                        resume.paused,
+                        Some(&app_h),
+                    ) {
+                        let _ = commands::cancel_startup_playback(&state, !resume.paused);
+                        eprintln!("[L-MPV] Ошибка восстановления видео после обновления: {}", e);
+                        window.show().ok();
+                    } else if resume.paused {
+                        window.show().ok();
+                    }
+                } else {
+                    window.show().ok();
+                }
             } else {
                 // Запуск без файла — сразу отображаем окно со стартовой страницей (drag-and-drop заглушка)
                 window.show().ok();
@@ -449,6 +479,7 @@ pub fn run() {
                 let state = app_handle.state::<PlayerState>();
                 commands::save_current_playback_position(&state);
                 commands::save_history_to_disk();
+                let _ = updater::apply_staged_update_on_exit();
             }
         });
 }

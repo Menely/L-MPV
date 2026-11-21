@@ -3,6 +3,7 @@ export const MAX_SURFACE_DEPTH = 4;
 
 const ROOTS = [
   ".glass-panel", ".modal__content", ".settings-side-panel", ".settings-card", ".subtitles-card", ".update-card",
+  ".update-toast", ".update-toast__island",
   ".controls-island", ".controls-timeline-island", ".controls-time-island", ".player-controls",
   ".context-menu", ".context-menu__submenu", ".track-popover", ".version-picker-popover", ".controls-overflow",
   ".subtitles-search-card__track-picker-menu", ".confirm-dialog",

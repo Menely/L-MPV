@@ -512,17 +512,20 @@
   position: fixed;
   bottom: var(--bottom-overlays-bottom, 94px);
   right: 18px;
-  width: 320px;
+  width: 298px;
   max-width: calc(100vw - 36px);
-  background: var(--bg-pill, rgba(16, 19, 28, 0.92));
+  background: var(--bg-glass, var(--bg-pill, rgba(16, 19, 28, 0.92)));
   border: 1px solid var(--border-pill, rgba(127, 199, 255, 0.15));
   border-radius: var(--radius-lg, 14px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glass, var(--surface-accent-glow));
-  padding: 14px 16px;
+  box-shadow: var(--shadow-elevated, 0 10px 30px rgba(0, 0, 0, 0.5));
+  padding: 11px 12px;
   z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: 10px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-sizing: border-box;
   transition: bottom var(--t-base) var(--ease-smooth);
 }
 
@@ -530,46 +533,60 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-5);
+  gap: 8px;
+  min-width: 0;
 }
 
 .update-toast__title-group {
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.update-toast__title-text {
+  min-width: 0;
+  flex: 1;
 }
 
 .update-toast__icon {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm, 8px);
-  background: linear-gradient(135deg, var(--accent, #7fc7ff) 0%, var(--accent-dark, #3a7cb8) 100%);
+  background: var(--accent);
+  color: var(--on-accent);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 10px var(--accent-glow, var(--surface-accent-glow));
   transition: border-radius var(--t-spring) var(--ease-spring-smooth);
 }
 
 .update-toast__title {
-  font-size: var(--fs-base);
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-primary, #ffffff);
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .update-toast__version {
   font-size: var(--fs-xs);
   color: var(--accent-text);
   font-weight: 500;
-  margin-top: var(--space-1);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .update-toast__close {
   background: transparent;
   border: none;
-  color: var(--text-secondary, rgba(255, 255, 255, 0.5));
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
   cursor: pointer;
   padding: 0;
   width: 26px;
@@ -578,6 +595,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   line-height: 1;
   box-sizing: border-box;
   transition: background-color var(--t-fast) var(--ease-smooth),
@@ -589,46 +607,214 @@
   color: var(--text-primary, #ffffff);
 }
 
-.update-toast__actions {
+.update-toast__progress {
   display: flex;
-  justify-content: flex-end;
-  gap: var(--space-4);
+  flex-direction: column;
+  gap: 5px;
+}
+
+.update-toast__progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.update-toast__progress-pct {
+  color: var(--accent-text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.update-toast__progress-track {
+  width: 100%;
+  height: 5px;
+  border-radius: var(--radius-xs, 9999px);
+  background: var(--surface-level-3);
+  overflow: hidden;
+}
+
+.update-toast__progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.2s ease-out;
+}
+
+.update-toast__hint {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.update-toast__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: #fca5a5;
+  line-height: 1.3;
+}
+
+.update-toast__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.update-toast__actions--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .update-toast__btn {
-  padding: var(--space-3) 14px;
+  height: 29px;
+  padding: 0 10px;
   border-radius: var(--radius-control);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
-              border-color var(--t-fast) var(--ease-smooth),
-              filter var(--t-fast) var(--ease-smooth);
+              border-color var(--t-fast) var(--ease-smooth);
   outline: none;
+  box-sizing: border-box;
 }
 
 .update-toast__btn--secondary {
   background: var(--surface-level-3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
 }
 
 .update-toast__btn--secondary:hover {
   background: var(--hover-veil);
-  color: var(--text-primary, #ffffff);
+  border-color: var(--border-pill-hover);
+  color: var(--text-primary);
 }
 
 .update-toast__btn--primary {
-  background: var(--accent, #7fc7ff);
-  border: none;
+  background: var(--accent);
+  border: 1px solid transparent;
   color: var(--on-accent);
-  box-shadow: 0 2px 10px var(--accent-glow, var(--surface-accent-glow));
 }
 
 .update-toast__btn--primary:hover {
   background: var(--accent-hover);
   color: var(--on-accent-hover);
   filter: none;
+}
+
+.update-toast__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Всплывающее уведомление об обновлении: стиль «Капсула» ── */
+.update-toast.update-toast--capsule {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+  gap: 6px;
+  width: 304px;
+}
+
+.update-toast--capsule .update-toast__capsule-header {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.update-toast--capsule .update-toast__island {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-sizing: border-box;
+}
+
+.update-toast--capsule .update-toast__island--info {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 11px;
+  display: flex;
+  align-items: center;
+}
+
+.update-toast--capsule .update-toast__island--close {
+  --toast-close-pad: 4px;
+  --toast-close-border: 1px;
+  width: 42px;
+  min-width: 42px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--toast-close-pad);
+}
+
+.update-toast--capsule .update-toast__island--body {
+  padding: 9px 12px;
+}
+
+.update-toast--capsule .update-toast__island--actions {
+  --toast-actions-pad: 5px;
+  --toast-actions-border: 1px;
+  padding: var(--toast-actions-pad);
+}
+
+.update-toast--capsule .update-toast__icon {
+  background: var(--surface-accent-subtle);
+  border: 1px solid var(--border-pill);
+  color: var(--accent-text);
+  border-radius: min(
+    var(--radius-control),
+    max(0px, calc(var(--radius-controls, 16px) - 7px))
+  );
+}
+
+.update-toast--capsule .update-toast__close {
+  width: 100%;
+  height: 100%;
+  min-height: 30px;
+  border-radius: min(
+    var(--radius-control),
+    max(0px, calc(var(--radius-controls, 16px) - var(--toast-close-pad, 4px) - var(--toast-close-border, 1px)))
+  );
+}
+
+.update-toast--capsule .update-toast__btn {
+  height: 30px;
+  border-radius: min(
+    var(--radius-control),
+    max(0px, calc(var(--radius-controls, 16px) - var(--toast-actions-pad, 5px) - var(--toast-actions-border, 1px)))
+  );
+}
+
+.update-toast--capsule .update-toast__btn--primary {
+  background: var(--surface-accent-subtle);
+  border: 1px solid transparent;
+  color: var(--accent-text);
+}
+
+.update-toast--capsule .update-toast__btn--primary:hover {
+  background: var(--surface-accent-hover);
+  border-color: var(--border-pill-hover);
+  color: var(--accent-text);
 }
 

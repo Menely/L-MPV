@@ -2,406 +2,51 @@ import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
-import { MotionSurface } from "../motion/MotionSurface";
 import {
-  Download,
-  Loader2,
   X,
   AlertCircle,
-  ArrowRight,
   Maximize2,
   Minimize2,
   ExternalLink,
-  ChevronDown,
-  Check,
 } from "lucide-react";
+import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
+import { MotionSurface } from "../motion/MotionSurface";
 import { MarkdownRenderer } from "../common/MarkdownRenderer";
 import { useTranslation } from "../../i18n/LanguageContext";
 import {
   ControlBarStyle,
   getSavedControlBarStyle,
 } from "../../utils/controlBarStyleUtils";
+import type { AppUpdaterController } from "../../hooks/useAppUpdater";
+import {
+  AppLogoIcon,
+  VersionPicker,
+  UpdateActionButtons,
+  DownloadProgressBar,
+  UpdateToast,
+  compareVersions,
+  normalizeVersion,
+  type UpdateInfo,
+  type UpdateProgress,
+} from "./update";
 
-/**
- * Иконка-логотип плеера L-MPV (векторный SVG).
- */
-export const AppLogoIcon: React.FC<{ size?: number; color?: string; className?: string }> = ({
-  size = 22,
-  color = "#ffffff",
-  className,
-}) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 603.87 546.58"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-    style={{ display: "block", flexShrink: 0 }}
-  >
-    <path
-      fill={color}
-      d="M312.05,483.83l-79.01,48.13c-15.89,9.68-35.66,7.45-49.17-4.87-7.8-7.11-12.32-16.08-13.67-26.52s1.69-20.76,8.11-29.6c9.45-13.01,18.42-25.73,26.35-39.87,26.01-46.35,39.83-98.85,41.09-151.99.33-13.82,1.34-26.38,4.02-39.89,5.74-28.98,18.55-55.91,38.04-78.06,16.61-18.88,37.76-31.53,62.13-37.35,16.9-4.03,33.51-4.12,50.21.47,10.08,2.77,19.55,6.44,28.66,11.98l35.03,21.31,39.94,24.79,4.5,2.71,52.66,32.53c18.42,11.38,28.7,36.28,27.89,57.94-.63,16.77-5.82,33-16.69,45.75-5.55,6.51-12.06,11.43-19.48,15.96l-125.56,76.6-115.04,69.98ZM271.03,454.76l113.08-69.04,110.96-67.3,37.06-22.88c4.56-2.81,7.85-6.9,9.74-11.52,4.55-11.13-.07-23.93-10.32-30.21l-89.02-54.47-34.96-21.52c-9.59-5.91-19.93-10.02-31.47-10.46-13.96-.53-28.34,2.97-39.66,11.3-17.77,13.09-29.65,31.32-36.93,52.01-4.16,11.82-6.92,23.69-7.25,36.43-.77,29.08-3.18,57.43-9.2,85.76l-8.01,30.11c-8.82,28.21-20.62,54.66-35.49,80.17l-10.36,16.62,41.83-25.01ZM164.38,399.98c11.1-20.17,18.43-41.73,23.81-64.08,10.94-45.48,7.99-93.73-5.7-138.33-7.28-23.71-17.88-45.55-31.55-66.21-7.45-11.26-14.87-21.8-24.29-31.44-4.86-4.98-12.04-7.99-18.98-7.19-9.39,1.09-17.64,7.8-20.73,16.8-2.76,8.03-.63,17.35,5.12,23.59,32.25,35.04,53.32,82.77,56.57,130.39,2.79,40.79-6.12,80.43-26.01,115.88-8.63,15.37-18.54,29.24-30.5,42.02-5.9,6.3-6.91,14.68-4.13,22.34s8.8,13.52,16.4,15.35,16.04-.04,22.17-6.41c15.32-15.93,27.25-33.48,37.83-52.7ZM226.99,69.6l15.41,8.37,42.8,25.46,7.95,4.84c16.54-11.2,34.41-17.93,53.87-22.07l-6.85-3.93-70.46-42.87-34.1-20.94c-18.79-11.54-38.33-8.86-53.87,6.9-15.52,15.75-16.82,39.8-3.08,57.18,7.24,9.16,12.72,18.96,18.94,29.01,14.07,22.72,24.62,46.3,33.18,72.36,8.64-18.39,18.52-33.94,31.45-48.45l-35.25-65.83ZM59.59,381.21c13.35-14.95,24.07-31.81,30.19-51.01,6.96-21.81,10.15-43.68,8.03-66.42-1.89-20.25-7.27-39.28-16.09-57.73-7.66-16.02-18.06-30.06-30.56-42.57-4.84-4.84-11.47-7.61-18.36-6.89-11.05,1.16-20.06,10.23-21.32,21.18-.95,8.22,2.79,15.41,8.38,21.18,14.05,14.5,23.67,31.36,28.75,51.03,5.77,22.31,5.13,45.41-3.22,67.02-5.59,14.47-14.67,26.38-25.18,37.47-2.95,3.11-5.6,6.5-7.22,10.48-3.56,8.75-.47,19.1,6.33,25.16,6.96,6.2,17.24,7.97,25.98,3.29,5.9-3.16,10.06-7.46,14.29-12.2Z"
-    />
-  </svg>
-);
-
-/**
- * Данные об обновлении, возвращаемые из Tauri IPC.
- */
-export interface UpdateInfo {
-  current_version: string;
-  latest_version: string;
-  has_update: boolean;
-  release_notes: string;
-  download_url: string;
-  asset_name: string;
-  published_at: string;
-  release_url?: string;
-}
-
-/**
- * Прогресс скачивания обновления из события Rust.
- */
-interface UpdateProgress {
-  downloaded: number;
-  total: number;
-  percentage: number;
-}
+export { AppLogoIcon, UpdateToast };
+export type { UpdateInfo };
 
 interface UpdateModalProps {
   updateInfo: UpdateInfo;
   onClose: () => void;
+  updater?: AppUpdaterController;
 }
 
 /**
- * Сравнение двух semver-строк: возвращает 1 если v1 > v2, -1 если v1 < v2, 0 если равны.
+ * Модальное окно уведомления о доступном обновлении, списке изменений и откате версий.
  */
-function compareVersions(v1: string, v2: string): number {
-  const parse = (s: string) =>
-    s.replace(/^[vV]/, "").split(".").map((p) => parseInt(p, 10) || 0);
-  const p1 = parse(v1);
-  const p2 = parse(v2);
-  const max = Math.max(p1.length, p2.length);
-  for (let i = 0; i < max; i++) {
-    const a = p1[i] || 0;
-    const b = p2[i] || 0;
-    if (a > b) return 1;
-    if (a < b) return -1;
-  }
-  return 0;
-}
-
-/**
- * Форматирование байтов в читаемый вид (КБ / МБ).
- */
-function formatBytes(bytes: number, locale: string = "ru"): string {
-  if (bytes <= 0) return locale === "en" ? "0 B" : "0 Б";
-  const units = locale === "en" ? ["B", "KB", "MB", "GB"] : ["Б", "КБ", "МБ", "ГБ"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
-}
-
-/**
- * Выпадающий список выбора целевой версии релиза (Upgrade / Downgrade).
- */
-interface VersionPickerProps {
-  currentVersion: string;
-  targetVersion: string;
-  isUpgrade: boolean;
-  isDowngrade: boolean;
-  isLoadingReleases: boolean;
-  isPickerOpen: boolean;
-  onTogglePicker: () => void;
-  releases: UpdateInfo[];
-  locale: string;
-  onSelectRelease: (rel: UpdateInfo) => void;
-  pickerRef: React.RefObject<HTMLDivElement | null>;
-  dict: any;
-}
-
-const VersionPicker: React.FC<VersionPickerProps> = React.memo(({
-  currentVersion,
-  targetVersion,
-  isUpgrade,
-  isDowngrade,
-  isLoadingReleases,
-  isPickerOpen,
-  onTogglePicker,
-  releases,
-  locale,
-  onSelectRelease,
-  pickerRef,
-  dict,
-}) => (
-  <div className="version-picker-wrap" ref={pickerRef}>
-    <button
-      type="button"
-      onClick={onTogglePicker}
-      className={`version-picker-trigger ${isDowngrade ? "version-picker-trigger--downgrade" : ""}`}
-    >
-      {isDowngrade || isUpgrade ? (
-        <>
-          <span>{currentVersion}</span>
-          <ArrowRight size={12} style={{ opacity: 0.8 }} />
-          <span>{targetVersion}</span>
-        </>
-      ) : (
-        <span>v{currentVersion}</span>
-      )}
-      <ChevronDown
-        size={13}
-        style={{
-          transform: isPickerOpen ? "rotate(180deg)" : "none",
-          transition: "transform 0.15s ease",
-          opacity: 0.85,
-        }}
-      />
-    </button>
-
-    {isPickerOpen && (
-      <div className="version-picker-popover" role="menu">
-        <div className="version-picker-header">
-          {isLoadingReleases
-            ? dict.updateModal.loadingReleases
-            : dict.updateModal.availableReleases(releases.length)}
-        </div>
-        <div className="version-picker-list custom-scrollbar">
-        {releases.length === 0 && !isLoadingReleases ? (
-          <div style={{ padding: "8px 10px", fontSize: "var(--fs-xs)", color: "var(--text-muted)", fontStyle: "italic" }}>
-            {dict.updateModal.releasesUnavailable}
-          </div>
-        ) : (
-          releases.map((rel) => {
-            const cleanRelVer = rel.latest_version.replace(/^[vV]/, "");
-            const isRelCurrent = cleanRelVer === currentVersion;
-            const isRelSelected = cleanRelVer === targetVersion;
-            return (
-              <div
-                key={rel.latest_version}
-                onClick={() => onSelectRelease(rel)}
-                className={`version-picker-item ${isRelSelected ? "version-picker-item--active" : ""}`}
-                role="menuitem"
-                tabIndex={0}
-              >
-                <div className="row-center row-gap-3">
-                  <span className="version-picker-item__tag">v{cleanRelVer}</span>
-                  {isRelCurrent && (
-                    <span className="version-picker-badge version-picker-badge--current">
-                      {dict.updateModal.currentBadge}
-                    </span>
-                  )}
-                </div>
-                <div className="version-picker-item__meta">
-                  {rel.published_at && (
-                    <span>{new Date(rel.published_at).toLocaleDateString(locale === "en" ? "en-US" : "ru-RU")}</span>
-                  )}
-                  {isRelSelected && <Check size={13} color="var(--accent, #60a5fa)" />}
-                </div>
-              </div>
-            );
-          })
-        )}
-        </div>
-      </div>
-    )}
-  </div>
-));
-
-/**
- * Компонент кнопок действий в футере окна обновлений.
- */
-interface UpdateActionButtonsProps {
-  isUpgrade: boolean;
-  isDowngrade: boolean;
-  isDownloading: boolean;
-  isDone: boolean;
-  targetVersion: string;
-  isCapsule: boolean;
-  onPostpone: () => void;
-  onInstall: () => void;
-  onClose: () => void;
-  dict: any;
-}
-
-const UpdateActionButtons: React.FC<UpdateActionButtonsProps> = React.memo(({
-  isUpgrade,
-  isDowngrade,
-  isDownloading,
-  isDone,
-  targetVersion,
-  isCapsule,
-  onPostpone,
-  onInstall,
+export const UpdateModal: React.FC<UpdateModalProps> = ({
+  updateInfo,
   onClose,
-  dict,
+  updater,
 }) => {
-  const primaryClass = isCapsule
-    ? "update-card__btn update-card__btn--primary"
-    : "update-modal-btn update-modal-btn--primary";
-  const secondaryClass = isCapsule
-    ? "update-card__btn update-card__btn--secondary"
-    : "update-modal-btn update-modal-btn--secondary";
-
-  if (isUpgrade) {
-    return (
-      <>
-        {!isDownloading && (
-          <button
-            type="button"
-            onClick={onPostpone}
-            className={secondaryClass}
-          >
-            {dict.updateModal.remindLater}
-          </button>
-        )}
-
-        <button
-          type="button"
-          onClick={onInstall}
-          disabled={isDownloading}
-          className={primaryClass}
-        >
-          {isDownloading ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              <span className="nowrap">
-                {isDone ? dict.updateModal.installStarting : dict.updateModal.downloading}
-              </span>
-            </>
-          ) : (
-            <>
-              <Download size={14} />
-              <span className="nowrap">
-                {dict.updateModal.updateTo(targetVersion)}
-              </span>
-            </>
-          )}
-        </button>
-      </>
-    );
-  }
-
-  if (isDowngrade) {
-    return (
-      <button
-        type="button"
-        onClick={onInstall}
-        disabled={isDownloading}
-        className={primaryClass}
-      >
-        {isDownloading ? (
-          <>
-            <Loader2 size={14} className="animate-spin" />
-            <span className="nowrap">
-              {isDone ? dict.updateModal.rollbackStarting : dict.updateModal.downloading}
-            </span>
-          </>
-        ) : (
-          <>
-            <Download size={14} />
-            <span className="nowrap">
-              {dict.updateModal.rollbackTo(targetVersion)}
-            </span>
-          </>
-        )}
-      </button>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onClose}
-      className={primaryClass}
-    >
-      <span className="nowrap">{dict.updateModal.gotIt}</span>
-    </button>
-  );
-});
-
-/**
- * Прогресс скачивания обновления с анимацией и байтовой шкалой.
- */
-interface DownloadProgressProps {
-  progress: number;
-  downloadedBytes: number;
-  totalBytes: number;
-  isDone: boolean;
-  locale: string;
-  dict: any;
-}
-
-const DownloadProgressBar: React.FC<DownloadProgressProps> = React.memo(({
-  progress,
-  downloadedBytes,
-  totalBytes,
-  isDone,
-  locale,
-  dict,
-}) => (
-  <div style={{ marginBottom: "var(--space-7)" }}>
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        fontSize: "var(--fs-sm)",
-        color: "var(--text-secondary, #d1d5db)",
-        marginBottom: "var(--space-4)",
-      }}
-    >
-      <span>
-        {isDone ? dict.updateModal.installerStarting : dict.updateModal.downloadProgress(progress)}
-      </span>
-      {totalBytes > 0 && (
-        <span style={{ color: "var(--text-muted, #9ca3af)" }}>
-          {formatBytes(downloadedBytes, locale)} / {formatBytes(totalBytes, locale)}
-        </span>
-      )}
-    </div>
-
-    <div
-      style={{
-        width: "100%",
-        height: 8,
-        borderRadius: "var(--radius-xs)",
-        background: "var(--surface-level-3-hover)",
-        overflow: "hidden",
-        position: "relative",
-        transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
-      }}
-    >
-      <div
-        style={{
-          width: `${progress}%`,
-          height: "100%",
-          background: "var(--accent-gradient, linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%))",
-          borderRadius: "var(--radius-xs)",
-          transition: "width 0.2s ease-out, border-radius var(--t-spring) var(--ease-spring-smooth)",
-          boxShadow: "none",
-        }}
-      />
-    </div>
-
-    <p
-      style={{
-        fontSize: "var(--fs-xs)",
-        color: "var(--text-muted, #9ca3af)",
-        marginTop: "var(--space-4)",
-        marginBottom: "var(--space-0)",
-        textAlign: "center",
-      }}
-    >
-      {dict.updateModal.restartHint}
-    </p>
-  </div>
-));
-
-/**
- * Модальное окно уведомления о доступном обновлении и его установки.
- */
-export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose }) => {
   const { dict, locale } = useTranslation();
   const [selectedRelease, setSelectedRelease] = useState<UpdateInfo>(updateInfo);
   const [releases, setReleases] = useState<UpdateInfo[]>([]);
@@ -409,22 +54,50 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [downloadedBytes, setDownloadedBytes] = useState(0);
-  const [totalBytes, setTotalBytes] = useState(0);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isDone, setIsDone] = useState(false);
+  const [localDownloading, setLocalDownloading] = useState(false);
+  const [localProgress, setLocalProgress] = useState(0);
+  const [localDownloadedBytes, setLocalDownloadedBytes] = useState(0);
+  const [localTotalBytes, setLocalTotalBytes] = useState(0);
+  const [localErrorMessage, setLocalErrorMessage] = useState<string | null>(null);
+  const [localDone, setLocalDone] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [controlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
+    getSavedControlBarStyle()
+  );
   const isCapsule = controlBarStyle === "capsule";
 
-  // Синхронизируем выбранный релиз при смене пропса updateInfo
   useEffect(() => {
-    setSelectedRelease(updateInfo);
-  }, [updateInfo]);
+    const syncStyle = () => setControlBarStyle(getSavedControlBarStyle());
+    window.addEventListener("l-mpv-settings-changed", syncStyle);
+    window.addEventListener("storage", syncStyle);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", syncStyle);
+      window.removeEventListener("storage", syncStyle);
+    };
+  }, []);
 
-  // Загружаем список всех доступных релизов из GitHub через Rust IPC
+  const currentVersion = normalizeVersion(updateInfo.current_version);
+  const targetVersion = normalizeVersion(selectedRelease.latest_version);
+  const stagedVersionClean = updater
+    ? normalizeVersion(updater.stagedVersion || updater.targetRelease?.latest_version || "")
+    : targetVersion;
+
+  const isDownloading = updater ? updater.phase === "downloading" : localDownloading;
+  const isGlobalReady = updater
+    ? updater.phase === "ready" || updater.phase === "restarting"
+    : localDone;
+  const isReadyForSelected =
+    isGlobalReady && stagedVersionClean !== "" && stagedVersionClean === targetVersion;
+
+  const progress = updater ? updater.progress : localProgress;
+  const downloadedBytes = updater ? updater.downloadedBytes : localDownloadedBytes;
+  const totalBytes = updater ? updater.totalBytes : localTotalBytes;
+  const errorMessage = updater ? updater.errorMessage : localErrorMessage;
+
+  useEffect(() => {
+    setSelectedRelease(updater?.targetRelease || updateInfo);
+  }, [updateInfo, updater?.targetRelease]);
+
   useEffect(() => {
     let isMounted = true;
     setIsLoadingReleases(true);
@@ -446,7 +119,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     };
   }, []);
 
-  // Закрытие выпадающего списка при клике вне него
   useEffect(() => {
     if (!isPickerOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -458,8 +130,25 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     return () => window.removeEventListener("mousedown", handleClickOutside);
   }, [isPickerOpen]);
 
-  const currentVersion = updateInfo.current_version.replace(/^[vV]/, "");
-  const targetVersion = selectedRelease.latest_version.replace(/^[vV]/, "");
+  useEffect(() => {
+    if (updater) return;
+    let disposed = false;
+    const unlistenPromise = listen<UpdateProgress>(
+      "update-download-progress",
+      (event) => {
+        if (disposed) return;
+        setLocalProgress(Math.min(100, Math.max(0, event.payload.percentage)));
+        setLocalDownloadedBytes(event.payload.downloaded);
+        setLocalTotalBytes(event.payload.total);
+      }
+    );
+
+    return () => {
+      disposed = true;
+      unlistenPromise.then((unlisten) => unlisten && unlisten()).catch(() => {});
+    };
+  }, [updater]);
+
   const versionDiff = compareVersions(targetVersion, currentVersion);
   const isUpgrade = versionDiff > 0;
   const isDowngrade = versionDiff < 0;
@@ -469,39 +158,55 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
       ? selectedRelease.release_url
       : `https://github.com/Menely/L-MPV/releases/tag/v${targetVersion}`;
 
-  useEffect(() => {
-    const unlistenPromise = listen<UpdateProgress>("update-download-progress", (event) => {
-      setProgress(Math.min(100, Math.max(0, event.payload.percentage)));
-      setDownloadedBytes(event.payload.downloaded);
-      setTotalBytes(event.payload.total);
-    });
-
-    return () => {
-      unlistenPromise.then((unlisten) => unlisten && unlisten()).catch(() => {});
-    };
-  }, []);
-
   const handleInstall = async () => {
-    setIsDownloading(true);
-    setErrorMessage(null);
+    if (updater) {
+      await updater.startBackgroundUpdate(selectedRelease);
+      return;
+    }
 
+    setLocalDownloading(true);
+    setLocalErrorMessage(null);
     try {
-      await invoke("download_and_install_update", {
-        downloadUrl: selectedRelease.download_url,
-        assetName: selectedRelease.asset_name,
+      await invoke<string>("download_and_stage_update", {
         tag: selectedRelease.latest_version,
       });
-      setIsDone(true);
-    } catch (err: any) {
-      console.error("Ошибка установки L-MPV:", err);
-      setIsDownloading(false);
-      setErrorMessage(typeof err === "string" ? err : err?.message || dict.updateModal.downloadErrorFallback);
+      setLocalDownloading(false);
+      setLocalDone(true);
+      setLocalProgress(100);
+    } catch (err: unknown) {
+      console.error("Ошибка загрузки обновления L-MPV:", err);
+      setLocalDownloading(false);
+      setLocalErrorMessage(
+        typeof err === "string"
+          ? err
+          : err instanceof Error
+          ? err.message
+          : dict.updateModal.downloadErrorFallback
+      );
+    }
+  };
+
+  const handleRestart = async () => {
+    if (updater) {
+      await updater.restartToApply();
+      return;
+    }
+    try {
+      await invoke("restart_and_apply_update");
+    } catch (err: unknown) {
+      setLocalErrorMessage(
+        typeof err === "string"
+          ? err
+          : err instanceof Error
+          ? err.message
+          : dict.updateModal.downloadErrorFallback
+      );
     }
   };
 
   const { handleClose } = useSurfaceDismiss({
     onClose,
-    disabled: isDownloading && !errorMessage,
+    disabled: false,
     closeOnEscape: true,
   });
 
@@ -532,9 +237,47 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
     ? dict.updateModal.changelogDowngrade(targetVersion)
     : dict.updateModal.changelogInfo;
 
+  const showProgressArea = isDownloading || isReadyForSelected;
+
+  const versionPickerNode = (
+    <VersionPicker
+      currentVersion={currentVersion}
+      targetVersion={targetVersion}
+      isUpgrade={isUpgrade}
+      isDowngrade={isDowngrade}
+      isLoadingReleases={isLoadingReleases}
+      isPickerOpen={isPickerOpen}
+      disabled={isDownloading}
+      onTogglePicker={() => setIsPickerOpen((prev) => !prev)}
+      releases={releases}
+      locale={locale}
+      onSelectRelease={handleSelectRelease}
+      pickerRef={pickerRef}
+      dict={dict}
+    />
+  );
+
+  const actionButtonsNode = (
+    <UpdateActionButtons
+      isUpgrade={isUpgrade}
+      isDowngrade={isDowngrade}
+      isDownloading={isDownloading}
+      isReady={isReadyForSelected}
+      targetVersion={targetVersion}
+      isCapsule={isCapsule}
+      onPostpone={handlePostpone}
+      onInstall={handleInstall}
+      onRestart={handleRestart}
+      onMinimizeToWatch={handleClose}
+      onClose={handleClose}
+      dict={dict}
+    />
+  );
+
   return (
-    <MotionSurface kind="backdrop"
-      className={`modal-overlay `}
+    <MotionSurface
+      kind="backdrop"
+      className="modal-overlay"
       onClick={handleClose}
       style={{
         zIndex: "var(--z-modal)",
@@ -545,9 +288,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
       }}
     >
       {!isCapsule ? (
-        /* ─── КЛАССИЧЕСКИЙ РЕЖИМ (Модерн, Прикрепленный) ─── */
-        <MotionSurface kind="dialog"
-          className={`modal-container update-modal-card update-modal--${controlBarStyle} `}
+        <MotionSurface
+          kind="dialog"
+          className={`modal-container update-modal-card update-modal--${controlBarStyle}`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="update-modal-title"
@@ -567,13 +310,10 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               : "0 20px 50px rgba(0, 0, 0, 0.6)",
             overflow: "hidden",
             color: "var(--text, #fff)",
-            transition: "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
+            transition:
+              "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
           }}
         >
-          {/* Шапка модального окна.
-              По высоте и плотности повторяет футер: одинаковые отступы,
-              выравнивание по центру и полупрозрачная подложка. Освободившееся
-              место уходит центральной части (тело — flex: 1). */}
           <div
             onDoubleClick={() => setIsExpanded((prev) => !prev)}
             style={{
@@ -608,7 +348,15 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 <AppLogoIcon size={18} color="var(--accent-text, var(--accent))" />
               </div>
               <div style={{ minWidth: 0 }}>
-                <h3 id="update-modal-title" style={{ margin: "var(--space-0)", fontSize: "var(--fs-lg)", fontWeight: 700, letterSpacing: "-0.01em" }}>
+                <h3
+                  id="update-modal-title"
+                  style={{
+                    margin: "var(--space-0)",
+                    fontSize: "var(--fs-lg)",
+                    fontWeight: 700,
+                    letterSpacing: "-0.01em",
+                  }}
+                >
                   {titleText}
                 </h3>
                 <p style={{ margin: "1px 0 0", fontSize: "var(--fs-xs)", color: "var(--text-muted, #9ca3af)" }}>
@@ -625,20 +373,16 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               >
                 {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
               </button>
-
-              {!isDownloading && (
-                <button
-                  onClick={handleClose}
-                  className="modal__close"
-                  aria-label={dict.updateModal.ariaClose}
-                >
-                  <X size={18} />
-                </button>
-              )}
+              <button
+                onClick={handleClose}
+                className="modal__close"
+                aria-label={dict.updateModal.ariaClose}
+              >
+                <X size={18} />
+              </button>
             </div>
           </div>
 
-          {/* Тело модального окна */}
           <div
             style={{
               padding: isExpanded ? "18px 26px 14px" : "16px 24px 14px",
@@ -650,10 +394,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               transition: "padding 0.3s ease",
             }}
           >
-            {/* Список изменений / Описание релиза */}
             <div
               style={{
-                marginBottom: errorMessage || isDownloading ? 14 : 0,
+                marginBottom: errorMessage || showProgressArea ? 14 : 0,
                 display: "flex",
                 flexDirection: "column",
                 flex: 1,
@@ -695,7 +438,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                     fontSize: "var(--fs-xs)",
                     color: "var(--accent-text)",
                     cursor: "pointer",
-                    transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), filter var(--t-fast) var(--ease-smooth)",
+                    transition:
+                      "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), filter var(--t-fast) var(--ease-smooth)",
                   }}
                   className="hover-bright"
                 >
@@ -720,7 +464,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               </div>
             </div>
 
-            {/* Ошибка скачивания */}
             {errorMessage && (
               <div
                 style={{
@@ -742,20 +485,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               </div>
             )}
 
-            {/* Прогресс скачивания */}
-            {isDownloading && (
+            {showProgressArea && (
               <DownloadProgressBar
                 progress={progress}
                 downloadedBytes={downloadedBytes}
                 totalBytes={totalBytes}
-                isDone={isDone}
+                isDone={isReadyForSelected}
                 locale={locale}
                 dict={dict}
               />
             )}
           </div>
 
-          {/* Футер с версией приложения и кнопками */}
           <div
             className="update-modal-footer"
             style={{
@@ -770,56 +511,26 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               position: "relative",
             }}
           >
-            <VersionPicker
-              currentVersion={currentVersion}
-              targetVersion={targetVersion}
-              isUpgrade={isUpgrade}
-              isDowngrade={isDowngrade}
-              isLoadingReleases={isLoadingReleases}
-              isPickerOpen={isPickerOpen}
-              onTogglePicker={() => setIsPickerOpen((prev) => !prev)}
-              releases={releases}
-              locale={locale}
-              onSelectRelease={handleSelectRelease}
-              pickerRef={pickerRef}
-              dict={dict}
-            />
-
-            <div className="update-modal-actions">
-              <UpdateActionButtons
-                isUpgrade={isUpgrade}
-                isDowngrade={isDowngrade}
-                isDownloading={isDownloading}
-                isDone={isDone}
-                targetVersion={targetVersion}
-                isCapsule={false}
-                onPostpone={handlePostpone}
-                onInstall={handleInstall}
-                onClose={handleClose}
-                dict={dict}
-              />
-            </div>
+            {versionPickerNode}
+            <div className="update-modal-actions">{actionButtonsNode}</div>
           </div>
         </MotionSurface>
       ) : (
-        /* ─── ОСТРОВНОЙ РЕЖИМ (Стиль «Капсула») ─── */
-        <MotionSurface kind="dialog"
-          className={`modal-container update-modal-capsule ${isExpanded ? "update-modal-capsule--expanded" : ""} `}
+        <MotionSurface
+          kind="dialog"
+          className={`modal-container update-modal-capsule ${
+            isExpanded ? "update-modal-capsule--expanded" : ""
+          }`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="update-modal-title"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* 1. Верхний ряд: 3 самостоятельные карточки (иконка, инфо, действия).
-              Иконка-логотип — отдельный островок, как иконка настроек в окне
-              настроек: свой фон, свой контур, без «плашки» внутри инфо-карточки. */}
           <div className="update-capsule-header">
-            {/* Островок логотипа */}
             <div className="update-card update-card--logo">
               <AppLogoIcon size={28} color="var(--accent-text, var(--accent))" />
             </div>
 
-            {/* Островок информации */}
             <div
               className="update-card update-card--header-info"
               onDoubleClick={() => setIsExpanded((prev) => !prev)}
@@ -828,13 +539,10 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
                 <h3 id="update-modal-title" className="update-card__title">
                   {titleText}
                 </h3>
-                <p className="update-card__subtitle">
-                  {subtitleText}
-                </p>
+                <p className="update-card__subtitle">{subtitleText}</p>
               </div>
             </div>
 
-            {/* Островок действий окна */}
             <div className="update-card update-card--header-actions">
               <button
                 type="button"
@@ -844,26 +552,20 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               >
                 {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
               </button>
-
-              {!isDownloading && (
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="update-card__action-btn update-card__action-btn--close"
-                  aria-label={dict.updateModal.ariaClose}
-                >
-                  <X size={18} />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleClose}
+                className="update-card__action-btn update-card__action-btn--close"
+                aria-label={dict.updateModal.ariaClose}
+              >
+                <X size={18} />
+              </button>
             </div>
           </div>
 
-          {/* 2. Центральная карточка: тело релиза */}
           <div className="update-card update-card--body">
             <div className="update-card__body-header">
-              <span className="update-card__body-title">
-                {changelogText}
-              </span>
+              <span className="update-card__body-title">{changelogText}</span>
               <button
                 type="button"
                 onClick={() => openUrl(releasePageUrl).catch(console.error)}
@@ -878,7 +580,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               <MarkdownRenderer content={selectedRelease.release_notes} />
             </div>
 
-            {/* Ошибка скачивания */}
             {errorMessage && (
               <div
                 style={{
@@ -899,14 +600,13 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
               </div>
             )}
 
-            {/* Прогресс скачивания */}
-            {isDownloading && (
+            {showProgressArea && (
               <div style={{ marginTop: "12px" }}>
                 <DownloadProgressBar
                   progress={progress}
                   downloadedBytes={downloadedBytes}
                   totalBytes={totalBytes}
-                  isDone={isDone}
+                  isDone={isReadyForSelected}
                   locale={locale}
                   dict={dict}
                 />
@@ -914,105 +614,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ updateInfo, onClose })
             )}
           </div>
 
-          {/* 3. Нижний ряд: футер-островок с версиями и кнопками действий */}
           <div className="update-card update-card--footer update-modal-footer">
-            <VersionPicker
-              currentVersion={currentVersion}
-              targetVersion={targetVersion}
-              isUpgrade={isUpgrade}
-              isDowngrade={isDowngrade}
-              isLoadingReleases={isLoadingReleases}
-              isPickerOpen={isPickerOpen}
-              onTogglePicker={() => setIsPickerOpen((prev) => !prev)}
-              releases={releases}
-              locale={locale}
-              onSelectRelease={handleSelectRelease}
-              pickerRef={pickerRef}
-              dict={dict}
-            />
-
+            {versionPickerNode}
             <div className="update-card__actions update-modal-actions">
-              <UpdateActionButtons
-                isUpgrade={isUpgrade}
-                isDowngrade={isDowngrade}
-                isDownloading={isDownloading}
-                isDone={isDone}
-                targetVersion={targetVersion}
-                isCapsule={true}
-                onPostpone={handlePostpone}
-                onInstall={handleInstall}
-                onClose={handleClose}
-                dict={dict}
-              />
+              {actionButtonsNode}
             </div>
           </div>
         </MotionSurface>
       )}
-    </MotionSurface>
-  );
-};
-
-interface UpdateToastProps {
-  updateInfo: UpdateInfo;
-  onOpenModal: () => void;
-  onClose: () => void;
-}
-
-/**
- * Ненавязчивое всплывающее окно в правом нижнем углу при обнаружении обновления.
- */
-export const UpdateToast: React.FC<UpdateToastProps> = ({
-  updateInfo,
-  onOpenModal,
-  onClose,
-}) => {
-  const { dict } = useTranslation();
-  const { handleClose } = useSurfaceDismiss({
-    onClose,
-    closeOnEscape: true,
-  });
-
-  const handlePostpone = () => {
-    invoke("postpone_update").catch(console.error).finally(handleClose);
-  };
-
-  return (
-    <MotionSurface kind="popover" className={`update-toast `}>
-      <div className="update-toast__header">
-        <div className="update-toast__title-group">
-          <div className="update-toast__icon">
-            <AppLogoIcon size={18} color="#ffffff" />
-          </div>
-          <div>
-            <div className="update-toast__title">{dict.updateModal.toastTitle}</div>
-            <div className="update-toast__version">
-              {dict.updateModal.toastVersion(updateInfo.latest_version.replace(/^[vV]/, ""))}
-            </div>
-          </div>
-        </div>
-        <button
-          className="update-toast__close"
-          onClick={handleClose}
-          aria-label={dict.updateModal.toastClose}
-        >
-          <X size={16} />
-        </button>
-      </div>
-
-      <div className="update-toast__actions">
-        <button
-          className="update-toast__btn update-toast__btn--secondary"
-          onClick={handlePostpone}
-        >
-          {dict.updateModal.toastPostpone}
-        </button>
-        <button
-          className="update-toast__btn update-toast__btn--primary"
-          onClick={onOpenModal}
-        >
-          {dict.updateModal.toastUpdate}
-        </button>
-      </div>
     </MotionSurface>
   );
 };

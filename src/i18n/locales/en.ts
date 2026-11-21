@@ -1436,8 +1436,17 @@ export const en: TranslationDict = {
     gotIt: "Got it",
     toastTitle: "Update Available",
     toastVersion: (version: string) => `Version v${version}`,
+    toastVersionArrow: (curVer: string, targetVer: string) => `v${curVer} → v${targetVer}`,
     toastPostpone: "Postpone",
     toastUpdate: "Update",
-    toastClose: "Close"
+    toastClose: "Close",
+    toastChangelog: "Changelog",
+    toastQuickInstall: "Quick Install",
+    toastDownloading: "Downloading update…",
+    toastReadyTitle: "Update Ready",
+    toastReadyHint: "Restart now or the player will finish updating after you close it.",
+    toastLater: "Later",
+    toastRestart: "Restart",
+    toastMinimizeToWatch: "Minimize & continue watching",
   }
 };

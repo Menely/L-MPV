@@ -1446,8 +1446,17 @@ export const ru: TranslationDict = {
     gotIt: "Понятно",
     toastTitle: "Доступно обновление",
     toastVersion: (version: string) => `Версия v${version}`,
+    toastVersionArrow: (curVer: string, targetVer: string) => `v${curVer} → v${targetVer}`,
     toastPostpone: "Отложить",
     toastUpdate: "Обновить",
-    toastClose: "Закрыть"
+    toastClose: "Закрыть",
+    toastChangelog: "Changelog",
+    toastQuickInstall: "Быстрая установка",
+    toastDownloading: "Скачивание обновления…",
+    toastReadyTitle: "Обновление готово",
+    toastReadyHint: "Перезапустить сейчас или плеер дообновится после того, как вы его закроете.",
+    toastLater: "Позже",
+    toastRestart: "Перезапуск",
+    toastMinimizeToWatch: "Свернуть и продолжить просмотр",
   }
 };

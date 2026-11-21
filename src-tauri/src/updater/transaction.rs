@@ -62,6 +62,7 @@ fn batch_path(name: &str) -> String {
 pub(super) fn build_transactional_update_bat(
     current_exe_name: &str,
     staged_files: &[String],
+    restart_after: bool,
 ) -> String {
     let mut script = String::from("@echo off\r\nsetlocal EnableExtensions DisableDelayedExpansion\r\nchcp 65001 > NUL\r\nfor %%I in (\".\") do set \"UPDATE_FOLDER=%%~nxI\"\r\nset \"WAIT_COUNT=0\"\r\n:wait_locks\r\nset /a WAIT_COUNT+=1\r\npowershell.exe -NoProfile -NonInteractive -Command Start-Sleep -Seconds 1 > NUL\r\n");
     for file in staged_files {
@@ -83,8 +84,13 @@ pub(super) fn build_transactional_update_bat(
         // Include the currently failing copy in rollback: copy may have truncated its destination.
         script.push_str(&format!("set \"TOUCHED_{index}=1\"\r\ncopy /y /b \"{file}\" \"..\\{file}\" > NUL\r\nif errorlevel 1 goto :rollback\r\nif not exist \"..\\{file}\" goto :rollback\r\nfor %%S in (\"{file}\") do for %%D in (\"..\\{file}\") do if not \"%%~zS\"==\"%%~zD\" goto :rollback\r\n"));
     }
-    let exe = batch_path(current_exe_name);
-    script.push_str(&format!("rmdir /s /q \".backup\" 2>NUL\r\nstart \"\" \"..\\{exe}\"\r\ncd ..\r\nstart /b cmd /c \"powershell.exe -NoProfile -NonInteractive -Command Start-Sleep -Seconds 2 > NUL & rmdir /s /q %UPDATE_FOLDER%\"\r\nexit /b 0\r\n:rollback\r\nset \"ROLLBACK_FAILED=0\"\r\n"));
+    let restart_cmd = if restart_after {
+        let exe = batch_path(current_exe_name);
+        format!("start \"\" \"..\\{exe}\"\r\n")
+    } else {
+        String::new()
+    };
+    script.push_str(&format!("rmdir /s /q \".backup\" 2>NUL\r\n{restart_cmd}cd ..\r\nstart /b cmd /c \"powershell.exe -NoProfile -NonInteractive -Command Start-Sleep -Seconds 2 > NUL & rmdir /s /q %UPDATE_FOLDER%\"\r\nexit /b 0\r\n:rollback\r\nset \"ROLLBACK_FAILED=0\"\r\n"));
     for (index, file) in staged_files.iter().enumerate().rev() {
         let file = batch_path(file);
         script.push_str(&format!("if defined TOUCHED_{index} (\r\nif defined EXISTED_{index} (\r\ncopy /y /b \".backup\\{file}\" \"..\\{file}\" > NUL\r\nif errorlevel 1 set \"ROLLBACK_FAILED=1\"\r\n) else (\r\nif exist \"..\\{file}\" del /f /q \"..\\{file}\"\r\nif exist \"..\\{file}\" set \"ROLLBACK_FAILED=1\"\r\n)\r\n)\r\n"));
@@ -141,13 +147,7 @@ mod tests {
         }
         fn run_script(&self, files: &[&str], skip_restart: bool) -> std::process::Output {
             let files = files.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-            let mut script = build_transactional_update_bat("l-mpv.exe", &files);
-            if skip_restart {
-                script = script.replace(
-                    "start \"\" \"..\\l-mpv.exe\"",
-                    "rem skip player restart in test",
-                );
-            }
+            let script = build_transactional_update_bat("l-mpv.exe", &files, !skip_restart);
             fs::write(self.0.join(".updates/update.bat"), script).unwrap();
             fs::write(self.0.join(".updates/apply.ps1"), include_str!("apply.ps1")).unwrap();
             Command::new("powershell.exe")
@@ -323,5 +323,14 @@ mod tests {
         assert!(fs::read_to_string(install.0.join("logs/error.log"))
             .unwrap()
             .contains("Missing or empty staged component"));
+    }
+
+    #[test]
+    fn silent_update_omits_player_restart_command() {
+        let files = vec!["l-mpv.exe".to_string()];
+        let with_restart = build_transactional_update_bat("l-mpv.exe", &files, true);
+        let without_restart = build_transactional_update_bat("l-mpv.exe", &files, false);
+        assert!(with_restart.contains("start \"\" \"..\\l-mpv.exe\""));
+        assert!(!without_restart.contains("start \"\" \"..\\l-mpv.exe\""));
     }
 }
