@@ -339,7 +339,7 @@
   line-height: 1.5;
   font-family: Consolas, "Cascadia Code", "Courier New", monospace;
   font-size: var(--fs-xs);
-  white-space: normal;
+  white-space: pre;
   border-radius: var(--radius-xs);
   padding: var(--space-1) 6px;
   margin: 1px 0;
@@ -369,7 +369,7 @@
   min-width: 190px;
   flex-shrink: 0;
   color: #cbd5e1;
-  word-break: break-word;
+  white-space: pre;
   transition: color var(--t-fast) var(--ease-smooth);
 }
 
@@ -383,10 +383,8 @@
 
 .mediainfo-row__val {
   flex: 1;
-  min-width: 0;
   color: #f8fafc;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  white-space: pre;
   transition: color var(--t-fast) var(--ease-smooth);
 }
 
