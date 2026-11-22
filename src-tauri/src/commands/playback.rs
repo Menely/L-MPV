@@ -445,29 +445,23 @@ pub fn set_rotation(
 
 /// Установка зума и панорамирования видео.
 #[tauri::command]
-pub fn set_video_zoom_and_pan(
+pub async fn set_video_zoom_and_pan(
     state: State<'_, PlayerState>,
     zoom: f64,
     pan_x: f64,
     pan_y: f64,
 ) -> Result<(), String> {
-    state.mpv.set_property_double("video-zoom", zoom)?;
-    if zoom.abs() < 0.001 {
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-x", 0.0);
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-y", 0.0);
-    } else {
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-x", pan_x);
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-y", pan_y);
+    if ![zoom, pan_x, pan_y].iter().all(|value| value.is_finite()) {
+        return Err("Invalid video transform".into());
     }
-    Ok(())
+    let (pan_x, pan_y) = if zoom.abs() < 0.001 {
+        (0.0, 0.0)
+    } else {
+        (pan_x, pan_y)
+    };
+    state.mpv.command(&format!(
+        "no-osd set video-zoom {zoom}; no-osd set video-pan-x {pan_x}; no-osd set video-pan-y {pan_y}"
+    ))
 }
 
 /// Получение текущего зума видео.

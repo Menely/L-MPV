@@ -1,3 +1,4 @@
+import { useVideoZoom } from "./hooks/useVideoZoom";
 import { AnimatePresence } from "motion/react";
 import { toggleAmbientMode } from "./utils/ambientPreviewQueue";
 import { upscaleErrorMessage } from "./utils/upscaleCompatibility";
@@ -209,17 +210,16 @@ function App() {
   const clickTimerRef = useRef<number | null>(null);
   const hasMediaRef = useRef(hasMedia);
   const isSteppingRef = useRef(false);
-  const videoZoomRef = useRef<number>(0);
-  const videoPanXRef = useRef<number>(0);
-  const videoPanYRef = useRef<number>(0);
-  const rafIdRef = useRef<number | null>(null);
-
+  const { wheel: zoomVideo, reset: resetVideoZoom } = useVideoZoom(
+    hasMedia ? mediaInfo?.path : undefined,
+    (zoom) => {
+      const { osd } = getDict(getEffectiveLocale());
+      triggerOsd(zoom === 0 ? osd.zoomReset : osd.zoomLevel(Math.round(2 ** zoom * 100)), 1100);
+    },
+  );
 
   useEffect(() => {
     hasMediaRef.current = hasMedia;
-    videoZoomRef.current = 0;
-    videoPanXRef.current = 0;
-    videoPanYRef.current = 0;
   }, [hasMedia]);
 
   useEffect(() => {
@@ -541,11 +541,6 @@ function App() {
       const isAspectChanged = Math.abs(prevAspect - curAspect)> 0.01;
 
       if (isNewFile || isAspectChanged) {
-        if (isNewFile) {
-          videoZoomRef.current = 0;
-          videoPanXRef.current = 0;
-          videoPanYRef.current = 0;
-        }
         lastSizedVideoRef.current = {
           path: mediaInfo.path,
           width: mediaInfo.width,
@@ -873,11 +868,7 @@ function App() {
         break;
       }
       case "resetZoom":
-        videoZoomRef.current = 0;
-        videoPanXRef.current = 0;
-        videoPanYRef.current = 0;
-        invoke("set_video_zoom_and_pan", { zoom: 0, panX: 0, panY: 0 }).catch(console.error);
-        triggerOsd(dict.osd.zoomReset, 1500);
+        resetVideoZoom();
         break;
       case "playlist":
         curSetIsPlaylistOpen(!curIsPlaylistOpen);
@@ -1368,50 +1359,7 @@ function App() {
               const relX = (e.clientX - rect.left - rect.width / 2) / rect.width;
               const relY = (e.clientY - rect.top - rect.height / 2) / rect.height;
 
-              // Уменьшенный шаг (0.04 вместо 0.1) как в IINA/mpv.net для плавной микро-регулировки
-              const step = e.deltaY < 0 ? 0.04 : -0.04;
-              const prevZoom = videoZoomRef.current;
-              let nextZoom = prevZoom + step;
-              
-              // Ограничиваем диапазон зума
-              nextZoom = Math.max(-1.5, Math.min(3.0, nextZoom));
-              
-              // Магнитный сброс в 0 при приближении к 100%
-              if (Math.abs(nextZoom) < 0.025) {
-                nextZoom = 0;
-              }
-              
-              const scalePrev = Math.pow(2, prevZoom);
-              const scaleNext = Math.pow(2, nextZoom);
-
-              if (nextZoom === 0) {
-                videoPanXRef.current = 0;
-                videoPanYRef.current = 0;
-              } else {
-                videoPanXRef.current -= relX * (1 / scalePrev - 1 / scaleNext);
-                videoPanYRef.current -= relY * (1 / scalePrev - 1 / scaleNext);
-              }
-              
-              videoZoomRef.current = nextZoom;
-
-              // Батчинг через requestAnimationFrame (до 60 кадров/сек), убирающий лаги первого зума
-              if (rafIdRef.current === null) {
-                rafIdRef.current = requestAnimationFrame(() => {
-                  rafIdRef.current = null;
-                  const targetZoom = videoZoomRef.current;
-                  const targetPanX = videoPanXRef.current;
-                  const targetPanY = videoPanYRef.current;
-                  invoke("set_video_zoom_and_pan", { 
-                    zoom: targetZoom, 
-                    panX: targetPanX, 
-                    panY: targetPanY 
-                  }).catch(console.error);
-
-                  const percentage = Math.round(Math.pow(2, targetZoom) * 100);
-                  const d = getDict(getEffectiveLocale());
-                  triggerOsd(targetZoom === 0 ? d.osd.zoomReset : d.osd.zoomLevel(percentage), 1100);
-                });
-              }
+              if (rect.width > 0 && rect.height > 0) zoomVideo(e.deltaY, relX, relY);
             } else {
               const currentVol = mediaInfo.volume;
               const delta = e.deltaY < 0 ? 5 : -5;
