@@ -219,17 +219,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
     setIsPickerOpen(false);
   };
 
+  const isVersionInfo = !isUpgrade && !isDowngrade;
   const titleText = isUpgrade
     ? dict.updateModal.titleUpgrade
     : isDowngrade
     ? dict.updateModal.titleDowngrade
-    : dict.updateModal.titleInfo;
+    : dict.updateModal.titleInfo(currentVersion);
 
   const subtitleText = isUpgrade
     ? dict.updateModal.subtitleUpgrade(targetVersion)
     : isDowngrade
     ? dict.updateModal.subtitleDowngrade(currentVersion, targetVersion)
-    : dict.updateModal.subtitleInfo(currentVersion);
+    : null;
 
   const changelogText = isUpgrade
     ? dict.updateModal.changelogUpgrade
@@ -317,7 +318,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           <div
             onDoubleClick={() => setIsExpanded((prev) => !prev)}
             style={{
-              padding: "10px 22px",
+              padding: isVersionInfo ? "5px 22px" : "10px 22px",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -359,9 +360,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                 >
                   {titleText}
                 </h3>
-                <p style={{ margin: "1px 0 0", fontSize: "var(--fs-xs)", color: "var(--text-muted, #9ca3af)" }}>
-                  {subtitleText}
-                </p>
+                {subtitleText && (
+                  <p style={{ margin: "1px 0 0", fontSize: "var(--fs-xs)", color: "var(--text-muted, #9ca3af)" }}>
+                    {subtitleText}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -526,7 +529,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           aria-labelledby="update-modal-title"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="update-capsule-header">
+          <div className={`update-capsule-header${isVersionInfo ? " update-capsule-header--compact" : ""}`}>
             <div className="update-card update-card--logo">
               <AppLogoIcon size={28} color="var(--accent-text, var(--accent))" />
             </div>
@@ -539,7 +542,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                 <h3 id="update-modal-title" className="update-card__title">
                   {titleText}
                 </h3>
-                <p className="update-card__subtitle">{subtitleText}</p>
+                {subtitleText && <p className="update-card__subtitle">{subtitleText}</p>}
               </div>
             </div>
 

@@ -1243,10 +1243,9 @@ export interface TranslationDict {
   updateModal: {
     titleUpgrade: string;
     titleDowngrade: string;
-    titleInfo: string;
+    titleInfo: (version: string) => string;
     subtitleUpgrade: (version: string) => string;
     subtitleDowngrade: (curVer: string, targetVer: string) => string;
-    subtitleInfo: (version: string) => string;
     ariaRestore: string;
     ariaMaximize: string;
     ariaClose: string;

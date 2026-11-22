@@ -1424,10 +1424,9 @@ export const ru: TranslationDict = {
   updateModal: {
     titleUpgrade: "Доступно обновление",
     titleDowngrade: "Откат к предыдущей версии",
-    titleInfo: "Информация о версии",
+    titleInfo: (version: string) => `Текущая версия L-MPV v${version}`,
     subtitleUpgrade: (version: string) => `Новая версия медиаплеера L-MPV v${version}`,
     subtitleDowngrade: (curVer: string, targetVer: string) => `Откат с v${curVer} на версию v${targetVer}`,
-    subtitleInfo: (version: string) => `Текущая установленная версия L-MPV v${version}`,
     ariaRestore: "Восстановить размер",
     ariaMaximize: "Развернуть окно",
     ariaClose: "Закрыть",

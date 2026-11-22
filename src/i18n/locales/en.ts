@@ -1414,10 +1414,9 @@ export const en: TranslationDict = {
   updateModal: {
     titleUpgrade: "Update Available",
     titleDowngrade: "Rollback to Previous Version",
-    titleInfo: "Version Information",
+    titleInfo: (version: string) => `Current L-MPV version v${version}`,
     subtitleUpgrade: (version: string) => `New version of L-MPV media player v${version}`,
     subtitleDowngrade: (curVer: string, targetVer: string) => `Rollback from v${curVer} to version v${targetVer}`,
-    subtitleInfo: (version: string) => `Current installed version of L-MPV v${version}`,
     ariaRestore: "Restore window",
     ariaMaximize: "Maximize window",
     ariaClose: "Close",

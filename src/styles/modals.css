@@ -2776,6 +2776,24 @@ html.no-animations .color-circle--palette { will-change: auto; }
   flex-shrink: 0;
 }
 
+.update-modal-capsule .update-capsule-header--compact {
+  --version-header-height: 44px;
+  align-items: stretch;
+}
+
+.update-modal-capsule .update-capsule-header--compact .update-card--header-info,
+.update-modal-capsule .update-capsule-header--compact .update-card--header-actions {
+  min-height: var(--version-header-height);
+  padding-block: 2px;
+}
+
+.update-modal-capsule .update-capsule-header--compact .update-card--logo {
+  width: var(--version-header-height);
+  height: auto;
+  min-width: var(--version-header-height);
+  min-height: var(--version-header-height);
+}
+
 .update-modal-capsule .update-card__action-btn {
   width: 36px;
   height: 36px;
