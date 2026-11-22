@@ -935,6 +935,7 @@ pub fn get_playback_state(
     live_bitrate: State<'_, crate::commands::LiveVideoBitrateService>,
 ) -> Result<PlaybackState, String> {
     let mut snapshot = state.mpv.get_playback_state_snapshot()?;
+    state.ebu128.observe(&state.mpv, &snapshot.path, &snapshot.current_aid);
     let current_vid = snapshot.current_vid.trim().parse::<i64>().ok();
     if let Some(exact_bps) = live_bitrate.peek_cached_bitrate(
         &snapshot.path,

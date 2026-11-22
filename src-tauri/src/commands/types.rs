@@ -4,6 +4,7 @@
 //! другим модулям бэкенда по прежнему пути `commands::*`.
 
 use crate::ambient::AmbientSettings;
+use crate::audio_filter::{audio_filter_chain, AudioNormalizeMode};
 use crate::mpv_manager::MpvManager;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -184,7 +185,7 @@ pub struct AppSettings {
     #[serde(default)]
     pub hwdec_mode: Option<String>,
 
-    /// Нормализация громкости: `"no"` / `"dynaudnorm"` / `"loudnorm"`.
+    /// Нормализация громкости: `"no"` / `"dynaudnorm"` / `"loudnorm"` / `"ebu128"`.
     /// `None` = `"no"`.
     #[serde(default)]
     pub audio_normalize: Option<String>,
@@ -373,6 +374,45 @@ impl AppSettings {
     {
         let dir = get_app_dir()?;
         Self::update(&dir, update)
+    }
+
+    pub(super) fn update_audio_processing(
+        mpv: &MpvManager,
+        update: impl FnOnce(&mut Self),
+    ) -> Result<(), String> {
+        Self::update_audio_processing_at(
+            &get_app_dir()?,
+            update,
+            || mpv.get_property_string("af"),
+            |chain| mpv.set_property_string("af", chain),
+        )
+    }
+
+    fn update_audio_processing_at(
+        config_dir: &Path,
+        update: impl FnOnce(&mut Self),
+        read_chain: impl FnOnce() -> Result<String, String>,
+        apply_chain: impl Fn(&str) -> Result<(), String>,
+    ) -> Result<(), String> {
+        let _guard = Self::lock_settings_file(config_dir)?;
+        let mut settings = Self::load_unlocked(config_dir);
+        update(&mut settings);
+        let mode = AudioNormalizeMode::from_str_or_default(
+            settings.audio_normalize.as_deref().unwrap_or("no"),
+        );
+        let chain = audio_filter_chain(mode, settings.audio_limiter_enabled.unwrap_or(true));
+        let previous_chain = read_chain()?;
+        apply_chain(&chain)?;
+
+        if let Err(save_error) = settings.save_unlocked(config_dir) {
+            if let Err(restore_error) = apply_chain(&previous_chain) {
+                return Err(format!(
+                    "{save_error}. Failed to restore audio filters: {restore_error}"
+                ));
+            }
+            return Err(save_error);
+        }
+        Ok(())
     }
 
     pub fn load_portable_result() -> Result<Self, String> {
@@ -570,6 +610,7 @@ pub fn write_atomic(target_path: &Path, data: &[u8], create_backup: bool) -> Res
 
 /// Состояние плеера, передаваемое через Tauri State.
 pub struct PlayerState {
+    pub(crate) ebu128: super::ebu128::Ebu128,
     /// Only the first CLI file is held until the visible frontend is ready.
     pub startup_playback: Mutex<Option<String>>,
     /// Главный контекст mpv.
@@ -1024,6 +1065,36 @@ mod settings_tests {
             .join("config")
             .join(".settings.os-lock")
             .exists());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn audio_processing_restores_live_chain_when_saving_fails() {
+        let root = test_dir("audio-settings-rollback");
+        let settings_path = AppSettings::settings_path(&root);
+        // Atomic replacement of a directory with the settings file must fail.
+        std::fs::create_dir_all(&settings_path).unwrap();
+
+        let previous = "lavfi=[volume=0.5]";
+        let live = std::cell::RefCell::new(previous.to_string());
+        let applied = std::cell::RefCell::new(Vec::new());
+        let result = AppSettings::update_audio_processing_at(
+            &root,
+            |settings| settings.audio_normalize = Some("loudnorm".into()),
+            || Ok(live.borrow().clone()),
+            |chain| {
+                applied.borrow_mut().push(chain.to_string());
+                *live.borrow_mut() = chain.to_string();
+                Ok(())
+            },
+        );
+
+        assert!(result.is_err());
+        assert_eq!(
+            applied.into_inner(),
+            [audio_filter_chain(AudioNormalizeMode::Night, true), previous.to_string()],
+        );
+        assert_eq!(live.into_inner(), previous);
         let _ = std::fs::remove_dir_all(root);
     }
 

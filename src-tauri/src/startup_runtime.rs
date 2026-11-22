@@ -56,6 +56,10 @@ pub fn player_plugin<R: Runtime>(
                 settings.ambient.clone(),
             ));
             app.manage(commands::PlayerState {
+                ebu128: commands::ebu128::Ebu128::new(
+                    &exe_dir,
+                    settings.audio_normalize.as_deref(),
+                ),
                 startup_playback: std::sync::Mutex::new(None),
                 mpv,
                 ambient_controller,

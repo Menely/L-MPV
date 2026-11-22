@@ -9,6 +9,7 @@
 mod config;
 pub(crate) mod background_io;
 mod dir_scan;
+pub(crate) mod ebu128;
 mod explorer;
 pub mod heatmap;
 mod history;

@@ -38,6 +38,7 @@ pub fn set_audio_track(
     state: State<'_, PlayerState>,
     track_id: i64,
 ) -> Result<(), String> {
+    state.ebu128.before_audio_change(&state.mpv, track_id);
     if track_id <= 0 {
         state.mpv.set_property_string("aid", "no")
     } else {

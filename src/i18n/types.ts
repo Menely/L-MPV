@@ -273,8 +273,7 @@ export interface TranslationDict {
       audioNormalizeOff: string;
       audioNormalizeDyn: string;
       audioNormalizeLoud: string;
-      audioNormalizeNeedsLimiter: string;
-      audioNormalizeLimiterWarning: string;
+      audioNormalizeEbu128: string;
       videoAudioDesc: string;
       tileFrameTitle: string;
       tileFrameDesc: string;

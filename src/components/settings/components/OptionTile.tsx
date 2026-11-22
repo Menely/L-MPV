@@ -102,6 +102,7 @@ export function OptionBlock({
               className="btn btn--secondary btn--sm"
               style={optionResetBtnStyle}
               onClick={onReset}
+              disabled={disabled}
 
               aria-label={resetTitle}
               >
@@ -185,6 +186,7 @@ export function OptionToggleRow({
           className="btn btn--secondary btn--sm"
           style={optionResetBtnStyle}
           onClick={onReset}
+          disabled={disabled}
 
           aria-label={resetTitle}
           >

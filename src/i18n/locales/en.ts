@@ -227,9 +227,9 @@ export const en: TranslationDict = {
       volumeIndicatorTitle: "Volume indicator",
       volumeIndicatorDesc: "Show an on-screen scale when changing volume with keyboard shortcuts or the mouse wheel.",
       // Block 1: Limiter
-      audioLimiterTitle: "Audio Overload Protection",
+      audioLimiterTitle: "Peak Limiter",
       audioLimiterDesc:
-        "Limits sample peaks with lavfi alimiter (limit=1). Inter-sample peaks are not measured.",
+        "Limits sample peaks to 0 dBFS before the volume control. Inter-sample peaks are not measured.",
       // Block 2: HDR Tone Mapping
       hdrToneMappingTitle: "HDR Tone Mapping Curve",
       hdrToneMappingDesc:
@@ -287,9 +287,7 @@ export const en: TranslationDict = {
       audioNormalizeOff: "Off",
       audioNormalizeDyn: "Dynamic",
       audioNormalizeLoud: "Night",
-      audioNormalizeNeedsLimiter: "Enable the audio peak limiter first",
-      audioNormalizeLimiterWarning:
-        "Normalization does not work with the peak limiter disabled: both settings share the same audio filter chain (af).",
+      audioNormalizeEbu128: "EBU 128",
       // Block 9: Video & audio section tile layout
       videoAudioDesc:
         "Rendering, color, audio, and mpv data buffer. Applied live and saved.",
@@ -298,7 +296,7 @@ export const en: TranslationDict = {
         "What to do with the source signal before it reaches the screen. Deinterlacing removes combing from old SD recordings and DVDs by detecting interlaced frames from their flags. Plain Yadif does not jitter even fields on progressive video, which makes it safe by default; Yadif 2x doubles the frame count for the smoothest result at the cost of extra work. Hardware decoding offloads decompression to the GPU instead of the CPU: Auto Safe enables it only where the result is guaranteed to match software; Auto Copy widens codec support (useful for 10-bit HEVC and AV1) at the cost of copying frames back to system memory; Software returns to CPU decoding — higher CPU load but maximum predictability. Note: when AI upscaling is on, the decoding mode is set automatically for the selected backend.",
       tileAudioTitle: "Audio Path",
       tileAudioDesc:
-        "Audio processing before output. The optional alimiter limits sample peaks (limit=1); inter-sample peaks are not measured. Dynamic normalization balances quiet and loud passages; Night mode compresses loud passages. Normalization and the limiter work independently. The audio-device latency option can help devices that need time to wake up.",
+        "Dynamic normalization smooths volume changes and Night mode turns down loud passages. The peak limiter works independently, before the volume control. The audio latency option helps devices that take time to wake up.",
       tileHdrTitle: "Artifact Reduction (Debanding)",
       tileHdrDesc:
         "Smooths stepped color transitions (banding) across gradients in the sky, dark scenes, and anime. The shader inspects neighboring pixels and blends abrupt shade edges with procedural grain. Recommended when watching compressed videos or low-bitrate streams.",
@@ -330,8 +328,9 @@ export const en: TranslationDict = {
       },
       AUDIO_NORMALIZE_TIPS: {
         no: "No normalization: track volume stays original as recorded.",
-        dynaudnorm: "Dynamic normalization: smoothly balances volume (7.5s window), lifts quiet whispers and prevents speech dips after explosions.",
-        loudnorm: "Night mode: peak compressor gently tames loud explosions and gunshots (~5 dB reduction) without affecting dialogue volume.",
+        dynaudnorm: "Gradually boosts quiet passages. Gain rises gradually again after loud passages.",
+        loudnorm: "Compresses loud passages without boosting quiet ones.",
+        ebu128: "Matches the selected track's loudness across episodes. Targets −23 LUFS with ceilings of −18 LUFS over 3 seconds and −1 dBTP. Background measurements take effect the next time the track is opened.",
       },
       TONE_MAPPING_TIPS: {
         auto: "mpv picks the algorithm (its smooth default).",
