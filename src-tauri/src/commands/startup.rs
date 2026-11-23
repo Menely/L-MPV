@@ -43,6 +43,15 @@ pub fn cancel_startup_for_other_file(state: &PlayerState, path: &str) -> Result<
     Ok(())
 }
 
+/// true = на старте ожидается медиафайл (окно покажет существующий flow);
+/// false = пустой запуск (окно показывает фронт после первого кадра,
+/// чтобы не было вспышки прозрачного окна).
+#[tauri::command]
+pub async fn startup_pending(state: State<'_, PlayerState>) -> Result<bool, String> {
+    let pending = state.startup_playback.lock().map_err(|e| e.to_string())?;
+    Ok(pending.is_some())
+}
+
 /// true = completed or no pending startup; false = still waiting for this file.
 #[tauri::command]
 pub fn complete_startup_playback(

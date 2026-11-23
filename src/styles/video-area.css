@@ -14,31 +14,66 @@
   background: var(--bg-primary);
 }
 
-.video-area__placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  color: var(--text-muted);
-}
-
-.video-area__placeholder-icon {
+/* ─── Экран-заглушка без медиа ─────────────────────────
+ * Крупное название L-MPV (Permanent Marker, дефис в акценте)
+ * поверх сетки из мини-логотипов плеера.
+ */
+.empty-screen {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-text);
-  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.4));
-  transition: transform var(--t-fast) var(--ease-smooth), opacity var(--t-fast) var(--ease-smooth);
+  overflow: hidden;
+  user-select: none;
+  pointer-events: none;
 }
 
-.video-area__placeholder-text {
-  font-size: var(--fs-xl);
-  font-weight: 300;
-  letter-spacing: 2px;
-  color: var(--text-secondary);
+/* Сетка мини-логотипов с симметричным затуханием к краям */
+.empty-screen__field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 450ms ease;
+  -webkit-mask-image: radial-gradient(
+    ellipse 52% 50% at 50% 50%,
+    #000 0%,
+    rgba(0, 0, 0, 0.7) 22%,
+    rgba(0, 0, 0, 0.3) 45%,
+    rgba(0, 0, 0, 0.06) 68%,
+    transparent 86%
+  );
+  mask-image: radial-gradient(
+    ellipse 52% 50% at 50% 50%,
+    #000 0%,
+    rgba(0, 0, 0, 0.7) 22%,
+    rgba(0, 0, 0, 0.3) 45%,
+    rgba(0, 0, 0, 0.06) 68%,
+    transparent 86%
+  );
 }
 
-.video-area__placeholder-hint {
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
+.empty-screen__field--ready {
+  opacity: 1;
+}
+
+.empty-screen__brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: rgba(248, 250, 252, 0.95);
+}
+
+.empty-screen__brand svg {
+  display: block;
+  width: min(320px, 44vw);
+  height: auto;
+}
+
+.empty-screen__hyphen {
+  fill: var(--accent-text);
 }

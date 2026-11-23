@@ -18,7 +18,7 @@ import { useOsd, showOsd } from "./hooks/useOsd";
 import { useAutoUpscale } from "./hooks/useAutoUpscale";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
-import { AppPlayIcon } from "./components/player/controls";
+import { EmptyScreen } from "./components/player/EmptyScreen";
 import "./index.css";
 import { Titlebar } from "./components/player/Titlebar";
 import { FileDragPreview } from "./components/player/FileDragPreview";
@@ -42,7 +42,6 @@ import { getFavoriteModel } from "./utils/favoriteModel";
 import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
-import { useTranslation } from "./i18n/LanguageContext";
 import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
 import {
   getSavedSeekStepSeconds,
@@ -80,7 +79,6 @@ const SubtitlesSearchModal = lazy(() =>
 );
 
 function App() {
-  const { dict } = useTranslation();
   const {
     hasMedia,
     isIdle,
@@ -584,6 +582,31 @@ function App() {
 
     return () => {
       if (timer) clearTimeout(timer);
+    };
+  }, [revealWindow]);
+
+  // ─── Показ окна после первого кадра при пустом запуске ────
+  // Бэкенд в этом случае окно не показывает (иначе вспышка прозрачного окна).
+  // Если ожидается медиафайл — ничего не делаем, окно покажет существующий flow.
+  useEffect(() => {
+    let cancelled = false;
+    invoke<boolean>("is_standalone_mode")
+      .then((isStandalone) => {
+        if (isStandalone) return false;
+        return invoke<boolean>("startup_pending");
+      })
+      .then((pending) => {
+        if (cancelled || pending !== false) return;
+        // Два кадра: коммит DOM уже есть, даём браузеру отрисовать его до show().
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            if (!cancelled) revealWindow();
+          }),
+        );
+      })
+      .catch(console.error);
+    return () => {
+      cancelled = true;
     };
   }, [revealWindow]);
 
@@ -1329,7 +1352,7 @@ function App() {
     <div
       className={`app-container ${
         isIdle && hasMedia ? "app-container--idle" : ""
-      } ${
+      } ${!hasMedia ? "app-container--empty" : ""} ${
         shouldHideControlsInUpperHalf ? "app-container--hide-controls" : ""
       } ${isPlaylistOpen ? "app-container--playlist-open" : ""}`}
       onDrop={handleDrop}
@@ -1370,19 +1393,7 @@ function App() {
           }
         }}
         >
-        {!hasMedia && (
-          <div className="video-area__placeholder">
-            <div className="video-area__placeholder-icon">
-              <AppPlayIcon size={80} />
-            </div>
-            <div className="video-area__placeholder-text">
-              L-MPV
-            </div>
-            <div className="video-area__placeholder-hint">
-              {dict.controls.placeholderHint}
-            </div>
-          </div>
-        )}
+        {!hasMedia && <EmptyScreen />}
       </div>
 
       {hasMedia && (

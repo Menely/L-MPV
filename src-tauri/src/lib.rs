@@ -175,6 +175,7 @@ pub fn run() {
             commands::export_saved_playlist,
             commands::play_saved_playlist,
             commands::complete_startup_playback,
+            commands::startup_pending,
             commands::toggle_pause,
             commands::set_pause,
             commands::seek,
@@ -463,8 +464,9 @@ pub fn run() {
                     window.show().ok();
                 }
             } else {
-                // Запуск без файла — сразу отображаем окно со стартовой страницей (drag-and-drop заглушка)
-                window.show().ok();
+                // Запуск без файла: окно НЕ показываем здесь — прозрачное окно
+                // до отрисовки WebView даёт вспышку. Фронт сам покажет окно
+                // после первого кадра (см. startup_pending в App.tsx).
             }
             startup_runtime::schedule_maintenance(app.handle());
             
