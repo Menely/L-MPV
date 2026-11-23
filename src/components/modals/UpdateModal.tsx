@@ -304,8 +304,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             display: "flex",
             flexDirection: "column",
             borderRadius: "var(--radius-surface)",
-            background: "linear-gradient(180deg, rgba(26, 28, 35, 0.96) 0%, rgba(18, 19, 24, 0.98) 100%)",
-            border: "1px solid rgba(255, 255, 255, 0.12)",
+            background: "var(--bg-glass, var(--bg-modal-solid))",
+            border: "1px solid var(--border)",
+            backdropFilter: "blur(16px)",
             boxShadow: isExpanded
               ? "0 25px 60px rgba(0, 0, 0, 0.75)"
               : "0 20px 50px rgba(0, 0, 0, 0.6)",
@@ -316,15 +317,15 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           }}
         >
           <div
+            className="update-modal-heading"
             onDoubleClick={() => setIsExpanded((prev) => !prev)}
             style={{
-              padding: isVersionInfo ? "5px 22px" : "10px 22px",
+              paddingBlock: isVersionInfo ? "7px" : "10px",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               gap: 14,
-              borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-              background: "rgba(0, 0, 0, 0.2)",
+              borderBottom: "1px solid var(--border)",
               cursor: "default",
               userSelect: "none",
               flexShrink: 0,
@@ -335,6 +336,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                 style={{
                   width: 32,
                   height: 32,
+                  boxSizing: "border-box",
                   borderRadius: "var(--radius-control)",
                   background: "rgba(var(--accent-rgb, 59, 130, 246), 0.12)",
                   border: "1px solid var(--border-pill, rgba(var(--accent-rgb, 59, 130, 246), 0.22))",
@@ -355,6 +357,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                     margin: "var(--space-0)",
                     fontSize: "var(--fs-lg)",
                     fontWeight: 700,
+                    lineHeight: 1.25,
                     letterSpacing: "-0.01em",
                   }}
                 >
@@ -368,7 +371,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               </div>
             </div>
 
-            <div className="row-center row-gap-3">
+            <div className="row-center update-modal-window-actions">
               <button
                 onClick={() => setIsExpanded((prev) => !prev)}
                 className="modal__close"
@@ -387,8 +390,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           </div>
 
           <div
+            className="update-modal-content"
             style={{
-              padding: isExpanded ? "18px 26px 14px" : "16px 24px 14px",
+              paddingBlock: isExpanded ? "18px 14px" : "16px 14px",
               flex: 1,
               overflow: "hidden",
               minHeight: 0,
@@ -451,14 +455,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                 </button>
               </div>
               <div
-                className="custom-scrollbar"
+                  className="custom-scrollbar"
                 style={{
                   flex: 1,
                   minHeight: 0,
                   overflowY: "auto",
-                  background: "rgba(0, 0, 0, 0.35)",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  borderRadius: "var(--radius-md, 12px)",
+                  background: "var(--surface-level-2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "min(var(--radius-md, 12px), var(--radius-surface))",
                   padding: isExpanded ? "14px 18px" : "12px 14px",
                   transition: "padding 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
                 }}
@@ -503,13 +507,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           <div
             className="update-modal-footer"
             style={{
-              padding: "10px 22px",
-              borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+              paddingBlock: "10px",
+              borderTop: "1px solid var(--border)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               gap: 14,
-              background: "rgba(0, 0, 0, 0.2)",
               flexShrink: 0,
               position: "relative",
             }}

@@ -2714,6 +2714,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
   display: block;
   margin: 0;
   padding: 0;
+  place-self: center;
 }
 
 .update-modal-capsule .update-card__logo-badge {
@@ -2789,9 +2790,10 @@ html.no-animations .color-circle--palette { will-change: auto; }
 
 .update-modal-capsule .update-capsule-header--compact .update-card--logo {
   width: var(--version-header-height);
-  height: auto;
+  height: var(--version-header-height);
   min-width: var(--version-header-height);
   min-height: var(--version-header-height);
+  align-self: center;
 }
 
 .update-modal-capsule .update-card__action-btn {
@@ -3030,6 +3032,17 @@ html.no-animations .color-circle--palette { will-change: auto; }
 
 /* Let actions grow vertically instead of clipping translated labels at high UI scales. */
 .update-modal-card, .update-modal-capsule { container: update-dialog / inline-size; overflow-wrap: anywhere; }
+.update-modal-card :is(.update-modal-heading, .update-modal-content, .update-modal-footer) {
+  padding-inline: clamp(12px, 5cqi, 22px);
+}
+.update-modal-card .update-modal-window-actions {
+  flex-shrink: 0;
+  gap: var(--space-2);
+}
+.update-modal-card .update-modal-window-actions .modal__close {
+  width: 32px;
+  height: 32px;
+}
 .update-modal-footer { min-width: 0; flex-wrap: wrap; }
 .update-modal-footer .update-modal-actions { display: flex; align-items: center; justify-content: flex-end; flex: 1 1 auto; min-width: 0; gap: var(--space-4); flex-wrap: wrap; }
 .update-modal-footer .version-picker-wrap { min-width: 0; max-width: 100%; }
@@ -3041,5 +3054,6 @@ html.no-animations .color-circle--palette { will-change: auto; }
 .update-modal-actions button > span { min-width: 0; }
 @container update-dialog (max-width: 460px) {
   .update-modal-footer .update-modal-actions { flex-basis: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .update-modal-card .update-modal-footer .update-modal-actions { align-items: stretch; }
   .update-modal-actions > :only-child { grid-column: 1 / -1; }
 }
