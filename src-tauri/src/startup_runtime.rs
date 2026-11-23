@@ -56,6 +56,10 @@ pub fn player_plugin<R: Runtime>(
                 settings.ambient.clone(),
             ));
             app.manage(commands::PlayerState {
+                ebu128: commands::ebu128::Ebu128::new(
+                    &exe_dir,
+                    settings.audio_normalize.as_deref(),
+                ),
                 startup_playback: std::sync::Mutex::new(None),
                 mpv,
                 ambient_controller,
@@ -118,6 +122,7 @@ pub fn schedule_maintenance<R: Runtime>(app: &tauri::AppHandle<R>) {
             commands::clean_stale_temp_files(&exe_dir.join("config"));
             logging::prune_build_logs(&exe_dir.join("logs"));
             crate::upscale::compatibility::prune_all_stale_dirs(&exe_dir);
+            crate::updater::prune_stale_staging_dirs(&exe_dir);
             // Reuse persisted digests on ordinary launches; cold verification
             // starts only after the same playback readiness gate as maintenance.
             crate::upscale::check_upscale_status_internal();

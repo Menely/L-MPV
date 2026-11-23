@@ -11,7 +11,7 @@ use std::os::raw::{c_char, c_double, c_int, c_void};
 use std::path::Path;
 use std::sync::Mutex;
 
-use crate::audio_filter::{AudioFilterChainBuilder, AudioNormalizeMode};
+use crate::audio_filter::{audio_filter_chain, AudioNormalizeMode};
 
 pub(crate) mod preview;
 mod preview_image;
@@ -639,9 +639,9 @@ impl MpvManager {
                 .as_deref()
                 .unwrap_or("no");
             let normalize_mode = AudioNormalizeMode::from_str_or_default(normalize_raw);
-            let chain = AudioFilterChainBuilder::build(normalize_mode, limiter_on);
+            let chain = audio_filter_chain(normalize_mode, limiter_on);
             if !chain.is_empty() {
-                Self::set_option(&api, handle, "af", chain);
+                Self::set_option(&api, handle, "af", &chain);
             }
             // Буфер демаксера: пользовательское значение затирает дефолт 64MiB
             if let Some(ref mb) = saved_settings.demuxer_cache_mb {
@@ -704,17 +704,6 @@ impl MpvManager {
             "strong" => (2, 64, 16, 32),
             _ => (1, 48, 16, 32), // "balanced" — дефолт
         }
-    }
-
-    /// Динамически включает или выключает пиковый лимитер аудио (lavfi alimiter).
-    ///
-    /// Применяет новое состояние лимитера, сохраняя текущий активный режим нормализации.
-    pub fn set_audio_limiter_enabled(
-        &self,
-        mode: AudioNormalizeMode,
-        enabled: bool,
-    ) -> Result<(), String> {
-        self.set_audio_normalize(mode, enabled)
     }
 
     /// Динамически устанавливает алгоритм тонемаппинга HDR.
@@ -845,26 +834,6 @@ impl MpvManager {
             return Err(format!("Неизвестный режим декодирования: {mode}"));
         }
         self.set_property_string("hwdec", mode)
-    }
-
-    /// Пересобирает цепочку `af` с учётом режима нормализации и состояния лимитера.
-    ///
-    /// Делегирует сборку фильтров модулю `AudioFilterChainBuilder` и применяет
-    /// результат в свойство `af` движка mpv с обязательным логированием.
-    pub fn set_audio_normalize(
-        &self,
-        mode: AudioNormalizeMode,
-        limiter_enabled: bool,
-    ) -> Result<(), String> {
-        let chain = AudioFilterChainBuilder::build(mode, limiter_enabled);
-        let res = self.set_property_string("af", chain);
-        if let Err(ref err) = res {
-            crate::log_error(
-                "MpvManager::set_audio_normalize",
-                &format!("Ошибка применения цепочки af='{chain}': {err}"),
-            );
-        }
-        res
     }
 
     /// Динамически применяет размер буфера демаксера (в мегабайтах).

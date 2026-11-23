@@ -38,7 +38,6 @@ export const QUICK_PRESETS: readonly string[] = [
 ];
 
 /** Геометрические константы спектрального круга (в CSS px) */
-export const WHEEL_SIZE = 192;
 export const WHEEL_WRAP_SIZE = 192;
 export const WHEEL_CANVAS_SIZE = 182;
 export const WHEEL_CENTER = 96;

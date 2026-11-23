@@ -74,6 +74,7 @@ struct CachedSource {
 #[derive(Default)]
 struct Inner {
     active: Mutex<Requests>,
+    chapter_session: Mutex<Option<(String, Arc<AtomicBool>)>>,
     worker: Mutex<()>,
     running: Mutex<Option<Child>>,
     native: Mutex<native::NativeDecoder>,
@@ -111,6 +112,19 @@ impl Drop for LiveGuard<'_> {
         }
         self.0.live_busy.fetch_sub(1, Ordering::SeqCst);
         self.0.storyboard_wake.notify_all();
+    }
+}
+
+/// Будит поток раскадровки строго после освобождения мьютекса декодера.
+struct StoryboardWakeGuard<'a> {
+    inner: &'a Inner,
+    enabled: bool,
+}
+impl Drop for StoryboardWakeGuard<'_> {
+    fn drop(&mut self) {
+        if self.enabled {
+            self.inner.storyboard_wake.notify_all();
+        }
     }
 }
 
@@ -169,6 +183,40 @@ impl ThumbnailService {
             }
         }
     }
+    /// Регистрирует или переиспользует токен отмены для сессии окна глав.
+    fn begin_chapter(&self, session_id: &str) -> Result<Arc<AtomicBool>, String> {
+        if session_id.is_empty() || session_id.len() > 128 {
+            return Err("THUMBNAIL_REQUEST".into());
+        }
+        let mut session = self.0.chapter_session.lock().map_err(|e| e.to_string())?;
+        if let Some((current_id, token)) = session.as_ref() {
+            if current_id == session_id && !token.load(Ordering::Acquire) {
+                return Ok(Arc::clone(token));
+            }
+        }
+        let token = Arc::new(AtomicBool::new(false));
+        if let Some((_, previous)) = session.replace((session_id.to_owned(), Arc::clone(&token))) {
+            previous.store(true, Ordering::Release);
+        }
+        Ok(token)
+    }
+
+    /// Отменяет незавершённую загрузку минипревью для окна глав.
+    pub fn cancel_chapter(&self, session_id: Option<&str>) {
+        if let Ok(mut session) = self.0.chapter_session.lock() {
+            let matches = match (session_id, session.as_ref()) {
+                (None, Some(_)) => true,
+                (Some(id), Some((current_id, _))) => current_id == id,
+                _ => false,
+            };
+            if matches {
+                if let Some((_, token)) = session.take() {
+                    token.store(true, Ordering::Release);
+                }
+            }
+        }
+    }
+
     pub fn clear_memory(&self) -> Result<(), String> {
         if let Some((_, token)) = self
             .0
@@ -180,6 +228,7 @@ impl ThumbnailService {
         {
             token.store(true, Ordering::Release);
         }
+        self.cancel_chapter(None);
         self.0.tile_cancel.store(true, Ordering::Release);
         let _worker = self.0.worker.lock().map_err(|e| e.to_string())?;
         *self.0.native.lock().map_err(|e| e.to_string())? = native::NativeDecoder::default();
@@ -197,6 +246,7 @@ impl ThumbnailService {
                 token.store(true, Ordering::Release);
             }
         }
+        self.cancel_chapter(None);
         if let Ok(mut running) = self.0.running.lock() {
             if let Some(mut child) = running.take() {
                 let _ = child.kill();
@@ -373,6 +423,47 @@ impl ThumbnailService {
         refresh: bool,
     ) -> Result<Arc<[u8]>, String> {
         let _live = LiveGuard::new(&self.0);
+        self.extract_frame(
+            mpv,
+            path,
+            vid,
+            seconds,
+            exact,
+            size,
+            token,
+            refresh,
+            !exact,
+            false,
+        )
+    }
+
+    /// Извлекает точный первый кадр на таймкоде главы с сохранением в дисковый кеш.
+    fn chapter_frame(
+        &self,
+        mpv: &Arc<MpvManager>,
+        path: &str,
+        vid: &str,
+        seconds: f64,
+        size: (u32, u32),
+        token: &AtomicBool,
+    ) -> Result<Arc<[u8]>, String> {
+        self.extract_frame(mpv, path, vid, seconds, true, size, token, false, true, true)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn extract_frame(
+        &self,
+        mpv: &Arc<MpvManager>,
+        path: &str,
+        vid: &str,
+        seconds: f64,
+        exact: bool,
+        size: (u32, u32),
+        token: &AtomicBool,
+        refresh: bool,
+        persist_disk: bool,
+        yield_to_live: bool,
+    ) -> Result<Arc<[u8]>, String> {
         let is_cancelled =
             || token.load(Ordering::Acquire) || self.0.stopped.load(Ordering::Acquire);
         if is_cancelled() {
@@ -380,10 +471,12 @@ impl ThumbnailService {
         }
         let source = self.resolve_source(mpv, path, vid, seconds, exact, size)?;
         let generation = TRANSFORM_GENERATION.load(Ordering::Acquire);
-        if let Ok(mut boards) = self.0.storyboards.lock() {
-            boards.live_size = Some(size);
-            if let Some(board) = boards.board.as_mut() {
-                board.focus(source.seconds);
+        if !yield_to_live {
+            if let Ok(mut boards) = self.0.storyboards.lock() {
+                boards.live_size = Some(size);
+                if let Some(board) = boards.board.as_mut() {
+                    board.focus(source.seconds);
+                }
             }
         }
         let color = source.hdr.map_or(0, |hdr| hdr as u8);
@@ -404,9 +497,8 @@ impl ThumbnailService {
         drop(cache);
         let root_dir = cache_directory()?;
         let dir = FrameCache::video_directory(&root_dir, &source.path, &source.identity);
-        // На диске живут только сеточные кадры: их ключ (секунда) повторяется.
-        // Точные кадры почти никогда не запрашиваются повторно — только в памяти.
-        if !exact {
+        // Для сеточных кадров таймлайна и превью глав кеш на диске переиспользуется.
+        if persist_disk {
             let file = dir.join(format!("{key}.jpg"));
             if refresh {
                 let _ = std::fs::remove_file(&file);
@@ -423,46 +515,61 @@ impl ThumbnailService {
         if super::background_io::open_work_pending() {
             return Err("THUMBNAIL_UNAVAILABLE".into());
         }
-        let root = std::env::current_exe().map_err(|e| e.to_string())?;
-        let _worker = self.0.worker.lock().map_err(|e| e.to_string())?;
-        if is_cancelled() {
-            return Err("THUMBNAIL_CANCELLED".into());
+        if yield_to_live {
+            while self.0.live_busy.load(Ordering::Acquire) > 0 {
+                if is_cancelled() {
+                    return Err("THUMBNAIL_CANCELLED".into());
+                }
+                std::thread::sleep(Duration::from_millis(25));
+            }
+            self.0.tile_cancel.store(true, Ordering::SeqCst);
         }
-        let began = Instant::now();
-        let native_result = {
-            let mut native = self.0.native.lock().map_err(|e| e.to_string())?;
-            // The reaper clears its flag under this same lock. Starting it here
-            // prevents an exiting reaper from leaving a new core unmonitored.
-            self.start_idle_cleanup();
-            native.extract(
-                root.parent().ok_or("THUMBNAIL_ROOT")?,
-                &source,
-                exact,
-                token,
-                &self.0.stopped,
-            )
-        };
-        let bytes = match native_result {
-            Ok(bytes) => bytes,
-            Err(error) if error == "THUMBNAIL_CANCELLED" => return Err(error),
-            // FFmpeg's default autorotation cannot reproduce mpv's custom
-            // transforms. Do not cache an untransformed fallback as that view.
-            Err(error) if !source.transforms.is_identity() => return Err(error),
-            Err(_) => decoder::extract(
-                &super::heatmap::resolve_ffmpeg_path(),
-                decoder::DecodeRequest {
-                    path: &source.path,
-                    stream: &source.stream,
-                    seconds: source.seconds,
+        let root = std::env::current_exe().map_err(|e| e.to_string())?;
+        let bytes = {
+            let _wake = StoryboardWakeGuard {
+                inner: &self.0,
+                enabled: yield_to_live,
+            };
+            let _worker = self.0.worker.lock().map_err(|e| e.to_string())?;
+            if is_cancelled() {
+                return Err("THUMBNAIL_CANCELLED".into());
+            }
+            let began = Instant::now();
+            let native_result = {
+                let mut native = self.0.native.lock().map_err(|e| e.to_string())?;
+                // The reaper clears its flag under this same lock. Starting it here
+                // prevents an exiting reaper from leaving a new core unmonitored.
+                self.start_idle_cleanup();
+                native.extract(
+                    root.parent().ok_or("THUMBNAIL_ROOT")?,
+                    &source,
                     exact,
-                    hdr: source.hdr,
-                    size,
-                },
-                token,
-                &self.0.stopped,
-                &self.0.running,
-                Duration::from_secs(4).saturating_sub(began.elapsed()),
-            )?,
+                    token,
+                    &self.0.stopped,
+                )
+            };
+            match native_result {
+                Ok(bytes) => bytes,
+                Err(error) if error == "THUMBNAIL_CANCELLED" => return Err(error),
+                // FFmpeg's default autorotation cannot reproduce mpv's custom
+                // transforms. Do not cache an untransformed fallback as that view.
+                Err(error) if !source.transforms.is_identity() => return Err(error),
+                Err(_) => decoder::extract(
+                    &super::heatmap::resolve_ffmpeg_path(),
+                    decoder::DecodeRequest {
+                        path: &source.path,
+                        stream: &source.stream,
+                        seconds: source.seconds,
+                        exact,
+                        hdr: source.hdr,
+                        size,
+                    },
+                    token,
+                    &self.0.stopped,
+                    &self.0.running,
+                    Duration::from_secs(4).saturating_sub(began.elapsed()),
+                )?,
+            }
         };
         // Ключ описывает файл, дорожку, преобразования и размер, поэтому кадр
         // в кеше верен для своего ключа. Если преобразования сменились за время
@@ -474,7 +581,7 @@ impl ThumbnailService {
         let mut cache = self.0.cache.lock().map_err(|e| e.to_string())?;
         cache.insert(key.clone(), Arc::clone(&bytes));
         drop(cache);
-        if !exact {
+        if persist_disk {
             self.0.disk.get_or_init(disk::DiskWriter::new).enqueue(
                 root_dir,
                 dir,
@@ -606,6 +713,40 @@ pub async fn get_timeline_thumbnail(
 #[tauri::command]
 pub fn cancel_timeline_thumbnail(service: State<'_, ThumbnailService>, request_id: String) {
     service.cancel(&request_id);
+}
+
+/// Возвращает точный первый кадр на таймкоде главы для окна глав.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn get_chapter_thumbnail(
+    state: State<'_, PlayerState>,
+    service: State<'_, ThumbnailService>,
+    path: String,
+    seconds: f64,
+    session_id: String,
+    video_track: Option<i64>,
+    width: Option<u32>,
+) -> Result<tauri::ipc::Response, String> {
+    let vid = current_vid(&state.mpv, &path, video_track)?;
+    let token = service.begin_chapter(&session_id)?;
+    let service = service.inner().clone();
+    let mpv = state.mpv.clone();
+    let size = thumbnail_size(width);
+    let bytes = tauri::async_runtime::spawn_blocking(move || {
+        service.chapter_frame(&mpv, &path, &vid, seconds, size, &token)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    Ok(tauri::ipc::Response::new(bytes.to_vec()))
+}
+
+/// Отменяет активную сессию загрузки минипревью глав при закрытии окна.
+#[tauri::command]
+pub fn cancel_chapter_thumbnails(
+    service: State<'_, ThumbnailService>,
+    session_id: Option<String>,
+) {
+    service.cancel_chapter(session_id.as_deref());
 }
 
 /// Прогрев ядра превью при наведении на панель управления.
@@ -810,5 +951,24 @@ mod tests {
             service.cancel(&format!("old-{id}"));
         }
         assert!(service.0.active.lock().unwrap().cancelled.len() <= 256);
+    }
+
+    #[test]
+    fn chapter_session_shares_token_until_replaced_or_cancelled() {
+        let service = ThumbnailService::default();
+        let first_a = service.begin_chapter("session-1").unwrap();
+        let first_b = service.begin_chapter("session-1").unwrap();
+        assert!(Arc::ptr_eq(&first_a, &first_b));
+        assert!(!first_a.load(Ordering::Acquire));
+
+        let second = service.begin_chapter("session-2").unwrap();
+        assert!(first_a.load(Ordering::Acquire));
+        assert!(!second.load(Ordering::Acquire));
+
+        service.cancel_chapter(Some("session-1"));
+        assert!(!second.load(Ordering::Acquire));
+
+        service.cancel_chapter(Some("session-2"));
+        assert!(second.load(Ordering::Acquire));
     }
 }

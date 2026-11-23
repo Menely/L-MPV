@@ -407,22 +407,36 @@ pub fn schedule_clear_start(
 
 /// Выставляет mpv-свойство `start` по истории для бесшовного resume.
 ///
-/// Возвращает `true`, если был применён сохранённый таймкод (позиция >= 3 с).
+/// Возвращает `true`, если был применён сохранённый или переданный таймкод.
 pub fn apply_resume_start(
     state: &PlayerState,
     path: &str,
 ) -> bool {
+    apply_resume_start_exact(state, path, None)
+}
+
+/// Устанавливает стартовую позицию воспроизведения из истории или по явному таймкоду (например, после автообновления).
+pub fn apply_resume_start_exact(
+    state: &PlayerState,
+    path: &str,
+    explicit_position: Option<f64>,
+) -> bool {
     let resume_generation = RESUME_START_GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-    sync_history_from_disk();
-    let key = normalize_history_path(path);
-    let position = get_history_map()
-        .lock()
-        .ok()
-        .and_then(|map| map.get(&key).map(|item| item.position))
-        .unwrap_or(0.0);
-    // Согласованный порог: в update_history_position всё, что >= 3.0 сек,
-    // сохраняется как валидная позиция. Соответственно, resume запускается при position >= 3.0.
-    let is_resume = position >= 3.0;
+    // При наличии явного таймкода (даже 0.0) не обращаемся к history.json, чтобы старая запись не перебила старт.
+    let (position, is_resume) = match explicit_position {
+        Some(pos) => (pos, pos >= 0.2),
+        None => {
+            sync_history_from_disk();
+            let key = normalize_history_path(path);
+            let pos = get_history_map()
+                .lock()
+                .ok()
+                .and_then(|map| map.get(&key).map(|item| item.position))
+                .unwrap_or(0.0);
+            // Согласованный порог для обычного возобновления: >= 3.0 сек.
+            (pos, pos >= 3.0)
+        }
+    };
     let start_value = if is_resume {
         format!("{:.3}", position)
     } else {

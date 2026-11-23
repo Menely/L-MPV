@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Copy, Check } from "lucide-react";
+import { useTranslation } from "../../../i18n/LanguageContext";
 
 interface ValuesCardProps {
   currentHex: string;
@@ -10,6 +11,7 @@ interface ValuesCardProps {
   bInput: number;
   onRevertToInitial: () => void;
   onHexChange: (val: string) => void;
+  onHexBlur: () => void;
   onRgbChange: (r: number, g: number, b: number) => void;
   onConfirm?: () => void;
 }
@@ -29,9 +31,12 @@ export const ValuesCard: React.FC<ValuesCardProps> = ({
   bInput,
   onRevertToInitial,
   onHexChange,
+  onHexBlur,
   onRgbChange,
   onConfirm,
 }) => {
+  const { dict } = useTranslation();
+  const cs = dict.settings.appearance.colorScheme;
   const [copiedHex, setCopiedHex] = useState<boolean>(false);
   const [copiedRgb, setCopiedRgb] = useState<boolean>(false);
   const copyHexTimeoutRef = useRef<number | null>(null);
@@ -77,7 +82,7 @@ export const ValuesCard: React.FC<ValuesCardProps> = ({
       <div
         className="color-picker-dual-swatch"
         onClick={onRevertToInitial}
-        title="Кликните на нижнюю часть для возврата к исходному цвету"
+        title={cs.compareResetHint}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
@@ -86,17 +91,17 @@ export const ValuesCard: React.FC<ValuesCardProps> = ({
             onRevertToInitial();
           }
         }}
-        aria-label="Сравнение цвета. Нажмите для сброса к исходному"
+        aria-label={cs.compareResetAria}
       >
         <div
           className="color-picker-swatch-current"
           style={{ backgroundColor: currentHex }}
-          title={`Текущий: ${currentHex}`}
+          title={cs.currentColorLabel(currentHex)}
         />
         <div
           className="color-picker-swatch-original"
           style={{ backgroundColor: initialHex }}
-          title={`Исходный: ${initialHex}`}
+          title={cs.initialColorLabel(initialHex)}
         />
       </div>
 
@@ -111,14 +116,17 @@ export const ValuesCard: React.FC<ValuesCardProps> = ({
               type="text"
               value={hexInput}
               onChange={(e) => onHexChange(e.target.value)}
+              onBlur={onHexBlur}
+              onFocus={(e) => e.target.select()}
               maxLength={6}
-              aria-label="HEX код"
+              aria-label={cs.hexLabel}
               autoComplete="off"
               spellCheck={false}
               className="color-picker-hex-field"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
+                  onHexBlur();
                   onConfirm?.();
                 }
               }}
@@ -127,8 +135,8 @@ export const ValuesCard: React.FC<ValuesCardProps> = ({
               type="button"
               onClick={handleCopyHex}
               className="color-picker-copy-btn"
-              title={copiedHex ? "Скопировано!" : "Скопировать HEX"}
-              aria-label="Скопировать HEX"
+              title={copiedHex ? cs.copiedLabel : cs.copyHexLabel}
+              aria-label={cs.copyHexLabel}
             >
               {copiedHex ? <Check size={13} className="t-accent" /> : <Copy size={13} />}
             </button>
@@ -150,9 +158,11 @@ export const ValuesCard: React.FC<ValuesCardProps> = ({
                     min={0}
                     max={255}
                     value={val}
-                    aria-label={`Канал ${ch}`}
+                    aria-label={cs.channelLabel(ch)}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => {
-                      const num = Math.min(255, Math.max(0, Number(e.target.value) || 0));
+                      const raw = e.target.value === "" ? 0 : Math.trunc(Number(e.target.value));
+                      const num = Number.isFinite(raw) ? Math.min(255, Math.max(0, raw)) : 0;
                       if (idx === 0) onRgbChange(num, gInput, bInput);
                       else if (idx === 1) onRgbChange(rInput, num, bInput);
                       else onRgbChange(rInput, gInput, num);
@@ -173,8 +183,8 @@ export const ValuesCard: React.FC<ValuesCardProps> = ({
               type="button"
               onClick={handleCopyRgb}
               className="color-picker-copy-btn"
-              title={copiedRgb ? "Скопировано!" : `Скопировать RGB: rgb(${rInput}, ${gInput}, ${bInput})`}
-              aria-label="Скопировать RGB"
+              title={copiedRgb ? cs.copiedLabel : `${cs.copyRgbLabel}: rgb(${rInput}, ${gInput}, ${bInput})`}
+              aria-label={cs.copyRgbLabel}
             >
               {copiedRgb ? <Check size={13} className="t-accent" /> : <Copy size={13} />}
             </button>

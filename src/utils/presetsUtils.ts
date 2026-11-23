@@ -60,6 +60,13 @@ import {
   getSavedControlBarStyle,
   saveControlBarStyle,
 } from "./controlBarStyleUtils";
+import {
+  type UtilityButtonId,
+  getSavedUtilityCards,
+  saveUtilityCards,
+  normalizeUtilityCards,
+  UTILITY_CARDS_CHANGED_EVENT,
+} from "./controlBarUtilityLayout";
 import type { AmbientPresetSettings } from "./ambientSettingsUtils";
 import { normalizeAmbientSettings } from "./ambientSettingsUtils";
 import { getEffectiveLocale, saveLocale, type Locale } from "../i18n/index";
@@ -105,6 +112,8 @@ export interface SettingsPresetData {
   showTrackNames: boolean;
   /** Карта видимости кнопок нижней панели управления */
   visibleButtons: Record<string, boolean>;
+  /** Распределение и порядок кнопок утилит по карточкам */
+  utilityButtonCards?: UtilityButtonId[][];
   /** Пользовательская сохранённая палитра цветов */
   customColors?: string[];
   /** Параметры подсветки полос (Blur) */
@@ -144,6 +153,20 @@ export interface SettingsPreset {
 
 const PRESETS_STORAGE_KEY = "l-mpv-settings-presets";
 
+const BUILTIN_DEFAULT_CARDS: UtilityButtonId[][] = [
+  [
+    "speed",
+    "skipOpening",
+    "alwaysOnTop",
+    "info",
+    "mediaInfo",
+    "visualizer",
+    "playlist",
+    "screenshot",
+  ],
+  ["fullscreen"],
+];
+
 /**
  * Встроенные заводские пресеты для быстрого выбора визуального стиля.
  */
@@ -176,7 +199,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         alwaysOnTop: true,
         info: false,
         mediaInfo: false,
-        visualizer: false,
+        visualizer: true,
         screenshot: true,
         playlist: true,
         fullscreen: true,
@@ -184,6 +207,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         speed: false,
         seekButtons: true,
       },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
       ambient: {
         mode: "blur",
         blur_radius: 35,
@@ -224,9 +248,9 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       showTrackNames: true,
       visibleButtons: {
         repeat: true,
-        shuffle: true,
+        shuffle: false,
         alwaysOnTop: true,
-        info: true,
+        info: false,
         mediaInfo: true,
         visualizer: true,
         screenshot: true,
@@ -236,6 +260,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         speed: false,
         seekButtons: true,
       },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
       ambient: {
         mode: "off",
         blur_radius: 50,
@@ -248,7 +273,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         height: 26,
       },
       saveTracksToVideoDir: true,
-      hotloadEnabled: true,
+      hotloadEnabled: false,
       skipOpeningSeconds: 90,
       seekStepSeconds: 10,
     },
@@ -266,7 +291,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       glowIntensity: "off",
       uiOpacity: 0.96,
       controlBarStyle: "docked",
-      uiRadius: "smooth",
+      uiRadius: "default",
       settingsStyle: "modal",
       uiScale: { mode: "auto" },
       timePosition: "timeline_right",
@@ -288,6 +313,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         speed: false,
         seekButtons: true,
       },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
       ambient: {
         mode: "blur",
         blur_radius: 65,
@@ -299,7 +325,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         theme: "sunset",
         height: 20,
       },
-      saveTracksToVideoDir: false,
+      saveTracksToVideoDir: true,
       hotloadEnabled: false,
       skipOpeningSeconds: 90,
       seekStepSeconds: 10,
@@ -340,6 +366,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         speed: false,
         seekButtons: true,
       },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
       ambient: {
         mode: "off",
         blur_radius: 20,
@@ -384,7 +411,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         alwaysOnTop: true,
         info: false,
         mediaInfo: false,
-        visualizer: false,
+        visualizer: true,
         screenshot: true,
         playlist: true,
         fullscreen: true,
@@ -392,6 +419,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
         speed: false,
         seekButtons: true,
       },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
       ambient: {
         mode: "off",
         blur_radius: 35,
@@ -492,6 +520,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
       animationsEnabled,
       showTrackNames,
       visibleButtons,
+      utilityButtonCards: getSavedUtilityCards(),
       customColors,
       ambient,
       visualizer,
@@ -582,6 +611,7 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   // 3.6 Стиль панели управления (парящий остров или пристыкованная плашка)
   if (data.controlBarStyle) {
     saveControlBarStyle(data.controlBarStyle);
+    window.dispatchEvent(new CustomEvent("l-mpv-control-bar-style-changed", { detail: data.controlBarStyle }));
   }
 
   if (data.settingsStyle === "modal" || data.settingsStyle === "sidebar") {
@@ -606,6 +636,10 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   // 6. Видимые кнопки
   if (data.visibleButtons) {
     localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(data.visibleButtons));
+  }
+  if (Array.isArray(data.utilityButtonCards)) {
+    saveUtilityCards(data.utilityButtonCards, { notify: false });
+    window.dispatchEvent(new Event(UTILITY_CARDS_CHANGED_EVENT));
   }
 
   // 7. Пользовательские цвета
@@ -851,47 +885,52 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
     const valid: SettingsPreset[] = [];
 
     for (const item of list) {
-      if (item && typeof item.name === "string" && item.data && typeof item.data === "object") {
-        valid.push({
-          id: `preset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          name: `${item.name.replace(/\s*\(Импорт\)\s*/g, "")} (Импорт)`,
-          createdAt: Date.now(),
-          isBuiltIn: false,
-          data: {
-             playerTheme: item.data.playerTheme || "graphite",
-            uiFont: typeof item.data.uiFont === "string" && item.data.uiFont.trim() ? item.data.uiFont : undefined,
-            controlBarStyle: item.data.controlBarStyle === "floating" ? "modern"
-              : ["capsule", "modern", "docked"].includes(item.data.controlBarStyle) ? item.data.controlBarStyle : undefined,
-            timePosition: ["timeline_right", "timeline_left", "volume_right", "toolbar_right", "timeline_floating_center", "titlebar"].includes(item.data.timePosition) ? item.data.timePosition : undefined,
-            timeFormat: ["elapsed_total", "elapsed_remaining", "remaining_only", "finish_time"].includes(item.data.timeFormat) ? item.data.timeFormat : undefined,
-             settingsStyle: item.data.settingsStyle === "modal" || item.data.settingsStyle === "sidebar" ? item.data.settingsStyle : undefined,
-             language: item.data.language === "ru" || item.data.language === "en" ? item.data.language : undefined,
-            accentColor: item.data.accentColor || "#7fc7ff",
-            glowIntensity: item.data.glowIntensity || "medium",
-            uiOpacity: typeof item.data.uiOpacity === "number" ? item.data.uiOpacity : 0.88,
-            uiRadius: item.data.uiRadius,
-            uiScale: item.data.uiScale,
-            animationsEnabled: item.data.animationsEnabled !== false,
-            showTrackNames: item.data.showTrackNames !== false,
-            visibleButtons: item.data.visibleButtons || {},
-            customColors: item.data.customColors || [],
-            ambient: normalizeAmbientSettings(item.data.ambient),
-            visualizer: item.data.visualizer || {
-              enabled: false,
-              placement: "off",
-              mode: "waveform",
-              theme: "accent",
-              height: 22,
-            },
-            heatmap: item.data.heatmap,
-            saveTracksToVideoDir: item.data.saveTracksToVideoDir !== false,
-            hotloadEnabled: item.data.hotloadEnabled === true,
-            skipOpeningSeconds: typeof item.data.skipOpeningSeconds === "number" ? item.data.skipOpeningSeconds : 90,
-            seekStepSeconds: typeof item.data.seekStepSeconds === "number" ? item.data.seekStepSeconds : 10,
-            customHotkeys: item.data.customHotkeys,
+      if (!item || typeof item !== "object") continue;
+      const d = (item.data && typeof item.data === "object") ? item.data : item;
+      const rawName = typeof item.name === "string" ? item.name : "Импортированный пресет";
+
+      valid.push({
+        id: `preset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        name: `${rawName.replace(/\s*\(Импорт\)\s*/g, "")} (Импорт)`,
+        createdAt: Date.now(),
+        isBuiltIn: false,
+        data: {
+          playerTheme: d.playerTheme || "graphite",
+          uiFont: typeof d.uiFont === "string" && d.uiFont.trim() ? d.uiFont : undefined,
+          controlBarStyle: d.controlBarStyle === "floating" ? "modern"
+            : ["capsule", "modern", "docked"].includes(d.controlBarStyle) ? d.controlBarStyle : undefined,
+          timePosition: ["timeline_right", "timeline_left", "volume_right", "toolbar_right", "timeline_floating_center", "titlebar"].includes(d.timePosition) ? d.timePosition : undefined,
+          timeFormat: ["elapsed_total", "elapsed_remaining", "remaining_only", "finish_time"].includes(d.timeFormat) ? d.timeFormat : undefined,
+          settingsStyle: d.settingsStyle === "modal" || d.settingsStyle === "sidebar" ? d.settingsStyle : undefined,
+          language: d.language === "ru" || d.language === "en" ? d.language : undefined,
+          accentColor: d.accentColor || "#7fc7ff",
+          glowIntensity: d.glowIntensity || "medium",
+          uiOpacity: typeof d.uiOpacity === "number" ? d.uiOpacity : 0.88,
+          uiRadius: d.uiRadius,
+          uiScale: d.uiScale,
+          animationsEnabled: d.animationsEnabled !== false,
+          showTrackNames: d.showTrackNames !== false,
+          visibleButtons: d.visibleButtons || {},
+          utilityButtonCards: Array.isArray(d.utilityButtonCards)
+            ? normalizeUtilityCards(d.utilityButtonCards, true)
+            : undefined,
+          customColors: d.customColors || [],
+          ambient: normalizeAmbientSettings(d.ambient),
+          visualizer: d.visualizer || {
+            enabled: false,
+            placement: "off",
+            mode: "waveform",
+            theme: "accent",
+            height: 22,
           },
-        });
-      }
+          heatmap: d.heatmap,
+          saveTracksToVideoDir: d.saveTracksToVideoDir !== false,
+          hotloadEnabled: d.hotloadEnabled === true,
+          skipOpeningSeconds: typeof d.skipOpeningSeconds === "number" ? d.skipOpeningSeconds : 90,
+          seekStepSeconds: typeof d.seekStepSeconds === "number" ? d.seekStepSeconds : 10,
+          customHotkeys: d.customHotkeys,
+        },
+      });
     }
     return valid;
   } catch (e) {
@@ -1001,7 +1040,7 @@ export function isSettingsMatchingPreset(
   // 9. Названия дорожек
   if (Boolean(current.showTrackNames) !== Boolean(preset.showTrackNames)) return false;
 
-  // 10. Видимые кнопки
+  // 10. Видимые кнопки и карточки утилит
   if (current.visibleButtons && preset.visibleButtons) {
     const allKeys = Array.from(new Set([...Object.keys(current.visibleButtons), ...Object.keys(preset.visibleButtons)]));
     for (const key of allKeys) {
@@ -1009,6 +1048,24 @@ export function isSettingsMatchingPreset(
       const preBtn = preset.visibleButtons[key] !== false;
       if (curBtn !== preBtn) return false;
     }
+  }
+  if (preset.utilityButtonCards && current.utilityButtonCards) {
+    if (JSON.stringify(current.utilityButtonCards) !== JSON.stringify(preset.utilityButtonCards)) {
+      return false;
+    }
+  }
+
+  // 10.1 Стиль панели управления
+  if (preset.controlBarStyle && current.controlBarStyle) {
+    if (current.controlBarStyle !== preset.controlBarStyle) return false;
+  }
+
+  // 10.2 Положение и формат времени
+  if (preset.timePosition && current.timePosition) {
+    if (current.timePosition !== preset.timePosition) return false;
+  }
+  if (preset.timeFormat && current.timeFormat) {
+    if (current.timeFormat !== preset.timeFormat) return false;
   }
 
   // 11. Blur

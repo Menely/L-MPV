@@ -4,6 +4,8 @@ export const KEY_TRANSLATIONS: Record<string, string> = {
   // Общее
   "Unique ID": "Уникальный идентификатор",
   "Complete name": "Полное имя",
+  "Movie name": "Название фильма",
+  "Movie": "Название фильма",
   "Format": "Формат",
   "Format version": "Версия формата",
   "Format profile": "Профиль формата",
@@ -80,6 +82,8 @@ export const KEY_TRANSLATIONS: Record<string, string> = {
   "Video delay": "Задержка видео",
 
   // Текст / Субтитры
+  "Track name": "Имя дорожки",
+  "Title/String": "Заголовок",
   "Element count": "Количество элементов",
   "Count of elements": "Количество элементов",
   "Count of audio streams": "Количество аудиопотоков",
@@ -92,7 +96,7 @@ export const SECTION_TRANSLATIONS: Record<string, string> = {
   "General": "Общее",
   "Video": "Видео",
   "Audio": "Аудио",
-  "Text": "Текст",
+  "Text": "Субтитры",
   "Menu": "Меню",
   "Chapters": "Главы",
 };
@@ -176,6 +180,7 @@ export interface ParsedMediaInfoRow {
 export interface ParsedMediaInfoSection {
   id: string;
   title: string;
+  streamTitle?: string;
   rows: ParsedMediaInfoRow[];
   cleanText: string;
 }
@@ -192,6 +197,88 @@ export interface ParsedMediaInfoReport {
   cleanText: string;
   lines: ParsedMediaInfoLine[];
   sections: ParsedMediaInfoSection[];
+}
+
+/**
+ * Извлечение названия дорожки / заголовка для секции MediaInfo (аудио, субтитры, видео, контейнер).
+ */
+export function extractSectionStreamTitle(
+  sec: ParsedMediaInfoSection,
+  _useRussian: boolean
+): string | undefined {
+  let titleVal = "";
+  let langVal = "";
+  let formatVal = "";
+  let movieVal = "";
+
+  for (const r of sec.rows) {
+    const k = r.key.trim().toLowerCase();
+    if (
+      k === "заголовок" ||
+      k === "title" ||
+      k === "имя дорожки" ||
+      k === "track name" ||
+      k === "title/string"
+    ) {
+      if (!titleVal && r.value.trim()) {
+        titleVal = r.value.trim();
+      }
+    } else if (
+      k === "название фильма" ||
+      k === "movie name" ||
+      k === "movie" ||
+      k === "фильм"
+    ) {
+      if (!movieVal && r.value.trim()) {
+        movieVal = r.value.trim();
+      }
+    } else if (k === "язык" || k === "language") {
+      if (!langVal && r.value.trim()) {
+        langVal = r.value.trim();
+      }
+    } else if (k === "формат" || k === "format") {
+      if (!formatVal && r.value.trim()) {
+        formatVal = r.value.trim();
+      }
+    }
+  }
+
+  // 1. Прямое название фильма (в категории General / Общее)
+  if (movieVal) {
+    return movieVal;
+  }
+
+  // 2. Прямой заголовок дорожки (например, "Дубляж", "Original", "Directors Commentary")
+  if (titleVal) {
+    if (langVal && !titleVal.toLowerCase().includes(langVal.toLowerCase())) {
+      return `${titleVal} (${langVal})`;
+    }
+    return titleVal;
+  }
+
+  // 3. Если заголовок не указан в тегах, формируем понятное имя из языка и формата
+  const t = sec.title.toLowerCase();
+  const isAudioOrSub =
+    t.startsWith("ауд") ||
+    t.startsWith("audio") ||
+    t.startsWith("субт") ||
+    t.startsWith("sub") ||
+    t.startsWith("текст") ||
+    t.startsWith("text");
+
+  if (isAudioOrSub) {
+    if (langVal && formatVal) {
+      return `${langVal} (${formatVal})`;
+    }
+    if (langVal) {
+      return langVal;
+    }
+    if (formatVal) {
+      return formatVal;
+    }
+  }
+
+  return undefined;
 }
 
 /** Парсинг и структурирование строк отчёта MediaInfo */
@@ -274,9 +361,10 @@ export function parseMediaInfoLines(rawText: string, useRussian: boolean): Parse
     }
   }
 
-  // Формирование структурированного чистого текста для каждой категории
+  // Формирование структурированного чистого текста и извлечение заголовков секций
   for (const sec of sections) {
-    const secLines = [sec.title];
+    sec.streamTitle = extractSectionStreamTitle(sec, useRussian);
+    const secLines = [sec.streamTitle ? `${sec.title} — ${sec.streamTitle}` : sec.title];
     for (const r of sec.rows) {
       if (r.cleanText) {
         secLines.push(r.cleanText);

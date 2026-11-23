@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.7.5-blueviolet?style=for-the-badge" alt="Version 2.7.5">
+  <img src="https://img.shields.io/badge/Version-2.7.6-blueviolet?style=for-the-badge" alt="Version 2.7.6">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -229,6 +229,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - Luminous active stream dots replace heavy checkmarks;
   - 1-click track export directly inside the menu;
   - Opening animations adapted to the selected interface style.
+- **Loading External Audio Tracks & Subtitles from File:** Available via the Right-Click context menu (*Audio Track → Load audio track…* and *Subtitles → Load subtitles…*), opening a native file dialog regardless of the Drag & Drop hotload toggle.
 - **Subtitle & Audio Disabling (Mpv Property Alignment):** selecting "Disable Subtitles" reliably dispatches native mpv `sid: "no"` (`aid: "no"` for audio), optimistically clearing active UI tracks and displaying an informative OSD confirmation.
 - **Track Titles (MP4 / MOV ↔ MKV):** Cascade metadata lookup (`title` → QuickTime/MP4 `metadata/name` from `udta/name` atom → `metadata/title` → `metadata/handler_name`). Track titles (e.g., "Dubbing", "Original Atmos") display consistently and accurately in MP4 and MOV files just like in MKV.
 - **Closing track menus:** Click the video to close an open audio or subtitle list without pausing or resuming playback. The next video click works normally.
@@ -312,6 +313,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Mathematical Control Bar Rhythm & Optical Centering:**
   - Strict 40px center-to-center grid rhythm and 22px visual gap across audio tracks, subtitles, and volume buttons;
   - Micro-optical compensation for circular Play/Pause button (`transform: translateX(1px)`) aligning the triangle centroid;
+  - Custom vector **Play** button (`AppPlayIcon`) and empty-state emblem shaped after the L-MPV app icon, automatically tinted to the active theme accent;
   - Standardized transport button scale (`size=18` for Repeat and Shuffle) and relaxed token spacing (`gap: var(--space-2)`) for Skip Opening;
   - Enhanced nested card opacity differentiation for Capsule mode (`--capsule-island-fill`);
   - First-line alignment for settings checkboxes and options with unified `SettingsIcon` slots.
@@ -455,7 +457,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - In **"Modern"** and **"Classic"** styles: Features a cohesive frosted glass panel.
 - **Playlist scrolling:** Search and playback indicators are displayed within a scrollable file list.
 - **Elegant Active Media Marker:** A circular accent badge with subtle neon backlighting marks the currently playing file instead of heavy bounding boxes, ensuring text readability.
-- **Drag & Drop:** While dragging video, audio or subtitle files over the player, a label beside the pointer shows the first file's name and an icon for its type; videos use the L-MPV icon. Long names retain their extension, and multiple files show an additional-file count. Releasing opens or attaches the first file according to the current hotload setting.
+- **Drag & Drop:** While dragging video, audio or subtitle files over the player, a label beside the pointer shows the first file's name and an icon for its type; videos use the L-MPV icon. Long names retain their extension, and multiple files show an additional-file count. Releasing opens or attaches the first file according to the current hotload setting (external audio tracks and subtitles can also be loaded manually via the Right-Click menu).
 - **Loop Modes & Shuffle:** Loop current file, loop entire playlist, or play in random order. The toolbar button and the *Repeat Mode* submenu share a single `set_repeat_mode` command that always sets both loop properties together; the submenu marks the active mode immediately and confirms the change with an OSD toast.
 - **Watch Progress Bar (Netflix / YouTube Style):** Elegant bottom accent line under every playlist card reflecting saved playback progress (`get_watch_history_batch`). Fully watched episodes (ending reached) are marked with a dedicated `completed` flag, displaying a crisp green `CheckCircle2` badge and a completed progress line, with live progress tracking of the actively playing media.
 - **Resilient Compact Geometry & Non-Compressing Items:** Playlist items strictly preserve vertical layout (`flex-shrink: 0; min-height: 38px`), providing smooth native vertical scrolling without vertical crushing or element collisions even in compact player windows.

@@ -3,12 +3,14 @@ export const MAX_SURFACE_DEPTH = 4;
 
 const ROOTS = [
   ".glass-panel", ".modal__content", ".settings-side-panel", ".settings-card", ".subtitles-card", ".update-card",
+  ".update-toast", ".update-toast__island",
   ".controls-island", ".controls-timeline-island", ".controls-time-island", ".player-controls",
   ".context-menu", ".context-menu__submenu", ".track-popover", ".version-picker-popover", ".controls-overflow",
   ".subtitles-search-card__track-picker-menu", ".confirm-dialog",
   ".playlist-drawer__header-left", ".playlist-drawer__header-actions", ".playlist-drawer__search-wrapper",
   ".mediainfo-standalone__body", ".mediainfo-standalone__titlebar-left", ".mediainfo-standalone__actions",
-  ".mediainfo-standalone__tabs-bar", ".mediainfo-standalone__search-wrapper", "[data-surface-root]",
+  ".mediainfo-standalone__tabs-bar", ".mediainfo-standalone__search-wrapper", ".color-picker-modal",
+  ".color-picker-card", "[data-surface-root]",
 ].join(", ");
 
 const CARDS = [

@@ -7,7 +7,7 @@ use super::dir_scan::{
     current_open_generation, next_open_generation,
 };
 use super::history::{
-    apply_resume_start, save_current_playback_position,
+    save_current_playback_position,
     save_history_to_disk,
 };
 use super::playlist::populate_folder_playlist;
@@ -50,6 +50,34 @@ pub fn open_file_internal(
     path: &str,
     app: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
+    open_file_internal_with_resume(state, path, None, app)
+}
+
+/// Открытие файла после перезапуска в процессе автообновления с восстановлением точной позиции и статуса паузы.
+pub fn open_file_after_update_resume(
+    state: &PlayerState,
+    path: &str,
+    position: f64,
+    paused: bool,
+    app: Option<&tauri::AppHandle>,
+) -> Result<(), String> {
+    if paused {
+        let _ = state.mpv.set_property_string("pause", "yes");
+    }
+    open_file_internal_with_resume(
+        state,
+        path,
+        Some(position.max(0.0)),
+        app,
+    )
+}
+
+fn open_file_internal_with_resume(
+    state: &PlayerState,
+    path: &str,
+    explicit_start: Option<f64>,
+    app: Option<&tauri::AppHandle>,
+) -> Result<(), String> {
     super::startup::cancel_startup_for_other_file(state, path)?;
     // Сохранение позиции предыдущего файла перед открытием нового
     if !state.mpv.get_property_string("path").unwrap_or_default().is_empty() {
@@ -63,7 +91,7 @@ pub fn open_file_internal(
     let safe_target = escape_mpv_path(path);
     // Единственная точка resume: выставляем `start` ДО loadfile,
     // фронтенд второго seek не делает.
-    let _ = apply_resume_start(state, path);
+    let _ = super::history::apply_resume_start_exact(state, path, explicit_start);
 
     // Путь, игравший до loadfile: нужен фоновой задаче, чтобы отличить
     // «новый файл ещё грузится» от «пользователь уже переключил дальше».
@@ -80,7 +108,8 @@ pub fn open_file_internal(
     let generation = next_open_generation();
     let open_work = super::background_io::OpenWork::begin(generation, true);
 
-    // 1. Ставим открытие выбранного файла в очередь mpv.
+    // 1. Очищаем хвост предыдущего плейлиста и ставим открытие выбранного файла в очередь mpv.
+    let _ = state.mpv.command("playlist-clear");
     state.mpv.command(&format!(
         "loadfile \"{}\" replace",
         safe_target
@@ -131,7 +160,7 @@ pub fn open_file_internal(
             // Фоново формируем плейлист из остальных файлов в той же папке.
             // Каталог читается один раз общим листингом (см. dir_scan).
             if !super::background_io::wait_for_open(
-                &bg_mpv, &target_path.to_string_lossy(), "", generation, true,
+                &bg_mpv, &target_path.to_string_lossy(), &bg_prev_path, generation, false,
             ) { return; }
             let _ = populate_folder_playlist(
                 &bg_mpv,
@@ -416,29 +445,23 @@ pub fn set_rotation(
 
 /// Установка зума и панорамирования видео.
 #[tauri::command]
-pub fn set_video_zoom_and_pan(
+pub async fn set_video_zoom_and_pan(
     state: State<'_, PlayerState>,
     zoom: f64,
     pan_x: f64,
     pan_y: f64,
 ) -> Result<(), String> {
-    state.mpv.set_property_double("video-zoom", zoom)?;
-    if zoom.abs() < 0.001 {
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-x", 0.0);
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-y", 0.0);
-    } else {
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-x", pan_x);
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-y", pan_y);
+    if ![zoom, pan_x, pan_y].iter().all(|value| value.is_finite()) {
+        return Err("Invalid video transform".into());
     }
-    Ok(())
+    let (pan_x, pan_y) = if zoom.abs() < 0.001 {
+        (0.0, 0.0)
+    } else {
+        (pan_x, pan_y)
+    };
+    state.mpv.command(&format!(
+        "no-osd set video-zoom {zoom}; no-osd set video-pan-x {pan_x}; no-osd set video-pan-y {pan_y}"
+    ))
 }
 
 /// Получение текущего зума видео.
@@ -912,6 +935,7 @@ pub fn get_playback_state(
     live_bitrate: State<'_, crate::commands::LiveVideoBitrateService>,
 ) -> Result<PlaybackState, String> {
     let mut snapshot = state.mpv.get_playback_state_snapshot()?;
+    state.ebu128.observe(&state.mpv, &snapshot.path, &snapshot.current_aid);
     let current_vid = snapshot.current_vid.trim().parse::<i64>().ok();
     if let Some(exact_bps) = live_bitrate.peek_cached_bitrate(
         &snapshot.path,

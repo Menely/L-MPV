@@ -23,15 +23,12 @@
 }
 
 .video-area__placeholder-icon {
-  width: 72px;
-  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background: var(--accent-glass);
-  border: 1px solid var(--border-pill);
   color: var(--accent-text);
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.4));
+  transition: transform var(--t-fast) var(--ease-smooth), opacity var(--t-fast) var(--ease-smooth);
 }
 
 .video-area__placeholder-text {

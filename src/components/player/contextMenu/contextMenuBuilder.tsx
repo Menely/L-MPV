@@ -117,6 +117,7 @@ export const STATIC_ICONS = {
 
 export interface ContextMenuBuilderParams {
   dict: TranslationDict;
+  hasMedia: boolean;
   menuLayout: LayoutEntry[];
   recentFiles: RecentFile[];
   audioTracks: TrackInfo[];
@@ -150,6 +151,7 @@ export interface ContextMenuBuilderParams {
   handleSelectAudio: (id: number) => void;
   handleSelectSub: (id: number) => void;
   handleDisableSubs: () => void;
+  handleLoadAudioFile: () => void;
   handleLoadSubFile: () => void;
   handleSetSpeed: (speed: number) => void;
   handleSetFrameMode: (mode: "stretch" | "fit" | "fill") => void;
@@ -199,6 +201,7 @@ function normalizeMenuItems(rawItems: MenuItem[]): MenuItem[] {
 export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuItem[] {
   const {
     dict,
+    hasMedia,
     menuLayout,
     recentFiles,
     audioTracks,
@@ -230,6 +233,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
     handleSelectAudio,
     handleSelectSub,
     handleDisableSubs,
+    handleLoadAudioFile,
     handleLoadSubFile,
     handleSetSpeed,
     handleSetFrameMode,
@@ -334,6 +338,14 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
               };
             })
           : [{ type: "item" as const, label: dict.settings.cmenuUI.noAudio, disabled: true }]),
+        { type: "header" as const, label: dict.settings.cmenuUI.groupSubTools },
+        {
+          type: "item" as const,
+          icon: STATIC_ICONS.openFileSub,
+          label: dict.settings.cmenuUI.loadAudio,
+          disabled: !hasMedia,
+          action: handleLoadAudioFile,
+        },
       ],
     }),
 
@@ -385,6 +397,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
           type: "item" as const,
           icon: STATIC_ICONS.openFileSub,
           label: dict.settings.cmenuUI.loadSub,
+          disabled: !hasMedia,
           action: handleLoadSubFile,
         },
       ],

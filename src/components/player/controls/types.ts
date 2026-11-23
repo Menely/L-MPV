@@ -3,11 +3,14 @@ import type { VisualizerConfig } from "../AudioVisualizer";
 import type { TimeDisplayPosition } from "../../../utils/timePositionUtils";
 import type { TimeFormatMode } from "../../../utils/timeFormatUtils";
 import type { MediaInfo } from "../../../contexts/PlayerStateContext";
+import type { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
 
 /**
  * Общие свойства для компонентов представления стилей панели управления.
  */
 export interface ControlsLayoutProps {
+  /** Активный стиль панели управления («Капсула», «Модерн», «Классический»). */
+  controlBarStyle?: ControlBarStyle;
   /** Ссылка на корневой элемент панели для измерений и позиционирования. */
   controlsPillRef: React.RefObject<HTMLDivElement | null>;
   /** Флаг наведения курсора на панель управления. */
@@ -40,8 +43,10 @@ export interface ControlsLayoutProps {
   renderVolumeSlider: () => React.ReactNode;
   /** Рендер транспортных кнопок воспроизведения/перемотки. */
   renderTransportButtons: () => React.ReactNode;
-  /** Рендер утилитных кнопок панели (с опцией исключения кнопки полного экрана). */
+  /** Рендер утилитных кнопок панели (в порядке, настроенном пользователем). */
   renderUtilityButtons: (options?: { excludeFullscreen?: boolean }) => React.ReactNode;
+  /** Рендер карточек-островков утилит для стиля «Капсула» по раскладке пользователя. */
+  renderUtilityIslands?: (toolbarRightTimeNode?: React.ReactNode) => React.ReactNode;
   /** Рендер кнопки скорости воспроизведения (отображается при скорости != 1.0). */
   renderSpeedButton?: () => React.ReactNode;
   /** Рендер отдельной кнопки полноэкранного режима. */

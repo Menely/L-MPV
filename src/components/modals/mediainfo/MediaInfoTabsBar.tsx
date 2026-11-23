@@ -37,7 +37,7 @@ export const MediaInfoTabsBar: React.FC<MediaInfoTabsBarProps> = React.memo(({
               className={`mediainfo-tab-chip ${isActive ? "mediainfo-tab-chip--active" : ""}`}
               onClick={() => onSelectCategory(isActive && tab.key !== "all" ? "all" : tab.key)}
             >
-              <span>{tab.label}</span>
+              <span className="mediainfo-tab-chip__label">{tab.label}</span>
               {tab.count > 1 && (
                 <span className="mediainfo-tab-chip__badge">{tab.count}</span>
               )}
@@ -45,6 +45,8 @@ export const MediaInfoTabsBar: React.FC<MediaInfoTabsBarProps> = React.memo(({
           );
         })}
       </SelectionRail>
+
+      <span className="mediainfo-tabs-divider" aria-hidden="true" />
 
       <button
         type="button"

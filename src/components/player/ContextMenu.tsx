@@ -6,7 +6,6 @@ import { showOsd } from "../../hooks/useOsd";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getSavedLayout, LAYOUT_CHANGED_EVENT, type LayoutEntry } from "../../utils/contextMenuLayout";
-import { open } from "@tauri-apps/plugin-dialog";
 import { ChevronRight, Download, Loader2, ExternalLink } from "lucide-react";
 import { getCustomHotkeys } from "../../utils/hotkeyUtils";
 import {
@@ -56,6 +55,10 @@ import {
   groupMenuItems,
   groupSubmenuChildren,
 } from "./contextMenu/contextMenuGrouping";
+import {
+  loadExternalAudioTrack,
+  loadExternalSubtitleTrack,
+} from "../../utils/externalTrackLoader";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */
@@ -105,7 +108,9 @@ export function ContextMenu({
 
   const {
     mediaInfo,
+    hasMedia,
     tracks,
+    loadTracks,
     selectAudioTrack,
     selectSubTrack,
     disableSubtitles,
@@ -421,21 +426,15 @@ export function ContextMenu({
     await disableSubtitles();
   }, [disableSubtitles]);
 
-  const handleLoadSubFile = useCallback(async () => {
-    try {
-      const file = await open({
-        multiple: false,
-        filters: [{ name: "Subtitles", extensions: ["srt", "ass", "vtt", "sub"] }],
-      });
-      if (file) {
-        await invoke("load_subtitle_file", { path: file });
-      }
-    } catch (e) {
-      console.error("Ошибка загрузки внешних субтитров:", e);
-      showOsd(dict.osd.subtitlesLoadErr, { isError: true });
-    }
+  const handleLoadAudioFile = useCallback(async () => {
+    await loadExternalAudioTrack({ hasMedia, loadTracks, dict });
     handleClose();
-  }, [dict.osd.subtitlesLoadErr, handleClose]);
+  }, [dict, handleClose, hasMedia, loadTracks]);
+
+  const handleLoadSubFile = useCallback(async () => {
+    await loadExternalSubtitleTrack({ hasMedia, loadTracks, dict });
+    handleClose();
+  }, [dict, handleClose, hasMedia, loadTracks]);
 
   const handleSetSpeed = useCallback(async (speed: number) => {
     try {
@@ -678,6 +677,7 @@ export function ContextMenu({
     () =>
       buildContextMenuItems({
         dict,
+        hasMedia,
         menuLayout,
         recentFiles,
         audioTracks,
@@ -709,6 +709,7 @@ export function ContextMenu({
         handleSelectAudio,
         handleSelectSub,
         handleDisableSubs,
+        handleLoadAudioFile,
         handleLoadSubFile,
         handleSetSpeed,
         handleSetFrameMode,
@@ -734,6 +735,7 @@ export function ContextMenu({
       }),
     [
       dict,
+      hasMedia,
       menuLayout,
       recentFiles,
       audioTracks,
@@ -765,6 +767,7 @@ export function ContextMenu({
       handleSelectAudio,
       handleSelectSub,
       handleDisableSubs,
+      handleLoadAudioFile,
       handleLoadSubFile,
       handleSetSpeed,
       handleSetFrameMode,

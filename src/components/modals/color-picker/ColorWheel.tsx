@@ -101,7 +101,7 @@ export const ColorWheel: React.FC<ColorWheelProps> = ({
       if (angle < 0) angle += 360;
 
       const sat = Math.min(100, Math.max(0, (dist / maxRadius) * 100));
-      onChange(Math.round(angle), Math.round(sat));
+      onChange(Math.round(angle) % 360, Math.round(sat));
     },
     [onChange]
   );

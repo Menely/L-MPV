@@ -263,8 +263,6 @@ pub fn get_video_audio_settings() -> Result<serde_json::Value, String> {
 }
 
 /// Включить / выключить пиковый лимитер аудио (lavfi alimiter).
-/// Управление тумблером «Защита от перегруза звука» (alimiter).
-///
 /// Цепочка `af` пересобирается целиком, при этом ранее выбранный режим
 /// нормализации громкости сохраняется активным и не сбрасывается.
 #[tauri::command]
@@ -272,15 +270,9 @@ pub fn set_audio_limiter_setting(
     state: State<'_, PlayerState>,
     enabled: bool,
 ) -> Result<(), String> {
-    let normalize_raw = AppSettings::load_portable()
-        .audio_normalize
-        .unwrap_or_else(|| "no".to_string());
-    let mode = AudioNormalizeMode::from_str_or_default(&normalize_raw);
-    state.mpv.set_audio_limiter_enabled(mode, enabled)?;
-    AppSettings::update_portable(|settings| {
+    AppSettings::update_audio_processing(&state.mpv, |settings| {
         settings.audio_limiter_enabled = Some(enabled);
     })
-    .map(|_| ())
 }
 
 /// Установить алгоритм тонемаппинга HDR.
@@ -413,22 +405,18 @@ pub fn set_hwdec_mode_setting(
 
 /// Установить режим нормализации громкости.
 ///
-/// Допустимые значения: `"no"`, `"dynaudnorm"`, `"loudnorm"`.
-/// Нормализация ставится перед пиковым лимитером и работает независимо от него.
+/// Допустимые значения: `"no"`, `"dynaudnorm"`, `"loudnorm"`, `"ebu128"`.
 #[tauri::command]
 pub fn set_audio_normalize_setting(
     state: State<'_, PlayerState>,
     mode: String,
 ) -> Result<(), String> {
-    let limiter = AppSettings::load_portable()
-        .audio_limiter_enabled
-        .unwrap_or(true);
-    let parsed_mode = AudioNormalizeMode::from_str_or_default(&mode);
-    state.mpv.set_audio_normalize(parsed_mode, limiter)?;
-    AppSettings::update_portable(|settings| {
-        settings.audio_normalize = Some(parsed_mode.as_str().to_string());
-    })
-    .map(|_| ())
+    let mode = AudioNormalizeMode::from_str_or_default(&mode);
+    AppSettings::update_audio_processing(&state.mpv, |settings| {
+        settings.audio_normalize = Some(mode.as_str().to_string());
+    })?;
+    state.ebu128.set_enabled(&state.mpv, mode == AudioNormalizeMode::Ebu128);
+    Ok(())
 }
 
 /// Установить размер буфера демаксера в мегабайтах.

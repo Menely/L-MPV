@@ -1,3 +1,4 @@
+import { useVideoZoom } from "./hooks/useVideoZoom";
 import { AnimatePresence } from "motion/react";
 import { toggleAmbientMode } from "./utils/ambientPreviewQueue";
 import { upscaleErrorMessage } from "./utils/upscaleCompatibility";
@@ -18,7 +19,7 @@ import { useOsd, showOsd } from "./hooks/useOsd";
 import { useAutoUpscale } from "./hooks/useAutoUpscale";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Play } from "lucide-react";
+import { AppPlayIcon } from "./components/player/controls";
 import "./index.css";
 import { Titlebar } from "./components/player/Titlebar";
 import { FileDragPreview } from "./components/player/FileDragPreview";
@@ -29,8 +30,10 @@ import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
 import { SeekIndicator } from "./components/player/SeekIndicator";
 import { VolumeIndicator } from "./components/player/VolumeIndicator";
+import { GlassHud } from "./components/player/GlassHud";
 import { triggerVolumeFeedback } from "./utils/volumeFeedback";
 import { UpdateInfo } from "./components/modals/UpdateModal";
+import { useAppUpdater } from "./hooks/useAppUpdater";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
 import { applyAccentColor } from "./utils/colorUtils";
 import {
@@ -50,6 +53,11 @@ import {
   triggerSeekIndicator,
 } from "./utils/seekUtils";
 import { subtitleControlsOffset } from "./utils/subtitleUiGeometry";
+import {
+  getFileNameFromPath,
+  isAudioTrackPath,
+  isSubtitleTrackPath,
+} from "./utils/externalTrackLoader";
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
 import {
   useSettingsModulePreload,
@@ -109,6 +117,14 @@ function App() {
   const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showUpdateToast, setShowUpdateToast] = useState(false);
+  const appUpdater = useAppUpdater();
+
+  // Когда фоновая загрузка завершилась, показываем тост готовности в правом углу
+  useEffect(() => {
+    if (appUpdater.phase === "ready" && !showUpdateModal) {
+      setShowUpdateToast(true);
+    }
+  }, [appUpdater.phase, showUpdateModal]);
   const { osdText, isOsdClosing, isOsdError, triggerOsd, clearOsd, getOsdText } = useOsd();
   const [isCursorInUpperHalf, setIsCursorInUpperHalf] = useState(false);
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => {
@@ -197,17 +213,16 @@ function App() {
   const clickTimerRef = useRef<number | null>(null);
   const hasMediaRef = useRef(hasMedia);
   const isSteppingRef = useRef(false);
-  const videoZoomRef = useRef<number>(0);
-  const videoPanXRef = useRef<number>(0);
-  const videoPanYRef = useRef<number>(0);
-  const rafIdRef = useRef<number | null>(null);
-
+  const { wheel: zoomVideo, reset: resetVideoZoom } = useVideoZoom(
+    hasMedia ? mediaInfo?.path : undefined,
+    (zoom) => {
+      const { osd } = getDict(getEffectiveLocale());
+      triggerOsd(zoom === 0 ? osd.zoomReset : osd.zoomLevel(Math.round(2 ** zoom * 100)), 1100);
+    },
+  );
 
   useEffect(() => {
     hasMediaRef.current = hasMedia;
-    videoZoomRef.current = 0;
-    videoPanXRef.current = 0;
-    videoPanYRef.current = 0;
   }, [hasMedia]);
 
   useEffect(() => {
@@ -534,11 +549,6 @@ function App() {
       const isAspectChanged = Math.abs(prevAspect - curAspect)> 0.01;
 
       if (isNewFile || isAspectChanged) {
-        if (isNewFile) {
-          videoZoomRef.current = 0;
-          videoPanXRef.current = 0;
-          videoPanYRef.current = 0;
-        }
         lastSizedVideoRef.current = {
           path: mediaInfo.path,
           width: mediaInfo.width,
@@ -866,11 +876,7 @@ function App() {
         break;
       }
       case "resetZoom":
-        videoZoomRef.current = 0;
-        videoPanXRef.current = 0;
-        videoPanYRef.current = 0;
-        invoke("set_video_zoom_and_pan", { zoom: 0, panX: 0, panY: 0 }).catch(console.error);
-        triggerOsd(dict.osd.zoomReset, 1500);
+        resetVideoZoom();
         break;
       case "playlist":
         curSetIsPlaylistOpen(!curIsPlaylistOpen);
@@ -1284,35 +1290,24 @@ function App() {
 
   // ─── Открытие файла / подключение внешней дорожки ─────────
   const handleDroppedFile = useCallback(async (file: string) => {
-    const isAudioFile = (p: string) => {
-      const ext = p.split('.').pop()?.toLowerCase() || '';
-      return ['mka', 'm4a', 'aac', 'mp3', 'ogg', 'opus', 'flac', 'wav', 'ac3', 'eac3', 'dts', 'thd', 'wma', 'aiff', 'ape'].includes(ext);
-    };
-
-    const isSubtitleFile = (p: string) => {
-      const ext = p.split('.').pop()?.toLowerCase() || '';
-      return ['srt', 'ass', 'ssa', 'vtt', 'sub', 'idx', 'sup'].includes(ext);
-    };
-
     const curHasMedia = latestRef.current.hasMedia;
     const hotloadEnabled = localStorage.getItem('l-mpv-hotload-enabled') === 'true';
     const d = getDict(getEffectiveLocale());
 
-    if (hotloadEnabled && curHasMedia && isAudioFile(file)) {
+    if (hotloadEnabled && curHasMedia && isAudioTrackPath(file)) {
       try {
         await invoke("load_audio_file", { path: file });
         await latestRef.current.loadTracks();
-        const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-        showOsd(d.osd.audioLoaded(fileName));
+        showOsd(d.osd.audioLoaded(getFileNameFromPath(file)));
       } catch (err) {
         console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
+        showOsd(d.osd.audioLoadErr, { isError: true });
       }
-    } else if (hotloadEnabled && curHasMedia && isSubtitleFile(file)) {
+    } else if (hotloadEnabled && curHasMedia && isSubtitleTrackPath(file)) {
       try {
         await invoke("load_subtitle_file", { path: file });
         await latestRef.current.loadTracks();
-        const fileName = file.replace(/\\/g, '/').split('/').pop() || file;
-        showOsd(d.osd.subsLoaded(fileName));
+        showOsd(d.osd.subsLoaded(getFileNameFromPath(file)));
       } catch (err) {
         console.error("Ошибка подключения субтитров (Хотлоад):", err);
         showOsd(d.osd.subtitlesLoadErr, { isError: true });
@@ -1351,18 +1346,12 @@ function App() {
       <FileDragPreview onFileDrop={handleDroppedFile} />
       <Titlebar title="L-MPV" mediaTitle={mediaTitle} />
 
-      {/* OSD подписи текущего кадра и статистики */}
-      {osdText && (
-        <div
-          className={`frame-osd ${osdText.includes("\n") ? "frame-osd--multiline" : ""} ${
-            isOsdError ? "frame-osd--error" : ""
-          } ${isOsdClosing ? "frame-osd--closing" : ""}`}
-          role={isOsdError ? "alert" : "status"}
-          aria-live={isOsdError ? "assertive" : "polite"}
-          >
-          {osdText}
-        </div>
-      )}
+      {/* Футуристичный стеклянный Glass HUD: парящие уведомления и центральный Flash-глиф Play/Pause */}
+      <GlassHud
+        osdText={osdText}
+        isOsdClosing={isOsdClosing}
+        isOsdError={isOsdError}
+      />
 
       <div
         className={`video-area ${!hasMedia ? "video-area--empty" : ""}`}
@@ -1378,50 +1367,7 @@ function App() {
               const relX = (e.clientX - rect.left - rect.width / 2) / rect.width;
               const relY = (e.clientY - rect.top - rect.height / 2) / rect.height;
 
-              // Уменьшенный шаг (0.04 вместо 0.1) как в IINA/mpv.net для плавной микро-регулировки
-              const step = e.deltaY < 0 ? 0.04 : -0.04;
-              const prevZoom = videoZoomRef.current;
-              let nextZoom = prevZoom + step;
-              
-              // Ограничиваем диапазон зума
-              nextZoom = Math.max(-1.5, Math.min(3.0, nextZoom));
-              
-              // Магнитный сброс в 0 при приближении к 100%
-              if (Math.abs(nextZoom) < 0.025) {
-                nextZoom = 0;
-              }
-              
-              const scalePrev = Math.pow(2, prevZoom);
-              const scaleNext = Math.pow(2, nextZoom);
-
-              if (nextZoom === 0) {
-                videoPanXRef.current = 0;
-                videoPanYRef.current = 0;
-              } else {
-                videoPanXRef.current -= relX * (1 / scalePrev - 1 / scaleNext);
-                videoPanYRef.current -= relY * (1 / scalePrev - 1 / scaleNext);
-              }
-              
-              videoZoomRef.current = nextZoom;
-
-              // Батчинг через requestAnimationFrame (до 60 кадров/сек), убирающий лаги первого зума
-              if (rafIdRef.current === null) {
-                rafIdRef.current = requestAnimationFrame(() => {
-                  rafIdRef.current = null;
-                  const targetZoom = videoZoomRef.current;
-                  const targetPanX = videoPanXRef.current;
-                  const targetPanY = videoPanYRef.current;
-                  invoke("set_video_zoom_and_pan", { 
-                    zoom: targetZoom, 
-                    panX: targetPanX, 
-                    panY: targetPanY 
-                  }).catch(console.error);
-
-                  const percentage = Math.round(Math.pow(2, targetZoom) * 100);
-                  const d = getDict(getEffectiveLocale());
-                  triggerOsd(targetZoom === 0 ? d.osd.zoomReset : d.osd.zoomLevel(percentage), 1100);
-                });
-              }
+              if (rect.width > 0 && rect.height > 0) zoomVideo(e.deltaY, relX, relY);
             } else {
               const currentVol = mediaInfo.volume;
               const delta = e.deltaY < 0 ? 5 : -5;
@@ -1435,7 +1381,7 @@ function App() {
         {!hasMedia && (
           <div className="video-area__placeholder">
             <div className="video-area__placeholder-icon">
-              <Play size={32} />
+              <AppPlayIcon size={80} />
             </div>
             <div className="video-area__placeholder-text">
               L-MPV
@@ -1569,15 +1515,22 @@ function App() {
           <Suspense key="update-dialog" fallback={null}>
             <UpdateModal
               updateInfo={pendingUpdate}
-              onClose={() => setShowUpdateModal(false)}
+              updater={appUpdater}
+              onClose={() => {
+                setShowUpdateModal(false);
+                if (appUpdater.phase === "downloading" || appUpdater.phase === "ready") {
+                  setShowUpdateToast(true);
+                }
+              }}
             />
           </Suspense>
         )}
 
-        {showUpdateToast && pendingUpdate && !showUpdateModal && (
+        {showUpdateToast && (pendingUpdate || appUpdater.targetRelease) && !showUpdateModal && (
           <Suspense key="update-toast" fallback={null}>
             <UpdateToast
-              updateInfo={pendingUpdate}
+              updateInfo={(appUpdater.targetRelease || pendingUpdate)!}
+              updater={appUpdater}
               onOpenModal={() => {
                 setShowUpdateToast(false);
                 setShowUpdateModal(true);

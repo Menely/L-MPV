@@ -40,6 +40,7 @@ export interface TranslationDict {
     externalTrackTooltip: string;
     downloadAudio: string;
     downloadSubtitle: string;
+    audioFilter: string;
     downloadingAudio: string;
     downloadingSubtitle: string;
     screenshot: string;
@@ -272,8 +273,7 @@ export interface TranslationDict {
       audioNormalizeOff: string;
       audioNormalizeDyn: string;
       audioNormalizeLoud: string;
-      audioNormalizeNeedsLimiter: string;
-      audioNormalizeLimiterWarning: string;
+      audioNormalizeEbu128: string;
       videoAudioDesc: string;
       tileFrameTitle: string;
       tileFrameDesc: string;
@@ -350,6 +350,15 @@ export interface TranslationDict {
         plus10: string;
         next: string;
         shuffle: string;
+        builderTitle: string;
+        builderHint: string;
+        builderOrderTitle: string;
+        builderOrderHint: string;
+        addCard: string;
+        removeCard: string;
+        resetOrder: string;
+        emptyCardHint: string;
+        allHiddenHint: string;
       };
       ambientLight: {
         mode: string;
@@ -410,6 +419,17 @@ export interface TranslationDict {
         playerThemes: Record<string, string>;
         colorPickerTitle: string;
         colorPickerClose: string;
+        quickColors: string;
+        selectPresetColor: (hex: string) => string;
+        compareResetHint: string;
+        compareResetAria: string;
+        currentColorLabel: (hex: string) => string;
+        initialColorLabel: (hex: string) => string;
+        hexLabel: string;
+        copiedLabel: string;
+        copyHexLabel: string;
+        copyRgbLabel: string;
+        channelLabel: (ch: string) => string;
         brightness: string;
         cancel: string;
         add: string;
@@ -970,6 +990,7 @@ export interface TranslationDict {
       audioTrack: string;
       trackLabel: (id: string | number, lang: string) => string;
       downloadAudio: string;
+      loadAudio: string;
       noAudio: string;
       subtitles: string;
       subOff: string;
@@ -1220,6 +1241,7 @@ export interface TranslationDict {
     clipboardEmpty: string;
     subtitleDelay: (val: string) => string;
     openFileErr: string;
+    audioLoadErr: string;
     subtitlesLoadErr: string;
     playlistPlayErr: string;
   };
@@ -1228,10 +1250,9 @@ export interface TranslationDict {
   updateModal: {
     titleUpgrade: string;
     titleDowngrade: string;
-    titleInfo: string;
+    titleInfo: (version: string) => string;
     subtitleUpgrade: (version: string) => string;
     subtitleDowngrade: (curVer: string, targetVer: string) => string;
-    subtitleInfo: (version: string) => string;
     ariaRestore: string;
     ariaMaximize: string;
     ariaClose: string;
@@ -1261,8 +1282,17 @@ export interface TranslationDict {
     // Toast
     toastTitle: string;
     toastVersion: (version: string) => string;
+    toastVersionArrow: (curVer: string, targetVer: string) => string;
     toastPostpone: string;
     toastUpdate: string;
     toastClose: string;
+    toastChangelog: string;
+    toastQuickInstall: string;
+    toastDownloading: string;
+    toastReadyTitle: string;
+    toastReadyHint: string;
+    toastLater: string;
+    toastRestart: string;
+    toastMinimizeToWatch: string;
   };
 }

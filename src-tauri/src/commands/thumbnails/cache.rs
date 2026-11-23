@@ -9,7 +9,7 @@ use std::{
 
 pub(super) const MAX_JPEG_BYTES: usize = 512 * 1024;
 const MEMORY_BYTES: usize = 4 * 1024 * 1024;
-const MEMORY_ENTRIES: usize = 64;
+const MEMORY_ENTRIES: usize = 128;
 const DISK_BYTES: u64 = 256 * 1024 * 1024;
 const DISK_FILES: usize = 10_000;
 

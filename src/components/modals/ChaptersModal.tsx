@@ -1,15 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { X } from "lucide-react";
+import { Film, X } from "lucide-react";
 import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
 import { MotionSurface } from "../motion/MotionSurface";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { formatTime } from "../../utils/timeUtils";
+import { supportsTimelineThumbnail } from "../../utils/timelineThumbnail";
+import { useChapterThumbnails } from "../../hooks/useChapterThumbnails";
 import {
   type ControlBarStyle,
   getSavedControlBarStyle,
 } from "../../utils/controlBarStyleUtils";
+
+const CHAPTER_THUMBNAIL_WIDTH = 320;
 
 interface ChaptersModalProps {
   /** Обработчик закрытия панели. */
@@ -20,10 +24,12 @@ interface ChaptersModalProps {
  * Окно со списком глав.
  */
 export function ChaptersModal({ onClose }: ChaptersModalProps) {
-  const { chapters, seekTo } = usePlayerState();
+  const { mediaInfo, tracks, chapters, seekTo } = usePlayerState();
   const { position } = usePlayerProgress();
   const { dict } = useTranslation();
   const { handleClose } = useSurfaceDismiss({ onClose });
+  const listRef = useRef<HTMLDivElement>(null);
+  const initialScrollDoneRef = useRef(false);
 
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
     getSavedControlBarStyle()
@@ -44,6 +50,20 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
   }, []);
 
   const isCapsule = controlBarStyle === "capsule";
+  const mediaPath = mediaInfo?.path || "";
+  const hasVideo = mediaInfo?.has_video ?? false;
+  const selectedVideoTrack =
+    tracks.find((track) => track.type === "video" && track.selected)?.id ?? null;
+  const showThumbnails = supportsTimelineThumbnail(mediaPath, hasVideo);
+
+  const { thumbnails, markThumbnailFailed } = useChapterThumbnails({
+    listRef,
+    path: mediaPath,
+    videoTrack: selectedVideoTrack,
+    enabled: showThumbnails,
+    chapters,
+    width: CHAPTER_THUMBNAIL_WIDTH,
+  });
 
   // Локальный выбор главы пользователем для мгновенного тактильного отклика
   const [selectedChapterIndex, setSelectedChapterIndex] = useState<number | null>(null);
@@ -81,6 +101,23 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
     return () => clearTimeout(safetyTimer);
   }, [calculatedActiveIndex, selectedChapterIndex]);
 
+  // При переключении медиафайла разрешаем повторный стартовый скролл к активной главе
+  useEffect(() => {
+    initialScrollDoneRef.current = false;
+  }, [mediaPath]);
+
+  // При открытии окна глав прокручиваем список к текущей активной главе
+  useEffect(() => {
+    if (initialScrollDoneRef.current || activeIndex < 0 || !listRef.current) return;
+    const activeButton = listRef.current.querySelector<HTMLElement>(
+      `[data-chapter-index="${activeIndex}"]`
+    );
+    if (activeButton) {
+      initialScrollDoneRef.current = true;
+      activeButton.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeIndex, chapters.length]);
+
   return (
     <div className="chapters-modal-overlay" onClick={handleClose}>
       <MotionSurface
@@ -114,32 +151,74 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
           </div>
         </div>
 
-        <div className="chapters-list">
+        <div ref={listRef} className="chapters-list">
           {chapters.length > 0 ? (
-            chapters.map((chapter) => (
-              <button
-                type="button"
-                key={chapter.index}
-                className={`chapter-item ${chapter.index === activeIndex ? "chapter-item--active" : ""}`}
-                aria-current={chapter.index === activeIndex ? "true" : undefined}
-                onClick={async () => {
-                  try {
-                    setSelectedChapterIndex(chapter.index);
-                    await seekTo(chapter.time);
-                    invoke("seek_chapter", { index: chapter.index }).catch(() => {});
-                  } catch (e) {
-                    console.error("Ошибка перехода к главе:", e);
-                  }
-                }}
-              >
-                <span className="chapter-item__title">
-                  {chapter.title || dict.chapters.chapterItem(chapter.index + 1)}
-                </span>
-                <span className="chapter-item__time">
-                  {formatTime(chapter.time)}
-                </span>
-              </button>
-            ))
+            chapters.map((chapter) => {
+              const thumb = thumbnails[chapter.index];
+              const thumbStateClass = thumb?.src
+                ? "chapter-item__thumb--ready"
+                : thumb?.failed
+                  ? "chapter-item__thumb--failed"
+                  : "chapter-item__thumb--loading";
+
+              return (
+                <button
+                  type="button"
+                  key={chapter.index}
+                  data-chapter-index={chapter.index}
+                  className={`chapter-item ${showThumbnails ? "chapter-item--with-thumb" : ""} ${
+                    chapter.index === activeIndex ? "chapter-item--active" : ""
+                  }`}
+                  aria-current={chapter.index === activeIndex ? "true" : undefined}
+                  onClick={async () => {
+                    try {
+                      setSelectedChapterIndex(chapter.index);
+                      await seekTo(chapter.time);
+                      invoke("seek_chapter", { index: chapter.index }).catch(() => {});
+                    } catch (e) {
+                      console.error("Ошибка перехода к главе:", e);
+                    }
+                  }}
+                >
+                  {showThumbnails ? (
+                    <>
+                      <div
+                        className={`chapter-item__thumb ${thumbStateClass}`}
+                        aria-hidden="true"
+                      >
+                        {thumb?.src ? (
+                          <img
+                            src={thumb.src}
+                            alt=""
+                            draggable={false}
+                            onError={() => markThumbnailFailed(chapter.index)}
+                          />
+                        ) : (
+                          <Film size={15} strokeWidth={1.75} />
+                        )}
+                      </div>
+                      <div className="chapter-item__content">
+                        <span className="chapter-item__title">
+                          {chapter.title || dict.chapters.chapterItem(chapter.index + 1)}
+                        </span>
+                        <span className="chapter-item__time">
+                          {formatTime(chapter.time)}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className="chapter-item__title">
+                        {chapter.title || dict.chapters.chapterItem(chapter.index + 1)}
+                      </span>
+                      <span className="chapter-item__time">
+                        {formatTime(chapter.time)}
+                      </span>
+                    </>
+                  )}
+                </button>
+              );
+            })
           ) : (
             <div className="chapters-empty">
               {dict.chapters.noChapters}

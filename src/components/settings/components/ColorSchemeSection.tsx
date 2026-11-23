@@ -9,8 +9,6 @@ import {
   Palette,
   Sparkles,
   RotateCcw,
-  RotateCw,
-  Play,
   Monitor,
   Plus,
   X,
@@ -38,13 +36,6 @@ interface ColorSchemeSectionProps {
   /** Опциональный callback при изменении акцентного цвета */
   onAccentChange?: (color: string) => void;
 }
-
-const GLOW_LABEL_MAP: Record<GlowIntensity, string> = {
-  off: "Off",
-  soft: "Soft",
-  medium: "Medium",
-  intense: "Intense",
-};
 
 const GLOW_OPTIONS = [
   {
@@ -81,8 +72,7 @@ const GLOW_OPTIONS = [
  * Интерактивная секция настройки цветового оформления плеера L-MPV:
  * - расцветка фона и поверхностей плеера (кинематографичные темы оформления);
  * - акцентные палитры (пастельные, стандартные, системный цвет Windows, добавление своих цветов);
- * - настройка интенсивности неонового свечения;
- * - живой предпросмотр сочетания фона, контраста текста и подсветки элементов.
+ * - настройка интенсивности неонового свечения.
  */
 export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
   onAccentChange,
@@ -208,89 +198,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
 
   return (
     <>
-
-
-      {/* Живой аутентичный предпросмотр цветовой темы и акцента */}
-      <div className="settings-preview-card">
-        <div className="settings-preview-card__info">
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
-            <span className="t-label">
-              {dict.settings.appearance.colorScheme.preview}
-            </span>
-            <span className="t-label-accent">
-              {dict.settings.appearance.colorScheme.playerThemes[playerTheme] || PLAYER_THEMES[playerTheme]?.name || "Dark Graphite"}
-            </span>
-            <span className="t-hint">•</span>
-            <span className="t-label-accent">
-              {dict.settings.appearance.colorScheme.accent} {activeColor === "windows" ? "Windows" : activeColor}
-            </span>
-            <span className="t-hint">•</span>
-            <span className="t-label-accent">
-              {dict.settings.appearance.colorScheme.glow} {GLOW_LABEL_MAP[glowIntensity] || "Medium"}
-            </span>
-          </div>
-          <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-secondary)", lineHeight: 1.25 }}>
-            {dict.settings.appearance.colorScheme.harmonyDesc}
-          </span>
-        </div>
-
-        {/* Миниатюрная плавающая панель в стиле выбранной темы */}
-        <div
-          className="settings-preview-card__mini-player theme-card"
-          style={{
-            background: "var(--surface-card)",
-            border: "1px solid var(--border-pill)",
-            borderRadius: "var(--radius-control)",
-            padding: "6px 14px 8px",
-            boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
-            transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), border-radius var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
-          }}
-          >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-            <RotateCcw size={14} style={{ color: "var(--text-secondary)", opacity: 0.85, cursor: "default" }} />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--accent-text)",
-                cursor: "default",
-                filter: "var(--play-icon-glow)",
-                transition: "filter var(--t-fast) var(--ease-smooth)",
-              }}
-              >
-              <Play size={20} fill="currentColor" />
-            </div>
-            <RotateCw size={14} style={{ color: "var(--text-secondary)", opacity: 0.85, cursor: "default" }} />
-          </div>
-          {/* Таймлайн со свечением */}
-          <div
-            style={{
-              position: "relative",
-              width: "100%",
-              height: 3,
-              background: "rgba(255, 255, 255, 0.15)",
-              borderRadius: 3,
-              overflow: "visible",
-            }}
-            >
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: "55%",
-                background: "var(--accent)",
-                borderRadius: 3,
-                boxShadow: "var(--timeline-glow)",
-                transition: "box-shadow var(--t-fast) var(--ease-smooth)",
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* ── Блок 1: Цвет самого плеера (Тема оформления) ── */}
       <div style={{ ...cardStyle, marginBottom: "var(--space-5)" }} className="theme-card">
         <div className="player-themes-header">

@@ -1,5 +1,6 @@
 /* Container queries are shared with the toolbar's priority rules. */
 .control-btn.controls-overflow-trigger,
+.controls-island--more-only,
 button.controls-island--compact-time,
 .controls-overflow,
 .controls-overflow__volume {
@@ -98,15 +99,18 @@ button.controls-island--compact-time,
 }
 
 @container controls (max-width: 780px) {
-  .control-btn.controls-overflow-trigger { display: inline-flex; }
+  .control-btn.controls-overflow-trigger,
+  .controls-island--more-only { display: inline-flex; }
   .controls-overflow { display: block; }
   .controls-overflow__action--low { display: flex; }
-  .controls-island--visualizer { display: none !important; }
+  .controls-island--visualizer,
+  .controls-island--only-low { display: none !important; }
   .controls-island--speed,
   .player-controls .control-btn--speed { display: none !important; }
 }
 @container controls (max-width: 580px) {
   .controls-overflow__action--medium { display: flex; }
+  .controls-island--only-medium { display: none !important; }
 }
 @container controls (max-width: 460px) {
   .controls-overflow__volume { display: block; }

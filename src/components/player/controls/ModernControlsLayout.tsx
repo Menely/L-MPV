@@ -27,13 +27,13 @@ export const ModernControlsLayout: React.FC<ControlsLayoutProps> = ({
   renderVolumeSlider,
   renderTransportButtons,
   renderUtilityButtons,
-  renderSpeedButton,
   isFullscreen = false,
+  controlBarStyle = "modern",
 }) => {
   return (
     <div
       ref={controlsPillRef}
-      className={`player-controls ${
+      className={`player-controls player-controls--${controlBarStyle} ${
         isFullscreen ? "player-controls--fullscreen" : ""
       } ${
         visualizerConfig.enabled && visualizerConfig.placement === "above_timeline"
@@ -76,7 +76,6 @@ export const ModernControlsLayout: React.FC<ControlsLayoutProps> = ({
               speed={mediaInfo?.speed}
             />
           )}
-          {renderSpeedButton && renderSpeedButton()}
           {renderUtilityButtons()}
         </div>
       </div>
