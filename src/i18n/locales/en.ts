@@ -417,6 +417,7 @@ export const en: TranslationDict = {
       ambientLight: {
         mode: 'Mode toggle',
         blurRadius: 'Blur radius',
+        color: 'Black bar ambient color',
         reset100: 'Reset to 100%'
       },
       visualizer: {

@@ -363,6 +363,7 @@ export interface TranslationDict {
       ambientLight: {
         mode: string;
         blurRadius: string;
+        color: string;
         reset100: string;
       };
       visualizer: {

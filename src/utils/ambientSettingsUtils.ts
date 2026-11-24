@@ -30,7 +30,7 @@ export interface AmbientLayout {
 export interface AmbientPresetSettings {
   mode: AmbientMode;
   blur_radius: number;
-  color: string;
+  color?: string;
   brightness?: number;
   saturation?: number;
   spread?: number;

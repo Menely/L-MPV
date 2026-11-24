@@ -12,7 +12,7 @@ import { VisualizerSettingsSection } from "../sections/VisualizerSettingsSection
 import { HeatmapSettingsSection } from "../sections/HeatmapSettingsSection";
 import { ControlButtonsSettings } from "../components/ControlButtonsSettings";
 import { optionCardStyle, optionResetBtnStyle, optionBtnStyle, optionBtnClassName } from "../components/optionCardStyles";
-import { VerticalSlider } from "../appearance/ambientPrimitives";
+import { VerticalSlider, AmbientTuneRow } from "../appearance/ambientPrimitives";
 import {
   UiRadiusLevel,
   UiScaleMode,
@@ -38,6 +38,8 @@ import type { AmbientMode } from "../../../utils/ambientSettingsUtils";
 import type { AmbientSettings } from "../../modals/SettingsModal";
 
 interface AppearanceSettingsTabProps {
+  activeColor?: string;
+  setActiveColor?: (c: string) => void;
   uiRadius: { level: UiRadiusLevel, value: number };
   saveUiRadius: (level: UiRadiusLevel, value: number) => void;
   setUiRadius: (r: { level: UiRadiusLevel, value: number }) => void;
@@ -71,6 +73,7 @@ interface AppearanceSettingsTabProps {
   setAnimationsEnabled: (v: boolean) => void;
   openSections: Record<string, boolean>;
   onToggleSection: (id: string) => void;
+  getEffectiveAccentColor?: (color?: string) => string;
 }
 
 import { useTranslation } from "../../../i18n/LanguageContext";
@@ -78,6 +81,7 @@ import { useTranslation } from "../../../i18n/LanguageContext";
 export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
   const { dict } = useTranslation();
   const {
+    activeColor = "windows", setActiveColor = () => {},
     uiRadius, saveUiRadius, setUiRadius,
     uiScale, saveUiScale, setUiScale,
     uiOpacity, saveUiOpacity, setUiOpacity,
@@ -91,6 +95,13 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
     seekStepSeconds, setSeekStepSeconds,
     animationsEnabled, setAnimationsEnabled,
     openSections, onToggleSection: toggleSection,
+    getEffectiveAccentColor = () => {
+      try {
+        return localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
+      } catch {
+        return "#7fc7ff";
+      }
+    }
   } = props;
 
   // ── Пользовательские шрифты из папки fonts/ ─────────────────────────────

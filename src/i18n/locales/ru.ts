@@ -420,6 +420,7 @@ export const ru: TranslationDict = {
       ambientLight: {
         mode: 'Переключатель режимов',
         blurRadius: 'Размытие',
+        color: 'Цвет подсветки черных полос',
         reset100: 'Сбросить на 100%'
       },
       visualizer: {
