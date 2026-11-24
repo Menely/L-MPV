@@ -1670,7 +1670,7 @@ L-MPV/
 
 - **Локальные шрифты без сетевой загрузки:**
   - Исключены внешние сетевые запросы Google Fonts и CDN (устранены эффекты мигания FOUT/FOIT и задержки рендеринга).
-  - 5 гарнитур (*Inter*, *Outfit*, *Plus Jakarta Sans*, *Manrope*, *JetBrains Mono*) включены в бинарник бэкенда через `include_bytes!` в `fonts_bundle.rs` и локально объявлены в `fonts.css` через `@font-face`.
+  - 6 гарнитур (*Inter*, *Outfit*, *Plus Jakarta Sans*, *Manrope*, *JetBrains Mono*, *Permanent Marker*) включены в бинарник бэкенда через `include_bytes!` в `fonts_bundle.rs` и локально объявлены в `fonts.css` через `@font-face`.
   - Корневой `html` сохраняет размер шрифта браузера (`100%`, обычно 16px), на котором основаны токены `rem`. Базовый текст `--fs-base` назначается только `body` и `#root`; масштаб интерфейса регулируется отдельно через `--ui-scale`. Назначение `0.875rem` самому `html` уменьшает всю шкалу и не соответствует размерам токенов.
   - В поставляемых файлах Inter, Manrope и JetBrains Mono содержат кириллицу. Для отсутствующих кириллических символов Outfit и Plus Jakarta Sans используется системная цепочка подстановки из `variables.css` (в Windows — Segoe UI).
 - **Автоматическая самораспаковка (Auto Self-Extraction):**
@@ -1686,6 +1686,12 @@ L-MPV/
 - **Интеграция в интерфейс «Кастом» (SettingsModal):**
   - Карточка выбора гарнитуры дополнена кнопкой быстрого перехода к папке `fonts/` в Проводнике Windows (иконка `FolderSync` / `FolderOpen`).
   - применение с синхронизацией CSS-переменной `--font-family-base`, сохранением в `localStorage` и `config/settings.json`, а также трансляцией в независимое окно MediaInfo.
+- **Фирменное начертание «L-MPV» в футере настроек (Brand Font):**
+  - Селектор `.settings-footer__title` (`src/styles/modals.css`, используется в футерах `SettingsModal.tsx` и `SettingsPanel.tsx`).
+  - **Изначально:** наследование интерфейсного шрифта (`--font-family-base`: Inter/Manrope/… по выбору пользователя), `font-weight: 600`, `font-size: var(--fs-sm)`.
+  - **Сейчас:** `font-family: 'Permanent Marker', cursive`, `font-weight: 400` (у шрифта единственный вес 400 — 600 давал бы синтетическое утолщение), `font-size: calc(var(--fs-sm) + 3px)`, `line-height: 1.125` (бокс 18px в строке футера 24px — центрирование на целых пикселях, иконки 22px дают отступ 1px и тоже не мылят).
+  - Файл `src/assets/fonts/PermanentMarker-Regular.ttf` (OFL-лицензия, Google Fonts) подключён как 6-я встроенная гарнитура: `@font-face` в `src/styles/fonts.css` + `include_bytes!` и запись в `fonts_bundle.rs` (`MARKER_FONT`, id `permanent-marker`), поэтому устанавливается в `<папка_плеера>/fonts/` автоматически и виден в списке шрифтов.
+  - **Как поменять:** заменить значение `font-family` в `.settings-footer__title` (можно на любую гарнитуру из `fonts/` — имя берётся из `get_custom_fonts`), при необходимости вернуть `font-weight: 600` для обычных гротесков.
 
 </details>
 
