@@ -1,34 +1,26 @@
-/* ─── Тема Liquid Glass (гибрид: GLSL-стекло в mpv + белый UI на React/CSS) ─── */
+/* ─── Тема Liquid Glass (гибрид: GLSL-стекло в mpv + акценты темы L-MPV) ─── */
 
-html[data-interface-theme="glass"] .player-controls-wrapper {
-  --accent: #ffffff;
-  --accent-text: #ffffff;
-  --accent-rgb: 255, 255, 255;
-  --accent-gradient: #ffffff;
-  --accent-glow: rgba(255, 255, 255, 0.35);
-  --surface-accent-glow: rgba(255, 255, 255, 0.35);
-  --surface-accent-subtle: rgba(255, 255, 255, 0.16);
-  --surface-accent-hover: rgba(255, 255, 255, 0.24);
-  --hover-veil: rgba(255, 255, 255, 0.14);
-  --hover-veil-float: rgba(255, 255, 255, 0.14);
-  --action-hover-veil: transparent;
+html[data-interface-theme="glass"] .player-controls-wrapper,
+html[data-interface-theme="glass"] .context-menu,
+html[data-interface-theme="glass"] .context-menu__submenu,
+html[data-interface-theme="glass"] .media-info-overlay,
+html[data-interface-theme="glass"] .playlist-drawer,
+html[data-interface-theme="glass"] .navigation-popover {
   --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.85);
-  --text-muted: rgba(255, 255, 255, 0.65);
+  --text-secondary: rgba(255, 255, 255, 0.86);
+  --text-muted: rgba(255, 255, 255, 0.66);
   --border-pill: rgba(255, 255, 255, 0.18);
-  --border-pill-hover: rgba(255, 255, 255, 0.34);
-  --timeline-glow: none;
-  --thumb-glow: 0 1px 4px rgba(0, 0, 0, 0.45);
-  --hover-icon-glow: none;
-  --active-icon-glow: none;
-  --play-icon-glow: none;
+  --border-pill-hover: rgba(var(--accent-rgb, 127, 199, 255), 0.42);
 }
 
-/* ─── Чистые белые элементы управления, таймлайн, поповеры и превью ─── */
+/* На стекле поверх видео используем уверенную акцентную вуаль при наведении, чтобы ховер читался на любом кадре */
+html[data-interface-theme="glass"] :is(.player-controls-wrapper, .media-info-overlay, .playlist-drawer, .navigation-popover) {
+  --hover-veil: var(--hover-veil-float);
+}
+
+/* ─── Базовый белый текст и контраст иконок поверх стекла (акценты при наведении и активности наследуются от L-MPV) ─── */
 html[data-interface-theme="glass"] .player-controls-wrapper .control-btn,
 html[data-interface-theme="glass"] .player-controls-wrapper .control-btn__label,
-html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--speed svg,
-html[data-interface-theme="glass"] .player-controls-wrapper .time-display,
 html[data-interface-theme="glass"] .player-controls-wrapper .volume-slider__value,
 html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__title,
 html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__icon-btn,
@@ -45,22 +37,16 @@ html[data-interface-theme="glass"] .player-controls-wrapper .waveform-activity-s
   color: #ffffff;
 }
 
-/* Без квадратной фоновой подсветки вокруг иконок при наведении и в активном состоянии */
+/* Акцентные цвета для кнопок управления при наведении и в активном состоянии (как в теме L-MPV) */
 html[data-interface-theme="glass"] .player-controls-wrapper .control-btn:hover,
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn:hover .control-btn__label,
 html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--active,
 html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--active:hover,
-html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__icon-btn:hover:not(:disabled),
-html[data-interface-theme="glass"] .player-controls-wrapper .track-popover--speed .speed-popover__close-btn:hover,
-html[data-interface-theme="glass"] .player-controls-wrapper .track-download-btn:hover:not(:disabled) {
-  background: transparent !important;
-  box-shadow: none !important;
-  color: #ffffff !important;
-}
-
-html[data-interface-theme="glass"] .player-controls-wrapper .control-btn:hover svg,
-html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--play:hover svg,
-html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--active svg {
-  filter: none;
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--play,
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--play:hover {
+  background: transparent;
+  box-shadow: none;
+  color: var(--accent-text);
 }
 
 html[data-interface-theme="glass"] .player-controls-wrapper .timeline__segment-bg {
@@ -71,24 +57,19 @@ html[data-interface-theme="glass"] .player-controls-wrapper .timeline__segment-g
   background: rgba(255, 255, 255, 0.45);
 }
 
-html[data-interface-theme="glass"] .player-controls-wrapper .timeline__segment-progress {
-  background: #ffffff;
-  box-shadow: none !important;
-}
-
-html[data-interface-theme="glass"] .player-controls-wrapper .timeline__thumb {
-  background: #ffffff;
-  border-color: #ffffff;
-}
-
-html[data-interface-theme="glass"] .player-controls-wrapper .controls-island--time:hover .time-display {
-  color: #ffffff;
-}
-
-html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__badge {
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__badge,
+html[data-interface-theme="glass"] .player-controls-wrapper .track-badge-ext,
+html[data-interface-theme="glass"] .context-menu .track-badge-ext {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.22);
   color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__item--active .track-badge-ext,
+html[data-interface-theme="glass"] .context-menu__track-btn--active .track-badge-ext {
+  background: var(--surface-accent-subtle);
+  border-color: var(--selection-frame);
+  color: var(--accent-text);
 }
 
 html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__header,
@@ -96,33 +77,14 @@ html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__disa
   border-bottom-color: rgba(255, 255, 255, 0.16);
 }
 
-html[data-interface-theme="glass"] .player-controls-wrapper .track-radio-dot {
-  background: #ffffff;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.65);
-}
-
-html[data-interface-theme="glass"] .player-controls-wrapper .track-download-btn {
+html[data-interface-theme="glass"] .player-controls-wrapper .track-download-btn,
+html[data-interface-theme="glass"] .context-menu .track-download-btn {
   color: rgba(255, 255, 255, 0.72);
-}
-
-html[data-interface-theme="glass"] .player-controls-wrapper .track-badge-ext {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
 }
 
 html[data-interface-theme="glass"] .player-controls-wrapper .track-popover--speed .track-popover__heading svg,
 html[data-interface-theme="glass"] .player-controls-wrapper .track-popover--speed .track-popover__title {
-  color: #ffffff !important;
-}
-
-html[data-interface-theme="glass"] .player-controls-wrapper .track-popover--speed .speed-popover__close-btn {
-  color: rgba(255, 255, 255, 0.78) !important;
-}
-
-html[data-interface-theme="glass"] .player-controls-wrapper .track-popover:not(.track-popover--capsule).track-popover--speed .track-popover__item--active {
-  background: rgba(255, 255, 255, 0.16) !important;
-  color: #ffffff !important;
+  color: var(--accent-text);
 }
 
 html[data-interface-theme="glass"] .player-controls-wrapper .controls-overflow__mute {
@@ -175,7 +137,7 @@ html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-ca
 }
 
 html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card__loading {
-  background: #ffffff;
+  background: var(--accent, #ffffff);
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45);
 }
 
@@ -202,7 +164,23 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-left,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__tabs,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-actions,
-html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__section {
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__section,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer:not(.playlist-drawer--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer:not(.playlist-drawer--capsule)::before,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-left,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .navigation-panel__tabs,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__search,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__search:focus-within,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .playlist-drawer__content),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .explorer-panel__entries),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .saved-playlists__entries),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .explorer-panel__toolbar,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .explorer-panel__entries,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .saved-playlists__source,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .saved-playlists__editor,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .saved-playlists__info,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .saved-playlists__entries {
   background: transparent !important;
   background-color: transparent !important;
   border-color: transparent !important;
@@ -211,7 +189,7 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-
   -webkit-backdrop-filter: none !important;
 }
 
-/* В поповерах Капсулы, контекстном меню и окне МедиаИнфо исключаем конфликтующие CSS-переходы подложки при трекинге GLSL */
+/* Исключаем конфликтующие CSS-переходы подложки при покадровом трекинге GLSL */
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__heading,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__disable-sub-card,
@@ -224,7 +202,11 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-left,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__tabs,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-actions,
-html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__section {
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__section,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-left,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__search,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .explorer-panel__toolbar {
   transition: none !important;
 }
 
@@ -261,10 +243,32 @@ html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__header-left,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__tabs,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__header-actions,
-html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__section {
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__section,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer:not(.playlist-drawer--capsule)::before,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__header-left,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .navigation-panel__tabs,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__header-actions,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__search,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .playlist-drawer__content),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .explorer-panel__entries),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .saved-playlists__entries),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .explorer-panel__toolbar,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .saved-playlists__source,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .saved-playlists__editor,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .saved-playlists__info {
   background: rgba(20, 22, 28, 0.72) !important;
   border-color: rgba(255, 255, 255, 0.16) !important;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Выпадающие меню внутри Плейлиста/Проводника открываются поверх HTML-карточек (поиска, списка),
+   поэтому используют собственное плотное дымчатое стекло WebView без смешивания текста под ними */
+html[data-interface-theme="glass"] .navigation-popover {
+  background: rgba(16, 19, 26, 0.86) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+  backdrop-filter: blur(28px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
 }
 
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-islands-row .controls-island {
@@ -272,21 +276,7 @@ html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playe
   border-color: rgba(255, 255, 255, 0.14) !important;
 }
 
-/* ─── Стеклянное оформление контекстного меню ПКМ ─── */
-html[data-interface-theme="glass"] .context-menu,
-html[data-interface-theme="glass"] .context-menu__submenu {
-  --accent: #ffffff;
-  --accent-text: #ffffff;
-  --accent-rgb: 255, 255, 255;
-  --surface-accent-glow: rgba(255, 255, 255, 0.35);
-  --hover-veil: rgba(255, 255, 255, 0.14);
-  --hover-veil-float: rgba(255, 255, 255, 0.14);
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.85);
-  --text-muted: rgba(255, 255, 255, 0.65);
-  --border-pill: rgba(255, 255, 255, 0.18);
-}
-
+/* ─── Контекстное меню ПКМ: читаемость текста на стекле с сохранением акцентов L-MPV ─── */
 html[data-interface-theme="glass"] .context-menu__item,
 html[data-interface-theme="glass"] .context-menu__track-btn {
   color: #ffffff;
@@ -302,48 +292,14 @@ html[data-interface-theme="glass"] .context-menu__divider {
   background: rgba(255, 255, 255, 0.14);
 }
 
-html[data-interface-theme="glass"] .context-menu__radio-dot {
-  background: #ffffff;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.65);
-}
-
-html[data-interface-theme="glass"] .context-menu .track-badge-ext {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
-}
-
-html[data-interface-theme="glass"] .context-menu .track-download-btn {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-html[data-interface-theme="glass"] .context-menu .track-download-btn:hover:not(:disabled) {
-  background: transparent !important;
-  color: #ffffff !important;
-}
-
-/* ─── Стеклянное оформление окна сведений о файле MediaInfo (клавиша I) ─── */
+/* ─── Окно сведений о файле MediaInfo (I): контраст над стеклом + акцентные вкладки и ховеры L-MPV ─── */
 html[data-interface-theme="glass"] .media-info-overlay {
-  --accent: #ffffff;
-  --accent-text: #ffffff;
-  --accent-rgb: 255, 255, 255;
-  --surface-accent-glow: rgba(255, 255, 255, 0.35);
-  --surface-accent-subtle: rgba(255, 255, 255, 0.18);
-  --surface-accent-hover: rgba(255, 255, 255, 0.25);
-  --selection-frame: rgba(255, 255, 255, 0.26);
-  --hover-veil: rgba(255, 255, 255, 0.14);
-  --hover-veil-float: rgba(255, 255, 255, 0.14);
-  --action-hover-veil: transparent;
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.85);
-  --text-muted: rgba(255, 255, 255, 0.68);
-  --border-pill: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
 
 html[data-interface-theme="glass"] .media-info-overlay:not(.media-info-overlay--capsule) .media-info__tabs {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 html[data-interface-theme="glass"] .media-info-overlay:not(.media-info-overlay--capsule) .media-info__header,
@@ -352,18 +308,17 @@ html[data-interface-theme="glass"] .media-info-overlay .media-info__section-head
   border-bottom-color: rgba(255, 255, 255, 0.14);
 }
 
-html[data-interface-theme="glass"] .media-info-overlay .media-info__title,
 html[data-interface-theme="glass"] .media-info-overlay .media-info__section-title,
-html[data-interface-theme="glass"] .media-info-overlay .media-info__value,
-html[data-interface-theme="glass"] .media-info-overlay .media-info__tab-btn--active {
-  color: #ffffff !important;
+html[data-interface-theme="glass"] .media-info-overlay .media-info__value {
+  color: #ffffff;
 }
 
-html[data-interface-theme="glass"] .media-info-overlay .media-info__close,
-html[data-interface-theme="glass"] .media-info-overlay .media-info__close:hover {
-  background: transparent !important;
-  box-shadow: none !important;
-  color: #ffffff !important;
+html[data-interface-theme="glass"] .media-info-overlay .media-info__tab-btn--active {
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__tab-btn:hover:not(.media-info__tab-btn--active) {
+  color: var(--accent-text) !important;
 }
 
 html[data-interface-theme="glass"] .media-info-overlay .media-info__stream-item {
@@ -371,8 +326,8 @@ html[data-interface-theme="glass"] .media-info-overlay .media-info__stream-item 
 }
 
 html[data-interface-theme="glass"] .media-info-overlay .media-info__stream-item:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--hover-veil-float);
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35);
   color: #ffffff;
 }
 
@@ -380,6 +335,51 @@ html[data-interface-theme="glass"] .media-info-overlay .media-info__badge-lang,
 html[data-interface-theme="glass"] .media-info-overlay .media-info__badge-codec {
   background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
+}
+
+/* ─── Плейлист и Проводник: читаемость над стеклом и акцентные акценты/ховеры L-MPV ─── */
+html[data-interface-theme="glass"] .playlist-drawer:not(.playlist-drawer--capsule) .playlist-drawer__header,
+html[data-interface-theme="glass"] .playlist-drawer:not(.playlist-drawer--capsule) .playlist-drawer__search {
+  border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-drawer__search-input {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-drawer__badge {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .navigation-panel__tab:hover:not([aria-selected="true"]) {
+  color: var(--accent-text) !important;
+  border-color: transparent !important;
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-drawer__action-btn,
+html[data-interface-theme="glass"] .playlist-drawer .playlist-drawer__close {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-drawer__close:hover {
+  background: var(--action-hover-veil) !important;
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-item:hover .playlist-item__icon,
+html[data-interface-theme="glass"] .playlist-drawer .explorer-panel__entry:hover:not(:disabled) .explorer-panel__entry-icon {
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-item:hover,
+html[data-interface-theme="glass"] .playlist-drawer .explorer-panel__entry:hover:not(:disabled),
+html[data-interface-theme="glass"] .playlist-drawer .saved-playlists__entry:hover {
+  background: var(--hover-veil-float) !important;
+  border-color: transparent !important;
 }
 
 /* ─── Анимации появления и исчезновения только через прозрачность (fade-only) ─── */
@@ -443,7 +443,8 @@ html[data-interface-theme="glass"] .mediainfo-floating-window--closing {
   animation: liquidGlassFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
 }
 
-html[data-interface-theme="glass"] .version-picker-popover {
+html[data-interface-theme="glass"] .version-picker-popover,
+html[data-interface-theme="glass"] .navigation-popover {
   animation: liquidGlassFadeIn var(--t-base) var(--ease-out);
 }
 
@@ -453,5 +454,5 @@ html[data-interface-theme="glass"] .preset-toast {
 
 /* Превью карточек выбора стиля в настройках при теме Liquid Glass */
 .player-appearance--glass .visual-bar-preview__progress {
-  background: #ffffff;
+  background: var(--accent, #ffffff);
 }

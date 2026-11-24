@@ -17,6 +17,7 @@ import { savedPlaylistSource } from "../../utils/savedPlaylists";
 import { usePinnedNavigationPanel } from "../../hooks/usePinnedNavigationPanel";
 import "../../styles/navigation-panel-position.css";
 import { DEFAULT_NAVIGATION_WIDTH, MIN_NAVIGATION_WIDTH, savedNavigationWidth, savedNavigationTab, saveNavigationTab, type NavigationPanelTab } from "../../utils/explorerPanel";
+import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../features/liquidGlass/LiquidGlassSync";
 import {
   type ControlBarStyle,
   getSavedControlBarStyle,
@@ -461,6 +462,11 @@ export function PlaylistDrawer() {
   }, [playlist]);
 
   const pinnedPanel = usePinnedNavigationPanel(drawerRef, isPlaylistOpen);
+
+  useLayoutEffect(() => {
+    notifyLiquidGlassSync();
+    notifyLiquidGlassAnimation(160);
+  }, [isPlaylistOpen, activeTab, controlBarStyle, drawerWidth, pinnedPanel.pinned, savedSource, pinnedPanel.geometry]);
 
   return (
     <AnimatePresence>

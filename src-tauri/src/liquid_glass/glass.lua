@@ -136,7 +136,7 @@ function Glass.new(directory)
         local list = type(surfaces) == "table" and surfaces or {}
         local sy = (viewport_h and viewport_h > 0) and (H / viewport_h) or 1
         local parts = {
-            string_format("lg_blur=%.2f", math_max(0, math_min(100, blur or 80)) / 100),
+            string_format("lg_blur=%.2f", math_max(0, math_min(100, blur or 90)) / 100),
             "mzg_lens=1",
             "mzg_on=1",
             "mzg_shadow=1",

@@ -7,9 +7,7 @@
   position: fixed;
   min-width: 200px;
   max-width: calc(100vw - 16px);
-  max-height: calc(100vh / var(--ui-scale, 1) - var(--bottom-overlays-bottom, 94px) - 58px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   background: var(--bg-glass);
   border: 1px solid var(--border-pill);
   border-radius: var(--radius-controls, 16px);
@@ -17,7 +15,6 @@
   box-shadow: var(--shadow-elevated);
   z-index: var(--z-window);
   transform-origin: top left;
-  contain: layout style;
   -webkit-font-smoothing: subpixel-antialiased;
   text-rendering: optimizeLegibility;
   transition: background var(--t-fast) var(--ease-smooth),

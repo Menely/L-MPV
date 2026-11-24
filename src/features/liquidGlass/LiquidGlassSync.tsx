@@ -222,6 +222,41 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
     }
   });
 
+  // Плейлист и Проводник (.playlist-drawer)
+  root.querySelectorAll(".playlist-drawer").forEach((drawer) => {
+    if (!(drawer instanceof HTMLElement)) return;
+    if (drawer.classList.contains("playlist-drawer--capsule")) {
+      push(drawer.querySelector(".playlist-drawer__header-left"), 1);
+      push(drawer.querySelector(".playlist-drawer__header-actions"), 1);
+
+      const explorerHost = drawer.querySelector<HTMLElement>(".navigation-panel__explorer-host");
+      const explorerVisible =
+        explorerHost && !explorerHost.hidden && getComputedStyle(explorerHost).display !== "none";
+
+      if (explorerVisible) {
+        const explorer = explorerHost.querySelector(".explorer-panel");
+        if (explorer instanceof HTMLElement) {
+          push(explorer.querySelector(".explorer-panel__toolbar"), 1);
+          push(explorer.querySelector(".playlist-drawer__search"), 1);
+          push(explorer.querySelector(".playlist-drawer__list-surface"), 1);
+        }
+      } else {
+        const saved = drawer.querySelector(".saved-playlists");
+        if (saved instanceof HTMLElement) {
+          push(saved.querySelector(".saved-playlists__source"), 1);
+          push(saved.querySelector(".saved-playlists__info"), 1);
+          saved.querySelectorAll(".playlist-drawer__search").forEach((el) => push(el, 1));
+          saved.querySelectorAll(".playlist-drawer__list-surface").forEach((el) => push(el, 1));
+        } else {
+          drawer.querySelectorAll(".playlist-drawer__search").forEach((el) => push(el, 1));
+          drawer.querySelectorAll(".playlist-drawer__list-surface").forEach((el) => push(el, 1));
+        }
+      }
+    } else {
+      push(drawer, 1);
+    }
+  });
+
   // Контекстное меню ПКМ рендерится напрямую в .app-container и должно оставаться стеклянным даже при скрытой панели
   root.querySelectorAll(".context-menu").forEach((menu) => {
     if (!(menu instanceof HTMLElement)) return;

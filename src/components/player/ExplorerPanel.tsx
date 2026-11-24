@@ -11,6 +11,7 @@ import { openExplorerFile, isExplorerCurrentFile, savedExplorerFilter, EXPLORER_
 import { bindExplorerHistoryMouse } from "../../utils/explorerHistory";
 import { ExplorerPath } from "./ExplorerPath";
 import { NavigationPopover } from "./NavigationPopover";
+import { notifyLiquidGlassSync } from "../../features/liquidGlass/LiquidGlassSync";
 import "../../styles/explorer-panel.css";
 
 interface Props {
@@ -81,6 +82,9 @@ export function ExplorerPanel({ active, panelActive = active, onRequestActivate,
     return (directory?.entries ?? []).filter(entry => (!playableOnly || isExplorerPlayable(entry))
       && (!query || entry.name.toLowerCase().includes(query)));
   }, [directory, search, playableOnly]);
+  useEffect(() => {
+    if (active) notifyLiquidGlassSync();
+  }, [active, loading, error, openError, entries.length]);
   const activate = async (entry: ExplorerEntry) => {
     setOpenError(null);
     if (entry.kind === "directory") { onSearch(""); void load(entry.path); return; }

@@ -9,6 +9,7 @@ import "../../styles/saved-playlists.css";
 import { NavigationPopover } from "./NavigationPopover";
 import { SavedPlaylistSource } from "./SavedPlaylistSource";
 import { usePlaylistFileDrop } from "../../hooks/usePlaylistFileDrop";
+import { notifyLiquidGlassSync } from "../../features/liquidGlass/LiquidGlassSync";
 
 interface Props { active: boolean; folderPaths: string[]; mediaPath: string; refreshPlaylist: () => Promise<void>; onFolderRequested: () => Promise<void>; onSourceChange?: (saved: boolean) => void; children: ReactNode }
 type Editor = { kind: "create" | "folder" | "rename"; id?: string } | null;
@@ -130,6 +131,9 @@ export function SavedPlaylistPanel({ active, folderPaths, mediaPath, refreshPlay
   };
   const entries = useMemo(() => selected?.paths.map((path, index) => ({path, index}))
     .filter(entry => playlistFileName(entry.path).toLowerCase().includes(query.trim().toLowerCase())) ?? [], [selected?.paths, query]);
+  useEffect(() => {
+    if (active) notifyLiquidGlassSync();
+  }, [active, library.source, library.loading, library.busy, library.error, dialogError, editor, confirmDelete, entries.length]);
   const visibleRange = savedPlaylistWindow(entries.length, scrollTop, viewportHeight);
   const matchesQueue = selected?.paths.length === folderPaths.length && selected?.paths.every((path, index) => samePlaylistFile(path, folderPaths[index]));
   return <div ref={dropTarget} className="saved-playlists" data-drop-active={dropHovered || undefined} data-source={library.source || "folder"}
