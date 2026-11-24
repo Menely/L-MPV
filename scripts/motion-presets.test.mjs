@@ -46,3 +46,24 @@ test("the settings backdrop changes its shade without fading its descendants", (
   assert.notEqual(entry.backgroundColor, visible.backgroundColor);
   assert.equal(exit.backgroundColor, entry.backgroundColor);
 });
+
+test("fadeOnly mode in Liquid Glass removes all positional offsets across surfaces", () => {
+  for (const kind of ["popover", "panel", "dialog", "sidebar", "settingsDialog"]) {
+    const entry = surfacePose(kind, "initial", true, true);
+    const visible = surfacePose(kind, "visible", true, true);
+    const exit = surfacePose(kind, "exit", true, true);
+    assert.equal(entry.opacity, 0);
+    assert.equal(visible.opacity, 1);
+    assert.equal(exit.opacity, 0);
+    if (kind === "dialog") {
+      assert.equal(entry.y, 0);
+      assert.equal(exit.y, 0);
+    } else if (kind === "sidebar") {
+      assert.equal(entry.x, 0);
+      assert.equal(exit.x, 0);
+    } else {
+      assert.equal(entry["--surface-y"], "0px");
+      assert.equal(exit["--surface-y"], "0px");
+    }
+  }
+});

@@ -29,6 +29,7 @@ import {
   saveControlBarStyle,
 } from "../../utils/controlBarStyleUtils";
 import { getPlayerTheme } from "../../features/liquidGlass/preferences";
+import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../features/liquidGlass/LiquidGlassSync";
 import {
   loadUserPresets,
   applySettingsPreset,
@@ -795,6 +796,18 @@ export function ContextMenu({
       handleSetHeatmapStyle,
     ]
   );
+
+  useLayoutEffect(() => {
+    if (!positioned) return;
+    notifyLiquidGlassSync();
+    notifyLiquidGlassAnimation(180);
+    return () => {
+      queueMicrotask(() => {
+        notifyLiquidGlassSync();
+        notifyLiquidGlassAnimation(180);
+      });
+    };
+  }, [positioned, activeSubmenu, controlBarStyle, adjustedPos.x, adjustedPos.y, menuItems.length]);
 
   // Проверка близости к правому краю для открытия подменю влево.
   // Ширина меню — измеренная (а не константа), ширина подменю — оценка 220.

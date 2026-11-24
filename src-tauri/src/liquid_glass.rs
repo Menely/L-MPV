@@ -29,6 +29,7 @@ pub struct LiquidGlassState {
     ready: bool,
     supported: bool,
     last_supported_check: Option<Instant>,
+    display_sync_active: Option<bool>,
 }
 
 /// Хранилище состояния Liquid Glass в managed state Tauri.
@@ -95,6 +96,7 @@ pub async fn configure_liquid_glass(
                 ready: false,
                 supported: false,
                 last_supported_check: None,
+                display_sync_active: None,
             });
         }
         guard.as_ref().map(|s| s.ready).unwrap_or(false)
@@ -114,6 +116,28 @@ pub async fn configure_liquid_glass(
     }
 
     let payload = options.unwrap_or(Value::Null);
+    let wants_display_sync = payload.get("active").and_then(|v| v.as_bool()) == Some(true);
+    let should_update_display_sync = {
+        let guard = glass.0.lock().map_err(|error| error.to_string())?;
+        guard
+            .as_ref()
+            .and_then(|s| s.display_sync_active)
+            != Some(wants_display_sync)
+    };
+    if should_update_display_sync {
+        if wants_display_sync {
+            let _ = player.mpv.set_property_string("interpolation", "no");
+            let _ = player.mpv.set_property_string("video-sync", "display-resample");
+        } else {
+            let _ = player.mpv.set_property_string("video-sync", "audio");
+        }
+        if let Ok(mut guard) = glass.0.lock() {
+            if let Some(state) = guard.as_mut() {
+                state.display_sync_active = Some(wants_display_sync);
+            }
+        }
+    }
+
     let json = payload.to_string();
     if json.len() > 16384 {
         return Err("Некорректные параметры Liquid Glass".into());

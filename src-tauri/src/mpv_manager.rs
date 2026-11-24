@@ -548,7 +548,22 @@ impl MpvManager {
             // Явно фиксируем дефолты, чтобы пользовательский mpv.conf не смог
             // их переопределить и сломать синхронизацию при открытии файла.
             Self::set_option(&api, handle, "initial-audio-sync", "yes"); // Ждать выровненного A/V перед первым кадром
-            Self::set_option(&api, handle, "video-sync", "audio"); // Видео синхронизируется по аудиочасам
+            let use_display_sync = saved_settings
+                .ui
+                .player_interface_theme
+                .as_deref()
+                == Some("glass");
+            Self::set_option(
+                &api,
+                handle,
+                "video-sync",
+                if use_display_sync {
+                    "display-resample"
+                } else {
+                    "audio"
+                },
+            ); // В теме Liquid Glass рендер синхронизируется с частотой монитора
+            Self::set_option(&api, handle, "interpolation", "no"); // Сохраняем оригинальную плавность кадров без интерполяции
             Self::set_option(&api, handle, "hr-seek", "yes"); // Точный seek для идеальной синхронизации аудио и видео после перемотки (и при старте с позиции)
 
             // ─── Субтитры и экранные надписи (Pristine Subtitle & Signs Rendering) ───

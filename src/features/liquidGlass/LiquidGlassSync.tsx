@@ -30,7 +30,7 @@ interface Props {
   mediaPath?: string;
 }
 
-const MAX_SLOTS = 12;
+const MAX_SLOTS = 16;
 const ANIMATION_TRACK_MS = T_PANEL_MS + CLOSE_BUFFER_MS + 120;
 
 let pendingOptions: object | null = null;
@@ -137,101 +137,71 @@ function collectElementSurface(
   return surface;
 }
 
-function collectPreviewCardSurface(
-  cardEl: Element | null,
-  root: HTMLElement,
-  frost: number,
-): SurfaceRect | null {
-  if (!(cardEl instanceof HTMLElement)) return null;
-  if (!cardEl.classList.contains("timeline-preview-card--with-frame")) {
-    return collectElementSurface(cardEl, root, frost);
-  }
-  const cardStyle = getComputedStyle(cardEl);
-  if (cardStyle.display === "none" || cardStyle.visibility === "hidden") return null;
-
-  const infoEl = cardEl.querySelector<HTMLElement>(".timeline-preview-card__info");
-  if (!infoEl) return collectElementSurface(cardEl, root, frost);
-
-  const cardRect = cardEl.getBoundingClientRect();
-  const infoRect = infoEl.getBoundingClientRect();
-  if (infoRect.width <= 1 || infoRect.height <= 1) return null;
-
-  const opacity = measureEffectiveOpacity(cardEl, root);
-  if (opacity <= 0.005) return null;
-
-  const vw = Math.max(1, window.innerWidth);
-  const vh = Math.max(1, window.innerHeight);
-  const zoomScale = cardEl.offsetWidth > 0 ? cardRect.width / cardEl.offsetWidth : 1;
-  const rawRadius = parseFloat(cardStyle.borderBottomLeftRadius) || parseFloat(cardStyle.borderTopLeftRadius) || 0;
-  const radiusPx = Math.min(rawRadius * zoomScale, infoRect.width / 2);
-
-  // Стекло располагается только под нижней плашкой информации, а его верхняя кромка
-  // и верхняя фаска преломления полностью прячутся под непрозрачным кадром миниатюры,
-  // чтобы вокруг самого кадра ничего не рисовалось, а нижняя панель стыковалась без шва.
-  const frameHeight = Math.max(0, infoRect.top - cardRect.top);
-  const overlapPx = Math.min(
-    Math.max(0, frameHeight - 6),
-    Math.max(radiusPx + 38 * zoomScale, infoRect.height + 16),
-  );
-  const topPx = infoRect.top - overlapPx;
-  const heightPx = infoRect.height + overlapPx;
-
-  return {
-    x: Number((infoRect.left / vw).toFixed(5)),
-    y: Number((topPx / vh).toFixed(5)),
-    w: Number((infoRect.width / vw).toFixed(5)),
-    h: Number((heightPx / vh).toFixed(5)),
-    r: Number(Math.min(radiusPx, heightPx / 2).toFixed(2)),
-    a: Number(Math.min(1, Math.max(0, opacity)).toFixed(3)),
-    f: frost,
-  };
-}
-
-function collectGlassSurfaces(wrapper: HTMLElement): SurfaceRect[] {
-  const wrapperStyle = getComputedStyle(wrapper);
-  if (wrapperStyle.display === "none" || wrapperStyle.visibility === "hidden") return [];
-  const wrapperOpacity = parseFloat(wrapperStyle.opacity);
-  if (Number.isFinite(wrapperOpacity) && wrapperOpacity <= 0.005) return [];
-
+function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
+  const root = appContainer ?? document.body;
   const surfaces: SurfaceRect[] = [];
   const push = (el: Element | null, frost: number, dockedBottom = false) => {
     if (surfaces.length >= MAX_SLOTS) return;
-    const item = collectElementSurface(el, wrapper, frost, dockedBottom);
+    const item = collectElementSurface(el, root, frost, dockedBottom);
     if (item) surfaces.push(item);
   };
 
-  const controls = wrapper.querySelector(".player-controls");
-  if (controls instanceof HTMLElement) {
-    if (controls.classList.contains("player-controls--capsule")) {
-      push(controls.querySelector(".controls-island--timeline"), 0);
-      controls.querySelectorAll(".controls-island--time").forEach((el) => push(el, 0));
-      push(controls.querySelector(".controls-islands-row"), 0);
-    } else {
-      const docked = controls.classList.contains("player-controls--docked");
-      push(controls, 0, docked);
+  const wrapper = root.querySelector<HTMLElement>(".player-controls-wrapper");
+  if (wrapper) {
+    const wrapperStyle = getComputedStyle(wrapper);
+    const wrapperOpacity = parseFloat(wrapperStyle.opacity);
+    const wrapperVisible =
+      wrapperStyle.display !== "none" &&
+      wrapperStyle.visibility !== "hidden" &&
+      (!Number.isFinite(wrapperOpacity) || wrapperOpacity > 0.005);
+
+    if (wrapperVisible) {
+      const controls = wrapper.querySelector(".player-controls");
+      if (controls instanceof HTMLElement) {
+        if (controls.classList.contains("player-controls--capsule")) {
+          push(controls.querySelector(".controls-island--timeline"), 0);
+          controls.querySelectorAll(".controls-island--time").forEach((el) => push(el, 0));
+          push(controls.querySelector(".controls-islands-row"), 0);
+        } else {
+          const docked = controls.classList.contains("player-controls--docked");
+          push(controls, 0, docked);
+        }
+      }
+
+      push(wrapper.querySelector(".time-display--floating-center"), 0);
+      push(wrapper.querySelector(".timeline-preview-card"), 0.65);
+      push(wrapper.querySelector(".waveform-activity-strip__badge"), 0.65);
+
+      // Обрабатываем все одновременно открытые поповеры (входящий и выходящий при переключении аудио/субтитров)
+      wrapper.querySelectorAll(".track-popover").forEach((trackPopover) => {
+        if (!(trackPopover instanceof HTMLElement)) return;
+        if (trackPopover.classList.contains("track-popover--capsule")) {
+          push(trackPopover.querySelector(".track-popover__heading"), 1);
+          push(trackPopover.querySelector(".track-popover__header-actions"), 1);
+          push(trackPopover.querySelector(".track-popover__disable-sub-card"), 1);
+          push(trackPopover.querySelector(".track-popover__list-surface"), 1);
+        } else {
+          push(trackPopover, 1);
+        }
+      });
+
+      wrapper.querySelectorAll(".controls-overflow").forEach((el) => push(el, 1));
     }
   }
 
-  push(wrapper.querySelector(".time-display--floating-center"), 0);
-  if (surfaces.length < MAX_SLOTS) {
-    const previewSurface = collectPreviewCardSurface(wrapper.querySelector(".timeline-preview-card"), wrapper, 0.65);
-    if (previewSurface) surfaces.push(previewSurface);
-  }
-  push(wrapper.querySelector(".waveform-activity-strip__badge"), 0.65);
-
-  const trackPopover = wrapper.querySelector(".track-popover");
-  if (trackPopover instanceof HTMLElement) {
-    if (trackPopover.classList.contains("track-popover--capsule")) {
-      push(trackPopover.querySelector(".track-popover__heading"), 1);
-      push(trackPopover.querySelector(".track-popover__header-actions"), 1);
-      push(trackPopover.querySelector(".track-popover__disable-sub-card"), 1);
-      push(trackPopover.querySelector(".track-popover__list-surface"), 1);
+  // Контекстное меню ПКМ рендерится напрямую в .app-container и должно оставаться стеклянным даже при скрытой панели
+  root.querySelectorAll(".context-menu").forEach((menu) => {
+    if (!(menu instanceof HTMLElement)) return;
+    if (menu.classList.contains("context-menu--capsule")) {
+      menu.querySelectorAll(".context-menu__group--main").forEach((group) => push(group, 1));
+      menu
+        .querySelectorAll(".context-menu__submenu--capsule .context-menu__group")
+        .forEach((group) => push(group, 1));
     } else {
-      push(trackPopover, 1);
+      push(menu, 1);
+      menu.querySelectorAll(".context-menu__submenu--solid").forEach((submenu) => push(submenu, 1));
     }
-  }
-
-  push(wrapper.querySelector(".controls-overflow"), 1);
+  });
 
   return surfaces;
 }
@@ -261,8 +231,8 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
 
     const flush = () => {
       if (disposed) return;
-      const wrapper = document.querySelector<HTMLElement>(".player-controls-wrapper");
-      const surfaces = wrapper ? collectGlassSurfaces(wrapper) : [];
+      const appContainer = document.querySelector<HTMLElement>(".app-container");
+      const surfaces = collectGlassSurfaces(appContainer);
       const options = {
         active: true,
         blur: getGlassBlur(),
@@ -345,6 +315,7 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       resizeObserver.observe(wrapper);
       const controls = wrapper.querySelector(".player-controls");
       if (controls) resizeObserver.observe(controls);
+      wrapper.addEventListener("transitionrun", handleTransition);
       wrapper.addEventListener("transitionstart", handleTransition);
       wrapper.addEventListener("animationstart", handleTransition);
       wrapper.addEventListener("transitionend", handleTransitionEnd);
@@ -363,9 +334,12 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       });
     }
 
-    const idleObserver = new MutationObserver(() => scheduleFrame(ANIMATION_TRACK_MS));
+    const idleObserver = new MutationObserver(() => {
+      syncNow();
+      scheduleFrame(ANIMATION_TRACK_MS);
+    });
     if (appContainer) {
-      idleObserver.observe(appContainer, { attributes: true, attributeFilter: ["class"] });
+      idleObserver.observe(appContainer, { attributes: true, attributeFilter: ["class"], childList: true });
     }
 
     const unsubscribeTheme = subscribePlayerTheme(handleSettings);
@@ -389,6 +363,7 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       idleObserver.disconnect();
       unsubscribeTheme();
       if (wrapper) {
+        wrapper.removeEventListener("transitionrun", handleTransition);
         wrapper.removeEventListener("transitionstart", handleTransition);
         wrapper.removeEventListener("animationstart", handleTransition);
         wrapper.removeEventListener("transitionend", handleTransitionEnd);
@@ -399,7 +374,13 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       window.removeEventListener("l-mpv-ui-radius-changed", handleSettings);
       window.removeEventListener("l-mpv-timeline-layout-changed", handleSettings);
     };
-  }, [enabled, visible, videoReady, mediaPath]);
+  }, [enabled, videoReady, mediaPath]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    notifyLiquidGlassSync();
+    notifyLiquidGlassAnimation(ANIMATION_TRACK_MS);
+  }, [enabled, visible]);
 
   return null;
 }

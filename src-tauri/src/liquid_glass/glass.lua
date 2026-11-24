@@ -4,7 +4,8 @@ local utils = require "mp.utils"
 local Glass = {}
 local STATUS = "user-data/lmpv-liquid-glass"
 local SUPPORTED = "user-data/lmpv-liquid-glass-supported"
-local MAX_SLOTS = 12
+local MAX_SLOTS = 16
+local REDRAW_OVERLAY_ID = 63
 
 function Glass.new(directory)
     local shader = utils.join_path(directory, "floating_glass.glsl")
@@ -12,10 +13,35 @@ function Glass.new(directory)
     local active = false
     local last_sig = nil
     local unload_timer = nil
+    local redraw_toggle = false
     local material = {}
 
     local function send(...)
-        mp.commandv("change-list", ...)
+        mp.command_native_async({"change-list", ...}, function() end)
+    end
+
+    -- Невидимый 0-пиксельный ASS-вызов будит vo=gpu-next сразу после обновления glsl-shader-opts,
+    -- не дожидаясь следующего PTS 24fps-кадра при быстром перемещении превью и анимациях.
+    local function nudge_redraw()
+        redraw_toggle = not redraw_toggle
+        local data = redraw_toggle
+            and "{\\p1\\alpha&HFF&\\bord0\\shad0}m 0 0"
+            or "{\\p1\\alpha&HFF&\\bord0\\shad0}m 0 0 "
+        mp.command_native_async({
+            name = "osd-overlay",
+            id = REDRAW_OVERLAY_ID,
+            format = "ass-events",
+            data = data,
+        }, function() end)
+    end
+
+    local function clear_redraw_overlay()
+        mp.command_native_async({
+            name = "osd-overlay",
+            id = REDRAW_OVERLAY_ID,
+            format = "none",
+            data = "",
+        }, function() end)
     end
 
     local function is_supported()
@@ -35,6 +61,7 @@ function Glass.new(directory)
         if active or (last_sig ~= nil and last_sig ~= "mzg_on=0") then
             if loaded then
                 send("glsl-shader-opts", "add", "mzg_on=0")
+                clear_redraw_overlay()
                 if not unload_timer then
                     unload_timer = mp.add_timeout(5, function()
                         unload_timer = nil
@@ -140,6 +167,7 @@ function Glass.new(directory)
                 unload_timer = nil
             end
             send("glsl-shader-opts", "add", sig)
+            nudge_redraw()
         end
 
         if not loaded then
@@ -162,6 +190,7 @@ function Glass.new(directory)
         end
         if active or loaded then
             send("glsl-shader-opts", "add", "mzg_on=0")
+            clear_redraw_overlay()
         end
         if loaded then
             send("glsl-shaders", "remove", shader)

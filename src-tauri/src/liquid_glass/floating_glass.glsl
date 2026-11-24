@@ -5,7 +5,7 @@
 // ModernZ glass for vo=gpu-next: frosts and refracts the video behind glass
 // surfaces, adds the light catching their rim and the shadow they cast.
 // Loaded by L-MPV and updated through glsl-shader-opts.
-// Up to twelve rounded rectangles, in fractions of the video area.
+// Up to sixteen rounded rectangles, in fractions of the video area.
 
 //!PARAM lg_capture
 //!TYPE DYNAMIC float
@@ -303,6 +303,90 @@
 //!PARAM mzg_11f
 //!TYPE DYNAMIC float
 0.0
+//!PARAM mzg_12x
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_12y
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_12w
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_12h
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_12r
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_12a
+//!TYPE DYNAMIC float
+1.0
+//!PARAM mzg_12f
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_13x
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_13y
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_13w
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_13h
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_13r
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_13a
+//!TYPE DYNAMIC float
+1.0
+//!PARAM mzg_13f
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_14x
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_14y
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_14w
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_14h
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_14r
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_14a
+//!TYPE DYNAMIC float
+1.0
+//!PARAM mzg_14f
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_15x
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_15y
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_15w
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_15h
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_15r
+//!TYPE DYNAMIC float
+0.0
+//!PARAM mzg_15a
+//!TYPE DYNAMIC float
+1.0
+//!PARAM mzg_15f
+//!TYPE DYNAMIC float
+0.0
 
 //!HOOK OUTPUT
 //!BIND HOOKED
@@ -398,6 +482,10 @@ float mzg_sdf_a(vec2 p, out float a, out float f, out float mh) {
     if (mzg_9w > 0.0) { k = mzg_box(p, mzg_9x, mzg_9y, mzg_9w, mzg_9h, mzg_9r, kmh); if (k < d) { d = k; a = mzg_9a; f = mzg_9f; mh = kmh; } }
     if (mzg_10w > 0.0) { k = mzg_box(p, mzg_10x, mzg_10y, mzg_10w, mzg_10h, mzg_10r, kmh); if (k < d) { d = k; a = mzg_10a; f = mzg_10f; mh = kmh; } }
     if (mzg_11w > 0.0) { k = mzg_box(p, mzg_11x, mzg_11y, mzg_11w, mzg_11h, mzg_11r, kmh); if (k < d) { d = k; a = mzg_11a; f = mzg_11f; mh = kmh; } }
+    if (mzg_12w > 0.0) { k = mzg_box(p, mzg_12x, mzg_12y, mzg_12w, mzg_12h, mzg_12r, kmh); if (k < d) { d = k; a = mzg_12a; f = mzg_12f; mh = kmh; } }
+    if (mzg_13w > 0.0) { k = mzg_box(p, mzg_13x, mzg_13y, mzg_13w, mzg_13h, mzg_13r, kmh); if (k < d) { d = k; a = mzg_13a; f = mzg_13f; mh = kmh; } }
+    if (mzg_14w > 0.0) { k = mzg_box(p, mzg_14x, mzg_14y, mzg_14w, mzg_14h, mzg_14r, kmh); if (k < d) { d = k; a = mzg_14a; f = mzg_14f; mh = kmh; } }
+    if (mzg_15w > 0.0) { k = mzg_box(p, mzg_15x, mzg_15y, mzg_15w, mzg_15h, mzg_15r, kmh); if (k < d) { d = k; a = mzg_15a; f = mzg_15f; mh = kmh; } }
     return d;
 }
 
@@ -456,15 +544,18 @@ vec4 hook() {
     vec2 qR = clamp((p + disp_vec + chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
     vec2 qB = clamp((p + disp_vec - chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
 
-    // Interior frosted pass (MZG_C)
+    float user_blur = clamp(lg_blur, 0.0, 1.0);
+
+    // Interior frosted pass (MZG_C) with smooth ring softening so blur applies evenly across edges too
     vec3 blur_g = vec3(MZG_C_tex(qR).r, MZG_C_tex(q).g, MZG_C_tex(qB).b);
-    if (frost > 0.0) {
+    float extra_soft = max(clamp(frost, 0.0, 1.0), smoothstep(0.55, 1.0, user_blur) * 0.65);
+    if (extra_soft > 0.01) {
         vec3 ring = vec3(0.0);
         for (int i = 0; i < 8; i++) {
             float an = 0.7854 * float(i) + 0.3927;
             ring += MZG_C_tex(q + vec2(cos(an), sin(an)) * 4.5 * MZG_C_pt).rgb;
         }
-        blur_g = mix(blur_g, (blur_g + ring) / 9.0, clamp(frost, 0.0, 1.0));
+        blur_g = mix(blur_g, (blur_g + ring) / 9.0, extra_soft);
     }
 
     // Telegram Android sampleBackdrop() 5-tap pre-filtered lens pass over MZG_A (~1.25dp radius):
@@ -481,14 +572,11 @@ vec4 hook() {
                  + MZG_A_tex(qB + vec2(0.0, a_pt.y)).rgb + MZG_A_tex(qB - vec2(0.0, a_pt.y)).rgb) * 0.16;
     vec3 clear_bevel = vec3(lens_r.r, lens_g.g, lens_b.b);
 
-    // The curved rim stays optically refractive and clear so the warped contours read distinctly,
-    // while the flat interior honors the user's blur slider (80% default frosted glass).
-    float user_blur = clamp(lg_blur, 0.0, 1.0);
-    float bevel_clarity = smoothstep(0.04, 0.72, n_cos) * mzg_lens * (1.0 - 0.35 * clamp(frost, 0.0, 1.0));
-    float local_blur = mix(user_blur, user_blur * 0.18, bevel_clarity);
+    // Apply user_blur uniformly across both center and curved rim so the blur slider controls edges honestly
+    // while q/qR/qB preserve full 3D Snell refraction along the bevel.
     vec3 raw_clear = vec3(HOOKED_tex(qR).r, HOOKED_tex(q).g, HOOKED_tex(qB).b);
     vec3 base_clear = mix(raw_clear, clear_bevel, smoothstep(0.0, 0.35, user_blur));
-    vec3 g = mix(base_clear, blur_g, local_blur);
+    vec3 g = mix(base_clear, blur_g, user_blur);
 
     // vibrancy: keep underlying colors luminous like physical crystal
     float l = dot(g, luma);

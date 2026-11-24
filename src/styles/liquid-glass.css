@@ -24,22 +24,6 @@ html[data-interface-theme="glass"] .player-controls-wrapper {
   --play-icon-glow: none;
 }
 
-/* Синхронизация скрытия/появления: чистое затухание opacity без вертикального сдвига,
-   чтобы элементы внутри панели никогда не смещались быстрее GLSL-стекла */
-html[data-interface-theme="glass"] .player-controls-wrapper,
-html[data-interface-theme="glass"] .player-controls-wrapper--docked {
-  transform: translateY(0) !important;
-  transition: opacity var(--t-panel) var(--ease-standard) !important;
-}
-
-html[data-interface-theme="glass"] .app-container--idle .player-controls-wrapper,
-html[data-interface-theme="glass"] .app-container--hide-controls .player-controls-wrapper,
-html[data-interface-theme="glass"] .app-container--idle .player-controls-wrapper--docked,
-html[data-interface-theme="glass"] .app-container--hide-controls .player-controls-wrapper--docked {
-  transform: translateY(0) !important;
-  transition: opacity var(--t-idle-hide) var(--ease-smooth) !important;
-}
-
 /* ─── Чистые белые элементы управления, таймлайн, поповеры и превью ─── */
 html[data-interface-theme="glass"] .player-controls-wrapper .control-btn,
 html[data-interface-theme="glass"] .player-controls-wrapper .control-btn__label,
@@ -156,21 +140,21 @@ html[data-interface-theme="glass"] .player-controls-wrapper .controls-overflow__
   color: #ffffff;
 }
 
-/* Карточка превью таймлайна в Liquid Glass: как в теме L-MPV, вокруг самого кадра
-   нет никаких рамок/отступов, а Liquid Glass располагается только снизу под временем и главой */
+/* Карточка превью таймлайна в Liquid Glass: аккуратная стеклянная рамка вокруг кадра и подложка времени */
 html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card.timeline-preview-card--with-frame {
-  padding: 0 !important;
-  gap: 0 !important;
+  padding: 5px !important;
+  gap: 6px !important;
 }
 
 html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card--with-frame .timeline-preview-card__frame {
-  border-radius: var(--radius-controls, 14px) var(--radius-controls, 14px) 0 0 !important;
+  border-radius: max(0px, calc(var(--radius-controls, 14px) - 5px)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
 }
 
 html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card--with-frame .timeline-preview-card__info {
   background: transparent !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
-  padding: 6px 12px 7px;
+  border-top: none !important;
+  padding: 0 6px 2px;
 }
 
 html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card__time,
@@ -209,13 +193,29 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-cont
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__disable-sub-card,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__list-surface,
-html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-overflow {
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-overflow,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu:not(.context-menu--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--solid,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu--capsule .context-menu__group,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--capsule .context-menu__group {
   background: transparent !important;
   background-color: transparent !important;
   border-color: transparent !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+/* В поповерах Капсулы и контекстном меню исключаем конфликтующие CSS-переходы подложки при трекинге GLSL */
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__heading,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__disable-sub-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__list-surface,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu:not(.context-menu--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--solid,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu--capsule .context-menu__group,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--capsule .context-menu__group {
+  transition: none !important;
 }
 
 /* Внутренние островки Capsule внутри стеклянного дока: без заливки, только тонкое деление */
@@ -242,7 +242,11 @@ html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playe
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__disable-sub-card,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__list-surface,
-html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-overflow {
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-overflow,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu:not(.context-menu--capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu__submenu--solid,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu--capsule .context-menu__group,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu__submenu--capsule .context-menu__group {
   background: rgba(20, 22, 28, 0.72) !important;
   border-color: rgba(255, 255, 255, 0.16) !important;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45) !important;
@@ -251,6 +255,125 @@ html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playe
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-islands-row .controls-island {
   background: rgba(255, 255, 255, 0.08) !important;
   border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+/* ─── Стеклянное оформление контекстного меню ПКМ ─── */
+html[data-interface-theme="glass"] .context-menu,
+html[data-interface-theme="glass"] .context-menu__submenu {
+  --accent: #ffffff;
+  --accent-text: #ffffff;
+  --accent-rgb: 255, 255, 255;
+  --surface-accent-glow: rgba(255, 255, 255, 0.35);
+  --hover-veil: rgba(255, 255, 255, 0.14);
+  --hover-veil-float: rgba(255, 255, 255, 0.14);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.85);
+  --text-muted: rgba(255, 255, 255, 0.65);
+  --border-pill: rgba(255, 255, 255, 0.18);
+}
+
+html[data-interface-theme="glass"] .context-menu__item,
+html[data-interface-theme="glass"] .context-menu__track-btn {
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .context-menu__item-shortcut,
+html[data-interface-theme="glass"] .context-menu__item-arrow,
+html[data-interface-theme="glass"] .context-menu__group-header {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+html[data-interface-theme="glass"] .context-menu__divider {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+html[data-interface-theme="glass"] .context-menu__radio-dot {
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.65);
+}
+
+html[data-interface-theme="glass"] .context-menu .track-badge-ext {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .context-menu .track-download-btn {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+html[data-interface-theme="glass"] .context-menu .track-download-btn:hover:not(:disabled) {
+  background: transparent !important;
+  color: #ffffff !important;
+}
+
+/* ─── Анимации появления и исчезновения только через прозрачность (fade-only) ─── */
+@keyframes liquidGlassFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes liquidGlassFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+html[data-interface-theme="glass"] .titlebar {
+  transform: translateY(0) !important;
+  transition: opacity var(--t-base) var(--ease-smooth) !important;
+}
+
+html[data-interface-theme="glass"] .app-container--idle .titlebar,
+html[data-interface-theme="glass"] .app-container--hide-controls .titlebar {
+  transform: translateY(0) !important;
+  transition: opacity var(--t-idle-hide) var(--ease-smooth) !important;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper {
+  transform: translateY(0) !important;
+  transition: opacity var(--t-panel) var(--ease-standard) !important;
+}
+
+html[data-interface-theme="glass"] .app-container--idle .player-controls-wrapper,
+html[data-interface-theme="glass"] .app-container--hide-controls .player-controls-wrapper {
+  transform: translateY(0) !important;
+  transition: opacity var(--t-idle-hide) var(--ease-smooth) !important;
+}
+
+html[data-interface-theme="glass"] .glass-hud-pill,
+html[data-interface-theme="glass"] .frame-osd,
+html[data-interface-theme="glass"] .volume-feedback-osd {
+  animation: liquidGlassFadeIn var(--t-pop, 200ms) var(--ease-decelerate);
+}
+
+html[data-interface-theme="glass"] .glass-hud-pill--closing,
+html[data-interface-theme="glass"] .frame-osd--closing,
+html[data-interface-theme="glass"] .volume-feedback-osd--closing {
+  animation: liquidGlassFadeOut var(--t-fast) var(--ease-accelerate) forwards !important;
+}
+
+html[data-interface-theme="glass"] .side-panel {
+  animation: liquidGlassFadeIn 160ms var(--ease-out);
+}
+
+html[data-interface-theme="glass"] .side-panel--closing {
+  animation: liquidGlassFadeOut 120ms var(--ease-out) forwards !important;
+}
+
+html[data-interface-theme="glass"] .mediainfo-floating-window {
+  animation: liquidGlassFadeIn var(--t-pop) var(--ease-decelerate);
+}
+
+html[data-interface-theme="glass"] .mediainfo-floating-window--closing {
+  animation: liquidGlassFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
+}
+
+html[data-interface-theme="glass"] .version-picker-popover {
+  animation: liquidGlassFadeIn var(--t-base) var(--ease-out);
+}
+
+html[data-interface-theme="glass"] .preset-toast {
+  animation: liquidGlassFadeIn 0.25s var(--ease-out);
 }
 
 /* Превью карточек выбора стиля в настройках при теме Liquid Glass */
