@@ -48,6 +48,11 @@
   align-items: center;
 }
 
+/* На экране-заглушке (без медиа) верхняя тень не нужна; при видео остаётся */
+.app-container--empty .titlebar::before {
+  display: none;
+}
+
 .titlebar__center {
   position: absolute;
   left: 50%;
