@@ -160,8 +160,6 @@ pub fn run() {
         .manage(liquid_glass::LiquidGlass::default())
         .invoke_handler(tauri::generate_handler![
             liquid_glass::configure_liquid_glass,
-            liquid_glass::liquid_glass_snapshot,
-            liquid_glass::liquid_glass_pointer,
             // Управление воспроизведением
             commands::get_timeline_thumbnail,
             commands::cancel_timeline_thumbnail,

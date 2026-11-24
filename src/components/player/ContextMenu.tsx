@@ -28,6 +28,7 @@ import {
   getSavedControlBarStyle,
   saveControlBarStyle,
 } from "../../utils/controlBarStyleUtils";
+import { getPlayerTheme } from "../../features/liquidGlass/preferences";
 import {
   loadUserPresets,
   applySettingsPreset,
@@ -125,7 +126,9 @@ export function ContextMenu({
   const [ambientMode, setAmbientMode] = useState<AmbientMode>("off");
   const [currentTimePos, setCurrentTimePos] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
-  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
+    getSavedControlBarStyle(getPlayerTheme()),
+  );
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>(() => getRecentFiles());
   const [menuLayout, setMenuLayout] = useState<LayoutEntry[]>(() => getSavedLayout());
 
@@ -237,7 +240,7 @@ export function ContextMenu({
       setHeatmapConfig(getHeatmapConfig());
       setCurrentTimePos(getSavedTimePosition());
       setTimeFormat(getSavedTimeFormat());
-      setControlBarStyle(getSavedControlBarStyle());
+      setControlBarStyle(getSavedControlBarStyle(getPlayerTheme()));
       setRecentFiles(getRecentFiles());
       setActivePresetId(getSavedActivePresetId());
       setUpscaleMode((localStorage.getItem("l-mpv-upscale-mode") as "off" | "ai") || "off");
@@ -625,7 +628,7 @@ export function ContextMenu({
 
   const handleSelectControlBarStyle = useCallback(
     (style: ControlBarStyle, label: string) => {
-      saveControlBarStyle(style);
+      saveControlBarStyle(style, getPlayerTheme());
       setControlBarStyle(style);
       showOsd(dict.settings.cmenuUI.osdBarStyle(label));
     },

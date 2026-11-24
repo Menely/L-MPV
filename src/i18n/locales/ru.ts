@@ -557,7 +557,7 @@ export const ru: TranslationDict = {
       customFontsDivider: 'Пользовательские',
       interfaceTheme: "Тема интерфейса",
       glassBlur: "Размытие стекла",
-      resetGlassBlur: "Сбросить размытие на 30%",
+      resetGlassBlur: "Сбросить размытие на 80%",
       classicStyleDesc: "Единые панели с плавающим или прикреплённым управлением",
       panelPlacement: "Вид панели",
       panelFloating: "Плавающая",

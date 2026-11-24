@@ -60,7 +60,7 @@ assert.equal(colors.getSavedPlayerTheme(), second);
 preferences.setPlayerTheme("glass");
 assert.equal(layout.getSavedControlBarStyle("glass"), "capsule");
 assert.equal(colors.getSavedPlayerTheme(), second);
-assert.equal(preferences.getGlassBlur(), 30);
+assert.equal(preferences.getGlassBlur(), 80);
 preferences.saveGlassBlur(0);
 preferences.setPlayerTheme("lmpv");
 preferences.setPlayerTheme("glass");

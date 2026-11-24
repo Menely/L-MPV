@@ -66,6 +66,7 @@ import {
   ControlBarStyle,
   getSavedControlBarStyle,
 } from "../../utils/controlBarStyleUtils";
+import { getPlayerTheme } from "../../features/liquidGlass/preferences";
 import {
   type UtilityButtonId,
   getSavedUtilityCards,
@@ -189,7 +190,9 @@ export function PlayerControls({
   const [hotkeys, setHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
-  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
+    getSavedControlBarStyle(getPlayerTheme()),
+  );
   const [utilityCards, setUtilityCards] = useState<UtilityButtonId[][]>(() => getSavedUtilityCards());
 
 
@@ -214,7 +217,7 @@ export function PlayerControls({
       setHotkeys(getCustomHotkeys());
       setTimePosition(getSavedTimePosition());
       setTimeFormat(getSavedTimeFormat());
-      setControlBarStyle(getSavedControlBarStyle());
+      setControlBarStyle(getSavedControlBarStyle(getPlayerTheme()));
       setUtilityCards(getSavedUtilityCards());
     };
     window.addEventListener('l-mpv-settings-changed', updateSetting);

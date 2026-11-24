@@ -4,7 +4,7 @@ const THEME_KEY = "l-mpv-player-interface-theme";
 const LAYOUT_KEY = "l-mpv-liquid-glass-layout";
 const BLUR_KEY = "l-mpv-liquid-glass-blur";
 
-export const DEFAULT_GLASS_BLUR = 30;
+export const DEFAULT_GLASS_BLUR = 80;
 
 export function getGlassBlur(): number {
   const saved = localStorage.getItem(BLUR_KEY);

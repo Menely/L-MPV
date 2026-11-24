@@ -554,7 +554,7 @@ export const en: TranslationDict = {
       customFontsDivider: 'Custom',
       interfaceTheme: "Interface theme",
       glassBlur: "Glass blur",
-      resetGlassBlur: "Reset blur to 30%",
+      resetGlassBlur: "Reset blur to 80%",
       classicStyleDesc: "Unified panels with floating or docked controls",
       panelPlacement: "Panel appearance",
       panelFloating: "Floating",

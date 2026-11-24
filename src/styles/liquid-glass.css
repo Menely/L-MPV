@@ -1,0 +1,256 @@
+/* ─── Тема Liquid Glass (гибрид: GLSL-стекло в mpv + белый UI на React/CSS) ─── */
+
+html[data-interface-theme="glass"] .player-controls-wrapper {
+  --accent: #ffffff;
+  --accent-text: #ffffff;
+  --accent-rgb: 255, 255, 255;
+  --accent-gradient: #ffffff;
+  --accent-glow: rgba(255, 255, 255, 0.35);
+  --surface-accent-glow: rgba(255, 255, 255, 0.35);
+  --surface-accent-subtle: rgba(255, 255, 255, 0.16);
+  --surface-accent-hover: rgba(255, 255, 255, 0.24);
+  --hover-veil: rgba(255, 255, 255, 0.14);
+  --hover-veil-float: rgba(255, 255, 255, 0.14);
+  --action-hover-veil: transparent;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.85);
+  --text-muted: rgba(255, 255, 255, 0.65);
+  --border-pill: rgba(255, 255, 255, 0.18);
+  --border-pill-hover: rgba(255, 255, 255, 0.34);
+  --timeline-glow: none;
+  --thumb-glow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  --hover-icon-glow: none;
+  --active-icon-glow: none;
+  --play-icon-glow: none;
+}
+
+/* Синхронизация скрытия/появления: чистое затухание opacity без вертикального сдвига,
+   чтобы элементы внутри панели никогда не смещались быстрее GLSL-стекла */
+html[data-interface-theme="glass"] .player-controls-wrapper,
+html[data-interface-theme="glass"] .player-controls-wrapper--docked {
+  transform: translateY(0) !important;
+  transition: opacity var(--t-panel) var(--ease-standard) !important;
+}
+
+html[data-interface-theme="glass"] .app-container--idle .player-controls-wrapper,
+html[data-interface-theme="glass"] .app-container--hide-controls .player-controls-wrapper,
+html[data-interface-theme="glass"] .app-container--idle .player-controls-wrapper--docked,
+html[data-interface-theme="glass"] .app-container--hide-controls .player-controls-wrapper--docked {
+  transform: translateY(0) !important;
+  transition: opacity var(--t-idle-hide) var(--ease-smooth) !important;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .motion-surface {
+  --surface-y: 0px !important;
+}
+
+/* ─── Чистые белые элементы управления, таймлайн, поповеры и превью ─── */
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn,
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn__label,
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--speed svg,
+html[data-interface-theme="glass"] .player-controls-wrapper .time-display,
+html[data-interface-theme="glass"] .player-controls-wrapper .volume-slider__value,
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__title,
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__icon-btn,
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__item,
+html[data-interface-theme="glass"] .player-controls-wrapper .controls-overflow__title,
+html[data-interface-theme="glass"] .player-controls-wrapper .controls-overflow__action,
+html[data-interface-theme="glass"] .player-controls-wrapper .controls-overflow__speed,
+html[data-interface-theme="glass"] .player-controls-wrapper .controls-overflow__volume,
+html[data-interface-theme="glass"] .player-controls-wrapper .controls-overflow__mute,
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card__time,
+html[data-interface-theme="glass"] .player-controls-wrapper .waveform-activity-strip__badge,
+html[data-interface-theme="glass"] .player-controls-wrapper .waveform-activity-strip__badge-time,
+html[data-interface-theme="glass"] .player-controls-wrapper .waveform-activity-strip__badge-metric {
+  color: #ffffff;
+}
+
+/* Без квадратной фоновой подсветки вокруг иконок при наведении и в активном состоянии */
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn:hover,
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--active,
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--active:hover,
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__icon-btn:hover:not(:disabled),
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover--speed .speed-popover__close-btn:hover,
+html[data-interface-theme="glass"] .player-controls-wrapper .track-download-btn:hover:not(:disabled) {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn:hover svg,
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--play:hover svg,
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--active svg {
+  filter: none;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline__segment-bg {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline__segment-ghost {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline__segment-progress {
+  background: #ffffff;
+  box-shadow: none !important;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline__thumb {
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .controls-island--time:hover .time-display {
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__badge {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__header,
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__disable-sub-card {
+  border-bottom-color: rgba(255, 255, 255, 0.16);
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .track-radio-dot {
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.65);
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .track-download-btn {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .track-badge-ext {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover--speed .track-popover__heading svg,
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover--speed .track-popover__title {
+  color: #ffffff !important;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover--speed .speed-popover__close-btn {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover:not(.track-popover--capsule).track-popover--speed .track-popover__item--active {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .controls-overflow__mute {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .controls-overflow__speed select {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .controls-overflow__speed select option {
+  background: #16181f;
+  color: #ffffff;
+}
+
+/* Превью таймлайна и бейдж тепловой карты рисуются целиком в одном слое WebView2
+   (как в ModernGlass-main: "the preview is content, not glass"), чтобы не отставать от кадра при движении */
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card,
+html[data-interface-theme="glass"] .player-controls-wrapper .waveform-activity-strip__badge {
+  background: rgba(16, 18, 24, 0.38) !important;
+  border: 1px solid rgba(255, 255, 255, 0.20) !important;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45) !important;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card--with-frame .timeline-preview-card__info {
+  background: transparent !important;
+  border-top-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card__time,
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card__chapter {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+/* Прозрачный фон аудио-визуализатора во всех видах панели Liquid Glass */
+html[data-interface-theme="glass"] .player-controls-wrapper .audio-visualizer--toolbar,
+html[data-interface-theme="glass"] .player-controls-wrapper .audio-visualizer--toolbar:hover {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card__chapter {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card__loading {
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45);
+}
+
+/* ─── Полностью прозрачная CSS-подложка поверх активного GLSL-стекла ─── */
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .player-controls--modern,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .player-controls--docked,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-island--timeline,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-island--time,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .time-display--floating-center,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover:not(.track-popover--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__heading,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__disable-sub-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__list-surface,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-overflow {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Внутренние островки Capsule внутри стеклянного дока: без заливки, только тонкое деление */
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ─── Резервная подложка, если GLSL-шейдер недоступен (аудио без видео, поворот, не gpu-next) ─── */
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .player-controls--modern,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .player-controls--docked,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-islands-row,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-island--timeline,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-island--time,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .time-display--floating-center,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover:not(.track-popover--capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__heading,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__disable-sub-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__list-surface,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-overflow {
+  background: rgba(20, 22, 28, 0.72) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45) !important;
+}
+
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-islands-row .controls-island {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+/* Превью карточек выбора стиля в настройках при теме Liquid Glass */
+.player-appearance--glass .visual-bar-preview__progress {
+  background: #ffffff;
+}

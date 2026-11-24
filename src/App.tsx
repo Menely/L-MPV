@@ -24,7 +24,7 @@ import "./index.css";
 import { Titlebar } from "./components/player/Titlebar";
 import { FileDragPreview } from "./components/player/FileDragPreview";
 import { PlayerControls } from "./components/player/PlayerControls";
-import { ClassicHost } from "./features/liquidGlass/ClassicHost";
+import { LiquidGlassSync } from "./features/liquidGlass/LiquidGlassSync";
 import { getPlayerTheme, subscribePlayerTheme } from "./features/liquidGlass/preferences";
 import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
@@ -333,8 +333,6 @@ function App() {
   const shouldHideControlsInUpperHalf = hasMedia && hideControlsInUpperHalf && isCursorInUpperHalf;
   const isControlsVisible = hasMedia && !isIdle && !shouldHideControlsInUpperHalf;
   const playerTheme = useSyncExternalStore(subscribePlayerTheme, getPlayerTheme);
-  const useGlassClassic = playerTheme === "glass" && mediaInfo?.video_track !== false;
-  const [glassPanelTop, setGlassPanelTop] = useState<number | null>(null);
   const subtitleUpdateQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   // Measure the rendered panel: capsule, modern, docked and CSS zoom have
   // different heights. Layout changes must update subtitles without mouse input.
@@ -358,9 +356,7 @@ function App() {
         pending = false;
         const controls = wrapper?.querySelector<HTMLElement>(".player-controls");
         const bottom = wrapper ? parseFloat(getComputedStyle(wrapper).bottom) || 0 : 0;
-        const offset = useGlassClassic ? (
-          glassPanelTop === null ? 0 : (1 - glassPanelTop) * window.innerHeight
-        ) : controls ? subtitleControlsOffset(
+        const offset = controls ? subtitleControlsOffset(
           controls.getBoundingClientRect().height, controls.offsetHeight, bottom,
         ) : 0;
         const controlsVisible = subtitlesAvoidUi && isControlsVisible && offset > 0;
@@ -393,7 +389,7 @@ function App() {
       window.removeEventListener("resize", update);
       window.removeEventListener("l-mpv-settings-changed", update);
     };
-  }, [hasMedia, mediaInfo?.path, subtitlesAvoidUi, isControlsVisible, isFullscreen, useGlassClassic, glassPanelTop]);
+  }, [hasMedia, mediaInfo?.path, subtitlesAvoidUi, isControlsVisible, isFullscreen]);
 
   const isStandaloneModeRef = useRef(false);
 
@@ -1404,11 +1400,8 @@ function App() {
         {!hasMedia && <EmptyScreen />}
       </div>
 
-      {hasMedia && useGlassClassic && (
-        <ClassicHost visible={isControlsVisible} fullscreen={isFullscreen}
-          togglePause={togglePause} toggleFullscreen={toggleFullscreen} onPanelTop={setGlassPanelTop} />
-      )}
-      {hasMedia && !useGlassClassic && (
+      <LiquidGlassSync enabled={hasMedia && playerTheme === "glass"} visible={isControlsVisible} />
+      {hasMedia && (
         <PlayerControls
           controlsVisible={isControlsVisible}
           onOpenSettings={openSettings}
