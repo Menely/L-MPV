@@ -307,64 +307,49 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             background: "var(--bg-glass, var(--bg-modal-solid))",
             border: "1px solid var(--border)",
             backdropFilter: "blur(16px)",
-            boxShadow: isExpanded
-              ? "0 25px 60px rgba(0, 0, 0, 0.75)"
-              : "0 20px 50px rgba(0, 0, 0, 0.6)",
+            boxShadow: "none",
             overflow: "hidden",
             color: "var(--text, #fff)",
             transition:
-              "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
+              "width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-radius var(--t-spring) var(--ease-spring-smooth)",
           }}
         >
           <div
-            className="update-modal-heading"
+            className="modal__header update-modal-heading"
             onDoubleClick={() => setIsExpanded((prev) => !prev)}
             style={{
-              paddingBlock: isVersionInfo ? "7px" : "10px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 14,
-              borderBottom: "1px solid var(--border)",
+              gap: 12,
               cursor: "default",
               userSelect: "none",
-              flexShrink: 0,
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
               <div
                 style={{
-                  width: 32,
-                  height: 32,
+                  width: 28,
+                  height: 28,
                   boxSizing: "border-box",
-                  borderRadius: "var(--radius-control)",
-                  background: "rgba(var(--accent-rgb, 59, 130, 246), 0.12)",
-                  border: "1px solid var(--border-pill, rgba(var(--accent-rgb, 59, 130, 246), 0.22))",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  background: "transparent",
+                  border: "none",
                   boxShadow: "none",
                   flexShrink: 0,
-                  transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
                 }}
               >
-                <AppLogoIcon size={18} color="var(--accent-text, var(--accent))" />
+                <AppLogoIcon size={20} color="var(--accent-text, var(--accent))" />
               </div>
               <div style={{ minWidth: 0 }}>
                 <h3
                   id="update-modal-title"
-                  style={{
-                    margin: "var(--space-0)",
-                    fontSize: "var(--fs-lg)",
-                    fontWeight: 700,
-                    lineHeight: 1.25,
-                    letterSpacing: "-0.01em",
-                  }}
+                  className="modal__title"
+                  style={{ margin: "var(--space-0)" }}
                 >
                   {titleText}
                 </h3>
                 {subtitleText && (
-                  <p style={{ margin: "1px 0 0", fontSize: "var(--fs-xs)", color: "var(--text-muted, #9ca3af)" }}>
+                  <p style={{ margin: "2px 0 0", fontSize: "var(--fs-xs)", color: "var(--text-muted, #9ca3af)" }}>
                     {subtitleText}
                   </p>
                 )}
@@ -392,13 +377,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           <div
             className="update-modal-content"
             style={{
-              paddingBlock: isExpanded ? "18px 14px" : "16px 14px",
+              paddingBlock: "16px 14px",
               flex: 1,
               overflow: "hidden",
               minHeight: 0,
               display: "flex",
               flexDirection: "column",
-              transition: "padding 0.3s ease",
             }}
           >
             <div
@@ -438,8 +422,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "var(--space-2)",
-                    background: "var(--surface-level-3)",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    background: "transparent",
+                    border: "1px solid transparent",
                     borderRadius: "var(--radius-control, 8px)",
                     padding: "4px 10px",
                     fontSize: "var(--fs-xs)",

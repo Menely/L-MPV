@@ -44,3 +44,11 @@
   font-style: normal;
   font-display: block;
 }
+
+@font-face {
+  font-family: 'Permanent Marker';
+  src: url('../assets/fonts/PermanentMarker-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}

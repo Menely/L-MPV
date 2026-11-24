@@ -1064,8 +1064,16 @@ html.no-animations .color-circle--palette { will-change: auto; }
   font-size: var(--fs-sm);
   color: var(--text-muted);
   flex-shrink: 0;
+  /* Высота равна шапке окна настроек (44px): контент 24px + паддинги 10px. */
+  min-height: 44px;
   /* Внешний контур обрезается родительской панелью с overflow: hidden. */
   border-radius: 0;
+}
+
+/* Шапка окна настроек (Модерн/Классика) той же высоты, что и футер: 44px. */
+.modal--settings .modal__header {
+  padding-block: 10px;
+  min-height: 44px;
 }
 
 .settings-footer__left {
@@ -1079,6 +1087,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
   display: flex;
   align-items: center;
   gap: 1px;
+  flex-shrink: 0;
 }
 
 .settings-footer__icon-btn {
@@ -1091,15 +1100,19 @@ html.no-animations .color-circle--palette { will-change: auto; }
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   transition: color var(--t-fast) var(--ease-smooth),
               background-color var(--t-fast) var(--ease-smooth);
 }
 
 .settings-footer__title {
-  font-weight: 600;
+  font-family: 'Permanent Marker', cursive;
+  font-weight: 400;
   color: var(--text-secondary);
-  font-size: var(--fs-sm);
-  line-height: 1;
+  font-size: calc(var(--fs-sm) + 3px);
+  letter-spacing: 0.01em;
+  /* 18px бокс в строке 24px: центрирование на целых пикселях, без мыльности. */
+  line-height: 1.125;
   display: flex;
   align-items: center;
   user-select: none;
@@ -1129,7 +1142,8 @@ html.no-animations .color-circle--palette { will-change: auto; }
   color: var(--accent-text);
   font-weight: 700;
   background: var(--accent-glass);
-  border-color: var(--border-pill);
+  /* Активная версия подсвечена акцентом, рамки в покое нет — как у кнопок плеера. */
+  border-color: transparent;
   padding: 0 8px;
   gap: var(--space-2);
 }
@@ -1141,8 +1155,8 @@ html.no-animations .color-circle--palette { will-change: auto; }
 
 .settings-footer__btn--check {
   color: var(--text-secondary, #d1d5db);
-  background: var(--surface-level-3);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: transparent;
+  border-color: transparent;
   padding: 0 10px;
   gap: var(--space-3);
 }
@@ -1157,7 +1171,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
   color: var(--accent-text);
   font-weight: 600;
   background: var(--accent-glass, rgba(59, 130, 246, 0.18));
-  border-color: var(--border-pill, rgba(59, 130, 246, 0.35));
+  border-color: transparent;
   padding: 0 10px;
   gap: var(--space-2);
   margin-left: 0;
@@ -1197,7 +1211,8 @@ html.no-animations .color-circle--palette { will-change: auto; }
   border-radius: var(--radius-control, 8px);
   cursor: pointer;
   outline: none;
-  border: 1px solid var(--border-pill, rgba(59, 130, 246, 0.3));
+  /* Активная версия подсвечена акцентом, рамки в покое нет — как у кнопок плеера. */
+  border: 1px solid transparent;
   background: var(--accent-glass, rgba(59, 130, 246, 0.18));
   color: var(--accent-text);
   font-weight: 700;
@@ -1217,7 +1232,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
 .version-picker-trigger--downgrade {
   color: var(--accent-text);
   background: var(--accent-glass, rgba(var(--accent-rgb, 59, 130, 246), 0.18));
-  border-color: var(--border-pill, rgba(var(--accent-rgb, 59, 130, 246), 0.35));
+  border-color: transparent;
 }
 
 .version-picker-trigger--downgrade:hover {
@@ -1247,7 +1262,8 @@ html.no-animations .color-circle--palette { will-change: auto; }
 
 .update-modal-btn--primary {
   background: var(--surface-accent-subtle);
-  border: 1px solid var(--accent);
+  /* Акцентная заливка и так видна — рамки в покое нет, как у кнопок плеера. */
+  border: 1px solid transparent;
   color: var(--accent-text);
 }
 
@@ -1263,8 +1279,8 @@ html.no-animations .color-circle--palette { will-change: auto; }
 }
 
 .update-modal-btn--secondary {
-  background: var(--surface-level-3);
-  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.1));
+  background: transparent;
+  border: 1px solid transparent;
   color: var(--text-secondary, #d1d5db);
 }
 
@@ -2859,8 +2875,8 @@ html.no-animations .color-circle--palette { will-change: auto; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--surface-level-3);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-control);
   padding: 4px 10px;
   font-size: var(--fs-xs, 12px);
@@ -3039,9 +3055,17 @@ html.no-animations .color-circle--palette { will-change: auto; }
   flex-shrink: 0;
   gap: var(--space-2);
 }
+.update-modal-card .update-modal-heading {
+  padding-block: 10px;
+  /* Тень элевации при скролле отключена: под шапкой не должно быть затемнения.
+     (Шапка получила класс modal__header, чья scroll-driven анимация могла
+     подхватывать чужой скролл-контекст, когда окно открыто поверх настроек.) */
+  animation: none !important;
+  box-shadow: none !important;
+}
 .update-modal-card .update-modal-window-actions .modal__close {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
 }
 .update-modal-footer { min-width: 0; flex-wrap: wrap; }
 .update-modal-footer .update-modal-actions { display: flex; align-items: center; justify-content: flex-end; flex: 1 1 auto; min-width: 0; gap: var(--space-4); flex-wrap: wrap; }
