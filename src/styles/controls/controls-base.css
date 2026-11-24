@@ -1012,6 +1012,11 @@ html[data-glow="off"] .timeline__thumb {
   --heatmap-visualizer-offset: 0px;
 }
 
+.player-controls-wrapper--modern {
+  --heatmap-controls-gap: 4px;
+  --heatmap-panel-inset: 9px;
+}
+
 .player-controls-wrapper--docked {
   --heatmap-controls-gap: 4px;
   --heatmap-panel-inset: 9px;
@@ -1020,7 +1025,7 @@ html[data-glow="off"] .timeline__thumb {
 .player-controls-wrapper--capsule {
   --heatmap-controls-gap: 3px;
   --heatmap-timeline-gap: 3px;
-  --heatmap-panel-inset: 6px;
+  --heatmap-panel-inset: 7px;
 }
 
 .player-controls--has-visualizer-above {
@@ -1069,7 +1074,7 @@ html[data-glow="off"] .timeline__thumb {
   bottom: calc(100% + var(--heatmap-strip-height, 34px) + var(--heatmap-panel-inset) + var(--heatmap-controls-gap) + var(--heatmap-visualizer-offset) + 8px);
 }
 .player-controls:has(.waveform-activity-strip--above-timeline.waveform-activity-strip--visible) .timeline-preview-card {
-  bottom: calc(100% + var(--heatmap-strip-height, 34px) + var(--heatmap-timeline-gap) + var(--heatmap-visualizer-offset) + 8px);
+  bottom: calc(100% + var(--heatmap-strip-height, 34px) + var(--heatmap-timeline-gap) + var(--heatmap-panel-inset) + var(--heatmap-visualizer-offset) + 8px);
 }
 .player-controls:has(.waveform-activity-strip--above-controls.waveform-activity-strip--visible) .timeline-floating-time {
   bottom: calc(100% + var(--heatmap-strip-height, 34px) + var(--heatmap-controls-gap) + 8px);

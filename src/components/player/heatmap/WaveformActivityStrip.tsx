@@ -590,7 +590,7 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
         isAboveVisualizer ? "waveform-activity-strip--above-visualizer" : ""
       } ${className}`}
       style={{
-        height: `${heatmapConfig.height || 24}px`,
+        height: `${heatmapConfig.height || 34}px`,
         opacity: isVisible ? heatmapConfig.opacity : 0,
       }}
       onPointerEnter={handlePointerEnter}

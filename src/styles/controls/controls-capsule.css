@@ -72,6 +72,10 @@
   bottom: calc(100% + 15px);
 }
 
+.player-controls--capsule.player-controls--has-visualizer-above .timeline-preview-card {
+  bottom: calc(100% + var(--visualizer-height, 22px) + 17px);
+}
+
 /* Карточка времени — полноценный интерактивный элемент <button> с кликом по всей площади */
 button.controls-island--time,
 .controls-island--time {
