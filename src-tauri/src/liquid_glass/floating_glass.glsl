@@ -365,42 +365,45 @@ vec4 hook() {
 
 //!HOOK OUTPUT
 //!BIND HOOKED
+//!BIND MZG_A
 //!BIND MZG_C
 //!WHEN mzg_on 0.5 lg_capture > *
 //!DESC [ModernZ] glass: composite
 
-// signed distance (in pixels) to a rounded rectangle given in fractions of the video
-float mzg_box(vec2 p, float x, float y, float w, float h, float r) {
+// signed distance (in pixels) to a rounded rectangle given in fractions of the video;
+// half of its shorter side (in pixels) goes to mh so the rim bevel scales cleanly per surface
+float mzg_box(vec2 p, float x, float y, float w, float h, float r, out float mh) {
     vec2 half_size = 0.5 * vec2(w, h) * HOOKED_size;
-    float rad = min(r * HOOKED_size.y, min(half_size.x, half_size.y));
+    mh = min(half_size.x, half_size.y);
+    float rad = min(r * HOOKED_size.y, mh);
     vec2 q = abs(p - (vec2(x, y) * HOOKED_size + half_size)) - half_size + rad;
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - rad;
 }
 
-// distance to the nearest surface; its opacity (it may be fading in or out) goes to a,
-// its frost to f
-float mzg_sdf_a(vec2 p, out float a, out float f) {
-    float d = 1e6, k;
+// distance to the nearest surface; its opacity goes to a, frost to f, min_half to mh
+float mzg_sdf_a(vec2 p, out float a, out float f, out float mh) {
+    float d = 1e6, k, kmh;
     a = 1.0;
     f = 0.0;
-    if (mzg_0w > 0.0) { k = mzg_box(p, mzg_0x, mzg_0y, mzg_0w, mzg_0h, mzg_0r); if (k < d) { d = k; a = mzg_0a; f = mzg_0f; } }
-    if (mzg_1w > 0.0) { k = mzg_box(p, mzg_1x, mzg_1y, mzg_1w, mzg_1h, mzg_1r); if (k < d) { d = k; a = mzg_1a; f = mzg_1f; } }
-    if (mzg_2w > 0.0) { k = mzg_box(p, mzg_2x, mzg_2y, mzg_2w, mzg_2h, mzg_2r); if (k < d) { d = k; a = mzg_2a; f = mzg_2f; } }
-    if (mzg_3w > 0.0) { k = mzg_box(p, mzg_3x, mzg_3y, mzg_3w, mzg_3h, mzg_3r); if (k < d) { d = k; a = mzg_3a; f = mzg_3f; } }
-    if (mzg_4w > 0.0) { k = mzg_box(p, mzg_4x, mzg_4y, mzg_4w, mzg_4h, mzg_4r); if (k < d) { d = k; a = mzg_4a; f = mzg_4f; } }
-    if (mzg_5w > 0.0) { k = mzg_box(p, mzg_5x, mzg_5y, mzg_5w, mzg_5h, mzg_5r); if (k < d) { d = k; a = mzg_5a; f = mzg_5f; } }
-    if (mzg_6w > 0.0) { k = mzg_box(p, mzg_6x, mzg_6y, mzg_6w, mzg_6h, mzg_6r); if (k < d) { d = k; a = mzg_6a; f = mzg_6f; } }
-    if (mzg_7w > 0.0) { k = mzg_box(p, mzg_7x, mzg_7y, mzg_7w, mzg_7h, mzg_7r); if (k < d) { d = k; a = mzg_7a; f = mzg_7f; } }
-    if (mzg_8w > 0.0) { k = mzg_box(p, mzg_8x, mzg_8y, mzg_8w, mzg_8h, mzg_8r); if (k < d) { d = k; a = mzg_8a; f = mzg_8f; } }
-    if (mzg_9w > 0.0) { k = mzg_box(p, mzg_9x, mzg_9y, mzg_9w, mzg_9h, mzg_9r); if (k < d) { d = k; a = mzg_9a; f = mzg_9f; } }
-    if (mzg_10w > 0.0) { k = mzg_box(p, mzg_10x, mzg_10y, mzg_10w, mzg_10h, mzg_10r); if (k < d) { d = k; a = mzg_10a; f = mzg_10f; } }
-    if (mzg_11w > 0.0) { k = mzg_box(p, mzg_11x, mzg_11y, mzg_11w, mzg_11h, mzg_11r); if (k < d) { d = k; a = mzg_11a; f = mzg_11f; } }
+    mh = 32.0;
+    if (mzg_0w > 0.0) { k = mzg_box(p, mzg_0x, mzg_0y, mzg_0w, mzg_0h, mzg_0r, kmh); if (k < d) { d = k; a = mzg_0a; f = mzg_0f; mh = kmh; } }
+    if (mzg_1w > 0.0) { k = mzg_box(p, mzg_1x, mzg_1y, mzg_1w, mzg_1h, mzg_1r, kmh); if (k < d) { d = k; a = mzg_1a; f = mzg_1f; mh = kmh; } }
+    if (mzg_2w > 0.0) { k = mzg_box(p, mzg_2x, mzg_2y, mzg_2w, mzg_2h, mzg_2r, kmh); if (k < d) { d = k; a = mzg_2a; f = mzg_2f; mh = kmh; } }
+    if (mzg_3w > 0.0) { k = mzg_box(p, mzg_3x, mzg_3y, mzg_3w, mzg_3h, mzg_3r, kmh); if (k < d) { d = k; a = mzg_3a; f = mzg_3f; mh = kmh; } }
+    if (mzg_4w > 0.0) { k = mzg_box(p, mzg_4x, mzg_4y, mzg_4w, mzg_4h, mzg_4r, kmh); if (k < d) { d = k; a = mzg_4a; f = mzg_4f; mh = kmh; } }
+    if (mzg_5w > 0.0) { k = mzg_box(p, mzg_5x, mzg_5y, mzg_5w, mzg_5h, mzg_5r, kmh); if (k < d) { d = k; a = mzg_5a; f = mzg_5f; mh = kmh; } }
+    if (mzg_6w > 0.0) { k = mzg_box(p, mzg_6x, mzg_6y, mzg_6w, mzg_6h, mzg_6r, kmh); if (k < d) { d = k; a = mzg_6a; f = mzg_6f; mh = kmh; } }
+    if (mzg_7w > 0.0) { k = mzg_box(p, mzg_7x, mzg_7y, mzg_7w, mzg_7h, mzg_7r, kmh); if (k < d) { d = k; a = mzg_7a; f = mzg_7f; mh = kmh; } }
+    if (mzg_8w > 0.0) { k = mzg_box(p, mzg_8x, mzg_8y, mzg_8w, mzg_8h, mzg_8r, kmh); if (k < d) { d = k; a = mzg_8a; f = mzg_8f; mh = kmh; } }
+    if (mzg_9w > 0.0) { k = mzg_box(p, mzg_9x, mzg_9y, mzg_9w, mzg_9h, mzg_9r, kmh); if (k < d) { d = k; a = mzg_9a; f = mzg_9f; mh = kmh; } }
+    if (mzg_10w > 0.0) { k = mzg_box(p, mzg_10x, mzg_10y, mzg_10w, mzg_10h, mzg_10r, kmh); if (k < d) { d = k; a = mzg_10a; f = mzg_10f; mh = kmh; } }
+    if (mzg_11w > 0.0) { k = mzg_box(p, mzg_11x, mzg_11y, mzg_11w, mzg_11h, mzg_11r, kmh); if (k < d) { d = k; a = mzg_11a; f = mzg_11f; mh = kmh; } }
     return d;
 }
 
 float mzg_sdf(vec2 p) {
-    float a, f;
-    return mzg_sdf_a(p, a, f);
+    float a, f, mh;
+    return mzg_sdf_a(p, a, f, mh);
 }
 
 vec4 hook() {
@@ -408,16 +411,16 @@ vec4 hook() {
     vec4 c = HOOKED_tex(HOOKED_pos);
     vec2 p = HOOKED_pos * HOOKED_size;
     float u = max(mzg_unit * HOOKED_size.y, 0.25); // pixels per layout unit
-    float alpha, frost;
-    float d = mzg_sdf_a(p, alpha, frost);
+    float alpha, frost, min_half;
+    float d = mzg_sdf_a(p, alpha, frost, min_half);
     if (d > 48.0 * u)
         return c;
 
     if (d > 0.0) {
-        // the shadow the glass casts: wide, soft, and a little deeper over bright pictures
+        // soft ambient shadow cast beneath the glass, slightly deeper on bright scenes
         if (mzg_shadow > 0.0) {
-            float sa, sf;
-            float ds = max(mzg_sdf_a(p - vec2(0.0, 8.0 * u), sa, sf), 0.0) / (18.0 * u);
+            float sa, sf, smh;
+            float ds = max(mzg_sdf_a(p - vec2(0.0, 8.0 * u), sa, sf, smh), 0.0) / (18.0 * u);
             float under = dot(MZG_C_tex(HOOKED_pos).rgb, luma);
             float k = mzg_shadow * sa * mix(0.05, 0.13, smoothstep(0.15, 0.85, under));
             c.rgb *= 1.0 - k * exp(-0.5 * ds * ds);
@@ -431,57 +434,82 @@ vec4 hook() {
     vec2 n = vec2(mzg_sdf(p + nx.xy) - mzg_sdf(p - nx.xy), mzg_sdf(p + nx.yx) - mzg_sdf(p - nx.yx));
     n = dot(n, n) > 1e-8 ? normalize(n) : vec2(0.0, -1.0);
 
-    // Apple Liquid Glass rim lens: deep curved refraction with subtle RGB dispersion
-    // along the bevel, fading smoothly into the frosted interior.
-    float e = clamp(1.0 + min(d, 0.0) / (32.0 * u), 0.0, 1.0); // 1 at the edge, 0 inside
-    float slope = e / sqrt(max(1.0 - e * e, 0.04));
-    float bend = alpha * mzg_lens * u * (22.0 * pow(e, 1.6) + 6.0 * slope);
-    vec2 q = clamp((p - n * bend) / HOOKED_size, vec2(0.0), vec2(1.0));
+    // Telegram Android (liquid_glass_shader.agsl) 3D spherical bevel normal + Snell's law refraction:
+    // n_cos is 1.0 at the outer rim (d = 0) and 0.0 at depth -thickness inside the glass.
+    // The ray travels through (h + 8 * thickness) to the backdrop plane, creating a distinct,
+    // physical lens wrap around the edges and corners while keeping the center flat.
+    float thickness = min(min_half * 0.72, 22.0 * u);
+    float n_cos = clamp((thickness + d) / max(thickness, 1.0), 0.0, 1.0);
+    float n_cos2 = n_cos * n_cos;
+    float n_sin = sqrt(max(1.0 - n_cos2, 0.02));
+    vec3 normal = normalize(vec3(n * n_cos, n_sin));
 
-    float chroma = alpha * mzg_lens * 2.2 * u * e * e;
-    vec2 qR = clamp((p - n * (bend + chroma)) / HOOKED_size, vec2(0.0), vec2(1.0));
-    vec2 qB = clamp((p - n * max(bend - chroma, 0.0)) / HOOKED_size, vec2(0.0), vec2(1.0));
+    vec3 refract_vec = refract(vec3(0.0, 0.0, -1.0), normal, 1.0 / 1.52);
+    float h = d < -thickness ? thickness : sqrt(max(d * (-2.0 * thickness - d), 0.0));
+    float refract_length = (h + 8.0 * thickness) / max(-refract_vec.z, 0.16);
+    vec2 disp_vec = refract_vec.xy * refract_length * (0.50 * mzg_lens);
 
-    vec3 g = vec3(MZG_C_tex(qR).r, MZG_C_tex(q).g, MZG_C_tex(qB).b);
-    // popovers are regular glass, frostier than clear controls: a ring of taps widens the blur
+    vec2 q = clamp((p + disp_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
+
+    // Vector chromatic dispersion along the refracted ray on the outer bevel
+    vec2 chroma_vec = disp_vec * (0.085 * n_cos);
+    vec2 qR = clamp((p + disp_vec + chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
+    vec2 qB = clamp((p + disp_vec - chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
+
+    // Interior frosted pass (MZG_C)
+    vec3 blur_g = vec3(MZG_C_tex(qR).r, MZG_C_tex(q).g, MZG_C_tex(qB).b);
     if (frost > 0.0) {
         vec3 ring = vec3(0.0);
         for (int i = 0; i < 8; i++) {
             float an = 0.7854 * float(i) + 0.3927;
             ring += MZG_C_tex(q + vec2(cos(an), sin(an)) * 4.5 * MZG_C_pt).rgb;
         }
-        g = mix(g, (g + ring) / 9.0, frost);
+        blur_g = mix(blur_g, (blur_g + ring) / 9.0, clamp(frost, 0.0, 1.0));
     }
 
-    // Keep the refracted bevel crisp enough to read the curved background distortion,
-    // while honoring the user's blur slider across the body of the glass.
-    vec2 tang = vec2(-n.y, n.x) * (1.25 * u / HOOKED_size);
-    vec3 refracted = vec3(
-        (HOOKED_tex(qR).r + HOOKED_tex(clamp(qR + tang, vec2(0.0), vec2(1.0))).r + HOOKED_tex(clamp(qR - tang, vec2(0.0), vec2(1.0))).r) / 3.0,
-        (HOOKED_tex(q).g + HOOKED_tex(clamp(q + tang, vec2(0.0), vec2(1.0))).g + HOOKED_tex(clamp(q - tang, vec2(0.0), vec2(1.0))).g) / 3.0,
-        (HOOKED_tex(qB).b + HOOKED_tex(clamp(qB + tang, vec2(0.0), vec2(1.0))).b + HOOKED_tex(clamp(qB - tang, vec2(0.0), vec2(1.0))).b) / 3.0
-    );
-    float clear = 1.0 - clamp(lg_blur, 0.0, 1.0);
-    float body_frost = 1.0 - clear * clear;
-    float rim_clarity = smoothstep(0.22, 0.94, e) * alpha * mzg_lens;
-    float local_frost = mix(body_frost, body_frost * 0.16, rim_clarity);
-    g = mix(refracted, g, local_frost);
+    // Telegram Android sampleBackdrop() 5-tap pre-filtered lens pass over MZG_A (~1.25dp radius):
+    // preserves crisp bending contours of background objects in the bevel without 1px raw aliasing.
+    vec2 a_pt = 1.25 * MZG_A_pt;
+    vec3 lens_r = MZG_A_tex(qR).rgb * 0.36
+                + (MZG_A_tex(qR + vec2(a_pt.x, 0.0)).rgb + MZG_A_tex(qR - vec2(a_pt.x, 0.0)).rgb
+                 + MZG_A_tex(qR + vec2(0.0, a_pt.y)).rgb + MZG_A_tex(qR - vec2(0.0, a_pt.y)).rgb) * 0.16;
+    vec3 lens_g = MZG_A_tex(q).rgb * 0.36
+                + (MZG_A_tex(q + vec2(a_pt.x, 0.0)).rgb + MZG_A_tex(q - vec2(a_pt.x, 0.0)).rgb
+                 + MZG_A_tex(q + vec2(0.0, a_pt.y)).rgb + MZG_A_tex(q - vec2(0.0, a_pt.y)).rgb) * 0.16;
+    vec3 lens_b = MZG_A_tex(qB).rgb * 0.36
+                + (MZG_A_tex(qB + vec2(a_pt.x, 0.0)).rgb + MZG_A_tex(qB - vec2(a_pt.x, 0.0)).rgb
+                 + MZG_A_tex(qB + vec2(0.0, a_pt.y)).rgb + MZG_A_tex(qB - vec2(0.0, a_pt.y)).rgb) * 0.16;
+    vec3 clear_bevel = vec3(lens_r.r, lens_g.g, lens_b.b);
 
-    // vibrancy
+    // The curved rim stays optically refractive and clear so the warped contours read distinctly,
+    // while the flat interior honors the user's blur slider (80% default frosted glass).
+    float user_blur = clamp(lg_blur, 0.0, 1.0);
+    float bevel_clarity = smoothstep(0.04, 0.72, n_cos) * mzg_lens * (1.0 - 0.35 * clamp(frost, 0.0, 1.0));
+    float local_blur = mix(user_blur, user_blur * 0.18, bevel_clarity);
+    vec3 raw_clear = vec3(HOOKED_tex(qR).r, HOOKED_tex(q).g, HOOKED_tex(qB).b);
+    vec3 base_clear = mix(raw_clear, clear_bevel, smoothstep(0.0, 0.35, user_blur));
+    vec3 g = mix(base_clear, blur_g, local_blur);
+
+    // vibrancy: keep underlying colors luminous like physical crystal
     float l = dot(g, luma);
-    g = clamp(mix(vec3(l), g, 1.38), 0.0, 1.0);
+    g = clamp(mix(vec3(l), g, 1.36), 0.0, 1.0);
 
-    // legibility: darken bright scenes slightly while lifting deep blacks
+    // adaptive legibility for pure white icons and text over bright scenes
     vec2 o = 10.0 * MZG_C_pt;
     float under = dot(MZG_C_tex(q).rgb + MZG_C_tex(q + vec2(o.x, 0.0)).rgb + MZG_C_tex(q - vec2(o.x, 0.0)).rgb
                       + MZG_C_tex(q + vec2(0.0, o.y)).rgb + MZG_C_tex(q - vec2(0.0, o.y)).rgb, luma) / 5.0;
-    g = g * (1.0 - mzg_tone * 0.45 * smoothstep(0.30, 1.0, under)) + mzg_tone * 0.03 * (1.0 - under);
+    g = g * (1.0 - mzg_tone * 0.44 * smoothstep(0.30, 1.0, under)) + mzg_tone * 0.03 * (1.0 - under);
 
-    // subtle specular rim highlight + soft inner bevel glow
-    float f = dot(n, vec2(-0.6, -0.8));
-    float lit = 0.22 + 0.78 * max(f, 0.0) * max(f, 0.0) + 0.42 * max(-f, 0.0) * max(-f, 0.0);
-    float line = exp(-2.8 * (d + 0.65) * (d + 0.65));
-    g += alpha * mzg_lens * lit * (0.20 * line + 0.07 * pow(e, 2.5));
+    // subtle inner rim depth attenuation so edges hold crisply over bright video
+    g *= 1.0 - mzg_lens * 0.10 * n_cos2;
+
+    // dual-lobe diagonal specular rim highlight (Apple / Telegram GlassBackground style)
+    float f = dot(n, normalize(vec2(-0.6, -0.8)));
+    float fp = max(f, 0.0);
+    float fn = max(-f, 0.0);
+    float lit = 0.16 + 0.84 * (fp * fp) + 0.48 * (fn * fn);
+    float line = exp(-3.2 * (d + 0.55) * (d + 0.55));
+    g += mzg_lens * lit * (0.26 * line + 0.06 * (n_cos2 * n_cos));
 
     float m = clamp(0.5 - d, 0.0, 1.0) * mzg_strength * alpha;
     return vec4(mix(c.rgb, g, m), c.a);

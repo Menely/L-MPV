@@ -1400,7 +1400,12 @@ function App() {
         {!hasMedia && <EmptyScreen />}
       </div>
 
-      <LiquidGlassSync enabled={hasMedia && playerTheme === "glass"} visible={isControlsVisible} />
+      <LiquidGlassSync
+        enabled={hasMedia && playerTheme === "glass"}
+        visible={isControlsVisible}
+        videoReady={Boolean(mediaInfo?.video_ready)}
+        mediaPath={mediaInfo?.path ?? ""}
+      />
       {hasMedia && (
         <PlayerControls
           controlsVisible={isControlsVisible}

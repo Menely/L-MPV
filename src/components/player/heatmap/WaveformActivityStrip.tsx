@@ -19,6 +19,7 @@ import { usePlayerState, usePlayerProgress } from "../../../contexts/PlayerState
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { createHeatmapDisplayCache } from "./heatmapDisplay";
 import { getVisualizerConfig } from "../AudioVisualizer";
+import { notifyLiquidGlassSync } from "../../../features/liquidGlass/LiquidGlassSync";
 import {
   timelineScrubSync,
   TimelineScrubState,
@@ -567,6 +568,15 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
     window.dispatchEvent(new Event("l-mpv-timeline-layout-changed"));
     return () => { window.dispatchEvent(new Event("l-mpv-timeline-layout-changed")); };
   }, [heatmapConfig.enabled, isVisible, isAboveTimeline, isAboveVisualizer]);
+
+  const badgeVisible = Boolean(hoverMetrics && hoverRatio !== null);
+  useLayoutEffect(() => {
+    if (!badgeVisible) return;
+    notifyLiquidGlassSync();
+    return () => {
+      queueMicrotask(notifyLiquidGlassSync);
+    };
+  }, [badgeVisible, hoverRatio]);
 
   if (!heatmapConfig.enabled) {
     return null;

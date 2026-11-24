@@ -40,10 +40,6 @@ html[data-interface-theme="glass"] .app-container--hide-controls .player-control
   transition: opacity var(--t-idle-hide) var(--ease-smooth) !important;
 }
 
-html[data-interface-theme="glass"] .player-controls-wrapper .motion-surface {
-  --surface-y: 0px !important;
-}
-
 /* ─── Чистые белые элементы управления, таймлайн, поповеры и превью ─── */
 html[data-interface-theme="glass"] .player-controls-wrapper .control-btn,
 html[data-interface-theme="glass"] .player-controls-wrapper .control-btn__label,
@@ -160,23 +156,26 @@ html[data-interface-theme="glass"] .player-controls-wrapper .controls-overflow__
   color: #ffffff;
 }
 
-/* Превью таймлайна и бейдж тепловой карты рисуются целиком в одном слое WebView2
-   (как в ModernGlass-main: "the preview is content, not glass"), чтобы не отставать от кадра при движении */
-html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card,
-html[data-interface-theme="glass"] .player-controls-wrapper .waveform-activity-strip__badge {
-  background: rgba(16, 18, 24, 0.38) !important;
-  border: 1px solid rgba(255, 255, 255, 0.20) !important;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45) !important;
+/* Карточка превью таймлайна в Liquid Glass: как в теме L-MPV, вокруг самого кадра
+   нет никаких рамок/отступов, а Liquid Glass располагается только снизу под временем и главой */
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card.timeline-preview-card--with-frame {
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card--with-frame .timeline-preview-card__frame {
+  border-radius: var(--radius-controls, 14px) var(--radius-controls, 14px) 0 0 !important;
 }
 
 html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card--with-frame .timeline-preview-card__info {
   background: transparent !important;
-  border-top-color: rgba(255, 255, 255, 0.14);
+  border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+  padding: 6px 12px 7px;
 }
 
 html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card__time,
 html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-card__chapter {
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.72);
 }
 
 /* Прозрачный фон аудио-визуализатора во всех видах панели Liquid Glass */
@@ -203,6 +202,8 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-cont
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-island--timeline,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-island--time,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .time-display--floating-center,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .timeline-preview-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .waveform-activity-strip__badge,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover:not(.track-popover--capsule),
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__heading,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,
@@ -234,6 +235,8 @@ html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playe
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-island--timeline,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-island--time,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .time-display--floating-center,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .timeline-preview-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .waveform-activity-strip__badge,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover:not(.track-popover--capsule),
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__heading,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,

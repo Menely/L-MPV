@@ -669,7 +669,7 @@ export function PlayerControls({
   const renderTrackPopovers = () => (
     <AnimatePresence custom={immediateExit} onExitComplete={onExitComplete}>
       {(activePopover === "audio" || activePopover === "sub") && <TrackPopovers
-        key="tracks"
+        key={activePopover}
         displayedPopover={activePopover}
         popoverRef={popoverRef}
         activeTrackItemRef={activeTrackItemRef}

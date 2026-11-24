@@ -1,8 +1,13 @@
 import { forwardRef, useEffect, useRef } from "react";
 import { useAnimationControls, usePresence, usePresenceData, type HTMLMotionProps } from "motion/react";
 import * as m from "motion/react-m";
-import { surfacePose, surfaceTransition, type MotionSurfaceKind } from "./motionPresets";
+import { motionPresets, surfacePose, surfaceTransition, type MotionSurfaceKind } from "./motionPresets";
 import { useMotionAllowed } from "./useMotionAllowed";
+import { notifyLiquidGlassAnimation } from "../../features/liquidGlass/LiquidGlassSync";
+
+function motionPresetsDuration(kind: MotionSurfaceKind, phase: "enter" | "exit"): number {
+  return motionPresets[kind][phase];
+}
 
 type MotionSurfaceProps = Omit<HTMLMotionProps<"div">, "initial" | "animate" | "exit" | "transition"> & {
   kind: MotionSurfaceKind;
@@ -28,12 +33,14 @@ export const MotionSurface = forwardRef<HTMLDivElement, MotionSurfaceProps>(func
     if (present && !ready) return;
     let cancelled = false;
     const phase = present ? "enter" : "exit";
+    notifyLiquidGlassAnimation(Math.round((motionPresetsDuration(kind, phase) + 0.08) * 1000));
     // Restart from the current visual value when interrupted, including policy changes.
     const animation = controls.start({
       ...surfacePose(kind, present ? "visible" : "exit", allowed && !immediateExit),
       transition: surfaceTransition(kind, phase, allowed && ready && (present || !immediateExit)),
     });
     void animation.then(() => {
+      notifyLiquidGlassAnimation(48);
       if (!cancelled && !present) removeRef.current?.();
     });
     return () => {

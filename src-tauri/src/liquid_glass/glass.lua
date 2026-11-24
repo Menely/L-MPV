@@ -15,7 +15,7 @@ function Glass.new(directory)
     local material = {}
 
     local function send(...)
-        mp.command_native_async({ "change-list", ... }, function() end)
+        mp.commandv("change-list", ...)
     end
 
     local function is_supported()
@@ -99,7 +99,7 @@ function Glass.new(directory)
                 local nh = sh / vh
                 local nr = sr / vh
                 local na = math.max(0, math.min(1, tonumber(rect.a) or 1))
-                local nf = (tonumber(rect.f) or 0) > 0 and 1 or 0
+                local nf = math.max(0, math.min(1, tonumber(rect.f) or 0))
                 if na > 0.005 and nx < 1 and ny < 1 and nx + nw > 0 and ny + nh > 0 then
                     overlaps = true
                     kv[prefix .. "x"] = string.format("%.5f", nx)
@@ -108,7 +108,7 @@ function Glass.new(directory)
                     kv[prefix .. "h"] = string.format("%.5f", nh)
                     kv[prefix .. "r"] = string.format("%.5f", nr)
                     kv[prefix .. "a"] = string.format("%.2f", na)
-                    kv[prefix .. "f"] = tostring(nf)
+                    kv[prefix .. "f"] = string.format("%.2f", nf)
                 else
                     kv[prefix .. "w"] = "0"
                 end

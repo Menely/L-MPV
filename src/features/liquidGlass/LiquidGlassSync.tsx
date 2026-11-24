@@ -24,14 +24,36 @@ interface Props {
   enabled: boolean;
   /** Панель управления в данный момент должна отображаться (не idle). */
   visible: boolean;
+  /** Готов ли видеовыход mpv (триггерит повторную синхронизацию сразу после открытия файла). */
+  videoReady?: boolean;
+  /** Путь к текущему медиафайлу. */
+  mediaPath?: string;
 }
 
 const MAX_SLOTS = 12;
-const ANIMATION_TRACK_MS = T_PANEL_MS + CLOSE_BUFFER_MS + 80;
+const ANIMATION_TRACK_MS = T_PANEL_MS + CLOSE_BUFFER_MS + 120;
 
 let pendingOptions: object | null = null;
 let pendingCallback: ((res: LiquidGlassConfigureResult) => void) | null = null;
 let sending = false;
+let immediateFlushCallback: (() => void) | null = null;
+let animationFlushCallback: ((durationMs?: number) => void) | null = null;
+
+/**
+ * Немедленно синхронизирует координаты стеклянных поверхностей с mpv
+ * (используется при быстром перемещении карточки предпросмотра таймлайна).
+ */
+export function notifyLiquidGlassSync() {
+  immediateFlushCallback?.();
+}
+
+/**
+ * Запускает покадровое отслеживание геометрии и прозрачности на время JS/WAAPI-анимации
+ * (используется компонентом MotionSurface при открытии и закрытии поповеров дорожек).
+ */
+export function notifyLiquidGlassAnimation(durationMs = 280) {
+  animationFlushCallback?.(durationMs);
+}
 
 function dispatchGlassConfig(
   options: object,
@@ -115,6 +137,56 @@ function collectElementSurface(
   return surface;
 }
 
+function collectPreviewCardSurface(
+  cardEl: Element | null,
+  root: HTMLElement,
+  frost: number,
+): SurfaceRect | null {
+  if (!(cardEl instanceof HTMLElement)) return null;
+  if (!cardEl.classList.contains("timeline-preview-card--with-frame")) {
+    return collectElementSurface(cardEl, root, frost);
+  }
+  const cardStyle = getComputedStyle(cardEl);
+  if (cardStyle.display === "none" || cardStyle.visibility === "hidden") return null;
+
+  const infoEl = cardEl.querySelector<HTMLElement>(".timeline-preview-card__info");
+  if (!infoEl) return collectElementSurface(cardEl, root, frost);
+
+  const cardRect = cardEl.getBoundingClientRect();
+  const infoRect = infoEl.getBoundingClientRect();
+  if (infoRect.width <= 1 || infoRect.height <= 1) return null;
+
+  const opacity = measureEffectiveOpacity(cardEl, root);
+  if (opacity <= 0.005) return null;
+
+  const vw = Math.max(1, window.innerWidth);
+  const vh = Math.max(1, window.innerHeight);
+  const zoomScale = cardEl.offsetWidth > 0 ? cardRect.width / cardEl.offsetWidth : 1;
+  const rawRadius = parseFloat(cardStyle.borderBottomLeftRadius) || parseFloat(cardStyle.borderTopLeftRadius) || 0;
+  const radiusPx = Math.min(rawRadius * zoomScale, infoRect.width / 2);
+
+  // Стекло располагается только под нижней плашкой информации, а его верхняя кромка
+  // и верхняя фаска преломления полностью прячутся под непрозрачным кадром миниатюры,
+  // чтобы вокруг самого кадра ничего не рисовалось, а нижняя панель стыковалась без шва.
+  const frameHeight = Math.max(0, infoRect.top - cardRect.top);
+  const overlapPx = Math.min(
+    Math.max(0, frameHeight - 6),
+    Math.max(radiusPx + 38 * zoomScale, infoRect.height + 16),
+  );
+  const topPx = infoRect.top - overlapPx;
+  const heightPx = infoRect.height + overlapPx;
+
+  return {
+    x: Number((infoRect.left / vw).toFixed(5)),
+    y: Number((topPx / vh).toFixed(5)),
+    w: Number((infoRect.width / vw).toFixed(5)),
+    h: Number((heightPx / vh).toFixed(5)),
+    r: Number(Math.min(radiusPx, heightPx / 2).toFixed(2)),
+    a: Number(Math.min(1, Math.max(0, opacity)).toFixed(3)),
+    f: frost,
+  };
+}
+
 function collectGlassSurfaces(wrapper: HTMLElement): SurfaceRect[] {
   const wrapperStyle = getComputedStyle(wrapper);
   if (wrapperStyle.display === "none" || wrapperStyle.visibility === "hidden") return [];
@@ -141,6 +213,11 @@ function collectGlassSurfaces(wrapper: HTMLElement): SurfaceRect[] {
   }
 
   push(wrapper.querySelector(".time-display--floating-center"), 0);
+  if (surfaces.length < MAX_SLOTS) {
+    const previewSurface = collectPreviewCardSurface(wrapper.querySelector(".timeline-preview-card"), wrapper, 0.65);
+    if (previewSurface) surfaces.push(previewSurface);
+  }
+  push(wrapper.querySelector(".waveform-activity-strip__badge"), 0.65);
 
   const trackPopover = wrapper.querySelector(".track-popover");
   if (trackPopover instanceof HTMLElement) {
@@ -163,7 +240,7 @@ function collectGlassSurfaces(wrapper: HTMLElement): SurfaceRect[] {
  * Синхронизирует геометрию статичных и поповерных React-элементов панели
  * с GLSL-шейдером размытия Liquid Glass в mpv.
  */
-export function LiquidGlassSync({ enabled, visible }: Props) {
+export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPath = "" }: Props) {
   const animateUntilRef = useRef(0);
 
   useEffect(() => {
@@ -179,6 +256,7 @@ export function LiquidGlassSync({ enabled, visible }: Props) {
     let disposed = false;
     let rafId = 0;
     let retryTimer = 0;
+    let unsupportedRetries = 0;
     let lastSignature = "";
 
     const flush = () => {
@@ -202,6 +280,16 @@ export function LiquidGlassSync({ enabled, visible }: Props) {
             retryTimer = window.setTimeout(() => scheduleFrame(140), 50);
           } else {
             root.setAttribute("data-liquid-glass-active", res.supported ? "true" : "false");
+            if (!res.supported && unsupportedRetries < 40) {
+              // При старте видео mpv создаёт gpu-next и video-out-params асинхронно;
+              // продолжаем опрос до готовности VO, чтобы стекло включалось сразу без ресайза окна.
+              unsupportedRetries += 1;
+              lastSignature = "";
+              window.clearTimeout(retryTimer);
+              retryTimer = window.setTimeout(() => scheduleFrame(120), 80);
+            } else if (res.supported) {
+              unsupportedRetries = 0;
+            }
           }
         });
       }
@@ -226,9 +314,28 @@ export function LiquidGlassSync({ enabled, visible }: Props) {
       }
     };
 
+    const syncNow = () => {
+      if (disposed) return;
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
+      flush();
+      if (performance.now() < animateUntilRef.current && !rafId) {
+        rafId = window.requestAnimationFrame(tick);
+      }
+    };
+    immediateFlushCallback = syncNow;
+    animationFlushCallback = (durationMs = ANIMATION_TRACK_MS) => {
+      scheduleFrame(durationMs);
+    };
+
     const handleTransition = () => scheduleFrame(ANIMATION_TRACK_MS);
-    const handleTransitionEnd = () => scheduleFrame(32);
-    const handleSettings = () => scheduleFrame(ANIMATION_TRACK_MS);
+    const handleTransitionEnd = () => scheduleFrame(48);
+    const handleSettings = () => {
+      lastSignature = "";
+      scheduleFrame(ANIMATION_TRACK_MS);
+    };
 
     const wrapper = document.querySelector<HTMLElement>(".player-controls-wrapper");
     const appContainer = document.querySelector<HTMLElement>(".app-container");
@@ -244,23 +351,15 @@ export function LiquidGlassSync({ enabled, visible }: Props) {
       wrapper.addEventListener("animationend", handleTransitionEnd);
     }
 
-    const mutationObserver = new MutationObserver((records) => {
-      const hasRelevantChange = records.some((record) => {
-        if (record.target instanceof Element && record.target.closest(".timeline-preview-card, .waveform-activity-strip__badge")) {
-          return false;
-        }
-        return true;
-      });
-      if (hasRelevantChange) {
-        scheduleFrame(ANIMATION_TRACK_MS);
-      }
+    const mutationObserver = new MutationObserver(() => {
+      scheduleFrame(ANIMATION_TRACK_MS);
     });
     if (wrapper) {
       mutationObserver.observe(wrapper, {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ["class", "style", "data-motion-surface"],
+        attributeFilter: ["class", "style", "data-motion-surface", "inert", "aria-hidden"],
       });
     }
 
@@ -279,6 +378,10 @@ export function LiquidGlassSync({ enabled, visible }: Props) {
 
     return () => {
       disposed = true;
+      if (immediateFlushCallback === syncNow) {
+        immediateFlushCallback = null;
+      }
+      animationFlushCallback = null;
       window.cancelAnimationFrame(rafId);
       window.clearTimeout(retryTimer);
       resizeObserver.disconnect();
@@ -296,7 +399,7 @@ export function LiquidGlassSync({ enabled, visible }: Props) {
       window.removeEventListener("l-mpv-ui-radius-changed", handleSettings);
       window.removeEventListener("l-mpv-timeline-layout-changed", handleSettings);
     };
-  }, [enabled, visible]);
+  }, [enabled, visible, videoReady, mediaPath]);
 
   return null;
 }
