@@ -1,12 +1,43 @@
-local mp = require "mp"
-local utils = require "mp.utils"
+local mp = require("mp")
+local utils = require("mp.utils")
+
+local math_max = math.max
+local math_min = math.min
+local string_format = string.format
+local table_concat = table.concat
+local tonumber = tonumber
+local type = type
+
+---@class GlassSurfaceRect
+---@field x number
+---@field y number
+---@field w number
+---@field h number
+---@field r number|nil
+---@field a number|nil
+---@field f number|nil
+---@field dockedBottom boolean|nil
+
+---@class GlassMaterial
+---@field clear fun()
+---@field update fun(dimensions: table|nil, surfaces: GlassSurfaceRect[]|nil, viewport_h: number|nil, blur: number|nil): boolean
+---@field shutdown fun()
 
 local Glass = {}
 local STATUS = "user-data/lmpv-liquid-glass"
 local SUPPORTED = "user-data/lmpv-liquid-glass-supported"
-local MAX_SLOTS = 16
+local MAX_SLOTS = 24
 local REDRAW_OVERLAY_ID = 63
 
+local function noop() end
+
+local SLOT_PREFIXES = {}
+for slot = 0, MAX_SLOTS - 1 do
+    SLOT_PREFIXES[slot] = "mzg_" .. slot
+end
+
+---@param directory string
+---@return GlassMaterial
 function Glass.new(directory)
     local shader = utils.join_path(directory, "floating_glass.glsl")
     local loaded = false
@@ -14,10 +45,11 @@ function Glass.new(directory)
     local last_sig = nil
     local unload_timer = nil
     local redraw_toggle = false
+    ---@type GlassMaterial
     local material = {}
 
     local function send(...)
-        mp.command_native_async({"change-list", ...}, function() end)
+        mp.command_native_async({ "change-list", ... }, noop)
     end
 
     -- Невидимый 0-пиксельный ASS-вызов будит vo=gpu-next сразу после обновления glsl-shader-opts,
@@ -32,7 +64,7 @@ function Glass.new(directory)
             id = REDRAW_OVERLAY_ID,
             format = "ass-events",
             data = data,
-        }, function() end)
+        }, noop)
     end
 
     local function clear_redraw_overlay()
@@ -41,9 +73,10 @@ function Glass.new(directory)
             id = REDRAW_OVERLAY_ID,
             format = "none",
             data = "",
-        }, function() end)
+        }, noop)
     end
 
+    ---@return boolean
     local function is_supported()
         if mp.get_property("current-vo") ~= "gpu-next" then
             return false
@@ -78,6 +111,11 @@ function Glass.new(directory)
         end
     end
 
+    ---@param dimensions table|nil
+    ---@param surfaces GlassSurfaceRect[]|nil
+    ---@param viewport_h number|nil
+    ---@param blur number|nil
+    ---@return boolean
     function material.update(dimensions, surfaces, viewport_h, blur)
         local supported = is_supported()
         mp.set_property_native(SUPPORTED, supported)
@@ -97,26 +135,27 @@ function Glass.new(directory)
 
         local list = type(surfaces) == "table" and surfaces or {}
         local sy = (viewport_h and viewport_h > 0) and (H / viewport_h) or 1
-        local kv = {
-            mzg_on = "1",
-            mzg_strength = "1.0",
-            mzg_lens = "1",
-            mzg_shadow = "1",
-            mzg_tone = "1",
-            lg_blur = string.format("%.2f", math.max(0, math.min(100, blur or 80)) / 100),
-            mzg_unit = string.format("%.6f", sy / vh),
+        local parts = {
+            string_format("lg_blur=%.2f", math_max(0, math_min(100, blur or 80)) / 100),
+            "mzg_lens=1",
+            "mzg_on=1",
+            "mzg_shadow=1",
+            "mzg_strength=1.0",
+            "mzg_tone=1",
+            string_format("mzg_unit=%.6f", sy / vh),
         }
+        local n_parts = 7
 
         local overlaps = false
         for slot = 0, MAX_SLOTS - 1 do
             local rect = list[slot + 1]
-            local prefix = "mzg_" .. slot
+            local prefix = SLOT_PREFIXES[slot]
             if rect and rect.w and rect.h and rect.w > 0 and rect.h > 0 then
                 local sx = rect.x * W
                 local sy_px = rect.y * H
                 local sw = rect.w * W
                 local sh = rect.h * H
-                local sr = math.max(0, tonumber(rect.r) or 0) * sy
+                local sr = math_max(0, tonumber(rect.r) or 0) * sy
                 if rect.dockedBottom and sr > 0 then
                     sh = sh + sr
                 end
@@ -125,22 +164,22 @@ function Glass.new(directory)
                 local nw = sw / vw
                 local nh = sh / vh
                 local nr = sr / vh
-                local na = math.max(0, math.min(1, tonumber(rect.a) or 1))
-                local nf = math.max(0, math.min(1, tonumber(rect.f) or 0))
+                local na = math_max(0, math_min(1, tonumber(rect.a) or 1))
+                local nf = math_max(0, math_min(1, tonumber(rect.f) or 0))
                 if na > 0.005 and nx < 1 and ny < 1 and nx + nw > 0 and ny + nh > 0 then
                     overlaps = true
-                    kv[prefix .. "x"] = string.format("%.5f", nx)
-                    kv[prefix .. "y"] = string.format("%.5f", ny)
-                    kv[prefix .. "w"] = string.format("%.5f", nw)
-                    kv[prefix .. "h"] = string.format("%.5f", nh)
-                    kv[prefix .. "r"] = string.format("%.5f", nr)
-                    kv[prefix .. "a"] = string.format("%.2f", na)
-                    kv[prefix .. "f"] = string.format("%.2f", nf)
+                    n_parts = n_parts + 1
+                    parts[n_parts] = string_format(
+                        "%sx=%.5f,%sy=%.5f,%sw=%.5f,%sh=%.5f,%sr=%.5f,%sa=%.2f,%sf=%.2f",
+                        prefix, nx, prefix, ny, prefix, nw, prefix, nh, prefix, nr, prefix, na, prefix, nf
+                    )
                 else
-                    kv[prefix .. "w"] = "0"
+                    n_parts = n_parts + 1
+                    parts[n_parts] = prefix .. "w=0"
                 end
             else
-                kv[prefix .. "w"] = "0"
+                n_parts = n_parts + 1
+                parts[n_parts] = prefix .. "w=0"
             end
         end
 
@@ -149,16 +188,7 @@ function Glass.new(directory)
             return supported
         end
 
-        local keys = {}
-        for k in pairs(kv) do
-            keys[#keys + 1] = k
-        end
-        table.sort(keys)
-        local parts = {}
-        for _, k in ipairs(keys) do
-            parts[#parts + 1] = k .. "=" .. kv[k]
-        end
-        local sig = table.concat(parts, ",")
+        local sig = table_concat(parts, ",")
 
         if sig ~= last_sig then
             last_sig = sig

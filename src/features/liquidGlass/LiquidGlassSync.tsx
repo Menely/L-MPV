@@ -30,7 +30,7 @@ interface Props {
   mediaPath?: string;
 }
 
-const MAX_SLOTS = 16;
+const MAX_SLOTS = 24;
 const ANIMATION_TRACK_MS = T_PANEL_MS + CLOSE_BUFFER_MS + 120;
 
 let pendingOptions: object | null = null;
@@ -107,13 +107,26 @@ function collectElementSurface(
   root: HTMLElement,
   frost: number,
   dockedBottom = false,
+  clipRect?: DOMRect | null,
 ): SurfaceRect | null {
   if (!(el instanceof HTMLElement)) return null;
   const style = getComputedStyle(el);
   if (style.display === "none" || style.visibility === "hidden") return null;
 
   const rect = el.getBoundingClientRect();
-  if (rect.width <= 1 || rect.height <= 1) return null;
+  let left = rect.left;
+  let top = rect.top;
+  let right = rect.right;
+  let bottom = rect.bottom;
+  if (clipRect) {
+    left = Math.max(left, clipRect.left);
+    top = Math.max(top, clipRect.top);
+    right = Math.min(right, clipRect.right);
+    bottom = Math.min(bottom, clipRect.bottom);
+  }
+  const width = right - left;
+  const height = bottom - top;
+  if (width <= 1 || height <= 1) return null;
 
   const opacity = measureEffectiveOpacity(el, root);
   if (opacity <= 0.005) return null;
@@ -122,13 +135,13 @@ function collectElementSurface(
   const vh = Math.max(1, window.innerHeight);
   const zoomScale = el.offsetWidth > 0 ? rect.width / el.offsetWidth : 1;
   const rawRadius = parseFloat(style.borderTopLeftRadius) || 0;
-  const radiusPx = Math.min(rawRadius * zoomScale, rect.width / 2, rect.height / 2);
+  const radiusPx = Math.min(rawRadius * zoomScale, width / 2, height / 2);
 
   const surface: SurfaceRect = {
-    x: Number((rect.left / vw).toFixed(5)),
-    y: Number((rect.top / vh).toFixed(5)),
-    w: Number((rect.width / vw).toFixed(5)),
-    h: Number((rect.height / vh).toFixed(5)),
+    x: Number((left / vw).toFixed(5)),
+    y: Number((top / vh).toFixed(5)),
+    w: Number((width / vw).toFixed(5)),
+    h: Number((height / vh).toFixed(5)),
     r: Number(radiusPx.toFixed(2)),
     a: Number(Math.min(1, Math.max(0, opacity)).toFixed(3)),
     f: frost,
@@ -140,9 +153,14 @@ function collectElementSurface(
 function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
   const root = appContainer ?? document.body;
   const surfaces: SurfaceRect[] = [];
-  const push = (el: Element | null, frost: number, dockedBottom = false) => {
+  const push = (
+    el: Element | null,
+    frost: number,
+    dockedBottom = false,
+    clipRect?: DOMRect | null,
+  ) => {
     if (surfaces.length >= MAX_SLOTS) return;
-    const item = collectElementSurface(el, root, frost, dockedBottom);
+    const item = collectElementSurface(el, root, frost, dockedBottom, clipRect);
     if (item) surfaces.push(item);
   };
 
@@ -188,6 +206,21 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
       wrapper.querySelectorAll(".controls-overflow").forEach((el) => push(el, 1));
     }
   }
+
+  // Всплывающее окно сведений о медиафайле (клавиша I)
+  root.querySelectorAll(".media-info-overlay").forEach((overlay) => {
+    if (!(overlay instanceof HTMLElement)) return;
+    if (overlay.classList.contains("media-info-overlay--capsule")) {
+      push(overlay.querySelector(".media-info__header-left"), 1);
+      push(overlay.querySelector(".media-info__tabs"), 1);
+      push(overlay.querySelector(".media-info__header-actions"), 1);
+      const bodyEl = overlay.querySelector<HTMLElement>(".media-info__body");
+      const bodyClip = bodyEl ? bodyEl.getBoundingClientRect() : null;
+      overlay.querySelectorAll(".media-info__section").forEach((sec) => push(sec, 1, false, bodyClip));
+    } else {
+      push(overlay, 1);
+    }
+  });
 
   // Контекстное меню ПКМ рендерится напрямую в .app-container и должно оставаться стеклянным даже при скрытой панели
   root.querySelectorAll(".context-menu").forEach((menu) => {
@@ -322,7 +355,34 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       wrapper.addEventListener("animationend", handleTransitionEnd);
     }
 
-    const mutationObserver = new MutationObserver(() => {
+    const handleScroll = () => syncNow();
+    if (appContainer) {
+      appContainer.addEventListener("scroll", handleScroll, { capture: true, passive: true });
+    }
+
+    // Игнорируем высокочастотные мутации прогресс-бара, бегунка таймлайна, счётчика времени и визуализатора,
+    // чтобы во время спокойного воспроизведения не крутить лишний 144Hz RAF-цикл.
+    const isHighFrequencyPlaybackMutation = (record: MutationRecord): boolean => {
+      const target = record.target instanceof HTMLElement ? record.target : record.target.parentElement;
+      if (!target) return true;
+      if (
+        target.closest(
+          ".timeline__track, .timeline__segments, .timeline__thumb, .volume-slider, .audio-visualizer, .media-info__sparkline",
+        )
+      ) {
+        return true;
+      }
+      if (
+        record.type === "childList" &&
+        target.closest(".time-display, .media-info__value, .volume-slider__value")
+      ) {
+        return true;
+      }
+      return false;
+    };
+
+    const mutationObserver = new MutationObserver((records) => {
+      if (records.every(isHighFrequencyPlaybackMutation)) return;
       scheduleFrame(ANIMATION_TRACK_MS);
     });
     if (wrapper) {
@@ -362,6 +422,9 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       mutationObserver.disconnect();
       idleObserver.disconnect();
       unsubscribeTheme();
+      if (appContainer) {
+        appContainer.removeEventListener("scroll", handleScroll, { capture: true });
+      }
       if (wrapper) {
         wrapper.removeEventListener("transitionrun", handleTransition);
         wrapper.removeEventListener("transitionstart", handleTransition);

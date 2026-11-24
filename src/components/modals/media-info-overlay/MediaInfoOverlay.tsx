@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   usePlayerState,
@@ -13,6 +13,11 @@ import {
   ControlBarStyle,
   getSavedControlBarStyle,
 } from "../../../utils/controlBarStyleUtils";
+import { getPlayerTheme } from "../../../features/liquidGlass/preferences";
+import {
+  notifyLiquidGlassAnimation,
+  notifyLiquidGlassSync,
+} from "../../../features/liquidGlass/LiquidGlassSync";
 import { MediaInfoHeader } from "./MediaInfoHeader";
 import { MediaInfoGeneralSection } from "./MediaInfoGeneralSection";
 import { MediaInfoVideoSection } from "./MediaInfoVideoSection";
@@ -60,28 +65,29 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
   // Активная вкладка: 'summary' | 'rendering' | 'tracks'
   const [activeTab, setActiveTab] = useState<MediaInfoOverlayTab>("summary");
 
-  // Отслеживание текущего стиля плеера
+  // Отслеживание текущего стиля плеера с учётом темы (L-MPV или Liquid Glass)
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
-    getSavedControlBarStyle()
+    getSavedControlBarStyle(getPlayerTheme())
   );
 
   useEffect(() => {
     const handleSettingsChanged = (
-      e: CustomEvent<{ controlBarStyle?: ControlBarStyle }>
+      e: Event
     ) => {
-      if (e.detail?.controlBarStyle) {
-        setControlBarStyle(e.detail.controlBarStyle);
+      const detail = (e as CustomEvent<{ controlBarStyle?: ControlBarStyle }>).detail;
+      if (detail?.controlBarStyle) {
+        setControlBarStyle(detail.controlBarStyle);
+      } else {
+        setControlBarStyle(getSavedControlBarStyle(getPlayerTheme()));
       }
     };
-    window.addEventListener(
-      "ui-settings-changed",
-      handleSettingsChanged as EventListener
-    );
+    window.addEventListener("ui-settings-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
     return () => {
-      window.removeEventListener(
-        "ui-settings-changed",
-        handleSettingsChanged as EventListener
-      );
+      window.removeEventListener("ui-settings-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
     };
   }, []);
 
@@ -98,6 +104,17 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
   const [renderingStats, setRenderingStats] =
     useState<RenderingAndSystemStats | null>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
+
+  useLayoutEffect(() => {
+    notifyLiquidGlassSync();
+    notifyLiquidGlassAnimation(180);
+    return () => {
+      queueMicrotask(() => {
+        notifyLiquidGlassSync();
+        notifyLiquidGlassAnimation(180);
+      });
+    };
+  }, [activeTab, controlBarStyle, isStatsLoading, Boolean(renderingStats), tracks.length, chapters.length]);
 
   useEffect(() => {
     if (activeTab !== "rendering") {

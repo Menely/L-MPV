@@ -84,11 +84,17 @@ pub async fn configure_liquid_glass(
     glass: State<'_, LiquidGlass>,
     options: Option<Value>,
 ) -> Result<Value, String> {
+    let is_active_request = options
+        .as_ref()
+        .and_then(|v| v.get("active"))
+        .and_then(|v| v.as_bool())
+        == Some(true);
+
     let is_ready = {
         let mut guard = glass.0.lock().map_err(|error| error.to_string())?;
         if guard.is_none() {
-            if options.is_none() {
-                return Ok(json!({ "ready": false, "supported": false }));
+            if !is_active_request {
+                return Ok(json!({ "ready": true, "supported": false }));
             }
             let directory = install(&player)?;
             *guard = Some(LiquidGlassState {
@@ -139,7 +145,7 @@ pub async fn configure_liquid_glass(
     }
 
     let json = payload.to_string();
-    if json.len() > 16384 {
+    if json.len() > 24576 {
         return Err("Некорректные параметры Liquid Glass".into());
     }
     let argument = serde_json::to_string(&json).map_err(|error| error.to_string())?;

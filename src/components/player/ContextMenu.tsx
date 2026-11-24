@@ -91,6 +91,36 @@ function getUiScale(): number {
   return Number.isNaN(zoom) || zoom <= 0 ? 1 : zoom;
 }
 
+/**
+ * Вычисляет безопасный вертикальный диапазон (в CSS-пикселях с учётом zoom),
+ * чтобы контекстное меню и его подменю никогда не перекрывали верхний Titlebar
+ * и нижнюю панель управления плеера ни в теме L-MPV, ни в теме Liquid Glass.
+ */
+function getSafeVerticalBounds(zoom: number): { minY: number; maxY: number } {
+  if (typeof window === "undefined") return { minY: 8, maxY: 800 };
+  const cssInnerHeight = window.innerHeight / zoom;
+  const rootStyle = getComputedStyle(document.documentElement);
+
+  const titlebar = document.querySelector<HTMLElement>(".titlebar");
+  const titlebarHeight = titlebar ? Math.max(46, titlebar.offsetHeight) : 46;
+  const minY = titlebarHeight + 6;
+
+  const overlayBottomVar = parseFloat(rootStyle.getPropertyValue("--bottom-overlays-bottom")) || 0;
+  const wrapper = document.querySelector<HTMLElement>(".player-controls-wrapper");
+  const controls = wrapper?.querySelector<HTMLElement>(".player-controls");
+  let controlsReserved = 0;
+  if (wrapper && controls) {
+    const bottomBase = parseFloat(getComputedStyle(wrapper).bottom) || 0;
+    const strip = wrapper.querySelector<HTMLElement>(".waveform-activity-strip--visible");
+    const stripExtra = strip ? strip.offsetHeight + 8 : 0;
+    controlsReserved = bottomBase + controls.offsetHeight + stripExtra + 14;
+  }
+
+  const reservedBottom = Math.max(8, overlayBottomVar, controlsReserved);
+  const maxY = Math.max(minY + 120, cssInnerHeight - reservedBottom);
+  return { minY, maxY };
+}
+
 export function ContextMenu({
   x,
   y,
@@ -311,17 +341,19 @@ export function ContextMenu({
     const cssX = x / zoom;
     const cssY = y / zoom;
     const cssInnerWidth = window.innerWidth / zoom;
-    const cssInnerHeight = window.innerHeight / zoom;
+    const { minY, maxY } = getSafeVerticalBounds(zoom);
 
     const estWidth = 220;
     const estHeight = 440;
 
-    const newX = cssX + estWidth> cssInnerWidth ? cssX - estWidth : cssX;
-    const newY = cssY + estHeight> cssInnerHeight ? cssY - estHeight : cssY;
+    const rawX = cssX + estWidth > cssInnerWidth - 8 ? cssX - estWidth : cssX;
+    const rawY = cssY + estHeight > maxY ? cssY - estHeight : cssY;
+    const clampedX = Math.max(8, Math.min(rawX, cssInnerWidth - estWidth - 8));
+    const clampedY = Math.max(minY, Math.min(rawY, maxY - estHeight));
 
     return {
-      x: Math.round(Math.max(0, newX)),
-      y: Math.round(Math.max(0, newY)),
+      x: Math.round(clampedX),
+      y: Math.round(clampedY),
     };
   });
 
@@ -334,19 +366,21 @@ export function ContextMenu({
       const cssX = x / zoom;
       const cssY = y / zoom;
       const cssInnerWidth = window.innerWidth / zoom;
-      const cssInnerHeight = window.innerHeight / zoom;
+      const { minY, maxY } = getSafeVerticalBounds(zoom);
 
-      const newX = cssX + cssWidth> cssInnerWidth ? cssX - cssWidth : cssX;
-      const newY = cssY + cssHeight> cssInnerHeight ? cssY - cssHeight : cssY;
+      const rawX = cssX + cssWidth > cssInnerWidth - 8 ? cssX - cssWidth : cssX;
+      const rawY = cssY + cssHeight > maxY ? cssY - cssHeight : cssY;
+      const clampedX = Math.max(8, Math.min(rawX, cssInnerWidth - cssWidth - 8));
+      const clampedY = Math.max(minY, Math.min(rawY, maxY - cssHeight));
 
       setAdjustedPos({
-        x: Math.round(Math.max(0, newX)),
-        y: Math.round(Math.max(0, newY)),
+        x: Math.round(clampedX),
+        y: Math.round(clampedY),
       });
       setMenuWidth(cssWidth);
       setPositioned(true);
     }
-  }, [x, y]);
+  }, [x, y, controlBarStyle]);
 
   // Инициализация скорости из стейта
   useEffect(() => {
@@ -799,6 +833,26 @@ export function ContextMenu({
 
   useLayoutEffect(() => {
     if (!positioned) return;
+    // Гарантируем, что открытое подменю также не пересекает верхний Titlebar и нижнюю панель управления
+    const submenuEl = menuRef.current?.querySelector<HTMLElement>(".context-menu__submenu");
+    if (submenuEl) {
+      submenuEl.style.transform = "";
+      const zoom = getUiScale();
+      const { minY, maxY } = getSafeVerticalBounds(zoom);
+      const subRect = submenuEl.getBoundingClientRect();
+      const subTopCss = subRect.top / zoom;
+      const subBottomCss = subRect.bottom / zoom;
+      let shiftY = 0;
+      if (subBottomCss > maxY) {
+        shiftY = maxY - subBottomCss;
+      }
+      if (subTopCss + shiftY < minY) {
+        shiftY = minY - subTopCss;
+      }
+      if (Math.abs(shiftY) > 0.5) {
+        submenuEl.style.transform = `translateY(${Math.round(shiftY)}px)`;
+      }
+    }
     notifyLiquidGlassSync();
     notifyLiquidGlassAnimation(180);
     return () => {

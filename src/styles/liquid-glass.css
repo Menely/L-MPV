@@ -197,7 +197,12 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-cont
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu:not(.context-menu--capsule),
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--solid,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu--capsule .context-menu__group,
-html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--capsule .context-menu__group {
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--capsule .context-menu__group,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay:not(.media-info-overlay--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-left,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__tabs,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__section {
   background: transparent !important;
   background-color: transparent !important;
   border-color: transparent !important;
@@ -206,7 +211,7 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-men
   -webkit-backdrop-filter: none !important;
 }
 
-/* В поповерах Капсулы и контекстном меню исключаем конфликтующие CSS-переходы подложки при трекинге GLSL */
+/* В поповерах Капсулы, контекстном меню и окне МедиаИнфо исключаем конфликтующие CSS-переходы подложки при трекинге GLSL */
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__heading,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__disable-sub-card,
@@ -214,7 +219,12 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-cont
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu:not(.context-menu--capsule),
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--solid,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu--capsule .context-menu__group,
-html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--capsule .context-menu__group {
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--capsule .context-menu__group,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay:not(.media-info-overlay--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-left,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__tabs,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__section {
   transition: none !important;
 }
 
@@ -246,7 +256,12 @@ html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playe
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu:not(.context-menu--capsule),
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu__submenu--solid,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu--capsule .context-menu__group,
-html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu__submenu--capsule .context-menu__group {
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu__submenu--capsule .context-menu__group,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay:not(.media-info-overlay--capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__header-left,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__tabs,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__header-actions,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__section {
   background: rgba(20, 22, 28, 0.72) !important;
   border-color: rgba(255, 255, 255, 0.16) !important;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45) !important;
@@ -305,6 +320,66 @@ html[data-interface-theme="glass"] .context-menu .track-download-btn {
 html[data-interface-theme="glass"] .context-menu .track-download-btn:hover:not(:disabled) {
   background: transparent !important;
   color: #ffffff !important;
+}
+
+/* ─── Стеклянное оформление окна сведений о файле MediaInfo (клавиша I) ─── */
+html[data-interface-theme="glass"] .media-info-overlay {
+  --accent: #ffffff;
+  --accent-text: #ffffff;
+  --accent-rgb: 255, 255, 255;
+  --surface-accent-glow: rgba(255, 255, 255, 0.35);
+  --surface-accent-subtle: rgba(255, 255, 255, 0.18);
+  --surface-accent-hover: rgba(255, 255, 255, 0.25);
+  --selection-frame: rgba(255, 255, 255, 0.26);
+  --hover-veil: rgba(255, 255, 255, 0.14);
+  --hover-veil-float: rgba(255, 255, 255, 0.14);
+  --action-hover-veil: transparent;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.85);
+  --text-muted: rgba(255, 255, 255, 0.68);
+  --border-pill: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .media-info-overlay:not(.media-info-overlay--capsule) .media-info__tabs {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+html[data-interface-theme="glass"] .media-info-overlay:not(.media-info-overlay--capsule) .media-info__header,
+html[data-interface-theme="glass"] .media-info-overlay:not(.media-info-overlay--capsule) .media-info__section,
+html[data-interface-theme="glass"] .media-info-overlay .media-info__section-header {
+  border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__title,
+html[data-interface-theme="glass"] .media-info-overlay .media-info__section-title,
+html[data-interface-theme="glass"] .media-info-overlay .media-info__value,
+html[data-interface-theme="glass"] .media-info-overlay .media-info__tab-btn--active {
+  color: #ffffff !important;
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__close,
+html[data-interface-theme="glass"] .media-info-overlay .media-info__close:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__stream-item {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__stream-item:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__badge-lang,
+html[data-interface-theme="glass"] .media-info-overlay .media-info__badge-codec {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
 }
 
 /* ─── Анимации появления и исчезновения только через прозрачность (fade-only) ─── */
