@@ -81,7 +81,7 @@ import { useTranslation } from "../../../i18n/LanguageContext";
 export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
   const { dict } = useTranslation();
   const {
-    activeColor = "windows", setActiveColor = () => {},
+    activeColor = "windows",
     uiRadius, saveUiRadius, setUiRadius,
     uiScale, saveUiScale, setUiScale,
     uiOpacity, saveUiOpacity, setUiOpacity,
