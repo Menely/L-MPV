@@ -7,7 +7,7 @@ use super::dir_scan::{
     current_open_generation, next_open_generation,
 };
 use super::history::{
-    apply_resume_start, save_current_playback_position,
+    save_current_playback_position,
     save_history_to_disk,
 };
 use super::playlist::populate_folder_playlist;
@@ -42,25 +42,56 @@ pub fn open_file(
 
 /// Внутренняя функция открытия файла с опциональной отправкой события обновления плейлиста.
 ///
-/// Горячий путь устроен так, чтобы первый кадр пошёл максимально быстро:
-/// синхронно выполняются только дешёвые операции (сейв позиции в память,
-/// resume-старт, `loadfile`), а сканирование диска и достройка плейлиста
-/// уходят в фоновый поток. Команда возвращается сразу после постановки
-/// `loadfile` в очередь mpv.
+/// Сохранение истории и resume выполняются до `loadfile`, чтение настроек —
+/// после его постановки в очередь mpv. Сканирование внешних дорожек и
+/// достройка плейлиста вынесены в поток с допуском по состоянию воспроизведения.
 pub fn open_file_internal(
     state: &PlayerState,
     path: &str,
     app: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
+    open_file_internal_with_resume(state, path, None, app)
+}
+
+/// Открытие файла после перезапуска в процессе автообновления с восстановлением точной позиции и статуса паузы.
+pub fn open_file_after_update_resume(
+    state: &PlayerState,
+    path: &str,
+    position: f64,
+    paused: bool,
+    app: Option<&tauri::AppHandle>,
+) -> Result<(), String> {
+    if paused {
+        let _ = state.mpv.set_property_string("pause", "yes");
+    }
+    open_file_internal_with_resume(
+        state,
+        path,
+        Some(position.max(0.0)),
+        app,
+    )
+}
+
+fn open_file_internal_with_resume(
+    state: &PlayerState,
+    path: &str,
+    explicit_start: Option<f64>,
+    app: Option<&tauri::AppHandle>,
+) -> Result<(), String> {
+    super::startup::cancel_startup_for_other_file(state, path)?;
     // Сохранение позиции предыдущего файла перед открытием нового
-    save_current_playback_position(state);
-    save_history_to_disk();
+    if !state.mpv.get_property_string("path").unwrap_or_default().is_empty() {
+        save_current_playback_position(state);
+        save_history_to_disk();
+    }
+
+    let transition = super::dir_scan::lock_open_transition()?;
 
     let target_path = std::path::PathBuf::from(path);
     let safe_target = escape_mpv_path(path);
     // Единственная точка resume: выставляем `start` ДО loadfile,
     // фронтенд второго seek не делает.
-    let _ = apply_resume_start(state, path);
+    let _ = super::history::apply_resume_start_exact(state, path, explicit_start);
 
     // Путь, игравший до loadfile: нужен фоновой задаче, чтобы отличить
     // «новый файл ещё грузится» от «пользователь уже переключил дальше».
@@ -69,7 +100,16 @@ pub fn open_file_internal(
         .get_property_string("path")
         .unwrap_or_default();
 
-    // 1. Мгновенно запускаем воспроизведение выбранного файла.
+    // Отключаем встроенный автопоиск дорожек mpv: внешние файлы подключаются строго
+    // через L-MPV согласно пользовательской настройке auto_load_tracks.
+    let _ = state.mpv.set_property_string("sub-auto", "no");
+    let _ = state.mpv.set_property_string("audio-file-auto", "no");
+
+    let generation = next_open_generation();
+    let open_work = super::background_io::OpenWork::begin(generation, true);
+
+    // 1. Очищаем хвост предыдущего плейлиста и ставим открытие выбранного файла в очередь mpv.
+    let _ = state.mpv.command("playlist-clear");
     state.mpv.command(&format!(
         "loadfile \"{}\" replace",
         safe_target
@@ -78,28 +118,33 @@ pub fn open_file_internal(
     let _ = state.mpv.set_property_double("video-pan-x", 0.0);
     let _ = state.mpv.set_property_double("video-pan-y", 0.0);
     state.ambient_controller.invalidate();
+    drop(transition);
 
-    // Флаги читаются один раз (один парсинг settings.json на открытие).
+    // Read settings after queuing playback, so a slow portable disk does not
+    // delay loadfile. The short-lived guard already excludes competing analysis.
     let settings = AppSettings::load_portable();
     let auto_load_tracks = settings.auto_load_tracks;
-    let auto_select_external_audio =
-        settings.auto_select_external_audio;
+    let auto_select_external_audio = settings.auto_select_external_audio;
+    if !auto_load_tracks || !auto_select_external_audio { open_work.audio_selected(); }
 
     // 2. Всё тяжёлое — в фон: внешние дорожки и плейлист.
     // Новое поколение отменяет устаревшую задачу прошлого открытия.
-    let generation = next_open_generation();
     let bg_mpv = state.mpv.clone();
     let bg_app = app.cloned();
     let bg_prev_path = prev_path.clone();
     let _ = std::thread::Builder::new()
         .name("lmpv-open-bg".to_string())
         .spawn(move || {
+            let open_work = open_work;
             if current_open_generation() != generation {
                 return;
             }
             // Подгружаем внешние дорожки и субтитры (если опция активна).
             // Скан каталога берётся из mtime-кэша.
             if auto_load_tracks {
+                if !super::background_io::wait_for_open(
+                    &bg_mpv, &target_path.to_string_lossy(), &bg_prev_path, generation, false,
+                ) { return; }
                 let _ = load_external_tracks_internal(
                     &bg_mpv,
                     &target_path,
@@ -108,15 +153,21 @@ pub fn open_file_internal(
                     &bg_prev_path,
                 );
             }
+            open_work.audio_selected();
             if current_open_generation() != generation {
                 return;
             }
             // Фоново формируем плейлист из остальных файлов в той же папке.
             // Каталог читается один раз общим листингом (см. dir_scan).
+            if !super::background_io::wait_for_open(
+                &bg_mpv, &target_path.to_string_lossy(), &bg_prev_path, generation, false,
+            ) { return; }
             let _ = populate_folder_playlist(
                 &bg_mpv,
                 &target_path,
                 bg_app.as_ref(),
+                generation,
+                true,
             );
         });
 
@@ -138,6 +189,7 @@ pub fn open_file_internal(
 pub fn toggle_pause(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, false)?;
     // Если достигнут конец воспроизведения, перезапускаем видео с самого начала
     let dur = state
         .mpv
@@ -173,6 +225,7 @@ pub fn set_pause(
     state: State<'_, PlayerState>,
     paused: bool,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, false)?;
     let mut restart = false;
     if !paused {
         let dur = state
@@ -240,26 +293,29 @@ pub fn seek_absolute(
 
 /// Быстрый предпросмотр кадра во время перетаскивания ползунка.
 ///
-/// Во время драга намеренно используется `absolute+keyframes`: прыжок
-/// к ближайшему ключевому кадру без декодирования всех промежуточных
-/// кадров — в ~5-10 раз дешевле `absolute+exact` и не перегружает
-/// аппаратный декодер (D3D11VA) серией тяжёлых точных сиков.
-/// Именно лавина `exact`-сиков каждые ~120 мс давала у части пользователей
-/// рваный кадр/артефакты и рассинхрон UI таймлайна (см. скриншот).
-/// Точное позиционирование (`absolute+exact`) выполняется один раз
-/// при отпускании ползунка через `seek_absolute`.
+/// По умолчанию использует `absolute+keyframes` (прыжок к ключевым кадрам без
+/// перегрузки аппаратного декодера лавиной декодирования длинных GOP), а при
+/// явном запросе `exact = Some(true)` — `absolute+exact`.
 #[tauri::command]
 pub fn seek_preview(
     state: State<'_, PlayerState>,
     seconds: f64,
+    exact: Option<bool>,
 ) -> Result<(), String> {
     if seconds.is_nan() || seconds.is_infinite() {
         return Ok(());
     }
     let safe_seconds = seconds.max(0.0);
+
+    let mode = if exact.unwrap_or(false) {
+        "absolute+exact"
+    } else {
+        "absolute+keyframes"
+    };
+
     let result = state.mpv.command(&format!(
-        "seek {} absolute+keyframes",
-        safe_seconds
+        "seek {} {}",
+        safe_seconds, mode
     ));
     invalidate_ambient_result(&state, result)
 }
@@ -270,6 +326,7 @@ pub fn seek_preview(
 pub fn frame_step(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, false)?;
     let result = state.mpv.command("frame-step");
     invalidate_ambient_result(&state, result)
 }
@@ -279,6 +336,7 @@ pub fn frame_step(
 pub fn frame_back_step(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    super::startup::cancel_startup_playback(&state, false)?;
     let result = state.mpv.command("frame-back-step");
     invalidate_ambient_result(&state, result)
 }
@@ -376,37 +434,34 @@ pub fn set_rotation(
     state: State<'_, PlayerState>,
     degrees: i64,
 ) -> Result<(), String> {
-    state.mpv.set_property_string(
+    let result = state.mpv.set_property_string(
         "video-rotate",
         &degrees.to_string(),
-    )
+    );
+    // Превью кеширует преобразования и перечитывает их по этому сигналу.
+    super::thumbnails::invalidate_transforms();
+    result
 }
 
 /// Установка зума и панорамирования видео.
 #[tauri::command]
-pub fn set_video_zoom_and_pan(
+pub async fn set_video_zoom_and_pan(
     state: State<'_, PlayerState>,
     zoom: f64,
     pan_x: f64,
     pan_y: f64,
 ) -> Result<(), String> {
-    state.mpv.set_property_double("video-zoom", zoom)?;
-    if zoom.abs() < 0.001 {
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-x", 0.0);
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-y", 0.0);
-    } else {
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-x", pan_x);
-        let _ = state
-            .mpv
-            .set_property_double("video-pan-y", pan_y);
+    if ![zoom, pan_x, pan_y].iter().all(|value| value.is_finite()) {
+        return Err("Invalid video transform".into());
     }
-    Ok(())
+    let (pan_x, pan_y) = if zoom.abs() < 0.001 {
+        (0.0, 0.0)
+    } else {
+        (pan_x, pan_y)
+    };
+    state.mpv.command(&format!(
+        "no-osd set video-zoom {zoom}; no-osd set video-pan-x {pan_x}; no-osd set video-pan-y {pan_y}"
+    ))
 }
 
 /// Получение текущего зума видео.
@@ -734,10 +789,14 @@ pub(crate) fn resolve_bit_depth(
 #[tauri::command]
 pub fn get_media_info(
     state: State<'_, PlayerState>,
+    live_bitrate: State<'_, crate::commands::LiveVideoBitrateService>,
 ) -> Result<MediaInfo, String> {
     let mpv = &state.mpv;
     let current_path =
         mpv.get_property_string("path").unwrap_or_default();
+    let position = mpv
+        .get_property_double("time-pos")
+        .unwrap_or(0.0);
     // Размеры окна можно использовать только после того, как проверяемые
     // свойства относятся к тому же файлу, что и текущий путь.
     let output_status = mpv.video_output_status_for(&current_path);
@@ -783,13 +842,13 @@ pub fn get_media_info(
     let color_space = resolve_color_space(&primaries, &colormatrix);
     let bit_depth =
         resolve_bit_depth(&plane_depth_str, &[&pixel_format, &hw_pixel_format]);
+    let (audio_codec, audio_channels) = mpv.get_active_audio_info();
+    let audio_disabled = audio_codec.is_empty() && audio_channels.is_empty();
 
     Ok(MediaInfo {
-        path: current_path,
+        path: current_path.clone(),
         duration,
-        position: mpv
-            .get_property_double("time-pos")
-            .unwrap_or(0.0),
+        position,
         frame: mpv
             .get_property_double("estimated-frame-number")
             .unwrap_or(0.0) as i64,
@@ -807,9 +866,7 @@ pub fn get_media_info(
         video_codec: normalize_video_codec(
             &mpv.get_property_string("video-codec").unwrap_or_default(),
         ),
-        audio_codec: mpv
-            .get_property_string("audio-codec-name")
-            .unwrap_or_default(),
+        audio_codec,
         paused: mpv
             .get_property_string("pause")
             .unwrap_or_default()
@@ -821,36 +878,42 @@ pub fn get_media_info(
             .get_property_double("volume")
             .unwrap_or(100.0),
         file_size,
-        audio_channels: mpv
-            .get_property_string(
-                "audio-params/channel-count",
-            )
-            .unwrap_or_default(),
-        audio_bitrate: {
+        audio_channels,
+        audio_bitrate: if audio_disabled {
+            0.0
+        } else {
             let ab = mpv
-                .get_property_double(
-                    "packet-audio-bitrate",
-                )
+                .get_property_double("audio-bitrate")
                 .unwrap_or(0.0);
             if ab > 0.0 {
                 ab
             } else {
-                mpv.get_property_double("audio-bitrate")
-                    .unwrap_or(0.0)
+                mpv.get_property_double(
+                    "packet-audio-bitrate",
+                )
+                .unwrap_or(0.0)
             }
         },
         video_bitrate: {
-            let vb = mpv
-                .get_property_double(
-                    "packet-video-bitrate",
-                )
-                .unwrap_or(0.0);
-            if vb > 0.0 {
-                vb
-            } else {
-                mpv.get_property_double("video-bitrate")
-                    .unwrap_or(0.0)
-            }
+            let current_vid = mpv
+                .get_property_string("vid")
+                .ok()
+                .and_then(|s| s.trim().parse::<i64>().ok());
+            live_bitrate
+                .peek_cached_bitrate(&current_path, current_vid, position)
+                .unwrap_or_else(|| {
+                    let vb = mpv
+                        .get_property_double("video-bitrate")
+                        .unwrap_or(0.0);
+                    if vb > 0.0 {
+                        vb
+                    } else {
+                        mpv.get_property_double(
+                            "packet-video-bitrate",
+                        )
+                        .unwrap_or(0.0)
+                    }
+                })
         },
         total_bitrate,
         hdr_info,
@@ -869,8 +932,19 @@ pub fn get_media_info(
 #[tauri::command]
 pub fn get_playback_state(
     state: State<'_, PlayerState>,
+    live_bitrate: State<'_, crate::commands::LiveVideoBitrateService>,
 ) -> Result<PlaybackState, String> {
-    state.mpv.get_playback_state_snapshot()
+    let mut snapshot = state.mpv.get_playback_state_snapshot()?;
+    state.ebu128.observe(&state.mpv, &snapshot.path, &snapshot.current_aid);
+    let current_vid = snapshot.current_vid.trim().parse::<i64>().ok();
+    if let Some(exact_bps) = live_bitrate.peek_cached_bitrate(
+        &snapshot.path,
+        current_vid,
+        snapshot.position,
+    ) {
+        snapshot.video_bitrate = exact_bps;
+    }
+    Ok(snapshot)
 }
 
 /// Получение фактических размеров сконфигурированного видеовыхода.

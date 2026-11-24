@@ -5,6 +5,7 @@ export interface ModelFileItem {
   slot: number;
   full_path: string;
   has_engine_1080p?: boolean;
+  engine_outdated?: boolean;
 }
 
 export interface GpuHardwareInfo {
@@ -23,6 +24,10 @@ export interface UpscaleStatus {
   aji_present: boolean;
   directml_present: boolean;
   tensorrt_present: boolean;
+  directml_update_required?: boolean;
+  tensorrt_update_required?: boolean;
+  player_update_required?: boolean;
+  runtime_restart_required?: boolean;
   models_count: number;
   models_dir: string;
   models: ModelFileItem[];

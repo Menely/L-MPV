@@ -18,7 +18,7 @@
 /* ─── Вариант 1: Полоса над таймлайном ─────────────────────── */
 .audio-visualizer--above_timeline {
   width: 100%;
-  margin-bottom: 2px;
+  margin-bottom: var(--space-1);
   pointer-events: none; /* Прозрачен для кликов мыши, чтобы не блокировать таймлайн */
   border-radius: var(--radius-sm, 6px);
   opacity: 0.92;
@@ -36,10 +36,10 @@
   width: 80px;
   min-width: 64px;
   max-width: 100px;
-  height: 24px;
+  height: 30px;
   padding: 2px 6px;
-  border-radius: var(--radius-sm, 6px);
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-control, 8px);
+  background: var(--surface-level-3);
   border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
   user-select: none;
@@ -51,9 +51,9 @@
 }
 
 .audio-visualizer--toolbar:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 0 10px var(--accent-glow, rgba(127, 199, 255, 0.2));
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
+  box-shadow: 0 0 10px var(--accent-glow, var(--surface-accent-glow));
 }
 
 .audio-visualizer--toolbar:active {
@@ -93,7 +93,7 @@
   height: 16px;
   transform: translateY(-50%);
   pointer-events: none;
-  z-index: 2;
+  z-index: var(--z-in-raised);
   opacity: 0.85;
   border-radius: var(--radius-sm, 4px);
   mix-blend-mode: screen;
@@ -114,7 +114,7 @@
 }
 
 .timeline:has(.audio-visualizer--inside_timeline) .timeline__segment-bg {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-level-3-hover);
 }
 
 .timeline:has(.audio-visualizer--inside_timeline) .timeline__segment-progress {

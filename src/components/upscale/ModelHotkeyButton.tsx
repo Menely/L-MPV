@@ -29,11 +29,12 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
   onMouseRecord,
 }) => {
   const { dict, locale } = useTranslation();
-  const displayBind = bindCodes.length > 0 ? getKeyDisplay(bindCodes[0], locale) : dict.settings.upscaling.hotkeyAssign;
+  const displayBind = bindCodes.length> 0 ? getKeyDisplay(bindCodes[0], locale) : dict.settings.upscaling.hotkeyAssign;
 
   return (
     <button
       type="button"
+      className={`model-hotkey-btn${isRecording ? " is-recording" : ""}`}
       tabIndex={0}
       data-hotkey-recording={isRecording ? "true" : undefined}
       onClick={(e) => {
@@ -64,31 +65,31 @@ export const ModelHotkeyButton: React.FC<ModelHotkeyButtonProps> = React.memo(({
       style={{
         height: 24,
         padding: "0 8px",
-        borderRadius: "var(--radius-sm, 6px)",
+        borderRadius: "var(--radius-control)",
         background: isRecording
-          ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
-          : "rgba(127, 199, 255, 0.08)",
+          ? "var(--surface-accent-subtle)"
+          : "var(--surface-level-3)",
         border: isRecording
-          ? "1.5px solid var(--accent)"
-          : "1px solid rgba(127, 199, 255, 0.2)",
+          ? "1px solid var(--accent)"
+          : "1px solid var(--border-subtle)",
         boxShadow: isRecording
-          ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
+          ? "none"
           : "none",
         fontFamily: "var(--font-mono, monospace)",
-        fontSize: "0.76rem",
+        fontSize: "var(--fs-xs)",
         fontWeight: 600,
-        color: isRecording ? "var(--text-primary)" : "var(--accent)",
+        color: isRecording ? "var(--text-primary)" : "var(--accent-text)",
         cursor: "pointer",
         outline: "none",
         display: "inline-flex",
         alignItems: "center",
-        gap: 5,
+        gap: "var(--space-2)",
         boxSizing: "border-box",
         lineHeight: 1,
         whiteSpace: "nowrap",
-        transition: "all var(--t-fast, 0.15s) var(--ease-smooth)",
+        transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth)",
       }}
-    >
+      >
       <Keyboard size={13} />
       <span>{isRecording ? dict.settings.upscaling.hotkeyRecording : displayBind}</span>
     </button>

@@ -2,28 +2,8 @@ import { useEffect } from "react";
 import type { RefObject } from "react";
 import type { SubtitleLine } from "../subtitleTypes";
 
-/**
- * Адаптивный шаг скролла в зависимости от расстояния до цели.
- * При малых дельтах — мягкое плавное движение (~20% за кадр).
- * При больших (перемотка с 3 на 19 минуту) — динамическое ускорение,
- * чтобы добраться до цели за ~300–400 мс.
- */
-export function calculateAdaptiveStep(delta: number): number {
-  const absDelta = Math.abs(delta);
-  let mag: number;
-  if (absDelta > 10000) {
-    mag = Math.min(absDelta * 0.4, 2500);
-  } else if (absDelta > 3000) {
-    mag = Math.min(absDelta * 0.35, 1200);
-  } else if (absDelta > 1000) {
-    mag = Math.min(absDelta * 0.28, 500);
-  } else if (absDelta > 300) {
-    mag = Math.min(absDelta * 0.24, 200);
-  } else {
-    mag = Math.max(1, absDelta * 0.2);
-  }
-  return Math.sign(delta) * mag;
-}
+import { useMotionAllowed } from "../../motion/useMotionAllowed";
+import { nextFollowScrollTop } from "../lib/followScroll";
 
 interface UseFollowPlaybackParams {
   followPlayback: boolean;
@@ -43,21 +23,7 @@ interface UseFollowPlaybackParams {
   lastManualNavTimeRef?: RefObject<number>;
 }
 
-/**
- * Плавное следование за активной репликой через rAF-цикл.
- *
- * Экспоненциальное приближение с адаптивной скоростью:
- * - монотонно сходится, мёртвая зона 2 px гасит субпиксельный тремор.
- * - Большие скачки (перемотка по таймлайну) преодолеваются
- *   за доли секунды благодаря `calculateAdaptiveStep`.
- * - Скроллим строго контейнер списка (не scrollIntoView —
- *   тот тянет предков).
- * - При недавней ручной навигации клавиатурой или клике rAF-цикл
- *   приостанавливает центрирование на 2 секунды, чтобы не дергать экран.
- *
- * При выключенном следовании (`followPlayback = false`) или при
- * активном поисковом запросе эффект не запускается.
- */
+/** Follow only this list, preserving the manual-navigation pause and virtualized fallback. */
 export function useFollowPlayback({
   followPlayback,
   searchQuery,
@@ -71,6 +37,7 @@ export function useFollowPlayback({
   scrollOffsetRef,
   lastManualNavTimeRef,
 }: UseFollowPlaybackParams): void {
+  const motionAllowed = useMotionAllowed();
   useEffect(() => {
     if (
       !followPlayback ||
@@ -82,8 +49,31 @@ export function useFollowPlayback({
 
     let rafId = 0;
     let missFrames = 0;
+    let lastTime = performance.now();
+    let resumeTimer: ReturnType<typeof setTimeout> | undefined;
 
-    const tick = () => {
+    const applyScroll = (container: HTMLDivElement, target: number, elapsedMs: number): boolean => {
+      const before = container.scrollTop;
+      const maximum = Math.max(0, container.scrollHeight - container.clientHeight);
+      const next = nextFollowScrollTop(before, target, maximum, elapsedMs, motionAllowed, container.clientHeight);
+      container.scrollTop = next;
+      // Some WebView/DPR combinations quantize subpixel writes. Finish rather than spin.
+      if (container.scrollTop === before && next !== before) {
+        container.scrollTop = Math.max(0, Math.min(target, maximum));
+      }
+      expectedScrollTopRef.current = container.scrollTop;
+      scrollOffsetRef.current = container.scrollTop;
+      return Math.abs(container.scrollTop - before) > 0.01;
+    };
+
+    const tick = (time: number) => {
+      const elapsedMs = Math.min(64, Math.max(0, time - lastTime));
+      lastTime = time;
+      // A callback can share a frame timestamp with the effect that started it.
+      if (motionAllowed && elapsedMs === 0) {
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
       const container = listContainerRef.current;
       if (!container) {
         rafId = requestAnimationFrame(tick);
@@ -92,8 +82,12 @@ export function useFollowPlayback({
 
       // Если пользователь недавно переключал реплики стрелками или кликал вручную —
       // не перетягиваем список в центр принудительно, даём спокойно просмотреть фрагмент
-      if (Date.now() - (lastManualNavTimeRef?.current ?? 0) < 2000) {
-        rafId = requestAnimationFrame(tick);
+      const manualPauseRemaining = 2000 - (Date.now() - (lastManualNavTimeRef?.current ?? 0));
+      if (manualPauseRemaining > 0) {
+        resumeTimer = setTimeout(() => {
+          lastTime = performance.now();
+          rafId = requestAnimationFrame(tick);
+        }, manualPauseRemaining);
         return;
       }
 
@@ -109,30 +103,21 @@ export function useFollowPlayback({
         );
       }
 
+      let needsAnotherTick = false;
+
       if (targetEl && targetEl.isConnected) {
         missFrames = 0;
         // Элемент присутствует в DOM — центруем по нему точно
         const elRect = targetEl.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
+        const scale = container.offsetHeight > 0 ? containerRect.height / container.offsetHeight : 1;
         const delta =
-          elRect.top -
-          containerRect.top +
-          elRect.height / 2 -
+          (elRect.top - containerRect.top + elRect.height / 2) / scale -
+          container.clientTop -
           container.clientHeight / 2;
 
         if (Math.abs(delta) > 2) {
-          const maxTop = Math.max(
-            0,
-            container.scrollHeight - container.clientHeight
-          );
-          const step = calculateAdaptiveStep(delta);
-          const next = Math.max(
-            0,
-            Math.min(container.scrollTop + step, maxTop)
-          );
-          container.scrollTop = next;
-          expectedScrollTopRef.current = next;
-          scrollOffsetRef.current = next;
+          needsAnotherTick = applyScroll(container, container.scrollTop + delta, elapsedMs);
         }
       } else if (activeLineIndex >= 0) {
         // Защита: не прыгаем по грубой estimatedRowHeight сразу в первом же кадре смены реплики,
@@ -150,30 +135,26 @@ export function useFollowPlayback({
                 estimatedRowHeight / 2
             );
             if (Math.abs(container.scrollTop - targetTop) > 2) {
-              const delta = targetTop - container.scrollTop;
-              const step = calculateAdaptiveStep(delta);
-              const maxTop = Math.max(
-                0,
-                container.scrollHeight - container.clientHeight
-              );
-              const next = Math.max(
-                0,
-                Math.min(container.scrollTop + step, maxTop)
-              );
-              container.scrollTop = next;
-              expectedScrollTopRef.current = next;
-              scrollOffsetRef.current = next;
+              needsAnotherTick = applyScroll(container, targetTop, elapsedMs);
             }
           }
+        } else {
+          needsAnotherTick = true;
         }
       }
 
-      rafId = requestAnimationFrame(tick);
+      if (needsAnotherTick) {
+        rafId = requestAnimationFrame(tick);
+      }
     };
 
     rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      cancelAnimationFrame(rafId);
+      if (resumeTimer !== undefined) clearTimeout(resumeTimer);
+    };
   }, [
+    motionAllowed,
     followPlayback,
     searchQuery,
     lines,

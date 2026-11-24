@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
 import { getDict, getEffectiveLocale } from "../i18n";
+import { playbackPollDelay } from "../utils/playbackPolling";
 
 export interface PlaylistItem {
   index: number;
@@ -30,7 +31,7 @@ export interface MediaInfo {
   speed: number;
   volume: number;
   file_size: number;
-  audio_channels: number;
+  audio_channels: string;
   audio_bitrate: number;
   video_bitrate: number;
   total_bitrate: number;
@@ -122,6 +123,8 @@ interface PlayerStateContextType {
   seekTo: (seconds: number) => Promise<void>;
   seekBy: (deltaSeconds: number) => Promise<void>;
   togglePause: () => Promise<void>;
+  /** Прямая установка паузы (true — пауза, false — воспроизведение). */
+  setPause: (paused: boolean) => Promise<void>;
   setVolume: (vol: number) => void;
   tracks: TrackInfo[];
   loadTracks: () => Promise<void>;
@@ -167,6 +170,7 @@ const PlayerStateContext = createContext<PlayerStateContextType>({
   seekTo: async () => {},
   seekBy: async () => {},
   togglePause: async () => {},
+  setPause: async () => {},
   setVolume: () => {},
   tracks: [],
   loadTracks: async () => {},
@@ -206,6 +210,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const [seekTarget, setSeekTarget] = useState<number | null>(null);
   const [tracks, setTracks] = useState<TrackInfo[]>([]);
   const tracksRef = useRef<TrackInfo[]>([]);
+  const tracksMediaPathRef = useRef<string>("");
+  const tracksLoadSeqRef = useRef<number>(0);
   const seekingRef = useRef(false);
   const seekTargetRef = useRef<number | null>(null);
   const seekTimestampRef = useRef<number>(0);
@@ -217,12 +223,61 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const currentVidRef = useRef<string>("");
   const trackCountRef = useRef<number>(0);
   const mediaInfoRef = useRef<MediaInfo | null>(null);
+  const mediaInfoLoadSeqRef = useRef<number>(0);
+  const playlistLoadSeqRef = useRef<number>(0);
+
+  const refreshMediaInfo = useCallback(async (expectedPath?: string) => {
+    const reqSeq = ++mediaInfoLoadSeqRef.current;
+    const targetPath = expectedPath ?? currentPathRef.current;
+    try {
+      const latestInfo = await invoke<MediaInfo>("get_media_info");
+      if (
+        reqSeq !== mediaInfoLoadSeqRef.current ||
+        !latestInfo.path ||
+        (targetPath && latestInfo.path !== targetPath) ||
+        latestInfo.path !== currentPathRef.current
+      ) {
+        return;
+      }
+      setMediaInfo((prev) => {
+        const effectiveWidth =
+          latestInfo.width > 0 ? latestInfo.width : (prev?.width ?? 0);
+        const effectiveHeight =
+          latestInfo.height > 0 ? latestInfo.height : (prev?.height ?? 0);
+        const hasVideoDimensions = effectiveWidth > 0 && effectiveHeight > 0;
+        const next: MediaInfo = {
+          ...(prev ?? latestInfo),
+          ...latestInfo,
+          duration:
+            latestInfo.duration > 0 ? latestInfo.duration : (prev?.duration ?? 0),
+          width: effectiveWidth,
+          height: effectiveHeight,
+          video_ready: Boolean(
+            (latestInfo.video_ready || prev?.video_ready) && hasVideoDimensions
+          ),
+        };
+        mediaInfoRef.current = next;
+        return next;
+      });
+    } catch (e) {
+      console.error("Ошибка обновления метаданных медиафайла", e);
+    }
+  }, []);
 
   const loadTracks = useCallback(async () => {
+    const reqSeq = ++tracksLoadSeqRef.current;
+    const expectedPath = currentPathRef.current;
     try {
       const t = await invoke<TrackInfo[]>("get_tracks");
+      if (
+        reqSeq !== tracksLoadSeqRef.current ||
+        expectedPath !== currentPathRef.current
+      ) {
+        return;
+      }
       const prev = tracksRef.current;
       const isSame =
+        tracksMediaPathRef.current === expectedPath &&
         prev.length === t.length &&
         prev.every(
           (p, i) =>
@@ -230,9 +285,14 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             p.selected === t[i].selected &&
             p.type === t[i].type &&
             p.title === t[i].title &&
-            p.lang === t[i].lang
+            p.lang === t[i].lang &&
+            p.codec === t[i].codec &&
+            Boolean(p.external) === Boolean(t[i].external) &&
+            (p.external_filename ?? "") === (t[i].external_filename ?? "") &&
+            (p.ff_index ?? null) === (t[i].ff_index ?? null)
         );
       if (!isSame) {
+        tracksMediaPathRef.current = expectedPath;
         tracksRef.current = t;
         setTracks(t);
       }
@@ -242,8 +302,10 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshPlaylist = useCallback(async () => {
+    const reqSeq = ++playlistLoadSeqRef.current;
     try {
       const items = await invoke<PlaylistItem[]>("get_playlist");
+      if (reqSeq !== playlistLoadSeqRef.current) return;
       setPlaylist(items);
     } catch (e) {
       console.error("Ошибка обновления плейлиста в контексте:", e);
@@ -285,12 +347,12 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshPlaylist, loadTracks]);
 
-  // Вызывается при загрузке нового файла или изменении стейта hasMedia
+  // Очистка состояния дорожек и плейлиста при переходе в пустое состояние (!hasMedia).
+  // При появлении медиа (hasMedia === true) первичный опрос дорожек и плейлиста уже выполняется внутри fetchState.
   useEffect(() => {
-    if (hasMedia) {
-      loadTracks();
-      refreshPlaylist();
-    } else {
+    if (!hasMedia) {
+      tracksLoadSeqRef.current += 1;
+      tracksMediaPathRef.current = "";
       tracksRef.current = [];
       setTracks([]);
       setPlaylist([]);
@@ -299,7 +361,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       currentVidRef.current = "";
       trackCountRef.current = 0;
     }
-  }, [hasMedia, loadTracks, refreshPlaylist]);
+  }, [hasMedia]);
 
   // Обработка idle (бездействия мыши)
   const lastActivityTimeRef = useRef<number>(0);
@@ -323,16 +385,37 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
     idleTimer.current = window.setTimeout(() => {
       const currentUIOpen = !!document.querySelector(
-        ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+        ".track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
-      if (!currentUIOpen) {
+      const isDragging = !!document.querySelector(".timeline--dragging");
+      if (!currentUIOpen && !isDragging) {
         isIdleRef.current = true;
         setIsIdle(true);
+      } else {
+        // The overlay may close after this callback. Keep a pending check alive.
+        window.dispatchEvent(new Event("l-mpv-idle-recheck"));
       }
     }, 3000);
   }, []);
 
   useEffect(() => {
+    const startIdleTimer = (delayMs: number = 3000) => {
+      if (idleTimer.current) window.clearTimeout(idleTimer.current);
+
+      idleTimer.current = window.setTimeout(() => {
+        const currentUIOpen = !!document.querySelector(
+          ".track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+        );
+        const isDragging = !!document.querySelector(".timeline--dragging");
+        if (!currentUIOpen && !isDragging) {
+          isIdleRef.current = true;
+          setIsIdle(true);
+        } else {
+          startIdleTimer(300);
+        }
+      }, delayMs);
+    };
+
     const handleActivity = (e?: Event) => {
       const now = Date.now();
       if (e?.type === "mousemove" && now - lastActivityTimeRef.current < 120) {
@@ -342,43 +425,56 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
       isIdleRef.current = false;
       setIsIdle(false);
-      if (idleTimer.current) window.clearTimeout(idleTimer.current);
-
-      // Проверяем, находится ли курсор над UI элементами
-      const target = (e instanceof MouseEvent ? e.target : null) as HTMLElement | null;
-      const isOverUI = target && !!target.closest(
-        ".player-controls-wrapper, .titlebar, .modal, .context-menu, .track-popover, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
-      );
 
       // Проверяем, открыты ли какие-либо модальные окна или всплывающие меню
       const isAnyUIOpen = !!document.querySelector(
-        ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+        ".track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
 
-      // Если мышь над UI или открыты меню/модалки, не тушим интерфейс
-      if (isOverUI || isAnyUIOpen) {
+      // Продолжаем проверять после закрытия оверлея, даже без движения мыши.
+      if (isAnyUIOpen) {
+        startIdleTimer(3000);
         return;
       }
 
-      idleTimer.current = window.setTimeout(() => {
-        const currentUIOpen = !!document.querySelector(
-          ".track-popover, .modal, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
-        );
-        if (!currentUIOpen) {
-          isIdleRef.current = true;
-          setIsIdle(true);
+      // При клике по кнопке снимаем фокус асинхронно, чтобы не ломать событие click и убрать залипание
+      if (e?.type === "mousedown") {
+        const el = e.target as HTMLElement | null;
+        if (el?.tagName === "BUTTON" || el?.closest("button")) {
+          const btn = (el.closest("button") || el) as HTMLElement;
+          requestAnimationFrame(() => {
+            btn.blur();
+          });
         }
-      }, 3000);
+      }
+
+      startIdleTimer(3000);
     };
+
+    const handleMouseLeave = () => {
+      startIdleTimer(1200);
+    };
+
+    const handleRecheck = () => startIdleTimer(300);
 
     window.addEventListener("mousemove", handleActivity);
     window.addEventListener("mousedown", handleActivity);
     window.addEventListener("wheel", handleActivity);
+    document.addEventListener("mouseleave", handleMouseLeave);
+    window.addEventListener("blur", handleMouseLeave);
+    window.addEventListener("l-mpv-idle-recheck", handleRecheck);
+    const unlistenFocus = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (!focused) handleMouseLeave();
+    }).catch(() => () => {});
 
     return () => {
       window.removeEventListener("mousemove", handleActivity);
       window.removeEventListener("mousedown", handleActivity);
       window.removeEventListener("wheel", handleActivity);
+      document.removeEventListener("mouseleave", handleMouseLeave);
+      window.removeEventListener("blur", handleMouseLeave);
+      window.removeEventListener("l-mpv-idle-recheck", handleRecheck);
+      void unlistenFocus.then(unlisten => unlisten());
       if (idleTimer.current) window.clearTimeout(idleTimer.current);
     };
   }, []);
@@ -390,40 +486,79 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   const lastSaveTimeRef = useRef<number>(0);
   const currentPositionRef = useRef<number>(0);
   const eofReachedRef = useRef<boolean>(false);
+  // Пока громкость дебаунсится (invoke ещё не ушёл), опрос не должен
+  // затирать оптимистичное значение старым значением из бэкенда.
+  const pendingVolumeRef = useRef<number | null>(null);
 
-  // Оптимизированный цикл поллинга
+  // Оптимизированный последовательный цикл поллинга с защитой от параллельных вызовов и коалесценцией force-poll
   useEffect(() => {
     let timerId: number | null = null;
+    let resumeTimerId: number | null = null;
     let isCancelled = false;
+    let isFetching = false;
+    let pendingForcePoll = false;
+
+    const clearPollTimer = () => {
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
+        timerId = null;
+      }
+    };
+
+    const scheduleNext = (delay: number) => {
+      if (isCancelled) return;
+      clearPollTimer();
+      timerId = window.setTimeout(fetchState, delay);
+    };
 
     const fetchState = async () => {
       if (isCancelled) return;
+      if (isFetching) {
+        // Если опрос уже выполняется, запоминаем запрос на немедленный повтор после завершения текущего цикла
+        pendingForcePoll = true;
+        return;
+      }
+
+      isFetching = true;
+      clearPollTimer();
       let nextDelay = 100;
       try {
         const dynState = await invoke<PlaybackState>("get_playback_state");
-        if (dynState.paused) {
-          nextDelay = 1000;
-        } else if (dynState.path === "") {
-          nextDelay = hasMediaInfoRef.current ? 1000 : 150;
-        }
+        if (isCancelled) return;
+        nextDelay = playbackPollDelay(dynState, hasMediaInfoRef.current);
         
         if (!hasMediaInfoRef.current || dynState.path !== currentPathRef.current) {
           const fullInfo = await invoke<MediaInfo>("get_media_info");
+          if (isCancelled) return;
           if (fullInfo.path !== "") {
-            const effectiveDuration = fullInfo.duration > 0
+            const effectiveDuration = fullInfo.duration> 0
               ? fullInfo.duration
-              : (dynState.duration > 0 ? dynState.duration : 0);
+              : (dynState.duration> 0 ? dynState.duration : 0);
             fullInfo.duration = effectiveDuration;
 
+            const pathChanged = currentPathRef.current !== fullInfo.path;
             currentPathRef.current = fullInfo.path;
-            currentAidRef.current = "";
-            currentSidRef.current = "";
-            currentVidRef.current = "";
-            trackCountRef.current = 0;
-            hasMediaInfoRef.current = effectiveDuration > 0;
-            const effectiveWidth = fullInfo.width > 0 ? fullInfo.width : 0;
-            const effectiveHeight = fullInfo.height > 0 ? fullInfo.height : 0;
-            const hasVideoDimensions = effectiveWidth > 0 && effectiveHeight > 0;
+            if (pathChanged) {
+              playlistLoadSeqRef.current += 1;
+              setPlaylist([]);
+            }
+            if (pathChanged || tracksMediaPathRef.current !== fullInfo.path) {
+              tracksLoadSeqRef.current += 1;
+              tracksMediaPathRef.current = fullInfo.path;
+              tracksRef.current = [];
+              setTracks([]);
+            }
+            currentAidRef.current = dynState.current_aid;
+            currentSidRef.current = dynState.current_sid;
+            currentVidRef.current = dynState.current_vid;
+            trackCountRef.current = dynState.track_count;
+            mediaInfoLoadSeqRef.current += 1;
+            // Metadata is initialized even for live streams with no known duration.
+            hasMediaInfoRef.current = true;
+            currentPositionRef.current = fullInfo.position;
+            const effectiveWidth = fullInfo.width> 0 ? fullInfo.width : 0;
+            const effectiveHeight = fullInfo.height> 0 ? fullInfo.height : 0;
+            const hasVideoDimensions = effectiveWidth> 0 && effectiveHeight> 0;
 
             fullInfo.width = effectiveWidth;
             fullInfo.height = effectiveHeight;
@@ -450,9 +585,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
               seekTarget: null,
             });
             const chaps = await invoke<Chapter[]>("get_chapters").catch(() => []);
+            if (isCancelled) return;
             setChapters(chaps);
             refreshPlaylist();
-            if (fullInfo.paused) nextDelay = 1000;
 
             // Resume выполняет бэкенд (mpv `start` в open_file/playlist_next/prev/play_index):
             // второй seek здесь приводил к повторной буферизации. Локально лишь
@@ -460,7 +595,11 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             isResumingRef.current = true;
             lastSavedPositionRef.current = fullInfo.position;
             // Предотвращаем ложное срабатывание автосохранения во время инициализации
-            setTimeout(() => {
+            if (resumeTimerId !== null) {
+              window.clearTimeout(resumeTimerId);
+            }
+            resumeTimerId = window.setTimeout(() => {
+              resumeTimerId = null;
               isResumingRef.current = false;
             }, 300);
           } else {
@@ -468,6 +607,11 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             currentPositionRef.current = 0;
             hasMediaInfoRef.current = false;
             mediaInfoRef.current = null;
+            mediaInfoLoadSeqRef.current += 1;
+            tracksLoadSeqRef.current += 1;
+            tracksMediaPathRef.current = "";
+            tracksRef.current = [];
+            setTracks([]);
             setMediaInfo(null);
             setHasMedia(false);
             setChapters([]);
@@ -493,7 +637,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           const countChanged =
             dynState.track_count !== trackCountRef.current;
           const tracksMissing =
-            tracksRef.current.length === 0 && dynState.track_count > 0;
+            tracksRef.current.length === 0 && dynState.track_count> 0;
 
           if (
             aidChanged ||
@@ -507,12 +651,15 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
             currentVidRef.current = dynState.current_vid;
             trackCountRef.current = dynState.track_count;
             loadTracks();
+            if (aidChanged || vidChanged) {
+              void refreshMediaInfo(dynState.path);
+            }
           }
 
           // Проверяем, доехал ли mpv до цели seek или истек таймаут
           if (seekingRef.current && seekTargetRef.current !== null) {
             const isTargetReached = Math.abs(dynState.position - seekTargetRef.current) < 2.0;
-            const isTimedOut = Date.now() - seekTimestampRef.current > 1000;
+            const isTimedOut = Date.now() - seekTimestampRef.current> 1000;
             if (isTargetReached || isTimedOut) {
               if (seekTimeoutIdRef.current !== null) {
                 window.clearTimeout(seekTimeoutIdRef.current);
@@ -535,24 +682,33 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           eofReachedRef.current = !!dynState.eof_reached;
 
           // Актуальная длительность из динамического состояния или сохраненной информации
-          const curDur = dynState.duration > 0
+          const curDur = dynState.duration> 0
             ? dynState.duration
             : (mediaInfoRef.current?.duration || 0);
 
           // Если в mediaInfo длительность была 0, но в mpv контейнер дочитался (> 0):
-          if (dynState.duration > 0 && (!mediaInfoRef.current || mediaInfoRef.current.duration <= 0)) {
+          if (dynState.duration> 0 && (!mediaInfoRef.current || mediaInfoRef.current.duration <= 0)) {
+            // A stream can initialize before container headers. Refresh static
+            // metadata once when duration becomes available, not on every poll.
+            const completedInfo = await invoke<MediaInfo>("get_media_info").catch(() => null);
+            if (isCancelled) return;
+            if (completedInfo && completedInfo.path !== dynState.path) return;
             hasMediaInfoRef.current = true;
             if (mediaInfoRef.current) {
               const updatedMedia: MediaInfo = {
                 ...mediaInfoRef.current,
+                ...(completedInfo ?? {}),
                 duration: dynState.duration,
+                volume: mediaInfoRef.current.volume,
+                paused: dynState.paused,
+                speed: dynState.speed,
               };
               mediaInfoRef.current = updatedMedia;
               setMediaInfo(updatedMedia);
             }
             // Подгружаем главы, так как при первой инициализации контейнер мог быть не готов
             invoke<Chapter[]>("get_chapters").then(chaps => {
-              if (chaps && chaps.length > 0) setChapters(chaps);
+              if (!isCancelled && chaps && chaps.length> 0) setChapters(chaps);
             }).catch(() => {});
           }
 
@@ -569,21 +725,24 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
           if (currentMedia && dynState.path === currentPathRef.current) {
             const isPausedChanged = currentMedia.paused !== dynState.paused;
             const isSpeedChanged = currentMedia.speed !== dynState.speed;
-            const isVolumeChanged = currentMedia.volume !== dynState.volume;
+            // Пока очередь громкости не отправлена — backend ещё хранит старое
+            // значение, оптимистичное UI не затираем.
+            const isVolumeChanged = pendingVolumeRef.current === null
+              && currentMedia.volume !== dynState.volume;
 
             // Новые валидные размеры (защита от сброса в 0)
             const targetWidth =
-              dynState.video_width > 0
+              dynState.video_width> 0
                 ? dynState.video_width
                 : currentMedia.width;
             const targetHeight =
-              dynState.video_height > 0
+              dynState.video_height> 0
                 ? dynState.video_height
                 : currentMedia.height;
             const isSizeChanged =
-              (dynState.video_width > 0 &&
+              (dynState.video_width> 0 &&
                 dynState.video_width !== currentMedia.width) ||
-              (dynState.video_height > 0 &&
+              (dynState.video_height> 0 &&
                 dynState.video_height !== currentMedia.height);
 
             const nextVideoTrack =
@@ -607,14 +766,14 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
                 ...currentMedia,
                 paused: dynState.paused,
                 speed: dynState.speed,
-                volume: dynState.volume,
+                volume: pendingVolumeRef.current ?? dynState.volume,
                 width: targetWidth,
                 height: targetHeight,
                 video_track: nextVideoTrack,
                 has_video: dynState.has_video,
                 video_ready: Boolean(
                   dynState.video_ready ||
-                  (currentMedia.video_ready && targetWidth > 0 && targetHeight > 0)
+                  (currentMedia.video_ready && targetWidth> 0 && targetHeight> 0)
                 ),
                 audio_bitrate: dynState.audio_bitrate,
                 video_bitrate: dynState.video_bitrate,
@@ -629,34 +788,46 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         nextDelay = 1000;
-      }
-      
-      if (!isCancelled) {
-        timerId = window.setTimeout(fetchState, nextDelay);
+      } finally {
+        isFetching = false;
+        if (!isCancelled) {
+          if (pendingForcePoll) {
+            pendingForcePoll = false;
+            scheduleNext(0);
+          } else {
+            scheduleNext(nextDelay);
+          }
+        }
       }
     };
 
-    fetchState();
+    void fetchState();
 
     const handleForcePoll = () => {
-      if (timerId !== null) {
-        window.clearTimeout(timerId);
-        timerId = null;
+      if (isCancelled) return;
+      if (isFetching) {
+        pendingForcePoll = true;
+        return;
       }
-      fetchState();
+      clearPollTimer();
+      void fetchState();
     };
     window.addEventListener("l-mpv-force-poll", handleForcePoll);
 
     return () => {
       isCancelled = true;
-      if (timerId !== null) window.clearTimeout(timerId);
+      clearPollTimer();
+      if (resumeTimerId !== null) {
+        window.clearTimeout(resumeTimerId);
+        resumeTimerId = null;
+      }
       if (seekTimeoutIdRef.current !== null) {
         window.clearTimeout(seekTimeoutIdRef.current);
         seekTimeoutIdRef.current = null;
       }
       window.removeEventListener("l-mpv-force-poll", handleForcePoll);
     };
-  }, [loadTracks]);
+  }, [loadTracks, refreshPlaylist, refreshMediaInfo]);
 
   // ─── Единая точка входа для seek ───
   const seekTo = useCallback(async (seconds: number) => {
@@ -667,6 +838,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
     seekingRef.current = true;
     seekTargetRef.current = seconds;
+    currentPositionRef.current = seconds;
     seekTimestampRef.current = Date.now();
     setSeeking(true);
     setSeekTarget(seconds);
@@ -685,6 +857,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
     try {
       await invoke("seek_absolute", { seconds });
+      window.dispatchEvent(new Event("l-mpv-force-poll"));
     } catch (e) {
       // При ошибке немедленно сбрасываем seeking
       if (seekTimeoutIdRef.current !== null) {
@@ -708,7 +881,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
     const dur = mediaInfoRef.current?.duration || 0;
     const cur = currentPositionRef.current;
-    const target = dur > 0
+    const target = dur> 0
       ? Math.max(0, Math.min(dur, cur + deltaSeconds))
       : Math.max(0, cur + deltaSeconds);
 
@@ -763,9 +936,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
   // ─── Переключение паузы ───
   const togglePause = useCallback(async () => {
     const dur = mediaInfoRef.current?.duration || 0;
-    const isAtEnd = dur > 0 && (
+    const isAtEnd = dur> 0 && (
       eofReachedRef.current ||
-      currentPositionRef.current >= dur - 0.3
+      currentPositionRef.current>= dur - 0.3
     );
 
     // Мгновенно обновляем UI локально (оптимистично)
@@ -792,20 +965,64 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // ─── Оптимистичное изменение громкости ───
+  // ─── Прямая установка паузы ───
+  const setPause = useCallback(async (paused: boolean) => {
+    setMediaInfo(prev => {
+      if (!prev) return null;
+      if (prev.paused === paused) return prev;
+      const next = { ...prev, paused };
+      mediaInfoRef.current = next;
+      return next;
+    });
+
+    try {
+      await invoke("set_pause", { paused });
+      window.dispatchEvent(new Event("l-mpv-force-poll"));
+    } catch (e) {
+      console.error("Ошибка установки паузы:", e);
+      window.dispatchEvent(new Event("l-mpv-force-poll"));
+    }
+  }, []);
+
+  // ─── Оптимистичное изменение громкости с объединением IPC ───
+  // UI + localStorage — мгновенно; последняя громкость отправляется раз в окно 50 мс.
+  // Колесо/драг слайдера даёт десятки событий в секунду — без объединения
+  // каждое дёргает mpv + WASAPI через IPC.
+  const volumeFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushVolumeRef = useRef(() => {});
+  flushVolumeRef.current = () => {
+    if (pendingVolumeRef.current === null) return;
+    const vol = pendingVolumeRef.current;
+    pendingVolumeRef.current = null;
+    invoke("set_volume", { volume: vol }).catch(() => {});
+  };
+  useEffect(() => {
+    return () => {
+      if (volumeFlushTimerRef.current) clearTimeout(volumeFlushTimerRef.current);
+      flushVolumeRef.current();
+    };
+  }, []);
   const setVolume = useCallback((vol: number) => {
+    const clamped = Math.max(0, Math.min(150, vol));
     // Мгновенное обновление UI
     setMediaInfo(prev => {
       if (!prev) return null;
-      const next = { ...prev, volume: vol };
+      const next = { ...prev, volume: clamped };
       mediaInfoRef.current = next;
       return next;
     });
     try {
-      localStorage.setItem("l-mpv-volume", vol.toString());
-      invoke("set_volume", { volume: vol });
+      localStorage.setItem("l-mpv-volume", clamped.toString());
     } catch (e) {
       console.error(e);
+    }
+    pendingVolumeRef.current = clamped;
+    // Bounded coalescing: continuous input must not postpone audio indefinitely.
+    if (volumeFlushTimerRef.current === null) {
+      volumeFlushTimerRef.current = setTimeout(() => {
+        volumeFlushTimerRef.current = null;
+        flushVolumeRef.current();
+      }, 50);
     }
   }, []);
 
@@ -815,7 +1032,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     const curPos = progress.position;
     const curDur = progress.duration;
     const isPaused = mediaInfo?.paused ?? true;
-    if (curDur > 0) {
+    if (curDur> 0) {
       const prog = curPos / curDur;
       const discrete = Math.round(prog * 500); // Дискретность 0.2%
       if (discrete !== lastTaskbarRef.current.discrete || isPaused !== lastTaskbarRef.current.paused) {
@@ -856,8 +1073,8 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     // 3. Во время воспроизведения каждые 3 секунды или при смещении не менее 3 секунд
     const shouldSave =
       justPaused ||
-      (isPaused && posDiff >= 0.5) ||
-      (!isPaused && (posDiff >= 3.0 || (now - lastSaveTimeRef.current >= 3000 && posDiff >= 0.5)));
+      (isPaused && posDiff>= 0.5) ||
+      (!isPaused && (posDiff>= 3.0 || (now - lastSaveTimeRef.current>= 3000 && posDiff>= 0.5)));
 
     if (shouldSave) {
       lastSavedPositionRef.current = curPos;
@@ -871,9 +1088,9 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     const handleBeforeUnload = () => {
       const curMedia = mediaInfoRef.current;
       const curPos = currentPositionRef.current;
-      if (curMedia && curMedia.path && curMedia.duration > 0 && !isResumingRef.current) {
+      if (curMedia && curMedia.path && curMedia.duration> 0 && !isResumingRef.current) {
         // Сохраняем только актуальную ненулевую позицию (не затираем историю нулём при выгрузке страницы)
-        if (curPos > 0) {
+        if (curPos> 0) {
           invoke("save_position", {
             path: curMedia.path,
             position: curPos,
@@ -898,32 +1115,22 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       });
       await invoke("set_audio_track", { trackId });
       const t = tracksRef.current.find(x => x.type === "audio" && x.id === trackId);
+      const curLoc = getEffectiveLocale();
       if (t) {
-         invoke("show_osd", { text: `Аудио: ${t.title || t.lang || ('Дорожка ' + t.id)}` }).catch(() => {});
+        const prefix = curLoc === "en" ? "Audio: " : "Аудио: ";
+        const fallback = curLoc === "en" ? `Track ${t.id}` : `Дорожка ${t.id}`;
+        invoke("show_osd", { text: `${prefix}${t.title || t.lang || fallback}` }).catch(() => {});
+      } else if (trackId <= 0) {
+        const offText = curLoc === "en" ? "Audio: Off" : "Аудио: Выкл";
+        invoke("show_osd", { text: offText }).catch(() => {});
       }
       await loadTracks();
+      await refreshMediaInfo();
+      window.dispatchEvent(new Event("l-mpv-force-poll"));
     } catch (e) {
       console.error("Ошибка при выборе аудиодорожки", e);
     }
-  }, [loadTracks]);
-  
-  const selectSubTrack = useCallback(async (trackId: number) => {
-    try {
-      setTracks(prev => {
-        const next = prev.map(t => t.type === "sub" ? { ...t, selected: t.id === trackId } : t);
-        tracksRef.current = next;
-        return next;
-      });
-      await invoke("set_subtitle_track", { trackId });
-      const t = tracksRef.current.find(x => x.type === "sub" && x.id === trackId);
-      if (t) {
-         invoke("show_osd", { text: `Субтитры: ${t.title || t.lang || ('Дорожка ' + t.id)}` }).catch(() => {});
-      }
-      await loadTracks();
-    } catch (e) {
-      console.error("Ошибка при выборе дорожки субтитров", e);
-    }
-  }, [loadTracks]);
+  }, [loadTracks, refreshMediaInfo]);
   
   const disableSubtitles = useCallback(async () => {
     try {
@@ -933,12 +1140,39 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         return next;
       });
       await invoke("disable_subtitles");
-      invoke("show_osd", { text: "Субтитры: Выкл" }).catch(() => {});
+      const curLoc = getEffectiveLocale();
+      const offText = curLoc === "en" ? "Subtitles: Off" : "Субтитры: Выкл";
+      invoke("show_osd", { text: offText }).catch(() => {});
       await loadTracks();
     } catch (e) {
       console.error("Ошибка при отключении субтитров", e);
     }
   }, [loadTracks]);
+
+  const selectSubTrack = useCallback(async (trackId: number) => {
+    if (trackId <= 0) {
+      await disableSubtitles();
+      return;
+    }
+    try {
+      setTracks(prev => {
+        const next = prev.map(t => t.type === "sub" ? { ...t, selected: t.id === trackId } : t);
+        tracksRef.current = next;
+        return next;
+      });
+      await invoke("set_subtitle_track", { trackId });
+      const t = tracksRef.current.find(x => x.type === "sub" && x.id === trackId);
+      if (t) {
+        const curLoc = getEffectiveLocale();
+        const prefix = curLoc === "en" ? "Subtitles: " : "Субтитры: ";
+        const fallback = curLoc === "en" ? `Track ${t.id}` : `Дорожка ${t.id}`;
+        invoke("show_osd", { text: `${prefix}${t.title || t.lang || fallback}` }).catch(() => {});
+      }
+      await loadTracks();
+    } catch (e) {
+      console.error("Ошибка при выборе дорожки субтитров", e);
+    }
+  }, [loadTracks, disableSubtitles]);
   
   const cycleAudioTrack = useCallback(async () => {
     const audioTracks = tracks.filter((t) => t.type === "audio");
@@ -1069,24 +1303,29 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const trackKey = `${track.type}-${track.id}`;
+    const currentTracks =
+      tracksMediaPathRef.current === mediaInfo.path ? tracksRef.current : tracks;
+    const resolvedTrack =
+      currentTracks.find((t) => t.type === track.type && t.id === track.id) || track;
+
+    const trackKey = `${resolvedTrack.type}-${resolvedTrack.id}`;
     setDownloadingTrackKey(trackKey);
 
     try {
-      const ext = getExtensionForTrack(track);
+      const ext = getExtensionForTrack(resolvedTrack);
 
       // Формируем имя файла из названия дорожки с очисткой от недопустимых символов Windows
-      let cleanTrackName = (track.title || "")
+      let cleanTrackName = (resolvedTrack.title || "")
         .trim()
         .replace(/[\x00-\x1f\\/:*?"<>|]/g, "_")
         .trim();
       if (!cleanTrackName) {
         const typeLabel = curLocale === "en"
-          ? (track.type === "audio" ? "Audio" : "Subtitles")
-          : (track.type === "audio" ? "Аудио" : "Субтитры");
-        cleanTrackName = track.lang
-          ? `${typeLabel}_${track.lang.toUpperCase()}`
-          : `${typeLabel}_${track.id}`;
+          ? (resolvedTrack.type === "audio" ? "Audio" : "Subtitles")
+          : (resolvedTrack.type === "audio" ? "Аудио" : "Субтитры");
+        cleanTrackName = resolvedTrack.lang
+          ? `${typeLabel}_${resolvedTrack.lang.toUpperCase()}`
+          : `${typeLabel}_${resolvedTrack.id}`;
       }
 
       // Итоговое имя файла совпадает с названием дорожки
@@ -1113,11 +1352,11 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         finalTargetPath = `${videoDir}/${defaultFileName}`;
       } else {
         const dialogTitle = curLocale === "en"
-          ? `Save ${track.type === "audio" ? "audio track" : "subtitles"}`
-          : `Сохранить ${track.type === "audio" ? "аудиодорожку" : "субтитры"}`;
+          ? `Save ${resolvedTrack.type === "audio" ? "audio track" : "subtitles"}`
+          : `Сохранить ${resolvedTrack.type === "audio" ? "аудиодорожку" : "субтитры"}`;
         const filterName = curLocale === "en"
-          ? (track.type === "audio" ? "Audio file" : "Subtitles")
-          : (track.type === "audio" ? "Аудиофайл" : "Субтитры");
+          ? (resolvedTrack.type === "audio" ? "Audio file" : "Subtitles")
+          : (resolvedTrack.type === "audio" ? "Аудиофайл" : "Субтитры");
 
         finalTargetPath = await save({
           title: dialogTitle,
@@ -1137,22 +1376,24 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const typeTracks = tracks.filter((t) => t.type === track.type && !t.external);
-      const trackIdx = typeTracks.findIndex((t) => t.id === track.id);
-      const streamIndex = trackIdx >= 0 ? trackIdx : Math.max(0, track.id - 1);
+      const typeTracks = currentTracks.filter(
+        (t) => t.type === resolvedTrack.type && !t.external
+      );
+      const trackIdx = typeTracks.findIndex((t) => t.id === resolvedTrack.id);
+      const streamIndex = trackIdx >= 0 ? trackIdx : Math.max(0, resolvedTrack.id - 1);
 
       await invoke<string>("extract_track", {
         videoPath: videoFullPath,
-        trackType: track.type,
+        trackType: resolvedTrack.type,
         trackIndex: streamIndex,
-        ffIndex: track.ff_index !== undefined ? track.ff_index : null,
-        externalFilename: track.external_filename || null,
+        ffIndex: resolvedTrack.ff_index !== undefined ? resolvedTrack.ff_index : null,
+        externalFilename: resolvedTrack.external_filename || null,
         targetPath: finalTargetPath,
       });
 
       const successLabel = curLocale === "en"
-        ? (track.type === "audio" ? "Audio track saved" : "Subtitles saved")
-        : (track.type === "audio" ? "Аудиодорожка сохранена" : "Субтитры сохранены");
+        ? (resolvedTrack.type === "audio" ? "Audio track saved" : "Subtitles saved")
+        : (resolvedTrack.type === "audio" ? "Аудиодорожка сохранена" : "Субтитры сохранены");
       window.dispatchEvent(
         new CustomEvent("show-osd", {
           detail: `${successLabel}: ${cleanTrackName}.${ext}`,
@@ -1180,6 +1421,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     seekTo,
     seekBy,
     togglePause,
+    setPause,
     setVolume,
     tracks,
     loadTracks,
@@ -1209,6 +1451,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
     seekTo,
     seekBy,
     togglePause,
+    setPause,
     setVolume,
     tracks,
     loadTracks,

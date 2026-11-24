@@ -108,9 +108,8 @@ export function useOsd(): UseOsdReturn {
       osdTextRef.current = text;
       setOsdText(text);
 
-      const fadeDuration = isMotionAllowed() ? CLOSE_OSD_MS : 0;
-
       osdTimerRef.current = window.setTimeout(() => {
+        const fadeDuration = isMotionAllowed() ? CLOSE_OSD_MS : 0;
         if (fadeDuration > 0) {
           setIsOsdClosing(true);
           osdFadeTimerRef.current = window.setTimeout(() => {

@@ -1,6 +1,61 @@
+mod transaction;
+use transaction::{build_transactional_update_bat, UpdateSession, UpdateStaging};
+
 use serde::{Deserialize, Serialize};
 
 use tauri::Emitter;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UpdateResumeSession {
+    pub path: String,
+    pub position: f64,
+    pub paused: bool,
+}
+
+struct StagedUpdateState {
+    staging: UpdateStaging,
+    current_exe_name: String,
+    staged_files: Vec<String>,
+    target_version: String,
+}
+
+static STAGED_UPDATE: std::sync::OnceLock<std::sync::Mutex<Option<StagedUpdateState>>> =
+    std::sync::OnceLock::new();
+
+fn get_staged_update_lock() -> &'static std::sync::Mutex<Option<StagedUpdateState>> {
+    STAGED_UPDATE.get_or_init(|| std::sync::Mutex::new(None))
+}
+
+fn update_resume_file_path(exe_dir: &std::path::Path) -> std::path::PathBuf {
+    exe_dir.join("config").join("update_resume.json")
+}
+
+/// Сохраняет активное видео и таймкод перед перезапуском после обновления.
+fn save_update_resume_session(
+    exe_dir: &std::path::Path,
+    session: &UpdateResumeSession,
+) {
+    let path = update_resume_file_path(exe_dir);
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(json) = serde_json::to_string(session) {
+        let _ = std::fs::write(&path, json);
+    }
+}
+
+/// Одноразово читает и удаляет сохранённую сессию видео после перезапуска обновления.
+pub fn take_update_resume_session(
+    exe_dir: &std::path::Path,
+) -> Option<UpdateResumeSession> {
+    let path = update_resume_file_path(exe_dir);
+    if !path.is_file() {
+        return None;
+    }
+    let content = std::fs::read_to_string(&path).ok();
+    let _ = std::fs::remove_file(&path);
+    content.and_then(|raw| serde_json::from_str::<UpdateResumeSession>(&raw).ok())
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UpdateInfo {
@@ -481,13 +536,11 @@ pub fn postpone_update() -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-pub async fn download_and_install_update(
-    app: tauri::AppHandle,
-    _download_url: String,
-    _asset_name: String,
+/// Внутренняя функция скачивания и проверки файлов обновления в staging-папку без немедленного закрытия плеера.
+async fn prepare_and_stage_update(
+    app: &tauri::AppHandle,
     tag: Option<String>,
-) -> Result<(), String> {
+) -> Result<StagedUpdateState, String> {
     let api_client = create_http_client()?;
     let release = match tag.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
         Some(target_tag) => fetch_github_release_by_tag(&api_client, target_tag).await?,
@@ -508,10 +561,6 @@ pub async fn download_and_install_update(
     // Манифест загружается до бинарников: если его нет, не качаем ничего.
     let manifest = fetch_checksum_manifest(&api_client, &release).await?;
 
-    // Каждый обновляемый файл обязан быть в манифесте, иначе он не проверяем.
-    // Имена сравниваются в нижнем регистре, потому что манифест адресует файлы
-    // без учёта регистра: на NTFS регистр не учитывается, иначе один и тот же
-    // файл находился бы под двумя ключами.
     let mut seen_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
     for asset in &portable_assets {
         let key = asset.name.to_lowercase();
@@ -531,27 +580,15 @@ pub async fn download_and_install_update(
     }
 
     let exe_dir = get_app_dir()?;
-    let updates_dir = exe_dir.join(".updates");
+    let staging = UpdateStaging::create(&exe_dir)
+        .map_err(|e| format!("Не удалось создать папку обновления: {e}"))?;
+    let updates_dir = staging.path().to_owned();
 
-    // Каталог очищается целиком. update.bat выполняет `xcopy /s /y /q "*"`,
-    // то есть копирует из .updates ВСЁ, что там лежит. Прерванная на прошлом
-    // попытке загрузка, файл от старого релиза или любая посторонняя мелочь
-    // иначе оказались бы в папке плеера. Без очистки оборванный файл
-    // libmpv-2.dll перезаписал бы рабочий.
-    if updates_dir.exists() {
-        tokio::fs::remove_dir_all(&updates_dir)
-            .await
-            .map_err(|e| format!("Не удалось очистить папку .updates: {}", e))?;
-    }
-    tokio::fs::create_dir_all(&updates_dir)
+    let manifest_json = serde_json::to_string_pretty(&manifest)
+        .map_err(|e| format!("Не удалось подготовить манифест обновления: {e}"))?;
+    tokio::fs::write(updates_dir.join(CHECKSUM_ASSET_NAME), manifest_json)
         .await
-        .map_err(|e| format!("Не удалось создать папку .updates: {}", e))?;
-
-    // Сохраняем проверенный манифест целостности в .updates, чтобы скрипт обновления
-    // скопировал его в корень папки плеера рядом с обновлёнными бинарниками.
-    if let Ok(manifest_json) = serde_json::to_string_pretty(&manifest) {
-        let _ = tokio::fs::write(updates_dir.join(CHECKSUM_ASSET_NAME), manifest_json).await;
-    }
+        .map_err(|e| format!("Не удалось сохранить манифест обновления: {e}"))?;
 
     let total_bytes: u64 = portable_assets.iter().map(|a| a.size.unwrap_or(0)).sum();
     let mut downloaded_bytes: u64 = 0;
@@ -562,10 +599,6 @@ pub async fn download_and_install_update(
     for asset in &portable_assets {
         let file_path = updates_dir.join(&asset.name);
 
-        // Тело обёрнуто так, чтобы ЛЮБАЯ ошибка — обрыв потока, ошибка
-        // записи, несовпадение хэша — приводила к удалению файла. Иначе
-        // недописанный файл доживёт до следующего запуска и будет скопирован
-        // в папку плеера.
         let outcome: Result<(), String> = async {
             let mut asset_resp = download_client
                 .get(&asset.browser_download_url)
@@ -585,8 +618,6 @@ pub async fn download_and_install_update(
                 .await
                 .map_err(|e| format!("Не удалось создать файл {}: {}", asset.name, e))?;
 
-            // BLAKE3 считается на лету, тем же потоком чтения, что и запись:
-            // файл не перечитывается с диска вторым проходом.
             let mut hasher = blake3::Hasher::new();
             let mut written_for_asset: u64 = 0;
 
@@ -627,8 +658,6 @@ pub async fn download_and_install_update(
                 .await
                 .map_err(|e| format!("Ошибка финализации файла {}: {}", asset.name, e))?;
 
-            // Дешёвый рубеж: размер из ответа GitHub. Ловит обрыв загрузки
-            // и подмену на файл другого объёма.
             if let Some(expected_size) = asset.size {
                 if written_for_asset != expected_size {
                     return Err(format!(
@@ -639,7 +668,6 @@ pub async fn download_and_install_update(
                 }
             }
 
-            // Основной рубеж: BLAKE3 из манифеста релиза.
             let expected_hash = manifest
                 .files
                 .get(&asset.name.to_lowercase())
@@ -665,7 +693,7 @@ pub async fn download_and_install_update(
         }
     }
 
-    // Сбрасываем счётчики запусков и откладываний перед обновлением
+    // Сбрасываем счётчики запусков и откладываний после успешного скачивания обновления
     if let Err(error) = crate::commands::AppSettings::update_portable(
         |settings| {
             settings.launch_count = 0;
@@ -678,39 +706,72 @@ pub async fn download_and_install_update(
         );
     }
 
-    let bat_path = updates_dir.join("update.bat");
     let current_exe_name = std::env::current_exe()
         .ok()
         .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
         .unwrap_or_else(|| "l-mpv.exe".to_string());
 
-    // Если пользователь переименовал exe (например, L-MPV.exe или плеер.exe),
-    // подгоняем имя файла в папке обновлений, чтобы xcopy перезаписал именно его.
     if !current_exe_name.eq_ignore_ascii_case("l-mpv.exe") {
         let default_exe = updates_dir.join("l-mpv.exe");
         if default_exe.exists() {
-            let _ = tokio::fs::rename(&default_exe, updates_dir.join(&current_exe_name)).await;
+            tokio::fs::rename(&default_exe, updates_dir.join(&current_exe_name))
+                .await
+                .map_err(|e| format!("Не удалось подготовить обновление переименованного EXE: {e}"))?;
         }
     }
 
-    let bat_content = format!(
-        "@echo off\r\n\
-        chcp 65001 > NUL\r\n\
-        timeout /t 3 /nobreak > NUL\r\n\
-        xcopy /s /y /q /r \"*\" \"..\\\"\r\n\
-        del \"..\\update.bat\" 2>NUL\r\n\
-        start \"\" \"..\\{}\"\r\n\
-        cd ..\r\n\
-        start /b cmd /c \"timeout /t 2 > NUL & rmdir /s /q .updates\"\r\n\
-        exit\r\n",
-        current_exe_name
+    let mut staged_files: Vec<String> = portable_assets
+        .iter()
+        .map(|a| {
+            if a.name.eq_ignore_ascii_case("l-mpv.exe")
+                && !current_exe_name.eq_ignore_ascii_case("l-mpv.exe")
+            {
+                current_exe_name.clone()
+            } else {
+                a.name.clone()
+            }
+        })
+        .collect();
+    if updates_dir.join(CHECKSUM_ASSET_NAME).exists() {
+        staged_files.push(CHECKSUM_ASSET_NAME.to_string());
+    }
+    staged_files.sort();
+    staged_files.dedup();
+
+    Ok(StagedUpdateState {
+        staging,
+        current_exe_name,
+        staged_files,
+        target_version: release.tag_name,
+    })
+}
+
+/// Запускает транзакционный скрипт применения подготовленного обновления.
+fn apply_staged_state(
+    mut state: StagedUpdateState,
+    restart_after: bool,
+) -> Result<(), String> {
+    let updates_dir = state.staging.path().to_owned();
+    let bat_path = updates_dir.join("update.bat");
+    let bat_content = build_transactional_update_bat(
+        &state.current_exe_name,
+        &state.staged_files,
+        restart_after,
     );
+    std::fs::write(&bat_path, bat_content)
+        .map_err(|e| format!("Не удалось создать update.bat: {e}"))?;
 
-    tokio::fs::write(&bat_path, bat_content)
-        .await
-        .map_err(|e| format!("Не удалось создать update.bat: {}", e))?;
+    let apply_path = updates_dir.join("apply.ps1");
+    std::fs::write(&apply_path, include_str!("updater/apply.ps1"))
+        .map_err(|e| format!("Не удалось создать скрипт применения обновления: {e}"))?;
 
-    let mut cmd = std::process::Command::new(&bat_path);
+    crate::upscale::shutdown_active_processes();
+
+    let mut cmd = std::process::Command::new("powershell.exe");
+    cmd.args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File"])
+        .arg(&apply_path)
+        .arg("-StagingDirectory")
+        .arg(&updates_dir);
     cmd.current_dir(&updates_dir);
 
     #[cfg(target_os = "windows")]
@@ -721,15 +782,195 @@ pub async fn download_and_install_update(
     }
 
     cmd.spawn()
-        .map_err(|e| format!("Не удалось запустить скрипт обновления: {}", e))?;
+        .map_err(|e| format!("Не удалось запустить скрипт обновления: {e}"))?;
+    state.staging.hand_off();
+    Ok(())
+}
 
+/// Фоновое скачивание и подготовка обновления без прерывания просмотра видео.
+#[tauri::command]
+pub async fn download_and_stage_update(
+    app: tauri::AppHandle,
+    tag: Option<String>,
+) -> Result<String, String> {
+    // Если эта версия уже скачана и готова на диске, сразу возвращаем готовность.
+    if let Ok(guard) = get_staged_update_lock().lock() {
+        if let Some(existing) = guard.as_ref() {
+            let same_tag = tag
+                .as_deref()
+                .map(|t| t.trim_start_matches(['v', 'V']).eq_ignore_ascii_case(existing.target_version.trim_start_matches(['v', 'V'])))
+                .unwrap_or(true);
+            if same_tag && existing.staging.path().is_dir() {
+                let ver = existing.target_version.clone();
+                let _ = app.emit("update-staged-ready", &ver);
+                return Ok(ver);
+            }
+        }
+    }
+
+    let _session = UpdateSession::acquire()?;
+    let staged = prepare_and_stage_update(&app, tag).await?;
+    let target_version = staged.target_version.clone();
+
+    if let Ok(mut guard) = get_staged_update_lock().lock() {
+        *guard = Some(staged);
+    }
+
+    let _ = app.emit("update-staged-ready", &target_version);
+    Ok(target_version)
+}
+
+/// Возвращает версию уже скачанного и готового к применению обновления (если есть).
+#[tauri::command]
+pub fn get_staged_update_version() -> Option<String> {
+    get_staged_update_lock()
+        .lock()
+        .ok()
+        .and_then(|guard| {
+            guard
+                .as_ref()
+                .filter(|s| s.staging.path().is_dir())
+                .map(|s| s.target_version.clone())
+        })
+}
+
+/// Применяет подготовленное обновление с немедленным перезапуском и сохранением текущего видео.
+#[tauri::command]
+pub async fn restart_and_apply_update(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, crate::commands::PlayerState>,
+) -> Result<(), String> {
+    use tauri::Manager;
+    let staged = get_staged_update_lock()
+        .lock()
+        .map_err(|e| e.to_string())?
+        .take()
+        .ok_or_else(|| "Подготовленное обновление не найдено".to_string())?;
+
+    // Сохраняем путь, текущую позицию и статус паузы активного видео для восстановления после рестарта.
+    let current_path = state.mpv.get_property_string("path").unwrap_or_default();
+    if !current_path.trim().is_empty() && std::path::Path::new(&current_path).exists() {
+        let position = state.mpv.get_property_double("time-pos").unwrap_or(0.0).max(0.0);
+        let paused = state.mpv.get_property_bool("pause").unwrap_or(false);
+        crate::commands::save_current_playback_position(&state);
+        crate::commands::save_history_to_disk();
+        if let Ok(exe_dir) = get_app_dir() {
+            save_update_resume_session(
+                &exe_dir,
+                &UpdateResumeSession {
+                    path: current_path,
+                    position,
+                    paused,
+                },
+            );
+        }
+    }
+
+    // Останавливаем фоновые сервисы (ffmpeg, воркеры битрейта), чтобы не удерживать блокировку обновляемых бинарников.
+    if let Some(thumbs) = app.try_state::<crate::commands::ThumbnailService>() {
+        thumbs.shutdown();
+    }
+    if let Some(bitrate) = app.try_state::<crate::commands::LiveVideoBitrateService>() {
+        bitrate.shutdown();
+    }
+
+    apply_staged_state(staged, true)?;
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    std::process::exit(0);
+}
+
+/// Удаляет устаревшие временные папки `.updates-*`, оставшиеся от аварийно завершённых сеансов.
+pub fn prune_stale_staging_dirs(exe_dir: &std::path::Path) {
+    let Ok(entries) = std::fs::read_dir(exe_dir) else {
+        return;
+    };
+    let current_pid_prefix = format!(".updates-{}-", std::process::id());
+    let now = std::time::SystemTime::now();
+    let max_age = std::time::Duration::from_secs(600);
+
+    for entry in entries.flatten() {
+        let file_name = entry.file_name();
+        let name = file_name.to_string_lossy();
+        if !name.starts_with(".updates-") || name.starts_with(&current_pid_prefix) {
+            continue;
+        }
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let is_stale = entry
+            .metadata()
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|mtime| now.duration_since(mtime).ok())
+            .is_some_and(|age| age >= max_age);
+        if is_stale {
+            let _ = std::fs::remove_dir_all(&path);
+        }
+    }
+}
+
+/// Применяет подготовленное обновление при обычном закрытии плеера (без перезапуска).
+pub fn apply_staged_update_on_exit() -> Result<bool, String> {
+    let staged = match get_staged_update_lock().lock() {
+        Ok(mut guard) => guard.take(),
+        Err(_) => None,
+    };
+    let Some(staged) = staged else {
+        return Ok(false);
+    };
+    apply_staged_state(staged, false)?;
+    Ok(true)
+}
+
+#[tauri::command]
+pub async fn download_and_install_update(
+    app: tauri::AppHandle,
+    _download_url: String,
+    _asset_name: String,
+    tag: Option<String>,
+) -> Result<(), String> {
+    let _session = UpdateSession::acquire()?;
+    let staged = prepare_and_stage_update(&app, tag).await?;
+    apply_staged_state(staged, true)?;
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     std::process::exit(0);
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{is_portable_update_asset, is_newer_semver, CHECKSUM_ASSET_NAME};
+    use super::{
+        is_portable_update_asset, is_newer_semver, save_update_resume_session,
+        take_update_resume_session, UpdateResumeSession, CHECKSUM_ASSET_NAME,
+    };
+
+    #[test]
+    fn сессия_видео_после_перезапуска_сохраняется_и_очищается_после_чтения() {
+        let dir = std::env::temp_dir().join(format!(
+            "lmpv-resume-test-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let session = UpdateResumeSession {
+            path: r"D:\Videos\Film.mkv".to_string(),
+            position: 123.45,
+            paused: true,
+        };
+        save_update_resume_session(&dir, &session);
+
+        let loaded = take_update_resume_session(&dir).expect("сессия обязана прочитаться");
+        assert_eq!(loaded.path, session.path);
+        assert!((loaded.position - 123.45).abs() < 0.001);
+        assert!(loaded.paused);
+
+        assert!(
+            take_update_resume_session(&dir).is_none(),
+            "повторное чтение не должно восстанавливать видео второй раз"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn принимает_только_ожидаемые_компоненты() {
@@ -809,5 +1050,5 @@ mod tests {
 
         assert!(get_legacy_checksums("v9.9.9").is_none());
     }
-}
 
+}

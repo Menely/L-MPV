@@ -57,7 +57,7 @@ export const UI_RADIUS_PRESETS: Record<Exclude<UiRadiusLevel, "custom">, UiRadiu
     badge: "0 px",
     desc: "Строгие прямые углы в духе классических медиаплееров",
     controlsRadius: 0,
-    tokens: { xs: "0px", sm: "0px", md: "0px", lg: "0px", xl: "0px", pill: "0px", controls: "0px" },
+    tokens: calculateRadiusTokens(0),
   },
   minimal: {
     id: "minimal",
@@ -65,7 +65,7 @@ export const UI_RADIUS_PRESETS: Record<Exclude<UiRadiusLevel, "custom">, UiRadiu
     badge: "8 px",
     desc: "Сдержанные строгие скругления элементов и окон",
     controlsRadius: 8,
-    tokens: { xs: "2px", sm: "4px", md: "6px", lg: "8px", xl: "10px", pill: "12px", controls: "8px" },
+    tokens: calculateRadiusTokens(8),
   },
   default: {
     id: "default",
@@ -73,7 +73,7 @@ export const UI_RADIUS_PRESETS: Record<Exclude<UiRadiusLevel, "custom">, UiRadiu
     badge: "16 px (Стандарт)",
     desc: "Фирменный сбалансированный стиль L-MPV по умолчанию",
     controlsRadius: 16,
-    tokens: { xs: "4px", sm: "6px", md: "10px", lg: "14px", xl: "20px", pill: "50px", controls: "16px" },
+    tokens: calculateRadiusTokens(16),
   },
   smooth: {
     id: "smooth",
@@ -81,7 +81,7 @@ export const UI_RADIUS_PRESETS: Record<Exclude<UiRadiusLevel, "custom">, UiRadiu
     badge: "22 px",
     desc: "Выразительные плавные грани панелей, кнопок и окон",
     controlsRadius: 22,
-    tokens: { xs: "6px", sm: "10px", md: "16px", lg: "20px", xl: "26px", pill: "50px", controls: "22px" },
+    tokens: calculateRadiusTokens(22),
   },
   pill: {
     id: "pill",
@@ -89,7 +89,7 @@ export const UI_RADIUS_PRESETS: Record<Exclude<UiRadiusLevel, "custom">, UiRadiu
     badge: "30 px",
     desc: "Максимально округлые овальные формы и капсулы",
     controlsRadius: 30,
-    tokens: { xs: "8px", sm: "14px", md: "22px", lg: "28px", xl: "34px", pill: "9999px", controls: "30px" },
+    tokens: calculateRadiusTokens(30),
   },
 };
 
@@ -328,10 +328,31 @@ export function getSavedUiOpacity(): number {
 
 /**
  * Применить значение прозрачности интерфейса к CSS-переменной --ui-opacity.
+ * Также адаптивно масштабирует плотность теней (--shadow-alpha), предотвращая
+ * просвечивание темной тени сквозь прозрачные плашки.
  */
 export function applyUiOpacity(opacity: number): void {
   const clamped = Math.max(0.1, Math.min(1.0, Number(opacity.toFixed(2))));
-  document.documentElement.style.setProperty("--ui-opacity", clamped.toString());
+  const root = document.documentElement;
+  root.style.setProperty("--ui-opacity", clamped.toString());
+
+  // Обновляем инлайн фоны с новой прозрачностью для активной темы плеера
+  const computed = getComputedStyle(root);
+  const themeGlassRgb = (root.style.getPropertyValue("--bg-glass-rgb") || computed.getPropertyValue("--bg-glass-rgb")).trim() || "18, 22, 32";
+  const themePillRgb = (root.style.getPropertyValue("--bg-pill-rgb") || computed.getPropertyValue("--bg-pill-rgb")).trim() || "14, 18, 26";
+  root.style.setProperty("--bg-pill", `rgba(${themePillRgb}, ${clamped})`);
+  root.style.setProperty("--bg-glass", `rgba(${themeGlassRgb}, ${clamped})`);
+  const elevatedRgb = (root.style.getPropertyValue("--bg-elevated-rgb") || computed.getPropertyValue("--bg-elevated-rgb")).trim() || themeGlassRgb;
+  root.style.setProperty("--bg-elevated", `rgba(${elevatedRgb}, ${clamped})`);
+
+  // Масштабируем альфу теней пропорционально прозрачности интерфейса:
+  // При ui-opacity = 1.0 -> мягкая естественная тень (0.35 / 0.18)
+  // При ui-opacity = 0.5 -> деликатная приглушенная тень (0.18 / 0.09)
+  // При ui-opacity = 0.1 -> ультра-воздушная тень (0.04 / 0.02)
+  const shadowAlpha = (clamped * 0.35).toFixed(2);
+  const shadowAmbientAlpha = (clamped * 0.18).toFixed(2);
+  root.style.setProperty("--shadow-alpha", shadowAlpha);
+  root.style.setProperty("--shadow-ambient-alpha", shadowAmbientAlpha);
 }
 
 /**

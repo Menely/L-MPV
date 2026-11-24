@@ -1,4 +1,7 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import { useMotionAllowed } from "../motion/useMotionAllowed";
+import { useCanvasVisibility } from "../../hooks/useCanvasVisibility";
+import React, { useRef, useEffect, useState, useCallback, useContext } from "react";
+import { ControlsVisibilityContext } from "./controls/ControlsVisibilityContext";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 
@@ -24,7 +27,11 @@ export type VisualizerTheme =
   | "crimson"
   | "mint"
   | "violet"
-  | "gold";
+  | "gold"
+  | "fire"
+  | "ice"
+  | "matrix"
+  | "plasma";
 
 export interface VisualizerConfig {
   enabled: boolean;
@@ -178,6 +185,34 @@ export function getVisualizerThemeColors(theme: VisualizerTheme): {
       tertiary: "#92400E",
       glow: "rgba(251, 191, 36, 0.55)",
     };
+  } else if (theme === "fire") {
+    return {
+      primary: "#FF3B00",
+      secondary: "#FF8800",
+      tertiary: "#FFE600",
+      glow: "rgba(255, 59, 0, 0.55)",
+    };
+  } else if (theme === "ice") {
+    return {
+      primary: "#A5F3FC",
+      secondary: "#38BDF8",
+      tertiary: "#1D4ED8",
+      glow: "rgba(165, 243, 252, 0.55)",
+    };
+  } else if (theme === "matrix") {
+    return {
+      primary: "#00FF66",
+      secondary: "#10B981",
+      tertiary: "#064E3B",
+      glow: "rgba(0, 255, 102, 0.55)",
+    };
+  } else if (theme === "plasma") {
+    return {
+      primary: "#F472B6",
+      secondary: "#A855F7",
+      tertiary: "#3B82F6",
+      glow: "rgba(244, 114, 182, 0.55)",
+    };
   } else {
     let primary = "#7fc7ff";
     let secondary = "#93c5fd";
@@ -236,7 +271,7 @@ export function renderVisualizerFrame(
     isPaused: boolean;
     speed?: number;
   }
-): void {
+  ): void {
   if (!w || !h || w <= 0 || h <= 0 || isNaN(w) || isNaN(h)) return;
 
   const { isAudible, isPaused, speed = 1.0 } = options;
@@ -249,7 +284,7 @@ export function renderVisualizerFrame(
   const targetAmp = !isAudible ? 0.0 : Math.min(1.0, totalAudioEnergy * 1.75 + 0.22);
   state.currentAmp += (targetAmp - state.currentAmp) * Math.min(1.0, dt * 14.0);
 
-  if (!isPaused && state.currentAmp > 0.005) {
+  if (!isPaused && state.currentAmp> 0.005) {
     state.phase += dt * (2.8 * Math.max(0.25, Math.min(3.0, speed)) + bassEnergy * 5.2);
   }
 
@@ -267,7 +302,7 @@ export function renderVisualizerFrame(
     const maxWaveHeight = (h / 2) * 0.92;
     const baseAmp = state.currentAmp * maxWaveHeight;
 
-    if (state.currentAmp > 0.04) {
+    if (state.currentAmp> 0.04) {
       ctx.beginPath();
       const segs = Math.max(24, Math.floor(w / 12));
       for (let i = 0; i <= segs; i++) {
@@ -322,11 +357,11 @@ export function renderVisualizerFrame(
       const val = spectrum[specIdx] || 0;
       const targetH = isAudible ? Math.min(maxHeight, Math.max(2, val * maxHeight * 1.2)) : 2;
 
-      const attackSpeed = targetH > (state.bars[i] || 2) ? 26.0 : 13.0;
+      const attackSpeed = targetH> (state.bars[i] || 2) ? 26.0 : 13.0;
       state.bars[i] = (state.bars[i] || 2) + (targetH - (state.bars[i] || 2)) * Math.min(1.0, dt * attackSpeed);
       const curH = state.bars[i];
 
-      if (curH >= (state.peaks[i] || 0)) {
+      if (curH>= (state.peaks[i] || 0)) {
         state.peaks[i] = curH;
         state.peakVels[i] = 0;
       } else {
@@ -350,7 +385,7 @@ export function renderVisualizerFrame(
         ctx.fillRect(x, y, barWidth, curH);
       }
 
-      if (!isPaused && state.peaks[i] > 3) {
+      if (!isPaused && state.peaks[i]> 3) {
         ctx.fillStyle = secondary;
         ctx.globalAlpha = 0.95;
         ctx.fillRect(x, Math.max(0, h - state.peaks[i] - 2.5), barWidth, 1.8);
@@ -376,10 +411,10 @@ export function renderVisualizerFrame(
       const targetHalfH = isAudible ? Math.min(maxHalfH, Math.max(2, val * maxHalfH * 1.2)) : 2;
 
       const prevHalfH =
-        typeof state.bars[i] === "number" && !isNaN(state.bars[i]) && state.bars[i] > 0
+        typeof state.bars[i] === "number" && !isNaN(state.bars[i]) && state.bars[i]> 0
           ? state.bars[i]
           : 2;
-      const attackSpeed = targetHalfH > prevHalfH ? 24.0 : 13.0;
+      const attackSpeed = targetHalfH> prevHalfH ? 24.0 : 13.0;
       state.bars[i] = Math.max(
         2,
         Math.min(maxHalfH, prevHalfH + (targetHalfH - prevHalfH) * Math.min(1.0, Math.max(0, safeDt * attackSpeed)))
@@ -423,7 +458,7 @@ export function renderVisualizerFrame(
       const val = spectrum[specIdx] || 0;
       const targetVal = isAudible ? Math.min(1.0, val * 1.25) : 0.05;
 
-      const attackSpeed = targetVal > (state.bars[i] || 0) ? 26.0 : 13.0;
+      const attackSpeed = targetVal> (state.bars[i] || 0) ? 26.0 : 13.0;
       state.bars[i] = (state.bars[i] || 0) + (targetVal - (state.bars[i] || 0)) * Math.min(1.0, dt * attackSpeed);
       const curVal = state.bars[i];
       const activeDots = Math.min(numDots, Math.max(0, Math.round(curVal * numDots)));
@@ -522,7 +557,7 @@ export function renderVisualizerFrame(
     if (isAudible && state.particles.length < 50 && Math.random() < (totalAudioEnergy * 1.8 + 0.3)) {
       const bandIdx = Math.floor(Math.random() * 32);
       const bandVal = spectrum[bandIdx] || 0;
-      const spawnCount = bandVal > 0.4 ? 2 : 1;
+      const spawnCount = bandVal> 0.4 ? 2 : 1;
       for (let k = 0; k < spawnCount; k++) {
         const x = (bandIdx / 32) * w + (Math.random() - 0.5) * (w / 32);
         state.particles.push({
@@ -534,15 +569,15 @@ export function renderVisualizerFrame(
           alpha: 1.0,
           life: 0,
           maxLife: Math.random() * 0.7 + 0.5,
-          color: Math.random() > 0.6 ? primary : (Math.random() > 0.5 ? secondary : tertiary),
+          color: Math.random()> 0.6 ? primary : (Math.random()> 0.5 ? secondary : tertiary),
         });
       }
     }
 
-    for (let i = state.particles.length - 1; i >= 0; i--) {
+    for (let i = state.particles.length - 1; i>= 0; i--) {
       const p = state.particles[i];
       p.life += dt;
-      if (p.life >= p.maxLife || p.y < 0) {
+      if (p.life>= p.maxLife || p.y < 0) {
         state.particles.splice(i, 1);
         continue;
       }
@@ -564,8 +599,8 @@ export function renderVisualizerFrame(
     const ringCount = placement === "toolbar" ? 1 : Math.max(1, Math.min(5, Math.floor(w / 140)));
     const rayCount = 24;
     const cy = h / 2;
-    const baseR = placement === "toolbar" ? 7.5 : Math.max(3, Math.min(h * 0.35, 16));
-    const maxRay = placement === "toolbar" ? 7.5 : Math.max(2, Math.min(h * 0.45, 18));
+    const baseR = placement === "toolbar" ? Math.max(6, Math.min(h * 0.32, 11)) : Math.max(3, Math.min(h * 0.35, 16));
+    const maxRay = placement === "toolbar" ? Math.max(5, Math.min(h * 0.38, 12)) : Math.max(2, Math.min(h * 0.45, 18));
 
     for (let rIdx = 0; rIdx < ringCount; rIdx++) {
       const cx = ringCount === 1 ? w / 2 : (rIdx + 0.5) * (w / ringCount);
@@ -612,7 +647,7 @@ export function renderVisualizerFrame(
     const blobCount = placement === "toolbar" ? 1 : Math.max(1, Math.min(3, Math.floor(w / 220)));
     const cy = h / 2;
     const numPoints = 16;
-    const baseR = placement === "toolbar" ? 8.5 : Math.max(4, Math.min(h * 0.4, 20));
+    const baseR = placement === "toolbar" ? Math.max(7, Math.min(h * 0.38, 12)) : Math.max(4, Math.min(h * 0.4, 20));
 
     for (let b = 0; b < blobCount; b++) {
       const cx = blobCount === 1 ? w / 2 : (b + 0.5) * (w / blobCount);
@@ -703,23 +738,18 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
   const { mediaInfo, hasMedia, isIdle } = usePlayerState();
   const { duration } = usePlayerProgress();
 
-  const [isDocVisible, setIsDocVisible] = useState(() => !document.hidden);
+  const motionAllowed = useMotionAllowed();
+  const controlsVisible = useContext(ControlsVisibilityContext);
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { canvasRef, bindCanvas, isCanvasVisible } = useCanvasVisibility();
 
   const realSpectrumRef = useRef<number[]>(new Array(32).fill(0));
   const isFetchingRef = useRef<boolean>(false);
 
-  useEffect(() => {
-    const onVisibilityChange = () => setIsDocVisible(!document.hidden);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, []);
-
   const isPaused = !hasMedia || (mediaInfo?.paused ?? true) || duration <= 0;
   const rawVolume = mediaInfo?.volume ?? 100;
   const speed = mediaInfo?.speed ?? 1.0;
-  const shouldBeActive = !isPaused && !isIdle && isDocVisible;
+  const shouldBeActive = motionAllowed && controlsVisible && !isPaused && !isIdle && isCanvasVisible;
 
   // Управление аппаратным захватом звука через WASAPI
   useEffect(() => {
@@ -732,8 +762,8 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
   const animStateRef = useRef<VisualizerAnimState>(createInitialAnimState());
 
   // Refs для стабильного rAF-цикла: эффект не пересоздаётся при паузе/громкости.
-  const liveRef = useRef({ isPaused, rawVolume, speed, shouldBeActive, isIdle, isDocVisible, config });
-  liveRef.current = { isPaused, rawVolume, speed, shouldBeActive, isIdle, isDocVisible, config };
+  const liveRef = useRef({ isPaused, rawVolume, speed, shouldBeActive, isIdle, isCanvasVisible, motionAllowed, config });
+  liveRef.current = { isPaused, rawVolume, speed, shouldBeActive, isIdle, isCanvasVisible, motionAllowed, config };
 
   const handleToggleStyle = useCallback((e: React.MouseEvent) => {
     if (placement !== "toolbar" && !onCycleMode) return;
@@ -760,7 +790,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !container) return;
+    if (!canvas || !container || !isCanvasVisible || isIdle || !controlsVisible) return;
 
     // Кэшируем 2d-контекст один раз: getContext() каждый кадр — лишний
     // dictionary-lookup + сброс state в Chromium, давал микро-джиттер.
@@ -776,8 +806,9 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       // затухание продолжается, CPU почти не тратится, цикл не умирает.
       // Возврат к 60fps занимает не более одного сонного тика (~120мс).
       const live = liveRef.current;
+      if (!live.motionAllowed) return;
       const quiet =
-        !live.shouldBeActive || live.isIdle || !live.isDocVisible || animStateRef.current.currentAmp < 0.01;
+        !live.shouldBeActive || live.isIdle || !live.isCanvasVisible || animStateRef.current.currentAmp < 0.01;
       if (quiet) {
         if (sleepTimer === null) {
           sleepTimer = window.setTimeout(() => {
@@ -805,7 +836,10 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
     };
 
     updateCanvasSize();
-    const resizeObserver = new ResizeObserver(updateCanvasSize);
+    const resizeObserver = new ResizeObserver(() => {
+      updateCanvasSize();
+      if (!liveRef.current.motionAllowed) render(performance.now());
+    });
     resizeObserver.observe(container);
 
     const render = (time: number) => {
@@ -820,7 +854,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       const h = canvas.height / dpr;
 
       // Пауза кадра без смерти цикла: затухание + планирование через scheduleFrame
-      if (live.isIdle || !live.isDocVisible) {
+      if (live.isIdle || !live.isCanvasVisible) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         // Плавное затухание энергии чтобы не было щелчка при возврате
         const spec = realSpectrumRef.current;
@@ -851,9 +885,9 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       ctx.clearRect(0, 0, w, h);
 
       const rawSpectrum = realSpectrumRef.current;
-      const isAudible = live.shouldBeActive && live.rawVolume > 0;
+      const isAudible = live.shouldBeActive && live.rawVolume> 0;
       const baseBoost = 1.6;
-      const volumeGain = live.rawVolume > 0 && live.rawVolume < 85 ? Math.min(5.5, (85.0 / Math.max(10.0, live.rawVolume)) * 1.6) : baseBoost;
+      const volumeGain = live.rawVolume> 0 && live.rawVolume < 85 ? Math.min(5.5, (85.0 / Math.max(10.0, live.rawVolume)) * 1.6) : baseBoost;
       const spectrum = rawSpectrum.map((v) => Math.min(1.0, Math.pow(v, 0.85) * volumeGain));
 
       renderVisualizerFrame(
@@ -866,7 +900,7 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
         dt,
         {
           isAudible,
-          isPaused: live.isPaused,
+          isPaused: live.isPaused || !live.motionAllowed,
           speed: live.speed,
         }
       );
@@ -875,7 +909,8 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       scheduleFrame();
     };
 
-    scheduleFrame();
+    if (motionAllowed) scheduleFrame();
+    else render(performance.now());
     return () => {
       if (animId !== null) cancelAnimationFrame(animId);
       if (sleepTimer !== null) {
@@ -884,22 +919,20 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
       }
       resizeObserver.disconnect();
     };
-  }, [config.mode, config.theme, placement]);
+  }, [config, placement, motionAllowed, isCanvasVisible, isIdle, controlsVisible, canvasRef]);
 
-  const height = placement === "toolbar"
-    ? (config.mode === "circular" || config.mode === "blob" ? 34 : 22)
-    : placement === "inside_timeline"
-      ? 16
-      : (config.height || 22);
+  const height = placement === "inside_timeline" || placement === "toolbar"
+    ? undefined
+    : (config.height || 22);
 
   return (
     <div
       ref={containerRef}
       className={`audio-visualizer audio-visualizer--${placement} audio-visualizer--mode-${config.mode} ${className}`}
-      style={placement === "inside_timeline" ? undefined : { height: `${height}px` }}
+      style={height !== undefined ? { height: `${height}px` } : undefined}
       onClick={placement === "toolbar" ? handleToggleStyle : undefined}
-    >
-      <canvas ref={canvasRef} className="audio-visualizer__canvas" />
+      >
+      <canvas ref={bindCanvas} className="audio-visualizer__canvas" />
     </div>
   );
 });

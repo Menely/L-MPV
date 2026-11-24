@@ -1,10 +1,11 @@
 import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CheckCircle2, GripVertical } from "lucide-react";
+import { getActiveUiScale } from "../../utils/uiThemeUtils";
+import { toLocalDragTransform } from "../../utils/dndCoordinates";
+import { GripVertical, Star } from "lucide-react";
 import { ModelFileItem, UpscaleCompileProgress } from "./types";
 import { ModelTensorRtAction } from "./ModelTensorRtAction";
-import { ModelHotkeyButton } from "./ModelHotkeyButton";
 import { useTranslation } from "../../i18n/LanguageContext";
 
 export interface ModelListItemProps {
@@ -14,6 +15,10 @@ export interface ModelListItemProps {
   idx: number;
   /** Выбрана ли модель в данный момент */
   isSelected: boolean;
+  /** Отмечена ли модель звездочкой как избранная (по умолчанию) */
+  isFavorite: boolean;
+  /** Переключение звездочки избранной модели */
+  onToggleFavorite: () => void;
   /** Скрывать ли детальные имена моделей */
   hideModelNames: boolean;
   /** Текущие привязки горячих клавиш */
@@ -59,17 +64,14 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
   model,
   idx,
   isSelected,
+  isFavorite,
+  onToggleFavorite,
   hideModelNames,
-  customHotkeys,
-  recordingActionId,
   supportsTensorrt,
   compilingModel,
   compileProgressItem,
   onSelect,
   onPrecompile,
-  onStartRecordKey,
-  onKeyRecord,
-  onMouseRecord,
 }) => {
   const { dict } = useTranslation();
   const {
@@ -79,16 +81,11 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: model.filename });
-
-  const actionId = `upscaleNet${idx + 1}`;
-  const bindCodes = customHotkeys[actionId] || [];
-  const isRecording = recordingActionId === actionId;
+  } = useSortable({ id: model.filename, disabled: !!compilingModel });
 
   const cardStyle: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Translate.toString(toLocalDragTransform(transform, getActiveUiScale())),
     transition,
-    opacity: isDragging ? 0.35 : 1,
     zIndex: isDragging ? 999 : undefined,
     padding: "8px 12px",
     display: "flex",
@@ -100,13 +97,14 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
   };
 
   return (
+    // Measure a stationary slot; only the card inside it is translated.
+    <div ref={setNodeRef} style={{ flex: "0 0 auto", minWidth: 0, position: "relative", zIndex: isDragging ? 999 : undefined }}>
     <div
-      ref={setNodeRef}
       style={cardStyle}
       onClick={onSelect}
-      className={`glass-tile glass-tile--clickable ${isSelected ? "glass-tile--active" : ""}`}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+      className="glass-tile glass-tile--clickable"
+      >
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flex: 1, minWidth: 0 }}>
         {/* Ручка захвата для перетаскивания мышкой */}
         <div
           {...attributes}
@@ -127,75 +125,98 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
             transition: "opacity 0.15s ease, color 0.15s ease",
           }}
           title={dict.settings.upscaling.dragReorderTip}
-        >
+          >
           <GripVertical size={16} />
         </div>
 
-        {/* Порядковый номер модели в списке */}
-        <span
+        {/* Порядковый номер модели в стиле плейлиста */}
+        <div
           style={{
-            fontSize: "0.72rem",
-            fontWeight: 600,
-            color: isSelected ? "var(--accent)" : "var(--text-muted)",
-            background: isSelected
-              ? "rgba(var(--accent-rgb, 127, 199, 255), 0.14)"
-              : "rgba(255, 255, 255, 0.05)",
-            border: `1px solid ${isSelected ? "var(--accent)" : "var(--border-subtle)"}`,
-            borderRadius: 4,
-            padding: "1px 6px",
-            fontVariantNumeric: "tabular-nums",
+            width: 22,
+            minWidth: 22,
+            height: 22,
+            borderRadius: "50%",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            fontSize: isSelected ? 11 : "var(--fs-xs)",
+            fontWeight: isSelected ? 700 : 600,
+            color: isSelected ? "var(--on-accent, #000)" : "var(--text-secondary)",
+            background: isSelected ? "var(--accent)" : "rgba(255, 255, 255, 0.06)",
+            border: isSelected ? "none" : "1px solid rgba(255, 255, 255, 0.08)",
             flexShrink: 0,
-            lineHeight: 1.4,
+            lineHeight: 1,
+            fontVariantNumeric: "tabular-nums",
+            transition: "background-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth)",
           }}
           title={dict.settings.upscaling.modelNumberTip(idx + 1)}
-        >
-          #{idx + 1}
-        </span>
+          >
+          {idx + 1}
+        </div>
 
-        {/* Индикатор выбора */}
-        {isSelected ? (
-          <CheckCircle2 size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
-        ) : (
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              border: "1px solid var(--border-pill)",
-              flexShrink: 0,
-              boxSizing: "border-box",
-            }}
+        {/* Звездочка избранной модели: контур по умолчанию, золотая при выборе */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFavorite();
+          }}
+          className="hover-bright"
+          title={isFavorite ? dict.settings.upscaling.favoriteUnsetTitle : dict.settings.upscaling.favoriteSetTitle}
+          aria-pressed={isFavorite}
+          aria-label={isFavorite ? dict.settings.upscaling.favoriteUnsetTitle : dict.settings.upscaling.favoriteSetTitle}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 4,
+            margin: 0,
+            background: "transparent",
+            border: "none",
+            borderRadius: "var(--radius-xs, 4px)",
+            cursor: "pointer",
+            flexShrink: 0,
+            color: isFavorite ? "var(--warning-text)" : "var(--text-muted)",
+            opacity: isFavorite ? 1 : 0.6,
+            transition: "opacity 0.15s ease, color 0.15s ease",
+          }}
+          >
+          <Star
+            size={16}
+            fill={isFavorite ? "currentColor" : "none"}
+            strokeWidth={isFavorite ? 0 : 1.8}
           />
-        )}
+        </button>
 
         <div style={{ minWidth: 0, flex: 1 }}>
           <div
             style={{
-              fontSize: "0.88rem",
-              fontWeight: 500,
-              color: hideModelNames ? "var(--text-muted)" : "var(--text-primary)",
+              fontSize: "var(--fs-base)",
+              fontWeight: isSelected ? 600 : 500,
+              color: isSelected ? "#ffffff" : hideModelNames ? "var(--text-muted)" : "var(--text-primary)",
               letterSpacing: hideModelNames ? "0.15em" : "normal",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
               userSelect: hideModelNames ? "none" : "auto",
             }}
-          >
+            >
             {hideModelNames ? "••••••••••••••••" : model.display_name}
           </div>
           <div
             style={{
-              fontSize: "0.75rem",
+              fontSize: "var(--fs-xs)",
               color: "var(--text-muted)",
               fontFamily: "var(--font-mono)",
               letterSpacing: hideModelNames ? "0.15em" : "normal",
-              marginTop: 1,
+              marginTop: "var(--space-0)",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
               userSelect: hideModelNames ? "none" : "auto",
             }}
-          >
+            >
             {hideModelNames
               ? "••••••••••••••••••••"
               : `${model.filename} (${formatFileSize(model.size_bytes)})`}
@@ -208,11 +229,11 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 6,
+          gap: "var(--space-3)",
           flexShrink: 0,
         }}
         onClick={(e) => e.stopPropagation()}
-      >
+        >
         <ModelTensorRtAction
           model={model}
           supportsTensorrt={supportsTensorrt}
@@ -221,14 +242,9 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
           onPrecompile={onPrecompile}
         />
 
-        <ModelHotkeyButton
-          bindCodes={bindCodes}
-          isRecording={isRecording}
-          onStartRecordKey={onStartRecordKey}
-          onKeyRecord={onKeyRecord}
-          onMouseRecord={onMouseRecord}
-        />
+
       </div>
+    </div>
     </div>
   );
 });

@@ -1,0 +1,118 @@
+/* Shared title geometry for every player style. Slots have no text baseline. */
+.settings-stack { display: flex; flex-direction: column; gap: var(--settings-section-gap); min-width: 0; }
+.settings-stack > .settings-accordion { margin-bottom: 0; }
+
+.glass-section.settings-group-card {
+  --section-title-size: var(--fs-base);
+  padding: 12px;
+}
+.settings-group-card .settings-section-header__row { min-height: 32px; }
+.settings-group-card .btn--icon { width: 32px; height: 32px; min-width: 32px; }
+.settings-icon {
+  --settings-glyph-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  line-height: 0;
+  vertical-align: middle;
+  color: var(--accent-text);
+}
+.settings-icon--section {
+  --settings-glyph-size: 18px;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+}
+.settings-icon > svg {
+  display: block;
+  width: var(--settings-glyph-size);
+  height: var(--settings-glyph-size);
+  flex-shrink: 0;
+}
+/* The triangular Play glyph has less visual mass on its right side. */
+.settings-icon > .lucide-play { transform: translateX(1px); }
+/* Flame's rounded bowl carries more weight below its geometric center. */
+.settings-icon > .lucide-flame { transform: translateY(-0.5px); }
+/* Eye glyph is vertically compact (14/24 viewBox); small nudge matches cap-height center. */
+.settings-icon > .lucide-eye { transform: translateY(-0.5px); }
+.settings-accordion__label { min-width: 0; line-height: 20px; overflow-wrap: anywhere; }
+/* Center the caption's cap-height, not font-specific invisible leading.
+   Older WebViews retain the regular line box without clipping any glyphs. */
+@supports (text-box-trim: trim-both) {
+  .settings-accordion__label {
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+  }
+}
+.settings-accordion__chevron { display: block; flex-shrink: 0; }
+
+/* Checkboxes align to the first title line, never the description below it. */
+.option-body > .row-center:first-child {
+  align-items: flex-start;
+  min-height: 20px;
+  line-height: 20px;
+}
+.option-body > .row-center:first-child > svg {
+  display: block;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  box-sizing: border-box;
+}
+.option-row > .ui-checkbox { margin-top: 1px; }
+.option-toggle-row__label { min-height: 20px; line-height: 20px; }
+
+/* SVG actions are centered by their box, not by inline text descenders. */
+:where(.option-card, .theme-card, .settings-accordion) button > svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* A lone glyph must not use the text baseline or the browser's button layout.
+   Keep dimensions, padding and line-height here: some buttons also have a
+   direct text node, which does not affect the CSS :only-child selector. */
+button:has(> svg:only-child) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+button > svg:only-child {
+  display: block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Dedicated icon actions have no caption and need no typographic leading. */
+:is(.btn--icon, .btn--icon-sm, .titlebar__btn, .control-btn:not(.control-btn--with-label),
+    .playlist-drawer__action-btn, .track-popover__icon-btn,
+    .mediainfo-floating-window__btn, .mediainfo-standalone__control-btn,
+    .mediainfo-standalone__btn-icon, .mediainfo-standalone__action-btn--icon,
+    .preset-action-btn--icon, .settings-footer__icon-btn):has(> svg:only-child) {
+  padding: 0;
+  line-height: 0;
+}
+
+/* Equal slots keep the icon column stable in both context-menu lists. */
+.cmenu-entry__icon,
+.cmenu-available-item__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  line-height: 0;
+}
+
+:is(.cmenu-entry__icon, .cmenu-available-item__icon, .settings-tab-icon,
+    .mediainfo-floating-window__icon, .mediainfo-standalone__icon,
+    .update-toast__icon) > svg {
+  display: block;
+  flex-shrink: 0;
+}

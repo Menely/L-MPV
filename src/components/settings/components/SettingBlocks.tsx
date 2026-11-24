@@ -1,5 +1,6 @@
 import React from "react";
 import { Loader2 } from "lucide-react";
+import { SettingsIcon } from "./SettingsIcon";
 
 interface SectionHeaderProps {
   /** Иконка слева (цвет акцента проставляется внутри) */
@@ -21,42 +22,43 @@ export function SectionHeader({ icon, title, right, desc }: SectionHeaderProps) 
   return (
     <div style={{ minWidth: 0 }}>
       <div
+        className="settings-section-header__row"
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 8,
+          flexWrap: "wrap",
+          gap: "var(--space-4)",
         }}
-      >
+        >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: "var(--space-3)",
+            minHeight: 20,
+            lineHeight: "20px",
             minWidth: 0,
-            flex: 1,
+            flex: "1 1 180px",
           }}
-        >
+          >
           {icon && (
-            <span style={{ display: "flex", color: "var(--accent)", flexShrink: 0 }}>
-              {icon}
-            </span>
+            <SettingsIcon>{icon}</SettingsIcon>
           )}
           <span
             style={{
-              fontSize: "0.82rem",
+              fontSize: "var(--section-title-size, var(--fs-sm))",
               fontWeight: 600,
               color: "var(--text-primary)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              whiteSpace: "normal",
+              overflowWrap: "anywhere",
             }}
-          >
+            >
             {title}
           </span>
         </div>
         {right && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexWrap: "wrap", minWidth: 0, maxWidth: "100%" }}>
             {right}
           </div>
         )}
@@ -64,12 +66,12 @@ export function SectionHeader({ icon, title, right, desc }: SectionHeaderProps) 
       {desc && (
         <div
           style={{
-            fontSize: "0.76rem",
+            fontSize: "var(--fs-xs)",
             color: "var(--text-muted)",
             lineHeight: 1.35,
-            marginTop: 4,
+            marginTop: "var(--space-2)",
           }}
-        >
+          >
           {desc}
         </div>
       )}
@@ -103,12 +105,12 @@ export function EmptyState({ icon, title, desc, action, loading = false }: Empty
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center",
-        gap: 6,
+        gap: "var(--space-3)",
         padding: "18px 12px",
       }}
-    >
+      >
       {loading ? (
-        <Loader2 size={24} className="spin-animation" style={{ color: "var(--accent)" }} />
+        <Loader2 size={24} className="spin-animation t-accent"  />
       ) : (
         icon && (
           <span style={{ display: "flex", color: "var(--text-muted)", opacity: 0.7 }}>
@@ -116,15 +118,15 @@ export function EmptyState({ icon, title, desc, action, loading = false }: Empty
           </span>
         )
       )}
-      <span style={{ fontSize: "0.84rem", fontWeight: 600, color: "var(--text-primary)" }}>
+      <span className="t-label">
         {title}
       </span>
       {desc && (
-        <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.4, maxWidth: 340 }}>
+        <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", lineHeight: 1.4, maxWidth: 340 }}>
           {desc}
         </span>
       )}
-      {action && <div style={{ marginTop: 6 }}>{action}</div>}
+      {action && <div style={{ marginTop: "var(--space-3)" }}>{action}</div>}
     </div>
   );
 }

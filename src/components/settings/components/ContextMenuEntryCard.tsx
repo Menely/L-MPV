@@ -1,6 +1,8 @@
 import React, { memo, useCallback } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { getActiveUiScale } from "../../../utils/uiThemeUtils";
+import { toLocalDragTransform } from "../../../utils/dndCoordinates";
 import {
   GripVertical,
   X,
@@ -27,6 +29,7 @@ import {
   SlidersHorizontal,
   Cpu,
   Eye,
+  Flame,
 } from "lucide-react";
 import type { LayoutEntry } from "../../../utils/contextMenuLayout";
 import {
@@ -57,6 +60,7 @@ export const MENU_ICON_MAP: Record<string, React.ReactNode> = {
   Timer: <Timer size={14} />,
   LayoutTemplate: <LayoutTemplate size={14} />,
   Eye: <Eye size={14} />,
+  Flame: <Flame size={14} />,
   Settings: <Settings size={14} />,
 };
 
@@ -90,9 +94,8 @@ export const SortableCard = memo(function SortableCard({
   } = useSortable({ id });
 
   const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Translate.toString(isDragging ? null : toLocalDragTransform(transform, getActiveUiScale())),
     transition,
-    opacity: isDragging ? 0.35 : 1,
     zIndex: isDragging ? 999 : undefined,
   };
 
@@ -108,15 +111,15 @@ export const SortableCard = memo(function SortableCard({
 
   if (entry.type === "divider") {
     return (
+      <div ref={setNodeRef} className="cmenu-entry-slot">
       <div
-        ref={setNodeRef}
         style={style}
         className={`cmenu-entry cmenu-entry--divider ${isDragging ? "cmenu-entry--dragging" : ""}`}
         {...attributes}
         {...listeners}
-      >
+        >
         <span className="cmenu-entry__grip" title={dict.settings.contextMenuConfig.dragTooltip}>
-          <GripVertical size={14} style={{ pointerEvents: "none" }} />
+          <GripVertical size={14} className="no-pointer" />
         </span>
         <div className="cmenu-entry__divider-line">
           <span className="cmenu-entry__divider-label">{dict.settings.contextMenuConfig.dividerLabel}</span>
@@ -129,21 +132,22 @@ export const SortableCard = memo(function SortableCard({
           onTouchStart={(e) => e.stopPropagation()}
           onClick={handleRemove}
           title={dict.settings.contextMenuConfig.btnRemoveDivider}
-        >
+          >
           <X size={12} />
         </button>
+      </div>
       </div>
     );
   }
 
   return (
+    <div ref={setNodeRef} className="cmenu-entry-slot">
     <div
-      ref={setNodeRef}
       style={style}
       className={`cmenu-entry ${isDragging ? "cmenu-entry--dragging" : ""}`}
       {...attributes}
       {...listeners}
-    >
+      >
       <button
         type="button"
         className="cmenu-entry__add-divider"
@@ -152,19 +156,19 @@ export const SortableCard = memo(function SortableCard({
         onTouchStart={(e) => e.stopPropagation()}
         onClick={handleAddDivider}
         title={dict.settings.contextMenuConfig.btnAddDividerBefore}
-      >
+        >
         <Minus size={11} />
       </button>
       <span
         className="cmenu-entry__grip"
         title={dict.settings.contextMenuConfig.dragOrderTooltip}
-      >
-        <GripVertical size={14} style={{ pointerEvents: "none" }} />
+        >
+        <GripVertical size={14} className="no-pointer" />
       </span>
-      <span className="cmenu-entry__icon" style={{ pointerEvents: "none" }}>
+      <span className="cmenu-entry__icon no-pointer">
         {descriptor ? MENU_ICON_MAP[descriptor.iconName] : null}
       </span>
-      <div className="cmenu-entry__info" style={{ pointerEvents: "none" }}>
+      <div className="cmenu-entry__info no-pointer">
         <span className="cmenu-entry__label">
           {descriptor ? getLocalizedMenuItem(dict, descriptor).label : entry.id}
         </span>
@@ -180,9 +184,10 @@ export const SortableCard = memo(function SortableCard({
         onTouchStart={(e) => e.stopPropagation()}
         onClick={handleRemove}
         title={dict.settings.contextMenuConfig.btnRemoveItem}
-      >
+        >
         <X size={12} />
       </button>
+    </div>
     </div>
   );
 });

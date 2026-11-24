@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 import {
   FileText,
   X,
@@ -11,17 +11,26 @@ import {
   Loader2,
   AlertCircle,
   Languages,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
 import { parseMediaInfoLines } from "../../utils/mediaInfoParser";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { useMotionAllowed } from "../motion/useMotionAllowed";
 import {
   CategoryKey,
   buildCategoryTabs,
   filterAndProcessSections,
   MediaInfoTabsBar,
   MediaInfoSectionList,
+  useMediaInfoSearchNav,
 } from "./mediainfo";
+import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils";
+import {
+  getSavedControlBarStyle,
+  type ControlBarStyle,
+} from "../../utils/controlBarStyleUtils";
 
 interface DetailedMediaInfoModalProps {
   isOpen: boolean;
@@ -40,8 +49,13 @@ export function DetailedMediaInfoModal({
   filePath,
 }: DetailedMediaInfoModalProps) {
   const { dict } = useTranslation();
+  const motionAllowed = useMotionAllowed();
   const { mediaInfo } = usePlayerState();
   const currentPath = filePath || mediaInfo?.path;
+  const fileName = useMemo(() => {
+    if (!currentPath) return "";
+    return currentPath.split(/[/\\]/).pop() || currentPath;
+  }, [currentPath]);
 
   const [data, setData] = useState<DetailedMediaInfoResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -54,6 +68,22 @@ export function DetailedMediaInfoModal({
 
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+
+  // Синхронизация стиля оформления интерфейса
+  useEffect(() => {
+    const handleSettingsChanged = () => {
+      setControlBarStyle(getSavedControlBarStyle());
+    };
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    window.addEventListener("storage", handleSettingsChanged);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+      window.removeEventListener("storage", handleSettingsChanged);
+    };
+  }, []);
+
+  const isCapsule = controlBarStyle === "capsule";
 
   const modalRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -76,7 +106,7 @@ export function DetailedMediaInfoModal({
       .getPropertyValue("--ui-scale")
       .trim();
     const scale = parseFloat(zoomStr);
-    return Number.isFinite(scale) && scale > 0 ? scale : 1;
+    return Number.isFinite(scale) && scale> 0 ? scale : 1;
   }, []);
 
   // Позиционирование по центру окна при первом открытии
@@ -127,25 +157,21 @@ export function DetailedMediaInfoModal({
   }, [isOpen, loadInfo, setInitialPosition]);
 
   // Закрытие окна с анимацией
-  const [isClosing, setIsClosing] = useState<boolean>(false);
-  const handleClose = useCallback(() => {
-    if (isClosing) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    setTimeout(() => {
-      setIsClosing(false);
-      onClose();
-    }, getCloseTimeoutMs("fast"));
-  }, [isClosing, onClose]);
+  const { isClosing, handleClose } = useOverlayDismiss({
+    onClose,
+    kind: "pop",
+    closeOnEscape: false,
+  });
 
   // Закрытие по Escape или Shift+F10 (если в поиске есть текст — первый Esc очищает поиск)
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      const customHotkeys = getCustomHotkeys();
+      const infoKeys = customHotkeys.detailedMediaInfo || ["Shift+F10"];
+      const isInfoHotkey = infoKeys.some((k) => isKeyboardEventMatch(e, k));
+
       if (e.key === "Escape") {
         e.stopPropagation();
         if (searchQuery) {
@@ -153,7 +179,7 @@ export function DetailedMediaInfoModal({
         } else {
           handleClose();
         }
-      } else if (e.shiftKey && e.key === "F10") {
+      } else if (isInfoHotkey || (e.shiftKey && e.key === "F10")) {
         e.preventDefault();
         handleClose();
       } else if (e.ctrlKey && (e.key === "f" || e.key === "F" || e.key === "а" || e.key === "А")) {
@@ -214,14 +240,26 @@ export function DetailedMediaInfoModal({
     }
   }, [areAllCollapsed, displaySections]);
 
-  // Автопрокрутка к первому совпадению при поиске
-  useEffect(() => {
-    if (!searchQuery.trim() || !bodyRef.current) return;
-    const firstMatch = bodyRef.current.querySelector(".mediainfo-row--match, .mediainfo-floating-window__line--match");
-    if (firstMatch) {
-      firstMatch.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  // Подсчёт количества совпадений поиска по строкам
+  const matchCount = useMemo(() => {
+    if (!searchQuery.trim()) return 0;
+    let count = 0;
+    for (const sec of displaySections) {
+      for (const row of sec.rows) {
+        if (row.isMatch) count++;
+      }
     }
-  }, [searchQuery]);
+    return count;
+  }, [searchQuery, displaySections]);
+
+  // Навигация по совпадениям поиска
+  const { activeMatchIndex, jumpMatch, handleSearchKeyDown } = useMediaInfoSearchNav({
+    searchQuery,
+    activeCategory,
+    matchCount,
+    bodyRef,
+    motionAllowed,
+  });
 
   // Копирование полного отчёта без пробелов перед двоеточием
   const handleCopy = useCallback(async () => {
@@ -287,80 +325,78 @@ export function DetailedMediaInfoModal({
     }
   }, [baseReport.cleanText, baseReport.rawText, currentPath, dict]);
 
-  // Подсчёт количества совпадений поиска
-  const matchCount = useMemo(() => {
-    if (!searchQuery.trim()) return 0;
-    let count = 0;
-    for (const sec of displaySections) {
-      count += sec.matchesCount;
-    }
-    return count;
-  }, [searchQuery, displaySections]);
-
   if (!isOpen) return null;
 
   return (
     <div
       ref={modalRef}
-      className={`mediainfo-floating-window ${
+      className={`mediainfo-floating-window ${isCapsule ? "mediainfo-floating-window--capsule" : ""} ${
         isClosing ? "mediainfo-floating-window--closing" : ""
       }`}
       role="dialog"
       aria-label={dict.detailedMediaInfoModal.title}
-    >
+      >
       {/* Шапка окна с кнопками управления */}
       <div
         className="mediainfo-floating-window__header"
-        title={dict.detailedMediaInfoModal.dragHeader}
-      >
+        >
         <div className="mediainfo-floating-window__header-left">
           <FileText size={16} className="mediainfo-floating-window__icon" />
           <span className="mediainfo-floating-window__title">
-            {dict.detailedMediaInfoModal.title}
+            {fileName}
           </span>
         </div>
 
         <div className="mediainfo-floating-window__actions">
           {/* Переключение языка (RU / EN) */}
           <button
+            type="button"
             onClick={() => setUseRussian(!useRussian)}
-            className={`mediainfo-floating-window__btn ${
+            className={`mediainfo-floating-window__btn mediainfo-floating-window__btn--lang ${
               useRussian ? "mediainfo-floating-window__btn--active" : ""
             }`}
             title={useRussian ? dict.detailedMediaInfoModal.langTooltipRu : dict.detailedMediaInfoModal.langTooltipEn}
-          >
-            <Languages size={14} />
-            <span style={{ fontSize: "0.7rem", fontWeight: 600 }}>{useRussian ? "RU" : "EN"}</span>
+            aria-label={useRussian ? dict.detailedMediaInfoModal.langTooltipRu : dict.detailedMediaInfoModal.langTooltipEn}
+            >
+            <Languages size={13} />
+            <span style={{ fontSize: "var(--fs-2xs)", fontWeight: 600 }}>{useRussian ? "RU" : "EN"}</span>
           </button>
+
+          <span className="mediainfo-actions-divider" aria-hidden="true" />
 
           {/* Копировать всё */}
           <button
+            type="button"
             onClick={handleCopy}
             className="mediainfo-floating-window__btn"
             title={dict.detailedMediaInfoModal.copyReport}
+            aria-label={dict.detailedMediaInfoModal.copyReport}
             disabled={!baseReport.rawText}
-          >
-            {copied ? <Check size={14} color="#4ade80" /> : <Copy size={14} />}
+            >
+            {copied ? <Check size={14} color="var(--success-text)" /> : <Copy size={14} />}
           </button>
 
           {/* Экспорт в TXT */}
           <button
+            type="button"
             onClick={handleExportTxt}
             className="mediainfo-floating-window__btn"
             title={dict.detailedMediaInfoModal.exportTxt}
+            aria-label={dict.detailedMediaInfoModal.exportTxt}
             disabled={!baseReport.rawText}
-          >
+            >
             <Download size={14} />
           </button>
 
           {/* Закрыть окно */}
           <button
+            type="button"
             onClick={handleClose}
             className="mediainfo-floating-window__btn mediainfo-floating-window__btn--close"
-            title={dict.detailedMediaInfoModal.close}
+
             aria-label={dict.detailedMediaInfoModal.close}
-          >
-            <X size={15} />
+            >
+            <X size={16} strokeWidth={2} />
           </button>
         </div>
       </div>
@@ -373,30 +409,49 @@ export function DetailedMediaInfoModal({
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
           placeholder={dict.detailedMediaInfoModal.searchPlaceholder}
+          aria-label={dict.detailedMediaInfoModal.searchPlaceholder}
+          autoComplete="off"
+          spellCheck={false}
           className="mediainfo-floating-window__search-input"
         />
         {searchQuery && (
-          <span
-            style={{
-              fontSize: "0.7rem",
-              color: matchCount > 0 ? "var(--accent)" : "#f87171",
-              padding: "0 4px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {matchCount}
-          </span>
-        )}
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery("")}
-            className="mediainfo-floating-window__search-clear"
-            title={dict.detailedMediaInfoModal.clearSearch}
-            aria-label={dict.detailedMediaInfoModal.clearSearch}
-          >
-            <X size={12} />
-          </button>
+          <div className="mediainfo-standalone__search-stats">
+            <span
+              className={`mediainfo-standalone__search-count ${
+                matchCount === 0 ? "mediainfo-standalone__search-count--empty" : ""
+              }`}
+            >
+              {matchCount > 0 ? `${activeMatchIndex + 1}/${matchCount}` : "0"}
+            </span>
+            <button
+              type="button"
+              onClick={() => jumpMatch(-1)}
+              className="mediainfo-standalone__btn-icon"
+              disabled={matchCount === 0}
+              aria-label={useRussian ? "Предыдущее совпадение" : "Previous match"}
+            >
+              <ChevronUp size={12} />
+            </button>
+            <button
+              type="button"
+              onClick={() => jumpMatch(1)}
+              className="mediainfo-standalone__btn-icon"
+              disabled={matchCount === 0}
+              aria-label={useRussian ? "Следующее совпадение" : "Next match"}
+            >
+              <ChevronDown size={12} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="mediainfo-floating-window__search-clear"
+              aria-label={dict.detailedMediaInfoModal.clearSearch}
+            >
+              <X size={12} />
+            </button>
+          </div>
         )}
       </div>
 
@@ -417,14 +472,14 @@ export function DetailedMediaInfoModal({
       <div className="mediainfo-floating-window__body" ref={bodyRef}>
         {loading && (
           <div className="mediainfo-floating-window__loading">
-            <Loader2 size={24} className="spin-animation" style={{ color: "var(--accent)" }} />
+            <Loader2 size={24} className="spin-animation t-accent"  />
             <span>{dict.detailedMediaInfoModal.loading}</span>
           </div>
         )}
 
         {error && !loading && (
           <div className="mediainfo-floating-window__error">
-            <AlertCircle size={28} color="#f87171" />
+            <AlertCircle size={28} color="var(--danger-text)" />
             <div className="mediainfo-floating-window__error-msg">{error}</div>
           </div>
         )}

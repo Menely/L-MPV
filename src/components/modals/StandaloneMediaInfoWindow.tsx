@@ -1,3 +1,4 @@
+import { useMotionAllowed } from "../motion/useMotionAllowed";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
@@ -14,9 +15,12 @@ import {
   Languages,
   Minus,
   Square,
+  Minimize2,
   RefreshCw,
   Pin,
   FileUp,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { parseMediaInfoLines } from "../../utils/mediaInfoParser";
 import {
@@ -26,8 +30,15 @@ import {
   MediaInfoTabsBar,
   MediaInfoSectionList,
   useMediaInfoDragDrop,
+  useMediaInfoSearchNav,
 } from "./mediainfo";
 import "../../styles/mediainfo-modal.css";
+import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils";
+import { getEffectiveLocale } from "../../i18n";
+import {
+  getSavedControlBarStyle,
+  type ControlBarStyle,
+} from "../../utils/controlBarStyleUtils";
 
 interface DetailedMediaInfoResponse {
   text: string;
@@ -37,26 +48,47 @@ interface DetailedMediaInfoResponse {
 /**
  * Автономное отдельное окно MediaInfo для L-MPV.
  *
- * Открывается при вызове "Открыть в L-MPV MediaInfo" из контекстного меню Проводника
- * или по прямому вызову без запуска основного медиаплеера.
+ * Открывается при вызове "Открыть в L-MPV MediaInfo" из контекстного меню Проводника,
+ * по горячей клавише Shift+F10 или по прямому вызову без запуска основного медиаплеера.
  */
 export const StandaloneMediaInfoWindow: React.FC = () => {
+  const motionAllowed = useMotionAllowed();
   const appWindow = useMemo(() => getCurrentWindow(), []);
 
   const [filePath, setFilePath] = useState<string>("");
   const [data, setData] = useState<DetailedMediaInfoResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const reportRequestRef = useRef(0);
+  const pendingPathRef = useRef<string | null>(null);
+  const completedPathRef = useRef<string | null>(null);
 
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("all");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
-  const [useRussian, setUseRussian] = useState<boolean>(true);
+  const [useRussian, setUseRussian] = useState<boolean>(() => getEffectiveLocale() === "ru");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
   const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState<boolean>(true);
+
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+
+  // Синхронизация стиля оформления интерфейса в реальном времени
+  useEffect(() => {
+    const handleSettingsChanged = () => {
+      setControlBarStyle(getSavedControlBarStyle());
+    };
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    window.addEventListener("storage", handleSettingsChanged);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+      window.removeEventListener("storage", handleSettingsChanged);
+    };
+  }, []);
+
+  const isCapsule = controlBarStyle === "capsule";
 
   const bodyRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -81,27 +113,43 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   const loadMediaInfoForPath = useCallback((path: string) => {
     if (!path || !path.trim()) {
       setLoading(false);
-      setError("Путь к файлу не передан");
+      setError("NO_PATH");
       return;
     }
 
+    if (pendingPathRef.current === path) return;
+    const request = ++reportRequestRef.current;
+    pendingPathRef.current = path;
+    const sameReport = completedPathRef.current === path;
+
     setFilePath(path);
-    setLoading(true);
     setError(null);
-    setData(null);
-    setActiveCategory("all");
-    setCollapsedSections(new Set());
-    setSearchQuery("");
+    if (!sameReport) {
+      setLoading(true);
+      setData(null);
+      completedPathRef.current = null;
+      setActiveCategory("all");
+      setCollapsedSections(new Set());
+      setSearchQuery("");
+    }
 
     invoke<DetailedMediaInfoResponse>("get_detailed_media_info", { path })
       .then((res) => {
+        if (request !== reportRequestRef.current) return;
+        completedPathRef.current = path;
         setData(res);
         setLoading(false);
       })
       .catch((err) => {
+        if (request !== reportRequestRef.current) return;
         console.error("Ошибка получения MediaInfo:", err);
-        setError(typeof err === "string" ? err : "Не удалось проанализировать файл с помощью MediaInfo.dll");
+        completedPathRef.current = null;
+        setData(null);
+        setError(typeof err === "string" ? err : "DLL_ERROR");
         setLoading(false);
+      })
+      .finally(() => {
+        if (request === reportRequestRef.current) pendingPathRef.current = null;
       });
   }, []);
 
@@ -113,23 +161,36 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   // Первоначальное получение пути файла и подписка на события обновления
   useEffect(() => {
     // 1. Запрос пути, сохранённого в Tauri State при старте
+    const initialRequest = reportRequestRef.current;
     invoke<string | null>("get_standalone_mediainfo_path")
       .then((initialPath) => {
+        if (reportRequestRef.current !== initialRequest) return;
         if (initialPath) {
           loadMediaInfoForPath(initialPath);
         } else {
           setLoading(false);
-          setError("Файл для анализа не указан");
+          setError("NO_FILE");
         }
       })
       .catch((e) => {
+        if (reportRequestRef.current !== initialRequest) return;
         console.error("Ошибка вызова get_standalone_mediainfo_path:", e);
         setLoading(false);
-        setError("Ошибка инициализации окна MediaInfo");
+        setError("INIT_ERROR");
       });
 
     // 2. Слушатель события обновления пути (если окно уже открыто и выбран другой файл)
+    const syncAlwaysOnTopState = async () => {
+      try {
+        setIsAlwaysOnTop(await appWindow.isAlwaysOnTop());
+      } catch {
+        // Игнорируем ошибки опроса состояния закрепления окна
+      }
+    };
+    syncAlwaysOnTopState();
+
     const unlistenPromise = listen<string>("load-mediainfo-path", (event) => {
+      syncAlwaysOnTopState();
       if (event.payload) {
         loadMediaInfoForPath(event.payload);
       }
@@ -179,8 +240,12 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     }
   }, [appWindow, isAlwaysOnTop]);
 
-  const handleMinimize = useCallback(() => {
-    appWindow.minimize();
+  const handleMinimize = useCallback(async () => {
+    try {
+      await appWindow.minimize();
+    } catch (e) {
+      console.error("Ошибка сворачивания окна MediaInfo:", e);
+    }
   }, [appWindow]);
 
   const handleToggleMaximize = useCallback(async () => {
@@ -194,7 +259,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
         setIsMaximized(true);
       }
     } catch (e) {
-      console.error("Ошибка переключения развертывания окна MediaInfo:", e);
+      console.error("Ошибка переключения максимизации окна:", e);
     }
   }, [appWindow]);
 
@@ -214,6 +279,10 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
   // Обработка клавиатурных сокращений
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const customHotkeys = getCustomHotkeys();
+      const infoKeys = customHotkeys.detailedMediaInfo || ["Shift+F10"];
+      const isInfoHotkey = infoKeys.some((k) => isKeyboardEventMatch(e, k));
+
       if (e.key === "Escape") {
         e.stopPropagation();
         if (searchQuery) {
@@ -221,6 +290,10 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
         } else {
           handleClose();
         }
+      } else if (isInfoHotkey) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleClose();
       } else if (e.ctrlKey && (e.key === "f" || e.key === "F" || e.key === "а" || e.key === "А")) {
         e.preventDefault();
         searchInputRef.current?.focus();
@@ -279,14 +352,26 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     }
   }, [areAllCollapsed, displaySections]);
 
-  // Автопрокрутка к первому совпадению при вводе запроса
-  useEffect(() => {
-    if (!searchQuery.trim() || !bodyRef.current) return;
-    const firstMatch = bodyRef.current.querySelector(".mediainfo-row--match");
-    if (firstMatch) {
-      firstMatch.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  // Количество совпадений поиска (подсчёт по фактическим строкам + заголовкам)
+  const matchCount = useMemo(() => {
+    if (!searchQuery.trim()) return 0;
+    let count = 0;
+    for (const sec of displaySections) {
+      for (const row of sec.rows) {
+        if (row.isMatch) count++;
+      }
     }
-  }, [searchQuery]);
+    return count;
+  }, [searchQuery, displaySections]);
+
+  // Навигация по совпадениям поиска (Enter / Shift+Enter и стрелки ↑ / ↓)
+  const { activeMatchIndex, jumpMatch, handleSearchKeyDown } = useMediaInfoSearchNav({
+    searchQuery,
+    activeCategory,
+    matchCount,
+    bodyRef,
+    motionAllowed,
+  });
 
   // Копирование полного отчёта в буфер обмена без лишних пробелов перед двоеточием
   const handleCopy = useCallback(async () => {
@@ -335,19 +420,9 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
     }
   }, [baseReport.cleanText, baseReport.rawText, fileName]);
 
-  // Количество совпадений поиска
-  const matchCount = useMemo(() => {
-    if (!searchQuery.trim()) return 0;
-    let count = 0;
-    for (const sec of displaySections) {
-      count += sec.matchesCount;
-    }
-    return count;
-  }, [searchQuery, displaySections]);
-
   return (
     <div
-      className={`mediainfo-standalone ${isDragOver ? "mediainfo-standalone--drag-over" : ""}`}
+      className={`mediainfo-standalone ${isCapsule ? "mediainfo-standalone--capsule" : ""} ${isDragOver ? "mediainfo-standalone--drag-over" : ""}`}
       {...dragHandlers}
     >
       {isDragOver && (
@@ -377,35 +452,36 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           data-tauri-drag-region
         >
           <span className="mediainfo-standalone__icon" data-tauri-drag-region>
-            <FileText size={15} />
+            <FileText size={16} />
           </span>
-          <span className="mediainfo-standalone__app-title" data-tauri-drag-region>
-            Свойства MediaInfo
-          </span>
-          {fileName && (
+          {fileName ? (
             <span 
               className="mediainfo-standalone__filename" 
               title={filePath}
               data-tauri-drag-region
             >
-              — {fileName}
+              {fileName}
             </span>
-          )}
+          ) : null}
         </div>
 
         <div className="mediainfo-standalone__window-controls">
           <button
             type="button"
             className={`mediainfo-standalone__control-btn ${isAlwaysOnTop ? "mediainfo-standalone__control-btn--active" : ""}`}
-            title={isAlwaysOnTop ? "Открепить от верха окон" : "Закрепить поверх всех окон"}
+            aria-label={
+              isAlwaysOnTop
+                ? (useRussian ? "Открепить от верха окон" : "Unpin from top")
+                : (useRussian ? "Закрепить поверх всех окон" : "Keep on top")
+            }
             onClick={handleToggleAlwaysOnTop}
           >
-            <Pin size={13} style={{ transform: isAlwaysOnTop ? "rotate(45deg)" : "none", color: isAlwaysOnTop ? "var(--accent)" : "inherit" }} />
+            <Pin size={13} style={{ transform: isAlwaysOnTop ? "rotate(45deg)" : "none", color: isAlwaysOnTop ? "var(--accent-text)" : "inherit" }} />
           </button>
           <button
             type="button"
             className="mediainfo-standalone__control-btn"
-            title="Свернуть"
+            aria-label={useRussian ? "Свернуть" : "Minimize"}
             onClick={handleMinimize}
           >
             <Minus size={13} />
@@ -413,18 +489,18 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           <button
             type="button"
             className="mediainfo-standalone__control-btn"
-            title={isMaximized ? "Восстановить" : "Развернуть"}
+            aria-label={isMaximized ? (useRussian ? "Восстановить" : "Restore") : (useRussian ? "Развернуть" : "Maximize")}
             onClick={handleToggleMaximize}
           >
-            <Square size={11} />
+            {isMaximized ? <Minimize2 size={12} /> : <Square size={11} />}
           </button>
           <button
             type="button"
             className="mediainfo-standalone__control-btn mediainfo-standalone__control-btn--close"
-            title="Закрыть (Esc)"
+            aria-label={useRussian ? "Закрыть" : "Close"}
             onClick={handleClose}
           >
-            <X size={14} />
+            <X size={16} strokeWidth={2} />
           </button>
         </div>
       </div>
@@ -437,19 +513,45 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             ref={searchInputRef}
             type="text"
             className="mediainfo-standalone__search-input"
-            placeholder="Поиск по свойствам... (Ctrl+F)"
+            placeholder={useRussian ? "Поиск по свойствам... (Ctrl+F)" : "Search properties... (Ctrl+F)"}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
           />
           {searchQuery && (
             <div className="mediainfo-standalone__search-stats">
-              <span className="mediainfo-standalone__search-count">
-                {matchCount} совп.
+              <span
+                className={`mediainfo-standalone__search-count ${
+                  matchCount === 0 ? "mediainfo-standalone__search-count--empty" : ""
+                }`}
+              >
+                {matchCount > 0 ? `${activeMatchIndex + 1}/${matchCount}` : "0"}
               </span>
               <button
                 type="button"
                 className="mediainfo-standalone__btn-icon"
-                title="Очистить поиск"
+                title={useRussian ? "Предыдущее совпадение (Shift+Enter)" : "Previous match (Shift+Enter)"}
+                aria-label={useRussian ? "Предыдущее совпадение" : "Previous match"}
+                onClick={() => jumpMatch(-1)}
+                disabled={matchCount === 0}
+              >
+                <ChevronUp size={12} />
+              </button>
+              <button
+                type="button"
+                className="mediainfo-standalone__btn-icon"
+                title={useRussian ? "Следующее совпадение (Enter)" : "Next match (Enter)"}
+                aria-label={useRussian ? "Следующее совпадение" : "Next match"}
+                onClick={() => jumpMatch(1)}
+                disabled={matchCount === 0}
+              >
+                <ChevronDown size={12} />
+              </button>
+              <button
+                type="button"
+                className="mediainfo-standalone__btn-icon"
+                title={useRussian ? "Очистить поиск" : "Clear search"}
+                aria-label={useRussian ? "Очистить поиск" : "Clear search"}
                 onClick={() => setSearchQuery("")}
               >
                 <X size={12} />
@@ -462,33 +564,36 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
           <button
             type="button"
             className={`mediainfo-standalone__action-btn ${useRussian ? "mediainfo-standalone__action-btn--active" : ""}`}
-            title="Переключить язык (Русский / Английский)"
+            title={useRussian ? "Переключить язык (Русский / Английский)" : "Switch language (Russian / English)"}
+            aria-label={useRussian ? "Переключить язык (Русский / Английский)" : "Switch language (Russian / English)"}
             onClick={() => setUseRussian(!useRussian)}
           >
             <Languages size={13} />
             <span>{useRussian ? "RU" : "EN"}</span>
           </button>
 
+          <span className="mediainfo-actions-divider" aria-hidden="true" />
+
           <button
             type="button"
-            className="mediainfo-standalone__action-btn"
-            title="Копировать отчёт в буфер"
+            className="mediainfo-standalone__action-btn mediainfo-standalone__action-btn--icon"
+            title={useRussian ? (copied ? "Скопировано!" : "Копировать отчёт в буфер") : (copied ? "Copied!" : "Copy report to clipboard")}
+            aria-label={useRussian ? (copied ? "Скопировано!" : "Копировать отчёт в буфер") : (copied ? "Copied!" : "Copy report to clipboard")}
             onClick={handleCopy}
             disabled={!baseReport.rawText}
           >
-            {copied ? <Check size={13} color="#4ade80" /> : <Copy size={13} />}
-            <span>{copied ? "Скопировано" : "Копировать"}</span>
+            {copied ? <Check size={14} color="var(--success-text)" /> : <Copy size={14} />}
           </button>
 
           <button
             type="button"
-            className="mediainfo-standalone__action-btn"
-            title="Экспорт в .txt"
+            className="mediainfo-standalone__action-btn mediainfo-standalone__action-btn--icon"
+            title={useRussian ? "Экспорт в .txt" : "Export to .txt"}
+            aria-label={useRussian ? "Экспорт в .txt" : "Export to .txt"}
             onClick={handleExportTxt}
             disabled={!baseReport.rawText}
           >
-            <Download size={13} />
-            <span>Экспорт</span>
+            <Download size={14} />
           </button>
         </div>
       </div>
@@ -510,23 +615,32 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
         {loading && (
           <div className="mediainfo-standalone__center-state">
             <Loader2 className="mediainfo-standalone__spinner" size={24} />
-            <span>Анализ медиаконтейнера...</span>
+            <span>{useRussian ? "Анализ медиаконтейнера..." : "Analyzing media container..."}</span>
           </div>
         )}
 
         {error && !loading && (
           <div className="mediainfo-standalone__center-state mediainfo-standalone__center-state--error">
             <AlertCircle size={24} />
-            <span>{error}</span>
+            <span>
+              {error === "NO_PATH"
+                ? (useRussian ? "Путь к файлу не передан" : "File path not specified")
+                : error === "NO_FILE"
+                ? (useRussian ? "Файл для анализа не указан" : "No file specified for analysis")
+                : error === "INIT_ERROR"
+                ? (useRussian ? "Ошибка инициализации окна MediaInfo" : "MediaInfo window initialization error")
+                : error === "DLL_ERROR"
+                ? (useRussian ? "Не удалось проанализировать файл с помощью MediaInfo.dll" : "Failed to analyze file with MediaInfo.dll")
+                : error}
+            </span>
             {filePath && (
               <button
                 type="button"
-                className="mediainfo-standalone__action-btn"
-                style={{ marginTop: 8 }}
+                className="mediainfo-standalone__action-btn mt-4"
                 onClick={() => loadMediaInfoForPath(filePath)}
               >
                 <RefreshCw size={12} />
-                <span>Повторить анализ</span>
+                <span>{useRussian ? "Повторить анализ" : "Retry analysis"}</span>
               </button>
             )}
           </div>

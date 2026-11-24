@@ -91,14 +91,33 @@ pub fn get_auto_load_tracks() -> Result<bool, String> {
 }
 
 /// Установить статус настройки автоматического подхвата внешних дорожек с сохранением в settings.json.
+/// При включении на лету — немедленно сканирует папку и подхватывает внешние дорожки для текущего видео.
 #[tauri::command]
 pub fn set_auto_load_tracks(
+    state: State<'_, PlayerState>,
     enabled: bool,
 ) -> Result<(), String> {
     AppSettings::update_portable(|settings| {
         settings.auto_load_tracks = enabled;
-    })
-    .map(|_| ())
+    })?;
+
+    if enabled {
+        super::tracks::invalidate_external_scan_cache();
+        if let Ok(current_path) = state.mpv.get_property_string("path") {
+            if !current_path.is_empty() {
+                let settings = AppSettings::load_portable();
+                let _ = super::tracks::load_external_tracks_internal(
+                    &state.mpv,
+                    std::path::Path::new(&current_path),
+                    settings.auto_select_external_audio,
+                    None,
+                    "",
+                );
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Получить текущий статус настройки автоматического переключения звука на внешнюю аудиодорожку.
@@ -165,18 +184,11 @@ pub fn set_subtitles_avoid_ui_setting(
     enabled: bool,
 ) -> Result<(), String> {
     if !enabled {
-        state.mpv.set_property_string("sub-pos", "100")?;
-        state.mpv.set_property_string("sub-margin-y", "22")?;
+        crate::subtitle_position::update(&state.mpv, false, 0.0, 0.0)?;
     }
-    if let Err(error) = AppSettings::update_portable(|settings| {
+    AppSettings::update_portable(|settings| {
         settings.subtitles_avoid_ui = enabled;
-    }) {
-        if !enabled {
-            let _ = state.mpv.set_property_string("sub-pos", "100");
-            let _ = state.mpv.set_property_string("sub-margin-y", "22");
-        }
-        return Err(error);
-    }
+    })?;
     Ok(())
 }
 
@@ -186,34 +198,14 @@ pub fn update_subtitles_avoid_ui(
     state: State<'_, PlayerState>,
     controls_visible: bool,
     window_height: Option<f64>,
+    controls_bottom: Option<f64>,
 ) -> Result<(), String> {
-    if controls_visible {
-        // Динамический адаптивный расчет: высота панели управления составляет ~78px от низа окна.
-        // Чтобы субтитры гарантированно не перекрывались панелью и не улетали слишком высоко на 4K/2K,
-        // мы вычисляем процент sub-pos исходя из реальной высоты окна, удерживая субтитры
-        // строго на фиксированном отступе ~104px от нижней границы.
-        let height = window_height.unwrap_or(720.0).max(300.0);
-        let target_bottom_offset = 104.0;
-        let sub_pos = (100.0 - (target_bottom_offset / height * 100.0))
-            .clamp(78.0, 96.0)
-            .round() as i64;
-
-        let _ = state
-            .mpv
-            .set_property_string("sub-pos", &sub_pos.to_string());
-        let _ = state
-            .mpv
-            .set_property_string("sub-margin-y", "26");
-    } else {
-        // Возвращаем субтитры к стандартной нижней позиции
-        let _ = state
-            .mpv
-            .set_property_string("sub-pos", "100");
-        let _ = state
-            .mpv
-            .set_property_string("sub-margin-y", "22");
-    }
-    Ok(())
+    crate::subtitle_position::update(
+        &state.mpv,
+        controls_visible,
+        window_height.unwrap_or(720.0),
+        controls_bottom.unwrap_or(104.0),
+    )
 }
 
 /// Получить сохранённые настройки пользовательского интерфейса из config/settings.json.
@@ -271,8 +263,6 @@ pub fn get_video_audio_settings() -> Result<serde_json::Value, String> {
 }
 
 /// Включить / выключить пиковый лимитер аудио (lavfi alimiter).
-/// Управление тумблером «Защита от перегруза звука» (alimiter).
-///
 /// Цепочка `af` пересобирается целиком, при этом ранее выбранный режим
 /// нормализации громкости сохраняется активным и не сбрасывается.
 #[tauri::command]
@@ -280,15 +270,9 @@ pub fn set_audio_limiter_setting(
     state: State<'_, PlayerState>,
     enabled: bool,
 ) -> Result<(), String> {
-    let normalize_raw = AppSettings::load_portable()
-        .audio_normalize
-        .unwrap_or_else(|| "no".to_string());
-    let mode = AudioNormalizeMode::from_str_or_default(&normalize_raw);
-    state.mpv.set_audio_limiter_enabled(mode, enabled)?;
-    AppSettings::update_portable(|settings| {
+    AppSettings::update_audio_processing(&state.mpv, |settings| {
         settings.audio_limiter_enabled = Some(enabled);
     })
-    .map(|_| ())
 }
 
 /// Установить алгоритм тонемаппинга HDR.
@@ -421,22 +405,18 @@ pub fn set_hwdec_mode_setting(
 
 /// Установить режим нормализации громкости.
 ///
-/// Допустимые значения: `"no"`, `"dynaudnorm"`, `"loudnorm"`.
-/// Нормализация ставится перед пиковым лимитером и работает независимо от него.
+/// Допустимые значения: `"no"`, `"dynaudnorm"`, `"loudnorm"`, `"ebu128"`.
 #[tauri::command]
 pub fn set_audio_normalize_setting(
     state: State<'_, PlayerState>,
     mode: String,
 ) -> Result<(), String> {
-    let limiter = AppSettings::load_portable()
-        .audio_limiter_enabled
-        .unwrap_or(true);
-    let parsed_mode = AudioNormalizeMode::from_str_or_default(&mode);
-    state.mpv.set_audio_normalize(parsed_mode, limiter)?;
-    AppSettings::update_portable(|settings| {
-        settings.audio_normalize = Some(parsed_mode.as_str().to_string());
-    })
-    .map(|_| ())
+    let mode = AudioNormalizeMode::from_str_or_default(&mode);
+    AppSettings::update_audio_processing(&state.mpv, |settings| {
+        settings.audio_normalize = Some(mode.as_str().to_string());
+    })?;
+    state.ebu128.set_enabled(&state.mpv, mode == AudioNormalizeMode::Ebu128);
+    Ok(())
 }
 
 /// Установить размер буфера демаксера в мегабайтах.

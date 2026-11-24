@@ -5,6 +5,25 @@ use super::types::{ModelFileItem, UpscaleStatus};
 use std::fs;
 use std::path::PathBuf;
 
+/// Токен версии кэша, используемый aji для рантайма TensorRT в AnimeJaNai.
+pub const TRT_CACHE_VERSION: &str = "11.4.0";
+
+/// Хэш профиля оптимизации 1080p в aji.dll ("--builderOptimizationLevel=5 --optShapes=input:1x3x1080x1920 --skipInference").
+pub const TRT_1080P_PROFILE_HASH: &str = "780037328";
+
+/// Формирует точное имя файла скомпилированного 1080p движка TensorRT для заданной модели и GPU.
+pub fn expected_engine_1080p_filename(
+    model_stem: &str,
+    gpu_clean: &str,
+    sm_suffix: &str,
+) -> String {
+    let crc = crc32_ieee(model_stem.as_bytes());
+    format!(
+        "aji-{:08x}.{}.trt-{}.gpu-{}-{}.engine",
+        crc, TRT_1080P_PROFILE_HASH, TRT_CACHE_VERSION, gpu_clean, sm_suffix
+    )
+}
+
 /// Возвращает корневой каталог приложения
 pub fn get_app_root_dir() -> PathBuf {
     if let Ok(exe_path) = std::env::current_exe() {
@@ -106,10 +125,14 @@ pub fn get_models_order_path() -> PathBuf {
 
 /// Сохраняет пользовательский порядок моделей в файл `config/models_order.json`
 pub fn save_models_order_internal(order: &[String]) -> Result<(), String> {
-    let order_path = get_models_order_path();
-    let json = serde_json::to_string_pretty(order).map_err(|e| e.to_string())?;
-    fs::write(&order_path, json).map_err(|e| e.to_string())?;
-    Ok(())
+    save_models_order_to_root(&get_app_root_dir(), order)
+}
+
+fn save_models_order_to_root(root: &std::path::Path, order: &[String]) -> Result<(), String> {
+    let operation = super::operation::try_acquire(root)?;
+    let order_path = operation.root().join("config/models_order.json");
+    let json = serde_json::to_vec_pretty(order).map_err(|e| e.to_string())?;
+    crate::commands::write_atomic(&order_path, &json, false)
 }
 
 /// Вычисление контрольной суммы CRC32 по стандарту IEEE 802.3
@@ -128,7 +151,7 @@ pub fn crc32_ieee(data: &[u8]) -> u32 {
     !crc
 }
 
-/// Проверка наличия скомпилированного движка TensorRT (.engine) для модели в каталоге под текущий GPU
+/// Проверка наличия скомпилированного 1080p движка TensorRT (.engine) для модели в каталоге под текущий GPU
 pub fn has_compiled_engine_for_model(
     models_dir: &std::path::Path,
     model_stem: &str,
@@ -136,16 +159,21 @@ pub fn has_compiled_engine_for_model(
     sm_suffix: Option<&str>,
 ) -> bool {
     let crc = crc32_ieee(model_stem.as_bytes());
-    let prefix = format!("aji-{:08x}.", crc);
-    let target_suffix = match (gpu_clean, sm_suffix) {
-        (Some(g), Some(s)) => format!(".trt-11.3.0.gpu-{}-{}.engine", g, s),
-        _ => ".engine".to_string(),
+    let exact_name = match (gpu_clean, sm_suffix) {
+        (Some(g), Some(s)) => Some(expected_engine_1080p_filename(model_stem, g, s)),
+        _ => None,
     };
+    let prefix_1080p = format!("aji-{:08x}.{}.", crc, TRT_1080P_PROFILE_HASH);
 
     if let Ok(entries) = fs::read_dir(models_dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with(&prefix) && name.ends_with(&target_suffix) {
+            let matched = if let Some(ref exact) = exact_name {
+                &name == exact
+            } else {
+                name.starts_with(&prefix_1080p) && name.ends_with(".engine")
+            };
+            if matched {
                 if let Ok(meta) = entry.metadata() {
                     if meta.len() > 0 {
                         return true;
@@ -227,7 +255,7 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
         });
 
         let target_engine_suffix = match (gpu_clean.as_deref(), sm_suffix.as_deref()) {
-            (Some(g), Some(s)) => format!(".trt-11.3.0.gpu-{}-{}.engine", g, s),
+            (Some(g), Some(s)) => format!(".trt-{}.gpu-{}-{}.engine", TRT_CACHE_VERSION, g, s),
             _ => ".engine".to_string(),
         };
 
@@ -254,9 +282,28 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
 
             let crc_stem = crc32_ieee(model_stem.as_bytes());
             let prefix = format!("aji-{:08x}.", crc_stem);
-            let has_engine_1080p = engine_files.iter().any(|eng| {
-                eng.starts_with(&prefix) && eng.ends_with(&target_engine_suffix)
-            });
+            let prefix_1080p = format!("aji-{:08x}.{}.", crc_stem, TRT_1080P_PROFILE_HASH);
+            let expected_1080p = match (gpu_clean.as_deref(), sm_suffix.as_deref()) {
+                (Some(g), Some(s)) => Some(expected_engine_1080p_filename(model_stem, g, s)),
+                _ => None,
+            };
+            let is_1080p_match = |eng: &str| -> bool {
+                if let Some(ref exact) = expected_1080p {
+                    eng == exact
+                } else {
+                    eng.starts_with(&prefix_1080p) && eng.ends_with(&target_engine_suffix)
+                }
+            };
+            let context_current = super::compatibility::model_current(
+                &get_app_root_dir(),
+                &path,
+                &super::compatibility::gpu_key(&gpu),
+            );
+            let (has_engine_1080p, engine_outdated) = model_cache_state(
+                &engine_files, &prefix, context_current,
+                models_dir.join(format!("{model_stem}.timing.cache")).exists(),
+                is_1080p_match,
+            );
 
             items.push(ModelFileItem {
                 filename,
@@ -265,11 +312,39 @@ pub fn scan_onnx_models_internal() -> Vec<ModelFileItem> {
                 slot,
                 full_path: path.to_string_lossy().to_string(),
                 has_engine_1080p,
+                // Valid engines for other resolutions can coexist with 1080p.
+                // Their compilation context, not their profile hash, determines staleness.
+                engine_outdated,
             });
         }
     }
 
     items
+}
+
+/// Slot numbers are positions in a mutable library; filenames identify models.
+pub(super) fn resolve_model_slot(
+    models: &[ModelFileItem], filename: Option<&str>, builtin_slot: u32,
+) -> Result<u32, String> {
+    match filename {
+        Some(filename) => models.iter()
+            .find(|model| model.filename.eq_ignore_ascii_case(filename) && model.slot > 0)
+            .map(|model| model.slot)
+            .ok_or_else(|| format!("UPSCALE_MODEL_MISSING:{filename}")),
+        None => Ok(builtin_slot),
+    }
+}
+
+fn model_cache_state(
+    engines: &[String],
+    prefix: &str,
+    context_current: bool,
+    has_timing_cache: bool,
+    is_1080p: impl Fn(&str) -> bool,
+) -> (bool, bool) {
+    let has_cache = has_timing_cache || engines.iter().any(|name| name.starts_with(prefix));
+    let has_1080p = context_current && engines.iter().any(|name| is_1080p(name));
+    (has_1080p, has_cache && !context_current)
 }
 
 /// Проверяет физическое наличие всех требуемых библиотек инференса и статус подсистемы
@@ -309,12 +384,25 @@ pub fn check_upscale_status_internal() -> UpscaleStatus {
         || root.join("animejanai").join("inference").join("nvinfer_11.dll").exists();
 
     let tensorrt_present = aji_present && has_aji_trt_dll && has_nvinfer_dll;
+    let directml_update_required = directml_present && !super::compatibility::runtime_current(&root, "DirectML");
+    let tensorrt_update_required = tensorrt_present
+        && (!super::compatibility::runtime_current(&root, "TensorRT")
+            || (gpu_info.supports_tensorrt
+                && !super::compatibility::runtime_supports_gpu_sm(
+                    &root,
+                    &gpu_info.sm_architecture,
+                )));
+    let player_update_required = !super::compatibility::native_matches_package(&root);
 
     UpscaleStatus {
         filter_supported: true,
         aji_present,
         directml_present,
         tensorrt_present,
+        directml_update_required,
+        tensorrt_update_required,
+        player_update_required,
+        runtime_restart_required: super::compatibility::runtime_used(),
         models_count: models.len(),
         models_dir: models_dir.to_string_lossy().to_string(),
         models,
@@ -324,7 +412,14 @@ pub fn check_upscale_status_internal() -> UpscaleStatus {
 
 /// Записывает конфигурационный файл `upscale.conf` для нативного фильтра инференса
 pub fn write_upscale_conf(backend: &str, default_slot: u32) -> Result<PathBuf, String> {
-    let conf_path = get_upscale_conf_path();
+    let operation = super::operation::try_acquire(&get_app_root_dir())?;
+    write_upscale_conf_locked(&operation, backend, default_slot)
+}
+
+pub(super) fn write_upscale_conf_locked(
+    operation: &super::operation::OperationGuard, backend: &str, default_slot: u32,
+) -> Result<PathBuf, String> {
+    let conf_path = operation.root().join("config/upscale.conf");
     let models = scan_onnx_models_internal();
 
     let mut conf_content = format!(
@@ -356,8 +451,105 @@ pub fn write_upscale_conf(backend: &str, default_slot: u32) -> Result<PathBuf, S
         ));
     }
 
-    fs::write(&conf_path, conf_content)
-        .map_err(|e| format!("Ошибка записи конфигурации апскейлинга: {}", e))?;
+    crate::commands::write_atomic(&conf_path, conf_content.as_bytes(), false)?;
 
     Ok(conf_path)
+}
+
+#[cfg(test)]
+mod dependency_tests {
+    use super::*;
+
+    #[test]
+    fn reorder_is_busy_during_operation_and_saves_after_release() {
+        let root = std::env::temp_dir().join(format!("lmpv-reorder-operation-{}", std::process::id()));
+        fs::create_dir_all(root.join("config")).unwrap();
+        fs::write(root.join("config/models_order.json"), br#"["a.onnx","b.onnx"]"#).unwrap();
+        let guard = super::super::operation::try_acquire(&root).unwrap();
+        let reordered = vec!["b.onnx".to_owned(), "a.onnx".to_owned()];
+        assert_eq!(save_models_order_to_root(&root, &reordered).unwrap_err(), "UPSCALE_BUSY");
+        assert_eq!(fs::read(root.join("config/models_order.json")).unwrap(), br#"["a.onnx","b.onnx"]"#);
+        drop(guard);
+        save_models_order_to_root(&root, &reordered).unwrap();
+        let saved: Vec<String> = serde_json::from_slice(&fs::read(root.join("config/models_order.json")).unwrap()).unwrap();
+        assert_eq!(saved, reordered);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn restoration_follows_filename_after_reorder_and_never_selects_replacement() {
+        let model = |name: &str, slot| ModelFileItem {
+            filename: name.to_owned(), slot, display_name: name.to_owned(), size_bytes: 1,
+            full_path: name.to_owned(), has_engine_1080p: true, engine_outdated: false,
+        };
+        let reordered = vec![model("b.onnx", 1), model("a.onnx", 2)];
+        assert_eq!(resolve_model_slot(&reordered, Some("a.onnx"), 1).unwrap(), 2);
+        assert_eq!(resolve_model_slot(&reordered, Some("A.ONNX"), 1).unwrap(), 2);
+        assert!(resolve_model_slot(&[model("b.onnx", 1)], Some("a.onnx"), 1).is_err());
+        assert!(resolve_model_slot(&[model("a.onnx", 0)], Some("a.onnx"), 1).is_err());
+        assert_eq!(resolve_model_slot(&reordered, None, 1001).unwrap(), 1001);
+    }
+
+    #[test]
+    fn cache_version_matches_packaged_runtime() {
+        let pins: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../scripts/animejanai-dependencies.json"
+        ))
+        .unwrap();
+        assert_eq!(pins["tensorrt_cache"].as_str(), Some(TRT_CACHE_VERSION));
+        assert!(pins["tensorrt"]
+            .as_str()
+            .unwrap()
+            .starts_with(TRT_CACHE_VERSION));
+    }
+
+    #[test]
+    fn current_context_accepts_other_resolution_profiles() {
+        let prefix = "aji-12345678.";
+        let exact = "aji-12345678.780037328.trt-11.4.0.gpu-rtx4070-sm8.engine";
+        let mut engines = vec!["aji-12345678.111222333.trt-11.4.0.gpu-rtx4070-sm8.engine".to_owned()];
+        let classify = |engines: &[String], current| model_cache_state(
+            engines, prefix, current, false, |name| name == exact,
+        );
+        assert_eq!(classify(&engines, true), (false, false));
+        engines.push(exact.to_owned());
+        assert_eq!(classify(&engines, true), (true, false));
+        assert_eq!(classify(&engines, false), (false, true));
+        assert_eq!(classify(&[], false), (false, false));
+    }
+
+    #[test]
+    fn non_1080p_engine_does_not_satisfy_has_compiled_engine_for_model() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "l_mpv_engine_1080p_test_{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let stem = "2x_AnimeJaNai_HD_V3_UltraCompact";
+        let crc = crc32_ieee(stem.as_bytes());
+        let engine_720p = temp_dir.join(format!(
+            "aji-{:08x}.111222333.trt-{}.gpu-rtx4070-sm8.engine",
+            crc, TRT_CACHE_VERSION
+        ));
+        fs::write(&engine_720p, b"compiled-720p").unwrap();
+
+        assert!(
+            !has_compiled_engine_for_model(&temp_dir, stem, Some("rtx4070"), Some("sm8")),
+            "Движок другого разрешения (720p) не должен считаться 1080p-движком"
+        );
+
+        let engine_1080p = temp_dir.join(expected_engine_1080p_filename(
+            stem, "rtx4070", "sm8",
+        ));
+        fs::write(&engine_1080p, b"compiled-1080p").unwrap();
+
+        assert!(
+            has_compiled_engine_for_model(&temp_dir, stem, Some("rtx4070"), Some("sm8")),
+            "Точный 1080p движок с хэшем 780037328 должен распознаваться"
+        );
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
 }

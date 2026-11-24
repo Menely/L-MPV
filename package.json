@@ -1,11 +1,12 @@
 {
   "name": "l-mpv",
   "private": true,
-  "version": "2.6.2",
+  "version": "2.7.6",
   "description": "L-MPV — Modern & Portable Media Player",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
+    "test:motion": "node --test tests/follow-scroll.test.mjs tests/motion-presets.test.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
@@ -21,6 +22,7 @@
     "@tauri-apps/plugin-dialog": "^2.8.1",
     "@tauri-apps/plugin-opener": "^2.7.0",
     "lucide-react": "^1.47.0",
+    "motion": "^14.14.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
@@ -30,6 +32,6 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^4.6.0",
     "typescript": "~5.9.3",
-    "vite": "^7.0.4"
+    "vite": "^7.3.8"
   }
 }

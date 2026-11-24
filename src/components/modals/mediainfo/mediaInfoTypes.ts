@@ -117,11 +117,15 @@ export function filterAndProcessSections(
       return { ...r, isMatch };
     });
 
+    const isTitleMatch =
+      sec.title.toLowerCase().includes(q) ||
+      (!!sec.streamTitle && sec.streamTitle.toLowerCase().includes(q));
+
     return {
       ...sec,
       rows,
-      hasMatches: matches > 0,
-      matchesCount: matches,
+      hasMatches: matches > 0 || isTitleMatch,
+      matchesCount: matches + (isTitleMatch ? 1 : 0),
     };
   });
 }

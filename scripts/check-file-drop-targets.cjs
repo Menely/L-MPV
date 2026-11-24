@@ -1,0 +1,14 @@
+const assert = require('node:assert/strict');
+const esbuild = require('esbuild');
+const code = esbuild.buildSync({entryPoints:['src/utils/fileDropTargets.ts'],bundle:true,write:false,platform:'node',format:'cjs'}).outputFiles[0].text;
+const mod = {exports:{}};
+new Function('module','exports','window',code)(mod,mod.exports,{devicePixelRatio:2});
+const {registerFileDropTarget, updateFileDropTarget, dispatchFileDrop} = mod.exports;
+const hovered=[], drops=[];
+const unregister=registerFileDropTarget({element:()=>({getBoundingClientRect:()=>({left:100,right:300,top:50,bottom:200,width:200,height:150})}),hover:value=>hovered.push(value),drop:paths=>drops.push(paths)});
+updateFileDropTarget({x:400,y:200});assert.equal(hovered.at(-1),true,'Native physical coords must divide by DPI once');
+assert.equal(dispatchFileDrop(['one.mkv','two.mp4'],{x:400,y:200}),true);
+assert.equal(dispatchFileDrop(['outside.mkv'],{x:40,y:40}),false,'Outside preserves normal player handler');
+updateFileDropTarget();assert.equal(hovered.at(-1),false);
+unregister();assert.equal(dispatchFileDrop(['closed.mkv'],{x:400,y:200}),false);
+Promise.resolve().then(()=>{assert.deepEqual(drops,[['one.mkv','two.mp4']]);console.log('PASS native drop routing, DPI, all paths, global fallback and unregister');});

@@ -1,3 +1,5 @@
+import { useMotionAllowed } from "../../motion/useMotionAllowed";
+import { useCanvasVisibility } from "../../../hooks/useCanvasVisibility";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useEffect, useRef } from "react";
 import {
@@ -21,7 +23,8 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
   isVisible,
 }) => {
   const { dict } = useTranslation();
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const motionAllowed = useMotionAllowed();
+  const { canvasRef, bindCanvas, isCanvasVisible } = useCanvasVisibility();
   const animStateRef = useRef<VisualizerAnimState>(createInitialAnimState());
 
   // Сброс буфера капсул при смене режима визуализации для исключения конфликтов интерполяции
@@ -32,11 +35,11 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
   }, [config.mode]);
 
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible || !isCanvasVisible) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    let animId: number;
+    let animId: number | undefined;
     let lastTime = performance.now();
 
     const updateSize = () => {
@@ -52,18 +55,15 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
     };
 
     updateSize();
-    const ro = new ResizeObserver(updateSize);
+    const ro = new ResizeObserver(() => {
+      updateSize();
+      if (!motionAllowed) render(0);
+    });
     if (canvas.parentElement) {
       ro.observe(canvas.parentElement);
     }
 
     const render = (time: number) => {
-      // Энергосбережение: пропуск отрисовки если документ или вкладка скрыта
-      if (document.hidden) {
-        animId = requestAnimationFrame(render);
-        return;
-      }
-
       const dt = Math.max(0.001, Math.min(64, Math.max(0, time - lastTime))) / 1000;
       lastTime = time;
 
@@ -111,42 +111,43 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
         }
       }
 
-      animId = requestAnimationFrame(render);
+      if (motionAllowed) animId = requestAnimationFrame(render);
     };
 
-    animId = requestAnimationFrame(render);
+    if (motionAllowed) animId = requestAnimationFrame(render);
+    else render(0);
     return () => {
-      cancelAnimationFrame(animId);
+      if (animId !== undefined) cancelAnimationFrame(animId);
       ro.disconnect();
     };
-  }, [config, isVisible]);
+  }, [config, isVisible, isCanvasVisible, motionAllowed, canvasRef]);
 
   const themeColors = getVisualizerThemeColors(config.theme);
 
   return (
-    <div className="settings-preview-card" style={{ marginBottom: 0 }}>
+    <div className="settings-preview-card" style={{ marginBottom: "var(--space-0)" }}>
       {/* Левая информационная часть */}
       <div className="settings-preview-card__info">
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
+          <span className="t-label">
             {dict.settings.appearance.visualizer.previewLeft}
           </span>
           <span
             style={{
-              fontSize: "0.80rem",
+              fontSize: "var(--fs-sm)",
               fontWeight: 700,
               color: !config.enabled ? "var(--text-muted)" : themeColors.primary,
               textShadow: !config.enabled ? "none" : `0 0 10px ${themeColors.glow}`,
               transition:
                 "color var(--t-fast) var(--ease-smooth), text-shadow var(--t-fast) var(--ease-smooth)",
             }}
-          >
+            >
             {!config.enabled
               ? dict.settings.appearance.visualizer.off
               : `${dict.settings.appearance.visualizer.modes[config.mode]?.label || config.mode} • ${dict.settings.appearance.visualizer.themes[config.theme]?.label || config.theme}`}
           </span>
         </div>
-        <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", lineHeight: 1.25 }}>
+        <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", lineHeight: 1.25 }}>
           {!config.enabled
             ? dict.settings.appearance.visualizer.previewOffStatus
             : `${dict.settings.appearance.visualizer.placements[config.placement]?.label || "On player bar"} • ${
@@ -170,13 +171,13 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
           height: 60,
           boxSizing: "border-box",
           boxShadow: "var(--shadow-pill, 0 4px 20px rgba(0, 0, 0, 0.45))",
-          transition: "all var(--t-fast) var(--ease-smooth)",
+          transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), border-radius var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
         }}
-      >
+        >
         <div
           style={{
             width: 120,
@@ -188,20 +189,20 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
             position: "relative",
             transition: "width var(--t-fast) var(--ease-smooth)",
           }}
-        >
+          >
           {/* 1. Над таймлайном */}
           {config.enabled && config.placement === "above_timeline" && (
-            <div style={{ display: "flex", flexDirection: "column", width: "100%", gap: 6 }}>
+            <div style={{ display: "flex", flexDirection: "column", width: "100%", gap: "var(--space-3)" }}>
               <div
                 style={{
                   width: "100%",
                   height: 32,
-                  borderRadius: "var(--radius-sm, 4px)",
+                  borderRadius: "var(--radius-control)",
                   overflow: "hidden",
                   display: "flex",
                 }}
-              >
-                <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+                >
+                <canvas ref={bindCanvas} style={{ width: "100%", height: "100%", display: "block" }} />
               </div>
               <div
                 style={{
@@ -212,7 +213,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
                   borderRadius: 4,
                   overflow: "hidden",
                 }}
-              >
+                >
                 <div
                   style={{
                     position: "absolute",
@@ -236,13 +237,13 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
                 position: "relative",
                 width: "100%",
                 height: 32,
-                background: "rgba(255, 255, 255, 0.08)",
-                borderRadius: "var(--radius-md, 6px)",
+                background: "var(--surface-level-3-hover)",
+                borderRadius: "var(--radius-control)",
                 overflow: "hidden",
               }}
-            >
+              >
               <canvas
-                ref={canvasRef}
+                ref={bindCanvas}
                 style={{
                   position: "absolute",
                   left: 0,
@@ -274,7 +275,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
               style={{
                 width: 120,
                 height: 36,
-                borderRadius: "var(--radius-md, 8px)",
+                borderRadius: "var(--radius-control)",
                 overflow: "hidden",
                 display: "flex",
                 background: "rgba(0, 0, 0, 0.35)",
@@ -282,8 +283,8 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
                 boxShadow: `0 0 8px ${themeColors.glow}20`,
                 flexShrink: 0,
               }}
-            >
-              <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+              >
+              <canvas ref={bindCanvas} style={{ width: "100%", height: "100%", display: "block" }} />
             </div>
           )}
 
@@ -298,7 +299,7 @@ export const VisualizerPreviewCard: React.FC<VisualizerPreviewCardProps> = ({
                 borderRadius: 4,
                 overflow: "hidden",
               }}
-            >
+              >
               <div
                 style={{
                   position: "absolute",

@@ -1,0 +1,62 @@
+import React from "react";
+import type { MediaInfo } from "../../../contexts/PlayerStateContext";
+import { useTranslation } from "../../../i18n/LanguageContext";
+
+/**
+ * Пропсы секции сведений об аудиопотоке.
+ */
+export interface MediaInfoAudioSectionProps {
+  /** Данные о текущем воспроизводимом медиафайле. */
+  mediaInfo: MediaInfo | null;
+  /** Актуальный битрейт аудиопотока в бит/с. */
+  audioBitrate: number;
+  /** Текущий уровень громкости (в процентах). */
+  currentVolume: number;
+}
+
+/**
+ * Модульная секция параметров звукового потока (кодек, каналы, битрейт, громкость).
+ * В стиле «Капсула» оформляется как самостоятельная парящая карточка.
+ */
+export const MediaInfoAudioSection: React.FC<MediaInfoAudioSectionProps> = ({
+  mediaInfo,
+  audioBitrate,
+  currentVolume,
+}) => {
+  const { dict, locale } = useTranslation();
+  const numberLocale = locale === "en" ? "en-US" : "ru-RU";
+
+  const channelsCount = Number(mediaInfo?.audio_channels);
+  const validChannels =
+    Number.isFinite(channelsCount) && channelsCount > 0
+      ? String(channelsCount)
+      : "";
+  const audioCodec = mediaInfo?.audio_codec?.trim() || "";
+  const audioText = audioCodec
+    ? `${audioCodec}${validChannels ? ` (${validChannels} ${dict.mediaInfoModal.ch})` : ""}`
+    : validChannels
+    ? `${validChannels} ${dict.mediaInfoModal.ch}`
+    : "—";
+
+  return (
+    <div className="media-info__section">
+      <div className="media-info__row">
+        <span className="media-info__label">{dict.mediaInfoModal.audio}</span>
+        <span className="media-info__value">{audioText}</span>
+      </div>
+      <div className="media-info__row">
+        <span className="media-info__label">{dict.mediaInfoModal.bitrate}</span>
+        <span className="media-info__value">
+          {audioBitrate > 0
+            ? `${Math.round(audioBitrate / 1000).toLocaleString(numberLocale)} ${dict.mediaInfoModal.kbps}`
+            : "—"}
+        </span>
+      </div>
+      <div className="media-info__row">
+        <span className="media-info__label">{dict.mediaInfoModal.volume}</span>
+        <span className="media-info__value">{Math.round(currentVolume)}%</span>
+      </div>
+    </div>
+  );
+};
+

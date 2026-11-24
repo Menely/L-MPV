@@ -1,4 +1,4 @@
-//! Системная интеграция: скриншоты, Ambient Light, Windows Taskbar,
+//! Системная интеграция: скриншоты, Blur, Windows Taskbar,
 //! полноэкранный режим, обработка фокуса и аудио-визуализатор.
 
 use super::types::{
@@ -18,6 +18,13 @@ use tauri::State;
 pub fn take_screenshot(
     state: State<'_, PlayerState>,
 ) -> Result<(), String> {
+    let plane = state.mpv.get_property_string("video-params/plane-depth").unwrap_or_default();
+    let pixel = state.mpv.get_property_string("video-params/pixelformat").unwrap_or_default();
+    let hardware = state.mpv.get_property_string("video-params/hw-pixelformat").unwrap_or_default();
+    let depth = super::playback::resolve_bit_depth(&plane, &[&pixel, &hardware]);
+    // PNG has no 10/12-bit storage: preserve those sources in a 16-bit container.
+    // Unknown depth stays high precision rather than silently losing color information.
+    state.mpv.set_property_string("screenshot-high-bit-depth", if depth == "8-bit" { "no" } else { "yes" })?;
     state.mpv.command("screenshot video")
 }
 
@@ -104,7 +111,7 @@ pub async fn copy_frame_to_clipboard(
     }
 }
 
-// ─── Подсветка полос (Ambient Light / GPU Blur) ─────────
+// ─── Подсветка полос (Blur / GPU Blur) ─────────
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -146,7 +153,7 @@ pub fn get_ambient_settings(
 }
 
 
-/// Мгновенное применение настроек подсветки полос (Ambient Light) на GPU без записи на диск.
+/// Мгновенное применение настроек подсветки полос (Blur) на GPU без записи на диск.
 /// Обеспечивает плавный 60fps отклик при перетаскивании ползунков в интерфейсе.
 #[tauri::command]
 pub fn apply_ambient_preview(
@@ -156,7 +163,7 @@ pub fn apply_ambient_preview(
     state.ambient_controller.apply(&settings)
 }
 
-/// Установка и сохранение настроек подсветки полос (Ambient Light).
+/// Установка и сохранение настроек подсветки полос (Blur).
 #[tauri::command]
 pub fn set_ambient_settings(
     state: State<'_, PlayerState>,
@@ -180,7 +187,7 @@ pub fn set_ambient_settings(
     Ok(())
 }
 
-/// Быстрое циклическое переключение режима подсветки полос (Off -> Blur -> Color -> Off).
+/// Быстрое циклическое переключение режима подсветки полос (Off -> Blur -> Off).
 #[tauri::command]
 pub fn toggle_ambient_mode(
     state: State<'_, PlayerState>,

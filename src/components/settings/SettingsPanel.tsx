@@ -1,3 +1,8 @@
+import { SettingsUpdateAction } from "./components/SettingsUpdateAction";
+import { MotionSurface } from "../motion/MotionSurface";
+import { SelectionRail } from "../motion/SelectionRail";
+import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
+import { applyAmbientPreview, saveAmbientSettings } from "../../utils/ambientPreviewQueue";
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -6,12 +11,12 @@ import {
   Keyboard,
   SlidersHorizontal,
   Palette,
-  Link,
   Loader2,
   Sparkles,
   Layers,
-  RefreshCw,
   X,
+  Settings,
+  Cpu,
 } from "lucide-react";
 import { useTranslation } from "../../i18n/LanguageContext";
 import {
@@ -35,25 +40,28 @@ import {
 } from "../../utils/ambientSettingsUtils";
 import type { AmbientSettings } from "../../utils/ambientSettingsUtils";
 import { UpdateInfo } from "../modals/UpdateModal";
-import { getEffectiveAccentColor } from "../../utils/colorUtils";
 import { PresetsSection } from "./sections/PresetsSection";
 import { UpscalingSettingsSection } from "./sections/UpscalingSettingsSection";
 import { HotkeysSettingsTab } from "./tabs/HotkeysSettingsTab";
-import { IntegrationSettingsTab } from "./tabs/IntegrationSettingsTab";
+import { SystemSettingsTab } from "./tabs/SystemSettingsTab";
 import { AppearanceSettingsTab } from "./tabs/AppearanceSettingsTab";
 import { GeneralSettingsTab } from "./tabs/GeneralSettingsTab";
 import {
   preloadPresetsSettings,
   preloadUpscaleSettings,
 } from "./lib/settingsTabPreload";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { preloadSystemDiagnostics } from "./lib/systemDiagnostics";
+import { isMotionAllowed } from "../../utils/animationUtils";
 import {
   getSettingsViewSession,
   modalTabForSection,
   updateSettingsViewSession,
 } from "./lib/settingsViewSession";
 import { SettingsPreset } from "../../utils/presetsUtils";
-import { getSavedSeekStepSeconds } from "../../utils/seekUtils";
+import {
+  getSavedSeekStepSeconds,
+  getSavedSkipOpeningSeconds,
+} from "../../utils/seekUtils";
 import {
   UiRadiusLevel,
   UI_RADIUS_PRESETS,
@@ -78,16 +86,15 @@ const GithubIcon: React.FC<{ size?: number; className?: string }> = ({ size = 16
     height={size}
     viewBox="0 0 24 24"
     fill="currentColor"
-    className={className}
-    style={{ display: "block" }}
-  >
+    className={`${className} block`}
+    >
     <path
       fillRule="evenodd"
       clipRule="evenodd"
       d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
     />
   </svg>
-);
+  );
 
 /**
  * Векторная иконка Telegram для ссылки на сообщество.
@@ -98,12 +105,11 @@ const TelegramIcon: React.FC<{ size?: number; className?: string }> = ({ size = 
     height={size}
     viewBox="0 0 24 24"
     fill="currentColor"
-    className={className}
-    style={{ display: "block" }}
-  >
+    className={`${className} block`}
+    >
     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.96 1.25-5.54 3.69-.52.36-1 .54-1.42.53-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 4.02-1.75 6.7-2.9 8.04-3.46 3.83-1.6 4.62-1.88 5.14-1.89.11 0 .37.03.54.17.14.12.18.28.2.4.02.12.01.24 0 .35z" />
   </svg>
-);
+  );
 
 export type { AmbientSettings } from "../../utils/ambientSettingsUtils";
 
@@ -121,7 +127,7 @@ const SECTION_DEFS = [
   { id: "section-presets",     Icon: Layers,            labelKey: "presets"      },
   { id: "section-upscaling",   Icon: Sparkles,          labelKey: "upscaling"    },
   { id: "section-hotkeys",     Icon: Keyboard,          labelKey: "hotkeys"      },
-  { id: "section-integration", Icon: Link,              labelKey: "integration"  },
+  { id: "section-system",      Icon: Cpu,               labelKey: "system"       },
 ] as const;
 
 type SectionId = (typeof SECTION_DEFS)[number]["id"];
@@ -131,7 +137,7 @@ const MemoizedAppearanceSettingsTab = memo(AppearanceSettingsTab);
 const MemoizedPresetsSection = memo(PresetsSection);
 const MemoizedUpscalingSettingsSection = memo(UpscalingSettingsSection);
 const MemoizedHotkeysSettingsTab = memo(HotkeysSettingsTab);
-const MemoizedIntegrationSettingsTab = memo(IntegrationSettingsTab);
+const MemoizedSystemSettingsTab = memo(SystemSettingsTab);
 
 interface SectionBlockProps {
   id: string;
@@ -171,13 +177,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
 
   const [screenshotDir, setScreenshotDir] = useState<string>("");
   const [uiOpacity, setUiOpacity] = useState<number>(() => getSavedUiOpacity());
-  const [activeColor, setActiveColor] = useState<string>(() => {
-    try {
-      return localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
-    } catch {
-      return "#7fc7ff";
-    }
-  });
+
   const [showTrackNames, setShowTrackNames] = useState<boolean>(true);
   const [subtitlesAvoidUi, setSubtitlesAvoidUi] = useState<boolean>(() => {
     try {
@@ -195,9 +195,9 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.6.2");
+  const [appVersion, setAppVersion] = useState<string>("2.7.6");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
-  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
+  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => getSavedSkipOpeningSeconds());
   const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => localStorage.getItem('l-mpv-hide-controls-upper-half') === 'true');
@@ -208,31 +208,13 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const isCapsule = controlBarStyle === "capsule";
   
   const { dict } = useTranslation();
 
-  const [isClosing, setIsClosing] = useState<boolean>(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleClose = useCallback(() => {
-    if (closeTimerRef.current) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-    }, getCloseTimeoutMs("base"));
-  }, [onClose]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
+  const { isPresent, handleClose } = useSurfaceDismiss({ onClose, closeOnEscape: false });
+  const updatePresentRef = useRef(isPresent);
+  updatePresentRef.current = isPresent;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -295,6 +277,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
 
   // Навигация клавишами
   useEffect(() => {
+    if (!isPresent) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.closest(".color-picker-modal")) return;
@@ -302,6 +285,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
       if (isRecordingHotkey) return;
 
       if (e.key === "Escape") {
+        if (panelRef.current?.querySelector('.confirm-dialog[aria-modal="true"]')) return;
         e.preventDefault();
         e.stopPropagation();
         handleClose();
@@ -312,7 +296,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [isRecordingHotkey, handleClose]);
+  }, [isRecordingHotkey, handleClose, isPresent]);
 
   const markSectionMounted = useCallback((id: SectionId) => {
     setMountedSections((previous) => {
@@ -323,6 +307,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     });
     if (id === "section-presets") preloadPresetsSettings();
     if (id === "section-upscaling") preloadUpscaleSettings();
+    if (id === "section-system") preloadSystemDiagnostics();
   }, []);
 
   useEffect(() => {
@@ -334,7 +319,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
         const visible = entries
           .filter((entry) => entry.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible.length > 0) {
+        if (visible.length> 0) {
           setActiveSection(visible[0].target.id as SectionId);
         }
       },
@@ -360,17 +345,33 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
       },
     );
 
+    // These sections start native verification/diagnostics on mount. Prefetching
+    // them outside the viewport would turn opening General into a full probe.
+    const visibleObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) markSectionMounted(entry.target.id as SectionId);
+        });
+      },
+      { root, threshold: 0 },
+    );
+
     SECTION_DEFS.forEach(({ id }) => {
       const element = document.getElementById(id);
       if (element) {
         activeObserver.observe(element);
-        preloadObserver.observe(element);
+        if (id === "section-upscaling" || id === "section-system") {
+          visibleObserver.observe(element);
+        } else {
+          preloadObserver.observe(element);
+        }
       }
     });
 
     return () => {
       activeObserver.disconnect();
       preloadObserver.disconnect();
+      visibleObserver.disconnect();
     };
   }, [markSectionMounted]);
 
@@ -385,7 +386,6 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
 
   const handlePresetApplied = useCallback((preset: SettingsPreset) => {
     const { data } = preset;
-    if (data.accentColor) setActiveColor(data.accentColor);
     if (typeof data.uiOpacity === "number") setUiOpacity(data.uiOpacity);
     if (data.uiRadius) {
       if (typeof data.uiRadius === "string") {
@@ -465,10 +465,8 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
       setHotloadEnabled(localStorage.getItem("l-mpv-hotload-enabled") === "true");
       setHideControlsInUpperHalf(localStorage.getItem("l-mpv-hide-controls-upper-half") === "true");
       setSaveTracksToVideoDir(localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false");
-      const skipSeconds = Number(localStorage.getItem("l-mpv-skip-opening-seconds") || 90);
-      setSkipOpeningSeconds(Number.isFinite(skipSeconds) ? Math.min(600, Math.max(1, skipSeconds)) : 90);
+      setSkipOpeningSeconds(getSavedSkipOpeningSeconds());
       setSeekStepSeconds(getSavedSeekStepSeconds());
-      setActiveColor(localStorage.getItem("l-mpv-accent-color") || "#7fc7ff");
       try {
         const rawButtons = localStorage.getItem("l-mpv-visible-buttons");
         if (rawButtons) setVisibleButtons(JSON.parse(rawButtons));
@@ -531,7 +529,6 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
-  const [isUpdateFound, setIsUpdateFound] = useState<boolean>(false);
   const [foundUpdate, setFoundUpdate] = useState<UpdateInfo | null>(null);
   const [isLoadingVersionInfo, setIsLoadingVersionInfo] = useState<boolean>(false);
   const updateStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -556,9 +553,9 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     if (!settings) return;
 
     ambientPreviewInFlightRef.current = true;
-    invoke("apply_ambient_preview", { settings })
+    applyAmbientPreview(settings)
       .catch((err) => {
-        console.error("Ошибка предпросмотра Ambient Light:", err);
+        console.error("Ошибка предпросмотра Blur:", err);
       })
       .finally(() => {
         ambientPreviewInFlightRef.current = false;
@@ -579,16 +576,15 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     settings: AmbientSettings,
     revision = ++ambientSaveRevisionRef.current,
   ) {
-    const request = ambientSaveQueueRef.current
-      .catch(() => {})
-      .then(() => invoke<void>("set_ambient_settings", { settings }))
+    // Submit now: the shared queue owns ordering across both views and presets.
+    const request = saveAmbientSettings(settings)
       .then(() => {
         if (revision === ambientSaveRevisionRef.current) {
           isAmbientDirtyRef.current = false;
         }
       });
     ambientSaveQueueRef.current = request.catch((error) => {
-      console.error("Ошибка сохранения настроек Ambient Light:", error);
+      console.error("Ошибка сохранения настроек Blur:", error);
       if (revision === ambientSaveRevisionRef.current && mountedRef.current) {
         isAmbientDirtyRef.current = true;
         if (ambientSaveTimeoutRef.current !== null) {
@@ -619,7 +615,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
       if (pendingPreviewRef.current) {
         const settings = pendingPreviewRef.current;
         pendingPreviewRef.current = null;
-        invoke("apply_ambient_preview", { settings }).catch(console.error);
+        applyAmbientPreview(settings).catch(console.error);
       }
       if (ambientSaveTimeoutRef.current) {
         clearTimeout(ambientSaveTimeoutRef.current);
@@ -670,7 +666,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
             setAmbientSettings(normalized);
           }
         })
-        .catch((e) => console.error("Ошибка загрузки настроек Ambient Light:", e));
+        .catch((e) => console.error("Ошибка загрузки настроек Blur:", e));
     };
 
     invoke<string>("get_screenshot_dir").then((value) => {
@@ -698,8 +694,6 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     }).catch(console.error);
     loadAmbient();
 
-    const savedAccent = localStorage.getItem("l-mpv-accent-color");
-    if (savedAccent) setActiveColor(savedAccent);
 
     const savedShowTracks = localStorage.getItem("l-mpv-show-track-names");
     if (savedShowTracks !== null) setShowTrackNames(savedShowTracks === "true");
@@ -779,6 +773,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   };
 
   const handleCheckForUpdates = async () => {
+    if (isCheckingUpdate || isLoadingVersionInfo || !updatePresentRef.current) return;
     const request = ++updateRequestRef.current;
     setIsCheckingUpdate(true);
     setUpdateStatus(null);
@@ -790,22 +785,19 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
 
     try {
       const info = await invoke<UpdateInfo>("check_for_updates");
-      if (!mountedRef.current || request !== updateRequestRef.current) return;
+      if (!mountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       setFoundUpdate(info);
       if (info.has_update) {
         setUpdateStatus(dict.settings.integration.updateFound(info.latest_version.replace(/^[vV]/, "")));
-        setIsUpdateFound(true);
         onShowUpdate?.(info);
       } else {
         setUpdateStatus(dict.settings.integration.upToDate);
-        setIsUpdateFound(false);
         updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
       }
     } catch (err) {
-      if (!mountedRef.current || request !== updateRequestRef.current) return;
+      if (!mountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       console.error("Ошибка проверки обновлений:", err);
       setUpdateStatus(dict.settings.integration.checkFailed);
-      setIsUpdateFound(false);
       updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
     } finally {
       if (mountedRef.current && request === updateRequestRef.current) {
@@ -815,7 +807,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   };
 
   const handleShowVersionInfo = async () => {
-    if (!onShowUpdate || isLoadingVersionInfo) return;
+    if (!onShowUpdate || isLoadingVersionInfo || isCheckingUpdate || !updatePresentRef.current) return;
 
     if (foundUpdate) {
       onShowUpdate(foundUpdate);
@@ -826,11 +818,11 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     setIsLoadingVersionInfo(true);
     try {
       const info = await invoke<UpdateInfo>("check_for_updates");
-      if (!mountedRef.current || request !== updateRequestRef.current) return;
+      if (!mountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       setFoundUpdate(info);
       onShowUpdate(info);
     } catch (err) {
-      if (!mountedRef.current || request !== updateRequestRef.current) return;
+      if (!mountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       console.warn("Не удалось получить описание версии из сети, открытие резервного окна:", err);
       const fallbackInfo: UpdateInfo = {
         current_version: appVersion,
@@ -851,223 +843,262 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     }
   };
 
-  return (
-    <div className={`settings-panel-overlay ${isClosing ? "settings-panel-overlay--closing" : ""}`}>
-      <div
-        ref={panelRef}
-        className={`settings-side-panel ${isClosing ? "settings-side-panel--closing" : ""}`}
-        role="region"
-        aria-label={dict.settings.title}
-        inert={isClosing}
+  const renderSections = () => (
+    <>
+      <SectionBlock
+        id="section-general"
+        Icon={SlidersHorizontal}
+        label={dict.settings.tabs.general}
+        isMounted={mountedSections.has("section-general")}
       >
-        <div className="settings-side-panel__nav">
-          <h2 className="settings-side-panel__nav-title" data-tauri-drag-region>
-            <SlidersHorizontal size={19} color="var(--accent)" />
-            {dict.settings.title}
-          </h2>
+        <MemoizedGeneralSettingsTab
+          multiInstance={multiInstance} setMultiInstance={setMultiInstance}
+          saveTracksToVideoDir={saveTracksToVideoDir} setSaveTracksToVideoDir={setSaveTracksToVideoDir}
+          autoLoadTracks={autoLoadTracks} setAutoLoadTracks={setAutoLoadTracks}
+          autoSelectExternalAudio={autoSelectExternalAudio} setAutoSelectExternalAudio={setAutoSelectExternalAudio}
+          playNextOnEnd={playNextOnEnd} setPlayNextOnEnd={setPlayNextOnEnd}
+          hotloadEnabled={hotloadEnabled} setHotloadEnabled={setHotloadEnabled}
+          hideControlsInUpperHalf={hideControlsInUpperHalf} setHideControlsInUpperHalf={setHideControlsInUpperHalf}
+          openSections={openSections} onToggleSection={toggleSection}
+          screenshotDir={screenshotDir}
+          handlePickFolder={handlePickFolder}
+          handleResetDefault={handleResetDefault}
+          showTrackNames={showTrackNames}
+          setShowTrackNames={setShowTrackNames}
+          subtitlesAvoidUi={subtitlesAvoidUi}
+          setSubtitlesAvoidUi={setSubtitlesAvoidUi}
+        />
+      </SectionBlock>
 
-          <div className="settings-side-panel__nav-sep" />
+      <SectionBlock
+        id="section-appearance"
+        Icon={Palette}
+        label={dict.settings.tabs.appearance}
+        isMounted={mountedSections.has("section-appearance")}
+      >
+        <MemoizedAppearanceSettingsTab
+          uiRadius={uiRadius} saveUiRadius={saveUiRadius} setUiRadius={setUiRadius}
+          uiScale={uiScale} saveUiScale={saveUiScale} setUiScale={setUiScale}
+          uiOpacity={uiOpacity} saveUiOpacity={saveUiOpacity} setUiOpacity={setUiOpacity}
+          uiFont={uiFont} saveUiFont={saveUiFont} setUiFont={setUiFont}
+          timePosition={timePosition} saveTimePosition={saveTimePosition} setTimePosition={setTimePosition}
+          timeFormat={timeFormat} saveTimeFormat={saveTimeFormat} setTimeFormat={setTimeFormat}
+          controlBarStyle={controlBarStyle} saveControlBarStyle={saveControlBarStyle} setControlBarStyle={setControlBarStyle}
+          ambientSettings={ambientSettings} updateAmbient={updateAmbient}
+          visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons}
+          skipOpeningSeconds={skipOpeningSeconds} setSkipOpeningSeconds={setSkipOpeningSeconds}
+          seekStepSeconds={seekStepSeconds} setSeekStepSeconds={setSeekStepSeconds}
+          animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
+          openSections={openSections} onToggleSection={toggleSection}
+        />
+      </SectionBlock>
 
-          {SECTION_DEFS.map(({ id, Icon, labelKey }) => (
-            <button
-              key={id}
-              type="button"
-              className={`settings-side-panel__nav-btn ${activeSection === id ? "settings-side-panel__nav-btn--active" : ""}`}
-              onClick={() => scrollToSection(id)}
-              title={dict.settings.tabs[labelKey as keyof typeof dict.settings.tabs]}
-              aria-label={dict.settings.tabs[labelKey as keyof typeof dict.settings.tabs]}
-              aria-current={activeSection === id ? "true" : undefined}
-            >
-              <Icon size={17} />
-            </button>
-          ))}
+      <SectionBlock
+        id="section-presets"
+        Icon={Layers}
+        label={dict.settings.tabs.presets}
+        isMounted={mountedSections.has("section-presets")}
+      >
+        <div className="modal__section col">
+          <MemoizedPresetsSection onPresetApplied={handlePresetApplied} />
+        </div>
+      </SectionBlock>
+
+      <SectionBlock
+        id="section-upscaling"
+        Icon={Sparkles}
+        label={dict.settings.tabs.upscaling}
+        isMounted={mountedSections.has("section-upscaling")}
+      >
+        <div className="modal__section col">
+          <MemoizedUpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
+        </div>
+      </SectionBlock>
+
+      <SectionBlock
+        id="section-hotkeys"
+        Icon={Keyboard}
+        label={dict.settings.tabs.hotkeys}
+        isMounted={mountedSections.has("section-hotkeys")}
+      >
+        <MemoizedHotkeysSettingsTab
+          openSections={openSections}
+          onToggleSection={toggleSection}
+          onRecordingChange={setIsRecordingHotkey}
+        />
+      </SectionBlock>
+
+      <SectionBlock
+        id="section-system"
+        Icon={Cpu}
+        label={dict.settings.tabs.system}
+        isMounted={mountedSections.has("section-system")}
+      >
+        <MemoizedSystemSettingsTab />
+      </SectionBlock>
+    </>
+  );
+
+  const renderFooterContent = () => (
+    <>
+      <div className="settings-footer__left">
+        <div className="settings-footer__icons">
+          <button
+            type="button"
+            onClick={() => openUrl("https://github.com/Menely/L-MPV")}
+            className="settings-footer__icon-btn hover-bright"
+            title={dict.settings.integration.githubTooltip}
+          >
+            <GithubIcon size={19} />
+          </button>
 
           <button
             type="button"
-            className="settings-side-panel__close"
-            onClick={handleClose}
-            title={dict.settings.close}
-            aria-label={dict.settings.close}
+            onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
+            className="settings-footer__icon-btn hover-bright"
+            title={dict.settings.integration.telegramTooltip}
           >
-            <X size={18} />
+            <TelegramIcon size={19} />
           </button>
         </div>
 
-        <div className="settings-side-panel__scroll" ref={scrollRef}>
-          <SectionBlock
-            id="section-general"
-            Icon={SlidersHorizontal}
-            label={dict.settings.tabs.general}
-            isMounted={mountedSections.has("section-general")}
-          >
-            <MemoizedGeneralSettingsTab
-              multiInstance={multiInstance} setMultiInstance={setMultiInstance}
-              saveTracksToVideoDir={saveTracksToVideoDir} setSaveTracksToVideoDir={setSaveTracksToVideoDir}
-              autoLoadTracks={autoLoadTracks} setAutoLoadTracks={setAutoLoadTracks}
-              autoSelectExternalAudio={autoSelectExternalAudio} setAutoSelectExternalAudio={setAutoSelectExternalAudio}
-              playNextOnEnd={playNextOnEnd} setPlayNextOnEnd={setPlayNextOnEnd}
-              hotloadEnabled={hotloadEnabled} setHotloadEnabled={setHotloadEnabled}
-              hideControlsInUpperHalf={hideControlsInUpperHalf} setHideControlsInUpperHalf={setHideControlsInUpperHalf}
-              openSections={openSections} onToggleSection={toggleSection}
-              screenshotDir={screenshotDir}
-              handlePickFolder={handlePickFolder}
-              handleResetDefault={handleResetDefault}
-              showTrackNames={showTrackNames}
-              setShowTrackNames={setShowTrackNames}
-              subtitlesAvoidUi={subtitlesAvoidUi}
-              setSubtitlesAvoidUi={setSubtitlesAvoidUi}
-            />
-          </SectionBlock>
+        <span className="settings-footer__title">L-MPV</span>
 
-          <SectionBlock
-            id="section-appearance"
-            Icon={Palette}
-            label={dict.settings.tabs.appearance}
-            isMounted={mountedSections.has("section-appearance")}
-          >
-            <MemoizedAppearanceSettingsTab
-              activeColor={activeColor} setActiveColor={setActiveColor}
-              uiRadius={uiRadius} saveUiRadius={saveUiRadius} setUiRadius={setUiRadius}
-              uiScale={uiScale} saveUiScale={saveUiScale} setUiScale={setUiScale}
-              uiOpacity={uiOpacity} saveUiOpacity={saveUiOpacity} setUiOpacity={setUiOpacity}
-              uiFont={uiFont} saveUiFont={saveUiFont} setUiFont={setUiFont}
-              timePosition={timePosition} saveTimePosition={saveTimePosition} setTimePosition={setTimePosition}
-              timeFormat={timeFormat} saveTimeFormat={saveTimeFormat} setTimeFormat={setTimeFormat}
-              controlBarStyle={controlBarStyle} saveControlBarStyle={saveControlBarStyle} setControlBarStyle={setControlBarStyle}
-              ambientSettings={ambientSettings} updateAmbient={updateAmbient}
-              visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons}
-              skipOpeningSeconds={skipOpeningSeconds} setSkipOpeningSeconds={setSkipOpeningSeconds}
-              seekStepSeconds={seekStepSeconds} setSeekStepSeconds={setSeekStepSeconds}
-              animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
-              openSections={openSections} onToggleSection={toggleSection}
-              getEffectiveAccentColor={getEffectiveAccentColor}
-            />
-          </SectionBlock>
+        <button
+          type="button"
+          onClick={handleShowVersionInfo}
+          disabled={isLoadingVersionInfo || isCheckingUpdate}
+          className="settings-footer__btn settings-footer__btn--version"
+        >
+          {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
+          <span>v{appVersion}</span>
+        </button>
 
-          <SectionBlock
-            id="section-presets"
-            Icon={Layers}
-            label={dict.settings.tabs.presets}
-            isMounted={mountedSections.has("section-presets")}
-          >
-            <div className="modal__section" style={{ display: "flex", flexDirection: "column" }}>
-              <MemoizedPresetsSection onPresetApplied={handlePresetApplied} />
-            </div>
-          </SectionBlock>
+        <SettingsUpdateAction
+          checking={isCheckingUpdate || isLoadingVersionInfo}
+          status={updateStatus}
+          hasUpdate={foundUpdate?.has_update === true}
+          onCheck={handleCheckForUpdates}
+          onShowUpdate={foundUpdate && onShowUpdate ? () => onShowUpdate(foundUpdate) : undefined}
+        />
+      </div>
+      <span className="settings-footer__edition">{dict.settings.integration.portableEdition}</span>
+    </>
+  );
 
-          <SectionBlock
-            id="section-upscaling"
-            Icon={Sparkles}
-            label={dict.settings.tabs.upscaling}
-            isMounted={mountedSections.has("section-upscaling")}
-          >
-            <div className="modal__section" style={{ display: "flex", flexDirection: "column" }}>
-              <MemoizedUpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
-            </div>
-          </SectionBlock>
+  return (
+    <div className="settings-panel-overlay">
+      <MotionSurface kind="sidebar"
+        ref={panelRef}
+        className={`settings-side-panel ${isCapsule ? "settings-side-panel--capsule" : ""} `}
+        role="region"
+        aria-label={dict.settings.title}
+      >
+        {isCapsule ? (
+          <>
+            {/* Верхний ряд: 3 самостоятельные карточки-островка */}
+            <div className="settings-capsule-header">
+              <h2 id="settings-panel-title" className="sr-only">
+                {dict.settings.title}
+              </h2>
 
-          <SectionBlock
-            id="section-hotkeys"
-            Icon={Keyboard}
-            label={dict.settings.tabs.hotkeys}
-            isMounted={mountedSections.has("section-hotkeys")}
-          >
-            <MemoizedHotkeysSettingsTab
-              openSections={openSections}
-              onToggleSection={toggleSection}
-              onRecordingChange={setIsRecordingHotkey}
-            />
-          </SectionBlock>
-
-          <SectionBlock
-            id="section-integration"
-            Icon={Link}
-            label={dict.settings.tabs.integration}
-            isMounted={mountedSections.has("section-integration")}
-          >
-            <MemoizedIntegrationSettingsTab />
-          </SectionBlock>
-        </div>
-
-        <div className="settings-footer">
-          <div className="settings-footer__left">
-            <div className="settings-footer__icons">
-              <button
-                type="button"
-                onClick={() => openUrl("https://github.com/Menely/L-MPV")}
-                className="settings-footer__icon-btn hover-bright"
-                title={dict.settings.integration.githubTooltip}
+              {/* Карточка 1: Шестерёнка */}
+              <div
+                className="settings-card settings-card--gear"
+                aria-label={dict.settings.title}
               >
-                <GithubIcon size={19} />
-              </button>
+                <Settings size={20} color="var(--accent-text, var(--accent))" />
+              </div>
 
-              <button
-                type="button"
-                onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
-                className="settings-footer__icon-btn hover-bright"
-                title={dict.settings.integration.telegramTooltip}
-              >
-                <TelegramIcon size={19} />
-              </button>
-            </div>
+              {/* Карточка 2: Вкладки-навигация по разделам */}
+              <SelectionRail activeKey={activeSection} className="settings-card settings-card--tabs">
+                {SECTION_DEFS.map(({ id, Icon, labelKey }) => {
+                  const isActive = activeSection === id;
+                  const label = dict.settings.tabs[labelKey as keyof typeof dict.settings.tabs];
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
+                      onClick={() => scrollToSection(id)}
+                      aria-label={label}
+                      aria-current={isActive ? "true" : undefined}
+                    >
+                      <Icon size={14} className="settings-tab-icon" />
+                      <span className="settings-tab-label">{label}</span>
+                    </button>
+                  );
+                })}
+              </SelectionRail>
 
-            <span className="settings-footer__title">L-MPV</span>
-
-            <button
-              type="button"
-              onClick={handleShowVersionInfo}
-              disabled={isLoadingVersionInfo}
-              className="settings-footer__btn settings-footer__btn--version"
-            >
-              {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
-              <span>v{appVersion}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleCheckForUpdates}
-              disabled={isCheckingUpdate}
-              className="settings-footer__btn settings-footer__btn--check"
-            >
-              {isCheckingUpdate ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" />
-                  <span>{dict.settings.integration.checking}</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw size={12} />
-                  <span>{dict.settings.integration.checkUpdates}</span>
-                </>
-              )}
-            </button>
-
-            {updateStatus && (
-              foundUpdate && onShowUpdate ? (
+              {/* Карточка 3: Крестик */}
+              <div className="settings-card settings-card--close">
                 <button
                   type="button"
-                  onClick={() => onShowUpdate(foundUpdate)}
-                  className="settings-footer__btn settings-footer__btn--update"
+                  className="island-action"
+                  onClick={handleClose}
+                  aria-label={dict.settings.close}
                 >
-                  <Sparkles size={12} />
-                  <span>{updateStatus}</span>
+                  <X size={20} />
                 </button>
-              ) : (
-                <span
-                  style={{
-                    fontSize: "0.78rem",
-                    color: isUpdateFound ? "var(--accent)" : "var(--text-muted)",
-                    marginLeft: 4,
-                  }}
+              </div>
+            </div>
+
+            {/* Карточка 2: Основное тело настроек со скроллом */}
+            <div className="settings-card settings-card--body">
+              <div className="settings-card__scroll-container" ref={scrollRef}>
+                {renderSections()}
+              </div>
+            </div>
+
+            {/* Карточка 3: Футер с версией приложения и проверкой обновлений */}
+            <div className="settings-card settings-card--footer">
+              {renderFooterContent()}
+            </div>
+          </>
+        ) : (
+          <>
+            <SelectionRail activeKey={activeSection} className="settings-side-panel__nav">
+              <h2 className="settings-side-panel__nav-title" data-tauri-drag-region>
+                <SlidersHorizontal size={19} color="var(--accent-text, var(--accent))" />
+                {dict.settings.title}
+              </h2>
+
+              <div className="settings-side-panel__nav-sep" />
+
+              {SECTION_DEFS.map(({ id, Icon, labelKey }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`settings-side-panel__nav-btn ${activeSection === id ? "settings-side-panel__nav-btn--active" : ""}`}
+                  onClick={() => scrollToSection(id)}
+                  aria-label={dict.settings.tabs[labelKey as keyof typeof dict.settings.tabs]}
+                  aria-current={activeSection === id ? "true" : undefined}
                 >
-                  {updateStatus}
-                </span>
-              )
-            )}
-          </div>
-          <span className="settings-footer__edition">{dict.settings.integration.portableEdition}</span>
-        </div>
-      </div>
+                  <Icon size={17} />
+                </button>
+              ))}
+
+              <button
+                type="button"
+                className="settings-side-panel__close"
+                onClick={handleClose}
+                aria-label={dict.settings.close}
+              >
+                <X size={18} />
+              </button>
+            </SelectionRail>
+
+            <div className="settings-side-panel__scroll" ref={scrollRef}>
+              {renderSections()}
+            </div>
+
+            <div className="settings-footer">
+              {renderFooterContent()}
+            </div>
+          </>
+        )}
+      </MotionSurface>
     </div>
   );
 }

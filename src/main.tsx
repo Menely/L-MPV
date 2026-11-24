@@ -1,18 +1,20 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import App from "./App";
-import { StandaloneMediaInfoWindow } from "./components/modals/StandaloneMediaInfoWindow";
 import "./index.css";
 import "./styles/settings-panel.css";
-import { PlayerStateProvider } from "./contexts/PlayerStateContext";
-import { LanguageProvider } from "./i18n/LanguageContext";
 import { applyPlayerTheme } from "./utils/colorUtils";
+import { initSurfaceHierarchy } from "./utils/surfaceHierarchy";
 import {
   hydrateUiSettingsFromDisk,
   initUiSettingsAutoSync,
   applyAllVisualSettings,
 } from "./utils/uiSettingsSync";
+
+const PlayerRoot = React.lazy(() => import("./PlayerRoot"));
+const StandaloneMediaInfoWindow = React.lazy(() =>
+  import("./components/modals/StandaloneMediaInfoWindow").then(module => ({ default: module.StandaloneMediaInfoWindow }))
+);
 
 // Безопасное определение текущего окна Tauri (главное окно плеера или отдельное окно MediaInfo)
 const checkIsMediaInfoWindow = (): boolean => {
@@ -35,8 +37,8 @@ const isMediaInfoWindow = checkIsMediaInfoWindow();
 
 if (typeof document !== "undefined") {
   if (isMediaInfoWindow) {
-    document.documentElement.style.background = "#0f121a";
-    document.body.style.background = "#0f121a";
+    document.documentElement.style.background = "var(--bg-primary, #0b0d12)";
+    document.body.style.background = "var(--bg-primary, #0b0d12)";
   } else {
     document.documentElement.style.background = "transparent";
     document.body.style.background = "transparent";
@@ -48,11 +50,14 @@ if (typeof document !== "undefined") {
     __lMpvUiRuntimeCleanup?: () => void;
   };
   runtimeWindow.__lMpvUiRuntimeCleanup?.();
+  const cleanupSurfaceHierarchy = initSurfaceHierarchy();
 
   const handleStorage = () => applyAllVisualSettings();
   const handlePlayerThemeChanged = (event: Event) => {
     const detail = (event as CustomEvent<string>).detail;
-    if (detail) applyPlayerTheme(detail);
+    if (detail && document.documentElement.getAttribute("data-player-theme") !== detail) {
+      applyPlayerTheme(detail);
+    }
   };
   const handleContextMenu = (event: MouseEvent) => {
     const target = event.target as HTMLElement | null;
@@ -71,9 +76,14 @@ if (typeof document !== "undefined") {
   if (!isMediaInfoWindow) {
     void hydrateUiSettingsFromDisk();
     cleanupUiSync = initUiSettingsAutoSync();
+  } else {
+    // В автономном окне MediaInfo синхронизируем визуальные настройки с диска,
+    // чтобы сразу отобразить активную тему плеера даже при прямом запуске из Проводника
+    void hydrateUiSettingsFromDisk();
   }
 
   runtimeWindow.__lMpvUiRuntimeCleanup = () => {
+    cleanupSurfaceHierarchy();
     cleanupUiSync();
     window.removeEventListener("storage", handleStorage);
     window.removeEventListener("l-mpv-player-theme-changed", handlePlayerThemeChanged);
@@ -86,7 +96,7 @@ if (typeof document !== "undefined") {
 class GlobalErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
-> {
+  > {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -102,10 +112,11 @@ class GlobalErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
+      const isRu = typeof navigator !== "undefined" && (navigator.language?.toLowerCase().startsWith("ru") || false);
       return (
         <div
           style={{
-            padding: 24,
+            padding: "var(--space-9)",
             background: "#0f121a",
             color: "#f87171",
             fontFamily: "monospace",
@@ -113,9 +124,9 @@ class GlobalErrorBoundary extends React.Component<
             boxSizing: "border-box",
             overflow: "auto",
           }}
-        >
+          >
           <h2 style={{ margin: "0 0 12px 0", color: "#ef4444" }}>
-            Ошибка отображения компонента
+            {isRu ? "Ошибка отображения компонента" : "Component Rendering Error"}
           </h2>
           <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
             {this.state.error?.message}
@@ -126,16 +137,16 @@ class GlobalErrorBoundary extends React.Component<
             type="button"
             onClick={() => window.location.reload()}
             style={{
-              marginTop: 16,
+              marginTop: "var(--space-7)",
               padding: "8px 16px",
               background: "rgba(255,255,255,0.1)",
               border: "1px solid rgba(255,255,255,0.2)",
               color: "#fff",
-              borderRadius: 6,
+              borderRadius: "var(--radius-xs)",
               cursor: "pointer",
             }}
-          >
-            Перезагрузить
+            >
+            {isRu ? "Перезагрузить" : "Reload"}
           </button>
         </div>
       );
@@ -146,18 +157,16 @@ class GlobalErrorBoundary extends React.Component<
 
 ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
-).render(
+  ).render(
   <React.StrictMode>
     <GlobalErrorBoundary>
+      <React.Suspense fallback={null}>
       {isMediaInfoWindow ? (
         <StandaloneMediaInfoWindow />
       ) : (
-        <LanguageProvider>
-          <PlayerStateProvider>
-            <App />
-          </PlayerStateProvider>
-        </LanguageProvider>
+        <PlayerRoot />
       )}
+      </React.Suspense>
     </GlobalErrorBoundary>
   </React.StrictMode>
-);
+  );

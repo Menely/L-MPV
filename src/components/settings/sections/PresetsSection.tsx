@@ -1,5 +1,6 @@
+import { SettingsIcon } from "../components/SettingsIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useId } from "react";
 import {
   Sparkles,
   Plus,
@@ -11,6 +12,8 @@ import {
   Download,
   Upload,
   Layers,
+  Scaling,
+  PanelsTopLeft,
   Palette,
   Eye,
   AudioWaveform,
@@ -82,6 +85,8 @@ interface PresetsSectionProps {
  */
 export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied }) => {
   const { dict, locale } = useTranslation();
+  const userPresetsId = useId();
+  const builtInPresetsId = useId();
   // Синхронное чтение предзагруженного кэша: первый paint уже полный,
   // окно настроек не прыгает после прилёта данных.
   const [userPresets, setUserPresets] = useState<SettingsPreset[]>(() => getPreloadedUserPresets() ?? []);
@@ -94,8 +99,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
+  const [pendingDelete, setPendingDelete] = useState<SettingsPreset | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [activePresetId, setActivePresetId] = useState<string | null>(
+    () => getSavedActivePresetId(),
+  );
   // Группы по умолчанию свёрнуты: высота вкладки стабильна с первого paint,
   // выбор запоминается и переживает перезапуски.
   const [isUserPresetsOpen, setIsUserPresetsOpen] = useState<boolean>(() => readGroupOpen(PRESETS_USER_OPEN_KEY, false));
@@ -166,7 +174,15 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         if (isMountedRef.current) {
           storeUserPresets(presets);
           setUserPresets(presets);
-          detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
+          if (detectTimerRef.current !== null) {
+            window.clearTimeout(detectTimerRef.current);
+          }
+          detectTimerRef.current = window.setTimeout(() => {
+            detectTimerRef.current = null;
+            if (isMountedRef.current) {
+              detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
+            }
+          }, 260);
         }
       })
       .catch((err) => {
@@ -174,11 +190,11 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       });
 
     const handleFocus = () => {
-      loadPreloadedUserPresets(true)
+      // Загрузка без форсирования повторного чтения диска
+      loadPreloadedUserPresets(false)
         .then((presets) => {
           if (isMountedRef.current) {
             setUserPresets(presets);
-            detectActivePreset([...presets, ...BUILT_IN_PRESETS]);
           }
         })
         .catch(() => {});
@@ -272,7 +288,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       }
       setUserPresets(updated);
       await saveUserPresets(updated);
-      storeUserPresets(updated);
        updateDraftName("");
       saveActivePresetId(targetId);
       setActivePresetId(targetId);
@@ -309,7 +324,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       );
       setUserPresets(updated);
       await saveUserPresets(updated);
-      storeUserPresets(updated);
       saveActivePresetId(preset.id);
       setActivePresetId(preset.id);
       showToast(dict.settings.presets.toastPresetUpdated(preset.name));
@@ -322,9 +336,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
   // Удаление пользовательского пресета
   const handleDelete = async (preset: SettingsPreset) => {
-    if (!window.confirm(dict.settings.presets.confirmDelete(preset.name))) {
-      return;
-    }
     const previous = userPresets;
     const updated = userPresets.filter((p) => p.id !== preset.id);
     try {
@@ -341,6 +352,35 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       showToast(dict.settings.presets.toastSaveFail);
     }
   };
+
+  // Кастомный диалог подтверждения вместо системного window.confirm
+  const requestDelete = useCallback((preset: SettingsPreset) => {
+    setPendingDelete(preset);
+  }, []);
+
+  const cancelDelete = useCallback(() => {
+    setPendingDelete(null);
+  }, []);
+
+  const confirmDelete = useCallback(() => {
+    const target = pendingDelete;
+    setPendingDelete(null);
+    if (target) void handleDelete(target);
+  }, [pendingDelete]);
+
+  // Escape закрывает диалог, не долетая до глобального хендлера настроек
+  useEffect(() => {
+    if (!pendingDelete) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelDelete();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [pendingDelete, cancelDelete]);
 
   // Сохранение нового имени пресета
   const handleSaveRename = async (presetId: string) => {
@@ -373,7 +413,6 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       const updated = [...imported, ...userPresets];
       setUserPresets(updated);
       await saveUserPresets(updated);
-      storeUserPresets(updated);
       showToast(dict.settings.presets.toastImported(imported.length));
     } catch (err) {
       if (isMountedRef.current) setUserPresets(previous);
@@ -486,7 +525,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               className="preset-tag__color-dot"
               style={{
                 backgroundColor: colorHex,
-                boxShadow: data.glowIntensity && data.glowIntensity !== "off" ? `0 0 6px ${colorHex}` : "none",
+                boxShadow: "none",
               }}
             />
             <span>{isWindows ? "Windows" : data.accentColor.toUpperCase()}</span>
@@ -496,7 +535,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 3. Интенсивность неонового свечения */}
         {data.glowIntensity && data.glowIntensity !== "off" && (
           <div className="preset-tag" title={dict.settings.presets.neonTitle}>
-            <Sparkles size={11} color="var(--accent)" />
+            <Sparkles size={12} color="var(--accent-text, var(--accent))" />
             <span>
               {data.glowIntensity === "soft"
                 ? dict.settings.presets.neonSoft
@@ -507,16 +546,14 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           </div>
         )}
 
-        {/* 4. Ambient Light */}
+        {/* 4. Blur */}
         {data.ambient && (
           <div className="preset-tag" title={dict.settings.presets.ambientTitle}>
-            <Sun size={11} />
+            <Sun size={12} />
             <span>
-              {data.ambient.mode === "off"
-                ? dict.settings.presets.ambientOff
-                : data.ambient.mode === "blur"
+              {data.ambient.mode === "blur"
                 ? dict.settings.presets.ambientBlur
-                : dict.settings.presets.ambientColor}
+                : dict.settings.presets.ambientOff}
             </span>
 
           </div>
@@ -525,7 +562,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 5. Аудио-визуалайзер */}
         {data.visualizer && (
           <div className="preset-tag" title={dict.settings.presets.visualizerTitle}>
-            <AudioWaveform size={11} />
+            <AudioWaveform size={12} />
             <span>
               {data.visualizer.enabled && data.visualizer.placement !== "off"
                 ? dict.settings.presets.visualizerMode(data.visualizer.mode)
@@ -537,7 +574,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 6. Прозрачность UI */}
         {typeof data.uiOpacity === "number" && data.uiOpacity < 1 && (
           <div className="preset-tag" title={dict.settings.presets.opacityTitle}>
-            <Eye size={11} />
+            <Eye size={12} />
             <span>{Math.round(data.uiOpacity * 100)}%</span>
           </div>
         )}
@@ -545,7 +582,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 7. Скругление углов */}
         {radiusText && (
           <div className="preset-tag" title={dict.settings.presets.radiusTitleTooltip}>
-            <SlidersHorizontal size={11} />
+            <SlidersHorizontal size={12} />
             <span>{radiusText}</span>
           </div>
         )}
@@ -553,15 +590,15 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 8. Масштаб интерфейса (если не 100%) */}
         {scaleText && (
           <div className="preset-tag" title={dict.settings.presets.scaleTitle}>
-            <Layers size={11} />
+            <Scaling size={12} />
             <span>{scaleText}</span>
           </div>
         )}
 
         {/* 9. Кастомные бинды (если есть) */}
-        {hotkeyCount > 0 && (
+        {hotkeyCount> 0 && (
           <div className="preset-tag" title={dict.settings.presets.hotkeysTitle}>
-            <Keyboard size={11} />
+            <Keyboard size={12} />
             <span>{dict.settings.presets.hotkeysLabel(hotkeyCount)}</span>
           </div>
         )}
@@ -569,7 +606,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 10. Язык интерфейса (если сохранён в пресете) */}
         {data.language && (
           <div className="preset-tag" title={`${dict.settings.general.languageTitle}: ${data.language.toUpperCase()}`}>
-            <Globe size={11} />
+            <Globe size={12} />
             <span>{data.language.toUpperCase()}</span>
           </div>
         )}
@@ -577,7 +614,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
         {/* 11. Стиль меню настроек (если сохранён в пресете) */}
         {data.settingsStyle && (
           <div className="preset-tag" title={`${dict.settings.appearance.settingsWindow.title}: ${data.settingsStyle === "modal" ? dict.settings.appearance.settingsWindow.modal : dict.settings.appearance.settingsWindow.sidebar}`}>
-            <Layers size={11} />
+            <PanelsTopLeft size={12} />
             <span>{data.settingsStyle === "modal" ? dict.settings.appearance.settingsWindow.modal : dict.settings.appearance.settingsWindow.sidebar}</span>
           </div>
         )}
@@ -624,7 +661,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             </div>
 
             {isBuiltIn && (preset.description || dict.settings.presets.builtinPresets[preset.id]?.description) && (
-              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+              <span className="preset-card__desc">
                 {dict.settings.presets.builtinPresets[preset.id]?.description || preset.description}
               </span>
             )}
@@ -638,24 +675,25 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               className={`preset-action-btn ${isApplied ? "preset-action-btn--applied" : "preset-action-btn--apply"}`}
               onClick={() => handleApply(preset)}
               title={isBuiltIn ? dict.settings.presets.btnApplyBuiltinTitle : dict.settings.presets.btnApplyUserTitle}
-            >
+              >
               {isApplied ? (
-                <Check size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+                <Check size={14} strokeWidth={2.5} className="no-shrink" />
               ) : (
-                <Play size={13} style={{ flexShrink: 0 }} />
+                <Play size={14} className="no-shrink" />
               )}
               <span>{isApplied ? dict.settings.presets.btnActive : dict.settings.presets.btnApply}</span>
             </button>
 
             {!isBuiltIn ? (
-              <div className="preset-card__actions-grid">
+              <div className="preset-card__actions-row">
                 <button
                   type="button"
                   className="preset-action-btn preset-action-btn--icon"
                   onClick={() => handleOverwrite(preset)}
                   title={dict.settings.presets.btnUpdateTitle}
-                >
-                  <RotateCw size={13} />
+                  aria-label={dict.settings.presets.btnUpdateTitle}
+                  >
+                  <RotateCw size={12} />
                 </button>
 
                 <button
@@ -666,8 +704,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                     setEditingName(preset.name);
                   }}
                   title={dict.settings.presets.btnRenameTitle}
-                >
-                  <Edit2 size={13} />
+                  aria-label={dict.settings.presets.btnRenameTitle}
+                  >
+                  <Edit2 size={12} />
                 </button>
 
                 <button
@@ -675,16 +714,19 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   className="preset-action-btn preset-action-btn--icon"
                   onClick={() => handleExportSingle(preset)}
                   title={dict.settings.presets.btnExportTitle}
-                >
-                  <Download size={13} />
+                  aria-label={dict.settings.presets.btnExportTitle}
+                  >
+                  <Download size={12} />
                 </button>
 
                 <button
                   type="button"
                   className="preset-action-btn preset-action-btn--icon preset-action-btn--danger"
-                  onClick={() => handleDelete(preset)}
-                >
-                  <Trash2 size={13} />
+                  onClick={() => requestDelete(preset)}
+                  title={dict.settings.presets.btnDeleteConfirm}
+                  aria-label={dict.settings.presets.btnDeleteConfirm}
+                  >
+                  <Trash2 size={12} />
                 </button>
               </div>
             ) : (
@@ -693,8 +735,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                 className="preset-action-btn preset-action-btn--icon"
                 onClick={() => handleExportSingle(preset)}
                 title={dict.settings.presets.btnExportTitle}
-              >
-                <Download size={15} />
+                aria-label={dict.settings.presets.btnExportTitle}
+                >
+                <Download size={13} />
               </button>
             )}
           </div>
@@ -709,7 +752,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       <div className="presets-creator">
         <div className="presets-creator__header">
           <div className="presets-creator__title">
-            <Sparkles size={16} color="var(--accent)" />
+            <SettingsIcon section><Sparkles size={18} color="var(--accent-text, var(--accent))" /></SettingsIcon>
             <span>{dict.settings.presets.saveCurrentTitle}</span>
           </div>
           <button
@@ -717,8 +760,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
             className="presets-btn-text"
             onClick={handleNativeImport}
             title={dict.settings.presets.importTitle}
-          >
-            <Upload size={13} />
+            >
+            <Upload size={14} />
             <span>{dict.settings.presets.btnImport}</span>
           </button>
         </div>
@@ -748,14 +791,14 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           style={{
             padding: "8px 14px",
             borderRadius: "var(--radius-sm)",
-            background: "rgba(var(--accent-rgb, 127, 199, 255), 0.18)",
+            background: "var(--surface-accent-subtle)",
             border: "1px solid var(--accent)",
             color: "var(--text-primary)",
-            fontSize: "0.82rem",
+            fontSize: "var(--fs-sm)",
             fontWeight: 500,
-            animation: "presetsFadeIn 0.2s ease",
+            animation: "fadeIn var(--t-fast) var(--ease-decelerate)",
           }}
-        >
+          >
           {toastMessage}
         </div>
       )}
@@ -766,19 +809,21 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           <button
             type="button"
             className="presets-section-heading__title"
+            aria-expanded={isUserPresetsOpen}
+            aria-controls={userPresetsId}
             onClick={() => setIsUserPresetsOpen((prev) => {
               const next = !prev;
               writeGroupOpen(PRESETS_USER_OPEN_KEY, next);
               return next;
             })}
-          >
+            >
             <ChevronDown
               size={15}
               className={`presets-section-heading__chevron ${
                 !isUserPresetsOpen ? "presets-section-heading__chevron--collapsed" : ""
               }`}
             />
-            <Layers size={15} />
+            <SettingsIcon section><Layers size={18} /></SettingsIcon>
             <span>{dict.settings.presets.myPresetsLabel(userPresets.length)}</span>
           </button>
 
@@ -788,8 +833,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               className="presets-btn-text"
               onClick={handleReload}
               title={dict.settings.presets.refreshTitle}
-            >
-              <RotateCw size={13} />
+              >
+              <RotateCw size={14} />
               <span>{dict.settings.presets.btnRefresh}</span>
             </button>
             <button
@@ -797,19 +842,19 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
               className="presets-btn-text"
               onClick={handleNativeImport}
               title={dict.settings.presets.importTitle}
-            >
-              <Upload size={13} />
+              >
+              <Upload size={14} />
               <span>{dict.settings.presets.btnImport}</span>
             </button>
-            {userPresets.length > 0 && (
+            {userPresets.length> 0 && (
               <>
                 <button
                   type="button"
                   className="presets-btn-text"
                   onClick={handleExportAll}
                   title={dict.settings.presets.exportAllTitle}
-                >
-                  <Download size={13} />
+                  >
+                  <Download size={14} />
                   <span>{dict.settings.presets.btnExportAll}</span>
                 </button>
                 <button
@@ -817,8 +862,8 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                   className="presets-btn-text"
                   onClick={handleOpenFolder}
                   title={dict.settings.presets.folderTitle}
-                >
-                  <FolderOpen size={13} />
+                  >
+                  <FolderOpen size={14} />
                   <span>{dict.settings.presets.btnFolder}</span>
                 </button>
               </>
@@ -830,9 +875,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           Группа всегда смонтирована: раскрытие идёт плавной складкой
           collapse-fold (как аккордеон), высота вкладки не прыгает.
         */}
-        <div className={`collapse-fold ${isUserPresetsOpen ? "collapse-fold--open" : ""}`}>
+        <div id={userPresetsId} className={`collapse-fold ${isUserPresetsOpen ? "collapse-fold--open" : ""}`} inert={!isUserPresetsOpen} aria-hidden={!isUserPresetsOpen}>
           <div className="collapse-fold__inner">
-            <div className="collapse-fold__body" style={{ marginTop: 8 }}>
+            <div className="collapse-fold__body mt-4">
               {userPresets.length === 0 ? (
                 <EmptyState
                   icon={<Palette size={24} />}
@@ -855,31 +900,81 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           <button
             type="button"
             className="presets-section-heading__title"
+            aria-expanded={isBuiltInPresetsOpen}
+            aria-controls={builtInPresetsId}
             onClick={() => setIsBuiltInPresetsOpen((prev) => {
               const next = !prev;
               writeGroupOpen(PRESETS_BUILTIN_OPEN_KEY, next);
               return next;
             })}
-          >
+            >
             <ChevronDown
               size={15}
               className={`presets-section-heading__chevron ${
                 !isBuiltInPresetsOpen ? "presets-section-heading__chevron--collapsed" : ""
               }`}
             />
-            <Sparkles size={15} />
+            <SettingsIcon section><Sparkles size={18} /></SettingsIcon>
             <span>{dict.settings.presets.builtinLabel(BUILT_IN_PRESETS.length)}</span>
           </button>
         </div>
 
-        <div className={`collapse-fold ${isBuiltInPresetsOpen ? "collapse-fold--open" : ""}`}>
+        <div id={builtInPresetsId} className={`collapse-fold ${isBuiltInPresetsOpen ? "collapse-fold--open" : ""}`} inert={!isBuiltInPresetsOpen} aria-hidden={!isBuiltInPresetsOpen}>
           <div className="collapse-fold__inner">
-            <div className="collapse-fold__body presets-list" style={{ marginTop: 8 }}>
-              {BUILT_IN_PRESETS.map((preset) => renderPresetCard(preset))}
+            <div className="collapse-fold__body mt-4">
+              <div className="presets-list">
+                {BUILT_IN_PRESETS.map((preset) => renderPresetCard(preset))}
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {pendingDelete && (
+        <div
+          className="confirm-overlay"
+          onClick={cancelDelete}
+          role="presentation"
+          >
+          <div
+            className="confirm-dialog"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-delete-title"
+            >
+            <h3 className="confirm-dialog__title" id="confirm-delete-title">
+              {dict.settings.presets.confirmDeleteTitle}
+            </h3>
+
+            <p className="confirm-dialog__message">
+              {dict.settings.presets.confirmDelete(pendingDelete.name)}
+            </p>
+
+            <p className="confirm-dialog__warning">
+              {dict.settings.presets.confirmDeleteWarning}
+            </p>
+
+            <div className="confirm-dialog__actions">
+              <button
+                type="button"
+                className="confirm-dialog__btn confirm-dialog__btn--cancel"
+                onClick={cancelDelete}
+                autoFocus
+                >
+                {dict.settings.presets.btnDeleteCancel}
+              </button>
+              <button
+                type="button"
+                className="confirm-dialog__btn confirm-dialog__btn--confirm confirm-dialog__btn--danger"
+                onClick={confirmDelete}
+                >
+                {dict.settings.presets.btnDeleteConfirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

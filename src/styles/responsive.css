@@ -8,10 +8,10 @@
     max-width: calc(100% - 150px);
   }
   .titlebar__title {
-    font-size: 0.8rem;
+    font-size: var(--fs-sm);
   }
   .titlebar__filename {
-    font-size: 0.78rem;
+    font-size: var(--fs-xs);
   }
   .titlebar__btn {
     width: 32px;
@@ -23,24 +23,24 @@
     width: calc(100vw - 20px) !important;
     max-width: calc(100vw - 20px) !important;
     max-height: 86vh !important;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-surface);
   }
   .modal--settings {
     width: calc(100vw - 12px) !important;
     height: auto !important;
     max-width: calc(100vw - 12px) !important;
     max-height: calc(100vh - 12px) !important;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-surface);
   }
   .modal__header {
-    padding: 10px 14px;
+    padding: var(--space-5) 14px;
   }
   .modal__body {
-    padding: 12px 14px;
+    padding: var(--space-6) 14px;
   }
   .settings-tabs {
-    padding: 6px 8px !important;
-    gap: 3px !important;
+    padding: var(--space-3) 8px !important;
+    gap: var(--space-1) !important;
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -48,9 +48,9 @@
     display: none;
   }
   .settings-tab-btn {
-    padding: 6px 4px !important;
-    font-size: 0.78rem !important;
-    gap: 4px !important;
+    padding: var(--space-3) 4px !important;
+    font-size: var(--fs-xs) !important;
+    gap: var(--space-2) !important;
   }
 }
 
@@ -60,7 +60,7 @@
   }
   .settings-tab-btn {
     flex: 0 0 auto !important;
-    padding: 6px 10px !important;
+    padding: var(--space-3) 10px !important;
   }
   .settings-tab-btn--active {
     flex: 1 1 auto !important;
@@ -88,10 +88,7 @@
     max-width: calc(100vw - 20px);
     bottom: calc(100% + 8px);
   }
-  .track-popover--speed {
-    right: 8px;
-  }
-
+  
   /* Всплывающая плашка контекстного меню */
   .context-menu {
     max-width: calc(100vw - 16px);
@@ -102,10 +99,9 @@
   .context-menu__submenu {
     position: static;
     box-shadow: none;
-    border-left: 2px solid var(--accent);
-    margin-top: 4px;
-    margin-bottom: 4px;
-    padding-left: 8px;
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+    padding-left: var(--space-4);
     max-width: 100%;
     max-height: none;
     overflow: visible;
@@ -121,10 +117,9 @@
   .context-menu__submenu {
     position: static;
     box-shadow: none;
-    border-left: 2px solid var(--accent);
-    margin-top: 4px;
-    margin-bottom: 4px;
-    padding-left: 8px;
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+    padding-left: var(--space-4);
     max-width: 100%;
     max-height: none;
     overflow: visible;

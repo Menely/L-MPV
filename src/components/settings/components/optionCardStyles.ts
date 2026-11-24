@@ -14,20 +14,20 @@ export const optionCardStyle: React.CSSProperties = {
   minWidth: 0,
   position: "relative",
   gap: 8,
-  padding: "10px 12px",
-  background: "rgba(255, 255, 255, 0.025)",
+  padding: "var(--padding-card)",
+  background: "var(--surface-card)",
   borderRadius: "var(--radius-md)",
   border: "1px solid var(--border)",
-  boxShadow: "0 6px 18px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.28)",
+  boxShadow: "var(--shadow-card)",
   transition:
     "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth), background-color var(--t-fast) var(--ease-smooth)",
 };
 
 export const optionResetBtnStyle: React.CSSProperties = {
-  height: 22,
-  width: 26,
+  height: "var(--size-action-compact)",
+  width: "var(--size-action-compact)",
   padding: 0,
-  borderRadius: "var(--radius-sm)",
+  borderRadius: "var(--radius-control)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -45,22 +45,40 @@ export const optionBtnStyle = (isSel: boolean, padding = "6px 4px"): React.CSSPr
   overflow: "hidden",
   gap: 3,
   padding,
-  borderRadius: "var(--radius-sm)",
-  border: isSel ? "1.5px solid var(--accent)" : "1.5px solid rgba(255, 255, 255, 0.06)",
+  boxSizing: "border-box",
+  backgroundClip: "padding-box",
+  borderRadius: "var(--radius-control)",
+  // Рамка выделения — из общего токена: --selection-frame (эксперимент
+  // «без рамок» = transparent). Не хардкодим var(--accent) здесь, иначе
+  // инлайн-стиль снова обойдёт общий переключатель.
+  border: isSel ? "1px solid var(--selection-frame)" : "1px solid var(--border-subtle)",
   cursor: "pointer",
-  background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "rgba(255, 255, 255, 0.03)",
+  background: isSel ? "var(--surface-accent-subtle)" : "var(--surface-level-3)",
   color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
   fontWeight: 500,
-  boxShadow: isSel
-    ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
-    : "0 1px 3px rgba(0, 0, 0, 0.2)",
+  // Тень выделения — из общего токена --selection-shadow (эксперимент = none).
+  boxShadow: isSel ? "var(--selection-shadow)" : "none",
   transition:
     "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
 });
 
+/**
+ * Классы для кнопок-опций (`optionBtnStyle`).
+ *
+ * Инлайн-стиль нельзя переопределить обычным CSS-правилом, поэтому
+ * наведение и выделение этих кнопок живут в CSS по классу:
+ *  - `ui-option-btn`            — базовая кнопка опции;
+ *  - `ui-option-btn--selected`  — выбранная (вуаль 0.16, рамка из
+ *                                 `--selection-frame`, без ореола).
+ * Ховер невыбранной кнопки — вуаль `--hover-veil`.
+ */
+export const OPTION_BTN_CLASS = "ui-option-btn";
+
+export const optionBtnClassName = (isSel: boolean): string =>
+  isSel ? `${OPTION_BTN_CLASS} ui-option-btn--selected` : OPTION_BTN_CLASS;
+
 /** Описание-подзаголовок секции в стиле «Настроек интерфейса». */
-export const optionSectionDescStyle: React.CSSProperties = {
-  fontSize: "var(--fs-sm)",
+export const optionSectionDescStyle: React.CSSProperties = {  fontSize: "var(--fs-sm)",
   color: "var(--text-secondary)",
   fontWeight: 450,
   marginTop: 8,

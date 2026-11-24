@@ -1,5 +1,6 @@
+import { backendReady, backendNeedsUpdate, upscaleErrorMessage } from "../../../utils/upscaleCompatibility";
 import { useTranslation } from "../../../i18n/LanguageContext";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useId } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
@@ -14,7 +15,9 @@ import {
   getCustomHotkeys,
   saveCustomHotkeys,
   isCodeReservedForUpscaleOff,
+  isMouseScopeCompatible,
 } from "../../../utils/hotkeyUtils";
+import { getFavoriteModel, toggleFavoriteModel } from "../../../utils/favoriteModel";
 import {
   ModelFileItem,
   GpuHardwareInfo,
@@ -26,6 +29,7 @@ import {
 import {
   DndContext,
   closestCenter,
+  MeasuringStrategy,
   KeyboardSensor,
   MouseSensor,
   useSensor,
@@ -69,6 +73,8 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   onRecordingChange,
 }) => {
   const { dict } = useTranslation();
+  const modelListId = useId();
+
   // Синхронное чтение предзагруженного кэша: первый paint уже полный
   // (список моделей + GPU), окно настроек не прыгает после прилёта данных.
   const [status, setStatus] = useState<UpscaleStatus | null>(() => getPreloadedUpscaleStatus());
@@ -96,6 +102,14 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   });
   const [isModelsListOpen, setIsModelsListOpen] = useState(false);
 
+  // Избранная модель по умолчанию (звездочка, issue #7): хранится по имени файла,
+  // поэтому переживает переупорядочивание списка.
+  const [favoriteModel, setFavoriteModelState] = useState<string>(() => getFavoriteModel());
+
+  const handleToggleFavorite = (filename: string) => {
+    setFavoriteModelState(toggleFavoriteModel(filename));
+  };
+
   const toggleHideModelNames = () => {
     const next = !hideModelNames;
     setHideModelNames(next);
@@ -111,11 +125,25 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   const ignoreClickUntilRef = useRef<number>(0);
 
   const persistModelOrder = async (newModels: ModelFileItem[]) => {
-    setStatus((prev) => (prev ? { ...prev, models: newModels } : prev));
     const order = newModels.map((m) => m.filename);
     try {
-      localStorage.setItem("l-mpv-upscale-models-order", JSON.stringify(order));
       await invoke("save_models_order", { order });
+      localStorage.setItem("l-mpv-upscale-models-order", JSON.stringify(order));
+      const remappedModels = newModels.map((model, index) => ({ ...model, slot: index < 9 ? index + 1 : 0 }));
+      if (status) {
+        const nextStatus = { ...status, models: remappedModels };
+        storeUpscaleStatus(nextStatus);
+        setStatus(nextStatus);
+      }
+      const selectedName = localStorage.getItem("l-mpv-upscale-selected-model") || settings.selected_model;
+      const savedSlot = Number(localStorage.getItem("l-mpv-upscale-slot") ?? settings.active_slot);
+      const selected = remappedModels.find((model) => model.filename === selectedName);
+      if (((savedSlot >= 1 && savedSlot <= 9) || savedSlot >= 2000) && selected && selected.slot > 0) {
+        // Storage must be current before synchronous settings-changed listeners run.
+        localStorage.setItem("l-mpv-upscale-slot", String(selected.slot));
+        setSettings(current => current.selected_model === selectedName
+          ? { ...current, active_slot: selected.slot } : current);
+      }
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (err) {
       console.error(dict.settings.upscaling.errSaveOrder, err);
@@ -134,6 +162,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   );
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    if (compilingModel) return;
     const { active, over } = event;
     if (over && active.id !== over.id && status?.models) {
       const oldIndex = status.models.findIndex((m) => m.filename === active.id);
@@ -172,6 +201,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   const refreshInProgressRef = useRef<Promise<void> | null>(null);
   const compileTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const downloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applyingSettingsRef = useRef(false);
 
   // Загрузка статуса подсистемы и списка доступных моделей
   const refreshStatus = useCallback(async () => {
@@ -263,6 +293,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       if (!isMountedRef.current) return;
       const p = event.payload;
       setCompileProgress((prev) => ({ ...prev, [p.filename]: p }));
+      if (!p.is_finished) setCompilingModel(p.filename);
       if (p.is_finished) {
         setCompilingModel((curr) => (curr === p.filename ? null : curr));
         if (p.error) {
@@ -290,6 +321,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     const handleSettingsChanged = () => {
       if (isMountedRef.current) {
         setCustomHotkeys(getCustomHotkeys());
+        setFavoriteModelState(getFavoriteModel());
         const savedMode = (localStorage.getItem("l-mpv-upscale-mode") as "off" | "ai") || "off";
         const savedBackend = (localStorage.getItem("l-mpv-upscale-backend") as "DirectML" | "TensorRT") || "DirectML";
         const savedSlot = Number(localStorage.getItem("l-mpv-upscale-slot") || 1001);
@@ -315,62 +347,50 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     };
   }, [refreshStatus]);
 
-  // Сохранение и применение настроек
-  const updateSettings = async (newPartialSettings: Partial<UpscaleSettings>) => {
-    const updated: UpscaleSettings = { ...settings, ...newPartialSettings };
-    setSettings(updated);
-    setErrorMessage(null);
+  const persistSettings = (next: UpscaleSettings) => {
+    setSettings(next);
+    localStorage.setItem("l-mpv-upscale-mode", next.mode);
+    localStorage.setItem("l-mpv-upscale-backend", next.backend);
+    localStorage.setItem("l-mpv-upscale-slot", String(next.active_slot));
+    localStorage.setItem("l-mpv-upscale-selected-model", next.selected_model);
+  };
 
-    localStorage.setItem("l-mpv-upscale-mode", updated.mode);
-    localStorage.setItem("l-mpv-upscale-backend", updated.backend);
-    localStorage.setItem("l-mpv-upscale-slot", String(updated.active_slot));
-    localStorage.setItem("l-mpv-upscale-selected-model", updated.selected_model);
-
-    // Проверяем, установлен ли движок при попытке включить режим "ai"
-    const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
-    const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
-    const isInstalled = updated.backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
-
-    if (updated.mode === "ai" && !isInstalled) {
-      setErrorMessage(dict.settings.upscaling.errNeedBackend(updated.backend));
-      const fallbackSettings: UpscaleSettings = { ...updated, mode: "off" };
-      setSettings(fallbackSettings);
-      localStorage.setItem("l-mpv-upscale-mode", "off");
+  // Preflight rejection leaves the old filter running, so retain its selection.
+  const updateSettings = async (partial: Partial<UpscaleSettings>) => {
+    if (applyingSettingsRef.current) {
+      setErrorMessage(dict.settings.upscaling.upscaleBusy);
       return;
     }
-
+    const previous = settings;
+    const updated: UpscaleSettings = { ...previous, ...partial };
+    setErrorMessage(null);
+    if (updated.mode === "ai" && !backendReady(status, updated.backend)) {
+      setErrorMessage(status?.player_update_required ? dict.settings.upscaling.playerUpdateRequired
+        : backendNeedsUpdate(status, updated.backend) ? dict.settings.upscaling.runtimeUpdateRequired
+        : dict.settings.upscaling.errNeedBackend(updated.backend));
+      return;
+    }
+    applyingSettingsRef.current = true;
+    persistSettings(updated);
     try {
       await invoke("apply_upscale_settings", { settings: updated });
     } catch (err) {
-      console.error(dict.settings.upscaling.errApply, err);
-      setErrorMessage(String(err));
+      setErrorMessage(upscaleErrorMessage(err, dict));
+      if (String(err).includes("UPSCALE_")) {
+        persistSettings(previous);
+      } else {
+        // A native filter failure may have removed the old filter already.
+        await invoke("apply_upscale_settings", { settings: { ...updated, mode: "off" } }).catch(console.error);
+        persistSettings({ ...updated, mode: "off" });
+      }
+    } finally {
+      applyingSettingsRef.current = false;
     }
   };
 
-  // Переключение выбранного бэкенда без лишних перерисовок кадра, если апскейл выключен
   const handleSelectBackend = async (backend: "DirectML" | "TensorRT") => {
-    const updated: UpscaleSettings = { ...settings, backend };
-    setSettings(updated);
-    setErrorMessage(null);
-    localStorage.setItem("l-mpv-upscale-backend", updated.backend);
-
-    // Если апскейлинг выключен, mpv не трогаем — видео не будет дергаться
-    if (updated.mode === "ai") {
-      const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
-      const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
-      const isInstalled = backend === "DirectML" ? isDmlInstalled : isTrtInstalled;
-
-      if (isInstalled) {
-        try {
-          await invoke("apply_upscale_settings", { settings: updated });
-        } catch (err) {
-          console.error(dict.settings.upscaling.errApplyEngine, err);
-          setErrorMessage(String(err));
-        }
-      } else {
-        setErrorMessage(dict.settings.upscaling.errEngineNotInstalled(backend));
-      }
-    }
+    if (settings.mode === "ai") await updateSettings({ backend });
+    else { persistSettings({ ...settings, backend }); setErrorMessage(null); }
   };
 
   // Открытие папки моделей models/onnx/ в Проводнике
@@ -416,7 +436,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       await refreshStatus();
     } catch (err) {
       console.error(dict.settings.upscaling.errDownloadLibs, err);
-      setErrorMessage(dict.settings.upscaling.errEngineDownload(String(err)));
+      setErrorMessage(dict.settings.upscaling.errEngineDownload(upscaleErrorMessage(err, dict)));
       setIsDownloadingEngine(false);
       if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
       downloadTimerRef.current = setTimeout(() => {
@@ -448,7 +468,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       await refreshStatus();
     } catch (err) {
       console.error(dict.settings.upscaling.errRemoveLibs, err);
-      setErrorMessage(dict.settings.upscaling.errRemoveEngine(String(err)));
+      setErrorMessage(dict.settings.upscaling.errRemoveEngine(upscaleErrorMessage(err, dict)));
     } finally {
       setIsDeletingEngine(false);
     }
@@ -456,6 +476,10 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
 
   // Фоновая предварительная компиляция TensorRT .engine для 1080p
   const handlePrecompileModel = async (model: ModelFileItem) => {
+    if (!backendReady(status, "TensorRT")) {
+      setErrorMessage(status?.player_update_required ? dict.settings.upscaling.playerUpdateRequired : dict.settings.upscaling.runtimeUpdateRequired);
+      return;
+    }
     if (compilingModel) return;
     if (compileTimersRef.current[model.filename]) {
       clearTimeout(compileTimersRef.current[model.filename]);
@@ -473,7 +497,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       await refreshStatus();
     } catch (err) {
       console.error(dict.settings.upscaling.errModelCompile, err);
-      setErrorMessage(dict.settings.upscaling.errModelCompileDetail(String(err)));
+      setErrorMessage(dict.settings.upscaling.errModelCompileDetail(upscaleErrorMessage(err, dict)));
       setCompilingModel(null);
     }
   };
@@ -507,7 +531,16 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       return;
     }
 
-    const updated = { ...customHotkeys, [actionId]: [newCode] };
+    const updated = { ...customHotkeys };
+    const isMouse = newCode.startsWith("Mouse");
+    for (const otherId of Object.keys(updated)) {
+      if (otherId === actionId) continue;
+      if (isMouse && isMouseScopeCompatible(actionId, otherId)) continue;
+      if (updated[otherId]?.includes(newCode)) {
+        updated[otherId] = updated[otherId].filter((c) => c !== newCode);
+      }
+    }
+    updated[actionId] = [newCode];
     setCustomHotkeys(updated);
     saveCustomHotkeys(updated);
     setRecordingActionId(null);
@@ -520,7 +553,15 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
     ignoreClickUntilRef.current = Date.now() + 400;
     const btnMap: Record<number, string> = { 0: "MouseLeft", 1: "MouseMiddle", 2: "MouseRight" };
     const newCode = btnMap[e.button] || `MouseButton${e.button}`;
-    const updated = { ...customHotkeys, [actionId]: [newCode] };
+    const updated = { ...customHotkeys };
+    for (const otherId of Object.keys(updated)) {
+      if (otherId === actionId) continue;
+      if (isMouseScopeCompatible(actionId, otherId)) continue;
+      if (updated[otherId]?.includes(newCode)) {
+        updated[otherId] = updated[otherId].filter((c) => c !== newCode);
+      }
+    }
+    updated[actionId] = [newCode];
     setCustomHotkeys(updated);
     saveCustomHotkeys(updated);
     setRecordingActionId(null);
@@ -574,18 +615,11 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
   const isAiActive = settings.mode === "ai";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="settings-stack">
       {/* 1. Выбор основного режима работы */}
-      <div className="glass-section" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <h3 style={{ fontSize: "1.05rem", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 8 }}>
-              <Zap size={18} color="var(--accent)" /> {dict.settings.upscaling.modeTitle}
-            </h3>
-            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: 2 }}>
-              {dict.settings.upscaling.modeDesc}
-            </p>
-          </div>
+      <div className="glass-section settings-group-card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}><SectionHeader icon={<Zap size={16} />} title={dict.settings.upscaling.modeTitle} desc={dict.settings.upscaling.modeDesc} /></div>
 
           {/* Интерактивная кнопка-тумблер Включен / Выключен */}
           <button
@@ -593,15 +627,15 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
             className={`btn ${isAiActive ? "btn--primary" : "btn--secondary"}`}
             onClick={() => updateSettings({ mode: isAiActive ? "off" : "ai" })}
             title={isAiActive ? dict.settings.upscaling.toggleOff : dict.settings.upscaling.toggleOn}
-            style={{ borderRadius: "var(--radius-pill)", padding: "6px 14px", fontWeight: 600, fontSize: "0.84rem" }}
-          >
+            style={{ borderRadius: "var(--radius-control)", padding: "6px 14px", fontWeight: 600, fontSize: "var(--fs-sm)" }}
+            >
             <span
               style={{
                 width: 8,
                 height: 8,
                 borderRadius: "50%",
-                background: isAiActive ? "var(--accent)" : "rgba(255, 255, 255, 0.3)",
-                boxShadow: isAiActive ? "0 0 8px var(--accent)" : "none",
+                background: "currentColor",
+                boxShadow: "none",
                 display: "inline-block",
               }}
             />
@@ -628,23 +662,25 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
       />
 
       {/* 3. Универсальная библиотека ONNX-моделей (`models/onnx/`) с биндом клавиш */}
-      <div className="glass-section glass-section--compact" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="glass-section glass-section--compact settings-group-card col col-gap-4">
         <div
           role="button"
           tabIndex={0}
           aria-expanded={isModelsListOpen}
+          aria-controls={modelListId}
           onClick={() => setIsModelsListOpen((prev) => !prev)}
           onKeyDown={(event) => {
+            if (event.target !== event.currentTarget) return;
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
               setIsModelsListOpen((prev) => !prev);
             }
           }}
           style={{ cursor: "pointer" }}
-        >
+          >
           <SectionHeader
             icon={<Layers size={17} />}
-          title={dict.settings.upscaling.folderTitle}
+            title={dict.settings.upscaling.folderTitle}
           desc={dict.settings.upscaling.folderDesc(status?.models_count || 0)}
           right={
             <>
@@ -656,8 +692,9 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   setIsModelsListOpen((prev) => !prev);
                 }}
                 aria-expanded={isModelsListOpen}
-                title={isModelsListOpen ? dict.settings.upscaling.btnCollapseModels : dict.settings.upscaling.btnExpandModels}
-              >
+        aria-controls={modelListId}
+
+                >
                 <ChevronDown
                   size={16}
                   style={{
@@ -675,7 +712,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   toggleHideModelNames();
                 }}
                 title={hideModelNames ? dict.settings.upscaling.btnShowNames : dict.settings.upscaling.btnHideNames}
-              >
+                >
                 {hideModelNames ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
 
@@ -684,7 +721,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                 className="btn btn--secondary btn--icon"
                 onClick={handleOpenModelsFolder}
                 title={dict.settings.upscaling.btnOpenFolderTitle}
-              >
+                >
                 <FolderOpen size={16} />
               </button>
             </>
@@ -692,7 +729,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
           />
         </div>
 
-        <div className={`collapse-fold ${isModelsListOpen ? "collapse-fold--open" : ""}`}>
+        <div id={modelListId} className={`collapse-fold ${isModelsListOpen ? "collapse-fold--open" : ""}`} inert={!isModelsListOpen} aria-hidden={!isModelsListOpen}>
           <div className="collapse-fold__inner">
             <div className="collapse-fold__body">
               <div
@@ -702,25 +739,26 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   overflowY: "auto",
                   display: "flex",
                   flexDirection: "column",
-                  gap: 6,
+                  gap: "var(--space-3)",
                   padding: "5px 6px",
                   margin: "2px -6px 0",
                   boxSizing: "border-box",
                 }}
-              >
+                >
                 {loading && !status ? (
                   <EmptyState loading title={dict.settings.upscaling.loadingModels} />
-                ) : status?.models && status.models.length > 0 ? (
+                ) : status?.models && status.models.length> 0 ? (
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
+                    measuring={{ droppable: { strategy: MeasuringStrategy.WhileDragging, frequency: 32 } }}
                     onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext
-                      items={status.models.map((m) => m.filename)}
-                      strategy={verticalListSortingStrategy}
                     >
-                      {status.models.map((model, idx) => {
+                    <SortableContext
+                      items={status.models.slice(0, 9).map((m) => m.filename)}
+                      strategy={verticalListSortingStrategy}
+                      >
+                      {status.models.slice(0, 9).map((model, idx) => {
                         const actionId = `upscaleNet${idx + 1}`;
                         return (
                           <ModelListItem
@@ -728,6 +766,8 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                             model={model}
                             idx={idx}
                             isSelected={settings.active_slot === model.slot || settings.selected_model === model.filename}
+                            isFavorite={favoriteModel === model.filename}
+                            onToggleFavorite={() => handleToggleFavorite(model.filename)}
                             hideModelNames={hideModelNames}
                             customHotkeys={customHotkeys}
                             recordingActionId={recordingActionId}
@@ -757,7 +797,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   event.stopPropagation();
                   handleOpenModelsFolder();
                 }}
-                      >
+                >
                         <FolderOpen size={14} /> {dict.settings.upscaling.btnOpenFolder}
                       </button>
                     }

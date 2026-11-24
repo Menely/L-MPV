@@ -1,3 +1,4 @@
+import { useMotionAllowed } from "../../motion/useMotionAllowed";
 import { useCallback, useLayoutEffect, useRef } from "react";
 
 const TRANSITION_MS = 220;
@@ -16,19 +17,6 @@ function getPanelHeight(panel: HTMLDivElement, body: HTMLDivElement | null): num
   const availableHeight = Math.max(0, Math.floor(body.clientHeight - verticalPadding));
 
   return Math.min(contentHeight, availableHeight);
-}
-
-function motionAllowed(): boolean {
-  if (typeof document === "undefined") return false;
-  if (document.documentElement.classList.contains("no-animations")) return false;
-  try {
-    if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
-    }
-  } catch {
-    /* ignore */
-  }
-  return true;
 }
 
 /**
@@ -50,6 +38,8 @@ function motionAllowed(): boolean {
  */
 export function useSettingsTabTransition(activeTab: string, tabOrder: readonly string[]) {
   void tabOrder;
+  const motionAllowed = useMotionAllowed();
+  const renderedTabRef = useRef(activeTab);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const prevTabRef = useRef(activeTab);
@@ -59,7 +49,7 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
   const beginSwitch = useCallback((next: string): boolean => {
     if (next === prevTabRef.current) return false;
     const panel = panelRef.current;
-    if (panel && motionAllowed()) {
+    if (panel && motionAllowed) {
       startHeightRef.current = getPanelHeight(panel, bodyRef.current);
       panel.style.height = `${startHeightRef.current}px`;
     } else {
@@ -67,16 +57,17 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     }
     prevTabRef.current = next;
     return true;
-  }, []);
+  }, [motionAllowed]);
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
     const body = bodyRef.current;
-    if (body) body.scrollTop = 0;
+    if (body && renderedTabRef.current !== activeTab) body.scrollTop = 0;
+    renderedTabRef.current = activeTab;
     const restoreBody = () => {
       if (body) body.style.overflowY = "";
     };
-    if (!panel || !motionAllowed() || startHeightRef.current <= 0) {
+    if (!panel || !motionAllowed || startHeightRef.current <= 0) {
       if (panel) {
         panel.style.height = "";
         panel.style.transition = "";
@@ -96,7 +87,7 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
     }
     // Пока окно едет — скроллбар тела прячем, иначе при сужении
     // он мелькает на время анимации, хотя по факту не нужен.
-    if (body) body.style.overflowY = "hidden";
+    // overflowY не глушим, чтобы не блокировать скролл
     panel.style.height = `${h0}px`;
     void panel.offsetHeight; // reflow: transition стартует со старой высоты
     panel.style.transition = `height ${TRANSITION_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`;
@@ -108,26 +99,24 @@ export function useSettingsTabTransition(activeTab: string, tabOrder: readonly s
       panel.style.transition = "";
       panel.style.height = "";
       restoreBody();
-      panel.removeEventListener("transitionend", onEnd);
-      panel.removeEventListener("transitioncancel", onEnd);
     };
-    const onEnd = (e: TransitionEvent) => {
-      if (e.target !== panel || e.propertyName !== "height") return;
-      finish();
-    };
-    panel.addEventListener("transitionend", onEnd);
-    panel.addEventListener("transitioncancel", onEnd);
+    // Bind completion to this tween, not queued events from a previous tab.
+    // getAnimations flushes the target style and returns its current transition.
+    const heightTransition = panel.getAnimations().find(animation =>
+      animation instanceof CSSTransition && animation.transitionProperty === "height"
+      && animation.effect instanceof KeyframeEffect && animation.effect.target === panel,
+    );
+    void heightTransition?.finished.then(finish, () => {});
     const timer = window.setTimeout(finish, TRANSITION_MS + 40);
 
     return () => {
       window.clearTimeout(timer);
-      panel.removeEventListener("transitionend", onEnd);
-      panel.removeEventListener("transitioncancel", onEnd);
+      done = true;
       restoreBody();
       panel.style.transition = "";
       panel.style.height = "";
     };
-  }, [activeTab]);
+  }, [activeTab, motionAllowed]);
 
   return { bodyRef, panelRef, beginSwitch };
 }

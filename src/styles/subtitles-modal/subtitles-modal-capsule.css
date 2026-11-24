@@ -1,0 +1,459 @@
+/* ─── Окно поиска по субтитрам: стиль «Капсула» (островной дизайн) ────────────
+   Корневой контейнер абсолютно прозрачный без общих подложек и паразитных рамок.
+   Парят исключительно независимые карточки-островки с глобальной
+   прозрачностью (--bg-glass), мягкими тенями (--shadow-elevated)
+   и адаптивным скруглением углов (--radius-controls / --radius-md).
+*/
+
+.subtitles-search-card.subtitles-search-card--capsule {
+  --sub-actions-width: 136px;
+  --sub-card-height: 42px;
+
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  gap: 6px !important;
+  overflow: visible !important;
+  margin: 0 !important;
+}
+
+/* Ручка изменения ширины слева: позиционируется левее парящих островков */
+.subtitles-search-card--capsule .subtitles-search-card__resize-handle {
+  left: -8px;
+  width: 14px;
+  z-index: 10;
+}
+
+/* ─── Общие стили для строк и островков стиля «Капсула» ──────────────────── */
+.subtitles-search-card--capsule .subtitles-capsule-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: 100% !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card {
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  box-sizing: border-box !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth) !important;
+}
+
+/* ─── Группа 1: Шапка окна (3 карточки) ─────────────────────────────────── */
+.subtitles-search-card--capsule .subtitles-capsule-row--header {
+  position: relative;
+  z-index: 4;
+}
+
+/* Карточка 1: Только иконка (кнопка перетаскивания и сброса) */
+.subtitles-search-card--capsule .subtitles-card--icon {
+  width: var(--sub-card-height, 42px) !important;
+  height: var(--sub-card-height, 42px) !important;
+  min-width: var(--sub-card-height, 42px) !important;
+  min-height: var(--sub-card-height, 42px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  cursor: grab !important;
+  padding: 0 !important;
+}
+
+
+
+.subtitles-search-card--capsule .subtitles-card--icon:hover {
+  border-color: var(--border-pill-hover) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--icon:active {
+  cursor: grabbing !important;
+  border-color: var(--border-pill-hover) !important;
+}
+
+/* Карточка 2: Самостоятельный переключатель режимов: Обычный / Инспектор (без вложенной подложки) */
+.subtitles-search-card--capsule .subtitles-card--mode-switch {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: var(--sub-card-height, 42px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 3px !important;
+  gap: 3px !important;
+  box-sizing: border-box !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--mode-switch .subtitles-search-card__mode-switch {
+  display: contents !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--mode-switch .subtitles-search-card__mode-btn {
+  flex: 1 1 0% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  height: 100% !important;
+  padding: 0 10px !important;
+  font-size: var(--fs-xs) !important;
+  font-weight: 500 !important;
+  color: var(--text-secondary) !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
+  cursor: pointer !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth) !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--mode-switch .subtitles-search-card__mode-btn:hover:not(.subtitles-search-card__mode-btn--active) {
+  background: var(--hover-veil-float) !important;
+  color: var(--text-primary) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--mode-switch .subtitles-search-card__mode-btn--active {
+  background: var(--surface-accent-subtle) !important;
+  color: var(--accent-text) !important;
+  font-weight: 600 !important;
+  border-color: var(--selection-frame) !important;
+}
+
+/* Карточка 3: Кнопки действий (Eye/EyeOff, Refresh, X) */
+.subtitles-search-card--capsule .subtitles-card--actions {
+  width: var(--sub-actions-width, 136px) !important;
+  min-width: var(--sub-actions-width, 136px) !important;
+  max-width: var(--sub-actions-width, 136px) !important;
+  height: var(--sub-card-height, 42px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-evenly !important;
+  padding: 0 6px !important;
+  flex-shrink: 0 !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--actions .modal__close {
+  width: 28px !important;
+  height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 7px)) !important;
+  cursor: pointer !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-secondary) !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--actions .modal__close:hover {
+  background: var(--action-hover-veil) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ─── Группа 2: Дорожки субтитров и следование за речью (2 карточки) ──────── */
+.subtitles-search-card--capsule .subtitles-capsule-row--tracks {
+  position: relative;
+  z-index: 3;
+}
+
+.subtitles-search-card--capsule .subtitles-capsule-row--tracks.subtitles-capsule-row--open,
+.subtitles-search-card--capsule .subtitles-capsule-row--tracks:has(.subtitles-search-card__track-picker-menu) {
+  z-index: 30 !important;
+}
+
+/* Карточка 1 (левая): Селектор дорожек TrackPicker */
+.subtitles-search-card--capsule .subtitles-card--track-picker {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: var(--sub-card-height, 42px) !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 3px !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--track-picker:hover {
+  border-color: var(--border-pill-hover) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--track-picker:focus-within,
+.subtitles-search-card--capsule .subtitles-card--track-picker:active {
+  border-color: var(--selection-frame) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--track-picker .subtitles-search-card__track-picker {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  position: relative !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--track-picker .subtitles-search-card__track-picker-btn {
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
+  padding: 0 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  cursor: pointer !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth) !important;
+  box-sizing: border-box !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--track-picker:hover .subtitles-search-card__track-picker-btn,
+.subtitles-search-card--capsule .subtitles-card--track-picker .subtitles-search-card__track-picker-btn:hover {
+  background: var(--hover-veil-float) !important;
+}
+
+/* Выпадающее меню дорожек */
+.subtitles-search-card--capsule .subtitles-search-card__track-picker-menu {
+  top: calc(100% + 8px) !important;
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-modal) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  z-index: 40 !important;
+  padding: 6px !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  scrollbar-gutter: auto !important;
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__track-picker-item {
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 7px)) !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__track-picker-item:hover {
+  background: var(--hover-veil-float) !important;
+  color: var(--text-primary) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__track-picker-menu::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Карточка 2 (правая): Кнопка «Отслеживание» (ТОЧНО ТАКОГО ЖЕ РАЗМЕРА, что и карточка действий шапки) */
+.subtitles-search-card--capsule .subtitles-card--follow-btn {
+  width: var(--sub-actions-width, 136px) !important;
+  min-width: var(--sub-actions-width, 136px) !important;
+  max-width: var(--sub-actions-width, 136px) !important;
+  height: var(--sub-card-height, 42px) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 0 8px !important;
+  font-size: var(--fs-xs) !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  color: var(--text-secondary) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--follow-btn:hover {
+  background: var(--hover-veil-float) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-pill-hover) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--follow-btn:active {
+  border-color: var(--border-pill-hover) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--follow-btn--active {
+  background: var(--surface-accent-subtle) !important;
+  border-color: var(--selection-frame) !important;
+  color: var(--accent-text) !important;
+  box-shadow: none !important;
+}
+
+.subtitles-search-card--capsule .subtitles-card--follow-btn--active:hover:not(:disabled) {
+  background: var(--surface-accent-hover) !important;
+  color: var(--accent-text) !important;
+  border-color: var(--selection-frame) !important;
+}
+
+/* Островок отсутствия дорожек */
+.subtitles-search-card--capsule .subtitles-search-card__no-tracks {
+  padding: 10px 14px !important;
+  margin: 0 !important;
+  min-height: 42px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* ─── Группа 3: Панель поиска по субтитрам ─────────────────────────────────
+   Монолитный парящий островок, объединяющий строку ввода и строку метаданных.
+   Внутреннее поле ввода бесшовно встроено в карточку без кислотно-зеленых
+   двойных рамок-матрешек; акцентная подсветка перенесена на саму капсулу. */
+.subtitles-search-card--capsule .subtitles-search-card__bar {
+  position: relative;
+  z-index: 2;
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  padding: 6px 12px !important;
+  margin: 0 !important;
+  gap: 4px !important;
+  box-sizing: border-box !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth) !important;
+}
+
+/* Акцентное свечение всего островка при фокусе на поиске */
+/* При фокусе на поиске карточка сохраняет спокойный вид, без кричащего свечения */
+.subtitles-search-card--capsule .subtitles-search-card__bar:hover {
+  border-color: var(--border-pill-hover) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__bar:focus-within {
+  border-color: var(--selection-frame) !important;
+  box-shadow: var(--shadow-elevated) !important;
+}
+
+/* Бесшовная строка ввода внутри островка поиска (убираем двойные рамки) */
+.subtitles-search-card--capsule .subtitles-search-card__search-input-wrap,
+.subtitles-search-card--capsule .subtitles-search-card__search-input-wrap:has(input:focus-visible) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__search-input,
+.subtitles-search-card--capsule .subtitles-search-card__search-input:focus {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  height: 32px !important;
+  padding-left: 28px !important;
+  font-size: var(--fs-sm) !important;
+}
+
+/* Нижняя строка метаинформации поиска с тонким деликатным разделителем */
+.subtitles-search-card--capsule .subtitles-search-card__search-meta {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 4px 2px 2px 2px !important;
+  margin-top: 2px;
+  font-size: var(--fs-2xs) !important;
+  color: var(--text-muted) !important;
+}
+
+/* ─── Группа 4: МОНОЛИТНЫЙ список строк субтитров ─────────────────────────
+   По строгому требованию: список субтитров оформлен ЕДИНЫМ монолитным
+   островком, а НЕ отдельными карточками для каждого субтитра. Внутри
+   строки субтитров идут аккуратными элементами списка с hover-подсветкой. */
+.subtitles-search-card--capsule .subtitles-search-card__list {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  padding: 8px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-gutter: auto !important;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth) !important;
+}
+
+/* Деликатный парящий скроллбар: отступы трека сверху и снизу исключают вылезание за скругления */
+.subtitles-search-card--capsule .subtitles-search-card__list::-webkit-scrollbar {
+  display: block !important;
+  width: 5px !important;
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__list::-webkit-scrollbar-track {
+  background: transparent !important;
+  margin-top: 10px !important;
+  margin-bottom: 10px !important;
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22) !important;
+  border-radius: 9999px !important;
+  transition: background var(--t-fast) var(--ease-smooth);
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__list::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.65) !important;
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__list::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Внутри монолитного списка: строки реплик НЕ имеют индивидуальных теней */
+.subtitles-search-card--capsule .sub-line-row {
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 9px)) !important;
+  box-shadow: none !important;
+}
+
+/* Кнопки навигации по совпадениям, сброса и задержки с увеличенным хитбоксом */
+.subtitles-search-card--capsule .subtitles-search-card__jump-btn,
+.subtitles-search-card--capsule .subtitles-search-card__clear-btn,
+.subtitles-search-card--capsule .subtitles-search-card__delay-btn {
+  border-radius: var(--radius-control) !important;
+  transition: color var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth);
+}
+
+.subtitles-search-card--capsule .subtitles-search-card__jump-btn:hover,
+.subtitles-search-card--capsule .subtitles-search-card__clear-btn:hover,
+.subtitles-search-card--capsule .subtitles-search-card__delay-btn:hover {
+  background: var(--hover-veil-float) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ─── Поддержка режима непрозрачности для стиля «Капсула» ───────────────── */
+.subtitles-search-card--capsule.subtitles-search-card--opaque .subtitles-card,
+.subtitles-search-card--capsule.subtitles-search-card--opaque .subtitles-card--follow-btn,
+.subtitles-search-card--capsule.subtitles-search-card--opaque .subtitles-search-card__no-tracks,
+.subtitles-search-card--capsule.subtitles-search-card--opaque .subtitles-search-card__bar,
+.subtitles-search-card--capsule.subtitles-search-card--opaque .subtitles-search-card__list {
+  background: var(--surface-tone-1, var(--bg-surface, #0b0f15)) !important;
+  border-color: var(--border-pill) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8) !important;
+}

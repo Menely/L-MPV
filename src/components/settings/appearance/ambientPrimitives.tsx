@@ -1,6 +1,4 @@
 import { useState, useRef, memo, useCallback } from "react";
-import { RotateCcw } from "lucide-react";
-import { optionCardStyle, optionResetBtnStyle } from "../components/optionCardStyles";
 
 export interface VerticalSliderProps {
   value: number;
@@ -24,7 +22,7 @@ export const VerticalSlider = memo(function VerticalSlider({
   const [isHovered, setIsHovered] = useState(false);
 
   const range = max - min;
-  const percent = range > 0 ? Math.min(1, Math.max(0, (value - min) / range)) : 0;
+  const percent = range> 0 ? Math.min(1, Math.max(0, (value - min) / range)) : 0;
   const decimals = (step.toString().split(".")[1] || "").length;
 
   const updateFromPointer = useCallback(
@@ -122,7 +120,7 @@ export const VerticalSlider = memo(function VerticalSlider({
         outline: "none",
         padding: "0 4px",
       }}
-    >
+      >
       {/* Background Track */}
       <div
         style={{
@@ -130,8 +128,8 @@ export const VerticalSlider = memo(function VerticalSlider({
           width: 4,
           left: "50%",
           transform: "translateX(-50%)",
-          top: 6,
-          bottom: 6,
+          top: "var(--space-3)",
+          bottom: "var(--space-3)",
           borderRadius: 999,
           background: isHovered || isDragging ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.12)",
           filter: isHovered || isDragging ? "brightness(1.2)" : "none",
@@ -145,14 +143,14 @@ export const VerticalSlider = memo(function VerticalSlider({
           width: 4,
           left: "50%",
           transform: "translateX(-50%)",
-          bottom: 6,
+          bottom: "var(--space-3)",
           height: `calc(${percent * 100}% - ${percent * 12}px)`,
           borderRadius: 999,
           background: "var(--accent)",
           boxShadow: isDragging
-            ? "0 0 8px var(--accent)"
+            ? "var(--timeline-glow)"
             : isHovered
-            ? "0 0 6px rgba(var(--accent-rgb, 127, 199, 255), 0.5)"
+            ? "var(--timeline-glow)"
             : "none",
           filter: isHovered || isDragging ? "brightness(1.15)" : "none",
           transition: isDragging ? "none" : "height 0.08s ease, box-shadow var(--t-fast, 0.15s) ease, filter var(--t-fast, 0.15s) ease",
@@ -169,10 +167,10 @@ export const VerticalSlider = memo(function VerticalSlider({
           borderRadius: "50%",
           background: "var(--accent)",
           boxShadow: isDragging
-            ? "0 0 12px var(--accent), 0 0 2px #fff"
+            ? "0 0 12px var(--surface-accent-glow)"
             : isHovered
-            ? "0 0 12px var(--accent)"
-            : "0 0 6px rgba(var(--accent-rgb, 127, 199, 255), 0.45)",
+            ? "0 0 10px var(--surface-accent-glow)"
+            : "none",
           transform: isDragging
             ? "translateX(-50%) scale(1.1)"
             : isHovered
@@ -183,87 +181,6 @@ export const VerticalSlider = memo(function VerticalSlider({
             : "transform var(--t-spring, 0.25s) var(--ease-spring-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)), box-shadow var(--t-fast, 0.15s) var(--ease-smooth, ease), height 0.08s ease",
         }}
       />
-    </div>
-  );
-});
-
-export interface AmbientTuneRowProps {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  def: number;
-  unit: string;
-  resetTitle: string;
-  ariaLabel: string;
-  onChange: (v: number) => void;
-  onReset: () => void;
-}
-
-/** Горизонтальный премиум-ряд подсветки (яркость/насыщенность): иконка + слайдер + бейдж + условный сброс. */
-export const AmbientTuneRow = memo(function AmbientTuneRow({
-  icon,
-  label,
-  value,
-  min,
-  max,
-  step,
-  def,
-  unit,
-  resetTitle,
-  ariaLabel,
-  onChange,
-  onReset,
-}: AmbientTuneRowProps) {
-  const pct = Math.round(((value - min) / (max - min)) * 100);
-  const isDefault = value === def;
-  return (
-    <div style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0, lineHeight: 1 }}>
-        <span style={{ display: "flex", color: "var(--accent)" }}>{icon}</span>
-        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
-          {label}
-        </span>
-      </div>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", minWidth: 0, height: 20 }}>
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="ui-premium-slider"
-          style={{
-            "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, rgba(255, 255, 255, 0.12) ${pct}%, rgba(255, 255, 255, 0.12) 100%)`,
-          } as React.CSSProperties}
-          aria-label={ariaLabel}
-        />
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, lineHeight: 1 }}>
-        <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-          {value} {unit}
-        </span>
-        <button
-          type="button"
-          onClick={onReset}
-          className="btn btn--secondary btn--sm"
-          style={{
-            ...optionResetBtnStyle,
-            opacity: isDefault ? 0 : 1,
-            visibility: isDefault ? "hidden" : "visible",
-            pointerEvents: isDefault ? "none" : "auto",
-            transform: isDefault ? "scale(0.85)" : "scale(1)",
-            transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-          }}
-          title={resetTitle}
-          tabIndex={isDefault ? -1 : 0}
-        >
-          <RotateCcw size={11} />
-        </button>
-      </div>
     </div>
   );
 });

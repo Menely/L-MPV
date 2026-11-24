@@ -1,6 +1,6 @@
 [package]
 name = "l-mpv"
-version = "2.6.2"
+version = "2.7.6"
 description = "L-MPV — портативный медиаплеер на базе libmpv"
 authors = ["Leo DiSanche"]
 license = "GPL-3.0-or-later"
@@ -12,6 +12,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+blake3 = "1.8.7"
 
 [dependencies]
 tauri = { version = "2", features = [] }
@@ -28,6 +29,9 @@ tokio = { version = "1", features = ["time", "fs", "io-util", "process"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 zip = "2"
 blake3 = "1.8.7"
+flate2 = "1"
+symphonia = { version = "0.6.1", default-features = false, features = ["mkv", "exp-video-codecs"] }
+fast_image_resize = { version = "6", default-features = false, features = ["std"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"

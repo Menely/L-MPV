@@ -1,54 +1,54 @@
 /* ─── Контекстное меню ───────────────────────────────── */
 .context-menu {
+  --menu-radius: var(--radius-surface);
+  --menu-padding: var(--space-2);
+  --menu-border: 1px;
+  --menu-item-radius: max(0px, calc(var(--menu-radius) - var(--menu-padding) - var(--menu-border)));
   position: fixed;
   min-width: 200px;
   max-width: calc(100vw - 16px);
   background: var(--bg-glass);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 5px;
-  box-shadow: var(--shadow-lg);
-  z-index: 9999;
-  animation: contextMenuFadeIn var(--t-pop) var(--ease-decelerate);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  padding: var(--menu-padding);
+  box-shadow: var(--shadow-elevated);
+  z-index: var(--z-window);
   transform-origin: top left;
   contain: layout style;
-  transition: border-color var(--t-fast) var(--ease-smooth),
+  -webkit-font-smoothing: subpixel-antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth);
 }
 
+/* Модульный островной дизайн главного меню для стиля «Капсула» */
+.context-menu.context-menu--capsule {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  contain: none !important;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 
 @keyframes contextMenuFadeIn {
   0% {
-    transform: translateY(-4px);
     opacity: 0;
   }
   100% {
-    transform: translateY(0);
     opacity: 1;
-  }
-}
-
-.context-menu--closing {
-  animation: contextMenuFadeOut var(--t-close-pop) var(--ease-accelerate) forwards !important;
-  pointer-events: none;
-}
-
-@keyframes contextMenuFadeOut {
-  0% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-4px);
   }
 }
 
 .context-menu__item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
+  gap: var(--space-5);
+  padding: var(--space-3) 12px;
   /* Рамка всегда 1.5px: появление/вес при active не должны двигать подпись и шорткат. */
   border: 1.5px solid transparent;
   background: transparent;
@@ -56,7 +56,7 @@
   font-size: var(--fs-sm);
   font-family: var(--font-family);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--menu-item-radius);
   width: 100%;
   text-align: left;
   transform-origin: center center;
@@ -68,7 +68,7 @@
 
 .context-menu__item:hover,
 .context-menu__item--submenu-open {
-  background: var(--bg-hover);
+  background: var(--hover-veil-float);
 }
 
 /* Невидимый улавливающий мост наведения у открытого пункта подменю:
@@ -81,16 +81,16 @@
   position: absolute;
   top: -16px;
   bottom: -16px;
-  right: -16px;
+  right: -18px;
   width: 24px;
   background: transparent;
   pointer-events: auto;
-  z-index: 2;
+  z-index: var(--z-in-raised);
 }
 
 .context-menu__item--submenu-open.context-menu__item--submenu-left::after {
   right: auto;
-  left: -16px;
+  left: -18px;
   width: 24px;
 }
 
@@ -100,10 +100,9 @@
 }
 
 .context-menu__item--active {
-  color: var(--text-primary) !important;
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  color: var(--text-primary);
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .context-menu__item-icon {
@@ -137,36 +136,143 @@
 .context-menu__item-shortcut {
   font-size: var(--fs-xs);
   color: var(--text-muted);
-  margin-left: 16px;
+  margin-left: var(--space-7);
 }
 
 .context-menu__item-arrow {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--fs-3xs);
 }
 
 .context-menu__divider {
   height: 1px;
   background: var(--border);
-  margin: 3px 10px;
+  margin: var(--space-1) 10px;
 }
 
-/* Подменю: аккуратный зазор от родителя + безопасный переход */
+/* Подменю: базовый контейнер для всплывающего окна */
 .context-menu__submenu {
   position: absolute;
-  left: calc(100% + 8px);
+  left: calc(100% + 10px);
   top: -6px;
+  min-width: 210px;
+  width: max-content;
+  max-width: 320px;
+  animation: contextMenuFadeIn var(--t-fast) var(--ease-out);
+  transform-origin: top left;
+  z-index: var(--z-popover);
+}
+
+/* Островной вариант подменю для стиля «Капсула» */
+.context-menu__submenu--capsule {
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* Монолитное цельное окно подменю для стилей «Модерн» и «Классический» */
+.context-menu__submenu--solid {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  padding: var(--space-2);
+  box-shadow: var(--shadow-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   max-height: min(420px, calc(100vh - 40px));
   overflow-y: auto;
   overflow-x: hidden;
-  animation: contextMenuFadeIn var(--t-fast) var(--ease-out);
-  transform-origin: top left;
-  z-index: 10001;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+/* Самостоятельная островная карточка-группа во всплывающем меню и подменю */
+.context-menu__group {
+  --menu-radius: var(--radius-surface);
+  --menu-padding: var(--space-2);
+  --menu-border: 1px;
+  --menu-item-radius: max(0px, calc(var(--menu-radius) - var(--menu-padding) - var(--menu-border)));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  max-height: min(280px, calc(100vh - 140px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--menu-radius);
+  padding: var(--menu-padding);
+  box-shadow: var(--shadow-elevated);
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+/* Островные карточки главного меню: не обрезают выпадающие подменю */
+.context-menu__group--main {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+.context-menu__group:only-child {
+  max-height: min(460px, calc(100vh - 36px));
+}
+
+.context-menu,
+.context-menu__submenu {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.context-menu::-webkit-scrollbar,
+.context-menu__submenu::-webkit-scrollbar,
+.context-menu__group::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Компактная подпись островной карточки и заголовка группы */
+.context-menu__group-header {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  opacity: 1;
+  padding: 3px 9px 2px;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Индикатор активного радио-выбора (точка ●) */
+.context-menu__radio-dot {
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  min-height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--surface-accent-glow);
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .context-menu__submenu--left {
   left: auto;
-  right: calc(100% + 8px);
+  right: calc(100% + 10px);
   transform-origin: top right;
 }
 
@@ -183,17 +289,11 @@
 .context-menu__submenu--tracks {
   min-width: 220px;
   width: 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
 }
 
 .context-menu__submenu--recent {
   min-width: 250px;
   max-width: 320px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .context-menu__item--disabled {
@@ -211,7 +311,7 @@
 .context-menu__track-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2);
   width: 100%;
 }
 
@@ -219,8 +319,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: var(--space-3);
+  padding: var(--space-3) 8px;
   flex: 1;
   min-width: 0;
   border: 1.5px solid transparent;
@@ -229,29 +329,72 @@
   font-size: var(--fs-sm);
   font-family: var(--font-family);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--menu-item-radius);
   text-align: left;
   transition: background-color var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth);
 }
 
+/* Кнопка скачивания дорожки в подменю контекстного меню.
+   Тот же «голый» дизайн, что и в окнах дорожек: без карточки и рамки. */
 .context-menu .track-download-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-sm);
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: var(--menu-item-radius);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+.context-menu .track-download-btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.context-menu .track-download-btn:hover:not(:disabled) {
+  background: var(--hover-veil-float);
+  color: var(--accent-text);
+  border-color: transparent;
+}
+
+.context-menu .track-download-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.context-menu .track-download-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .context-menu__track-btn:hover {
-  background: var(--bg-hover);
+  background: var(--hover-veil-float);
   color: var(--text-primary);
 }
 
 .context-menu__track-btn--active {
-  background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent) !important;
+  color: var(--text-primary);
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.context-menu__track-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
 }
 
 .context-menu__track-title {
@@ -259,6 +402,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.context-menu__track-main .context-menu__track-title {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .context-menu__track-check {

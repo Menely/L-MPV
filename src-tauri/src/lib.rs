@@ -4,22 +4,26 @@
 //! и регистрирует все IPC-команды для фронтенда.
 
 mod ambient;
-pub mod upscale;
+mod app_cache;
 mod audio_capture;
 pub mod audio_filter;
-mod commands;
+pub mod commands;
 mod fonts_bundle;
+pub mod logging;
+mod media_report_cache;
 mod mediainfo;
 mod mpv_manager;
-pub mod logging;
+#[cfg(windows)]
+mod process_job;
+mod startup_runtime;
+mod subtitle_position;
+pub mod upscale;
 pub use logging::log_error;
 mod system_integration;
-mod updater;
+pub mod updater;
 pub mod window_aspect_ratio;
 
 use commands::PlayerState;
-use mpv_manager::MpvManager;
-use std::sync::Arc;
 use tauri::Manager;
 
 /// Результат разбора аргументов командной строки при запуске или повторном вызове.
@@ -85,32 +89,12 @@ pub fn run() {
         .expect("Не удалось определить директорию исполняемого файла")
         .to_path_buf();
 
-
     println!("[L-MPV] Директория exe: {:?}", exe_dir);
 
-    // Создание директорий для портативной работы
-    let screenshots_dir = exe_dir.join("screenshots");
-    let data_dir = exe_dir.join("data");
-    let config_dir = exe_dir.join("config");
-    let thumb_dir = data_dir.join("thumbs");
-    let logs_dir = exe_dir.join("logs");
-    let webview_dir = data_dir.join("webview");
-    
-    std::fs::create_dir_all(&screenshots_dir).ok();
-    std::fs::create_dir_all(&data_dir).ok();
-    std::fs::create_dir_all(&config_dir).ok();
-    std::fs::create_dir_all(&thumb_dir).ok();
-    std::fs::create_dir_all(&logs_dir).ok();
+    // The profile path must be set before WebView2 creation. Heavy native setup
+    // runs in a plugin after single-instance has forwarded any secondary launch.
+    let webview_dir = exe_dir.join("data").join("webview");
     std::fs::create_dir_all(&webview_dir).ok();
-
-    // Очистка устаревших временных файлов от аварийных завершений
-    commands::clean_stale_temp_files(&config_dir);
-
-    // Ротация и очистка устаревших логов сессий и компиляций
-    logging::cleanup_logs_on_startup(&logs_dir);
-
-    // Автоматическая распаковка и поддержание актуальности локальных шрифтов в папке fonts/
-    fonts_bundle::ensure_fonts_installed(&exe_dir);
 
     // Полная изоляция WebView2: localStorage, кэш и профиль хранятся строго в папке плеера
     std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", &webview_dir);
@@ -123,47 +107,13 @@ pub fn run() {
         );
     }
 
-    // Установка глобального обработчика паник для записи аварийных вылетов в logs/error.log
-    logging::setup_panic_hook(&logs_dir);
-
-    println!("[L-MPV] Создание MpvManager (Основной плеер)...");
-    let mpv = match MpvManager::new(&exe_dir) {
-        Ok(m) => {
-            println!("[L-MPV] MpvManager успешно создан!");
-            m
-        }
-        Err(e) => {
-            log_error("Менеджер MPV", &format!("Фатальный сбой создания MpvManager: {}", e));
-            panic!("[L-MPV] Ошибка создания MpvManager: {}", e);
-        }
-    };
-
     let settings = commands::AppSettings::load_portable();
-
-    let mpv_arc = Arc::new(mpv);
-
-    // Применяем настройку поведения при окончании воспроизведения видео (yes = автопереход, always = остановка)
-    let keep_open_val = if settings.play_next_on_end { "yes" } else { "always" };
-    let _ = mpv_arc.set_property_string("keep-open", keep_open_val);
-
-    let ambient_controller = Arc::new(ambient::AmbientController::new(
-        mpv_arc.clone(),
-        settings.ambient.clone(),
-    ));
-
-    let cli_initial = parse_cli_args(std::env::args());
-    let audio_capture = Arc::new(crate::audio_capture::AudioCaptureManager::new());
-    let player_state = commands::PlayerState {
-        mpv: mpv_arc,
-        ambient_controller,
-        startup_open_mediainfo: std::sync::atomic::AtomicBool::new(cli_initial.open_mediainfo),
-        audio_capture,
-    };
+    let cli_initial = parse_cli_args(raw_args);
 
     println!("[L-MPV] Инициализация Tauri Builder...");
 
     let mut builder = tauri::Builder::default();
-    
+
     // Если запущено автономное окно MediaInfo (--mediainfo), плагин single_instance не регистрируется,
     // чтобы каждое открытие из контекстного меню Проводника создавало независимое окно без привязки
     // к настройке "Режим нескольких окон" основного плеера.
@@ -174,7 +124,11 @@ pub fn run() {
             let cli = parse_cli_args(args);
             if let Some(ref path) = cli.file_path {
                 if cli.open_mediainfo {
-                    let _ = mediainfo::open_or_update_mediainfo_window(app, path);
+                    let app = app.clone();
+                    let path = path.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = mediainfo::open_or_update_mediainfo_window(&app, &path);
+                    });
                 } else {
                     let _ = app.emit("open-file-cli", path);
                     if let Some(window) = app.get_webview_window("main") {
@@ -183,17 +137,45 @@ pub fn run() {
                         let _ = window.set_focus();
                     }
                 }
+            } else {
+                // Повторный запуск без файла: отображаем и фокусируем главное окно
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                }
             }
         }));
     }
 
+    let resume_exe_dir = exe_dir.clone();
     builder
+        .plugin(startup_runtime::player_plugin(exe_dir, settings, cli_initial))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(player_state)
+        .manage(commands::HeatmapTaskManager::new())
+        .manage(commands::LiveVideoBitrateService::default())
+        .manage(commands::ThumbnailService::default())
         .invoke_handler(tauri::generate_handler![
             // Управление воспроизведением
+            commands::get_timeline_thumbnail,
+            commands::cancel_timeline_thumbnail,
+            commands::prewarm_timeline_thumbnail,
+            commands::get_chapter_thumbnail,
+            commands::cancel_chapter_thumbnails,
+            commands::start_timeline_storyboard,
+            commands::stop_timeline_storyboard,
+            commands::get_timeline_storyboard,
             commands::open_file,
+            commands::browse_media_directory,
+            commands::list_saved_playlists,
+            commands::save_saved_playlist,
+            commands::delete_saved_playlist,
+            commands::import_saved_playlist,
+            commands::export_saved_playlist,
+            commands::play_saved_playlist,
+            commands::complete_startup_playback,
+            commands::startup_pending,
             commands::toggle_pause,
             commands::set_pause,
             commands::seek,
@@ -238,12 +220,15 @@ pub fn run() {
             commands::get_frame_count,
             commands::get_fps,
             commands::get_media_info,
+            commands::get_rendering_and_system_stats,
             mediainfo::get_detailed_media_info,
             mediainfo::is_standalone_mode,
             mediainfo::get_standalone_mediainfo_path,
             mediainfo::open_mediainfo_window,
             mediainfo::toggle_mediainfo_window,
             commands::get_playback_state,
+            app_cache::get_cache_usage,
+            app_cache::clear_app_cache,
             commands::get_video_dimensions,
             system_integration::get_windows_accent_color,
             system_integration::register_file_associations,
@@ -252,6 +237,8 @@ pub fn run() {
             system_integration::register_explorer_context_menu,
             system_integration::unregister_explorer_context_menu,
             system_integration::open_default_apps_settings,
+            system_integration::get_system_diagnostics,
+            system_integration::open_path_in_explorer,
             commands::get_playlist,
             commands::play_playlist_item,
             commands::reload_folder_playlist,
@@ -309,10 +296,17 @@ pub fn run() {
             updater::check_for_updates,
             updater::get_available_releases,
             updater::download_and_install_update,
+            updater::download_and_stage_update,
+            updater::restart_and_apply_update,
+            updater::get_staged_update_version,
             updater::postpone_update,
-            // Аудио-визуализатор
+            // Аудио-визуализатор и звуковая карта
             commands::get_audio_spectrum,
             commands::set_visualizer_active,
+            commands::get_media_heatmap_data,
+            commands::get_live_video_bitrate,
+            commands::cancel_media_heatmap_analysis,
+            commands::clear_waveform_cache,
             // Пресеты настроек
             commands::get_settings_presets,
             commands::save_settings_presets,
@@ -358,13 +352,20 @@ pub fn run() {
                     // Если главное окно плеера скрыто (приложение запущено только для MediaInfo), завершаем процесс
                     if let Some(main_win) = window.app_handle().get_webview_window("main") {
                         if !main_win.is_visible().unwrap_or(false) {
+                            upscale::shutdown_active_processes();
                             window.app_handle().exit(0);
                         }
                     }
-                } else {
+                } else if window.label() == "main" {
+                    window.state::<commands::ThumbnailService>().shutdown();
+                    window.state::<commands::LiveVideoBitrateService>().shutdown();
                     let state = window.state::<PlayerState>();
                     commands::save_current_playback_position(&state);
                     commands::save_history_to_disk();
+                    upscale::shutdown_active_processes();
+                    if let Err(err) = updater::apply_staged_update_on_exit() {
+                        eprintln!("[L-MPV] Ошибка отложенного применения обновления при выходе: {err}");
+                    }
                     // Закрытие главного окна плеера обязано полностью завершать процесс приложения
                     window.app_handle().exit(0);
                 }
@@ -374,7 +375,7 @@ pub fn run() {
             }
             _ => {}
         })
-        .setup(|app| {
+        .setup(move |app| {
             let window = app.get_webview_window("main").unwrap();
             let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
                 width: 1280.0,
@@ -413,12 +414,12 @@ pub fn run() {
                     }
                 }
 
-                // Применяем сохранённые настройки подсветки полос (Ambient Light)
-                let saved_cfg = commands::AppSettings::load_portable();
-                if let Err(e) = state.ambient_controller.apply(&saved_cfg.ambient) {
-                    println!("[L-MPV] Ошибка инициализации Ambient Light: {}", e);
+                // Применяем сохранённые настройки подсветки полос (Blur)
+                let saved_ambient = state.ambient_controller.get_settings();
+                if let Err(e) = state.ambient_controller.apply(&saved_ambient) {
+                    println!("[L-MPV] Ошибка инициализации Blur: {}", e);
                 } else {
-                    println!("[L-MPV] Режим Ambient Light инициализирован: {:?}", saved_cfg.ambient.mode);
+                    println!("[L-MPV] Режим Blur инициализирован: {:?}", saved_ambient.mode);
                 }
             }
 
@@ -429,18 +430,46 @@ pub fn run() {
                 if let Err(e) = mediainfo::open_or_update_mediainfo_window(&app_handle, target_path) {
                     eprintln!("[L-MPV] Ошибка открытия автономного окна MediaInfo: {}", e);
                 }
-                // Окно плеера main остается скрытым
+                // Окно плеера main остается скрытым для автономного режима MediaInfo
             } else if let Some(ref path) = cli.file_path {
                 let state = app.state::<PlayerState>();
                 let app_h = app.handle().clone();
+                commands::arm_startup_playback(&state, path)
+                    .map_err(std::io::Error::other)?;
                 if let Err(e) = commands::open_file_internal(&state, path, Some(&app_h)) {
-                    println!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
+                    let _ = commands::cancel_startup_playback(&state, true);
+                    eprintln!("[L-MPV] Ошибка открытия файла при запуске: {}", e);
+                    window.show().ok();
+                }
+            } else if let Some(resume) = updater::take_update_resume_session(&resume_exe_dir) {
+                if std::path::Path::new(&resume.path).is_file() {
+                    let state = app.state::<PlayerState>();
+                    let app_h = app.handle().clone();
+                    if !resume.paused {
+                        let _ = commands::arm_startup_playback(&state, &resume.path);
+                    }
+                    if let Err(e) = commands::open_file_after_update_resume(
+                        &state,
+                        &resume.path,
+                        resume.position,
+                        resume.paused,
+                        Some(&app_h),
+                    ) {
+                        let _ = commands::cancel_startup_playback(&state, !resume.paused);
+                        eprintln!("[L-MPV] Ошибка восстановления видео после обновления: {}", e);
+                        window.show().ok();
+                    } else if resume.paused {
+                        window.show().ok();
+                    }
+                } else {
                     window.show().ok();
                 }
             } else {
-                // Нет аргумента файла — показываем окно сразу со стартовой страницей
-                window.show().ok();
+                // Запуск без файла: окно НЕ показываем здесь — прозрачное окно
+                // до отрисовки WebView даёт вспышку. Фронт сам покажет окно
+                // после первого кадра (см. startup_pending в App.tsx).
             }
+            startup_runtime::schedule_maintenance(app.handle());
             
             println!("[L-MPV] Tauri Setup завершен!");
             Ok(())
@@ -449,11 +478,11 @@ pub fn run() {
         .expect("Ошибка сборки приложения L-MPV")
         .run(|app_handle, event| {
             if let tauri::RunEvent::ExitRequested { .. } = event {
+                app_handle.state::<commands::ThumbnailService>().shutdown();
                 let state = app_handle.state::<PlayerState>();
                 commands::save_current_playback_position(&state);
                 commands::save_history_to_disk();
+                let _ = updater::apply_staged_update_on_exit();
             }
         });
 }
-
-

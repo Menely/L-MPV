@@ -1,3 +1,4 @@
+import { SelectionRail } from "../../motion/SelectionRail";
 import React from "react";
 import { ChevronsUpDown } from "lucide-react";
 import { CategoryKey, MediaInfoCategoryTab } from "./mediaInfoTypes";
@@ -25,33 +26,31 @@ export const MediaInfoTabsBar: React.FC<MediaInfoTabsBarProps> = React.memo(({
 
   return (
     <div className="mediainfo-standalone__tabs-bar" style={style}>
-      <div className="mediainfo-standalone__tabs-list">
+      <SelectionRail activeKey={activeCategory} className="mediainfo-standalone__tabs-list">
         {tabs.map((tab) => {
           const isActive = activeCategory === tab.key;
           return (
             <button
               key={tab.key}
               type="button"
+              aria-current={isActive ? "true" : undefined}
               className={`mediainfo-tab-chip ${isActive ? "mediainfo-tab-chip--active" : ""}`}
               onClick={() => onSelectCategory(isActive && tab.key !== "all" ? "all" : tab.key)}
             >
-              <span>{tab.label}</span>
+              <span className="mediainfo-tab-chip__label">{tab.label}</span>
               {tab.count > 1 && (
                 <span className="mediainfo-tab-chip__badge">{tab.count}</span>
               )}
             </button>
           );
         })}
-      </div>
+      </SelectionRail>
+
+      <span className="mediainfo-tabs-divider" aria-hidden="true" />
 
       <button
         type="button"
         className="mediainfo-tab-action-btn"
-        title={
-          areAllCollapsed
-            ? useRussian ? "Развернуть все секции" : "Expand all"
-            : useRussian ? "Свернуть все секции" : "Collapse all"
-        }
         onClick={onToggleCollapseAll}
       >
         <ChevronsUpDown size={12} />

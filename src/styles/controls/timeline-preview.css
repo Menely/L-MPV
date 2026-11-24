@@ -1,0 +1,65 @@
+.timeline-preview-card.timeline-preview-card--with-frame {
+  width: 240px;
+  max-width: calc(100vw / var(--ui-scale, 1) - 24px);
+  max-height: calc(100vh / var(--ui-scale, 1) - 16px);
+  box-sizing: border-box;
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow: hidden;
+  background: var(--bg-modal-solid, #11141c) !important;
+  border: 1px solid var(--border-pill) !important;
+  border-radius: var(--radius-controls, 14px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.75), 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
+.timeline-preview-card__frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 0;
+  border: none !important;
+  background: #000000;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.timeline-preview-card__frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.timeline-preview-card__loading {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-text);
+  box-shadow: 0 0 0 2px var(--bg-modal-solid);
+}
+
+/* Карточка со временем и главой на всю ширину кадра, прикреплённая снизу */
+.timeline-preview-card--with-frame .timeline-preview-card__info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: var(--bg-modal-solid, #11141c);
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px 12px 7px;
+  gap: 2px;
+  box-shadow: none;
+  box-sizing: border-box;
+  pointer-events: none;
+}

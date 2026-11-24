@@ -30,6 +30,7 @@ export type MenuItemId =
   | "time_format"
   | "control_bar_style"
   | "control_buttons_visibility"
+  | "heatmap"
   | "settings";
 
 /** Статический дескриптор пункта меню для конфигуратора. */
@@ -44,12 +45,12 @@ export interface MenuItemDescriptor {
 /** Полный реестр всех поддерживаемых пунктов ПКМ-меню. */
 export const MENU_ITEM_REGISTRY: MenuItemDescriptor[] = [
   { id: "open_file", label: "Открыть файл", iconName: "FolderOpen", hasSubmenu: true, description: "Открыть файл с диска или из истории последних файлов" },
-  { id: "audio_track", label: "Аудиодорожка", iconName: "AudioLines", hasSubmenu: true, description: "Выбор активной аудиодорожки из доступных в файле" },
+  { id: "audio_track", label: "Аудиодорожка", iconName: "AudioLines", hasSubmenu: true, description: "Выбор активной аудиодорожки или загрузка внешнего аудиофайла" },
   { id: "subtitle_track", label: "Субтитры", iconName: "Subtitles", hasSubmenu: true, description: "Выбор субтитров или загрузка внешнего файла субтитров" },
   { id: "chapters", label: "Главы", iconName: "BookOpen", hasSubmenu: false, description: "Открыть панель навигации по главам файла" },
   { id: "aspect_ratio", label: "Видеокадр", iconName: "Monitor", hasSubmenu: true, description: "Масштаб кадра в окне: растянуть, вписать или заполнить с обрезкой" },
   { id: "rotation", label: "Поворот видео", iconName: "RotateCw", hasSubmenu: true, description: "Поворот видео на 0°, 90°, 180° или 270°" },
-  { id: "ambient", label: "Подсветка полос", iconName: "Sparkles", hasSubmenu: true, description: "Режим Ambient Light: выкл / размытие / цветной фон" },
+  { id: "ambient", label: "Blur", iconName: "Sparkles", hasSubmenu: true, description: "Размытие чёрных полос краями кадра: выкл / вкл" },
   { id: "speed", label: "Скорость воспроизведения", iconName: "Zap", hasSubmenu: true, description: "Скорость воспроизведения: 0.25× – 2×" },
   { id: "upscale", label: "Апскейлинг", iconName: "Cpu", hasSubmenu: true, description: "Выбор нейросетевых моделей апскейлинга и качества видео" },
   { id: "repeat_mode", label: "Режим повтора", iconName: "Repeat", hasSubmenu: true, description: "Без повтора / повтор файла / повтор плейлиста" },
@@ -63,6 +64,7 @@ export const MENU_ITEM_REGISTRY: MenuItemDescriptor[] = [
   { id: "time_format", label: "Формат времени", iconName: "Timer", hasSubmenu: true, description: "Формат таймера: прошедшее / оставшееся / до конца / …" },
   { id: "control_bar_style", label: "Стиль панели", iconName: "LayoutTemplate", hasSubmenu: true, description: "Стиль нижней панели управления плеером" },
   { id: "control_buttons_visibility", label: "Кнопки панели управления", iconName: "Eye", hasSubmenu: true, description: "Настройка видимости кнопок на нижней панели управления" },
+  { id: "heatmap", label: "Тепловая карта", iconName: "Flame", hasSubmenu: true, description: "Включение и настройка тепловой карты таймлайна (звук / битрейт)" },
   { id: "settings", label: "Настройки", iconName: "Settings", hasSubmenu: false, description: "Открыть окно настроек L-MPV (F2)" },
 ];
 
@@ -82,13 +84,6 @@ export function isMenuItemId(id: unknown): id is MenuItemId {
 }
 
 /** Вспомогательная функция быстрого поиска дескриптора по ID за O(1). */
-export function getMenuItemDescriptor(
-  id: MenuItemId,
-): MenuItemDescriptor | undefined {
-  return MENU_ITEM_MAP.get(id);
-}
-
-/** Возвращает локализованное название и описание пункта меню. */
 export function getLocalizedMenuItem(
   dict: TranslationDict,
   descriptor: MenuItemDescriptor,
@@ -135,6 +130,8 @@ export function getLocalizedMenuItem(
       return { label: reg.barStyle, description: reg.barStyleDesc };
     case "control_buttons_visibility":
       return { label: reg.controlBtns, description: reg.controlBtnsDesc };
+    case "heatmap":
+      return { label: reg.heatmap, description: reg.heatmapDesc };
     case "settings":
       return { label: reg.settings, description: reg.settingsDesc };
     default:

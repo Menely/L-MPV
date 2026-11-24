@@ -1,11 +1,18 @@
+import { isTimelinePreviewEnabled } from "../../utils/timelinePreviewPreference";
+import { supportsTimelineThumbnail, thumbnailWidth as pickThumbnailWidth } from "../../utils/timelineThumbnail";
+import { prewarmTimelineThumbnail, useTimelineStoryboard } from "../../hooks/useTimelineStoryboard";
+import { getActiveUiScale } from "../../utils/uiThemeUtils";
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
+import { useTranslation } from "../../i18n/LanguageContext";
 import { formatTime } from "../../utils/timeUtils";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { useLiveScrubbing } from "./useLiveScrubbing";
+import { TimelinePreview } from "./timeline/TimelinePreview";
 import { useNeonPulse } from "./useNeonPulse";
 import { isMotionAllowed } from "../../utils/animationUtils";
 import { getSavedSeekStepSeconds, triggerSeekIndicator } from "../../utils/seekUtils";
+import { timelineScrubSync } from "../../utils/timelineScrubSync";
 
 export interface TimelineSegmentData {
   start: number;
@@ -20,7 +27,9 @@ export interface TimelineSegmentData {
 export function buildTimelineSegments(
   chapters: Array<{ time: number; title: string }>,
   duration: number,
-  fallbackTitle: string
+  fallbackTitle: string,
+  startLabel: string = "Начало",
+  chapterItemFn: (i: number) => string = (i) => `Глава ${i}`
 ): TimelineSegmentData[] {
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
   if (safeDuration <= 0) return [{ start: 0, end: 0, title: fallbackTitle }];
@@ -34,14 +43,14 @@ export function buildTimelineSegments(
 
   const segs: TimelineSegmentData[] = [];
   if (valid[0].time > 0.05) {
-    segs.push({ start: 0, end: valid[0].time, title: fallbackTitle || "Начало" });
+    segs.push({ start: 0, end: valid[0].time, title: fallbackTitle || startLabel });
   }
 
   for (let i = 0; i < valid.length; i++) {
     const start = valid[i].time;
     const end = i + 1 < valid.length ? valid[i + 1].time : safeDuration;
     if (end > start) {
-      segs.push({ start, end, title: valid[i].title || `Глава ${i + 1}` });
+      segs.push({ start, end, title: valid[i].title || chapterItemFn(i + 1) });
     }
   }
 
@@ -50,7 +59,7 @@ export function buildTimelineSegments(
 
 /** Процент заполнения отрезка [segStart, segEnd] относительно позиции time. */
 function calcSegPercent(time: number, segStart: number, segEnd: number): number {
-  if (time >= segEnd) return 100;
+  if (time>= segEnd) return 100;
   if (time <= segStart) return 0;
   return ((time - segStart) / (segEnd - segStart)) * 100;
 }
@@ -67,16 +76,10 @@ function tryRelease(el: Element, pointerId: number): void {
   } catch { /* noop */ }
 }
 
-/** Конвертация clientX в позицию [0, duration] без layout thrashing. */
-function clientXToSeconds(clientX: number, rect: DOMRect, duration: number): number {
-  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-  return rect.width > 0 ? (x / rect.width) * duration : 0;
-}
-
 /** Конвертация clientX в ratio [0, 1]. */
 function clientXToRatio(clientX: number, rect: DOMRect): number {
   const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-  return rect.width > 0 ? x / rect.width : 0;
+  return rect.width> 0 ? x / rect.width : 0;
 }
 
 // ─── Мемоизированные sub-компоненты ──────────────────────────────────────────
@@ -95,15 +98,15 @@ const TimelineSegment = React.memo<TimelineSegmentProps>(
       style={{
         flexBasis: `${flexBasis}%`,
       }}
-    >
+      >
       <div className="timeline__segment-bg" />
-      {segGhostProgress > 0 && (
+      {segGhostProgress> 0 && (
         <div
           className="timeline__segment-ghost"
           style={{ width: `${segGhostProgress}%` }}
         />
       )}
-      {segProgress > 0 && (
+      {segProgress> 0 && (
         <div
           className="timeline__segment-progress"
           style={{ width: `${segProgress}%` }}
@@ -111,32 +114,8 @@ const TimelineSegment = React.memo<TimelineSegmentProps>(
       )}
     </div>
   )
-);
-TimelineSegment.displayName = "TimelineSegment";
-
-interface TimelinePreviewProps {
-  hoverInfo: { ratio: number; time: number };
-  segments: TimelineSegmentData[];
-  mediaPath: string;
-}
-
-const TimelinePreview = React.memo<TimelinePreviewProps>(({ hoverInfo, segments, mediaPath }) => {
-  const active =
-    segments.find((s) => hoverInfo.time >= s.start && hoverInfo.time <= s.end) ||
-    segments[segments.length - 1];
-  const showChapter = Boolean(active?.title && active.title !== mediaPath);
-
-  return (
-    <div
-      className="timeline-preview-card"
-      style={{ left: `clamp(48px, ${hoverInfo.ratio * 100}%, calc(100% - 48px))` }}
-    >
-      <div className="timeline-preview-card__time">{formatTime(hoverInfo.time)}</div>
-      {showChapter && <div className="timeline-preview-card__chapter">{active.title}</div>}
-    </div>
   );
-});
-TimelinePreview.displayName = "TimelinePreview";
+TimelineSegment.displayName = "TimelineSegment";
 
 // ─── Главный компонент ────────────────────────────────────────────────────────
 
@@ -152,16 +131,49 @@ TimelinePreview.displayName = "TimelinePreview";
  * - WAI-ARIA slider + полная клавиатурная навигация.
  */
 export const Timeline = React.memo(() => {
+  const { dict } = useTranslation();
   const {
     mediaInfo,
+    tracks,
     chapters,
     seekTo,
     seekBy,
     togglePause,
+    setPause,
     prolongControlsIfActive,
   } = usePlayerState();
   const { position, duration, seeking, seekTarget } = usePlayerProgress();
+  const [previewEnabled, setPreviewEnabled] = useState(isTimelinePreviewEnabled);
+  useEffect(() => {
+    const sync = () => setPreviewEnabled(isTimelinePreviewEnabled());
+    window.addEventListener("l-mpv-settings-changed", sync);
+    return () => window.removeEventListener("l-mpv-settings-changed", sync);
+  }, []);
   const mediaPath = mediaInfo?.path || "";
+  const selectedVideoTrack = tracks.find((track) => track.type === "video" && track.selected)?.id ?? null;
+  const thumbnailsEnabled = previewEnabled && supportsTimelineThumbnail(mediaPath, mediaInfo?.has_video ?? false);
+  const [thumbnailWidth, setThumbnailWidth] = useState(() => pickThumbnailWidth(window.devicePixelRatio, getActiveUiScale()));
+  useEffect(() => {
+    const sync = () => setThumbnailWidth(pickThumbnailWidth(window.devicePixelRatio, getActiveUiScale()));
+    window.addEventListener("resize", sync);
+    window.addEventListener("l-mpv-ui-scale-changed", sync);
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("l-mpv-ui-scale-changed", sync);
+    };
+  }, []);
+  // Storyboard tiles are built right after a file opens, before the first hover.
+  useTimelineStoryboard(mediaPath, selectedVideoTrack, thumbnailsEnabled, thumbnailWidth);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!thumbnailsEnabled) return;
+    // Entering the controls area starts loading the file in the preview decoder.
+    const area = timelineRef.current?.closest(".player-controls") ?? timelineRef.current;
+    if (!area) return;
+    const prewarm = () => prewarmTimelineThumbnail(mediaPath, selectedVideoTrack, thumbnailWidth);
+    area.addEventListener("pointerenter", prewarm);
+    return () => area.removeEventListener("pointerenter", prewarm);
+  }, [thumbnailsEnabled, mediaPath, selectedVideoTrack, thumbnailWidth]);
 
   const { scheduleScrub, cancelScrub } = useLiveScrubbing();
   const { pulse, firePulse, dismissPulse } = useNeonPulse();
@@ -169,7 +181,11 @@ export const Timeline = React.memo(() => {
   const [mousePosition, setMousePosition] = useState<number | null>(null);
   const [isDraggingState, setIsDraggingState] = useState(false);
   const isDragging = useRef(false);
+  const wasPlayingRef = useRef(false);
+  const mediaInfoRef = useRef(mediaInfo);
+  mediaInfoRef.current = mediaInfo;
   const cachedRectRef = useRef<DOMRect | null>(null);
+  const dragStartXRef = useRef<number | null>(null);
 
   // ─── Производные значения ────────────────────────────────────
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
@@ -178,11 +194,17 @@ export const Timeline = React.memo(() => {
   const thumbPct = safeDuration > 0 ? Math.max(0, Math.min(100, (displayPos / safeDuration) * 100)) : 0;
 
   const segments = useMemo(
-    () => buildTimelineSegments(chapters, safeDuration, mediaPath),
-    [chapters, safeDuration, mediaPath]
+    () => buildTimelineSegments(
+      chapters,
+      safeDuration,
+      mediaPath,
+      dict.chapters.start,
+      dict.chapters.chapterItem
+    ),
+    [chapters, safeDuration, mediaPath, dict.chapters.start, dict.chapters.chapterItem]
   );
 
-  const hasChapters = segments.length > 1;
+  const hasChapters = segments.length> 1;
 
   // ─── Hover rAF-батчер ────────────────────────────────────────
   const [hoverInfo, setHoverInfo] = useState<{ ratio: number; time: number } | null>(null);
@@ -192,9 +214,9 @@ export const Timeline = React.memo(() => {
   const hoveredSegIndex = useMemo(() => {
     if (!hoverInfo || !hasChapters) return -1;
     const t = hoverInfo.time;
-    const idx = segments.findIndex((s) => t >= s.start && t <= s.end);
+    const idx = segments.findIndex((s) => t>= s.start && t <= s.end);
     if (idx !== -1) return idx;
-    if (t >= segments[segments.length - 1].start) return segments.length - 1;
+    if (t>= segments[segments.length - 1].start) return segments.length - 1;
     if (t <= segments[0].end) return 0;
     return -1;
   }, [hoverInfo, hasChapters, segments]);
@@ -209,7 +231,13 @@ export const Timeline = React.memo(() => {
     const time = ratio * safeDuration;
     if (p.drag) {
       setMousePosition(time);
-      scheduleScrub(time);
+      timelineScrubSync.update(time, ratio, safeDuration);
+      // Во время перетаскивания используем быстрые ключевые кадры (exact=false),
+      // чтобы не перегружать декодер на паузе, и игнорируем микро-сдвиги (< 3px) при обычном клике.
+      const movedDistance = dragStartXRef.current !== null ? Math.abs(p.x - dragStartXRef.current) : 999;
+      if (movedDistance > 3) {
+        scheduleScrub(time, false);
+      }
     }
     setHoverInfo({ ratio, time });
   };
@@ -232,9 +260,16 @@ export const Timeline = React.memo(() => {
       window.removeEventListener("resize", invalidateRect);
       if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
       cachedRectRef.current = null;
+      cancelScrub();
+      if (isDragging.current) {
+        timelineScrubSync.cancel();
+        if (wasPlayingRef.current) {
+          setPause(false);
+        }
+      }
       isDragging.current = false;
     };
-  }, []);
+  }, [setPause, cancelScrub]);
 
   // ─── Pointer handlers ────────────────────────────────────────
 
@@ -249,11 +284,19 @@ export const Timeline = React.memo(() => {
 
     const rect = e.currentTarget.getBoundingClientRect();
     cachedRectRef.current = rect;
+    dragStartXRef.current = e.clientX;
     isDragging.current = true;
     setIsDraggingState(true);
 
+    const isCurrentlyPlaying = mediaInfoRef.current ? !mediaInfoRef.current.paused : false;
+    wasPlayingRef.current = isCurrentlyPlaying;
+    if (isCurrentlyPlaying) {
+      setPause(true);
+    }
+
     const ratio = clientXToRatio(e.clientX, rect);
     const time = ratio * safeDuration;
+    timelineScrubSync.update(time, ratio, safeDuration);
 
     // При выключенных анимациях волну не запускаем: без animationEnd
     // страховка всё равно уберёт её через 600мс, но лучше не создавать DOM.
@@ -262,7 +305,7 @@ export const Timeline = React.memo(() => {
     }
     setMousePosition(time);
     setHoverInfo({ ratio, time });
-  }, [safeDuration, firePulse]);
+  }, [safeDuration, firePulse, setPause]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (safeDuration <= 0) return;
@@ -279,7 +322,11 @@ export const Timeline = React.memo(() => {
   ) => {
     if (!isDragging.current) return;
     isDragging.current = false;
+    dragStartXRef.current = null;
     setIsDraggingState(false);
+
+    const shouldResume = wasPlayingRef.current;
+    wasPlayingRef.current = false;
 
     if (rafId.current !== null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
     pendingClientX.current = null;
@@ -292,10 +339,16 @@ export const Timeline = React.memo(() => {
 
     if (commit) {
       if (rect.width <= 0 || safeDuration <= 0) {
+        timelineScrubSync.cancel();
         setMousePosition(null);
+        if (shouldResume) {
+          setPause(false);
+        }
         return;
       }
-      const finalPos = clientXToSeconds(e.clientX, rect, safeDuration);
+      const finalRatio = clientXToRatio(e.clientX, rect);
+      const finalPos = finalRatio * safeDuration;
+      timelineScrubSync.commit(finalPos, finalRatio, safeDuration);
       setMousePosition(null);
       // Единственный точный сик за жест; превью драга — лёгкие keyframes.
       seekTo(finalPos);
@@ -307,14 +360,19 @@ export const Timeline = React.memo(() => {
       if (outside) setHoverInfo(null);
     } else {
       // cancel: откатываем без seek
+      timelineScrubSync.cancel();
       setMousePosition(null);
+    }
+
+    if (shouldResume) {
+      setPause(false);
     }
 
     // Снимаем фокус с таймлайна, чтобы он не перехватывал последующие клавиатурные команды
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
-  }, [safeDuration, cancelScrub, seekTo]);
+  }, [safeDuration, cancelScrub, seekTo, setPause]);
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => stopDrag(e, true),
@@ -342,7 +400,7 @@ export const Timeline = React.memo(() => {
   }, [safeDuration, seekBy, prolongControlsIfActive]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (safeDuration <= 0) return;
+    if (safeDuration <= 0 || isDragging.current) return;
 
     if (e.key === " " || e.key === "Spacebar") {
       e.preventDefault();
@@ -386,12 +444,13 @@ export const Timeline = React.memo(() => {
 
   return (
     <div
+      ref={timelineRef}
       className={`timeline ${isDraggingState ? "timeline--dragging" : ""} ${
         hasChapters ? "timeline--has-chapters" : ""
       }`}
       role="slider"
       tabIndex={0}
-      aria-label="Шкала времени воспроизведения"
+      aria-label={dict.controls.timelineAriaLabel}
       aria-valuemin={0}
       aria-valuemax={safeDuration}
       aria-valuenow={Math.round(displayPos)}
@@ -403,12 +462,15 @@ export const Timeline = React.memo(() => {
       onPointerLeave={handlePointerLeave}
       onWheel={handleWheel}
       onKeyDown={handleKeyDown}
-    >
+      >
       <AudioVisualizer placement="inside_timeline" />
 
       {hoverInfo && (
-        <TimelinePreview hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath} />
+        <TimelinePreview previewEnabled={previewEnabled} hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath}
+          hasVideo={mediaInfo?.has_video ?? false} fps={mediaInfo?.fps ?? 0} thumbnailWidth={thumbnailWidth}
+          videoTrack={selectedVideoTrack} />
       )}
+
 
       {pulse && (
         <div
@@ -425,12 +487,12 @@ export const Timeline = React.memo(() => {
           style={{
             gap: hasChapters ? "3px" : "0px",
           }}
-        >
+          >
           {segments.map((seg, i) => {
             const segDur = seg.end - seg.start;
-            const flexBasis = safeDuration > 0 ? (segDur / safeDuration) * 100 : 100;
-            const segProgress = segDur > 0 ? calcSegPercent(displayPos, seg.start, seg.end) : 0;
-            const segGhost = hoverInfo && segDur > 0
+            const flexBasis = safeDuration> 0 ? (segDur / safeDuration) * 100 : 100;
+            const segProgress = segDur> 0 ? calcSegPercent(displayPos, seg.start, seg.end) : 0;
+            const segGhost = hoverInfo && segDur> 0
               ? calcSegPercent(hoverInfo.time, seg.start, seg.end)
               : 0;
             const isHovered = hasChapters && i === hoveredSegIndex;

@@ -57,6 +57,7 @@ function validateLayout(raw: unknown): LayoutEntry[] {
       valid.push({ type: "item", id: entry.id });
     }
   }
+  // Defaults apply only to new/reset menus. Preserve existing heatmap entries.
   return valid.some((e) => e.type === "item") ? valid : [...DEFAULT_LAYOUT];
 }
 
@@ -88,6 +89,12 @@ export async function initLayoutFromBackend(): Promise<LayoutEntry[]> {
     if (json && json.trim().length > 0) {
       const parsed = JSON.parse(json);
       const validated = validateLayout(parsed);
+      // Persist validation repairs, without removing valid saved menu items.
+      if (JSON.stringify(validated) !== JSON.stringify(parsed)) {
+        await invoke("save_context_menu_layout", {
+          layoutJson: JSON.stringify(validated, null, 2),
+        });
+      }
       cachedLayout = validated;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(validated));
       window.dispatchEvent(new Event(LAYOUT_CHANGED_EVENT));

@@ -16,6 +16,17 @@ export type Locale = "ru" | "en";
 export interface TranslationDict {
   // ─── Панель управления (PlayerControls) ───────────────────────
   controls: {
+    play: string;
+    pause: string;
+    prev: string;
+    next: string;
+    seekBackward: (sec: number) => string;
+    seekForward: (sec: number) => string;
+    shuffle: string;
+    mute: string;
+    unmute: string;
+    contextMenu: string;
+    more: string;
     audioTracks: string;
     subtitles: string;
     subOff: string;
@@ -25,8 +36,11 @@ export interface TranslationDict {
     volume: string;
     searchSubtitles: string;
     disableSubtitles: string;
+    externalTrackBadge: string;
+    externalTrackTooltip: string;
     downloadAudio: string;
     downloadSubtitle: string;
+    audioFilter: string;
     downloadingAudio: string;
     downloadingSubtitle: string;
     screenshot: string;
@@ -44,13 +58,25 @@ export interface TranslationDict {
     repeatOff: string;
     repeatOne: string;
     repeatAll: string;
+    /** Подсказка при наведении на формат времени */
+    timeFormatHint: string;
+    /** ARIA-метка шкалы времени воспроизведения */
+    timelineAriaLabel: string;
+    /** Подсказка на пустом экране плеера (перетащите файл или откройте) */
+    placeholderHint: string;
     /** Короткая метка на кнопке скипа опенинга, например '+90s' */
     skipOpeningShortLabel: (sec: number) => string;
+    /** Метка кнопки скорости воспроизведения */
+    speed?: string;
+    /** Подсказка на кнопке скорости воспроизведения */
+    speedHint?: string;
+    speedReset?: string;
   };
 
   // ─── Плейлист (PlaylistDrawer) ─────────────────────────────────
   playlist: {
     title: string;
+    tabsLabel: string;
     search: string;
     clearSearch: string;
     close: string;
@@ -61,6 +87,32 @@ export interface TranslationDict {
     nothingFoundDesc: string;
     trackBadge: (current: number, total: number) => string;
     resizeHandle: string;
+    pin: string;
+    unpin: string;
+    movePanel: string;
+  };
+  explorer: {
+    options: string;
+    playableOnly: string;
+    title: string;
+    search: string;
+    parent: string;
+    pickFolder: string;
+    loading: string;
+    empty: string;
+    needMedia: string;
+    openError: string;
+  };
+
+  savedPlaylist: {
+    newList: string;
+    dropUnsupported: string;
+    dropBusy: string;
+    source: string; currentFolder: string; create: string; actions: string; saveFolder: string;
+    rename: string; delete: string; importList: string; exportList: string; name: string;
+    save: string; cancel: string; deleteConfirm: string; addFiles: string; mediaFiles: string;
+    moveUp: string; moveDown: string; remove: string; loading: string; saving: string;
+    empty: string; retry: string; playHint: string; count: (count: number) => string; error: (error: string) => string;
   };
 
   // ─── Titlebar ──────────────────────────────────────────────────
@@ -73,9 +125,13 @@ export interface TranslationDict {
 
   // ─── Главы (ChaptersModal) ─────────────────────────────────────
   chapters: {
-    title: (count: number) => string;
+    title: string;
     close: string;
     noChapters: string;
+    /** Название первого сегмента шкалы времени до первой главы */
+    start: string;
+    /** Формат имени главы по умолчанию при отсутствии тега title */
+    chapterItem: (index: number) => string;
   };
 
   // ─── Медиаинфо (MediaInfoModal, DetailedMediaInfoModal) ────────
@@ -112,6 +168,7 @@ export interface TranslationDict {
       presets: string;
       upscaling: string;
       hotkeys: string;
+      system: string;
       integration: string;
     };
     general: {
@@ -153,6 +210,9 @@ export interface TranslationDict {
       subAvoidUiDesc: string;
       saveTracksToDirTitle: string;
       saveTracksToDirDesc: string;
+      timelinePreviewTitle: string;
+      timelinePreviewDesc: string;
+
       // Язык
       languageSection: string;
       languageTitle: string;
@@ -163,6 +223,8 @@ export interface TranslationDict {
       contextMenuSection: string;
       // Качество видео и аудио
       videoAudioSection: string;
+      volumeIndicatorTitle: string;
+      volumeIndicatorDesc: string;
       // Блок 1: Лимитер
       audioLimiterTitle: string;
       audioLimiterDesc: string;
@@ -211,8 +273,7 @@ export interface TranslationDict {
       audioNormalizeOff: string;
       audioNormalizeDyn: string;
       audioNormalizeLoud: string;
-      audioNormalizeNeedsLimiter: string;
-      audioNormalizeLimiterWarning: string;
+      audioNormalizeEbu128: string;
       videoAudioDesc: string;
       tileFrameTitle: string;
       tileFrameDesc: string;
@@ -289,11 +350,19 @@ export interface TranslationDict {
         plus10: string;
         next: string;
         shuffle: string;
+        builderTitle: string;
+        builderHint: string;
+        builderOrderTitle: string;
+        builderOrderHint: string;
+        addCard: string;
+        removeCard: string;
+        resetOrder: string;
+        emptyCardHint: string;
+        allHiddenHint: string;
       };
       ambientLight: {
         mode: string;
         blurRadius: string;
-        color: string;
         reset100: string;
       };
       visualizer: {
@@ -321,7 +390,10 @@ export interface TranslationDict {
         themes: Record<string, { label: string; desc: string }>;
         modes: Record<string, { label: string; desc: string }>;
         placements: Record<string, { label: string; desc: string }>;
+        waveformStrip: string;
+        waveformStripDesc: string;
       };
+
       colorScheme: {
         sectionDesc: string;
         preview: string;
@@ -347,6 +419,18 @@ export interface TranslationDict {
         playerThemes: Record<string, string>;
         colorPickerTitle: string;
         colorPickerClose: string;
+        quickColors: string;
+        selectPresetColor: (hex: string) => string;
+        compareResetHint: string;
+        compareResetAria: string;
+        currentColorLabel: (hex: string) => string;
+        initialColorLabel: (hex: string) => string;
+        hexLabel: string;
+        copiedLabel: string;
+        copyHexLabel: string;
+        copyRgbLabel: string;
+        channelLabel: (ch: string) => string;
+        brightness: string;
         cancel: string;
         add: string;
       };
@@ -375,8 +459,11 @@ export interface TranslationDict {
       timeFormatEndsAt: (time: string) => string;
       reset100Percent: string;
       resetFloating: string;
+      resetModern: string;
       styleCapsule: string;
       styleCapsuleDesc: string;
+      styleModern: string;
+      styleModernDesc: string;
       styleClassic: string;
       styleClassicDesc: string;
       timePosition: string;
@@ -403,6 +490,7 @@ export interface TranslationDict {
       visPlaylist: string;
       visFullscreen: string;
       visSkipOpening: string;
+      visSpeed: string;
       secSuffix: string;
       ambientSection: string;
       ambientDesc: string;
@@ -443,6 +531,70 @@ export interface TranslationDict {
       ambientDirRight: string;
       ambientHdrDim: string;
       ambientHdrDimDesc: string;
+      heatmap: {
+        sectionTitle: string;
+        sectionDesc: string;
+        off: string;
+        previewTitle: string;
+        enableTitle: string;
+        enableDesc: string;
+        styleTitle: string;
+        styles: {
+          bars: string;
+          barsDesc: string;
+          spline: string;
+          splineDesc: string;
+          blocks: string;
+          blocksDesc: string;
+          area: string;
+          areaDesc: string;
+          steps: string;
+          stepsDesc: string;
+          dots: string;
+          dotsDesc: string;
+        };
+        sourceTitle: string;
+        sources: {
+          audio: string;
+          audioDesc: string;
+          videoBitrate: string;
+          videoBitrateDesc: string;
+          dialogue?: string;
+          dialogueDesc?: string;
+          motion?: string;
+          motionDesc?: string;
+        };
+        paletteTitle: string;
+        palettes: {
+          theme: string;
+          thermal: string;
+          cyberpunk: string;
+          monochrome: string;
+          sunset: string;
+          aurora: string;
+          ocean: string;
+          plasma: string;
+        };
+        geometryTitle: string;
+        placementLabel: string;
+        aboveControls: string;
+        aboveTimeline: string;
+        inTimeline?: string;
+        heightLabel: string;
+        heightDesc: string;
+        opacityLabel: string;
+        opacityDesc: string;
+        loadingText: string;
+        errorText: string;
+        noVideoStream: string;
+        avgVolume: string;
+        peakVolume: string;
+        intervalBitrate: (seconds: number) => string;
+        retry: string;
+        clearCache: string;
+        clearCacheDesc: string;
+        cacheCleared: (count: number) => string;
+      };
     };
     presets: {
       presetsSection: string;
@@ -463,6 +615,10 @@ export interface TranslationDict {
       errUpdate: string;
       toastUpdateFail: string;
       confirmDelete: (name: string) => string;
+      confirmDeleteTitle: string;
+      confirmDeleteWarning: string;
+      btnDeleteConfirm: string;
+      btnDeleteCancel: string;
       toastDeleted: (name: string) => string;
       toastRenamed: (name: string) => string;
       toastImported: (count: number) => string;
@@ -486,7 +642,6 @@ export interface TranslationDict {
       ambientTitle: string;
       ambientOff: string;
       ambientBlur: string;
-      ambientColor: string;
       visualizerTitle: string;
       visualizerMode: (mode: string) => string;
       visualizerOff: string;
@@ -573,6 +728,14 @@ export interface TranslationDict {
       backendDesc: string;
       backendOpenFolderTitle: string;
       statusInstalled: string;
+      runtimeUpdateRequired: string;
+      playerUpdateRequired: string;
+      runtimeRestartRequired: string;
+      downloadMismatch: string;
+      upscaleBusy: string;
+      btnUpdateEngine: string;
+      trtRebuildBadge: string;
+      trtRebuildRequired: string;
       statusNotInstalled: string;
       badgeInstalledTitle: string;
       btnDownloadLibsTitle: string;
@@ -599,6 +762,8 @@ export interface TranslationDict {
       trtCompileTitle: string;
       trtCompileBadge: string;
       compilingProgress: string;
+      favoriteSetTitle: string;
+      favoriteUnsetTitle: string;
     };
     hotkeys: {
       hotkeysSection: string;
@@ -628,25 +793,113 @@ export interface TranslationDict {
     };
     integrationFields: {
       fileAssocTitle: string;
+      fileAssocSubtitle: string;
       fileAssocDesc: string;
       errReg: (err: string) => string;
       statusLinking: string;
+      statusLinkingShort: string;
       btnLink: string;
+      btnLinkFiles: string;
       errOpenSettings: (err: string) => string;
       btnWindowsSettings: string;
+      btnWindowsParams: string;
+      btnWindowsParamsTooltip: string;
       errUnreg: (err: string) => string;
       statusUnlinking: string;
+      statusUnlinkingShort: string;
       btnUnlink: string;
+      btnUnlinkFiles: string;
+      btnUnlinkFilesTooltip: string;
       cmenuTitle: string;
       cmenuActive: string;
       cmenuInactive: string;
+      cmenuSubtitle: string;
       cmenuDesc: string;
       errCmenuReg: (err: string) => string;
       statusApplying: string;
+      statusApplyingShort: string;
       btnAddCmenu: string;
+      btnAddCmenuShort: string;
       errCmenuUnreg: (err: string) => string;
       btnRemoveCmenu: string;
+      btnRemoveCmenuShort: string;
       logPlaceholder: string;
+      operationLogTitle: string;
+    };
+    systemFields: {
+      title: string;
+      desc: string;
+      btnRefresh: string;
+      btnRefreshTooltip: string;
+      loadingDiagnostics: string;
+      coreTitle: string;
+      coreDesc: string;
+      appVersion: string;
+      appArch: string;
+      appMode: string;
+      modePortable: string;
+      libmpvTitle: string;
+      libmpvDesc: string;
+      libmpvActive: string;
+      libmpvMissing: string;
+      animejanaiCompiled: string;
+      animejanaiNotDetected: string;
+      ffmpegTitle: string;
+      ffmpegDesc: string;
+      mediainfoTitle: string;
+      mediainfoDesc: string;
+      aiInferenceTitle: string;
+      aiInferenceDesc: string;
+      aiInstalledBadge: (count: number) => string;
+      ajiBridge: string;
+      tensorrtRuntime: string;
+      directmlRuntime: string;
+      hardwareTitle: string;
+      hardwareDesc: string;
+      gpuModel: string;
+      gpuVram: string;
+      gpuArch: string;
+      gpuRecommended: string;
+      modelsAndEngines: string;
+      btnCopyReport: string;
+      btnCopyReportTooltip: string;
+      reportCopied: string;
+      copyReportError: string;
+      diagError: (err: string) => string;
+      statusActive: string;
+      statusMissing: string;
+      statusSupported: string;
+      statusNotSupported: string;
+      noAiEngines: string;
+      healthTitle: string;
+      healthEngine: string;
+      healthAi: string;
+      healthGpu: string;
+      healthIntegration: string;
+      healthOk: string;
+      healthCheck: string;
+      healthNoRuntime: string;
+      healthDiskLow: string;
+      webview2Title: string;
+      osBuildTitle: string;
+      diskTitle: string;
+      diskFree: (freeMb: number, totalMb: number) => string;
+      fontsTitle: string;
+      fontsValue: (builtin: number, custom: number) => string;
+      exeWritableOk: string;
+      exeWritableNo: string;
+      btnOpenFolder: string;
+      btnCopyPath: string;
+      pathCopied: string;
+      pathActionError: (error: string) => string;
+      btnDownloadReport: string;
+      btnCopyJson: string;
+      logFilterAll: string;
+      logFilterOk: string;
+      logFilterWarn: string;
+      logFilterError: string;
+      btnClearLog: string;
+      btnOpenCacheFolder: string;
     };
     contextMenuConfig: {
       cmenuConfigTitle: string;
@@ -708,6 +961,8 @@ export interface TranslationDict {
       barStyleDesc: string;
       controlBtns: string;
       controlBtnsDesc: string;
+      heatmap: string;
+      heatmapDesc: string;
       settings: string;
       settingsDesc: string;
     };
@@ -717,6 +972,11 @@ export interface TranslationDict {
       alwaysOnTop: string;
       fileInfo: string;
       mediaInfo: string;
+      heatmap: string;
+      heatmapOn: string;
+      heatmapOff: string;
+      osdHeatmapOn: string;
+      osdHeatmapOff: string;
       visualizer: string;
       screenshot: string;
       playlist: string;
@@ -753,6 +1013,7 @@ export interface TranslationDict {
       audioTrack: string;
       trackLabel: (id: string | number, lang: string) => string;
       downloadAudio: string;
+      loadAudio: string;
       noAudio: string;
       subtitles: string;
       subOff: string;
@@ -803,6 +1064,24 @@ export interface TranslationDict {
       osdBarStyle: (label: string) => string;
       controlBtns: string;
       settings: string;
+      groupRecent: string;
+      groupAudioTracks: string;
+      groupSubTracks: string;
+      groupSubTools: string;
+      groupFrameScale: string;
+      groupRotation: string;
+      groupAmbient: string;
+      groupSpeed: string;
+      groupUpscaleModels: string;
+      groupRepeat: string;
+      groupUserPresets: string;
+      groupBuiltinPresets: string;
+      groupTimePos: string;
+      groupTimeFmt: string;
+      groupBarStyle: string;
+      groupControlBtns: string;
+      groupHeatmapSource: string;
+      groupHeatmapStyle: string;
     };
     integration: {
       githubTooltip: string;
@@ -837,6 +1116,38 @@ export interface TranslationDict {
     volume: string;
     kbps: string;
     ch: string;
+    // Вкладки оверлея
+    tabSummary: string;
+    tabRendering: string;
+    tabTracks: string;
+    // Секция рендеринга и железа
+    hardwareTitle: string;
+    decoderTitle: string;
+    displaySyncTitle: string;
+    cpu: string;
+    ram: string;
+    gpu: string;
+    vram: string;
+    hwdec: string;
+    pixelFormat: string;
+    colorRange: string;
+    colorTransfer: string;
+    maxCllFall: string;
+    displayFps: string;
+    avSync: string;
+    voDelayed: string;
+    pcLabel: string;
+    delayedWord: string;
+    mistimedWord: string;
+    // Секция дорожек и глав
+    audioTracksTitle: string;
+    subTracksTitle: string;
+    chaptersTitle: string;
+    activeBadge: string;
+    noAudioTracks: string;
+    noSubTracks: string;
+    noChapters: string;
+    chapterCount: (current: number, total: number) => string;
   };
 
   // ─── Окно поиска по субтитрам (SubtitlesSearchModal) ───────────
@@ -857,6 +1168,7 @@ export interface TranslationDict {
     disableSubtitles: string;
     followSpeech: string;
     followOff: string;
+    tracking: string;
     followTooltip: string;
     noTracks: string;
     resizeTooltip: string;
@@ -897,6 +1209,9 @@ export interface TranslationDict {
     metaColorTooltip: (color: string) => string;
     metaPositionTooltip: string;
     metaEffectTooltip: string;
+    metaSpeechSpeedTooltip: (wpm: number, cps: number) => string;
+    metaFastSpeechWarning: string;
+    totalWordsSuffix: (words: number) => string;
     fileFilterName: string;
   };
 
@@ -932,6 +1247,9 @@ export interface TranslationDict {
     upscaleOff: string;
     upscaleModel: (name: string) => string;
     upscaleModelNotFound: (index: number) => string;
+    upscaleNoFavorite: string;
+    upscaleFavoriteNotFound: (name: string) => string;
+    upscaleError: (err: string) => string;
     upscaleStatsAi: (slot: number, name: string, engine: string, stats: string) => string;
     upscaleStatsOff: (gpuHint: string) => string;
     visualizerStatus: (enabled: boolean) => string;
@@ -948,6 +1266,7 @@ export interface TranslationDict {
     clipboardEmpty: string;
     subtitleDelay: (val: string) => string;
     openFileErr: string;
+    audioLoadErr: string;
     subtitlesLoadErr: string;
     playlistPlayErr: string;
   };
@@ -956,10 +1275,9 @@ export interface TranslationDict {
   updateModal: {
     titleUpgrade: string;
     titleDowngrade: string;
-    titleInfo: string;
+    titleInfo: (version: string) => string;
     subtitleUpgrade: (version: string) => string;
     subtitleDowngrade: (curVer: string, targetVer: string) => string;
-    subtitleInfo: (version: string) => string;
     ariaRestore: string;
     ariaMaximize: string;
     ariaClose: string;
@@ -989,8 +1307,17 @@ export interface TranslationDict {
     // Toast
     toastTitle: string;
     toastVersion: (version: string) => string;
+    toastVersionArrow: (curVer: string, targetVer: string) => string;
     toastPostpone: string;
     toastUpdate: string;
     toastClose: string;
+    toastChangelog: string;
+    toastQuickInstall: string;
+    toastDownloading: string;
+    toastReadyTitle: string;
+    toastReadyHint: string;
+    toastLater: string;
+    toastRestart: string;
+    toastMinimizeToWatch: string;
   };
 }

@@ -1,0 +1,29 @@
+.navigation-popover {
+  position: fixed; z-index: var(--z-dropdown, 2000); box-sizing: border-box; overflow: auto;
+  padding: 5px; color: var(--text-primary); background: var(--bg-modal-solid, #20282e);
+  border: 1px solid var(--border-pill); border-radius: var(--radius-control, 10px);
+  box-shadow: var(--shadow-elevated); font-size: var(--fs-sm); isolation: isolate;
+}
+.navigation-popover[data-style="capsule"] { border-radius: var(--radius-controls, 16px); padding: 6px; }
+.navigation-popover > button, .navigation-popover__option {
+  width: 100%; box-sizing: border-box; display: flex; align-items: center; justify-content: flex-start; gap: 9px; min-width: 0; min-height: 34px;
+  padding: 7px 9px; text-align: left; background: transparent; color: var(--text-primary);
+  border: 1px solid transparent; border-radius: var(--radius-control, 8px); cursor: pointer; font: inherit;
+}
+.navigation-popover[data-style="capsule"] > button { border-radius: max(0px, calc(var(--radius-controls, 16px) - 7px)); }
+.navigation-popover button > span { min-width: 0; overflow-wrap: anywhere; flex: 1; }
+.navigation-popover button > svg { flex-shrink: 0; }
+.navigation-popover button:hover:not(:disabled) { background: var(--hover-veil-float); border-color: var(--border-pill-hover); }
+.navigation-popover button[aria-selected="true"] { color: var(--text-primary); background: transparent; }
+.navigation-popover button[aria-selected="true"]:hover { background: var(--hover-veil-float); }
+.navigation-popover button:focus-visible, .navigation-popover input:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; }
+.navigation-popover button:disabled { opacity: .4; cursor: default; }
+.navigation-popover button[data-destructive] { color: var(--error-text, #f48787); }
+.navigation-popover__confirmation { padding: 7px; }
+.navigation-popover__confirmation p { margin: 0 0 12px; line-height: 1.5; }
+.navigation-popover__confirmation > div { display: flex; justify-content: flex-end; gap: 6px; }
+.navigation-popover__confirmation button { padding: 7px 10px; background: var(--surface-level-2); color: var(--text-primary); border: 1px solid var(--border-pill); border-radius: var(--radius-control); cursor: pointer; font: inherit; }
+.navigation-popover .saved-playlists__editor { padding: 4px; }
+.saved-playlists__source-trigger { display: flex; align-items: center; gap: 8px; min-width: 0; width: 100%; padding: 7px 9px; color: var(--text-primary); background: transparent; border: 1px solid transparent; border-radius: var(--radius-control); text-align: left; cursor: pointer; font: inherit; }
+.saved-playlists__source-trigger > span { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.saved-playlists__source-trigger:hover { background: var(--hover-veil-float); }

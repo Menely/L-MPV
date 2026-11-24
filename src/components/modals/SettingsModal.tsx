@@ -1,4 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { SettingsUpdateAction } from "../settings/components/SettingsUpdateAction";
+import { applyAmbientPreview, saveAmbientSettings } from "../../utils/ambientPreviewQueue";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useIsPresent } from "motion/react";
+import { MotionSurface } from "../motion/MotionSurface";
+import { SelectionRail } from "../motion/SelectionRail";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -12,16 +17,15 @@ const GithubIcon: React.FC<{ size?: number; className?: string }> = ({ size = 16
     height={size}
     viewBox="0 0 24 24"
     fill="currentColor"
-    className={className}
-    style={{ display: "block" }}
-  >
+    className={`${className} block`}
+    >
     <path
       fillRule="evenodd"
       clipRule="evenodd"
       d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
     />
   </svg>
-);
+  );
 
 /**
  * Векторная иконка Telegram для ссылки на сообщество.
@@ -32,12 +36,11 @@ const TelegramIcon: React.FC<{ size?: number; className?: string }> = ({ size = 
     height={size}
     viewBox="0 0 24 24"
     fill="currentColor"
-    className={className}
-    style={{ display: "block" }}
-  >
+    className={`${className} block`}
+    >
     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.96 1.25-5.54 3.69-.52.36-1 .54-1.42.53-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 4.02-1.75 6.7-2.9 8.04-3.46 3.83-1.6 4.62-1.88 5.14-1.89.11 0 .37.03.54.17.14.12.18.28.2.4.02.12.01.24 0 .35z" />
   </svg>
-);
+  );
 import {
   Keyboard,
   SlidersHorizontal,
@@ -46,8 +49,8 @@ import {
   Loader2,
   Sparkles,
   Layers,
-  RefreshCw,
   X,
+  Settings,
 } from "lucide-react";
 import { useTranslation } from "../../i18n/LanguageContext";
 import {
@@ -70,9 +73,11 @@ import {
   normalizeAmbientSettings,
 } from "../../utils/ambientSettingsUtils";
 import type { AmbientSettings } from "../../utils/ambientSettingsUtils";
-import { getSavedSeekStepSeconds } from "../../utils/seekUtils";
+import {
+  getSavedSeekStepSeconds,
+  getSavedSkipOpeningSeconds,
+} from "../../utils/seekUtils";
 import { UpdateInfo } from "./UpdateModal";
-import { getEffectiveAccentColor } from "../../utils/colorUtils";
 import { PresetsSection } from "../settings/sections/PresetsSection";
 import { UpscalingSettingsSection } from "../settings/sections/UpscalingSettingsSection";
 import { HotkeysSettingsTab } from "../settings/tabs/HotkeysSettingsTab";
@@ -89,7 +94,7 @@ import {
   preloadPresetsSettings,
   preloadUpscaleSettings,
 } from "../settings/lib/settingsTabPreload";
-import { isMotionAllowed, getCloseTimeoutMs } from "../../utils/animationUtils";
+import { preloadSystemDiagnostics } from "../settings/lib/systemDiagnostics";
 import { SettingsPreset } from "../../utils/presetsUtils";
 import {
   UiRadiusLevel,
@@ -127,16 +132,17 @@ const SETTINGS_TABS = [
 
 type SettingsTabId = (typeof SETTINGS_TABS)[number];
 
+const MemoizedGeneralSettingsTab = React.memo(GeneralSettingsTab);
+const MemoizedAppearanceSettingsTab = React.memo(AppearanceSettingsTab);
+const MemoizedPresetsSection = React.memo(PresetsSection);
+const MemoizedUpscalingSettingsSection = React.memo(UpscalingSettingsSection);
+const MemoizedHotkeysSettingsTab = React.memo(HotkeysSettingsTab);
+const MemoizedIntegrationSettingsTab = React.memo(IntegrationSettingsTab);
+
 export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [screenshotDir, setScreenshotDir] = useState<string>("");
   const [uiOpacity, setUiOpacity] = useState<number>(() => getSavedUiOpacity());
-  const [activeColor, setActiveColor] = useState<string>(() => {
-    try {
-      return localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
-    } catch {
-      return "#7fc7ff";
-    }
-  });
+
   const [showTrackNames, setShowTrackNames] = useState<boolean>(true);
   const [subtitlesAvoidUi, setSubtitlesAvoidUi] = useState<boolean>(() => {
     try {
@@ -154,9 +160,9 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.6.2");
+  const [appVersion, setAppVersion] = useState<string>("2.7.6");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
-  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => Number(localStorage.getItem('l-mpv-skip-opening-seconds') || 90));
+  const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => getSavedSkipOpeningSeconds());
   const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
   const [hotloadEnabled, setHotloadEnabled] = useState<boolean>(() => localStorage.getItem('l-mpv-hotload-enabled') === 'true');
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => localStorage.getItem('l-mpv-hide-controls-upper-half') === 'true');
@@ -167,6 +173,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const isCapsule = controlBarStyle === "capsule";
   const initialViewSession = getSettingsViewSession();
   const [activeTab, setActiveTab] = useState<SettingsTabId>(() => {
     const saved = initialViewSession.modalTab as SettingsTabId;
@@ -175,47 +182,47 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const { bodyRef, panelRef, beginSwitch } = useSettingsTabTransition(activeTab, SETTINGS_TABS);
   const { dict } = useTranslation();
 
-  // Единая точка смены вкладки: плавный переход высоты + слайд, логика табов не меняется
+  // Preserve the layout tween; SelectionRail carries navigation motion.
   const handleTabChange = useCallback((next: SettingsTabId) => {
     if (next === "presets") preloadPresetsSettings();
     if (next === "upscaling") preloadUpscaleSettings();
     if (beginSwitch(next)) setActiveTab(next);
   }, [beginSwitch]);
 
-  const [isClosing, setIsClosing] = useState<boolean>(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPresent = useIsPresent();
+  const updatePresentRef = useRef(isPresent);
+  updatePresentRef.current = isPresent;
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
 
-  const handleClose = useCallback(() => {
-    if (closeTimerRef.current) return;
-    if (!isMotionAllowed()) {
-      onClose();
-      return;
-    }
-    setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-    }, getCloseTimeoutMs("base"));
-  }, [onClose]);
+  const handleClose = onClose;
 
   useEffect(() => {
+    preloadPresetsSettings();
     returnFocusRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
-    const focusFrame = requestAnimationFrame(() => closeButtonRef.current?.focus());
+    const modal = modalRef.current;
     return () => {
-      cancelAnimationFrame(focusFrame);
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
+      const focused = document.activeElement;
+      if (focused === document.body || (focused && modal?.contains(focused))) {
+        returnFocusRef.current?.focus({ preventScroll: true });
       }
-      returnFocusRef.current?.focus();
     };
   }, []);
 
+  useEffect(() => {
+    if (!isPresent) return;
+    const frame = requestAnimationFrame(() => {
+      if (!modalRef.current?.contains(document.activeElement)) closeButtonRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isPresent]);
+
   // Навигация стрелками влево и вправо для переключения категорий настроек
   useEffect(() => {
+    if (!isPresent) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.closest(".color-picker-modal")) return;
@@ -240,6 +247,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       if (isRecordingHotkey) return;
 
       if (e.key === "Escape") {
+        if (modalRef.current?.querySelector('.confirm-dialog[aria-modal="true"]')) return;
         e.preventDefault();
         e.stopPropagation();
         handleClose();
@@ -280,12 +288,11 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [activeTab, isRecordingHotkey, handleClose, handleTabChange]);
+  }, [activeTab, isRecordingHotkey, handleClose, handleTabChange, isPresent]);
 
   // Синхронизация локальных состояний SettingsModal при применении любого пресета
   const handlePresetApplied = useCallback((preset: SettingsPreset) => {
     const { data } = preset;
-    if (data.accentColor) setActiveColor(data.accentColor);
     if (typeof data.uiOpacity === "number") setUiOpacity(data.uiOpacity);
     if (data.uiRadius) {
       if (typeof data.uiRadius === "string") {
@@ -361,6 +368,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       setTimeFormat(getSavedTimeFormat());
       setControlBarStyle(getSavedControlBarStyle());
       setSubtitlesAvoidUi(localStorage.getItem('l-mpv-subtitles-avoid-ui') === 'true');
+      setSkipOpeningSeconds(getSavedSkipOpeningSeconds());
       setSeekStepSeconds(getSavedSeekStepSeconds());
     };
     window.addEventListener("l-mpv-ui-radius-changed", handleRadiusChanged);
@@ -418,8 +426,9 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState<boolean>(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
-  const [isUpdateFound, setIsUpdateFound] = useState<boolean>(false);
   const [foundUpdate, setFoundUpdate] = useState<UpdateInfo | null>(null);
+  const updateMountedRef = useRef(false);
+  const updateRequestRef = useRef(0);
   const [isLoadingVersionInfo, setIsLoadingVersionInfo] = useState<boolean>(false);
   const updateStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -441,8 +450,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     const settings = pendingPreviewRef.current;
     pendingPreviewRef.current = null;
     if (settings) {
-      invoke("apply_ambient_preview", { settings }).catch((err) => {
-        console.error("Ошибка предпросмотра Ambient Light:", err);
+      applyAmbientPreview(settings).catch((err) => {
+        console.error("Ошибка предпросмотра Blur:", err);
       });
     }
   };
@@ -465,16 +474,15 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     settings: AmbientSettings,
     revision = ++ambientSaveRevisionRef.current,
   ) {
-    const request = ambientSaveQueueRef.current
-      .catch(() => {})
-      .then(() => invoke<void>("set_ambient_settings", { settings }))
+    // Submit now: the shared queue owns ordering across both views and presets.
+    const request = saveAmbientSettings(settings)
       .then(() => {
         if (revision === ambientSaveRevisionRef.current) {
           isAmbientDirtyRef.current = false;
         }
       });
     ambientSaveQueueRef.current = request.catch((error) => {
-      console.error("Ошибка сохранения настроек Ambient Light:", error);
+      console.error("Ошибка сохранения настроек Blur:", error);
       if (revision === ambientSaveRevisionRef.current && ambientMountedRef.current) {
         isAmbientDirtyRef.current = true;
         if (ambientSaveTimeoutRef.current !== null) {
@@ -493,7 +501,10 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   // Сброс таймера статуса при размонтировании
   useEffect(() => {
+    updateMountedRef.current = true;
     return () => {
+      updateMountedRef.current = false;
+      updateRequestRef.current += 1;
       if (updateStatusTimerRef.current) {
         clearTimeout(updateStatusTimerRef.current);
       }
@@ -511,7 +522,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       if (pendingPreviewRef.current) {
         const settings = pendingPreviewRef.current;
         pendingPreviewRef.current = null;
-        invoke("apply_ambient_preview", { settings }).catch(console.error);
+        applyAmbientPreview(settings).catch(console.error);
       }
       if (ambientSaveTimeoutRef.current) {
         clearTimeout(ambientSaveTimeoutRef.current);
@@ -559,7 +570,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             setAmbientSettings(normalizeAmbientSettings(settings));
           }
         })
-        .catch((e) => console.error("Ошибка загрузки настроек Ambient Light:", e));
+        .catch((e) => console.error("Ошибка загрузки настроек Blur:", e));
     };
 
     invoke<string>("get_screenshot_dir").then(setScreenshotDir).catch(console.error);
@@ -574,8 +585,6 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
     invoke<string>("get_app_version").then(setAppVersion).catch(console.error);
     loadAmbient();
 
-    const savedAccent = localStorage.getItem("l-mpv-accent-color");
-    if (savedAccent) setActiveColor(savedAccent);
 
     const savedShowTracks = localStorage.getItem("l-mpv-show-track-names");
     if (savedShowTracks !== null) setShowTrackNames(savedShowTracks === "true");
@@ -627,7 +636,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
         try {
         await queueAmbientSave(updated, revision);
         } catch (err) {
-          console.error("Ошибка отложенного сохранения настроек Ambient Light:", err);
+          console.error("Ошибка отложенного сохранения настроек Blur:", err);
         }
       }, 400);
     }
@@ -664,6 +673,8 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
   // Ручная проверка обновлений через GitHub Releases API
   const handleCheckForUpdates = async () => {
+    if (isCheckingUpdate || isLoadingVersionInfo || !updatePresentRef.current) return;
+    const request = ++updateRequestRef.current;
     setIsCheckingUpdate(true);
     setUpdateStatus(null);
     setFoundUpdate(null);
@@ -674,43 +685,45 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
 
     try {
       const info = await invoke<UpdateInfo>("check_for_updates");
+      if (!updateMountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       setFoundUpdate(info);
       if (info.has_update) {
         setUpdateStatus(dict.settings.integration.updateFound(info.latest_version.replace(/^[vV]/, "")));
-        setIsUpdateFound(true);
         if (onShowUpdate) {
           onShowUpdate(info);
         }
       } else {
         setUpdateStatus(dict.settings.integration.upToDate);
-        setIsUpdateFound(false);
         updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
       }
     } catch (err) {
+      if (!updateMountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       console.error("Ошибка проверки обновлений:", err);
       setUpdateStatus(dict.settings.integration.checkFailed);
-      setIsUpdateFound(false);
       updateStatusTimerRef.current = setTimeout(() => setUpdateStatus(null), 4000);
     } finally {
-      setIsCheckingUpdate(false);
+      if (updateMountedRef.current && request === updateRequestRef.current) setIsCheckingUpdate(false);
     }
   };
 
   // Показ информации о текущей установленной версии и её чейнджлога (при клике на v{appVersion})
   const handleShowVersionInfo = async () => {
-    if (!onShowUpdate || isLoadingVersionInfo) return;
+    if (!onShowUpdate || isLoadingVersionInfo || isCheckingUpdate || !updatePresentRef.current) return;
 
     if (foundUpdate) {
       onShowUpdate(foundUpdate);
       return;
     }
 
+    const request = ++updateRequestRef.current;
     setIsLoadingVersionInfo(true);
     try {
       const info = await invoke<UpdateInfo>("check_for_updates");
+      if (!updateMountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       setFoundUpdate(info);
       onShowUpdate(info);
     } catch (err) {
+      if (!updateMountedRef.current || !updatePresentRef.current || request !== updateRequestRef.current) return;
       console.warn("Не удалось получить описание версии из сети, открытие резервного окна:", err);
       const fallbackInfo: UpdateInfo = {
         current_version: appVersion,
@@ -725,222 +738,300 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
       setFoundUpdate(fallbackInfo);
       onShowUpdate(fallbackInfo);
     } finally {
-      setIsLoadingVersionInfo(false);
+      if (updateMountedRef.current && request === updateRequestRef.current) setIsLoadingVersionInfo(false);
     }
   };
 
-  return (
-    <div className={`modal-overlay settings-modal-overlay ${isClosing ? "modal-overlay--closing" : ""}`} onClick={handleClose}>
-      <div
-        ref={modalRef}
-        className={`modal modal--settings ${isClosing ? "modal--closing" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-modal-title"
-        style={{
-          width: 720,
-          maxWidth: "95vw",
-          maxHeight: "75vh",
-          display: "flex",
-          flexDirection: "column",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Шапка модального окна */}
-        <div className="modal__header" style={{ padding: "14px 18px", flexShrink: 0 }}>
-          <h2 id="settings-modal-title" className="modal__title" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "1.15rem" }}>
-            <SlidersHorizontal size={20} color="var(--accent)" /> {dict.settings.title}
-          </h2>
+  const tabItems = [
+    { id: "general" as const, label: dict.settings.tabs.general, icon: SlidersHorizontal },
+    { id: "appearance" as const, label: dict.settings.tabs.appearance, icon: Palette },
+    { id: "presets" as const, label: dict.settings.tabs.presets, icon: Layers },
+    { id: "upscaling" as const, label: dict.settings.tabs.upscaling, icon: Sparkles },
+    { id: "hotkeys" as const, label: dict.settings.tabs.hotkeys, icon: Keyboard },
+    { id: "integration" as const, label: dict.settings.tabs.integration, icon: Link },
+  ];
+
+  const renderTabContent = () => (
+    <div key={activeTab} className="settings-tab-content">
+      {activeTab === "general" && (
+        <MemoizedGeneralSettingsTab
+          multiInstance={multiInstance} setMultiInstance={setMultiInstance}
+          saveTracksToVideoDir={saveTracksToVideoDir} setSaveTracksToVideoDir={setSaveTracksToVideoDir}
+          autoLoadTracks={autoLoadTracks} setAutoLoadTracks={setAutoLoadTracks}
+          autoSelectExternalAudio={autoSelectExternalAudio} setAutoSelectExternalAudio={setAutoSelectExternalAudio}
+          playNextOnEnd={playNextOnEnd} setPlayNextOnEnd={setPlayNextOnEnd}
+          hotloadEnabled={hotloadEnabled} setHotloadEnabled={setHotloadEnabled}
+          hideControlsInUpperHalf={hideControlsInUpperHalf} setHideControlsInUpperHalf={setHideControlsInUpperHalf}
+          openSections={openSections} onToggleSection={toggleSection}
+          screenshotDir={screenshotDir}
+          handlePickFolder={handlePickFolder}
+          handleResetDefault={handleResetDefault}
+          showTrackNames={showTrackNames}
+          setShowTrackNames={setShowTrackNames}
+          subtitlesAvoidUi={subtitlesAvoidUi}
+          setSubtitlesAvoidUi={setSubtitlesAvoidUi}
+        />
+      )}
+
+      {activeTab === "appearance" && (
+        <MemoizedAppearanceSettingsTab
+          uiRadius={uiRadius} saveUiRadius={saveUiRadius} setUiRadius={setUiRadius}
+          uiScale={uiScale} saveUiScale={saveUiScale} setUiScale={setUiScale}
+          uiOpacity={uiOpacity} saveUiOpacity={saveUiOpacity} setUiOpacity={setUiOpacity}
+          uiFont={uiFont} saveUiFont={saveUiFont} setUiFont={setUiFont}
+          timePosition={timePosition} saveTimePosition={saveTimePosition} setTimePosition={setTimePosition}
+          timeFormat={timeFormat} saveTimeFormat={saveTimeFormat} setTimeFormat={setTimeFormat}
+          controlBarStyle={controlBarStyle} saveControlBarStyle={saveControlBarStyle} setControlBarStyle={setControlBarStyle}
+          ambientSettings={ambientSettings} updateAmbient={updateAmbient}
+          visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons}
+          skipOpeningSeconds={skipOpeningSeconds} setSkipOpeningSeconds={setSkipOpeningSeconds}
+          seekStepSeconds={seekStepSeconds} setSeekStepSeconds={setSeekStepSeconds}
+          animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
+          openSections={openSections} onToggleSection={toggleSection}
+        />
+      )}
+
+      {activeTab === "presets" && (
+        <MemoizedPresetsSection onPresetApplied={handlePresetApplied} />
+      )}
+
+      {activeTab === "upscaling" && (
+        <div className="modal__section col">
+          <MemoizedUpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
+        </div>
+      )}
+
+      {activeTab === "hotkeys" && (
+        <MemoizedHotkeysSettingsTab
+          openSections={openSections}
+          onToggleSection={toggleSection}
+          onRecordingChange={setIsRecordingHotkey}
+        />
+      )}
+
+      {activeTab === "integration" && (
+        <MemoizedIntegrationSettingsTab />
+      )}
+    </div>
+  );
+
+  const renderFooterContent = () => (
+    <>
+      <div className="settings-footer__left">
+        {/* Иконки социальных сетей слева от названия L-MPV */}
+        <div className="settings-footer__icons">
+          <button
+            type="button"
+            onClick={() => openUrl("https://github.com/Menely/L-MPV")}
+            className="settings-footer__icon-btn hover-bright"
+            title={dict.settings.integration.githubTooltip}
+          >
+            <GithubIcon size={19} />
+          </button>
 
           <button
-            ref={closeButtonRef}
             type="button"
-            className="modal__close"
-            onClick={handleClose}
-            id="btn-settings-close"
-            title={dict.settings.close}
-            aria-label={dict.settings.close}
+            onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
+            className="settings-footer__icon-btn hover-bright"
+            title={dict.settings.integration.telegramTooltip}
           >
-            <X size={18} />
+            <TelegramIcon size={19} />
           </button>
         </div>
 
-        {/* Навигация по вкладкам */}
-        <div className="settings-tabs">
-          {[
-            { id: "general", label: dict.settings.tabs.general, icon: SlidersHorizontal },
-            { id: "appearance", label: dict.settings.tabs.appearance, icon: Palette },
-            { id: "presets", label: dict.settings.tabs.presets, icon: Layers },
-            { id: "upscaling", label: dict.settings.tabs.upscaling, icon: Sparkles },
-            { id: "hotkeys", label: dict.settings.tabs.hotkeys, icon: Keyboard },
-            { id: "integration", label: dict.settings.tabs.integration, icon: Link },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id as typeof activeTab)}
-                className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
-              >
-                <Icon size={16} className="settings-tab-icon" />
-                <span className="settings-tab-label">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        <span className="settings-footer__title">L-MPV</span>
 
-        {/* Тело модального окна */}
-        <div className="modal__body" ref={bodyRef} style={{ padding: "16px 20px 10px 20px" }}>
-          <div ref={panelRef} className="settings-tab-panel">
-          <div key={activeTab} className="settings-tab-content">
-            {activeTab === "general" && (
-            <GeneralSettingsTab
-              multiInstance={multiInstance} setMultiInstance={setMultiInstance}
-              saveTracksToVideoDir={saveTracksToVideoDir} setSaveTracksToVideoDir={setSaveTracksToVideoDir}
-              autoLoadTracks={autoLoadTracks} setAutoLoadTracks={setAutoLoadTracks}
-              autoSelectExternalAudio={autoSelectExternalAudio} setAutoSelectExternalAudio={setAutoSelectExternalAudio}
-              playNextOnEnd={playNextOnEnd} setPlayNextOnEnd={setPlayNextOnEnd}
-              hotloadEnabled={hotloadEnabled} setHotloadEnabled={setHotloadEnabled}
-              hideControlsInUpperHalf={hideControlsInUpperHalf} setHideControlsInUpperHalf={setHideControlsInUpperHalf}
-              openSections={openSections} onToggleSection={toggleSection}
-              screenshotDir={screenshotDir}
-              handlePickFolder={handlePickFolder}
-              handleResetDefault={handleResetDefault}
-              showTrackNames={showTrackNames}
-              setShowTrackNames={setShowTrackNames}
-              subtitlesAvoidUi={subtitlesAvoidUi}
-              setSubtitlesAvoidUi={setSubtitlesAvoidUi}
-            />
-          )}
+        <button
+          type="button"
+          onClick={handleShowVersionInfo}
+          disabled={isLoadingVersionInfo || isCheckingUpdate}
+          className="settings-footer__btn settings-footer__btn--version"
+        >
+          {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
+          <span>v{appVersion}</span>
+        </button>
 
-          {activeTab === "appearance" && (
-            <AppearanceSettingsTab
-              activeColor={activeColor} setActiveColor={setActiveColor}
-              uiRadius={uiRadius} saveUiRadius={saveUiRadius} setUiRadius={setUiRadius}
-              uiScale={uiScale} saveUiScale={saveUiScale} setUiScale={setUiScale}
-              uiOpacity={uiOpacity} saveUiOpacity={saveUiOpacity} setUiOpacity={setUiOpacity}
-              uiFont={uiFont} saveUiFont={saveUiFont} setUiFont={setUiFont}
-              timePosition={timePosition} saveTimePosition={saveTimePosition} setTimePosition={setTimePosition}
-              timeFormat={timeFormat} saveTimeFormat={saveTimeFormat} setTimeFormat={setTimeFormat}
-              controlBarStyle={controlBarStyle} saveControlBarStyle={saveControlBarStyle} setControlBarStyle={setControlBarStyle}
-              ambientSettings={ambientSettings} updateAmbient={updateAmbient}
-              visibleButtons={visibleButtons} setVisibleButtons={setVisibleButtons}
-              skipOpeningSeconds={skipOpeningSeconds} setSkipOpeningSeconds={setSkipOpeningSeconds}
-              seekStepSeconds={seekStepSeconds} setSeekStepSeconds={setSeekStepSeconds}
-              animationsEnabled={animationsEnabled} setAnimationsEnabled={setAnimationsEnabled}
-              openSections={openSections} onToggleSection={toggleSection}
-              getEffectiveAccentColor={getEffectiveAccentColor}
-            />
-          )}
-
-          {activeTab === "presets" && (
-            <div className="modal__section" style={{ display: "flex", flexDirection: "column" }}>
-              <PresetsSection onPresetApplied={handlePresetApplied} />
-            </div>
-          )}
-
-          {activeTab === "upscaling" && (
-            <div className="modal__section" style={{ display: "flex", flexDirection: "column" }}>
-              <UpscalingSettingsSection onRecordingChange={setIsRecordingHotkey} />
-            </div>
-          )}
-
-          {activeTab === "hotkeys" && (
-            <HotkeysSettingsTab
-              openSections={openSections}
-              onToggleSection={toggleSection}
-              onRecordingChange={setIsRecordingHotkey}
-            />
-          )}
-
-          {activeTab === "integration" && (
-            <IntegrationSettingsTab />
-          )}
-          </div>
-          </div>
-        </div>
-        {/* Футер с версией приложения и проверкой обновлений */}
-        <div className="settings-footer">
-          <div className="settings-footer__left">
-            {/* Иконки социальных сетей слева от названия L-MPV */}
-            <div className="settings-footer__icons">
-              <button
-                type="button"
-                onClick={() => openUrl("https://github.com/Menely/L-MPV")}
-                className="settings-footer__icon-btn hover-bright"
-                title={dict.settings.integration.githubTooltip}
-              >
-                <GithubIcon size={19} />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
-                className="settings-footer__icon-btn hover-bright"
-                title={dict.settings.integration.telegramTooltip}
-              >
-                <TelegramIcon size={19} />
-              </button>
-            </div>
-
-            <span className="settings-footer__title">L-MPV</span>
-
-            <button
-              type="button"
-              onClick={handleShowVersionInfo}
-              disabled={isLoadingVersionInfo}
-              className="settings-footer__btn settings-footer__btn--version"
-            >
-              {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
-              <span>v{appVersion}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleCheckForUpdates}
-              disabled={isCheckingUpdate}
-              className="settings-footer__btn settings-footer__btn--check"
-            >
-              {isCheckingUpdate ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" />
-                  <span>{dict.settings.integration.checking}</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw size={12} />
-                  <span>{dict.settings.integration.checkUpdates}</span>
-                </>
-              )}
-            </button>
-
-            {updateStatus && (
-              foundUpdate && onShowUpdate ? (
-                <button
-                  type="button"
-                  onClick={() => onShowUpdate(foundUpdate)}
-                  className="settings-footer__btn settings-footer__btn--update"
-                >
-                  <Sparkles size={12} />
-                  <span>{updateStatus}</span>
-                </button>
-              ) : (
-                <span
-                  style={{
-                    fontSize: "0.78rem",
-                    color: isUpdateFound ? "var(--accent)" : "var(--text-muted)",
-                    marginLeft: 4,
-                  }}
-                >
-                  {updateStatus}
-                </span>
-              )
-            )}
-          </div>
-          <span style={{ fontSize: "0.76rem" }}>{dict.settings.integration.portableEdition}</span>
-        </div>
+        <SettingsUpdateAction
+          checking={isCheckingUpdate || isLoadingVersionInfo}
+          status={updateStatus}
+          hasUpdate={foundUpdate?.has_update === true}
+          onCheck={handleCheckForUpdates}
+          onShowUpdate={foundUpdate && onShowUpdate ? () => onShowUpdate(foundUpdate) : undefined}
+        />
       </div>
-    </div>
+      <span style={{ fontSize: "var(--fs-xs)" }}>{dict.settings.integration.portableEdition}</span>
+    </>
+  );
+
+  return (
+    <MotionSurface kind="settingsBackdrop" className="modal-overlay settings-modal-overlay" onClick={handleClose}>
+      {!isCapsule ? (
+        /* ─── КЛАССИЧЕСКИЙ РЕЖИМ (Модерн, Прикрепленный) ─── */
+        <MotionSurface
+          kind="settingsDialog"
+          ref={modalRef}
+          className="modal modal--settings"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-modal-title"
+          style={{
+            width: 720,
+            maxWidth: "min(95vw, calc(100vw / var(--ui-scale, 1) - 24px))",
+            maxHeight: "min(75vh, calc(100dvh / var(--ui-scale, 1) - 24px))",
+            display: "flex",
+            flexDirection: "column",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Шапка модального окна с шестерёнкой */}
+          <div className="modal__header" style={{ padding: "14px 18px", flexShrink: 0 }}>
+            <h2
+              id="settings-modal-title"
+              className="modal__title"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-5)",
+                fontSize: "var(--fs-xl)",
+              }}
+            >
+              <Settings size={20} color="var(--accent-text, var(--accent))" /> {dict.settings.title}
+            </h2>
+            <button
+              ref={closeButtonRef}
+              type="button"
+              className="modal__close"
+              onClick={handleClose}
+              id="btn-settings-close"
+              aria-label={dict.settings.close}
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Навигация по вкладкам */}
+          <SelectionRail activeKey={activeTab} className="settings-tabs">
+            {tabItems.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  onMouseEnter={() => {
+                    if (tab.id === "presets") preloadPresetsSettings();
+                    if (tab.id === "upscaling") preloadUpscaleSettings();
+                    if (tab.id === "integration") preloadSystemDiagnostics();
+                  }}
+                  className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
+                  aria-current={isActive ? "true" : undefined}
+                >
+                  <Icon size={16} className="settings-tab-icon" />
+                  <span className="settings-tab-label">{tab.label}</span>
+                </button>
+              );
+            })}
+          </SelectionRail>
+
+          {/* Тело модального окна */}
+          <div className="modal__body" ref={bodyRef} style={{ padding: "var(--settings-section-padding) 20px" }}>
+            <div ref={panelRef} className="settings-tab-panel">
+              {renderTabContent()}
+            </div>
+          </div>
+
+          {/* Футер с версией приложения и проверкой обновлений */}
+          <div className="settings-footer">
+            {renderFooterContent()}
+          </div>
+        </MotionSurface>
+      ) : (
+        /* ─── ОСТРОВНОЙ РЕЖИМ (Стиль «Капсула») ─── */
+        <MotionSurface
+          kind="settingsDialog"
+          ref={modalRef}
+          className="modal modal--settings modal--settings-capsule"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-modal-title"
+          style={{
+            width: 720,
+            maxWidth: "min(95vw, calc(100vw / var(--ui-scale, 1) - 24px))",
+            maxHeight: "min(80vh, calc(100dvh / var(--ui-scale, 1) - 24px))",
+            display: "flex",
+            flexDirection: "column",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Верхний ряд: 3 самостоятельные карточки-островка */}
+          <div className="settings-capsule-header">
+            <h2 id="settings-modal-title" className="sr-only">
+              {dict.settings.title}
+            </h2>
+
+            {/* Карточка 1: Шестерёнка */}
+            <div
+              className="settings-card settings-card--gear"
+              aria-label={dict.settings.title}
+            >
+              <Settings size={20} color="var(--accent-text, var(--accent))" />
+            </div>
+
+            {/* Карточка 2: Вкладки */}
+            <SelectionRail activeKey={activeTab} className="settings-card settings-card--tabs">
+              {tabItems.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id)}
+                    onMouseEnter={() => {
+                      if (tab.id === "presets") preloadPresetsSettings();
+                      if (tab.id === "upscaling") preloadUpscaleSettings();
+                      if (tab.id === "integration") preloadSystemDiagnostics();
+                    }}
+                    className={`settings-tab-btn ${isActive ? "settings-tab-btn--active" : ""}`}
+                    aria-label={tab.label}
+                    aria-current={isActive ? "true" : undefined}
+                  >
+                    <Icon size={14} className="settings-tab-icon" />
+                    <span className="settings-tab-label">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </SelectionRail>
+
+            {/* Карточка 3: Крестик */}
+            <div className="settings-card settings-card--close">
+              <button
+                ref={closeButtonRef}
+                type="button"
+                className="island-action"
+                onClick={handleClose}
+                id="btn-settings-close"
+                aria-label={dict.settings.close}
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+
+          {/* Карточка 2: Основное тело настроек */}
+          <div className="settings-card settings-card--body">
+            <div className="settings-card__scroll-container" ref={bodyRef}>
+              <div ref={panelRef} className="settings-tab-panel">
+                {renderTabContent()}
+              </div>
+            </div>
+          </div>
+
+          {/* Карточка 3: Футер с версией приложения и проверкой обновлений */}
+          <div className="settings-card settings-card--footer">
+            {renderFooterContent()}
+          </div>
+        </MotionSurface>
+      )}
+    </MotionSurface>
   );
 }

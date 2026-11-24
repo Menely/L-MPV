@@ -83,7 +83,10 @@ fn collect_files(dir: Option<&Path>, explicit: &[String]) -> Result<Vec<PathBuf>
             None => continue,
         };
         // Сам манифест и служебные файлы в хеши не попадают.
-        if name.eq_ignore_ascii_case(MANIFEST_NAME) || name.eq_ignore_ascii_case("update.bat") {
+        if name.eq_ignore_ascii_case(MANIFEST_NAME)
+            || name.eq_ignore_ascii_case("update.bat")
+            || name.to_ascii_lowercase().ends_with(".pdb")
+        {
             continue;
         }
         paths.push(path);

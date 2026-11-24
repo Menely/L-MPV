@@ -9,7 +9,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 6px 0 14px;
-  z-index: 1000;
+  z-index: var(--z-float);
   border: none;
   box-shadow: none;
   transform: translateY(0);
@@ -46,6 +46,11 @@
 .titlebar__left {
   display: flex;
   align-items: center;
+}
+
+/* На экране-заглушке (без медиа) верхняя тень не нужна; при видео остаётся */
+.app-container--empty .titlebar::before {
+  display: none;
 }
 
 .titlebar__center {
@@ -85,25 +90,25 @@
 .titlebar__right {
   display: flex;
   align-items: center;
-  gap: 10px;
-  z-index: 2;
+  gap: var(--space-5);
+  z-index: var(--z-in-raised);
 }
 
 .time-display--titlebar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 0.75rem;
+  background: var(--surface-level-3);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-control);
+  padding: var(--space-1) 10px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   user-select: none;
-  transition: background-color var(--t-fast) var(--ease-smooth),
+  transition: background var(--t-fast) var(--ease-smooth),
               border-color var(--t-fast) var(--ease-smooth),
               color var(--t-fast) var(--ease-smooth),
               box-shadow var(--t-fast) var(--ease-smooth),
@@ -111,20 +116,25 @@
 }
 
 .time-display--titlebar:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: var(--accent);
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
   color: #ffffff;
-  box-shadow: 0 0 10px rgba(var(--accent-rgb, 127, 199, 255), 0.35);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.time-display--titlebar:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .titlebar__controls {
   display: flex;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .titlebar__btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -132,7 +142,7 @@
   border: none;
   color: #ffffff;
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   transform-origin: center center;
   transform: translateZ(0) scale(1);
   will-change: transform;
@@ -143,8 +153,8 @@
 }
 
 .titlebar__btn:hover {
-  background: var(--bg-hover);
-  color: var(--accent-hover, var(--accent));
+  background: var(--window-control-hover);
+  color: var(--accent-text);
 }
 
 .titlebar__btn:not(.titlebar__btn--close):hover svg {

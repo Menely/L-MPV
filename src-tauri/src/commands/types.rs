@@ -4,6 +4,7 @@
 //! другим модулям бэкенда по прежнему пути `commands::*`.
 
 use crate::ambient::AmbientSettings;
+use crate::audio_filter::{audio_filter_chain, AudioNormalizeMode};
 use crate::mpv_manager::MpvManager;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -14,20 +15,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 static SETTINGS_FILE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 struct SettingsFileGuard {
+    _file: std::fs::File,
     _process_guard: std::sync::MutexGuard<'static, ()>,
-    lock_path: PathBuf,
-    lock_token: String,
-}
-
-impl Drop for SettingsFileGuard {
-    fn drop(&mut self) {
-        if std::fs::read_to_string(&self.lock_path)
-            .map(|content| content == self.lock_token)
-            .unwrap_or(false)
-        {
-            let _ = std::fs::remove_file(&self.lock_path);
-        }
-    }
 }
 
 /// Вспомогательная функция десериализации для полей `bool` с дефолтом `true`.
@@ -69,13 +58,29 @@ pub struct UiSettings {
     #[serde(default)]
     pub show_track_names: Option<bool>,
     #[serde(default)]
+    pub volume_indicator_enabled: Option<bool>,
+    #[serde(default)]
+    pub timeline_preview_enabled: Option<bool>,
+    #[serde(default)]
+    pub explorer_playable_only: Option<bool>,
+    #[serde(default)]
+    pub navigation_panel_pin: Option<serde_json::Value>,
+    #[serde(default)]
+    pub volume_indicator_osd: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub favorite_upscale_model: Option<String>,
+    #[serde(default)]
     pub playlist_width: Option<u32>,
     #[serde(default)]
     pub custom_colors: Option<Vec<String>>,
     #[serde(default)]
     pub visible_buttons: Option<HashMap<String, bool>>,
     #[serde(default)]
+    pub utility_button_cards: Option<Vec<Vec<String>>>,
+    #[serde(default)]
     pub custom_hotkeys: Option<HashMap<String, Vec<String>>>,
+    #[serde(default)]
+    pub hotkeys_schema_version: Option<u32>,
     #[serde(default)]
     pub language: Option<String>,
     #[serde(default)]
@@ -89,7 +94,11 @@ pub struct UiSettings {
     #[serde(default)]
     pub skip_opening_seconds: Option<u32>,
     #[serde(default)]
+    pub seek_step_seconds: Option<u32>,
+    #[serde(default)]
     pub visualizer_config: Option<serde_json::Value>,
+    #[serde(default)]
+    pub heatmap_config: Option<serde_json::Value>,
 }
 
 /// Конфигурация приложения, сохраняемая в config/settings.json.
@@ -176,7 +185,7 @@ pub struct AppSettings {
     #[serde(default)]
     pub hwdec_mode: Option<String>,
 
-    /// Нормализация громкости: `"no"` / `"dynaudnorm"` / `"loudnorm"`.
+    /// Нормализация громкости: `"no"` / `"dynaudnorm"` / `"loudnorm"` / `"ebu128"`.
     /// `None` = `"no"`.
     #[serde(default)]
     pub audio_normalize: Option<String>,
@@ -244,70 +253,10 @@ impl AppSettings {
         } else {
             config_dir.join("config")
         };
-        std::fs::create_dir_all(&target_dir)
-            .map_err(|error| error.to_string())?;
-        let lock_path = target_dir.join(".settings.lock");
-        let lock_token = format!(
-            "{}:{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|duration| duration.as_nanos())
-                .unwrap_or(0)
-        );
-
-        for _ in 0..300 {
-            match std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&lock_path)
-            {
-                Ok(mut file) => {
-                    if let Err(error) = file.write_all(
-                        lock_token.as_bytes(),
-                    ) {
-                        let _ = std::fs::remove_file(&lock_path);
-                        return Err(error.to_string());
-                    }
-                    return Ok(SettingsFileGuard {
-                        _process_guard: process_guard,
-                        lock_path,
-                        lock_token,
-                    });
-                }
-                Err(error)
-                    if error.kind()
-                        == std::io::ErrorKind::AlreadyExists =>
-                {
-                    let is_stale = std::fs::metadata(
-                        &lock_path,
-                    )
-                    .and_then(|metadata| metadata.modified())
-                    .ok()
-                    .and_then(|modified| {
-                        modified.elapsed().ok()
-                    })
-                    .map(|elapsed| {
-                        elapsed > std::time::Duration::from_secs(600)
-                    })
-                    .unwrap_or(false);
-                    if is_stale {
-                        let _ = std::fs::remove_file(
-                            &lock_path,
-                        );
-                        continue;
-                    }
-                    std::thread::sleep(
-                        std::time::Duration::from_millis(10),
-                    );
-                }
-                Err(error) => {
-                    return Err(error.to_string());
-                }
-            }
-        }
-
-        Err("Не удалось получить блокировку settings.json".to_string())
+        Ok(SettingsFileGuard {
+            _file: super::file_lock::acquire(&target_dir, ".settings.os-lock")?,
+            _process_guard: process_guard,
+        })
     }
 
     fn load_unlocked(config_dir: &Path) -> Self {
@@ -427,6 +376,45 @@ impl AppSettings {
         Self::update(&dir, update)
     }
 
+    pub(super) fn update_audio_processing(
+        mpv: &MpvManager,
+        update: impl FnOnce(&mut Self),
+    ) -> Result<(), String> {
+        Self::update_audio_processing_at(
+            &get_app_dir()?,
+            update,
+            || mpv.get_property_string("af"),
+            |chain| mpv.set_property_string("af", chain),
+        )
+    }
+
+    fn update_audio_processing_at(
+        config_dir: &Path,
+        update: impl FnOnce(&mut Self),
+        read_chain: impl FnOnce() -> Result<String, String>,
+        apply_chain: impl Fn(&str) -> Result<(), String>,
+    ) -> Result<(), String> {
+        let _guard = Self::lock_settings_file(config_dir)?;
+        let mut settings = Self::load_unlocked(config_dir);
+        update(&mut settings);
+        let mode = AudioNormalizeMode::from_str_or_default(
+            settings.audio_normalize.as_deref().unwrap_or("no"),
+        );
+        let chain = audio_filter_chain(mode, settings.audio_limiter_enabled.unwrap_or(true));
+        let previous_chain = read_chain()?;
+        apply_chain(&chain)?;
+
+        if let Err(save_error) = settings.save_unlocked(config_dir) {
+            if let Err(restore_error) = apply_chain(&previous_chain) {
+                return Err(format!(
+                    "{save_error}. Failed to restore audio filters: {restore_error}"
+                ));
+            }
+            return Err(save_error);
+        }
+        Ok(())
+    }
+
     pub fn load_portable_result() -> Result<Self, String> {
         let dir = get_app_dir()?;
         Self::load_result(&dir)
@@ -476,7 +464,12 @@ pub fn clean_stale_temp_files(dir: &Path) {
             if path.is_file() {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                     if name.starts_with('.') && name.ends_with(".tmp") {
-                        let _ = std::fs::remove_file(path);
+                        // Maintenance may run alongside active writes/other windows.
+                        // Only remove old crash leftovers, never a fresh atomic temp.
+                        let stale = entry.metadata().and_then(|m| m.modified()).ok()
+                            .and_then(|time| time.elapsed().ok())
+                            .is_some_and(|age| age >= std::time::Duration::from_secs(24 * 60 * 60));
+                        if stale { let _ = std::fs::remove_file(path); }
                     }
                 }
             }
@@ -617,6 +610,9 @@ pub fn write_atomic(target_path: &Path, data: &[u8], create_backup: bool) -> Res
 
 /// Состояние плеера, передаваемое через Tauri State.
 pub struct PlayerState {
+    pub(crate) ebu128: super::ebu128::Ebu128,
+    /// Only the first CLI file is held until the visible frontend is ready.
+    pub startup_playback: Mutex<Option<String>>,
     /// Главный контекст mpv.
     pub mpv: Arc<MpvManager>,
     /// Контроллер подсветки полос (Ambient Light).
@@ -892,6 +888,7 @@ pub fn is_video_extension(ext: &str) -> bool {
             | "3gp"
             | "ogv"
             | "vob"
+            | "yuv"
     )
 }
 
@@ -1028,7 +1025,11 @@ mod settings_tests {
         settings.ui.settings_style =
             Some("sidebar".to_string());
         settings.ui.language = Some("en".to_string());
+        settings.ui.timeline_preview_enabled = Some(false);
+        settings.ui.explorer_playable_only = Some(false);
+        settings.ui.navigation_panel_pin = Some(serde_json::json!({"top": 90.5, "height": 420.0}));
         settings.ui.skip_opening_seconds = Some(120);
+        settings.ui.seek_step_seconds = Some(15);
         settings.ui.visualizer_config = Some(
             serde_json::json!({
                 "enabled": true,
@@ -1054,12 +1055,46 @@ mod settings_tests {
             Some("sidebar")
         );
         assert_eq!(loaded.ui.language.as_deref(), Some("en"));
+        assert_eq!(loaded.ui.timeline_preview_enabled, Some(false));
+        assert_eq!(loaded.ui.explorer_playable_only, Some(false));
+        assert_eq!(loaded.ui.navigation_panel_pin, settings.ui.navigation_panel_pin);
         assert_eq!(loaded.ui.skip_opening_seconds, Some(120));
+        assert_eq!(loaded.ui.seek_step_seconds, Some(15));
         assert!(loaded.ui.visualizer_config.is_some());
-        assert!(!root
+        assert!(root
             .join("config")
-            .join(".settings.lock")
+            .join(".settings.os-lock")
             .exists());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn audio_processing_restores_live_chain_when_saving_fails() {
+        let root = test_dir("audio-settings-rollback");
+        let settings_path = AppSettings::settings_path(&root);
+        // Atomic replacement of a directory with the settings file must fail.
+        std::fs::create_dir_all(&settings_path).unwrap();
+
+        let previous = "lavfi=[volume=0.5]";
+        let live = std::cell::RefCell::new(previous.to_string());
+        let applied = std::cell::RefCell::new(Vec::new());
+        let result = AppSettings::update_audio_processing_at(
+            &root,
+            |settings| settings.audio_normalize = Some("loudnorm".into()),
+            || Ok(live.borrow().clone()),
+            |chain| {
+                applied.borrow_mut().push(chain.to_string());
+                *live.borrow_mut() = chain.to_string();
+                Ok(())
+            },
+        );
+
+        assert!(result.is_err());
+        assert_eq!(
+            applied.into_inner(),
+            [audio_filter_chain(AudioNormalizeMode::Night, true), previous.to_string()],
+        );
+        assert_eq!(live.into_inner(), previous);
         let _ = std::fs::remove_dir_all(root);
     }
 
@@ -1200,5 +1235,26 @@ mod settings_tests {
         assert_eq!(loaded.deband_preset.as_deref(), Some("strong"));
         assert_eq!(loaded.audio_latency_fix, Some(true));
         let _ = std::fs::remove_dir_all(root);
+    }
+}
+
+#[cfg(test)]
+mod temp_cleanup_tests {
+    use super::*;
+    #[test]
+    fn deferred_cleanup_preserves_fresh_atomic_writes() {
+        let root = std::env::temp_dir().join(format!("lmpv-stale-temp-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let fresh = root.join(".settings.fresh.tmp");
+        let old = root.join(".settings.old.tmp");
+        std::fs::write(&fresh, "active").unwrap();
+        std::fs::write(&old, "abandoned").unwrap();
+        let old_time = std::time::SystemTime::now() - std::time::Duration::from_secs(48 * 60 * 60);
+        std::fs::File::options().write(true).open(&old).unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(old_time)).unwrap();
+        clean_stale_temp_files(&root);
+        assert_eq!(std::fs::read_to_string(&fresh).unwrap(), "active");
+        assert!(!old.exists());
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

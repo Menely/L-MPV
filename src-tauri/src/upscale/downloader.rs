@@ -78,20 +78,98 @@ pub fn extract_zip_file(archive_path: &Path, dest_dir: &Path) -> Result<(), Stri
         let mut item = archive
             .by_index(i)
             .map_err(|e| format!("Ошибка чтения записи архива #{}: {}", i, e))?;
-        let outpath = dest_dir.join(item.name());
+        let safe_name = item.enclosed_name().ok_or_else(|| "Unsafe ZIP path".to_owned())?;
+        let outpath = dest_dir.join(safe_name);
 
         if item.name().ends_with('/') {
-            let _ = fs::create_dir_all(&outpath);
+            fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
         } else {
             if let Some(p) = outpath.parent() {
-                let _ = fs::create_dir_all(p);
+                fs::create_dir_all(p).map_err(|e| e.to_string())?;
             }
-            if let Ok(mut outfile) = fs::File::create(&outpath) {
-                let _ = std::io::copy(&mut item, &mut outfile);
-            }
+            let mut outfile = fs::File::create(&outpath).map_err(|e| e.to_string())?;
+            std::io::copy(&mut item, &mut outfile).map_err(|e| e.to_string())?;
         }
     }
 
+    Ok(())
+}
+
+// Each download starts in a fresh directory: an old DLL can never satisfy a
+// missing archive entry. The compatibility record is written only after commit.
+struct InstallStaging(std::path::PathBuf);
+impl InstallStaging {
+    fn new(root: &Path) -> Result<Self, String> {
+        let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
+        let path = root.join("inference").join(format!(".install-{unique}"));
+        fs::create_dir_all(&path).map_err(|e| e.to_string())?;
+        Ok(Self(path))
+    }
+}
+impl Drop for InstallStaging { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+// Detached extraction owns its staging directory until its last write finishes.
+// Dropping the IPC future must not remove/recreate a half-extracted directory.
+fn spawn_staged_work<T: Send + 'static>(
+    operation: &std::sync::Arc<super::operation::OperationGuard>,
+    staging: &std::sync::Arc<InstallStaging>,
+    work: impl FnOnce() -> T + Send + 'static,
+) -> tokio::task::JoinHandle<T> {
+    let staging = staging.clone();
+    super::operation::spawn_blocking(operation, move || {
+        let _staging = staging;
+        work()
+    })
+}
+
+fn validate_staged_runtime(staging: &Path, backend: &str) -> Result<(), String> {
+    for name in super::compatibility::required_runtime_files(backend)? {
+        let path = staging.join(name);
+        let meta = fs::metadata(&path).map_err(|e| format!("Missing staged component {name}: {e}"))?;
+        if !meta.is_file() || meta.len() == 0 {
+            return Err(format!("Missing or empty staged component: {name}"));
+        }
+    }
+    Ok(())
+}
+
+fn commit_staged_install(root: &Path, staging: &Path, backend: &str) -> Result<(), String> {
+    // Downloads and extraction only touch staging. Keep the installed runtime
+    // usable if either fails; invalidate only when live files may be replaced.
+    super::compatibility::invalidate_runtime(root, backend)?;
+    let destination = root.join("inference");
+    let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
+    let archive = destination.join("_stale").join(unique.to_string());
+    // Remove obsolete TensorRT builders and legacy executable-directory shadows
+    // before admitting this installation. Preserve them for manual recovery.
+    for dir in [&destination, root] {
+        for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let name = entry.file_name().to_string_lossy().to_string();
+            let old_builder = name.starts_with("nvinfer_builder_resource_") && name.ends_with(".dll")
+                && staging.join("nvinfer_11.dll").exists() && !staging.join(&name).exists();
+            let shadow = dir == root && name.to_lowercase().ends_with(".dll") && staging.join(&name).is_file();
+            if entry.file_type().map_err(|e| e.to_string())?.is_file() && (old_builder || shadow) {
+                let target_dir = archive.join(if dir == root { "legacy-root" } else { "inference" });
+                fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
+                fs::rename(entry.path(), target_dir.join(entry.file_name())).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+    for entry in fs::read_dir(staging).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if entry.file_type().map_err(|e| e.to_string())?.is_file()
+            && path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("dll") || e.eq_ignore_ascii_case("exe")) {
+            let expected = entry.metadata().map_err(|e| e.to_string())?.len();
+            let copied = fs::copy(&path, destination.join(entry.file_name())).map_err(|e| format!("Failed to install {}: {e}", path.display()))?;
+            if copied == 0 || copied != expected { return Err("Incomplete runtime file copy".into()); }
+        }
+    }
+    super::compatibility::prune_stale_archives(
+        &destination.join("_stale"),
+        super::compatibility::MAX_STALE_GENERATIONS,
+        super::compatibility::MAX_STALE_BYTES,
+    );
     Ok(())
 }
 
@@ -107,39 +185,26 @@ pub fn extract_specific_files_from_zip(
         .map_err(|e| format!("Некорректный zip-архив: {}", e))?;
 
     for (target_name, out_filename) in targets {
-        let mut found = false;
-        if let Ok(mut item) = archive.by_name(target_name) {
-            let outpath = dest_dir.join(out_filename);
-            if let Ok(mut outfile) = fs::File::create(&outpath) {
-                let _ = std::io::copy(&mut item, &mut outfile);
-                found = true;
-            }
-        }
-        if !found {
-            for i in 0..archive.len() {
-                if let Ok(mut item) = archive.by_index(i) {
-                    if item.name().eq_ignore_ascii_case(target_name) {
-                        let outpath = dest_dir.join(out_filename);
-                        if let Ok(mut outfile) = fs::File::create(&outpath) {
-                            let _ = std::io::copy(&mut item, &mut outfile);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
+        let index = (0..archive.len()).find(|&i| archive.by_index(i)
+            .map(|item| item.name().eq_ignore_ascii_case(target_name)).unwrap_or(false))
+            .ok_or_else(|| format!("Missing ZIP entry: {target_name}"))?;
+        let mut item = archive.by_index(index).map_err(|e| e.to_string())?;
+        let mut outfile = fs::File::create(dest_dir.join(out_filename)).map_err(|e| e.to_string())?;
+        std::io::copy(&mut item, &mut outfile).map_err(|e| e.to_string())?;
     }
     Ok(())
 }
 
 /// Фоновая распаковка 7z-архива с последующим удалением исходного файла архива
-pub async fn extract_7z_and_cleanup(
+async fn extract_7z_and_cleanup(
+    operation: &std::sync::Arc<super::operation::OperationGuard>,
+    staging: &std::sync::Arc<InstallStaging>,
     archive_path: std::path::PathBuf,
     dest_dir: std::path::PathBuf,
 ) -> Result<(), String> {
     let p = archive_path.clone();
     let d = dest_dir.clone();
-    tokio::task::spawn_blocking(move || extract_7z_archive(&p, &d))
+    spawn_staged_work(operation, staging, move || extract_7z_archive(&p, &d))
         .await
         .map_err(|e| format!("Ошибка потока распаковки: {}", e))??;
     let _ = fs::remove_file(&archive_path);
@@ -267,21 +332,70 @@ async fn download_file_with_progress(
     Ok(downloaded_bytes)
 }
 
+// Hashing large archives must not occupy a Tokio runtime worker.
+async fn verify_downloaded_archive(
+    contract: &serde_json::Value,
+    archive_name: &str,
+    archive_path: &Path,
+) -> Result<(), String> {
+    let contract = contract.clone();
+    let name = archive_name.to_owned();
+    let path = archive_path.to_owned();
+    tokio::task::spawn_blocking(move || {
+        super::compatibility::verify_downloaded_archive(&contract, &name, &path)
+    }).await.map_err(|e| format!("Archive verification failed: {e}"))?
+}
+
 /// Фоновая загрузка библиотек движка инференса (DirectML / TensorRT) с реальным отслеживанием прогресса
 pub async fn download_inference_engine_impl(
     app: tauri::AppHandle,
     engine: String,
 ) -> Result<String, String> {
     println!("[L-MPV][Upscale] Запуск процедуры загрузки компонентов движка: {}", engine);
+    let operation = super::operation::try_acquire(&super::config::get_app_root_dir())?;
+    super::compatibility::required_runtime_files(&engine)?;
+    if super::compatibility::runtime_used() { return Err("UPSCALE_RESTART_REQUIRED".into()); }
+    let root = super::config::get_app_root_dir();
+    if !super::compatibility::native_matches_package(&root) { return Err("UPSCALE_PLAYER_UPDATE".into()); }
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(900))
         .build()
         .map_err(|e| format!("Ошибка создания HTTP-клиента: {}", e))?;
 
-    let inf_dir = get_inference_dir();
+    let staging = std::sync::Arc::new(InstallStaging::new(&root)?);
+    let inf_dir = staging.0.clone();
+    let published = client.get("https://github.com/Menely/L-MPV/releases/download/inference-v1/dependency-sources.json")
+        .timeout(Duration::from_secs(30)).send().await.map_err(|e| e.to_string())?
+        .error_for_status().map_err(|e| e.to_string())?.text().await.map_err(|e| e.to_string())?;
+    let contract: serde_json::Value = serde_json::from_str(published.trim_start_matches('\u{feff}')).map_err(|e| e.to_string())?;
+    let pins: serde_json::Value = serde_json::from_str(include_str!("../../../scripts/animejanai-dependencies.json")).map_err(|e| e.to_string())?;
+    super::compatibility::verify_download_contract(&contract)?;
     let _ = fs::create_dir_all(&inf_dir);
     let gpu_info = detect_system_gpu();
+
+    // Определяем, нужно ли перекачивать 660 МБ базового рантайма и билдера TensorRT:
+    // если в существующей папке inference/ уже лежат trtexec.exe, nvinfer_11.dll, cudart64_13.dll
+    // и билдер nvinfer_builder_resource_<sm>*.dll, и их размер/BLAKE3 в точности совпадают с предыдущим
+    // проверенным штампом lmpv-tensorrt.json, а версия tensorrt в контракте не менялась —
+    // клонируем проверенные DLL рантайма TensorRT в staging и обновляем только мост aji.
+    let existing_inf = root.join("inference");
+    let can_reuse_trt_core = engine.eq_ignore_ascii_case("TensorRT") && {
+        let sm = if gpu_info.supports_tensorrt {
+            gpu_info.sm_architecture.as_str()
+        } else {
+            "ptx"
+        };
+        let core_present = ["trtexec.exe", "nvinfer_11.dll", "cudart64_13.dll", "l-mpv_convert_fp16.exe"]
+            .iter()
+            .all(|name| {
+                let p = existing_inf.join(name);
+                p.is_file() && fs::metadata(&p).map(|m| m.len() > 0).unwrap_or(false)
+            });
+        core_present
+            && super::compatibility::runtime_current(&root, "TensorRT")
+            && super::compatibility::runtime_supports_gpu_sm(&root, sm)
+    };
 
     let result: Result<String, String> = async {
         // 1. Загрузка и распаковка базовых мостов aji (aji.dll, aji_dml.dll, aji_trt.dll)
@@ -300,6 +414,11 @@ pub async fn download_inference_engine_impl(
             aji_end_pct,
         )
         .await?;
+        verify_downloaded_archive(
+            &contract,
+            "aji-windows-x64.zip",
+            &aji_zip,
+        ).await?;
 
         let _ = app.emit(
             "upscale-download-progress",
@@ -316,7 +435,7 @@ pub async fn download_inference_engine_impl(
 
         let aji_zip_clone = aji_zip.clone();
         let inf_dir_clone = inf_dir.clone();
-        tokio::task::spawn_blocking(move || {
+        spawn_staged_work(&operation, &staging, move || {
             extract_zip_file(&aji_zip_clone, &inf_dir_clone)
         })
         .await
@@ -328,20 +447,28 @@ pub async fn download_inference_engine_impl(
         // 2. В зависимости от выбранного движка загружаем профильные зависимости
         if engine.eq_ignore_ascii_case("DirectML") {
             // OnnxRuntime DirectML
-            let ort_url = "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.directml/1.24.4/microsoft.ml.onnxruntime.directml.1.24.4.nupkg";
+            let pins: serde_json::Value = serde_json::from_str(include_str!("../../../scripts/animejanai-dependencies.json")).map_err(|e| e.to_string())?;
+            let ort_version = pins["onnxruntime_directml"].as_str().ok_or("Missing ONNX Runtime pin")?;
+            let ort_pkg_name = format!("microsoft.ml.onnxruntime.directml.{ort_version}.nupkg");
+            let ort_url = format!("https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.directml/{ort_version}/{ort_pkg_name}");
             let ort_zip = inf_dir.join("temp_ort.zip");
 
             download_file_with_progress(
                 &client,
                 &app,
                 &engine,
-                ort_url,
+                &ort_url,
                 &ort_zip,
                 "Скачивание Microsoft.ML.OnnxRuntime.DirectML (2/3)...",
                 5.0,
                 50.0,
             )
             .await?;
+            verify_downloaded_archive(
+                &contract,
+                &ort_pkg_name,
+                &ort_zip,
+            ).await?;
 
             let _ = app.emit(
                 "upscale-download-progress",
@@ -359,7 +486,7 @@ pub async fn download_inference_engine_impl(
             // Извлекаем только нативные win-x64 dll через модульный хелпер
             let ort_zip_clone = ort_zip.clone();
             let inf_dir_clone = inf_dir.clone();
-            tokio::task::spawn_blocking(move || {
+            spawn_staged_work(&operation, &staging, move || {
                 extract_specific_files_from_zip(
                     &ort_zip_clone,
                     &inf_dir_clone,
@@ -382,20 +509,27 @@ pub async fn download_inference_engine_impl(
             println!("[L-MPV][Upscale] Библиотека OnnxRuntime успешно извлечена.");
 
             // DirectML
-            let dml_url = "https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/1.15.4/microsoft.ai.directml.1.15.4.nupkg";
+            let dml_version = pins["directml"].as_str().ok_or("Missing DirectML pin")?;
+            let dml_pkg_name = format!("microsoft.ai.directml.{dml_version}.nupkg");
+            let dml_url = format!("https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/{dml_version}/{dml_pkg_name}");
             let dml_zip = inf_dir.join("temp_dml.zip");
 
             download_file_with_progress(
                 &client,
                 &app,
                 &engine,
-                dml_url,
+                &dml_url,
                 &dml_zip,
                 "Скачивание Microsoft.AI.DirectML (3/3)...",
                 50.0,
                 95.0,
             )
             .await?;
+            verify_downloaded_archive(
+                &contract,
+                &dml_pkg_name,
+                &dml_zip,
+            ).await?;
 
             let _ = app.emit(
                 "upscale-download-progress",
@@ -412,7 +546,7 @@ pub async fn download_inference_engine_impl(
 
             let dml_zip_clone = dml_zip.clone();
             let inf_dir_clone = inf_dir.clone();
-            tokio::task::spawn_blocking(move || {
+            spawn_staged_work(&operation, &staging, move || {
                 extract_specific_files_from_zip(
                     &dml_zip_clone,
                     &inf_dir_clone,
@@ -435,6 +569,10 @@ pub async fn download_inference_engine_impl(
             }
 
             let msg = "Движок DirectML успешно установлен (aji_dml.dll, DirectML.dll, onnxruntime.dll)".to_string();
+            if !super::compatibility::native_matches_package(&root) { return Err("UPSCALE_PLAYER_UPDATE".into()); }
+            validate_staged_runtime(&inf_dir, "DirectML")?;
+            commit_staged_install(&root, &inf_dir, "DirectML")?;
+            super::compatibility::record_runtime(&root, "DirectML")?;
             let _ = app.emit(
                 "upscale-download-progress",
                 &UpscaleDownloadProgress {
@@ -450,126 +588,78 @@ pub async fn download_inference_engine_impl(
             Ok(msg)
         } else {
             // TensorRT (NVIDIA)
-            let trt_runtime_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-runtime.7z";
-            let trt_runtime_path = inf_dir.join("component-trt-runtime.7z");
-
-            download_file_with_progress(
-                &client,
-                &app,
-                &engine,
-                trt_runtime_url,
-                &trt_runtime_path,
-                "Скачивание рантайма NVIDIA TensorRT 11 (2/4)...",
-                3.0,
-                45.0,
-            )
-            .await?;
-
-            let _ = app.emit(
-                "upscale-download-progress",
-                &UpscaleDownloadProgress {
-                    engine: engine.clone(),
-                    stage: "Распаковка component-trt-runtime.7z с помощью tar.exe...".to_string(),
-                    percent: 48.0,
-                    downloaded_bytes: 0,
-                    total_bytes: 0,
-                    is_finished: false,
-                    error: None,
-                },
-            );
-
-            extract_7z_and_cleanup(trt_runtime_path, inf_dir.clone()).await?;
-
-            move_nested_animejanai_files(&inf_dir);
-            println!("[L-MPV][Upscale] Базовый рантайм TensorRT 11 успешно установлен.");
-
-            // L-MPV Нативный конвертер FP16
-            let conv_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/l-mpv_convert_fp16.zip";
-            let conv_zip = inf_dir.join("temp_conv.zip");
-            
-            download_file_with_progress(
-                &client,
-                &app,
-                &engine,
-                conv_url,
-                &conv_zip,
-                "Скачивание нативного конвертера FP16 (3/4)...",
-                45.0,
-                50.0,
-            ).await?;
-
-            let _ = app.emit(
-                "upscale-download-progress",
-                &UpscaleDownloadProgress {
-                    engine: engine.clone(),
-                    stage: "Распаковка конвертера FP16...".to_string(),
-                    percent: 50.0,
-                    downloaded_bytes: 0,
-                    total_bytes: 0,
-                    is_finished: false,
-                    error: None,
-                },
-            );
-
-            let conv_zip_clone = conv_zip.clone();
-            let inf_dir_clone = inf_dir.clone();
-            tokio::task::spawn_blocking(move || {
-                extract_zip_file(&conv_zip_clone, &inf_dir_clone)
-            }).await.map_err(|e| format!("Ошибка потока распаковки конвертера: {}", e))??;
-            
-            let _ = fs::remove_file(&conv_zip);
-
-            // SM Architecture
             let sm = if gpu_info.supports_tensorrt {
                 gpu_info.sm_architecture.as_str()
             } else {
                 "ptx"
             };
 
-            let sm_url = format!(
-                "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-{}.7z",
-                sm
-            );
-            let sm_path = inf_dir.join(format!("component-trt-{}.7z", sm));
-            let sm_stage = format!("Скачивание билдера TensorRT ({}) (4/4)...", sm);
-
-            let download_sm_res = download_file_with_progress(
-                &client,
-                &app,
-                &engine,
-                &sm_url,
-                &sm_path,
-                &sm_stage,
-                52.0,
-                95.0,
-            )
-            .await;
-
-            if let Err(e) = download_sm_res {
-                println!("[L-MPV][Upscale] Архитектура {} не найдена ({}), пробуем универсальный ptx...", sm, e);
-                let ptx_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-ptx.7z";
-                let _ = fs::remove_file(&sm_path); // Удаляем возможный пустой/битый файл
-                let ptx_path = inf_dir.join("component-trt-ptx.7z");
-                download_file_with_progress(
-                    &client,
-                    &app,
-                    &engine,
-                    ptx_url,
-                    &ptx_path,
-                    "Скачивание универсального билдера TensorRT (ptx) (4/4)...",
-                    52.0,
-                    95.0,
-                )
-                .await?;
-
-                extract_7z_and_cleanup(ptx_path, inf_dir.clone()).await?;
-            } else {
+            if can_reuse_trt_core {
+                // Дельта-обновление: TensorRT 11, CUDA 13, trtexec.exe, l-mpv_convert_fp16.exe и архитектурный билдер
+                // уже установлены в inference/ и не менялись — переносим их в staging без повторного скачивания 660 МБ.
+                println!(
+                    "[L-MPV][Upscale] Дельта-обновление TensorRT: базовые библиотеки TensorRT 11 и билдер {} уже установлены, обновляется только мост aji ({}).",
+                    sm,
+                    pins["aji"].as_str().unwrap_or("v0.25.0")
+                );
                 let _ = app.emit(
                     "upscale-download-progress",
                     &UpscaleDownloadProgress {
                         engine: engine.clone(),
-                        stage: format!("Распаковка билдера TensorRT ({})...", sm),
-                        percent: 95.0,
+                        stage: "Проверка установленного рантайма TensorRT 11 (дельта-обновление)...".to_string(),
+                        percent: 85.0,
+                        downloaded_bytes: 0,
+                        total_bytes: 0,
+                        is_finished: false,
+                        error: None,
+                    },
+                );
+                if let Ok(entries) = fs::read_dir(&existing_inf) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        if path.is_file()
+                            && (name == "trtexec.exe"
+                                || name == "l-mpv_convert_fp16.exe"
+                                || name == "cudart64_13.dll"
+                                || name == "nvinfer_11.dll"
+                                || name == "nvinfer_plugin_11.dll"
+                                || name == "nvonnxparser_11.dll"
+                                || (name.starts_with("nvinfer_builder_resource_") && name.ends_with(".dll")))
+                        {
+                            fs::copy(&path, inf_dir.join(&name)).map_err(|e| {
+                                format!("Не удалось скопировать существующий компонент {}: {}", name, e)
+                            })?;
+                        }
+                    }
+                }
+            } else {
+                let trt_runtime_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-runtime.7z";
+                let trt_runtime_path = inf_dir.join("component-trt-runtime.7z");
+
+                download_file_with_progress(
+                    &client,
+                    &app,
+                    &engine,
+                    trt_runtime_url,
+                    &trt_runtime_path,
+                    "Скачивание рантайма NVIDIA TensorRT 11 (2/4)...",
+                    3.0,
+                    45.0,
+                )
+                .await?;
+                verify_downloaded_archive(
+                    &contract,
+                    "component-trt-runtime.7z",
+                    &trt_runtime_path,
+                ).await?;
+
+                let _ = app.emit(
+                    "upscale-download-progress",
+                    &UpscaleDownloadProgress {
+                        engine: engine.clone(),
+                        stage: "Распаковка component-trt-runtime.7z с помощью tar.exe...".to_string(),
+                        percent: 48.0,
                         downloaded_bytes: 0,
                         total_bytes: 0,
                         is_finished: false,
@@ -577,10 +667,125 @@ pub async fn download_inference_engine_impl(
                     },
                 );
 
-                extract_7z_and_cleanup(sm_path, inf_dir.clone()).await?;
-            }
+                extract_7z_and_cleanup(&operation, &staging, trt_runtime_path, inf_dir.clone()).await?;
 
-            move_nested_animejanai_files(&inf_dir);
+                move_nested_animejanai_files(&inf_dir);
+                println!("[L-MPV][Upscale] Базовый рантайм TensorRT 11 успешно установлен.");
+
+                // L-MPV Нативный конвертер FP16
+                let conv_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/l-mpv_convert_fp16.zip";
+                let conv_zip = inf_dir.join("temp_conv.zip");
+
+                download_file_with_progress(
+                    &client,
+                    &app,
+                    &engine,
+                    conv_url,
+                    &conv_zip,
+                    "Скачивание нативного конвертера FP16 (3/4)...",
+                    45.0,
+                    50.0,
+                )
+                .await?;
+                verify_downloaded_archive(
+                    &contract,
+                    "l-mpv_convert_fp16.zip",
+                    &conv_zip,
+                ).await?;
+
+                let _ = app.emit(
+                    "upscale-download-progress",
+                    &UpscaleDownloadProgress {
+                        engine: engine.clone(),
+                        stage: "Распаковка конвертера FP16...".to_string(),
+                        percent: 50.0,
+                        downloaded_bytes: 0,
+                        total_bytes: 0,
+                        is_finished: false,
+                        error: None,
+                    },
+                );
+
+                let conv_zip_clone = conv_zip.clone();
+                let inf_dir_clone = inf_dir.clone();
+                spawn_staged_work(&operation, &staging, move || {
+                    extract_zip_file(&conv_zip_clone, &inf_dir_clone)
+                })
+                .await
+                .map_err(|e| format!("Ошибка потока распаковки конвертера: {}", e))??;
+
+                let _ = fs::remove_file(&conv_zip);
+
+                let sm_archive_name = format!("component-trt-{}.7z", sm);
+                let sm_url = format!(
+                    "https://github.com/Menely/L-MPV/releases/download/inference-v1/{}",
+                    sm_archive_name
+                );
+                let sm_path = inf_dir.join(&sm_archive_name);
+                let sm_stage = format!("Скачивание билдера TensorRT ({}) (4/4)...", sm);
+
+                let download_sm_res = download_file_with_progress(
+                    &client,
+                    &app,
+                    &engine,
+                    &sm_url,
+                    &sm_path,
+                    &sm_stage,
+                    52.0,
+                    95.0,
+                )
+                .await;
+
+                if let Err(e) = download_sm_res {
+                    println!(
+                        "[L-MPV][Upscale] Архитектура {} не найдена ({}), пробуем универсальный ptx...",
+                        sm, e
+                    );
+                    let ptx_url = "https://github.com/Menely/L-MPV/releases/download/inference-v1/component-trt-ptx.7z";
+                    let _ = fs::remove_file(&sm_path); // Удаляем возможный пустой/битый файл
+                    let ptx_path = inf_dir.join("component-trt-ptx.7z");
+                    download_file_with_progress(
+                        &client,
+                        &app,
+                        &engine,
+                        ptx_url,
+                        &ptx_path,
+                        "Скачивание универсального билдера TensorRT (ptx) (4/4)...",
+                        52.0,
+                        95.0,
+                    )
+                    .await?;
+                    verify_downloaded_archive(
+                        &contract,
+                        "component-trt-ptx.7z",
+                        &ptx_path,
+                    ).await?;
+
+                    extract_7z_and_cleanup(&operation, &staging, ptx_path, inf_dir.clone()).await?;
+                } else {
+                    verify_downloaded_archive(
+                        &contract,
+                        &sm_archive_name,
+                        &sm_path,
+                    ).await?;
+                    let _ = app.emit(
+                        "upscale-download-progress",
+                        &UpscaleDownloadProgress {
+                            engine: engine.clone(),
+                            stage: format!("Распаковка билдера TensorRT ({})...", sm),
+                            percent: 95.0,
+                            downloaded_bytes: 0,
+                            total_bytes: 0,
+                            is_finished: false,
+                            error: None,
+                        },
+                    );
+
+                    extract_7z_and_cleanup(&operation, &staging, sm_path, inf_dir.clone()).await?;
+                }
+
+                move_nested_animejanai_files(&inf_dir);
+            }
 
             // Строгая верификация наличия абсолютно всех необходимых библиотек TensorRT
             let required_trt = ["aji.dll", "aji_trt.dll", "trtexec.exe", "nvinfer_11.dll", "cudart64_13.dll"];
@@ -607,6 +812,10 @@ pub async fn download_inference_engine_impl(
             }
 
             println!("[L-MPV][Upscale] Установка движка TensorRT завершена успешно.");
+            if !super::compatibility::native_matches_package(&root) { return Err("UPSCALE_PLAYER_UPDATE".into()); }
+            validate_staged_runtime(&inf_dir, "TensorRT")?;
+            commit_staged_install(&root, &inf_dir, "TensorRT")?;
+            super::compatibility::record_runtime(&root, "TensorRT")?;
 
             let msg = format!(
                 "Движок TensorRT успешно установлен для {} ({})!",
@@ -665,6 +874,9 @@ pub async fn download_inference_engine_impl(
 
 /// Удаление библиотек выбранного движка инференса из каталога inference/
 pub fn delete_inference_engine_impl(backend: String) -> Result<String, String> {
+    let _operation = super::operation::try_acquire(&super::config::get_app_root_dir())?;
+    if super::compatibility::runtime_used() { return Err("UPSCALE_RESTART_REQUIRED".into()); }
+    super::compatibility::invalidate_runtime(&super::config::get_app_root_dir(), &backend)?;
     let inf_dir = get_inference_dir();
     if !inf_dir.exists() {
         return Ok("Папка inference/ не найдена — удалять нечего".to_string());
@@ -722,4 +934,136 @@ pub fn delete_inference_engine_impl(backend: String) -> Result<String, String> {
     }
 
     Ok(format!("Успешно удалено файлов: {}", removed))
+}
+
+#[cfg(test)]
+mod install_tests {
+    use super::*;
+    use std::io::Write;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static NEXT: AtomicUsize = AtomicUsize::new(0);
+    struct TestDir(std::path::PathBuf);
+    impl TestDir {
+        fn new() -> Self {
+            let dir = std::env::temp_dir().join(format!("lmpv-install-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::SeqCst)));
+            fs::create_dir_all(&dir).unwrap(); Self(dir)
+        }
+        fn zip(&self, name: &str) -> std::path::PathBuf {
+            let path = self.0.join("package.zip");
+            let mut writer = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+            writer.start_file(name, zip::write::SimpleFileOptions::default()).unwrap();
+            writer.write_all(b"new library").unwrap(); writer.finish().unwrap(); path
+        }
+    }
+    impl Drop for TestDir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+    #[test]
+    fn cancelled_caller_keeps_stage_until_detached_extraction_finishes() {
+        let d = TestDir::new();
+        let operation = super::super::operation::try_acquire(&d.0).unwrap();
+        let staging = std::sync::Arc::new(InstallStaging::new(&d.0).unwrap());
+        let path = staging.0.clone();
+        let worker_path = path.clone();
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (finish_tx, finish_rx) = std::sync::mpsc::channel();
+        let task = {
+            let _runtime = runtime.enter();
+            spawn_staged_work(&operation, &staging, move || {
+                started_tx.send(()).unwrap();
+                finish_rx.recv().unwrap();
+                fs::write(worker_path.join("late.dll"), b"last extracted file").unwrap();
+            })
+        };
+        started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        drop(staging);
+        drop(operation);
+        // Simulate IPC cancellation: both async owners and JoinHandle disappear.
+        drop(task);
+        assert!(path.is_dir());
+        finish_tx.send(()).unwrap();
+        runtime.shutdown_timeout(Duration::from_secs(5));
+        assert!(!path.exists(), "last worker must clean up its staging directory");
+        assert!(super::super::operation::try_acquire(&d.0).is_ok());
+    }
+
+    #[test]
+    fn missing_zip_entry_does_not_reuse_old_destination_file() {
+        let d = TestDir::new(); let archive = d.zip("unrelated.dll");
+        fs::write(d.0.join("aji.dll"), b"old library").unwrap();
+        assert!(extract_specific_files_from_zip(&archive, &d.0, &[("aji.dll", "aji.dll")]).is_err());
+        assert_eq!(fs::read(d.0.join("aji.dll")).unwrap(), b"old library");
+    }
+    #[test]
+    fn zip_write_failure_is_not_reported_as_success() {
+        let d = TestDir::new(); let archive = d.zip("aji.dll");
+        fs::create_dir(d.0.join("aji.dll")).unwrap();
+        assert!(extract_zip_file(&archive, &d.0).is_err());
+        assert!(extract_specific_files_from_zip(&archive, &d.0, &[("aji.dll", "aji.dll")]).is_err());
+    }
+    #[test]
+    fn missing_staged_trt_helper_cannot_be_satisfied_by_installed_file() {
+        let d = TestDir::new();
+        let stage = InstallStaging::new(&d.0).unwrap();
+        for name in super::super::compatibility::required_runtime_files("TensorRT").unwrap() {
+            fs::write(d.0.join("inference").join(name), b"installed component").unwrap();
+            if *name != "nvonnxparser_11.dll" {
+                fs::write(stage.0.join(name), b"new component").unwrap();
+            }
+        }
+        assert!(validate_staged_runtime(&stage.0, "TensorRT").is_err());
+        fs::write(stage.0.join("nvonnxparser_11.dll"), b"new parser").unwrap();
+        assert!(validate_staged_runtime(&stage.0, "TensorRT").is_ok());
+    }
+
+    #[test]
+    fn failed_staging_preserves_runtime_but_commit_invalidates_it() {
+        let d = TestDir::new();
+        fs::create_dir(d.0.join("inference")).unwrap();
+        fs::write(d.0.join("libmpv-2.dll"), b"native player").unwrap();
+        for name in ["aji.dll", "aji_dml.dll", "onnxruntime.dll", "DirectML.dll"] {
+            fs::write(d.0.join("inference").join(name), name.as_bytes()).unwrap();
+        }
+        super::super::compatibility::record_runtime(&d.0, "DirectML").unwrap();
+        assert!(super::super::compatibility::runtime_current(&d.0, "DirectML"));
+        {
+            let stage = InstallStaging::new(&d.0).unwrap();
+            let archive = d.zip("unrelated.dll");
+            assert!(extract_specific_files_from_zip(&archive, &stage.0, &[("aji.dll", "aji.dll")]).is_err());
+        }
+        assert!(super::super::compatibility::runtime_current(&d.0, "DirectML"));
+
+        let stage = InstallStaging::new(&d.0).unwrap();
+        fs::write(stage.0.join("aji.dll"), b"replacement bridge").unwrap();
+        commit_staged_install(&d.0, &stage.0, "DirectML").unwrap();
+        assert!(!d.0.join("inference/lmpv-directml.json").exists());
+        assert!(!super::super::compatibility::runtime_current(&d.0, "DirectML"));
+        super::super::compatibility::record_runtime(&d.0, "DirectML").unwrap();
+        assert!(super::super::compatibility::runtime_current(&d.0, "DirectML"));
+    }
+    #[test]
+    fn stage_is_fresh_and_does_not_copy_old_backend_into_new_install() {
+        let d = TestDir::new(); fs::create_dir(d.0.join("inference")).unwrap();
+        fs::write(d.0.join("inference/old.dll"), b"old").unwrap();
+        let stage = InstallStaging::new(&d.0).unwrap();
+        assert!(!stage.0.join("old.dll").exists());
+        fs::write(stage.0.join("aji.dll"), b"new bridge").unwrap();
+        commit_staged_install(&d.0, &stage.0, "DirectML").unwrap();
+        assert_eq!(fs::read(d.0.join("inference/aji.dll")).unwrap(), b"new bridge");
+        assert_eq!(fs::read(d.0.join("inference/old.dll")).unwrap(), b"old");
+    }
+    #[test]
+    fn new_trt_install_archives_obsolete_builders_and_root_shadows() {
+        let d = TestDir::new(); fs::create_dir(d.0.join("inference")).unwrap();
+        fs::write(d.0.join("inference/nvinfer_builder_resource_old.dll"), b"old builder").unwrap();
+        fs::write(d.0.join("aji.dll"), b"legacy bridge").unwrap();
+        let stage = InstallStaging::new(&d.0).unwrap();
+        for name in ["aji.dll", "nvinfer_11.dll", "nvinfer_builder_resource_new.dll"] {
+            fs::write(stage.0.join(name), b"new").unwrap();
+        }
+        commit_staged_install(&d.0, &stage.0, "TensorRT").unwrap();
+        assert!(!d.0.join("aji.dll").exists());
+        assert!(!d.0.join("inference/nvinfer_builder_resource_old.dll").exists());
+        assert!(d.0.join("inference/nvinfer_builder_resource_new.dll").is_file());
+        assert!(d.0.join("inference/_stale").is_dir());
+    }
 }

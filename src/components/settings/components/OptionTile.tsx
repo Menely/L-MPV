@@ -1,5 +1,6 @@
 import React from "react";
 import { RotateCcw } from "lucide-react";
+import { SettingsIcon } from "./SettingsIcon";
 import { optionCardStyle, optionResetBtnStyle } from "./optionCardStyles";
 
 /**
@@ -43,7 +44,7 @@ export function OptionCard({ icon, title, titleHint, children }: OptionCardProps
     <div className="option-card" style={optionCardStyle}>
       {title && (
         <div style={cardHeaderStyle} title={titleHint}>
-          {icon && <span style={cardIconStyle}>{icon}</span>}
+          {icon && <SettingsIcon>{icon}</SettingsIcon>}
           <span style={cardTitleTextStyle}>{title}</span>
         </div>
       )}
@@ -101,10 +102,11 @@ export function OptionBlock({
               className="btn btn--secondary btn--sm"
               style={optionResetBtnStyle}
               onClick={onReset}
-              title={resetTitle}
+              disabled={disabled}
+
               aria-label={resetTitle}
-            >
-              <RotateCcw size={11} />
+              >
+              <RotateCcw size={14} />
             </button>
           )}
         </div>
@@ -118,11 +120,11 @@ export function OptionBlock({
               key={String(opt.value)}
               type="button"
               className={`compact-segment-btn ${isSel ? "compact-segment-btn--active" : ""}`}
-              style={{ height: 28 }}
+              style={{ minHeight: "var(--size-action)", height: "auto" }}
               disabled={disabled}
               title={opt.title ?? opt.label}
               onClick={() => onSelect(opt.value)}
-            >
+              >
               {opt.label}
             </button>
           );
@@ -184,10 +186,11 @@ export function OptionToggleRow({
           className="btn btn--secondary btn--sm"
           style={optionResetBtnStyle}
           onClick={onReset}
-          title={resetTitle}
+          disabled={disabled}
+
           aria-label={resetTitle}
-        >
-          <RotateCcw size={11} />
+          >
+          <RotateCcw size={14} />
         </button>
       )}
     </div>
@@ -199,41 +202,37 @@ export function OptionToggleRow({
    Один кегль (var(--fs-sm)) на заголовки карточки и блока — намеренно. */
 const cardHeaderStyle: React.CSSProperties = {
   display: "flex",
-  alignItems: "center",
+  alignItems: "flex-start",
+  minHeight: 20,
+  lineHeight: "20px",
   gap: 6,
   minWidth: 0,
-};
-
-const cardIconStyle: React.CSSProperties = {
-  display: "flex",
-  color: "var(--accent)",
-  flexShrink: 0,
 };
 
 const cardTitleTextStyle: React.CSSProperties = {
   fontSize: "var(--fs-sm)",
   fontWeight: 600,
   color: "var(--text-primary)",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
+  minWidth: 0,
+  whiteSpace: "normal",
+  overflowWrap: "anywhere",
 };
 
 const cardBodyStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  gap: 9,
-  marginTop: 9,
+  gap: 8,
+  marginTop: 0,
   minWidth: 0,
 };
 
 const blockHeaderStyle: React.CSSProperties = {
-  height: 18,
+  minHeight: "var(--size-action-compact)",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   gap: 8,
-  marginBottom: 5,
+  marginBottom: 4,
   minWidth: 0,
 };
 
@@ -241,15 +240,15 @@ const blockTitleTextStyle: React.CSSProperties = {
   fontSize: "var(--fs-sm)",
   fontWeight: 500,
   color: "var(--text-secondary)",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
+  minWidth: 0,
+  whiteSpace: "normal",
+  overflowWrap: "anywhere",
 };
 
 const blockHintStyle: React.CSSProperties = {
   fontSize: "var(--fs-xs)",
   color: "var(--text-muted)",
   lineHeight: 1.3,
-  marginTop: 5,
+  marginTop: 4,
   display: "block",
 };

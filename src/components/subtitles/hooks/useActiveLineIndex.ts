@@ -1,4 +1,5 @@
 import { useMemo, useRef } from "react";
+import { createSubtitleTimeIndex } from "../lib/subtitleTimeIndex";
 import type { SubtitleLine } from "../subtitleTypes";
 
 interface UseActiveLineIndexParams {
@@ -28,13 +29,14 @@ export function useActiveLineIndex({
   clickedLineIndex,
 }: UseActiveLineIndexParams): number {
   const lastActiveIndexRef = useRef<number>(-1);
+  const timeIndex = useMemo(() => createSubtitleTimeIndex(lines), [lines]);
 
   return useMemo(() => {
     if (lines.length === 0) return -1;
 
     // Приоритет 1: явный выбор пользователя
     if (clickedLineIndex !== null) {
-      const clicked = lines.find((l) => l.index === clickedLineIndex);
+      const clicked = timeIndex.get(clickedLineIndex);
       if (clicked) {
         lastActiveIndexRef.current = clicked.index;
         return clicked.index;
@@ -42,9 +44,7 @@ export function useActiveLineIndex({
     }
 
     // 1. Поиск реплик, звучащих непосредственно в момент времени `position`
-    const activeMatches = lines.filter(
-      (l) => position >= l.start && position < l.end
-    );
+    const activeMatches = timeIndex.active(position);
 
     let chosenIndex = -1;
 
@@ -59,7 +59,7 @@ export function useActiveLineIndex({
       });
 
       // Гистерезис: если предыдущая реплика всё ещё звучит и её начало не старше новой — держим её
-      const prevActive = lines.find((l) => l.index === lastActiveIndexRef.current);
+      const prevActive = timeIndex.get(lastActiveIndexRef.current);
       if (
         prevActive &&
         position >= prevActive.start &&
@@ -73,14 +73,7 @@ export function useActiveLineIndex({
     } else {
       // В моменты тишины между репликами:
       // Фиксируемся на последней прозвучавшей реплике (не прыгаем вперёд до старта новой)
-      let lastSpokenIndex = -1;
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].start <= position) {
-          lastSpokenIndex = lines[i].index;
-        } else if (lastSpokenIndex !== -1 && lines[i].start > position + 0.05) {
-          break;
-        }
-      }
+      const lastSpokenIndex = timeIndex.lastStarted(position);
 
       if (lastSpokenIndex !== -1) {
         chosenIndex = lastSpokenIndex;
@@ -92,5 +85,5 @@ export function useActiveLineIndex({
 
     lastActiveIndexRef.current = chosenIndex;
     return chosenIndex;
-  }, [lines, position, clickedLineIndex]);
+  }, [lines, timeIndex, position, clickedLineIndex]);
 }

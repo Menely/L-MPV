@@ -11,7 +11,10 @@ use std::os::raw::{c_char, c_double, c_int, c_void};
 use std::path::Path;
 use std::sync::Mutex;
 
-use crate::audio_filter::{AudioFilterChainBuilder, AudioNormalizeMode};
+use crate::audio_filter::{audio_filter_chain, AudioNormalizeMode};
+
+pub(crate) mod preview;
+mod preview_image;
 
 // ─── Определения FFI для libmpv C API ───────────────────
 
@@ -371,9 +374,17 @@ impl Drop for MpvNodeResultGuard<'_> {
 }
 
 /// Безопасная обёртка над контекстом mpv.
+#[derive(Clone, Default)]
+struct CachedTrackInfo {
+    path: String,
+    count: i64,
+    video_present: Option<bool>,
+}
+
 pub struct MpvManager {
     handle: Mutex<*mut MpvHandle>,
     api: MpvApi,
+    track_cache: Mutex<Option<CachedTrackInfo>>,
 }
 
 unsafe impl Send for MpvManager {}
@@ -381,9 +392,17 @@ unsafe impl Sync for MpvManager {}
 
 impl MpvManager {
     /// Загрузка API из первой доступной библиотеки mpv.
-    unsafe fn load_mpv_api() -> Result<MpvApi, String> {
+    unsafe fn load_mpv_api(portable_dir: &Path) -> Result<MpvApi, String> {
         let dll_names = ["libmpv-2.dll", "mpv-2.dll", "libmpv-1.dll", "mpv-1.dll"];
         for dll_name in &dll_names {
+            let candidate = portable_dir.join(dll_name);
+            if candidate.exists() {
+                if let Some(path_str) = candidate.to_str() {
+                    if let Ok(loaded) = MpvApi::load(path_str) {
+                        return Ok(loaded);
+                    }
+                }
+            }
             if let Ok(loaded) = MpvApi::load(dll_name) {
                 return Ok(loaded);
             }
@@ -395,9 +414,9 @@ impl MpvManager {
     }
 
     /// Создание нового экземпляра менеджера mpv.
-    pub fn new(portable_dir: &Path) -> Result<Self, String> {
+    pub fn new(portable_dir: &Path, saved_settings: &crate::commands::AppSettings) -> Result<Self, String> {
         unsafe {
-            let api = Self::load_mpv_api()?;
+            let api = Self::load_mpv_api(portable_dir)?;
 
             let handle = (api.create)();
             if handle.is_null() {
@@ -409,6 +428,31 @@ impl MpvManager {
             Self::set_option(&api, handle, "config", "yes");
             Self::set_option(&api, handle, "config-dir", &config_dir);
 
+            // Портативные каталоги кэша: GPU-шейдеры и 3D LUT калибровки цвета
+            let cache_dir = portable_dir.join("data").join("cache");
+            let shader_cache_dir = cache_dir.join("shaders");
+            let icc_cache_dir = cache_dir.join("icc");
+            let _ = std::fs::create_dir_all(&shader_cache_dir);
+            let _ = std::fs::create_dir_all(&icc_cache_dir);
+            let shader_cache_path = shader_cache_dir
+                .to_string_lossy()
+                .replace('\\', "/");
+            let icc_cache_path = icc_cache_dir
+                .to_string_lossy()
+                .replace('\\', "/");
+            Self::set_option(
+                &api,
+                handle,
+                "gpu-shader-cache-dir",
+                &shader_cache_path,
+            );
+            Self::set_option(
+                &api,
+                handle,
+                "icc-cache-dir",
+                &icc_cache_path,
+            );
+
             // Настройка логирования MPV в отдельный файл (сохраняет только ошибки)
             let log_file = portable_dir
                 .join("logs")
@@ -416,10 +460,12 @@ impl MpvManager {
                 .to_string_lossy()
                 .to_string();
             Self::set_option(&api, handle, "log-file", &log_file);
-            Self::set_option(&api, handle, "msg-level", "all=error");
+            // Фильтр апскейлинга пишет диагностику на уровне verbose ([v][animejanai]):
+            // без этого отказ/бездействие фильтра невидимы («в логах пусто»).
+            // Остальные модули по-прежнему только ошибки, чтобы лог не пух.
+            Self::set_option(&api, handle, "msg-level", "all=error,vf=v,animejanai=v,aji=v");
 
             // Путь к скриншотам (восстановление из config/settings.json)
-            let saved_settings = crate::commands::AppSettings::load_portable();
             let screenshots_dir = saved_settings
                 .screenshot_directory
                 .clone()
@@ -431,6 +477,12 @@ impl MpvManager {
                 });
             Self::set_option(&api, handle, "screenshot-directory", &screenshots_dir);
             Self::set_option(&api, handle, "screenshot-format", "png");
+            // Use the video's basename and the first free number; mpv avoids overwrites.
+            Self::set_option(&api, handle, "screenshot-template", "%F-%#04n");
+            // Скриншоты HDR/Dolby Vision: конвертировать в sRGB с тонмаппингом
+            // вместо сохранения native BT.2020/ST.2084 (иначе в SDR-просмотрщиках
+            // кадр выглядит пересвеченным). Полное разрешение кадра сохраняется.
+            Self::set_option(&api, handle, "screenshot-tag-colorspace", "no");
 
 
             Self::set_option(&api, handle, "vo", "gpu-next");
@@ -450,24 +502,35 @@ impl MpvManager {
             Self::set_option(&api, handle, "background-color", "#000000");
             Self::set_option(&api, handle, "border-background", "color");
             Self::set_option(&api, handle, "demuxer-max-bytes", "64MiB");
-            Self::set_option(&api, handle, "demuxer-readahead-secs", "5");
+            // Start on the first decodable data, then prefetch within the byte cap.
+            // mpv owns underrun recovery; user pause and the frontend startup hold
+            // must never be toggled by a second, application-level buffer controller.
+            Self::set_option(&api, handle, "cache", "yes");
+            Self::set_option(&api, handle, "cache-secs", "20");
+            Self::set_option(&api, handle, "demuxer-readahead-secs", "20");
+            Self::set_option(&api, handle, "demuxer-cache-wait", "no");
+            Self::set_option(&api, handle, "cache-pause-initial", "no");
+            Self::set_option(&api, handle, "cache-pause-wait", "1");
             Self::set_option(&api, handle, "demuxer-max-back-bytes", "32MiB");
             // Разрешаем пропуск промежуточных кадров при перемотке
             Self::set_option(&api, handle, "hr-seek-framedrop", "yes");
-            Self::set_option(&api, handle, "cache-pause", "no"); // Не ставить на паузу при буферизации локальных файлов
+            Self::set_option(&api, handle, "cache-pause", "yes");
 
             // ─── Качественный отзывчивый звук (WASAPI) ───
             Self::set_option(&api, handle, "ao", "wasapi"); // Высококачественный драйвер Windows WASAPI
             Self::set_option(&api, handle, "audio-buffer", "0.2"); // Отзывчивый размер буфера для плавной перемотки
             Self::set_option(&api, handle, "audio-channels", "auto-safe"); // Автоопределение каналов оборудования
             Self::set_option(&api, handle, "audio-pitch-correction", "yes"); // Сохранение тональности при изменении скорости
-            Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от клиппинга при даунмиксе
+            Self::set_option(&api, handle, "audio-normalize-downmix", "yes"); // Защита от клиппинга при даунмиксе, включая отключённый лимитер
+            Self::set_option(&api, handle, "gapless-audio", "yes"); // Сохранять аудиовывод открытым между совместимыми треками
             Self::set_option(&api, handle, "volume-max", "150.0"); // Максимальная громкость с софтверным усилением (до 150%)
 
-            // ─── Студийный sinc-ресемплинг (32 taps) ───
+            // ─── Sinc-ресемплинг и высокочастотный треугольный дизеринг ───
             Self::set_option(&api, handle, "audio-resample-filter-size", "32");
             Self::set_option(&api, handle, "audio-resample-phase-shift", "14");
             Self::set_option(&api, handle, "audio-resample-linear", "yes");
+            Self::set_option(&api, handle, "audio-resample-cutoff", "0.97"); // Относительная частота среза ресемплера
+            Self::set_option(&api, handle, "audio-swresample-o", "dither_method=triangular_hp"); // Высокочастотный треугольный дизеринг
 
 
             // ─── Приоритет процесса и мультимедиа-планировщик Windows (MMCSS) ───
@@ -487,11 +550,31 @@ impl MpvManager {
             Self::set_option(&api, handle, "video-sync", "audio"); // Видео синхронизируется по аудиочасам
             Self::set_option(&api, handle, "hr-seek", "yes"); // Точный seek для идеальной синхронизации аудио и видео после перемотки (и при старте с позиции)
 
-            // ─── Субтитры ───────────────────────────────
+            // ─── Субтитры и экранные надписи (Pristine Subtitle & Signs Rendering) ───
+            // Гарантируем 100% аутентичное, неискажённое отображение авторских субтитров,
+            // экранных надписей (signs), караоке и векторных элементов тайпсеттинга:
             Self::set_option(&api, handle, "demuxer-mkv-subtitle-preroll", "yes");
-            Self::set_option(&api, handle, "sub-auto", "fuzzy");
-            Self::set_option(&api, handle, "sub-ass-force-margins", "yes");
-            Self::set_option(&api, handle, "sub-use-margins", "yes");
+            // Отключаем встроенный автопоиск дорожек mpv, чтобы исключить неконтролируемый
+            // подхват и автоматическую активацию внешних файлов субтитров и звука.
+            // Управление загрузкой внешних файлов осуществляется строго через L-MPV с учётом настройки auto_load_tracks.
+            Self::set_option(&api, handle, "sub-auto", "no");
+            Self::set_option(&api, handle, "audio-file-auto", "no");
+            // 1. Ограничение границами кадра: исключает вылезание на поля леттербокса/пилларбокса и блюр
+            Self::set_option(&api, handle, "sub-ass-force-margins", "no");
+            Self::set_option(&api, handle, "sub-use-margins", "no");
+            // 2. Запрет искажающих оверрайдов: отображать субтитры ровно так, как задал автор/тайпсеттер
+            Self::set_option(&api, handle, "sub-ass-override", "no");
+            // 3. Защита экранных надписей: надписи сохраняют оригинальный масштаб 1:1 с объектами в кадре
+            Self::set_option(&api, handle, "sub-scale-signs", "no");
+            // 4. Субпиксельная точность без искажения глифов: отключение хинтинга для векторной графики
+            Self::set_option(&api, handle, "sub-ass-hinting", "none");
+            // 5. Использование оригинальных встроенных шрифтов из контейнера MKV
+            Self::set_option(&api, handle, "embeddedfonts", "yes");
+            // 6. Продвинутый шейпер HarfBuzz для лигатур, кернинга и сложных скриптов
+            Self::set_option(&api, handle, "sub-ass-shaper", "harfbuzz");
+            // 7. Защита графических субтитров (PGS/VobSub) от геометрического растяжения
+            Self::set_option(&api, handle, "stretch-image-subs-to-screen", "no");
+            Self::set_option(&api, handle, "stretch-dvd-subs", "no");
 
             // ─── Поведение при конце файла ──────────────
             Self::set_option(&api, handle, "keep-open", "yes");
@@ -534,10 +617,12 @@ impl MpvManager {
             if saved_settings.deband_enabled.unwrap_or(false) {
                 Self::set_option(&api, handle, "deband", "yes");
             }
-            // Деинтерлейсинг
+            // Деинтерлейсинг (базовые режимы до initialize; yadif/yadif2x применяются после initialize через vf @deint)
             if let Some(ref mode) = saved_settings.deinterlace_mode {
-                if matches!(mode.as_str(), "no" | "auto" | "yadif" | "yadif2x") {
-                    Self::set_option(&api, handle, "deinterlace", mode);
+                match mode.as_str() {
+                    "no" | "auto" => Self::set_option(&api, handle, "deinterlace", mode),
+                    "yadif" | "yadif2x" => Self::set_option(&api, handle, "deinterlace", "no"),
+                    _ => {}
                 }
             }
             // Аппаратное декодирование
@@ -553,9 +638,9 @@ impl MpvManager {
                 .as_deref()
                 .unwrap_or("no");
             let normalize_mode = AudioNormalizeMode::from_str_or_default(normalize_raw);
-            let chain = AudioFilterChainBuilder::build(normalize_mode, limiter_on);
+            let chain = audio_filter_chain(normalize_mode, limiter_on);
             if !chain.is_empty() {
-                Self::set_option(&api, handle, "af", chain);
+                Self::set_option(&api, handle, "af", &chain);
             }
             // Буфер демаксера: пользовательское значение затирает дефолт 64MiB
             if let Some(ref mb) = saved_settings.demuxer_cache_mb {
@@ -584,17 +669,26 @@ impl MpvManager {
                 return Err(format!("Ошибка инициализации mpv: код {}", err));
             }
 
-            Ok(Self {
+            let manager = Self {
                 handle: Mutex::new(handle),
                 api,
-            })
+                track_cache: Mutex::new(None),
+            };
+
+            if let Some(ref mode) = saved_settings.deinterlace_mode {
+                if matches!(mode.as_str(), "no" | "auto" | "yadif" | "yadif2x") {
+                    let _ = manager.set_deinterlace_mode(mode);
+                }
+            }
+
+            Ok(manager)
         }
     }
 
     unsafe fn set_option(api: &MpvApi, handle: *mut MpvHandle, name: &str, value: &str) {
-        let c_name = CString::new(name).unwrap();
-        let c_value = CString::new(value).unwrap();
-        (api.set_option_string)(handle, c_name.as_ptr(), c_value.as_ptr());
+        if let (Ok(c_name), Ok(c_value)) = (CString::new(name), CString::new(value)) {
+            (api.set_option_string)(handle, c_name.as_ptr(), c_value.as_ptr());
+        }
     }
 
     /// Вспомогательная функция: возвращает параметры дебандинга по имени пресета.
@@ -609,17 +703,6 @@ impl MpvManager {
             "strong" => (2, 64, 16, 32),
             _ => (1, 48, 16, 32), // "balanced" — дефолт
         }
-    }
-
-    /// Динамически включает или выключает пиковый лимитер аудио (lavfi alimiter).
-    ///
-    /// Применяет новое состояние лимитера, сохраняя текущий активный режим нормализации.
-    pub fn set_audio_limiter_enabled(
-        &self,
-        mode: AudioNormalizeMode,
-        enabled: bool,
-    ) -> Result<(), String> {
-        self.set_audio_normalize(mode, enabled)
     }
 
     /// Динамически устанавливает алгоритм тонемаппинга HDR.
@@ -707,16 +790,34 @@ impl MpvManager {
     /// Динамически применяет режим деинтерлейсинга.
     ///
     /// Допустимые значения: `"no"`, `"auto"`, `"yadif"`, `"yadif2x"`.
-    /// Префикс `yadif` без суффикса `2x` убирает дёрганость полей на
-    /// прогрессивном источнике, `yadif2x` удваивает число кадров.
+    /// В поставляемой `libmpv-2.dll` свойство `deinterlace` принимает только `"no" | "auto" | "yes"`,
+    /// поэтому режимы `"yadif"` и `"yadif2x"` управляются через именованный видеофильтр `@deint`
+    /// (`lavfi=[yadif=mode=send_frame...]` и `lavfi=[yadif=mode=send_field...]`).
     pub fn set_deinterlace_mode(
         &self,
         mode: &str,
     ) -> Result<(), String> {
-        if !matches!(mode, "no" | "auto" | "yadif" | "yadif2x") {
-            return Err(format!("Неизвестный режим деинтерлейсинга: {mode}"));
+        match mode {
+            "no" | "auto" => {
+                let _ = self.command("vf remove @deint");
+                self.set_property_string("deinterlace", mode)
+            }
+            "yadif" => {
+                self.set_property_string("deinterlace", "no")?;
+                let _ = self.command("vf remove @deint");
+                self.command(
+                    "vf add @deint:lavfi=[yadif=mode=send_frame:parity=auto:deint=all]",
+                )
+            }
+            "yadif2x" => {
+                self.set_property_string("deinterlace", "no")?;
+                let _ = self.command("vf remove @deint");
+                self.command(
+                    "vf add @deint:lavfi=[yadif=mode=send_field:parity=auto:deint=all]",
+                )
+            }
+            _ => Err(format!("Неизвестный режим деинтерлейсинга: {mode}")),
         }
-        self.set_property_string("deinterlace", mode)
     }
 
     /// Динамически применяет режим аппаратного декодирования.
@@ -732,26 +833,6 @@ impl MpvManager {
             return Err(format!("Неизвестный режим декодирования: {mode}"));
         }
         self.set_property_string("hwdec", mode)
-    }
-
-    /// Пересобирает цепочку `af` с учётом режима нормализации и состояния лимитера.
-    ///
-    /// Делегирует сборку фильтров модулю `AudioFilterChainBuilder` и применяет
-    /// результат в свойство `af` движка mpv с обязательным логированием.
-    pub fn set_audio_normalize(
-        &self,
-        mode: AudioNormalizeMode,
-        limiter_enabled: bool,
-    ) -> Result<(), String> {
-        let chain = AudioFilterChainBuilder::build(mode, limiter_enabled);
-        let res = self.set_property_string("af", chain);
-        if let Err(ref err) = res {
-            crate::log_error(
-                "MpvManager::set_audio_normalize",
-                &format!("Ошибка применения цепочки af='{chain}': {err}"),
-            );
-        }
-        res
     }
 
     /// Динамически применяет размер буфера демаксера (в мегабайтах).
@@ -1364,18 +1445,34 @@ impl MpvManager {
             let speed = if speed_raw <= 0.0 { 1.0 } else { speed_raw };
             let volume = Self::get_double_raw(&self.api, handle, c"volume");
 
-            let ab = Self::get_double_raw(&self.api, handle, c"packet-audio-bitrate");
-            let audio_bitrate = if ab > 0.0 {
-                ab
+            // aid/sid/vid дешёвые (по 1 FFI) и меняются при переключении
+            // дорожек при том же count — читаем каждый тик.
+            // Дорогой скан video_present (до 256 FFI) кэшируем по (path,count).
+            let track_count = Self::get_double_raw(
+                &self.api,
+                handle,
+                c"track-list/count",
+            ) as i64;
+            let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
+            let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
+            let current_vid = Self::get_string_raw(&self.api, handle, c"vid");
+
+            let audio_bitrate = if current_aid == "no" {
+                0.0
             } else {
-                Self::get_double_raw(&self.api, handle, c"audio-bitrate")
+                let ab = Self::get_double_raw(&self.api, handle, c"audio-bitrate");
+                if ab > 0.0 {
+                    ab
+                } else {
+                    Self::get_double_raw(&self.api, handle, c"packet-audio-bitrate")
+                }
             };
 
-            let vb = Self::get_double_raw(&self.api, handle, c"packet-video-bitrate");
+            let vb = Self::get_double_raw(&self.api, handle, c"video-bitrate");
             let video_bitrate = if vb > 0.0 {
                 vb
             } else {
-                Self::get_double_raw(&self.api, handle, c"video-bitrate")
+                Self::get_double_raw(&self.api, handle, c"packet-video-bitrate")
             };
 
             let dropped_frames = Self::get_double_raw(
@@ -1384,9 +1481,30 @@ impl MpvManager {
                 c"vo-delayed-frame-count",
             ) as i64;
             let stream_pos = Self::get_double_raw(&self.api, handle, c"stream-pos");
-
-            let video_track_present =
-                Self::video_track_present_raw(&self.api, handle);
+            let video_track_present = self
+                .track_cache
+                .lock()
+                .ok()
+                .and_then(|guard| {
+                    guard.as_ref().and_then(|cached| {
+                        if cached.path == path && cached.count == track_count {
+                            Some(cached.video_present)
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .unwrap_or_else(|| {
+                    let present = Self::video_track_present_raw(&self.api, handle);
+                    if let Ok(mut guard) = self.track_cache.lock() {
+                        *guard = Some(CachedTrackInfo {
+                            path: path.clone(),
+                            count: track_count,
+                            video_present: present,
+                        });
+                    }
+                    present
+                });
             let mut vid_buf = [0u8; 32];
             let video_track = Self::get_property_str_buf_raw(
                 &self.api,
@@ -1404,15 +1522,6 @@ impl MpvManager {
                 output_width,
                 output_height,
             );
-
-            let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
-            let current_sid = Self::get_string_raw(&self.api, handle, c"sid");
-            let current_vid = Self::get_string_raw(&self.api, handle, c"vid");
-            let track_count = Self::get_double_raw(
-                &self.api,
-                handle,
-                c"track-list/count",
-            ) as i64;
 
             Ok(crate::commands::PlaybackState {
                 position,
@@ -1662,6 +1771,76 @@ impl MpvManager {
         })
     }
 
+    /// Возвращает `(кодек, число_каналов)` активной аудиодорожки.
+    ///
+    /// Для числа каналов приоритет отдаётся `track-list/{i}/demux-channel-count`,
+    /// чтобы при включённом `audio-channels=auto-safe` и стереовыходе WASAPI
+    /// отображалось реальное число каналов исходного потока (например, `6` для 5.1),
+    /// а не результат даунмикса до `2`. При отключённом звуке (`aid = "no"`)
+    /// возвращает пустые строки.
+    pub fn get_active_audio_info(&self) -> (String, String) {
+        self.with_handle(|handle| unsafe {
+            let current_aid = Self::get_string_raw(&self.api, handle, c"aid");
+            if current_aid == "no" {
+                return Ok((String::new(), String::new()));
+            }
+
+            let target_aid = current_aid.trim().parse::<i64>().ok();
+            let count_raw = Self::get_double_raw(&self.api, handle, c"track-list/count");
+            let count = if count_raw > 0.0 {
+                (count_raw as i64).min(256)
+            } else {
+                0
+            };
+
+            let mut track_codec = String::new();
+            let mut demux_channels = String::new();
+            let mut prop_buf = [0u8; 64];
+
+            for i in 0..count {
+                let track_type = Self::get_track_prop_string_raw(
+                    &self.api, handle, i, "type", &mut prop_buf,
+                );
+                if track_type != "audio" {
+                    continue;
+                }
+
+                let is_match = if let Some(aid_id) = target_aid {
+                    Self::get_track_prop_int_raw(&self.api, handle, i, "id", &mut prop_buf)
+                        == Some(aid_id)
+                } else {
+                    Self::track_prop_equals_raw(
+                        &self.api, handle, i, "selected", b"yes", &mut prop_buf,
+                    )
+                };
+
+                if is_match {
+                    track_codec = Self::get_track_prop_string_raw(
+                        &self.api, handle, i, "codec", &mut prop_buf,
+                    );
+                    demux_channels = Self::get_track_prop_string_raw(
+                        &self.api, handle, i, "demux-channel-count", &mut prop_buf,
+                    );
+                    break;
+                }
+            }
+
+            let prop_codec = Self::get_string_raw(&self.api, handle, c"audio-codec-name");
+            let prop_channels =
+                Self::get_string_raw(&self.api, handle, c"audio-params/channel-count");
+
+            let codec = if !track_codec.trim().is_empty() {
+                track_codec.trim().to_string()
+            } else {
+                prop_codec.trim().to_string()
+            };
+            let channels = resolve_audio_channel_count(&demux_channels, &prop_channels);
+
+            Ok((codec, channels))
+        })
+        .unwrap_or_default()
+    }
+
     /// Активирует фильтр AI-апскейлинга AnimeJaNai в mpv или переключает слот инференса
     pub fn enable_ai_upscale(
         &self,
@@ -1670,6 +1849,7 @@ impl MpvManager {
         slot: u32,
         backend_changed: bool,
     ) -> Result<(), String> {
+        crate::upscale::compatibility::mark_runtime_used();
         use crate::upscale::config::get_inference_dir;
 
         let norm_conf = conf_path.replace('\\', "/");
@@ -1717,12 +1897,20 @@ impl MpvManager {
                 r#"vf add "@aji:animejanai=lib=\"{}\":conf=\"{}\":model-dir=\"{}\":rife-model-dir=\"{}\":trtexec=\"{}\":stats=\"{}\":slot={}""#,
                 aji_lib, norm_conf, norm_models_dir, rife_dir, trtexec, stats_path, slot
             );
-            let _ = self.command(&cmd_add);
+            // Ошибку НЕ глушим: иначе OSD показывает «Включен», а фильтр в mpv не встаёт
+            // и диагностика невозможна (симптом: в логах пусто, картинки нет).
+            if let Err(e) = self.command(&cmd_add) {
+                eprintln!("[L-MPV][Upscale] Ошибка добавления фильтра animejanai: {}", e);
+                return Err(format!("Не удалось добавить фильтр апскейлинга в mpv: {}", e));
+            }
         }
 
         // Мгновенное переключение активного слота в AnimeJaNai
         let cmd_slot = format!("vf-command aji slot {}", slot);
-        let _ = self.command(&cmd_slot);
+        if let Err(e) = self.command(&cmd_slot) {
+            eprintln!("[L-MPV][Upscale] Ошибка переключения слота {}: {}", slot, e);
+            return Err(format!("Не удалось переключить слот апскейлинга на {}: {}", slot, e));
+        }
         Ok(())
     }
 
@@ -1856,6 +2044,24 @@ impl MpvManager {
     }
 }
 
+/// Определяет отображаемое количество аудиоканалов.
+/// Приоритет: исходное число каналов демуксера (`demux-channel-count`), затем
+/// `audio-params/channel-count` как резервный источник. Значения `<= 0` игнорируются.
+pub(crate) fn resolve_audio_channel_count(
+    demux_channel_count: &str,
+    param_channel_count: &str,
+) -> String {
+    for raw in [demux_channel_count, param_channel_count] {
+        let trimmed = raw.trim();
+        if let Ok(count) = trimmed.parse::<u32>() {
+            if count > 0 {
+                return count.to_string();
+            }
+        }
+    }
+    String::new()
+}
+
 /// Очистка текста субтитров.
 ///
 /// Единая реализация живёт в `crate::commands::subtitles`,
@@ -1880,6 +2086,7 @@ impl Drop for MpvManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn copy_bgr0_frame_handles_positive_stride() {
@@ -1979,5 +2186,71 @@ mod tests {
     fn copy_bgr0_frame_rejects_invalid_bounds() {
         assert!(copy_bgr0_frame(&[0; 7], 2, 2, 8).is_err());
         assert!(copy_bgr0_frame(&[0; 16], 2, 2, 7).is_err());
+    }
+
+    #[test]
+    fn set_deinterlace_mode_supports_all_ui_modes_with_bundled_libmpv() {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        if !manifest_dir.join("libmpv-2.dll").exists() {
+            return;
+        }
+        let temp_dir = std::env::temp_dir().join(format!(
+            "l_mpv_deint_test_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        unsafe {
+            let api = MpvManager::load_mpv_api(&manifest_dir).unwrap();
+            let handle = (api.create)();
+            assert!(!handle.is_null());
+            MpvManager::set_option(&api, handle, "vo", "null");
+            MpvManager::set_option(&api, handle, "ao", "null");
+            MpvManager::set_option(&api, handle, "terminal", "no");
+            assert_eq!((api.initialize)(handle), 0);
+
+            let mgr = MpvManager {
+                handle: Mutex::new(handle),
+                api,
+                track_cache: Mutex::new(None),
+            };
+
+            mgr.set_deinterlace_mode("yadif").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "no");
+            let vf_yadif = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(vf_yadif.contains("deint"), "vf={vf_yadif}");
+            assert!(vf_yadif.contains("send_frame"), "vf={vf_yadif}");
+
+            mgr.set_deinterlace_mode("yadif2x").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "no");
+            let vf_yadif2x = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(vf_yadif2x.contains("deint"), "vf={vf_yadif2x}");
+            assert!(vf_yadif2x.contains("send_field"), "vf={vf_yadif2x}");
+
+            mgr.set_deinterlace_mode("auto").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "auto");
+            let vf_auto = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(!vf_auto.contains("deint"), "vf={vf_auto}");
+
+            mgr.set_deinterlace_mode("no").unwrap();
+            assert_eq!(mgr.get_property_string("deinterlace").unwrap(), "no");
+            let vf_no = mgr.get_property_string("vf").unwrap_or_default();
+            assert!(!vf_no.contains("deint"), "vf={vf_no}");
+
+            assert!(mgr.set_deinterlace_mode("invalid").is_err());
+        }
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn resolve_audio_channel_count_prefers_demux_channels() {
+        assert_eq!(resolve_audio_channel_count("6", "2"), "6");
+        assert_eq!(resolve_audio_channel_count(" 8 ", "2"), "8");
+        assert_eq!(resolve_audio_channel_count("", "2"), "2");
+        assert_eq!(resolve_audio_channel_count("0", "6"), "6");
+        assert_eq!(resolve_audio_channel_count("0", "0"), "");
+        assert_eq!(resolve_audio_channel_count("", ""), "");
     }
 }

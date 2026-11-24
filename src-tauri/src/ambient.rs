@@ -184,9 +184,23 @@ impl AmbientController {
             .clone()
     }
 
+    fn has_bars(mpv: &MpvManager) -> bool {
+        let video_width = mpv.get_property_double("video-params/dw").unwrap_or(0.0);
+        let video_height = mpv.get_property_double("video-params/dh").unwrap_or(0.0);
+        let osd_width = mpv.get_property_double("osd-width").unwrap_or(0.0);
+        let osd_height = mpv.get_property_double("osd-height").unwrap_or(0.0);
+        if video_width <= 0.0 || video_height <= 0.0 || osd_width <= 0.0 || osd_height <= 0.0 {
+            return true;
+        }
+        ((video_width / video_height) - (osd_width / osd_height)).abs() > 0.02
+    }
+
     pub fn apply(&self, settings: &AmbientSettings) -> Result<(), String> {
         let normalized = settings.normalized();
-        let effective = normalized.clone();
+        let mut effective = normalized.clone();
+        if effective.mode != AmbientMode::Off && !Self::has_bars(&self.mpv) {
+            effective.mode = AmbientMode::Off;
+        }
 
         let mut last_guard = self
             .last_applied
@@ -312,8 +326,7 @@ mod tests {
             saturation: 500,
             debanding: 999,
             ..AmbientSettings::default()
-        }
-        .normalized();
+        }.normalized();
         assert_eq!(settings.blur_radius, 150);
         assert_eq!(settings.brightness, 150);
         assert_eq!(settings.saturation, 150);

@@ -1,7 +1,8 @@
 import type { RefObject } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import type { TrackInfo } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
+import { truncateMiddle } from "../../utils/textUtils";
 
 interface TrackPickerProps {
   subTracks: TrackInfo[];
@@ -35,67 +36,77 @@ export function TrackPicker({
   return (
     <div
       ref={pickerRef}
+      className="subtitles-search-card__track-picker"
       style={{
         position: "relative",
         flex: 1,
         minWidth: 0,
       }}
-    >
+      >
       <button
         type="button"
         onClick={onToggle}
+        className="subtitles-search-card__track-picker-btn hover-bright"
         style={{
           width: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           padding: "7px 10px",
-          background: "rgba(255, 255, 255, 0.05)",
+          background: "var(--surface-level-3)",
           border: "1px solid var(--border-pill)",
-          borderRadius: "var(--radius-xs)",
+          borderRadius: "var(--radius-control)",
           color: "var(--text-primary)",
-          fontSize: "0.8rem",
+          fontSize: "var(--fs-sm)",
           cursor: "pointer",
           transition: "background 0.15s ease",
-          gap: 6,
+          gap: "var(--space-3)",
         }}
-        className="hover-bright"
-        title={dict.subtitlesSearch.selectTrack}
-      >
+        >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: "var(--space-3)",
             overflow: "hidden",
             minWidth: 0,
           }}
-        >
+          >
           <span
             style={{
               padding: "1px 6px",
-              borderRadius: "3px",
-              background: "rgba(59, 130, 246, 0.2)",
-              color: "var(--accent)",
-              fontSize: "0.7rem",
+              borderRadius: "var(--radius-xs)",
+              background: "var(--surface-accent-subtle)",
+              color: "var(--accent-text)",
+              fontSize: "var(--fs-2xs)",
               fontWeight: 700,
               flexShrink: 0,
             }}
-          >
+            >
             {dict.subtitlesSearch.tracksCount(subTracks.length)}
           </span>
           <span
+            title={
+              currentDisplayedTrack
+                ? (currentDisplayedTrack.title?.trim() ||
+                   (currentDisplayedTrack.lang
+                     ? `${dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)} (${currentDisplayedTrack.lang.toUpperCase()})`
+                     : dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)))
+                : undefined
+            }
             style={{
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              fontSize: "0.8rem",
+              fontSize: "var(--fs-sm)",
             }}
-          >
+            >
             {currentDisplayedTrack
-              ? `${currentDisplayedTrack.title || dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)} ${
-                  currentDisplayedTrack.lang ? `(${currentDisplayedTrack.lang})` : ""
-                }`
+              ? (currentDisplayedTrack.title?.trim()
+                  ? truncateMiddle(currentDisplayedTrack.title.trim(), 30)
+                  : (currentDisplayedTrack.lang
+                      ? `${dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)} (${currentDisplayedTrack.lang.toUpperCase()})`
+                      : dict.subtitlesSearch.defaultTrackName(currentDisplayedTrack.id)))
               : dict.subtitlesSearch.selectTrack}
           </span>
         </div>
@@ -113,44 +124,47 @@ export function TrackPicker({
       {/* Выпадающее меню выбора дорожек */}
       {isOpen && (
         <div
-          className="custom-scrollbar"
+          className="subtitles-search-card__track-picker-menu"
           style={{
             position: "absolute",
             top: "calc(100% + 4px)",
             left: 0,
             right: 0,
-            zIndex: 30,
+            zIndex: 40,
             background: "var(--bg-glass)",
             border: "1px solid var(--border-pill)",
-            borderRadius: "var(--radius-sm)",
-            boxShadow: "var(--shadow-lg)",
+            borderRadius: "var(--radius-controls, var(--radius-sm))",
+            boxShadow: "var(--shadow-modal)",
             maxHeight: "220px",
             overflowY: "auto",
-            padding: "4px",
+            overflowX: "hidden",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            scrollbarGutter: "auto",
+            padding: "var(--space-2)",
           }}
-        >
+          >
           <button
             type="button"
             onClick={onDisable}
+            className="subtitles-search-card__track-picker-item hover-bright"
             style={{
               width: "100%",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               padding: "6px 8px",
-              background: !activeTrack ? "var(--bg-active)" : "transparent",
+              background: "transparent",
               border: "none",
-              borderRadius: "var(--radius-xs)",
-              color: !activeTrack ? "var(--accent)" : "var(--text-secondary)",
-              fontSize: "0.8rem",
+              color: !activeTrack ? "var(--accent-text)" : "var(--text-secondary)",
+              fontSize: "var(--fs-sm)",
               cursor: "pointer",
               textAlign: "left",
-              marginBottom: "3px",
+              marginBottom: "var(--space-1)",
             }}
-            className="hover-bright"
-          >
+            >
             <span>{dict.subtitlesSearch.disableSubtitles}</span>
-            {!activeTrack && <Check size={14} />}
+            {!activeTrack && <span className="track-radio-dot" aria-hidden="true" />}
           </button>
 
           {subTracks.map((t) => {
@@ -162,41 +176,43 @@ export function TrackPicker({
                 key={t.id}
                 type="button"
                 onClick={() => onSelect(t.id)}
+                className="subtitles-search-card__track-picker-item hover-bright"
+                title={t.title || dict.subtitlesSearch.defaultTrackName(t.id)}
                 style={{
                   width: "100%",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
                   padding: "6px 8px",
-                  background: isSelected ? "var(--bg-active)" : "transparent",
+                  // Выделенная дорожка обозначается ТОЛЬКО точкой: фон остаётся
+                  // нейтральным, заливка появляется лишь при наведении.
+                  background: "transparent",
                   border: "none",
-                  borderRadius: "var(--radius-xs)",
-                  color: isSelected ? "var(--accent)" : "var(--text-primary)",
-                  fontSize: "0.8rem",
+                  color: isSelected ? "var(--accent-text)" : "var(--text-primary)",
+                  fontSize: "var(--fs-sm)",
                   cursor: "pointer",
                   textAlign: "left",
-                  gap: 6,
+                  gap: "var(--space-3)",
                 }}
-                className="hover-bright"
-              >
+                >
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
+                    gap: "var(--space-3)",
                     overflow: "hidden",
                     minWidth: 0,
                   }}
-                >
-                  <span
-                    style={{
-                      fontSize: "0.72rem",
-                      fontWeight: 700,
-                      opacity: 0.6,
-                      flexShrink: 0,
-                    }}
                   >
-                    #{t.id}
+                  {/* Номер — как в плейлисте: круглый бейдж с tabular-nums. */}
+                  <span
+                    className="playlist-item__num"
+                    style={{
+                      color: isSelected ? "var(--accent-text)" : "var(--text-secondary)",
+                      fontSize: "var(--fs-2xs)",
+                    }}
+                    >
+                    {t.id}
                   </span>
                   <span
                     style={{
@@ -204,27 +220,31 @@ export function TrackPicker({
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
                     }}
-                  >
-                    {t.title || dict.subtitlesSearch.defaultTrackName(t.id)}
+                    >
+                    {t.title ? truncateMiddle(t.title.trim(), 28) : dict.subtitlesSearch.defaultTrackName(t.id)}
                   </span>
+                  {/* Язык — тем же приёмом, что и кодек SUBRIP: верхний регистр. */}
                   {t.lang && (
                     <span
                       style={{
-                        fontSize: "0.7rem",
-                        opacity: 0.7,
+                        fontSize: "var(--fs-3xs)",
+                        fontWeight: 600,
+                        letterSpacing: "0.02em",
+                        color: "var(--text-muted)",
                         flexShrink: 0,
                       }}
                     >
-                      [{t.lang}]
+                      {t.lang.toUpperCase()}
                     </span>
                   )}
                   {t.codec && (
                     <span
                       style={{
-                        fontSize: "0.65rem",
+                        fontSize: "var(--fs-3xs)",
+                        fontWeight: 600,
                         padding: "1px 4px",
-                        borderRadius: "2px",
-                        background: "rgba(255, 255, 255, 0.08)",
+                        borderRadius: "var(--radius-xs)",
+                        background: "var(--surface-level-3-hover)",
                         color: "var(--text-muted)",
                         flexShrink: 0,
                       }}
@@ -232,8 +252,17 @@ export function TrackPicker({
                       {t.codec.toUpperCase()}
                     </span>
                   )}
+                  {t.external && (
+                    <span
+                      className="track-badge-ext"
+                      title={dict.controls.externalTrackTooltip}
+                      aria-label={dict.controls.externalTrackTooltip}
+                    >
+                      <ExternalLink size={10} strokeWidth={2.2} />
+                    </span>
+                  )}
                 </div>
-                {isSelected && <Check size={14} style={{ flexShrink: 0 }} />}
+                {isSelected && <span className="track-radio-dot" aria-hidden="true" />}
               </button>
             );
           })}

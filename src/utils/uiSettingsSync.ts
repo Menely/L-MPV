@@ -1,3 +1,7 @@
+import { isTimelinePreviewEnabled, setTimelinePreviewEnabled } from "./timelinePreviewPreference";
+import { getFavoriteModel, setFavoriteModel } from "./favoriteModel";
+import { EXPLORER_FILTER_KEY, savedExplorerFilter } from "./explorerPanel";
+import { parseNavigationPin, readNavigationPin, saveNavigationPin, NAVIGATION_PIN_EVENT } from "./navigationPanelPin";
 /**
  * Модуль двусторонней синхронизации визуальных настроек L-MPV с портативным файлом config/settings.json.
  * 
@@ -8,6 +12,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { applyAnimationsFlagToDom } from "./animationUtils";
+import { isVolumeIndicatorEnabled, setVolumeIndicatorEnabled, isVolumeOsdEnabled, setVolumeOsdEnabled } from "./volumeFeedback";
 import {
   getSavedPlayerTheme,
   savePlayerTheme,
@@ -46,6 +51,11 @@ import {
   ControlBarStyle,
 } from "./controlBarStyleUtils";
 import {
+  getSavedUtilityCards,
+  saveUtilityCards,
+  UTILITY_CARDS_CHANGED_EVENT,
+} from "./controlBarUtilityLayout";
+import {
   getSavedTimePosition,
   saveTimePosition,
   TimeDisplayPosition,
@@ -55,8 +65,24 @@ import {
   saveTimeFormat,
   TimeFormatMode,
 } from "./timeFormatUtils";
-import { getCustomHotkeys, saveCustomHotkeys } from "./hotkeyUtils";
+import {
+  getCustomHotkeys,
+  HOTKEYS_SCHEMA_VERSION,
+  saveCustomHotkeys,
+} from "./hotkeyUtils";
+import {
+  getSavedSeekStepSeconds,
+  getSavedSkipOpeningSeconds,
+  saveSeekStepSeconds,
+  saveSkipOpeningSeconds,
+} from "./seekUtils";
 import { saveLocale, getEffectiveLocale, type Locale } from "../i18n/index";
+import {
+  getHeatmapConfig,
+  saveHeatmapConfig,
+  HeatmapConfig,
+  HEATMAP_CONFIG_CHANGED_EVENT,
+} from "../components/player/heatmap";
 
 export interface StoredVisualizerSettings {
   enabled: boolean;
@@ -81,17 +107,27 @@ export interface UiSettings {
   time_format?: string;
   animations_enabled?: boolean;
   show_track_names?: boolean;
+  volume_indicator_enabled?: boolean;
+  timeline_preview_enabled?: boolean;
+  explorer_playable_only?: boolean;
+  navigation_panel_pin?: { top: number; height: number } | null;
+  volume_indicator_osd?: boolean;
+  favorite_upscale_model?: string;
   playlist_width?: number;
   custom_colors?: string[];
   visible_buttons?: Record<string, boolean>;
+  utility_button_cards?: string[][];
   custom_hotkeys?: Record<string, string[]>;
+  hotkeys_schema_version?: number;
   language?: string;
   settings_style?: string;
   hide_controls_in_upper_half?: boolean;
   hotload_enabled?: boolean;
   save_tracks_to_video_dir?: boolean;
   skip_opening_seconds?: number;
+  seek_step_seconds?: number;
   visualizer_config?: StoredVisualizerSettings;
+  heatmap_config?: HeatmapConfig;
 }
 
 const UI_SYNC_PENDING_KEY = "l-mpv-ui-sync-pending";
@@ -233,17 +269,27 @@ export function collectCurrentUiSettings(): UiSettings {
     time_format: getSavedTimeFormat(),
     animations_enabled: localStorage.getItem("l-mpv-animations-enabled") !== "false",
     show_track_names: localStorage.getItem("l-mpv-show-track-names") !== "false",
+    volume_indicator_enabled: isVolumeIndicatorEnabled(),
+    timeline_preview_enabled: isTimelinePreviewEnabled(),
+    explorer_playable_only: savedExplorerFilter(),
+    navigation_panel_pin: readNavigationPin(),
+    volume_indicator_osd: isVolumeOsdEnabled(),
+    favorite_upscale_model: getFavoriteModel(),
     playlist_width: playlistWidth,
     custom_colors: getCustomColors(),
     visible_buttons: visibleButtons,
+    utility_button_cards: getSavedUtilityCards(),
     custom_hotkeys: getCustomHotkeys(),
+    hotkeys_schema_version: HOTKEYS_SCHEMA_VERSION,
     language: getEffectiveLocale(),
     settings_style: getSavedUiSettingsStyle(),
     hide_controls_in_upper_half: localStorage.getItem("l-mpv-hide-controls-upper-half") === "true",
     hotload_enabled: localStorage.getItem("l-mpv-hotload-enabled") === "true",
     save_tracks_to_video_dir: localStorage.getItem("l-mpv-save-tracks-to-video-dir") !== "false",
-    skip_opening_seconds: Math.min(600, Math.max(1, Number(localStorage.getItem("l-mpv-skip-opening-seconds")) || 90)),
+    skip_opening_seconds: getSavedSkipOpeningSeconds(),
+    seek_step_seconds: getSavedSeekStepSeconds(),
     visualizer_config: visualizerConfig,
+    heatmap_config: getHeatmapConfig(),
   };
 }
 
@@ -361,6 +407,31 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
     localStorage.setItem("l-mpv-show-track-names", ui.show_track_names ? "true" : "false");
     restored = true;
   }
+  if (typeof ui.favorite_upscale_model === "string" && getFavoriteModel() !== ui.favorite_upscale_model) {
+    setFavoriteModel(ui.favorite_upscale_model);
+    restored = true;
+  }
+  if (typeof ui.timeline_preview_enabled === "boolean") {
+    setTimelinePreviewEnabled(ui.timeline_preview_enabled);
+    restored = true;
+  }
+  if (typeof ui.explorer_playable_only === "boolean") {
+    localStorage.setItem(EXPLORER_FILTER_KEY, String(ui.explorer_playable_only));
+    restored = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(ui, "navigation_panel_pin")) {
+    saveNavigationPin(parseNavigationPin(ui.navigation_panel_pin), false);
+    window.dispatchEvent(new Event(NAVIGATION_PIN_EVENT));
+    restored = true;
+  }
+  if (typeof ui.volume_indicator_osd === "boolean") {
+    setVolumeOsdEnabled(ui.volume_indicator_osd);
+    restored = true;
+  }
+  if (typeof ui.volume_indicator_enabled === "boolean") {
+    setVolumeIndicatorEnabled(ui.volume_indicator_enabled);
+    restored = true;
+  }
   if (typeof ui.playlist_width === "number" && ui.playlist_width >= 360) {
     localStorage.setItem("l-mpv-playlist-width", ui.playlist_width.toString());
     restored = true;
@@ -373,8 +444,12 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
     localStorage.setItem("l-mpv-visible-buttons", JSON.stringify(ui.visible_buttons));
     restored = true;
   }
+  if (Array.isArray(ui.utility_button_cards)) {
+    saveUtilityCards(ui.utility_button_cards, { notify: false });
+    restored = true;
+  }
   if (ui.custom_hotkeys && typeof ui.custom_hotkeys === "object") {
-    saveCustomHotkeys(ui.custom_hotkeys);
+    saveCustomHotkeys(ui.custom_hotkeys, ui.hotkeys_schema_version ?? 0);
     restored = true;
   }
   if (ui.language === "ru" || ui.language === "en") {
@@ -398,8 +473,11 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
     restored = true;
   }
   if (typeof ui.skip_opening_seconds === "number" && Number.isFinite(ui.skip_opening_seconds)) {
-    const skipSeconds = Math.min(600, Math.max(1, Math.round(ui.skip_opening_seconds)));
-    localStorage.setItem("l-mpv-skip-opening-seconds", skipSeconds.toString());
+    saveSkipOpeningSeconds(ui.skip_opening_seconds, false);
+    restored = true;
+  }
+  if (typeof ui.seek_step_seconds === "number" && Number.isFinite(ui.seek_step_seconds)) {
+    saveSeekStepSeconds(ui.seek_step_seconds, false);
     restored = true;
   }
   if (ui.visualizer_config && typeof ui.visualizer_config === "object") {
@@ -415,6 +493,10 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
       theme: themes.includes(visualizer.theme) ? visualizer.theme : "accent",
       height: Number.isFinite(height) ? Math.min(80, Math.max(8, Math.round(height))) : 22,
     } satisfies StoredVisualizerSettings));
+    restored = true;
+  }
+  if (ui.heatmap_config && typeof ui.heatmap_config === "object") {
+    saveHeatmapConfig(ui.heatmap_config);
     restored = true;
   }
   return restored;
@@ -499,6 +581,19 @@ export async function hydrateUiSettingsFromDisk(): Promise<void> {
 }
 
 /**
+ * Немедленный сброс параметров интерфейса на диск без ожидания дебаунса.
+ * Гарантирует сохранение настроек и кастомных горячих клавиш перед выгрузкой окна.
+ */
+export function flushUiSettingsNow(): void {
+  if (syncDebounceTimer !== null) {
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = null;
+  }
+  const snapshot = collectCurrentUiSettings();
+  queueUiSettingsSnapshot(snapshot);
+}
+
+/**
  * Инициализация автоматической синхронизации параметров интерфейса с диском.
  * Отслеживает пользовательские события изменения темы, цвета, масштаба и т.д.
  */
@@ -507,8 +602,14 @@ export function initUiSettingsAutoSync(): () => void {
     syncUiSettingsToDisk(400);
   };
 
+  const handleBeforeUnload = () => {
+    flushUiSettingsNow();
+  };
+
   const events = [
     "l-mpv-settings-changed",
+    UTILITY_CARDS_CHANGED_EVENT,
+    HEATMAP_CONFIG_CHANGED_EVENT,
     "l-mpv-player-theme-changed",
     "l-mpv-ui-scale-changed",
     "l-mpv-accent-color-changed",
@@ -523,10 +624,12 @@ export function initUiSettingsAutoSync(): () => void {
 
   events.forEach((evt) => window.addEventListener(evt, handleSettingsChanged));
   window.addEventListener("storage", handleSettingsChanged);
+  window.addEventListener("beforeunload", handleBeforeUnload);
 
   return () => {
     events.forEach((evt) => window.removeEventListener(evt, handleSettingsChanged));
     window.removeEventListener("storage", handleSettingsChanged);
+    window.removeEventListener("beforeunload", handleBeforeUnload);
     if (syncDebounceTimer !== null) {
       clearTimeout(syncDebounceTimer);
       syncDebounceTimer = null;

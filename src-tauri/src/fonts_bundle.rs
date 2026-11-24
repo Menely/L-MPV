@@ -15,6 +15,7 @@ const JAKARTA_FONT: &[u8] = include_bytes!("../../src/assets/fonts/PlusJakartaSa
 const MANROPE_FONT: &[u8] = include_bytes!("../../src/assets/fonts/Manrope-Variable.ttf");
 const MONO_FONT: &[u8] = include_bytes!("../../src/assets/fonts/JetBrainsMono-Variable.ttf");
 const README_TXT: &[u8] = include_bytes!("../../src/assets/fonts/README.txt");
+static FONT_INSTALL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Описание элемента шрифта для передачи во фронтенд.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -37,6 +38,7 @@ pub struct CustomFontItem {
 /// Срабатывает как при первом запуске портативной версии, так и при обычном обновлении
 /// одного лишь бинарного файла l-mpv.exe пользователем.
 pub fn ensure_fonts_installed(exe_dir: &Path) {
+    let Ok(_installation) = FONT_INSTALL_LOCK.lock() else { return; };
     let fonts_dir = exe_dir.join("fonts");
     if let Err(e) = std::fs::create_dir_all(&fonts_dir) {
         eprintln!("[Fonts] Не удалось создать директорию fonts: {e}");
@@ -103,6 +105,7 @@ fn sanitize_font_family(name: &str) -> String {
 /// Получение списка всех доступных шрифтов из папки fonts/ (как встроенных, так и добавленных пользователем).
 #[tauri::command]
 pub fn get_custom_fonts() -> Result<Vec<CustomFontItem>, String> {
+    ensure_fonts_installed(&crate::commands::get_app_dir()?);
     let fonts_dir = get_fonts_dir()?;
     let mut fonts = Vec::new();
 
@@ -209,6 +212,8 @@ pub fn load_font_data(file_name: String) -> Result<String, String> {
         return Err("Недопустимое имя файла шрифта".to_string());
     }
 
+    // Also wait for a concurrent deferred installation before reading its files.
+    ensure_fonts_installed(&crate::commands::get_app_dir()?);
     let fonts_dir = get_fonts_dir()?;
     let font_path = fonts_dir.join(&file_name);
 

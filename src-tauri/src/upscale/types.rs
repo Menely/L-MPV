@@ -17,6 +17,8 @@ pub struct ModelFileItem {
     pub full_path: String,
     /// Флаг наличия скомпилированного TensorRT .engine для 1080p разрешения
     pub has_engine_1080p: bool,
+    /// Existing cache belongs to an old or unverified runtime/model/GPU context.
+    pub engine_outdated: bool,
 }
 
 /// Настройки апскейлинга, передаваемые между фронтендом и бэкендом
@@ -75,6 +77,10 @@ pub struct UpscaleStatus {
     pub directml_present: bool,
     /// Наличие полного набора библиотек NVIDIA TensorRT (aji_trt.dll, nvinfer_11.dll)
     pub tensorrt_present: bool,
+    pub directml_update_required: bool,
+    pub tensorrt_update_required: bool,
+    pub player_update_required: bool,
+    pub runtime_restart_required: bool,
     /// Количество обнаруженных ONNX моделей в папке models/onnx/
     pub models_count: usize,
     /// Путь к каталогу моделей

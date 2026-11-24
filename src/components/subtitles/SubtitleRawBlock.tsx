@@ -104,38 +104,38 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
       onClick={(e) => e.stopPropagation()}
       style={{
         position: "relative",
-        marginTop: 4,
+        marginTop: "var(--space-2)",
         padding: "5px 8px",
         background: "rgba(0, 0, 0, 0.45)",
         border: "1px solid rgba(255, 255, 255, 0.08)",
         borderRadius: "var(--radius-xs)",
         minHeight: 26,
       }}
-    >
+      >
       {/* Кнопки переключения формата и копирования в правом верхнем углу блока */}
       <div
         style={{
           position: "absolute",
-          top: 3,
-          right: 4,
+          top: "var(--space-1)",
+          right: "var(--space-2)",
           display: "flex",
           alignItems: "center",
-          gap: 3,
-          zIndex: 2,
+          gap: "var(--space-1)",
+          zIndex: "var(--z-in-raised)",
         }}
-      >
+        >
         {/* Переключатель формата: [Ht] (HTML/SRT) / [Ae] (Aegisub/ASS) */}
         <div
           style={{
             display: "inline-flex",
             alignItems: "center",
-            background: "rgba(255, 255, 255, 0.05)",
+            background: "var(--surface-level-3)",
             border: "1px solid rgba(255, 255, 255, 0.1)",
             borderRadius: "var(--radius-xs)",
-            padding: 1,
-            gap: 1,
+            padding: "var(--space-0)",
+            gap: "var(--space-0)",
           }}
-        >
+          >
           {(["html", "aegisub"] as SubtitleRawFormat[]).map((fmt) => (
             <button
               key={fmt}
@@ -147,11 +147,11 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
                     ? "var(--accent)"
                     : "transparent",
                 color:
-                  currentFormat === fmt ? "#ffffff" : "var(--text-muted)",
+                  currentFormat === fmt ? "var(--on-accent)" : "var(--text-muted)",
                 border: "none",
-                borderRadius: "2px",
+                borderRadius: "var(--radius-xs)",
                 padding: "1px 4px",
-                fontSize: "0.62rem",
+                fontSize: "var(--fs-3xs)",
                 fontWeight: 600,
                 cursor: "pointer",
                 lineHeight: 1.1,
@@ -163,7 +163,7 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
                   ? dict.subtitlesSearch.rawHtmlTooltip
                   : dict.subtitlesSearch.rawAssTooltip
               }
-            >
+              >
               {fmt === "html" ? "Ht" : "Ae"}
             </button>
           ))}
@@ -175,20 +175,20 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
           onClick={handleCopy}
           style={{
             background: isCopied
-              ? "rgba(59, 130, 246, 0.2)"
+              ? "var(--surface-accent-subtle)"
               : "rgba(255, 255, 255, 0.05)",
             border: "1px solid",
             borderColor: isCopied
               ? "var(--accent)"
               : "rgba(255, 255, 255, 0.1)",
-            color: isCopied ? "var(--accent)" : "var(--text-muted)",
+            color: isCopied ? "var(--accent-text)" : "var(--text-muted)",
             cursor: "pointer",
             padding: "2px 5px",
             borderRadius: "var(--radius-xs)",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "all 0.15s ease",
+            transition: "background-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), filter var(--t-fast) var(--ease-smooth)",
           }}
           className="hover-bright"
           title={
@@ -196,7 +196,7 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
               ? dict.subtitlesSearch.rawCopied
               : dict.subtitlesSearch.rawCopyCode
           }
-        >
+          >
           {isCopied ? <Check size={11} /> : <Copy size={11} />}
         </button>
       </div>
@@ -204,9 +204,9 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
       {/* Поле кода с исходной разметкой */}
       <pre
         style={{
-          margin: 0,
+          margin: "var(--space-0)",
           paddingRight: 68,
-          fontSize: "0.72rem",
+          fontSize: "var(--fs-xs)",
           fontFamily:
             "var(--font-mono, 'JetBrains Mono', 'Consolas', monospace)",
           color: "rgba(255, 255, 255, 0.8)",
@@ -214,7 +214,7 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
           wordBreak: "break-all",
           lineHeight: 1.35,
         }}
-      >
+        >
         {rawText}
       </pre>
     </div>
