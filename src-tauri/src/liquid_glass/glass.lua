@@ -199,7 +199,7 @@ function Glass.new(directory)
                 local nh = sh / vh
                 local nr = sr / vh
                 local na = math_max(0, math_min(1, tonumber(rect.a) or 1))
-                local nf = math_max(0, math_min(1, tonumber(rect.f) or 0))
+                local nf = math_max(0, math_min(2, tonumber(rect.f) or 0))
                 if na > 0.005 and nx < 1 and ny < 1 and nx + nw > 0 and ny + nh > 0 then
                     overlaps = true
                     n_parts = n_parts + 1

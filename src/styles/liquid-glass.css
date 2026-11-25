@@ -172,18 +172,27 @@ html[data-interface-theme="glass"] .player-controls-wrapper .timeline-preview-ca
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
 }
 
-/* Прозрачный фон аудио-визуализатора во всех видах панели Liquid Glass */
+/* Полностью прозрачный аудио-визуализатор во всех видах панели и без белой подсветки вокруг */
 html[data-interface-theme="glass"] .player-controls-wrapper .audio-visualizer--toolbar,
-html[data-interface-theme="glass"] .player-controls-wrapper .audio-visualizer--toolbar:hover {
+html[data-interface-theme="glass"] .player-controls-wrapper .audio-visualizer--toolbar:hover,
+html[data-interface-theme="glass"] .player-controls-wrapper .audio-visualizer--toolbar:active,
+html[data-interface-theme="glass"] .player-controls-wrapper .controls-islands-row .controls-island--visualizer,
+html[data-interface-theme="glass"] .player-controls-wrapper .controls-islands-row .controls-island--visualizer:hover {
   background: transparent !important;
+  background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
 }
 
 /* ─── Полностью прозрачная CSS-подложка поверх активного GLSL-стекла ─── */
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .player-controls--modern,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .player-controls--docked,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island:hover,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-island--timeline,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-island--time,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .time-display--floating-center,
@@ -267,25 +276,12 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .subtitles-s
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-left,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-actions,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__search,
-html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .explorer-panel__toolbar {
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .explorer-panel__toolbar,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island {
   transition: none !important;
 }
 
-/* Внутренние островки Capsule внутри стеклянного дока: деликатная карточка без яркой белой обводки и со скруглением из L-MPV */
-html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island {
-  background: rgba(255, 255, 255, 0.08) !important;
-  background-color: rgba(255, 255, 255, 0.08) !important;
-  background-clip: padding-box !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14) !important;
-  backdrop-filter: blur(8px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
-}
-
-html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island:hover {
-  background: rgba(255, 255, 255, 0.13) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-}
+/* Карточки Капсулы рисуются напрямую в GLSL-слоте f=2, без рваной CSS-рамки и без подсветки при наведении */
 
 /* ─── Резервная подложка, если GLSL-шейдер недоступен (аудио без видео, поворот, не gpu-next) ─── */
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .player-controls--modern,
@@ -356,9 +352,10 @@ html[data-interface-theme="glass"] .subtitles-search-card .subtitles-search-card
   -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
 }
 
-html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-islands-row .controls-island {
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-islands-row .controls-island:not(.controls-island--visualizer),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-islands-row .controls-island:not(.controls-island--visualizer):hover {
   background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
 }
 
 /* ─── Контекстное меню ПКМ: читаемость текста на стекле с сохранением акцентов L-MPV ─── */

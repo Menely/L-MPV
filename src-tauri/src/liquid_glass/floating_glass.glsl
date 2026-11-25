@@ -699,24 +699,154 @@ float mzg_box_n(vec2 p, float x, float y, float w, float h, float r, out float m
 #define MZG_SLOT_N(idx) \
     if (mzg_##idx##w > 0.0) { \
         k = mzg_box_n(p, mzg_##idx##x, mzg_##idx##y, mzg_##idx##w, mzg_##idx##h, mzg_##idx##r, kmh, kd_bev, kn); \
-        if (k < d) { d = k; d_bevel = kd_bev; a = mzg_##idx##a; f = mzg_##idx##f; mh = kmh; n = kn; } \
+        if (mzg_##idx##f < 1.5) { \
+            if (k < d) { d = k; d_bevel = kd_bev; a = mzg_##idx##a; f = mzg_##idx##f; mh = kmh; n = kn; } \
+        } else { \
+            if (k < d_sub) { d_sub = k; d_bev_sub = kd_bev; a_sub = mzg_##idx##a; mh_sub = kmh; n_sub = kn; } \
+        } \
     }
 
-float mzg_sdf_full(vec2 p, out float d_bevel, out float a, out float f, out float mh, out vec2 n) {
-    float d = 1e6, k, kmh, kd_bev;
+void mzg_sdf_full(
+    vec2 p,
+    out float d, out float d_bevel, out float a, out float f, out float mh, out vec2 n,
+    out float d_sub, out float d_bev_sub, out float a_sub, out float mh_sub, out vec2 n_sub
+) {
+    float k, kmh, kd_bev;
     vec2 kn;
+    d = 1e6;
     d_bevel = 1e6;
     a = 1.0;
     f = 0.0;
     mh = 32.0;
     n = vec2(0.0, -1.0);
+    d_sub = 1e6;
+    d_bev_sub = 1e6;
+    a_sub = 1.0;
+    mh_sub = 32.0;
+    n_sub = vec2(0.0, -1.0);
     MZG_SLOT_N(0)  MZG_SLOT_N(1)  MZG_SLOT_N(2)  MZG_SLOT_N(3)
     MZG_SLOT_N(4)  MZG_SLOT_N(5)  MZG_SLOT_N(6)  MZG_SLOT_N(7)
     MZG_SLOT_N(8)  MZG_SLOT_N(9)  MZG_SLOT_N(10) MZG_SLOT_N(11)
     MZG_SLOT_N(12) MZG_SLOT_N(13) MZG_SLOT_N(14) MZG_SLOT_N(15)
     MZG_SLOT_N(16) MZG_SLOT_N(17) MZG_SLOT_N(18) MZG_SLOT_N(19)
     MZG_SLOT_N(20) MZG_SLOT_N(21) MZG_SLOT_N(22) MZG_SLOT_N(23)
-    return d;
+}
+
+// Единый оптический расчёт стеклянной поверхности (для базового слоя и вложенных карточек Капсулы):
+// Сочетает выразительное 3D-преломление Снеллиуса на фаске, двухкольцевое размытие без ряби,
+// фильтр Бугера—Ламберта—Бера и равномерный субпиксельный контур границы.
+vec3 mzg_sample_glass(
+    vec2 p,
+    float d_val,
+    float d_bev,
+    float frost_val,
+    float mh,
+    vec2 n,
+    float u,
+    float user_blur,
+    vec3 tint_rgb,
+    float tint_a,
+    float is_nested
+) {
+    const vec3 luma = vec3(0.2126, 0.7152, 0.0722);
+    float max_thick = mix(28.0, 16.0, is_nested);
+    float half_ratio = mix(0.72, 0.58, is_nested);
+    float thickness = min(mh * half_ratio, max_thick * u);
+    float rim_t = clamp(1.0 + d_bev / max(thickness, 1.0), 0.0, 1.0);
+    float bevel_smooth = rim_t * rim_t * (3.0 - 2.0 * rim_t);
+    float n_cos = bevel_smooth * (0.88 + 0.12 * rim_t);
+    float n_cos2 = n_cos * n_cos;
+    float n_sin = sqrt(max(1.0 - n_cos2 * 0.82, 0.06));
+    vec3 normal = normalize(vec3(n * n_cos, n_sin));
+
+    // Полноценное 3D-преломление Снеллиуса (IOR = 1.52) с сохранением чёткости на фаске
+    vec3 refract_vec = refract(vec3(0.0, 0.0, -1.0), normal, 1.0 / 1.52);
+    float dome_h = thickness * sqrt(max(1.0 - bevel_smooth * bevel_smooth, 0.0));
+    float length_mul = mix(7.5, 6.0, is_nested);
+    float refract_length = (dome_h + length_mul * thickness) / max(-refract_vec.z, 0.20);
+    float blur_lens_boost = 1.0 + 0.35 * user_blur * bevel_smooth;
+    float disp_gain = mix(0.55, 0.52, is_nested);
+    vec2 disp_vec = refract_vec.xy * refract_length * (disp_gain * mzg_lens * blur_lens_boost);
+
+    vec2 q = clamp((p + disp_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
+
+    // Призматическая хроматическая дисперсия вдоль преломлённого луча на кромке фаски
+    vec2 chroma_vec = disp_vec * (mix(0.080, 0.070, is_nested) * bevel_smooth);
+    vec2 qR = clamp((p + disp_vec + chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
+    vec2 qB = clamp((p + disp_vec - chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
+
+    // Двухкольцевое сглаженное ядро: на преломляющей фаске шаг кольца сжимается (bevel_atten),
+    // чтобы живое преломление оставалось чистым и без волнистой ряби, а внутри сохранялся плотный фрост.
+    float frost_blend = clamp(frost_val, 0.0, 1.0);
+    float bevel_atten = mix(1.0 - 0.88 * bevel_smooth, 1.0 - 0.72 * bevel_smooth, frost_blend);
+    float spread = user_blur * (1.20 + 0.65 * frost_blend) * bevel_atten;
+    vec2 s1 = vec2(1.0, 0.0) * spread * MZG_C_pt;
+    vec2 s2 = vec2(0.0, 1.0) * spread * MZG_C_pt;
+    vec2 s3 = vec2(0.7071, 0.7071) * spread * MZG_C_pt;
+    vec2 s4 = vec2(-0.7071, 0.7071) * spread * MZG_C_pt;
+
+    vec2 rim_streak = n * (bevel_smooth * 0.90 * user_blur) * MZG_C_pt;
+    vec3 blur_center = vec3(MZG_C_tex(qR).r, MZG_C_tex(q).g, MZG_C_tex(qB).b);
+    vec3 blur_edge = 0.5 * (
+        vec3(MZG_C_tex(qR + rim_streak).r, MZG_C_tex(q + rim_streak).g, MZG_C_tex(qB + rim_streak).b) +
+        vec3(MZG_C_tex(qR - rim_streak).r, MZG_C_tex(q - rim_streak).g, MZG_C_tex(qB - rim_streak).b)
+    );
+    vec3 inner_ring = (
+        MZG_C_tex(q + s1 * 0.5).rgb + MZG_C_tex(q - s1 * 0.5).rgb +
+        MZG_C_tex(q + s2 * 0.5).rgb + MZG_C_tex(q - s2 * 0.5).rgb
+    ) * 0.25;
+    vec3 outer_ring = (
+        MZG_C_tex(q + s1).rgb + MZG_C_tex(q - s1).rgb +
+        MZG_C_tex(q + s2).rgb + MZG_C_tex(q - s2).rgb +
+        MZG_C_tex(q + s3).rgb + MZG_C_tex(q - s3).rgb +
+        MZG_C_tex(q + s4).rgb + MZG_C_tex(q - s4).rgb
+    ) * 0.125;
+    vec3 ring_g = mix(inner_ring, outer_ring, 0.55);
+
+    float ring_weight = clamp(user_blur * (0.72 + 0.18 * frost_blend) * bevel_atten, 0.0, 0.86);
+    vec3 base_glass = mix(blur_center, blur_edge, 0.38 * bevel_smooth);
+    vec3 blur_g = mix(base_glass, ring_g, ring_weight);
+
+    vec3 g = blur_g;
+    if (user_blur < 0.15) {
+        vec3 raw_clear = vec3(HOOKED_tex(qR).r, HOOKED_tex(q).g, HOOKED_tex(qB).b);
+        g = mix(raw_clear, blur_g, smoothstep(0.0, 0.15, user_blur));
+    }
+
+    float l = dot(g, luma);
+    g = clamp(mix(vec3(l), g, 1.36), 0.0, 1.0);
+
+    float under = dot(blur_g, luma);
+    g = g * (1.0 - mzg_tone * 0.34 * smoothstep(0.38, 1.0, under)) + mzg_tone * 0.03 * (1.0 - under);
+    if (is_nested > 0.5) {
+        g = clamp(g * 1.04 + vec3(0.025), 0.0, 1.0);
+    }
+
+    if (tint_a > 0.005) {
+        vec3 glass_filter = mix(vec3(1.0), clamp(tint_rgb * 1.65 + vec3(0.18), 0.0, 1.0), 0.66 * tint_a);
+        g *= glass_filter;
+        float pigment_base = mix(0.135, 0.085, smoothstep(0.05, 0.70, under)) * mix(1.0, 1.15, is_nested);
+        float bevel_protect = 1.0 - 0.50 * bevel_smooth;
+        float crystal_scatter = tint_a * pigment_base * bevel_protect;
+        g = mix(g, tint_rgb, crystal_scatter);
+    }
+
+    // Непрерывный контур границы (пик на -0.75 px, чтобы сглаживание внешнего края не обрезало линию на углах)
+    float light_dir = dot(n, normalize(vec2(-0.58, -0.81)));
+    float fp = max(light_dir, 0.0);
+    float fn = max(-light_dir, 0.0);
+    float lit = 0.64 + 0.36 * (fp * fp) + 0.14 * (fn * fn);
+    float d_u = d_val / max(u, 0.5);
+    float rim_line = exp(-2.2 * (d_u + 0.75) * (d_u + 0.75));
+    float bright_guard = mix(1.0, 0.65, smoothstep(0.45, 0.95, under));
+    vec3 rim_tint = tint_a > 0.005
+        ? mix(vec3(1.0), clamp(tint_rgb * 1.50 + vec3(0.35), 0.0, 1.0), 0.35 * tint_a)
+        : vec3(1.0);
+    float rim_gain = mix(0.22, 0.15, is_nested);
+    float sheen_gain = mix(0.045, 0.035, is_nested);
+    g += mzg_lens * lit * bright_guard * rim_tint * (rim_gain * rim_line + sheen_gain * (n_cos2 * bevel_smooth));
+
+    return g;
 }
 
 vec4 hook() {
@@ -724,20 +854,26 @@ vec4 hook() {
     vec4 c = HOOKED_tex(HOOKED_pos);
     vec2 p = HOOKED_pos * HOOKED_size;
     float u = max(mzg_unit * HOOKED_size.y, 0.25); // pixels per layout unit
-    float d_bevel, alpha, frost, min_half;
+
+    float d, d_bevel, alpha, frost, min_half;
     vec2 n;
-    float d = mzg_sdf_full(p, d_bevel, alpha, frost, min_half, n);
+    float d_sub, d_bev_sub, a_sub, mh_sub;
+    vec2 n_sub;
+    mzg_sdf_full(p, d, d_bevel, alpha, frost, min_half, n, d_sub, d_bev_sub, a_sub, mh_sub, n_sub);
+
+    // Истинная евклидова норма экранных производных (строго до условных выходов, для всех 2x2 квадов GPU)
+    float aa_base = max(length(vec2(dFdx(d), dFdy(d))), 0.75);
+    float aa_sub = max(length(vec2(dFdx(d_sub), dFdy(d_sub))), 0.75);
 
     float user_blur = clamp(lg_blur, 0.0, 1.0);
     bool in_top = (mzg_top_h > 0.0 && mzg_top_a > 0.005
         && HOOKED_pos.y >= mzg_top_y && HOOKED_pos.y <= mzg_top_y + mzg_top_h);
 
-    // Early exit outside both glass surfaces and top progressive blur: saves GPU fragment work
-    if (d >= 0.5 && !in_top)
+    if (d >= 0.5 && d_sub >= 0.5 && !in_top)
         return c;
 
     // Compact frosted strip behind the titlebar ending crisply just below the video title
-    vec3 bg = c.rgb;
+    vec3 out_rgb = c.rgb;
     if (in_top && user_blur > 0.005) {
         float rt = clamp((HOOKED_pos.y - mzg_top_y) / max(mzg_top_h, 1e-5), 0.0, 1.0);
         float top_band = 1.0 - smoothstep(0.70, 1.0, rt);
@@ -764,7 +900,6 @@ vec4 hook() {
                 top_g = mix(tc_center, tc_ring, clamp(0.70 * user_blur, 0.0, 0.70));
             }
 
-            // Чистое матовое размытие под Titlebar без грязи и паразитного затемнения
             float top_under = dot(top_g, luma);
             float top_scrim = mzg_tone * (0.05 + 0.16 * smoothstep(0.35, 0.95, top_under));
             top_g = top_g * (1.0 - top_scrim);
@@ -777,117 +912,32 @@ vec4 hook() {
             }
 
             float edge_alpha = top_band * smoothstep(0.0, 0.10, user_blur) * (mzg_top_a * 0.92);
-            bg = mix(c.rgb, top_g, edge_alpha);
+            out_rgb = mix(out_rgb, top_g, edge_alpha);
         }
     }
 
-    if (d >= 0.5)
-        return vec4(bg, c.a);
-
-    // Деликатный оптический профиль линзы без чрезмерного сжатия и волнистой ряби на фаске
-    float thickness = min(min_half * 0.50, 18.0 * u);
-    float rim_t = clamp(1.0 + d_bevel / max(thickness, 1.0), 0.0, 1.0);
-    float bevel_smooth = rim_t * rim_t * (3.0 - 2.0 * rim_t);
-    float n_cos = bevel_smooth * 0.86;
-    float n_cos2 = n_cos * n_cos;
-    float n_sin = sqrt(max(1.0 - n_cos2 * 0.78, 0.12));
-    vec3 normal = normalize(vec3(n * n_cos, n_sin));
-
-    // Плавное преломление Снеллиуса (IOR = 1.48): заворачивает цвета у края без гармошки и двоения
-    vec3 refract_vec = refract(vec3(0.0, 0.0, -1.0), normal, 1.0 / 1.48);
-    float dome_h = thickness * sqrt(max(1.0 - bevel_smooth * bevel_smooth, 0.0));
-    float refract_length = (dome_h + 2.4 * thickness) / max(-refract_vec.z, 0.28);
-    vec2 disp_vec = refract_vec.xy * refract_length * (0.42 * mzg_lens);
-
-    vec2 q = clamp((p + disp_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
-
-    // Мягкая призматическая дисперсия на самой кромке фаски
-    vec2 chroma_vec = disp_vec * (0.055 * bevel_smooth);
-    vec2 qR = clamp((p + disp_vec + chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
-    vec2 qB = clamp((p + disp_vec - chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
-
-    // Плотная двухкольцевая фильтрация без ряби и призраков:
-    // На преломляющей фаске радиус опроса сжимается (bevel_atten), исключая интерференционную рябь на границе,
-    // а внутри карточки внутреннее и внешнее кольца формируют шелковистое однородное матовое стекло.
-    float frost_blend = clamp(frost, 0.0, 1.0);
-    float bevel_atten = mix(1.0 - 0.88 * bevel_smooth, 1.0 - 0.68 * bevel_smooth, frost_blend);
-    float spread = user_blur * (1.15 + 0.65 * frost_blend) * bevel_atten;
-    vec2 s1 = vec2(1.0, 0.0) * spread * MZG_C_pt;
-    vec2 s2 = vec2(0.0, 1.0) * spread * MZG_C_pt;
-    vec2 s3 = vec2(0.7071, 0.7071) * spread * MZG_C_pt;
-    vec2 s4 = vec2(-0.7071, 0.7071) * spread * MZG_C_pt;
-
-    vec2 rim_streak = n * (bevel_smooth * 0.85 * user_blur) * MZG_C_pt;
-    vec3 blur_center = vec3(MZG_C_tex(qR).r, MZG_C_tex(q).g, MZG_C_tex(qB).b);
-    vec3 blur_edge = 0.5 * (
-        vec3(MZG_C_tex(qR + rim_streak).r, MZG_C_tex(q + rim_streak).g, MZG_C_tex(qB + rim_streak).b) +
-        vec3(MZG_C_tex(qR - rim_streak).r, MZG_C_tex(q - rim_streak).g, MZG_C_tex(qB - rim_streak).b)
-    );
-    vec3 inner_ring = (
-        MZG_C_tex(q + s1 * 0.5).rgb + MZG_C_tex(q - s1 * 0.5).rgb +
-        MZG_C_tex(q + s2 * 0.5).rgb + MZG_C_tex(q - s2 * 0.5).rgb
-    ) * 0.25;
-    vec3 outer_ring = (
-        MZG_C_tex(q + s1).rgb + MZG_C_tex(q - s1).rgb +
-        MZG_C_tex(q + s2).rgb + MZG_C_tex(q - s2).rgb +
-        MZG_C_tex(q + s3).rgb + MZG_C_tex(q - s3).rgb +
-        MZG_C_tex(q + s4).rgb + MZG_C_tex(q - s4).rgb
-    ) * 0.125;
-    vec3 ring_g = mix(inner_ring, outer_ring, 0.55);
-
-    float ring_weight = clamp(user_blur * (0.72 + 0.18 * frost_blend) * bevel_atten, 0.0, 0.86);
-    vec3 base_glass = mix(blur_center, blur_edge, 0.36 * bevel_smooth);
-    vec3 blur_g = mix(base_glass, ring_g, ring_weight);
-
-    // Smooth blend to raw crystal only when the user explicitly sets the blur slider below 15%
-    vec3 g = blur_g;
-    if (user_blur < 0.15) {
-        vec3 raw_clear = vec3(HOOKED_tex(qR).r, HOOKED_tex(q).g, HOOKED_tex(qB).b);
-        g = mix(raw_clear, blur_g, smoothstep(0.0, 0.15, user_blur));
-    }
-
-    // Vibrancy: keep refracted colors luminous like optical crystal
-    float l = dot(g, luma);
-    g = clamp(mix(vec3(l), g, 1.36), 0.0, 1.0);
-
-    // Uniform local legibility toning (no wide off-surface taps that darken edges near bright skies)
-    float under = dot(blur_g, luma);
-    g = g * (1.0 - mzg_tone * 0.34 * smoothstep(0.38, 1.0, under)) + mzg_tone * 0.03 * (1.0 - under);
-
-    // Оптический фильтр Бугера-Ламберта-Бера + усиленный выразительный пигмент выбранного цвета плеера
     vec3 tint_rgb = vec3(mzg_tint_r, mzg_tint_g, mzg_tint_b);
     float tint_a = clamp(mzg_tint_a, 0.0, 1.0);
-    if (tint_a > 0.005) {
-        vec3 glass_filter = mix(vec3(1.0), clamp(tint_rgb * 1.65 + vec3(0.18), 0.0, 1.0), 0.66 * tint_a);
-        g *= glass_filter;
-        float pigment_base = mix(0.135, 0.085, smoothstep(0.05, 0.70, under));
-        float bevel_protect = 1.0 - 0.50 * bevel_smooth;
-        float crystal_scatter = tint_a * pigment_base * bevel_protect;
-        g = mix(g, tint_rgb, crystal_scatter);
+
+    if (d < 0.5) {
+        vec3 g_base = mzg_sample_glass(
+            p, d, d_bevel, frost, min_half, n, u, user_blur, tint_rgb, tint_a, 0.0
+        );
+        float m = clamp(0.5 - d / aa_base, 0.0, 1.0) * mzg_strength * alpha;
+        out_rgb = mix(out_rgb, g_base, m);
     }
 
-    // Независимый от разрешения контур границы карточки:
-    // Стабильная базовая яркость по всему периметру (как в iOS и Telegram) исключает
-    // разрывы и утончение линии на углах, а деликатный направленный отблеск дает живость стеклу.
-    float light_dir = dot(n, normalize(vec2(-0.58, -0.81)));
-    float fp = max(light_dir, 0.0);
-    float fn = max(-light_dir, 0.0);
-    float lit = 0.58 + 0.42 * (fp * fp) + 0.16 * (fn * fn);
-    float d_u = d / max(u, 0.5);
-    float rim_line = exp(-2.6 * (d_u + 0.50) * (d_u + 0.50));
-    float bright_guard = mix(1.0, 0.65, smoothstep(0.45, 0.95, under));
-    vec3 rim_tint = tint_a > 0.005
-        ? mix(vec3(1.0), clamp(tint_rgb * 1.50 + vec3(0.35), 0.0, 1.0), 0.35 * tint_a)
-        : vec3(1.0);
-    g += mzg_lens * lit * bright_guard * rim_tint * (0.24 * rim_line + 0.045 * (n_cos2 * bevel_smooth));
+    if (d_sub < 0.5) {
+        vec3 g_sub = mzg_sample_glass(
+            p, d_sub, d_bev_sub, 1.0, mh_sub, n_sub, u, user_blur, tint_rgb, tint_a, 1.0
+        );
+        float m_sub = clamp(0.5 - d_sub / aa_sub, 0.0, 1.0) * mzg_strength * a_sub;
+        out_rgb = mix(out_rgb, g_sub, m_sub);
+    }
 
     // Суббитный треугольный дизеринг (IGN) подавляет 8-битный бандинг на плавных градиентах стекла
     float ign = fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
-    g = clamp(g + (ign - 0.5) / 255.0, 0.0, 1.0);
+    out_rgb = clamp(out_rgb + (ign - 0.5) / 255.0, 0.0, 1.0);
 
-    // Субпиксельное аналитическое сглаживание внешнего края по fwidth(d):
-    // Обеспечивает безупречную плавность и отсутствие лесенки (алиасинга) на диагональных скруглениях.
-    float aa = max(fwidth(d), 0.75);
-    float m = clamp(0.5 - d / aa, 0.0, 1.0) * mzg_strength * alpha;
-    return vec4(mix(bg, g, m), c.a);
+    return vec4(out_rgb, c.a);
 }

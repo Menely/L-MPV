@@ -175,6 +175,7 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
     if (item) surfaces.push(item);
   };
 
+  let capsuleRow: Element | null = null;
   const wrapper = root.querySelector<HTMLElement>(".player-controls-wrapper");
   if (wrapper) {
     const wrapperStyle = getComputedStyle(wrapper);
@@ -190,7 +191,8 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
         if (controls.classList.contains("player-controls--capsule")) {
           push(controls.querySelector(".controls-island--timeline"), 1);
           controls.querySelectorAll(".controls-island--time").forEach((el) => push(el, 1));
-          push(controls.querySelector(".controls-islands-row"), 1);
+          capsuleRow = controls.querySelector(".controls-islands-row");
+          push(capsuleRow, 1);
         } else {
           const docked = controls.classList.contains("player-controls--docked");
           push(controls, 0, docked);
@@ -324,6 +326,14 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
       push(toast, 1);
     }
   });
+
+  // Вложенные островки Капсулы (кроме визуализатора) рисуются вторым стеклянным слоем (f=2)
+  // после основных окон, чтобы модальные окна и поповеры всегда имели приоритет слотов.
+  if (capsuleRow) {
+    capsuleRow
+      .querySelectorAll(".controls-island:not(.controls-island--visualizer)")
+      .forEach((island) => push(island, 2));
+  }
 
   return surfaces;
 }
