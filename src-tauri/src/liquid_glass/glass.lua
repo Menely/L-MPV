@@ -21,7 +21,7 @@ local type = type
 
 ---@class GlassMaterial
 ---@field clear fun()
----@field update fun(dimensions: table|nil, surfaces: GlassSurfaceRect[]|nil, viewport_w: number|nil, viewport_h: number|nil, dpr: number|nil, blur: number|nil, top_blur: table|nil, tint: table|nil, refraction: number|nil): boolean
+---@field update fun(dimensions: table|nil, surfaces: GlassSurfaceRect[]|nil, viewport_w: number|nil, viewport_h: number|nil, dpr: number|nil, blur: number|nil, top_blur: table|nil, tint: table|nil, refraction: number|nil, dispersion: number|nil): boolean
 ---@field shutdown fun()
 
 local Glass = {}
@@ -111,8 +111,9 @@ function Glass.new(directory)
     ---@param top_blur table|nil
     ---@param tint table|nil
     ---@param refraction number|nil
+    ---@param dispersion number|nil
     ---@return boolean
-    function material.update(dimensions, surfaces, viewport_w, viewport_h, dpr, blur, top_blur, tint, refraction)
+    function material.update(dimensions, surfaces, viewport_w, viewport_h, dpr, blur, top_blur, tint, refraction, dispersion)
         local supported = is_supported()
         mp.set_property_native(SUPPORTED, supported)
 
@@ -142,12 +143,16 @@ function Glass.new(directory)
         local ref_scale = ref_deg <= 5
             and (ref_deg * 0.2)
             or (1.0 + (ref_deg - 5) * 0.24)
+        local disp_deg = math_max(0, math_min(10, tonumber(dispersion) or 5))
+        local disp_scale = disp_deg <= 5
+            and (disp_deg * 0.2)
+            or (1.0 + (disp_deg - 5) * 0.24)
         local parts = {
             string_format("lg_blur=%.2f", math_max(0, math_min(100, blur or 90)) / 100),
+            string_format("lg_disp=%.3f", disp_scale),
             string_format("lg_refraction=%.3f", ref_scale),
             "mzg_lens=1",
             "mzg_on=1",
-            "mzg_shadow=1",
             "mzg_strength=1.0",
             "mzg_tone=1",
             string_format("mzg_unit=%.6f", sy / vh),

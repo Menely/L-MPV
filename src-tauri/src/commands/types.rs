@@ -58,6 +58,8 @@ pub struct UiSettings {
     #[serde(default)]
     pub liquid_glass_refraction: Option<u8>,
     #[serde(default)]
+    pub liquid_glass_dispersion: Option<u8>,
+    #[serde(default)]
     pub liquid_glass_tint: Option<String>,
     #[serde(default)]
     pub time_position: Option<String>,

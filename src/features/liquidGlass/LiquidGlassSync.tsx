@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { CLOSE_BUFFER_MS, T_PANEL_MS } from "../../utils/animationUtils";
 import {
   getGlassBlur,
+  getGlassDispersion,
   getGlassRefraction,
   getGlassTint,
   getGlassTintShaderParams,
@@ -449,6 +450,7 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
         active: true,
         blur: getGlassBlur(),
         refraction: getGlassRefraction(),
+        dispersion: getGlassDispersion(),
         viewportW: Math.max(1, window.innerWidth),
         viewportH: Math.max(1, window.innerHeight),
         dpr: Number((window.devicePixelRatio || 1).toFixed(4)),

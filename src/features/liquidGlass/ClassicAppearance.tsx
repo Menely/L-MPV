@@ -1,14 +1,18 @@
 import { useSyncExternalStore, type CSSProperties } from "react";
-import { Aperture, SlidersHorizontal } from "lucide-react";
+import { Aperture, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { AppearanceSetting } from "../../components/settings/appearance/AppearanceSetting";
 import {
   DEFAULT_GLASS_BLUR,
+  DEFAULT_GLASS_DISPERSION,
   DEFAULT_GLASS_REFRACTION,
+  MAX_GLASS_DISPERSION,
   MAX_GLASS_REFRACTION,
   getGlassBlur,
+  getGlassDispersion,
   getGlassRefraction,
   saveGlassBlur,
+  saveGlassDispersion,
   saveGlassRefraction,
   subscribePlayerTheme,
 } from "./preferences";
@@ -76,6 +80,41 @@ export function GlassRefractionSetting() {
           aria-valuetext={labels.glassRefractionValue(refraction)}
         />
         <output className="t-label-accent">{refraction}/{MAX_GLASS_REFRACTION}</output>
+      </div>
+    </AppearanceSetting>
+  );
+}
+
+/** Ползунок степени хроматической дисперсии (0–10) для темы Liquid Glass. */
+export function GlassDispersionSetting() {
+  const { dict } = useTranslation();
+  const labels = dict.settings.appearance;
+  const dispersion = useSyncExternalStore(subscribePlayerTheme, getGlassDispersion);
+  const percent = Math.round((dispersion / MAX_GLASS_DISPERSION) * 100);
+  return (
+    <AppearanceSetting
+      title={labels.glassDispersion}
+      icon={<Sparkles size={16} />}
+      resetTitle={labels.resetGlassDispersion}
+      changed={dispersion !== DEFAULT_GLASS_DISPERSION}
+      onReset={() => saveGlassDispersion(DEFAULT_GLASS_DISPERSION)}
+    >
+      <div className="player-appearance__opacity">
+        <input
+          type="range"
+          min={0}
+          max={MAX_GLASS_DISPERSION}
+          step={1}
+          value={dispersion}
+          className="ui-premium-slider"
+          onChange={(event) => saveGlassDispersion(Number(event.currentTarget.value))}
+          style={{
+            "--track-fill": `linear-gradient(to right, var(--accent) ${percent}%, var(--border-hover) ${percent}%)`,
+          } as CSSProperties}
+          aria-label={labels.glassDispersion}
+          aria-valuetext={labels.glassDispersionValue(dispersion)}
+        />
+        <output className="t-label-accent">{dispersion}/{MAX_GLASS_DISPERSION}</output>
       </div>
     </AppearanceSetting>
   );

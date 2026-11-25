@@ -563,6 +563,10 @@ export const ru: TranslationDict = {
       resetGlassRefraction: "Сбросить преломление на 5",
       glassRefractionValue: (level: number) =>
         level === 0 ? "Без преломления (0)" : `Степень ${level} из 10`,
+      glassDispersion: "Хроматическая дисперсия",
+      resetGlassDispersion: "Сбросить дисперсию на 5",
+      glassDispersionValue: (level: number) =>
+        level === 0 ? "Без дисперсии (0)" : `Степень ${level} из 10`,
       classicStyleDesc: "Единые панели с плавающим или прикреплённым управлением",
       panelPlacement: "Вид панели",
       panelFloating: "Плавающая",
@@ -725,6 +729,8 @@ export const ru: TranslationDict = {
       glassBlurLabel: (percent) => `Размытие: ${percent}%`,
       glassRefractionTitle: "Степень преломления Liquid Glass",
       glassRefractionLabel: (level) => `Преломление: ${level}/10`,
+      glassDispersionTitle: "Хроматическая дисперсия Liquid Glass",
+      glassDispersionLabel: (level) => `Дисперсия: ${level}/10`,
       controlBarStyleTitle: (name) => `Стиль панели: ${name}`,
       accentTitle: (color) => `Акцентный цвет: ${color}`,
       neonTitle: "Интенсивность неонового свечения",

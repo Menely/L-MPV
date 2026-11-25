@@ -16,12 +16,16 @@ const THEME_KEY = "l-mpv-player-interface-theme";
 const LAYOUT_KEY = "l-mpv-liquid-glass-layout";
 const BLUR_KEY = "l-mpv-liquid-glass-blur";
 const REFRACTION_KEY = "l-mpv-liquid-glass-refraction";
+const DISPERSION_KEY = "l-mpv-liquid-glass-dispersion";
 const TINT_KEY = "l-mpv-liquid-glass-tint";
 
 export const DEFAULT_GLASS_BLUR = 90;
 /** Стандартная степень преломления (1.0× в шейдере, соответствует эталону Portable-L-MPV). */
 export const DEFAULT_GLASS_REFRACTION = 5;
 export const MAX_GLASS_REFRACTION = 10;
+/** Стандартная степень хроматической дисперсии (1.0× в шейдере). */
+export const DEFAULT_GLASS_DISPERSION = 5;
+export const MAX_GLASS_DISPERSION = 10;
 export const DEFAULT_GLASS_TINT: GlassTintId = "transparent";
 
 export function getGlassBlur(): number {
@@ -49,6 +53,23 @@ export function saveGlassRefraction(value: number) {
   localStorage.setItem(
     REFRACTION_KEY,
     String(Math.min(MAX_GLASS_REFRACTION, Math.max(0, Math.round(value)))),
+  );
+  window.dispatchEvent(new Event("l-mpv-settings-changed"));
+}
+
+/** Возвращает текущую степень хроматической дисперсии Liquid Glass (0..10, по умолчанию 5). */
+export function getGlassDispersion(): number {
+  const saved = localStorage.getItem(DISPERSION_KEY);
+  if (saved === null || !Number.isFinite(Number(saved))) return DEFAULT_GLASS_DISPERSION;
+  return Math.min(MAX_GLASS_DISPERSION, Math.max(0, Math.round(Number(saved))));
+}
+
+/** Сохраняет степень хроматической дисперсии Liquid Glass (0..10) и уведомляет конвейер шейдера. */
+export function saveGlassDispersion(value: number) {
+  if (!Number.isFinite(value)) return;
+  localStorage.setItem(
+    DISPERSION_KEY,
+    String(Math.min(MAX_GLASS_DISPERSION, Math.max(0, Math.round(value)))),
   );
   window.dispatchEvent(new Event("l-mpv-settings-changed"));
 }

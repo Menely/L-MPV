@@ -676,6 +676,16 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                 </span>
               </div>
             )}
+            {typeof data.liquidGlassDispersion === "number" && (
+              <div className="preset-tag" title={dict.settings.presets.glassDispersionTitle}>
+                <Sparkles size={12} />
+                <span>
+                  {dict.settings.presets.glassDispersionLabel(
+                    Math.round(data.liquidGlassDispersion),
+                  )}
+                </span>
+              </div>
+            )}
           </>
         ) : (
           typeof data.uiOpacity === "number" &&

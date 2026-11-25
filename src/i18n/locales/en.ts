@@ -560,6 +560,10 @@ export const en: TranslationDict = {
       resetGlassRefraction: "Reset refraction to 5",
       glassRefractionValue: (level: number) =>
         level === 0 ? "No refraction (0)" : `Level ${level} of 10`,
+      glassDispersion: "Chromatic dispersion",
+      resetGlassDispersion: "Reset dispersion to 5",
+      glassDispersionValue: (level: number) =>
+        level === 0 ? "No dispersion (0)" : `Level ${level} of 10`,
       classicStyleDesc: "Unified panels with floating or docked controls",
       panelPlacement: "Panel appearance",
       panelFloating: "Floating",
@@ -721,6 +725,8 @@ export const en: TranslationDict = {
       glassBlurLabel: (percent) => `Blur: ${percent}%`,
       glassRefractionTitle: "Liquid Glass refraction level",
       glassRefractionLabel: (level) => `Refraction: ${level}/10`,
+      glassDispersionTitle: "Liquid Glass chromatic dispersion",
+      glassDispersionLabel: (level) => `Dispersion: ${level}/10`,
       controlBarStyleTitle: (name) => `Control bar style: ${name}`,
       accentTitle: (color) => `Accent color: ${color}`,
       neonTitle: "Neon glow intensity",

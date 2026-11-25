@@ -21,6 +21,12 @@
 //!MAXIMUM 2.5
 1.0
 
+//!PARAM lg_disp
+//!TYPE DYNAMIC float
+//!MINIMUM 0.0
+//!MAXIMUM 2.5
+1.0
+
 //!PARAM mzg_on
 //!TYPE DYNAMIC int
 //!MINIMUM 0
@@ -40,12 +46,6 @@
 0.0014
 
 //!PARAM mzg_lens
-//!TYPE DYNAMIC float
-//!MINIMUM 0.0
-//!MAXIMUM 1.0
-1.0
-
-//!PARAM mzg_shadow
 //!TYPE DYNAMIC float
 //!MINIMUM 0.0
 //!MAXIMUM 1.0
@@ -739,8 +739,9 @@ void mzg_sdf_full(
 }
 
 // Единый оптический расчёт стеклянной поверхности (для базового слоя и вложенных карточек Капсулы):
-// Сочетает выразительное 3D-преломление Снеллиуса на фаске, двухкольцевое размытие без ряби,
-// фильтр Бугера—Ламберта—Бера и равномерный субпиксельный контур границы.
+// Сочетает выразительное 3D-преломление Снеллиуса на фаске, физическую дисперсию Коши (lg_disp),
+// двухкольцевое размытие без ряби, адаптивное осветление тёмных сцен, фильтр Бугера—Ламберта—Бера
+// и двунаправленный контурный блик с внутренним свечением фаски.
 vec3 mzg_sample_glass(
     vec2 p,
     float d_val,
@@ -778,11 +779,14 @@ vec3 mzg_sample_glass(
 
     vec2 q = clamp((p + disp_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
 
-    // Призматическая хроматическая дисперсия вдоль преломлённого луча на кромке фаски
+    // Физическая призматическая дисперсия Коши вдоль преломлённого луча (lg_disp):
+    // коротковолновый синий спектр (IOR выше) отклоняется сильнее (+chroma_vec),
+    // длинноволновый красный спектр (IOR ниже) отклоняется слабее (-chroma_vec).
+    float disp_scale = clamp(lg_disp, 0.0, 2.5);
     float chroma_damp = 1.0 / max(1.0, sqrt(refract_scale));
-    vec2 chroma_vec = disp_vec * (mix(0.080, 0.070, is_nested) * bevel_smooth * chroma_damp);
-    vec2 qR = clamp((p + disp_vec + chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
-    vec2 qB = clamp((p + disp_vec - chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
+    vec2 chroma_vec = disp_vec * (mix(0.095, 0.082, is_nested) * bevel_smooth * chroma_damp * disp_scale);
+    vec2 qR = clamp((p + disp_vec - chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
+    vec2 qB = clamp((p + disp_vec + chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
 
     // Двухкольцевое сглаженное ядро: на преломляющей фаске шаг кольца сжимается (bevel_atten),
     // чтобы живое преломление оставалось чистым и без волнистой ряби, а внутри сохранялся плотный фрост.
@@ -802,9 +806,13 @@ vec3 mzg_sample_glass(
         vec3(MZG_C_tex(qR + rim_streak).r, MZG_C_tex(q + rim_streak).g, MZG_C_tex(qB + rim_streak).b) +
         vec3(MZG_C_tex(qR - rim_streak).r, MZG_C_tex(q - rim_streak).g, MZG_C_tex(qB - rim_streak).b)
     );
+    // Внутреннее кольцо размытия сохраняет хроматическое разделение каналов (qR, q, qB),
+    // чтобы матовое рассеивание не «съедало» и не обесцвечивало призматическую дисперсию на фаске.
     vec3 inner_ring = (
-        MZG_C_tex(q + s1 * 0.5).rgb + MZG_C_tex(q - s1 * 0.5).rgb +
-        MZG_C_tex(q + s2 * 0.5).rgb + MZG_C_tex(q - s2 * 0.5).rgb
+        vec3(MZG_C_tex(qR + s1 * 0.5).r, MZG_C_tex(q + s1 * 0.5).g, MZG_C_tex(qB + s1 * 0.5).b) +
+        vec3(MZG_C_tex(qR - s1 * 0.5).r, MZG_C_tex(q - s1 * 0.5).g, MZG_C_tex(qB - s1 * 0.5).b) +
+        vec3(MZG_C_tex(qR + s2 * 0.5).r, MZG_C_tex(q + s2 * 0.5).g, MZG_C_tex(qB + s2 * 0.5).b) +
+        vec3(MZG_C_tex(qR - s2 * 0.5).r, MZG_C_tex(q - s2 * 0.5).g, MZG_C_tex(qB - s2 * 0.5).b)
     ) * 0.25;
     vec3 outer_ring = (
         MZG_C_tex(q + s1).rgb + MZG_C_tex(q - s1).rgb +
@@ -818,20 +826,26 @@ vec3 mzg_sample_glass(
     vec3 base_glass = mix(blur_center, blur_edge, 0.38 * bevel_smooth);
     vec3 blur_g = mix(base_glass, ring_g, ring_weight);
 
-    vec3 g = blur_g;
+    // Хрустальная кромка (edgeClarity): на полированной грани плавно проявляем преломлённый оптический буфер MZG_A,
+    // чтобы ярко подчеркнуть линзу и призму без рваных 1px-контуров сырого неразмытого кадра.
+    vec3 lens_col = vec3(MZG_A_tex(qR).r, MZG_A_tex(q).g, MZG_A_tex(qB).b);
+    float edge_clarity = (bevel_smooth * bevel_smooth) * 0.22 * refract_factor * mix(1.0, 0.65, is_nested);
+    vec3 g = mix(blur_g, lens_col, edge_clarity);
     if (user_blur < 0.15) {
-        vec3 raw_clear = vec3(HOOKED_tex(qR).r, HOOKED_tex(q).g, HOOKED_tex(qB).b);
-        g = mix(raw_clear, blur_g, smoothstep(0.0, 0.15, user_blur));
+        vec3 sharp_col = vec3(HOOKED_tex(qR).r, HOOKED_tex(q).g, HOOKED_tex(qB).b);
+        g = mix(sharp_col, g, smoothstep(0.0, 0.15, user_blur));
     }
 
     float l = dot(g, luma);
     g = clamp(mix(vec3(l), g, 1.36), 0.0, 1.0);
 
-    // Сбалансированное лёгкое приглушение только по-настоящему светлых участков (без потемнения на средних/тёмных сценах)
+    // Балансировка яркости: сдерживание пересветов на светлых сценах и мягкое ледяное осветление на тёмных (darkBoost)
     float under = dot(blur_g, luma);
     float bright_norm = smoothstep(0.34, 0.96, under);
     float bright_damp = mzg_tone * mix(0.22, 0.30, frost_blend) * bright_norm;
-    g = g * (1.0 - bright_damp) + mzg_tone * 0.025 * (1.0 - under);
+    float dark_boost = mzg_tone * (1.0 - smoothstep(0.08, 0.56, under)) * mix(0.11, 0.045, tint_a) * mix(1.0, 0.70, is_nested);
+    g = g * (1.0 - bright_damp);
+    g = mix(g, vec3(0.92, 0.96, 1.0), dark_boost);
     if (is_nested > 0.5) {
         g *= mix(0.96, 0.87, bright_norm);
     }
@@ -858,20 +872,23 @@ vec3 mzg_sample_glass(
         g = mix(g, vec3(0.12, 0.14, 0.17), clamp(neutral_smoke, 0.0, 0.16));
     }
 
-    // Непрерывный контур границы (пик на -0.75 px, чтобы сглаживание внешнего края не обрезало линию на углах)
-    float light_dir = dot(n, normalize(vec2(-0.58, -0.81)));
+    // Двунаправленный спекулярный блик (верх-лево + отражённое эхо низ-право) и внутреннее свечение фаски (innerGlow)
+    float light_dir = dot(n, normalize(vec2(-0.55, -0.83)));
     float fp = max(light_dir, 0.0);
     float fn = max(-light_dir, 0.0);
-    float lit = 0.64 + 0.36 * (fp * fp) + 0.14 * (fn * fn);
     float d_u = d_val / max(u, 0.5);
-    float rim_line = exp(-2.2 * (d_u + 0.75) * (d_u + 0.75));
-    float bright_guard = mix(1.0, 0.65, smoothstep(0.45, 0.95, under));
+    float rim_line = exp(-2.0 * (d_u + 0.75) * (d_u + 0.75));
+    float spec_top = pow(fp, 1.8) * 0.56;
+    float spec_bot = pow(fn, 2.2) * 0.28;
+    float rim_highlight = rim_line * (0.16 + spec_top + spec_bot);
+    float inner_glow = pow(rim_t, 2.2) * 0.085 * (0.50 + 0.50 * abs(light_dir));
+    float sheen = 0.055 * clamp(refract_scale, 0.0, 1.4) * (n_cos2 * bevel_smooth);
+    float bright_guard = mix(1.0, 0.62, smoothstep(0.45, 0.95, under));
     vec3 rim_tint = tint_a > 0.005
         ? mix(vec3(1.0), clamp(tint_rgb * 1.50 + vec3(0.35), 0.0, 1.0), 0.35 * tint_a)
         : vec3(1.0);
-    float rim_gain = mix(0.22, 0.15, is_nested);
-    float sheen_gain = mix(0.045, 0.035, is_nested) * clamp(refract_scale, 0.0, 1.4);
-    g += mzg_lens * lit * bright_guard * rim_tint * (rim_gain * rim_line + sheen_gain * (n_cos2 * bevel_smooth));
+    float layer_gain = mix(1.0, 0.62, is_nested);
+    g += mzg_lens * layer_gain * bright_guard * rim_tint * (rim_highlight * 0.58 + inner_glow + sheen);
 
     return g;
 }

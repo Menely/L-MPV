@@ -5,7 +5,11 @@ import { SelectionRail } from "../../motion/SelectionRail";
 import { TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
 import { TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
 import { DEFAULT_UI_OPACITY } from "../../../utils/uiThemeUtils";
-import { GlassBlurSetting, GlassRefractionSetting } from "../../../features/liquidGlass/ClassicAppearance";
+import {
+  GlassBlurSetting,
+  GlassDispersionSetting,
+  GlassRefractionSetting,
+} from "../../../features/liquidGlass/ClassicAppearance";
 import type { PlayerTheme } from "../../../features/liquidGlass/preferences";
 import { AppearanceSetting } from "./AppearanceSetting";
 import type { PlayerAppearanceProps } from "./appearanceTypes";
@@ -28,6 +32,7 @@ export function PlayerStyleDetails(props: PlayerAppearanceProps & { theme?: Play
       <>
         <GlassBlurSetting />
         <GlassRefractionSetting />
+        <GlassDispersionSetting />
       </>
     ) : (
       <AppearanceSetting title={labels.opacityLabel} icon={<SlidersHorizontal size={16} />}
