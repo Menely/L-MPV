@@ -587,12 +587,11 @@
 //!HOOK OUTPUT
 //!BIND HOOKED
 //!SAVE MZG_A
-//!FORMAT rgba16f
 //!WIDTH HOOKED.w 320 * HOOKED.h /
 //!HEIGHT 320
 //!WHEN mzg_on 0.5 lg_capture > *
 //!DESC [ModernZ] glass: downscale
-// Фиксированная высота 320 строк в rgba16f исключает 8-битный бандинг и блочную рябь на крупных экранах
+// Фиксированная высота 320 строк исключает блочную рябь на крупных экранах
 vec4 hook() {
     // box filter over the source texels under this one, two by two with bilinear taps
     int n = clamp(int(ceil(HOOKED_size.y / 720.0)), 1, 3);
@@ -609,7 +608,6 @@ vec4 hook() {
 //!HOOK OUTPUT
 //!BIND MZG_A
 //!SAVE MZG_B
-//!FORMAT rgba16f
 //!WIDTH MZG_A.w
 //!HEIGHT MZG_A.h
 //!WHEN mzg_on 0.5 lg_capture > *
@@ -632,7 +630,6 @@ vec4 hook() {
 //!HOOK OUTPUT
 //!BIND MZG_B
 //!SAVE MZG_C
-//!FORMAT rgba16f
 //!WIDTH MZG_B.w
 //!HEIGHT MZG_B.h
 //!WHEN mzg_on 0.5 lg_capture > *

@@ -202,7 +202,7 @@
   flex: 0 0 80px;
   width: 80px;
   aspect-ratio: 16 / 9;
-  border-radius: max(4px, calc(var(--radius-list-row, 10px) - 3px));
+  border-radius: max(0px, calc(var(--radius-list-row, 10px) - 3px));
   overflow: hidden;
   background: var(--surface-level-1, rgba(0, 0, 0, 0.35));
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -388,7 +388,7 @@
 }
 
 .chapters-modal-card--capsule .chapter-item__thumb {
-  border-radius: max(5px, calc(var(--radius-list-row, 10px) - 4px));
+  border-radius: max(0px, calc(var(--radius-list-row, 10px) - 4px));
   border-color: var(--border);
 }
 
