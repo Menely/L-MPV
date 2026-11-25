@@ -120,18 +120,25 @@ TimelineSegment.displayName = "TimelineSegment";
 // ─── Главный компонент ────────────────────────────────────────────────────────
 
 /**
- * Проверяет, находится ли точка (clientX, clientY) под открытым окном выбора дорожек
- * (поповером аудио или субтитров) в проекции по горизонтали.
- * Подавляет нежелательное всплывание карточки TimelinePreview при ведении мыши снизу вверх к меню.
+ * Проверяет, находится ли точка (clientX, clientY) под открытыми всплывающими окнами
+ * нижнего уровня (окно выбора дорожек/сабов/скорости, окно информации о файле Медиаинфо (I), окно глав).
+ * Подавляет нежелательное всплывание карточки TimelinePreview при ведении мыши снизу вверх к меню или взаимодействии с окнами.
  */
-function isUnderTrackPopover(clientX: number, clientY: number): boolean {
-  const popover = document.querySelector(".track-popover");
-  if (!popover) return false;
-  const rect = popover.getBoundingClientRect();
-  if (rect.width === 0 || rect.height === 0) return false;
-  const inHorizontalRange = clientX >= rect.left - 14 && clientX <= rect.right + 14;
-  const belowPopoverTop = clientY >= rect.top - 10;
-  return inHorizontalRange && belowPopoverTop;
+function isUnderBottomOverlay(clientX: number, clientY: number): boolean {
+  const overlays = document.querySelectorAll(
+    ".track-popover, .media-info-overlay, .chapters-modal-overlay, .chapters-modal-card"
+  );
+  for (let i = 0; i < overlays.length; i++) {
+    const el = overlays[i];
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) continue;
+    const inHorizontalRange = clientX >= rect.left - 14 && clientX <= rect.right + 14;
+    const belowOverlayTop = clientY >= rect.top - 10;
+    if (inHorizontalRange && belowOverlayTop) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -256,7 +263,7 @@ export const Timeline = React.memo(() => {
     rafId.current = null;
     const p = pendingClientX.current;
     if (!p || safeDuration <= 0) return;
-    if (!p.drag && isUnderTrackPopover(p.x, p.y)) {
+    if (!p.drag && isUnderBottomOverlay(p.x, p.y)) {
       setHoverInfo(null);
       return;
     }
@@ -342,7 +349,7 @@ export const Timeline = React.memo(() => {
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (safeDuration <= 0) return;
-    if (!isDragging.current && isUnderTrackPopover(e.clientX, e.clientY)) {
+    if (!isDragging.current && isUnderBottomOverlay(e.clientX, e.clientY)) {
       if (rafId.current !== null) {
         cancelAnimationFrame(rafId.current);
         rafId.current = null;
@@ -508,7 +515,7 @@ export const Timeline = React.memo(() => {
       >
       <AudioVisualizer placement="inside_timeline" />
 
-      {hoverInfo && !isUnderTrackPopover(pendingClientX.current?.x ?? -999, pendingClientX.current?.y ?? -999) && (
+      {hoverInfo && !isUnderBottomOverlay(pendingClientX.current?.x ?? -999, pendingClientX.current?.y ?? -999) && (
         <TimelinePreview previewEnabled={previewEnabled} hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath}
           hasVideo={mediaInfo?.has_video ?? false} fps={mediaInfo?.fps ?? 0} thumbnailWidth={thumbnailWidth}
           videoTrack={selectedVideoTrack} />
