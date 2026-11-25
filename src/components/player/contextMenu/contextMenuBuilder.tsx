@@ -36,6 +36,7 @@ import type { AmbientMode } from "../../../utils/ambientSettingsUtils";
 import type { TimeDisplayPosition } from "../../../utils/timePositionUtils";
 import type { TimeFormatMode } from "../../../utils/timeFormatUtils";
 import type { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
+import type { PlayerTheme } from "../../../features/liquidGlass/preferences";
 import type {
   HeatmapConfig,
   HeatmapDataSource,
@@ -44,11 +45,11 @@ import type {
 import { BUILT_IN_PRESETS } from "../../../utils/presetsUtils";
 import { TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
 import { TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
-import { CONTROL_BAR_STYLE_OPTIONS } from "../../../utils/controlBarStyleUtils";
 import { getKeyDisplay } from "../../../utils/hotkeyUtils";
 import { truncateMiddle } from "../../../utils/textUtils";
 
 export interface MenuItem {
+  id?: string;
   type: "item" | "divider" | "submenu" | "track" | "header";
   icon?: React.ReactNode;
   label?: string;
@@ -130,7 +131,9 @@ export interface ContextMenuBuilderParams {
   repeatMode: 0 | 1 | 2;
   currentTimePos: TimeDisplayPosition;
   timeFormat: TimeFormatMode;
+  playerTheme: PlayerTheme;
   controlBarStyle: ControlBarStyle;
+  classicStyle: "modern" | "docked";
   userPresets: SettingsPreset[];
   activePresetId: string | null;
   upscaleModels: ModelFileItem[];
@@ -169,6 +172,7 @@ export interface ContextMenuBuilderParams {
   handleToggleControlButton: (buttonId: string, label: string, currentVal: boolean) => void;
   handleSelectTimePosition: (pos: TimeDisplayPosition, label: string) => void;
   handleSelectTimeFormat: (fmt: TimeFormatMode, label: string) => void;
+  handleSelectPlayerTheme: (theme: PlayerTheme, label: string) => void;
   handleSelectControlBarStyle: (style: ControlBarStyle, label: string) => void;
   heatmapConfig: HeatmapConfig;
   handleToggleHeatmap: () => void;
@@ -214,7 +218,9 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
     repeatMode,
     currentTimePos,
     timeFormat,
+    playerTheme,
     controlBarStyle,
+    classicStyle,
     userPresets,
     activePresetId,
     upscaleModels,
@@ -251,6 +257,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
     handleToggleControlButton,
     handleSelectTimePosition,
     handleSelectTimeFormat,
+    handleSelectPlayerTheme,
     handleSelectControlBarStyle,
     heatmapConfig,
     handleToggleHeatmap,
@@ -714,29 +721,67 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       ],
     }),
 
-    control_bar_style: () => ({
-      type: "submenu",
-      icon: STATIC_ICONS.controlBarStyle,
-      label: dict.settings.cmenuUI.barStyle,
-      children: [
-        { type: "header" as const, label: dict.settings.cmenuUI.groupBarStyle },
-        ...CONTROL_BAR_STYLE_OPTIONS.map((barOption) => {
-          const barLabel =
-            barOption.id === "capsule"
-              ? dict.settings.appearance.styleCapsule
-              : barOption.id === "modern"
-              ? dict.settings.appearance.styleModern
-              : dict.settings.appearance.styleClassic;
-          return {
+    control_bar_style: () => {
+      const isClassic = controlBarStyle !== "capsule";
+      return {
+        type: "submenu",
+        icon: STATIC_ICONS.controlBarStyle,
+        label: dict.settings.cmenuUI.barStyle,
+        children: [
+          { type: "header" as const, label: dict.settings.appearance.interfaceTheme },
+          {
             type: "item" as const,
-            label: barLabel,
-            active: controlBarStyle === barOption.id,
+            label: "L-MPV",
+            active: playerTheme === "lmpv",
             indicator: "dot" as const,
-            action: () => handleSelectControlBarStyle(barOption.id, barLabel),
-          };
-        }),
-      ],
-    }),
+            action: () => handleSelectPlayerTheme("lmpv", "L-MPV"),
+          },
+          {
+            type: "item" as const,
+            label: "Liquid Glass",
+            active: playerTheme === "glass",
+            indicator: "dot" as const,
+            action: () => handleSelectPlayerTheme("glass", "Liquid Glass"),
+          },
+          { type: "header" as const, label: dict.settings.cmenuUI.groupBarStyle },
+          {
+            type: "item" as const,
+            label: "Capsule",
+            active: !isClassic,
+            indicator: "dot" as const,
+            action: () => handleSelectControlBarStyle("capsule", "Capsule"),
+          },
+          {
+            type: "item" as const,
+            label: "Classic",
+            active: isClassic,
+            indicator: "dot" as const,
+            action: () => handleSelectControlBarStyle(classicStyle, "Classic"),
+          },
+          ...(isClassic
+            ? [
+                { type: "header" as const, label: dict.settings.appearance.panelPlacement },
+                {
+                  type: "item" as const,
+                  label: dict.settings.appearance.panelFloating,
+                  active: controlBarStyle === "modern",
+                  indicator: "dot" as const,
+                  action: () =>
+                    handleSelectControlBarStyle("modern", dict.settings.appearance.panelFloating),
+                },
+                {
+                  type: "item" as const,
+                  label: dict.settings.appearance.panelDocked,
+                  active: controlBarStyle === "docked",
+                  indicator: "dot" as const,
+                  action: () =>
+                    handleSelectControlBarStyle("docked", dict.settings.appearance.panelDocked),
+                },
+              ]
+            : []),
+        ],
+      };
+    },
 
     control_buttons_visibility: () => ({
       type: "submenu",
@@ -846,7 +891,11 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       rawItems.push({ type: "divider" });
     } else {
       const factory = factories[entry.id];
-      if (factory) rawItems.push(factory());
+      if (factory) {
+        const built = factory();
+        if (!built.id) built.id = entry.id;
+        rawItems.push(built);
+      }
     }
   }
 

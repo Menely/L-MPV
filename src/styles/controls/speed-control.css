@@ -264,7 +264,7 @@
 }
 
 .track-popover:not(.track-popover--capsule).track-popover--speed .track-popover__item--active {
-  background: var(--accent-subtle, rgba(56, 189, 248, 0.12)) !important;
+  background: var(--surface-accent-subtle, rgba(127, 199, 255, 0.16)) !important;
 }
 
 .track-popover--speed .speed-popover__item-sublabel {

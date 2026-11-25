@@ -28,7 +28,11 @@ import {
   getSavedControlBarStyle,
   saveControlBarStyle,
 } from "../../utils/controlBarStyleUtils";
-import { getPlayerTheme } from "../../features/liquidGlass/preferences";
+import {
+  type PlayerTheme,
+  getPlayerTheme,
+  setPlayerTheme,
+} from "../../features/liquidGlass/preferences";
 import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../features/liquidGlass/LiquidGlassSync";
 import {
   loadUserPresets,
@@ -137,6 +141,8 @@ export function ContextMenu({
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
+  const styleSwitchGuardUntilRef = useRef<number>(0);
+  const prevOriginCoordsRef = useRef<{ x: number; y: number } | null>(null);
 
   const {
     mediaInfo,
@@ -157,9 +163,18 @@ export function ContextMenu({
   const [ambientMode, setAmbientMode] = useState<AmbientMode>("off");
   const [currentTimePos, setCurrentTimePos] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
+  const [playerTheme, setPlayerThemeState] = useState<PlayerTheme>(() => getPlayerTheme());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
     getSavedControlBarStyle(getPlayerTheme()),
   );
+  const lastClassicStyleRef = useRef<"modern" | "docked">(
+    controlBarStyle === "docked" ? "docked" : "modern",
+  );
+  useEffect(() => {
+    if (controlBarStyle !== "capsule") {
+      lastClassicStyleRef.current = controlBarStyle;
+    }
+  }, [controlBarStyle]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>(() => getRecentFiles());
   const [menuLayout, setMenuLayout] = useState<LayoutEntry[]>(() => getSavedLayout());
 
@@ -267,11 +282,13 @@ export function ContextMenu({
       });
 
     const handleSettingsChanged = () => {
+      const nextTheme = getPlayerTheme();
+      setPlayerThemeState(nextTheme);
       setHotkeys(getCustomHotkeys());
       setHeatmapConfig(getHeatmapConfig());
       setCurrentTimePos(getSavedTimePosition());
       setTimeFormat(getSavedTimeFormat());
-      setControlBarStyle(getSavedControlBarStyle(getPlayerTheme()));
+      setControlBarStyle(getSavedControlBarStyle(nextTheme));
       setRecentFiles(getRecentFiles());
       setActivePresetId(getSavedActivePresetId());
       setUpscaleMode((localStorage.getItem("l-mpv-upscale-mode") as "off" | "ai") || "off");
@@ -363,11 +380,33 @@ export function ContextMenu({
       const rect = menuRef.current.getBoundingClientRect();
       const cssWidth = rect.width / zoom;
       const cssHeight = rect.height / zoom;
-      const cssX = x / zoom;
-      const cssY = y / zoom;
       const cssInnerWidth = window.innerWidth / zoom;
       const { minY, maxY } = getSafeVerticalBounds(zoom);
 
+      const coordsChanged =
+        !prevOriginCoordsRef.current ||
+        prevOriginCoordsRef.current.x !== x ||
+        prevOriginCoordsRef.current.y !== y;
+      prevOriginCoordsRef.current = { x, y };
+
+      if (!coordsChanged) {
+        // При смене стиля/темы прямо из меню сохраняем текущее положение окна,
+        // лишь мягко поджимая границы при росте высоты, чтобы меню не «прыгало» из-под курсора
+        setAdjustedPos((prev) => {
+          const clampedX = Math.max(8, Math.min(prev.x, cssInnerWidth - cssWidth - 8));
+          const clampedY = Math.max(minY, Math.min(prev.y, maxY - cssHeight));
+          if (Math.round(clampedX) === prev.x && Math.round(clampedY) === prev.y) {
+            return prev;
+          }
+          return { x: Math.round(clampedX), y: Math.round(clampedY) };
+        });
+        setMenuWidth(cssWidth);
+        setPositioned(true);
+        return;
+      }
+
+      const cssX = x / zoom;
+      const cssY = y / zoom;
       const rawX = cssX + cssWidth > cssInnerWidth - 8 ? cssX - cssWidth : cssX;
       const rawY = cssY + cssHeight > maxY ? cssY - cssHeight : cssY;
       const clampedX = Math.max(8, Math.min(rawX, cssInnerWidth - cssWidth - 8));
@@ -663,11 +702,32 @@ export function ContextMenu({
 
   const handleSelectControlBarStyle = useCallback(
     (style: ControlBarStyle, label: string) => {
+      styleSwitchGuardUntilRef.current = performance.now() + 260;
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
       saveControlBarStyle(style, getPlayerTheme());
       setControlBarStyle(style);
       showOsd(dict.settings.cmenuUI.osdBarStyle(label));
     },
     [dict.settings.cmenuUI]
+  );
+
+  const handleSelectPlayerTheme = useCallback(
+    (theme: PlayerTheme, label: string) => {
+      styleSwitchGuardUntilRef.current = performance.now() + 260;
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      setPlayerTheme(theme);
+      setPlayerThemeState(theme);
+      const nextStyle = getSavedControlBarStyle(theme);
+      setControlBarStyle(nextStyle);
+      showOsd(`${dict.settings.appearance.interfaceTheme}: ${label}`);
+    },
+    [dict.settings.appearance.interfaceTheme]
   );
 
   // ── Обработчики тепловой карты (Activity Heatmap) ──
@@ -728,7 +788,9 @@ export function ContextMenu({
         repeatMode,
         currentTimePos,
         timeFormat,
+        playerTheme,
         controlBarStyle,
+        classicStyle: controlBarStyle !== "capsule" ? controlBarStyle : lastClassicStyleRef.current,
         userPresets,
         activePresetId,
         upscaleModels,
@@ -765,6 +827,7 @@ export function ContextMenu({
         handleToggleControlButton,
         handleSelectTimePosition,
         handleSelectTimeFormat,
+        handleSelectPlayerTheme,
         handleSelectControlBarStyle,
         heatmapConfig,
         handleToggleHeatmap,
@@ -786,6 +849,7 @@ export function ContextMenu({
       repeatMode,
       currentTimePos,
       timeFormat,
+      playerTheme,
       controlBarStyle,
       userPresets,
       activePresetId,
@@ -823,6 +887,7 @@ export function ContextMenu({
       handleToggleControlButton,
       handleSelectTimePosition,
       handleSelectTimeFormat,
+      handleSelectPlayerTheme,
       handleSelectControlBarStyle,
       heatmapConfig,
       handleToggleHeatmap,
@@ -861,7 +926,7 @@ export function ContextMenu({
         notifyLiquidGlassAnimation(180);
       });
     };
-  }, [positioned, activeSubmenu, controlBarStyle, adjustedPos.x, adjustedPos.y, menuItems.length]);
+  }, [positioned, activeSubmenu, playerTheme, controlBarStyle, adjustedPos.x, adjustedPos.y, menuItems.length]);
 
   // Проверка близости к правому краю для открытия подменю влево.
   // Ширина меню — измеренная (а не константа), ширина подменю — оценка 220.
@@ -882,6 +947,11 @@ export function ContextMenu({
     const horizontal = flippedX ? "right" : "left";
     return `${vertical} ${horizontal}`;
   }, [adjustedPos.x, adjustedPos.y, x, y]);
+
+  const interactiveItemCount = useMemo(
+    () => menuItems.filter((it) => it.type !== "divider" && it.type !== "header").length,
+    [menuItems],
+  );
 
   // ─── Рендеринг пункта меню ────────────────────────
   const renderItem = useCallback(
@@ -1003,8 +1073,8 @@ export function ContextMenu({
       }
 
       if (item.type === "submenu") {
-        const submenuId = `submenu-${index}`;
-        const isBottomHalf = index > menuItems.length / 2;
+        const submenuId = item.id || `submenu-${index}`;
+        const isBottomHalf = index > interactiveItemCount / 2;
         const isSubmenuOpen = activeSubmenu === submenuId;
         return (
           <div
@@ -1039,6 +1109,9 @@ export function ContextMenu({
               }, delay);
             }}
             onMouseLeave={() => {
+              if (performance.now() < styleSwitchGuardUntilRef.current) {
+                return;
+              }
               if (openTimerRef.current !== null) {
                 window.clearTimeout(openTimerRef.current);
                 openTimerRef.current = null;
@@ -1177,7 +1250,7 @@ export function ContextMenu({
         </button>
       );
     },
-    [activeSubmenu, isRightScreenEdge, menuItems.length, dict.controls.downloadAudio, controlBarStyle]
+    [activeSubmenu, isRightScreenEdge, interactiveItemCount, dict.controls.downloadAudio, controlBarStyle]
   );
 
   const isCapsule = controlBarStyle === "capsule";
@@ -1217,7 +1290,13 @@ export function ContextMenu({
               })}
             </div>
           ))
-        : menuItems.map((item, index) => renderItem(item, index, false))}
+        : menuItems.map((item, rawIndex) => {
+            if (item.type === "divider" || item.type === "header") {
+              return renderItem(item, rawIndex, false);
+            }
+            const itemIdx = renderedItemCount++;
+            return renderItem(item, itemIdx, false);
+          })}
     </MotionSurface>
   );
 }

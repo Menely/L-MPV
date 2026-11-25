@@ -15,7 +15,16 @@ local function refresh()
         glass.clear()
         return
     end
-    glass.update(dimensions, config.surfaces, config.viewportH, config.blur)
+    glass.update(
+        dimensions,
+        config.surfaces,
+        config.viewportW,
+        config.viewportH,
+        config.dpr,
+        config.blur,
+        config.topBlur,
+        config.tint
+    )
 end
 
 mp.register_script_message("config", function(json)
@@ -27,10 +36,17 @@ mp.register_script_message("config", function(json)
     end
     config = {
         active = true,
-        blur = math.max(0, math.min(100, tonumber(parsed.blur) or 80)),
+        blur = math.max(0, math.min(100, tonumber(parsed.blur) or 90)),
+        viewportW = tonumber(parsed.viewportW) or 0,
         viewportH = tonumber(parsed.viewportH) or 0,
+        dpr = tonumber(parsed.dpr) or 1,
         surfaces = type(parsed.surfaces) == "table" and parsed.surfaces or {},
+        topBlur = type(parsed.topBlur) == "table" and parsed.topBlur or nil,
+        tint = type(parsed.tint) == "table" and parsed.tint or nil,
     }
+    if mp.get_property_native("video-out-params") then
+        loaded_media = true
+    end
     refresh()
 end)
 
@@ -39,7 +55,10 @@ mp.observe_property("osd-dimensions", "native", function(_, value)
     refresh()
 end)
 
-mp.observe_property("video-out-params", "native", function()
+mp.observe_property("video-out-params", "native", function(_, value)
+    if value then
+        loaded_media = true
+    end
     refresh()
 end)
 

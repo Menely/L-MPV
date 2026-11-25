@@ -500,6 +500,7 @@ export const en: TranslationDict = {
           high: 'Vibrant',
         },
         playerThemes: {
+          transparent: 'Transparent',
           graphite: 'Dark Graphite',
           oled: 'Deep OLED',
           sapphire: 'Night Cobalt',
@@ -709,6 +710,12 @@ export const en: TranslationDict = {
       radiusLabel: (r) => `Radius: ${r}`,
       themeTitle: (name) => `Player theme: ${name}`,
       themeLabel: (name) => `Theme: ${name}`,
+      interfaceThemeTitle: (name) => `Interface theme: ${name}`,
+      glassTintTitle: (name) => `Liquid Glass tint: ${name}`,
+      glassTintLabel: (name) => `Glass: ${name}`,
+      glassBlurTitle: "Liquid Glass blur strength",
+      glassBlurLabel: (percent) => `Blur: ${percent}%`,
+      controlBarStyleTitle: (name) => `Control bar style: ${name}`,
       accentTitle: (color) => `Accent color: ${color}`,
       neonTitle: "Neon glow intensity",
       neonSoft: "Soft glow",
@@ -769,6 +776,14 @@ export const en: TranslationDict = {
         builtin_forest: {
           name: "Forest Jade",
           description: "Forest sage, mint jade accents, and soft floating capsules",
+        },
+        builtin_liquid_glass: {
+          name: "Liquid Glass",
+          description: "Crystal-clear transparent Liquid Glass, refractive capsules, and soft sky-blue accents",
+        },
+        builtin_sapphire_glass: {
+          name: "Sapphire Crystal",
+          description: "Sapphire tinted Liquid Glass, floating Classic toolbar, and icy cyan accents",
         },
       },
     },

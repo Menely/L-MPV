@@ -121,8 +121,8 @@ interface SettingsModalProps {
 export { AccordionSection } from "../settings/components/AccordionSection";
 export type { AccordionSectionProps } from "../settings/components/AccordionSection";
 
-// Both appearances share the same viewport budget, including UI zoom.
-const SETTINGS_MODAL_MAX_HEIGHT = "min(80vh, calc(100dvh / var(--ui-scale, 1) - 24px))";
+// Both appearances fill up to the safe vertical bounds between the titlebar and controls.
+const SETTINGS_MODAL_MAX_HEIGHT = "100%";
 
 const SETTINGS_TABS = [
   "general",

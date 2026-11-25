@@ -1210,6 +1210,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         const fs = await appWindow.isFullscreen();
         if (isMounted && version === checkVersion) {
           setIsFullscreen(fs);
+          window.dispatchEvent(new Event("resize"));
         }
       } catch (e) {
         console.error("Ошибка при проверке полноэкранного режима окна:", e);
@@ -1246,6 +1247,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
       // стилями WS_MAXIMIZE, предотвращая сжатие и смещение плеера в угол (0, 0)
       const newFs = await invoke<boolean>("toggle_fullscreen");
       setIsFullscreen(newFs);
+      window.dispatchEvent(new Event("resize"));
     } catch (e) {
       console.error("Ошибка при переключении полноэкранного режима через бэкенд:", e);
       // Запасное переключение через стандартный API окна Tauri

@@ -1,6 +1,7 @@
 local mp = require("mp")
 local utils = require("mp.utils")
 
+local math_abs = math.abs
 local math_max = math.max
 local math_min = math.min
 local string_format = string.format
@@ -20,7 +21,7 @@ local type = type
 
 ---@class GlassMaterial
 ---@field clear fun()
----@field update fun(dimensions: table|nil, surfaces: GlassSurfaceRect[]|nil, viewport_h: number|nil, blur: number|nil): boolean
+---@field update fun(dimensions: table|nil, surfaces: GlassSurfaceRect[]|nil, viewport_w: number|nil, viewport_h: number|nil, dpr: number|nil, blur: number|nil, top_blur: table|nil, tint: table|nil): boolean
 ---@field shutdown fun()
 
 local Glass = {}
@@ -43,7 +44,6 @@ function Glass.new(directory)
     local loaded = false
     local active = false
     local last_sig = nil
-    local unload_timer = nil
     local redraw_toggle = false
     ---@type GlassMaterial
     local material = {}
@@ -95,15 +95,6 @@ function Glass.new(directory)
             if loaded then
                 send("glsl-shader-opts", "add", "mzg_on=0")
                 clear_redraw_overlay()
-                if not unload_timer then
-                    unload_timer = mp.add_timeout(5, function()
-                        unload_timer = nil
-                        if loaded and last_sig == "mzg_on=0" then
-                            send("glsl-shaders", "remove", shader)
-                            loaded = false
-                        end
-                    end)
-                end
             end
             active = false
             last_sig = "mzg_on=0"
@@ -113,10 +104,14 @@ function Glass.new(directory)
 
     ---@param dimensions table|nil
     ---@param surfaces GlassSurfaceRect[]|nil
+    ---@param viewport_w number|nil
     ---@param viewport_h number|nil
+    ---@param dpr number|nil
     ---@param blur number|nil
+    ---@param top_blur table|nil
+    ---@param tint table|nil
     ---@return boolean
-    function material.update(dimensions, surfaces, viewport_h, blur)
+    function material.update(dimensions, surfaces, viewport_w, viewport_h, dpr, blur, top_blur, tint)
         local supported = is_supported()
         mp.set_property_native(SUPPORTED, supported)
 
@@ -134,7 +129,14 @@ function Glass.new(directory)
         end
 
         local list = type(surfaces) == "table" and surfaces or {}
-        local sy = (viewport_h and viewport_h > 0) and (H / viewport_h) or 1
+        local vw_css = (viewport_w and viewport_w > 0) and viewport_w or W
+        local vh_css = (viewport_h and viewport_h > 0) and viewport_h or H
+        local raw_sx = W / vw_css
+        local raw_sy = H / vh_css
+        local base_dpr = (dpr and dpr > 0) and dpr or raw_sy
+        local in_sync = (math_abs(raw_sx - base_dpr) / base_dpr < 0.04)
+            and (math_abs(raw_sy - base_dpr) / base_dpr < 0.04)
+        local sy = in_sync and raw_sy or base_dpr
         local parts = {
             string_format("lg_blur=%.2f", math_max(0, math_min(100, blur or 90)) / 100),
             "mzg_lens=1",
@@ -151,10 +153,42 @@ function Glass.new(directory)
             local rect = list[slot + 1]
             local prefix = SLOT_PREFIXES[slot]
             if rect and rect.w and rect.h and rect.w > 0 and rect.h > 0 then
-                local sx = rect.x * W
-                local sy_px = rect.y * H
-                local sw = rect.w * W
-                local sh = rect.h * H
+                local sx, sy_px, sw, sh
+                if in_sync then
+                    sx = rect.x * W
+                    sy_px = rect.y * H
+                    sw = rect.w * W
+                    sh = rect.h * H
+                else
+                    local w_px = (rect.w * vw_css) * sy
+                    local h_px = (rect.h * vh_css) * sy
+                    sh = h_px
+                    if rect.y + rect.h > 0.65 then
+                        local bottom_margin = (1.0 - (rect.y + rect.h)) * vh_css * sy
+                        sy_px = H - bottom_margin - sh
+                    elseif rect.y < 0.35 then
+                        sy_px = (rect.y * vh_css) * sy
+                    else
+                        sy_px = (H - sh) * 0.5
+                    end
+
+                    if rect.w > 0.82 then
+                        local left_margin = (rect.x * vw_css) * sy
+                        local right_margin = ((1.0 - (rect.x + rect.w)) * vw_css) * sy
+                        sx = left_margin
+                        sw = math_max(1, W - left_margin - right_margin)
+                    elseif rect.x + rect.w > 0.85 and rect.x > 0.40 then
+                        sw = w_px
+                        local right_margin = ((1.0 - (rect.x + rect.w)) * vw_css) * sy
+                        sx = W - right_margin - sw
+                    elseif math_abs((rect.x + rect.w * 0.5) - 0.5) < 0.08 then
+                        sw = w_px
+                        sx = (W - sw) * 0.5
+                    else
+                        sw = w_px
+                        sx = (rect.x * vw_css) * sy
+                    end
+                end
                 local sr = math_max(0, tonumber(rect.r) or 0) * sy
                 if rect.dockedBottom and sr > 0 then
                     sh = sh + sr
@@ -183,6 +217,43 @@ function Glass.new(directory)
             end
         end
 
+        if type(top_blur) == "table" and top_blur.h and top_blur.h > 0 then
+            local ty_px = in_sync and ((tonumber(top_blur.y) or 0) * H) or ((tonumber(top_blur.y) or 0) * vh_css * sy)
+            local th_px = in_sync and (top_blur.h * H) or (top_blur.h * vh_css * sy)
+            local ta = math_max(0, math_min(1, tonumber(top_blur.a) or 0))
+            local ny_t = (ty_px - mt) / vh
+            local nh_t = th_px / vh
+            if ta > 0.005 and ny_t < 1 and ny_t + nh_t > 0 then
+                overlaps = true
+                n_parts = n_parts + 1
+                parts[n_parts] = string_format(
+                    "mzg_top_y=%.5f,mzg_top_h=%.5f,mzg_top_a=%.3f",
+                    ny_t, nh_t, ta
+                )
+            else
+                n_parts = n_parts + 1
+                parts[n_parts] = "mzg_top_y=0.00000,mzg_top_h=0.00000,mzg_top_a=0.000"
+            end
+        else
+            n_parts = n_parts + 1
+            parts[n_parts] = "mzg_top_y=0.00000,mzg_top_h=0.00000,mzg_top_a=0.000"
+        end
+
+        if type(tint) == "table" then
+            local tr = math_max(0, math_min(1, tonumber(tint.r) or 0))
+            local tg = math_max(0, math_min(1, tonumber(tint.g) or 0))
+            local tb = math_max(0, math_min(1, tonumber(tint.b) or 0))
+            local ta = math_max(0, math_min(1, tonumber(tint.a) or 0))
+            n_parts = n_parts + 1
+            parts[n_parts] = string_format(
+                "mzg_tint_r=%.3f,mzg_tint_g=%.3f,mzg_tint_b=%.3f,mzg_tint_a=%.3f",
+                tr, tg, tb, ta
+            )
+        else
+            n_parts = n_parts + 1
+            parts[n_parts] = "mzg_tint_r=0.000,mzg_tint_g=0.000,mzg_tint_b=0.000,mzg_tint_a=0.000"
+        end
+
         if not overlaps then
             material.clear()
             return supported
@@ -190,19 +261,15 @@ function Glass.new(directory)
 
         local sig = table_concat(parts, ",")
 
-        if sig ~= last_sig then
-            last_sig = sig
-            if unload_timer then
-                unload_timer:kill()
-                unload_timer = nil
-            end
-            send("glsl-shader-opts", "add", sig)
-            nudge_redraw()
-        end
-
         if not loaded then
             send("glsl-shaders", "append", shader)
             loaded = true
+        end
+
+        if sig ~= last_sig then
+            last_sig = sig
+            send("glsl-shader-opts", "add", sig)
+            nudge_redraw()
         end
 
         if not active then
@@ -214,10 +281,6 @@ function Glass.new(directory)
     end
 
     function material.shutdown()
-        if unload_timer then
-            unload_timer:kill()
-            unload_timer = nil
-        end
         if active or loaded then
             send("glsl-shader-opts", "add", "mzg_on=0")
             clear_redraw_overlay()
@@ -231,6 +294,10 @@ function Glass.new(directory)
         mp.set_property_native(STATUS, "idle")
     end
 
+    send("glsl-shader-opts", "add", "mzg_on=0")
+    send("glsl-shaders", "append", shader)
+    loaded = true
+    last_sig = "mzg_on=0"
     mp.set_property_native(STATUS, "idle")
     mp.set_property_native(SUPPORTED, is_supported())
     return material

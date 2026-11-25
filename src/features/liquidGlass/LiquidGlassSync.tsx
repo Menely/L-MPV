@@ -1,7 +1,12 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { CLOSE_BUFFER_MS, T_PANEL_MS } from "../../utils/animationUtils";
-import { getGlassBlur, subscribePlayerTheme } from "./preferences";
+import {
+  getGlassBlur,
+  getGlassTint,
+  getGlassTintShaderParams,
+  subscribePlayerTheme,
+} from "./preferences";
 
 interface SurfaceRect {
   x: number;
@@ -12,6 +17,12 @@ interface SurfaceRect {
   a: number;
   f: number;
   dockedBottom?: boolean;
+}
+
+interface TopBlurRect {
+  y: number;
+  h: number;
+  a: number;
 }
 
 interface LiquidGlassConfigureResult {
@@ -177,17 +188,18 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
       const controls = wrapper.querySelector(".player-controls");
       if (controls instanceof HTMLElement) {
         if (controls.classList.contains("player-controls--capsule")) {
-          push(controls.querySelector(".controls-island--timeline"), 0);
-          controls.querySelectorAll(".controls-island--time").forEach((el) => push(el, 0));
-          push(controls.querySelector(".controls-islands-row"), 0);
+          push(controls.querySelector(".controls-island--timeline"), 1);
+          controls.querySelectorAll(".controls-island--time").forEach((el) => push(el, 1));
+          push(controls.querySelector(".controls-islands-row"), 1);
         } else {
           const docked = controls.classList.contains("player-controls--docked");
           push(controls, 0, docked);
         }
       }
 
-      push(wrapper.querySelector(".time-display--floating-center"), 0);
-      push(wrapper.querySelector(".timeline-preview-card"), 0.65);
+      const isCapsuleControls = controls?.classList.contains("player-controls--capsule") ?? false;
+      push(wrapper.querySelector(".time-display--floating-center"), isCapsuleControls ? 1 : 0);
+      push(wrapper.querySelector(".timeline-preview-card"), 0.85);
       push(wrapper.querySelector(".waveform-activity-strip__badge"), 0.65);
 
       // Обрабатываем все одновременно открытые поповеры (входящий и выходящий при переключении аудио/субтитров)
@@ -219,6 +231,34 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
       overlay.querySelectorAll(".media-info__section").forEach((sec) => push(sec, 1, false, bodyClip));
     } else {
       push(overlay, 1);
+    }
+  });
+
+  // Окно списка глав (.chapters-modal-card)
+  root.querySelectorAll(".chapters-modal-card").forEach((card) => {
+    if (!(card instanceof HTMLElement)) return;
+    if (card.classList.contains("chapters-modal-card--capsule")) {
+      push(card.querySelector(".chapters-modal-header-left"), 1);
+      push(card.querySelector(".chapters-modal-header-actions"), 1);
+      push(card.querySelector(".chapters-list"), 1);
+    } else {
+      push(card, 1);
+    }
+  });
+
+  // Окно поиска по субтитрам (.subtitles-search-card)
+  root.querySelectorAll(".subtitles-search-card").forEach((card) => {
+    if (!(card instanceof HTMLElement)) return;
+    if (card.classList.contains("subtitles-search-card--opaque")) return;
+    if (card.classList.contains("subtitles-search-card--capsule")) {
+      card.querySelectorAll(".subtitles-card").forEach((el) => push(el, 1));
+      card
+        .querySelectorAll(".subtitles-search-card__no-tracks:not(.subtitles-card)")
+        .forEach((el) => push(el, 1));
+      push(card.querySelector(".subtitles-search-card__bar"), 1);
+      push(card.querySelector(".subtitles-search-card__list-surface"), 1);
+    } else {
+      push(card, 1);
     }
   });
 
@@ -271,7 +311,46 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
     }
   });
 
+  // Информационные OSD-баннеры (громкость, шаги кадров, уведомления HUD, тост автообновления)
+  root.querySelectorAll(".volume-feedback-osd, .glass-hud-pill, .frame-osd").forEach((pill) => {
+    push(pill, 0.85);
+  });
+
+  root.querySelectorAll(".update-toast").forEach((toast) => {
+    if (!(toast instanceof HTMLElement)) return;
+    if (toast.classList.contains("update-toast--capsule")) {
+      toast.querySelectorAll(".update-toast__island").forEach((island) => push(island, 1));
+    } else {
+      push(toast, 1);
+    }
+  });
+
   return surfaces;
+}
+
+function collectTopBlur(appContainer: HTMLElement | null): TopBlurRect | null {
+  const root = appContainer ?? document.body;
+  if (root.classList.contains("app-container--empty")) return null;
+  const titlebar = root.querySelector<HTMLElement>(".titlebar");
+  if (!titlebar) return null;
+
+  const style = getComputedStyle(titlebar);
+  if (style.display === "none" || style.visibility === "hidden") return null;
+
+  const opacity = measureEffectiveOpacity(titlebar, root);
+  if (opacity <= 0.005) return null;
+
+  const rect = titlebar.getBoundingClientRect();
+  const zoomScale = titlebar.offsetWidth > 0 ? rect.width / titlebar.offsetWidth : 1;
+  const heightPx = 50 * zoomScale;
+  if (heightPx <= 1) return null;
+
+  const vh = Math.max(1, window.innerHeight);
+  return {
+    y: Number((rect.top / vh).toFixed(5)),
+    h: Number((heightPx / vh).toFixed(5)),
+    a: Number(Math.min(1, Math.max(0, opacity)).toFixed(3)),
+  };
 }
 
 /**
@@ -286,6 +365,7 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
     if (!enabled) {
       root.removeAttribute("data-interface-theme");
       root.removeAttribute("data-liquid-glass-active");
+      root.style.removeProperty("--glass-tint-rgb");
       dispatchGlassConfig({ active: false, blur: 0, viewportH: 0, surfaces: [] }, () => {});
       return;
     }
@@ -296,16 +376,27 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
     let retryTimer = 0;
     let unsupportedRetries = 0;
     let lastSignature = "";
+    let lastTintRgbApplied = "";
 
     const flush = () => {
       if (disposed) return;
       const appContainer = document.querySelector<HTMLElement>(".app-container");
       const surfaces = collectGlassSurfaces(appContainer);
+      const topBlur = collectTopBlur(appContainer);
+      const tint = getGlassTintShaderParams(getGlassTint());
+      if (tint.fallbackRgb !== lastTintRgbApplied) {
+        lastTintRgbApplied = tint.fallbackRgb;
+        root.style.setProperty("--glass-tint-rgb", tint.fallbackRgb);
+      }
       const options = {
         active: true,
         blur: getGlassBlur(),
+        viewportW: Math.max(1, window.innerWidth),
         viewportH: Math.max(1, window.innerHeight),
+        dpr: Number((window.devicePixelRatio || 1).toFixed(4)),
         surfaces,
+        topBlur,
+        tint: { r: tint.r, g: tint.g, b: tint.b, a: tint.a },
       };
       const signature = JSON.stringify(options);
       if (signature !== lastSignature) {
@@ -315,16 +406,22 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
           if (!res.ready) {
             lastSignature = "";
             window.clearTimeout(retryTimer);
-            retryTimer = window.setTimeout(() => scheduleFrame(140), 50);
+            retryTimer = window.setTimeout(() => {
+              syncNow();
+              scheduleFrame(120);
+            }, 24);
           } else {
             root.setAttribute("data-liquid-glass-active", res.supported ? "true" : "false");
-            if (!res.supported && unsupportedRetries < 40) {
+            if (!res.supported && unsupportedRetries < 60) {
               // При старте видео mpv создаёт gpu-next и video-out-params асинхронно;
-              // продолжаем опрос до готовности VO, чтобы стекло включалось сразу без ресайза окна.
+              // продолжаем частый опрос через setTimeout (не зависит от паузы rAF), чтобы стекло включалось мгновенно.
               unsupportedRetries += 1;
               lastSignature = "";
               window.clearTimeout(retryTimer);
-              retryTimer = window.setTimeout(() => scheduleFrame(120), 80);
+              retryTimer = window.setTimeout(() => {
+                syncNow();
+                scheduleFrame(100);
+              }, 32);
             } else if (res.supported) {
               unsupportedRetries = 0;
             }
@@ -368,17 +465,54 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       scheduleFrame(durationMs);
     };
 
+    const resizeTimers: number[] = [];
+    const clearResizeTimers = () => {
+      while (resizeTimers.length > 0) {
+        const id = resizeTimers.pop();
+        if (id !== undefined) window.clearTimeout(id);
+      }
+    };
+
     const handleTransition = () => scheduleFrame(ANIMATION_TRACK_MS);
-    const handleTransitionEnd = () => scheduleFrame(48);
+    const handleTransitionEnd = () => {
+      syncNow();
+      scheduleFrame(48);
+    };
     const handleSettings = () => {
       lastSignature = "";
+      syncNow();
       scheduleFrame(ANIMATION_TRACK_MS);
+    };
+    const handleResize = () => {
+      lastSignature = "";
+      syncNow();
+      scheduleFrame(ANIMATION_TRACK_MS);
+      clearResizeTimers();
+      // Во время DWMWA_CLOAK (переход в полный экран, 85 мс) requestAnimationFrame приостановлен,
+      // поэтому дублируем отправку новой геометрии через setTimeout внутри окна клоакинга и сразу после него.
+      for (const delay of [20, 50, 90, 145]) {
+        resizeTimers.push(
+          window.setTimeout(() => {
+            if (!disposed) {
+              lastSignature = "";
+              syncNow();
+            }
+          }, delay),
+        );
+      }
     };
 
     const wrapper = document.querySelector<HTMLElement>(".player-controls-wrapper");
+    const titlebar = document.querySelector<HTMLElement>(".titlebar");
     const appContainer = document.querySelector<HTMLElement>(".app-container");
 
-    const resizeObserver = new ResizeObserver(() => scheduleFrame(160));
+    const resizeObserver = new ResizeObserver(() => {
+      syncNow();
+      scheduleFrame(160);
+    });
+    if (appContainer) {
+      resizeObserver.observe(appContainer);
+    }
     if (wrapper) {
       resizeObserver.observe(wrapper);
       const controls = wrapper.querySelector(".player-controls");
@@ -388,6 +522,12 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       wrapper.addEventListener("animationstart", handleTransition);
       wrapper.addEventListener("transitionend", handleTransitionEnd);
       wrapper.addEventListener("animationend", handleTransitionEnd);
+    }
+    if (titlebar) {
+      resizeObserver.observe(titlebar);
+      titlebar.addEventListener("transitionrun", handleTransition);
+      titlebar.addEventListener("transitionstart", handleTransition);
+      titlebar.addEventListener("transitionend", handleTransitionEnd);
     }
 
     const handleScroll = () => syncNow();
@@ -413,36 +553,39 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       ) {
         return true;
       }
+      if (
+        record.type === "attributes" &&
+        target.classList.contains("playlist-item__progress-fill")
+      ) {
+        return true;
+      }
       return false;
     };
 
     const mutationObserver = new MutationObserver((records) => {
       if (records.every(isHighFrequencyPlaybackMutation)) return;
-      scheduleFrame(ANIMATION_TRACK_MS);
-    });
-    if (wrapper) {
-      mutationObserver.observe(wrapper, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["class", "style", "data-motion-surface", "inert", "aria-hidden"],
-      });
-    }
-
-    const idleObserver = new MutationObserver(() => {
       syncNow();
       scheduleFrame(ANIMATION_TRACK_MS);
     });
-    if (appContainer) {
-      idleObserver.observe(appContainer, { attributes: true, attributeFilter: ["class"], childList: true });
+    const observeRoot = appContainer ?? wrapper;
+    if (observeRoot) {
+      mutationObserver.observe(observeRoot, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["class", "style", "hidden", "data-motion-surface", "inert", "aria-hidden", "aria-selected"],
+      });
     }
 
     const unsubscribeTheme = subscribePlayerTheme(handleSettings);
-    window.addEventListener("resize", handleSettings);
+    window.addEventListener("l-mpv-glass-tint-changed", handleSettings);
+    window.addEventListener("resize", handleResize);
     window.addEventListener("l-mpv-ui-scale-changed", handleSettings);
     window.addEventListener("l-mpv-ui-radius-changed", handleSettings);
     window.addEventListener("l-mpv-timeline-layout-changed", handleSettings);
+    window.addEventListener("l-mpv-control-bar-style-changed", handleSettings);
 
+    syncNow();
     scheduleFrame(ANIMATION_TRACK_MS);
 
     return () => {
@@ -453,10 +596,12 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       animationFlushCallback = null;
       window.cancelAnimationFrame(rafId);
       window.clearTimeout(retryTimer);
+      clearResizeTimers();
       resizeObserver.disconnect();
       mutationObserver.disconnect();
-      idleObserver.disconnect();
       unsubscribeTheme();
+      root.style.removeProperty("--glass-tint-rgb");
+      window.removeEventListener("l-mpv-glass-tint-changed", handleSettings);
       if (appContainer) {
         appContainer.removeEventListener("scroll", handleScroll, { capture: true });
       }
@@ -467,10 +612,16 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
         wrapper.removeEventListener("transitionend", handleTransitionEnd);
         wrapper.removeEventListener("animationend", handleTransitionEnd);
       }
-      window.removeEventListener("resize", handleSettings);
+      if (titlebar) {
+        titlebar.removeEventListener("transitionrun", handleTransition);
+        titlebar.removeEventListener("transitionstart", handleTransition);
+        titlebar.removeEventListener("transitionend", handleTransitionEnd);
+      }
+      window.removeEventListener("resize", handleResize);
       window.removeEventListener("l-mpv-ui-scale-changed", handleSettings);
       window.removeEventListener("l-mpv-ui-radius-changed", handleSettings);
       window.removeEventListener("l-mpv-timeline-layout-changed", handleSettings);
+      window.removeEventListener("l-mpv-control-bar-style-changed", handleSettings);
     };
   }, [enabled, videoReady, mediaPath]);
 

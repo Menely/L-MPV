@@ -503,6 +503,7 @@ export const ru: TranslationDict = {
           high: 'Яркий неон',
         },
         playerThemes: {
+          transparent: 'Прозрачный',
           graphite: 'Тёмный графит',
           oled: 'Глубокий OLED',
           sapphire: 'Ночной кобальт',
@@ -713,6 +714,12 @@ export const ru: TranslationDict = {
       radiusLabel: (r) => `Скругление: ${r}`,
       themeTitle: (name) => `Тема плеера: ${name}`,
       themeLabel: (name) => `Тема: ${name}`,
+      interfaceThemeTitle: (name) => `Оформление интерфейса: ${name}`,
+      glassTintTitle: (name) => `Цвет стекла Liquid Glass: ${name}`,
+      glassTintLabel: (name) => `Стекло: ${name}`,
+      glassBlurTitle: "Размытие стекла Liquid Glass",
+      glassBlurLabel: (percent) => `Размытие: ${percent}%`,
+      controlBarStyleTitle: (name) => `Стиль панели: ${name}`,
       accentTitle: (color) => `Акцентный цвет: ${color}`,
       neonTitle: "Интенсивность неонового свечения",
       neonSoft: "Мягкое свечение",
@@ -773,6 +780,14 @@ export const ru: TranslationDict = {
         builtin_forest: {
           name: "Лесной нефрит",
           description: "Лесной шалфей, мятный нефритовый акцент и мягкие парящие капсулы",
+        },
+        builtin_liquid_glass: {
+          name: "Жидкое стекло",
+          description: "Кристально прозрачное стекло Liquid Glass, капсулы с преломлением и мягкий небесный акцент",
+        },
+        builtin_sapphire_glass: {
+          name: "Сапфировый кристалл",
+          description: "Сапфировое тонированное стекло Liquid Glass, парящая классика и ледяной бирюзовый акцент",
         },
       },
     },

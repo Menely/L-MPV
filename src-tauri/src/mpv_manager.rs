@@ -563,6 +563,12 @@ impl MpvManager {
                     "audio"
                 },
             ); // В теме Liquid Glass рендер синхронизируется с частотой монитора
+            Self::set_option(
+                &api,
+                handle,
+                "blend-subtitles",
+                if use_display_sync { "yes" } else { "no" },
+            ); // В теме Liquid Glass субтитры композитятся до OUTPUT-шейдера стекла, оставаясь под стеклянными окнами
             Self::set_option(&api, handle, "interpolation", "no"); // Сохраняем оригинальную плавность кадров без интерполяции
             Self::set_option(&api, handle, "hr-seek", "yes"); // Точный seek для идеальной синхронизации аудио и видео после перемотки (и при старте с позиции)
 

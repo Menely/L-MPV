@@ -1,6 +1,6 @@
 /* ─── Контекстное меню ───────────────────────────────── */
 .context-menu {
-  --menu-radius: var(--radius-surface);
+  --menu-radius: var(--radius-controls, 16px);
   --menu-padding: var(--space-2);
   --menu-border: 1px;
   --menu-item-radius: max(0px, calc(var(--menu-radius) - var(--menu-padding) - var(--menu-border)));
@@ -102,9 +102,13 @@
 }
 
 .context-menu__item--active {
-  color: var(--text-primary);
+  color: var(--accent-text);
   border-color: transparent !important;
   box-shadow: none !important;
+}
+
+.context-menu__item--active .context-menu__item-icon {
+  color: var(--accent-text);
 }
 
 .context-menu__item-icon {
@@ -199,7 +203,7 @@
 
 /* Самостоятельная островная карточка-группа во всплывающем меню и подменю */
 .context-menu__group {
-  --menu-radius: var(--radius-surface);
+  --menu-radius: var(--radius-controls, 16px);
   --menu-padding: var(--space-2);
   --menu-border: 1px;
   --menu-item-radius: max(0px, calc(var(--menu-radius) - var(--menu-padding) - var(--menu-border)));
@@ -267,7 +271,7 @@
   min-height: 7px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 6px var(--surface-accent-glow);
+  box-shadow: none;
   display: inline-block;
   flex-shrink: 0;
 }
@@ -386,9 +390,13 @@
 }
 
 .context-menu__track-btn--active {
-  color: var(--text-primary);
+  color: var(--accent-text);
   border-color: transparent !important;
   box-shadow: none !important;
+}
+
+.context-menu__track-btn--active:hover {
+  color: var(--accent-text);
 }
 
 .context-menu__track-main {

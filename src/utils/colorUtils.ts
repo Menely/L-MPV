@@ -436,6 +436,27 @@ export function applyAccentColor(value: string): void {
     root.style.setProperty("--accent-dim", dim);
     root.style.setProperty("--accent-dark", dark);
 
+    // Адаптация акцентов для полупрозрачного стекла Liquid Glass поверх живого видео:
+    // тёмные и глубокие оттенки мягко осветляются вдоль OKLCH-тона, сохраняя контраст
+    // на цветном стекле и светлых кадрах, а пастельные остаются неизменными.
+    const glassProbeBackgrounds = ["#1e232c", "#2d3542", "#3e4756"];
+    const glassAccent = readableColor(hex, glassProbeBackgrounds, 4.2);
+    const glassAccentText = readableColor(hex, glassProbeBackgrounds, 4.8);
+    const glassAccentHover = adjustBrightness(glassAccent, 14);
+    const glassAccentRgb = colorRgb(glassAccent).join(", ");
+    const glassOnAccent = onColor(glassAccent);
+
+    root.style.setProperty("--glass-accent", glassAccent);
+    root.style.setProperty("--glass-accent-hover", glassAccentHover);
+    root.style.setProperty("--glass-accent-text", glassAccentText);
+    root.style.setProperty("--glass-accent-rgb", glassAccentRgb);
+    root.style.setProperty("--glass-on-accent", glassOnAccent);
+    root.style.setProperty("--glass-timeline-glow", profile ? profile.timeline(glassAccentRgb) : "none");
+    root.style.setProperty("--glass-thumb-glow", profile ? profile.thumb(glassAccentRgb) : "none");
+    root.style.setProperty("--glass-active-icon-glow", profile ? profile.activeIcon(glassAccentRgb) : "none");
+    root.style.setProperty("--glass-play-icon-glow", profile ? profile.playIcon(glassAccentRgb) : "none");
+    root.style.setProperty("--glass-hover-icon-glow", profile ? profile.hoverIcon(glassAccentRgb) : "none");
+
     window.dispatchEvent(new CustomEvent("l-mpv-accent-changed", { detail: hex }));
     window.dispatchEvent(new CustomEvent("l-mpv-accent-color-changed", { detail: hex }));
   } finally {

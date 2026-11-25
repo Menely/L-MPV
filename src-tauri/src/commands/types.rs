@@ -56,6 +56,8 @@ pub struct UiSettings {
     #[serde(default)]
     pub liquid_glass_blur: Option<u8>,
     #[serde(default)]
+    pub liquid_glass_tint: Option<String>,
+    #[serde(default)]
     pub time_position: Option<String>,
     #[serde(default)]
     pub time_format: Option<String>,

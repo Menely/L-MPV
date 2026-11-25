@@ -1,10 +1,14 @@
 /* ─── Кастомный Titlebar ─────────────────────────────── */
+:root {
+  --titlebar-height: 40px;
+}
+
 .titlebar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 46px;
+  height: var(--titlebar-height, 40px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -24,7 +28,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 75px;
+  height: 68px;
   z-index: -1;
   background: linear-gradient(
     to bottom,
@@ -134,7 +138,7 @@
 
 .titlebar__btn {
   width: 40px;
-  height: 38px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;

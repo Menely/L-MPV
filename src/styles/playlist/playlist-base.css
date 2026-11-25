@@ -428,7 +428,7 @@
 }
 
 .playlist-item--current .playlist-item__title {
-  color: #ffffff !important;
+  color: var(--accent-text) !important;
   font-weight: 600;
 }
 

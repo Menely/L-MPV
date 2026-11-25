@@ -614,6 +614,12 @@ export interface TranslationDict {
       radiusLabel: (r: string) => string;
       themeTitle: (name: string) => string;
       themeLabel: (name: string) => string;
+      interfaceThemeTitle: (name: string) => string;
+      glassTintTitle: (name: string) => string;
+      glassTintLabel: (name: string) => string;
+      glassBlurTitle: string;
+      glassBlurLabel: (percent: number) => string;
+      controlBarStyleTitle: (name: string) => string;
       accentTitle: (color: string) => string;
       neonTitle: string;
       neonSoft: string;

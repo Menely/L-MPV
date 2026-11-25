@@ -185,13 +185,13 @@
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  color: #ffffff !important;
+  color: var(--accent-text) !important;
   font-weight: 600;
 }
 
 .track-popover--capsule .track-popover__item--active:hover {
   background: var(--hover-veil-float) !important;
-  color: #ffffff !important;
+  color: var(--accent-text) !important;
 }
 
 /* Кнопка скачивания: тот же «голый» дизайн, что и в остальных стилях

@@ -10,6 +10,17 @@
   animation: fadeIn var(--t-pop) var(--ease-decelerate);
 }
 
+/* Окно настроек во всех темах и стилях занимает безопасную область строго между
+   верхним заголовком и нижней панелью управления с равными минимальными отступами */
+.modal-overlay.settings-modal-overlay {
+  --settings-safe-gap: 10px;
+  padding:
+    calc(var(--titlebar-height, 40px) + var(--settings-safe-gap))
+    12px
+    calc(var(--player-controls-top, 40px) + var(--settings-safe-gap));
+  box-sizing: border-box;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -44,7 +55,7 @@
     width: min(720px, calc(100vw - 24px)) !important;
     height: auto !important;
     max-width: calc(100vw - 24px) !important;
-    max-height: min(75vh, calc(100vh - 24px)) !important;
+    max-height: 100% !important;
     border-radius: var(--radius-surface);
   }
 }
@@ -368,6 +379,17 @@ html.no-animations .color-circle--palette { will-change: auto; }
 
 .color-circle--windows:hover {
   background: rgba(255, 255, 255, 0.16);
+}
+
+.color-circle--transparent {
+  background-color: rgba(255, 255, 255, 0.06);
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.18) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.18) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.18) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.18) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
 }
 
 .color-circle--add {

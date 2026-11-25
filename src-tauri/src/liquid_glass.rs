@@ -10,7 +10,7 @@ use tauri::State;
 const SCRIPT: &str = "lmpv_liquid_glass";
 const READY: &str = "user-data/lmpv-liquid-glass-ready";
 const SUPPORTED: &str = "user-data/lmpv-liquid-glass-supported";
-const SUPPORTED_REFRESH_MS: u128 = 300;
+const SUPPORTED_REFRESH_MS: u128 = 80;
 const ASSETS: &[(&str, &str)] = &[
     (
         "lmpv_liquid_glass.lua",
@@ -109,9 +109,20 @@ pub async fn configure_liquid_glass(
     };
 
     // Команда load-script возвращается до регистрации обработчиков Lua,
-    // поэтому флаг готовности проверяется до первой успешной инициализации.
+    // поэтому при первой инициализации ожидаем готовности Lua-скрипта в рамках этого же вызова,
+    // чтобы не терять первый пакет геометрии при открытии видео.
     if !is_ready {
-        if player.mpv.get_property_string(READY).is_err() {
+        let mut ready_now = player.mpv.get_property_string(READY).is_ok();
+        if !ready_now {
+            for _ in 0..20 {
+                tokio::time::sleep(std::time::Duration::from_millis(4)).await;
+                if player.mpv.get_property_string(READY).is_ok() {
+                    ready_now = true;
+                    break;
+                }
+            }
+        }
+        if !ready_now {
             return Ok(json!({ "ready": false, "supported": false }));
         }
         if let Ok(mut guard) = glass.0.lock() {
@@ -134,8 +145,10 @@ pub async fn configure_liquid_glass(
         if wants_display_sync {
             let _ = player.mpv.set_property_string("interpolation", "no");
             let _ = player.mpv.set_property_string("video-sync", "display-resample");
+            let _ = player.mpv.set_property_string("blend-subtitles", "yes");
         } else {
             let _ = player.mpv.set_property_string("video-sync", "audio");
+            let _ = player.mpv.set_property_string("blend-subtitles", "no");
         }
         if let Ok(mut guard) = glass.0.lock() {
             if let Some(state) = guard.as_mut() {
@@ -155,7 +168,7 @@ pub async fn configure_liquid_glass(
 
     // Минимизируем синхронные чтения свойств mpv при быстром движении карточки превью:
     // пока шейдер ещё не подтвердил поддержку (при старте видео), проверяем каждый раз;
-    // после успешной активации перепроверяем не чаще раза в 300 мс.
+    // после успешной активации перепроверяем не чаще раза в SUPPORTED_REFRESH_MS (80 мс).
     let should_refresh_supported = {
         let guard = glass.0.lock().map_err(|error| error.to_string())?;
         guard
@@ -170,10 +183,17 @@ pub async fn configure_liquid_glass(
     };
 
     let supported = if should_refresh_supported {
-        let fresh = player
+        let mut fresh = player
             .mpv
             .get_property_bool(SUPPORTED)
             .unwrap_or(false);
+        if !fresh && is_active_request {
+            tokio::time::sleep(std::time::Duration::from_millis(4)).await;
+            fresh = player
+                .mpv
+                .get_property_bool(SUPPORTED)
+                .unwrap_or(false);
+        }
         if let Ok(mut guard) = glass.0.lock() {
             if let Some(state) = guard.as_mut() {
                 state.supported = fresh;

@@ -15,7 +15,8 @@
 .playlist-drawer .navigation-panel__tabs { flex: 1; min-width: 0; }
 .playlist-drawer .navigation-panel__tab { min-width: 0; }
 .playlist-drawer .navigation-panel__tab > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.navigation-panel__pin[aria-pressed="true"] { color: var(--accent-text); background: var(--surface-level-3-hover); }
+.navigation-panel__pin[aria-pressed="true"] { color: var(--accent-text); background: var(--surface-accent-subtle); }
+.navigation-panel__pin[aria-pressed="true"]:hover { background: var(--surface-accent-hover); }
 .navigation-panel__grip { touch-action: none; cursor: ns-resize; }
 .navigation-panel__pin:focus-visible, .navigation-panel__grip:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; }
 .navigation-panel__explorer-host { display: flex; flex: 1; min-height: 0; min-width: 0; }

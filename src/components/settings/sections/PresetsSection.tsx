@@ -23,6 +23,7 @@ import {
   FolderOpen,
   Keyboard,
   Globe,
+  Droplets,
 } from "lucide-react";
 import {
   SettingsPreset,
@@ -223,6 +224,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
 
     window.addEventListener("focus", handleFocus);
     window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-player-theme-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-glass-tint-changed", handleSettingsChanged);
     window.addEventListener("l-mpv-preset-applied", handlePresetAppliedEvent);
 
     return () => {
@@ -230,6 +234,9 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
       detectRevisionRef.current += 1;
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-player-theme-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-glass-tint-changed", handleSettingsChanged);
       window.removeEventListener("l-mpv-preset-applied", handlePresetAppliedEvent);
       if (toastTimerRef.current !== null) {
         window.clearTimeout(toastTimerRef.current);
@@ -499,24 +506,102 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     // Количество хоткеев
     const hotkeyCount = data.customHotkeys ? Object.keys(data.customHotkeys).length : 0;
 
+    const isGlassPreset = data.playerInterfaceTheme === "glass";
+    const interfaceLabel = data.playerInterfaceTheme
+      ? isGlassPreset
+        ? "Liquid Glass"
+        : "L-MPV"
+      : null;
+    const rawBarStyle = isGlassPreset
+      ? (data.liquidGlassStyle || data.controlBarStyle)
+      : data.controlBarStyle;
+    const barStyleLabel =
+      rawBarStyle === "capsule"
+        ? dict.settings.appearance.styleCapsule
+        : rawBarStyle === "docked"
+          ? `Classic · ${dict.settings.appearance.panelDocked}`
+          : rawBarStyle
+            ? `Classic · ${dict.settings.appearance.panelFloating}`
+            : null;
+    const glassTintId = (data.liquidGlassTint || "transparent") as string;
+    const glassTintConfig =
+      glassTintId !== "transparent" && glassTintId in PLAYER_THEMES
+        ? PLAYER_THEMES[glassTintId as PlayerThemeId]
+        : null;
+
     return (
       <div className="preset-card__tags">
-        {/* 1. Тема плеера (расцветка фона) */}
-        {themeConfig && (() => {
-          const themeName = data.playerTheme ? (dict.settings.appearance.colorScheme.playerThemes[data.playerTheme] || themeConfig.name) : themeConfig.name;
-          return (
-            <div className="preset-tag" title={dict.settings.presets.themeTitle(themeName)}>
-              <span
-                className="preset-tag__color-dot"
-                style={{
-                  backgroundColor: themeConfig.dotColor,
-                  border: "1.5px solid rgba(255, 255, 255, 0.35)",
-                }}
-              />
-              <span>{dict.settings.presets.themeLabel(themeName)}</span>
-            </div>
-          );
-        })()}
+        {/* 0. Режим оформления интерфейса (L-MPV / Liquid Glass) */}
+        {interfaceLabel && (
+          <div
+            className="preset-tag"
+            title={dict.settings.presets.interfaceThemeTitle(interfaceLabel)}
+          >
+            <Layers size={12} />
+            <span>{interfaceLabel}</span>
+          </div>
+        )}
+
+        {/* 0.1 Стиль панели управления (Капсула / Classic) */}
+        {barStyleLabel && (
+          <div
+            className="preset-tag"
+            title={dict.settings.presets.controlBarStyleTitle(barStyleLabel)}
+          >
+            <Palette size={12} />
+            <span>{barStyleLabel}</span>
+          </div>
+        )}
+
+        {/* 1. Цвет стекла Liquid Glass или тема плеера L-MPV */}
+        {isGlassPreset ? (
+          (() => {
+            const tintName =
+              glassTintId === "transparent"
+                ? dict.settings.appearance.colorScheme.playerThemes.transparent || "Прозрачный"
+                : dict.settings.appearance.colorScheme.playerThemes[glassTintId] ||
+                  glassTintConfig?.name ||
+                  glassTintId;
+            return (
+              <div
+                className="preset-tag"
+                title={dict.settings.presets.glassTintTitle(tintName)}
+              >
+                {glassTintConfig ? (
+                  <span
+                    className="preset-tag__color-dot"
+                    style={{
+                      backgroundColor: glassTintConfig.dotColor,
+                      border: "1.5px solid rgba(255, 255, 255, 0.35)",
+                    }}
+                  />
+                ) : (
+                  <span className="preset-tag__color-dot preset-tag__color-dot--transparent" />
+                )}
+                <span>{dict.settings.presets.glassTintLabel(tintName)}</span>
+              </div>
+            );
+          })()
+        ) : (
+          themeConfig &&
+          (() => {
+            const themeName = data.playerTheme
+              ? dict.settings.appearance.colorScheme.playerThemes[data.playerTheme] || themeConfig.name
+              : themeConfig.name;
+            return (
+              <div className="preset-tag" title={dict.settings.presets.themeTitle(themeName)}>
+                <span
+                  className="preset-tag__color-dot"
+                  style={{
+                    backgroundColor: themeConfig.dotColor,
+                    border: "1.5px solid rgba(255, 255, 255, 0.35)",
+                  }}
+                />
+                <span>{dict.settings.presets.themeLabel(themeName)}</span>
+              </div>
+            );
+          })()
+        )}
 
         {/* 2. Акцентный цвет */}
         {data.accentColor && (
@@ -571,12 +656,22 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           </div>
         )}
 
-        {/* 6. Прозрачность UI */}
-        {typeof data.uiOpacity === "number" && data.uiOpacity < 1 && (
-          <div className="preset-tag" title={dict.settings.presets.opacityTitle}>
-            <Eye size={12} />
-            <span>{Math.round(data.uiOpacity * 100)}%</span>
-          </div>
+        {/* 6. Размытие Liquid Glass или прозрачность UI L-MPV */}
+        {isGlassPreset ? (
+          typeof data.liquidGlassBlur === "number" && (
+            <div className="preset-tag" title={dict.settings.presets.glassBlurTitle}>
+              <Droplets size={12} />
+              <span>{dict.settings.presets.glassBlurLabel(Math.round(data.liquidGlassBlur))}</span>
+            </div>
+          )
+        ) : (
+          typeof data.uiOpacity === "number" &&
+          data.uiOpacity < 1 && (
+            <div className="preset-tag" title={dict.settings.presets.opacityTitle}>
+              <Eye size={12} />
+              <span>{Math.round(data.uiOpacity * 100)}%</span>
+            </div>
+          )
         )}
 
         {/* 7. Скругление углов */}

@@ -50,7 +50,15 @@ import {
   saveControlBarStyle,
   ControlBarStyle,
 } from "./controlBarStyleUtils";
-import { getGlassBlur, getPlayerTheme, saveGlassBlur, setPlayerTheme } from "../features/liquidGlass/preferences";
+import {
+  getGlassBlur,
+  getGlassTint,
+  getPlayerTheme,
+  saveGlassBlur,
+  saveGlassTint,
+  setPlayerTheme,
+  type GlassTintId,
+} from "../features/liquidGlass/preferences";
 import {
   getSavedUtilityCards,
   saveUtilityCards,
@@ -107,6 +115,7 @@ export interface UiSettings {
   player_interface_theme?: string;
   liquid_glass_control_bar_style?: string;
   liquid_glass_blur?: number;
+  liquid_glass_tint?: string;
   time_position?: string;
   time_format?: string;
   animations_enabled?: boolean;
@@ -272,6 +281,7 @@ export function collectCurrentUiSettings(): UiSettings {
     player_interface_theme: getPlayerTheme(),
     liquid_glass_control_bar_style: getSavedControlBarStyle("glass"),
     liquid_glass_blur: getGlassBlur(),
+    liquid_glass_tint: getGlassTint(),
     time_position: getSavedTimePosition(),
     time_format: getSavedTimeFormat(),
     animations_enabled: localStorage.getItem("l-mpv-animations-enabled") !== "false",
@@ -404,6 +414,10 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
   }
   if (typeof ui.liquid_glass_blur === "number" && Number.isFinite(ui.liquid_glass_blur)) {
     saveGlassBlur(ui.liquid_glass_blur);
+    restored = true;
+  }
+  if (typeof ui.liquid_glass_tint === "string" && ui.liquid_glass_tint) {
+    saveGlassTint(ui.liquid_glass_tint as GlassTintId);
     restored = true;
   }
   if (ui.player_interface_theme === "lmpv" || ui.player_interface_theme === "glass") {

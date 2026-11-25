@@ -29,7 +29,7 @@
     width: calc(100vw - 12px) !important;
     height: auto !important;
     max-width: calc(100vw - 12px) !important;
-    max-height: calc(100vh - 12px) !important;
+    max-height: 100% !important;
     border-radius: var(--radius-surface);
   }
   .modal__header {

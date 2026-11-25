@@ -179,7 +179,7 @@ body, #root {
 /* OSD отображения кадров и статистики в левом верхнем углу */
 .frame-osd {
   position: fixed;
-  top: 48px;
+  top: calc(var(--titlebar-height, 30px) + 10px);
   left: 24px;
   z-index: var(--z-float);
   background: var(--bg-pill);

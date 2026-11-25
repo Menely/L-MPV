@@ -152,7 +152,7 @@ button.controls-island--time,
   padding: var(--dock-padding-y) var(--dock-padding-x);
   background: var(--bg-pill);
   border: 1px solid var(--border-pill);
-  border-radius: var(--radius-controls, 18px);
+  border-radius: max(var(--radius-controls, 18px), 24px);
   box-shadow: var(--shadow-pill);
   backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
@@ -198,10 +198,8 @@ button.controls-island--time,
   height: 42px;
   background: var(--capsule-island-fill, var(--surface-level-3));
   border: 1px solid rgba(255, 255, 255, 0.10);
-  --island-radius-x: max(var(--radius-control), calc(var(--radius-controls, 16px) - var(--dock-padding-x) - var(--dock-border)));
-  --island-radius-y: max(var(--radius-control), calc(var(--radius-controls, 16px) - var(--dock-padding-y) - var(--dock-border)));
-  /* Each axis includes the current dock padding and its outer border. */
-  border-radius: var(--island-radius-x) / var(--island-radius-y);
+  --island-radius: max(var(--radius-control, 8px), calc(var(--radius-controls, 16px) - 2px));
+  border-radius: var(--island-radius);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -532,9 +530,8 @@ button.controls-island--time,
   --fullscreen-inset: calc((var(--fullscreen-island-size) - var(--fullscreen-button-size)) / 2);
   width: var(--fullscreen-button-size);
   height: var(--fullscreen-button-size);
-  /* Радиус кнопки не может стать нулевым при ненулевом стиле (иначе кнопка в островке
-     выглядит квадратом) и не может превышать радиус самого островка. */
-  border-radius: min(var(--island-radius-x), max(6px, calc(var(--island-radius-x) - var(--fullscreen-inset)))) / min(var(--island-radius-y), max(6px, calc(var(--island-radius-y) - var(--fullscreen-inset))));
+  /* Концентрическое скругление относительно реального --island-radius с сохранением 0px при прямоугольном стиле */
+  border-radius: min(var(--island-radius, var(--radius-control)), max(var(--radius-control, 0px), calc(var(--island-radius, var(--radius-control)) - var(--fullscreen-inset))));
 }
 @container controls (max-width: 760px) {
   .controls-islands-row .controls-island--fullscreen,

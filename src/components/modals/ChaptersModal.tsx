@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Film, X } from "lucide-react";
 import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
@@ -8,6 +8,10 @@ import { useTranslation } from "../../i18n/LanguageContext";
 import { formatTime } from "../../utils/timeUtils";
 import { supportsTimelineThumbnail } from "../../utils/timelineThumbnail";
 import { useChapterThumbnails } from "../../hooks/useChapterThumbnails";
+import {
+  notifyLiquidGlassAnimation,
+  notifyLiquidGlassSync,
+} from "../../features/liquidGlass/LiquidGlassSync";
 import {
   type ControlBarStyle,
   getSavedControlBarStyle,
@@ -55,6 +59,17 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
   const selectedVideoTrack =
     tracks.find((track) => track.type === "video" && track.selected)?.id ?? null;
   const showThumbnails = supportsTimelineThumbnail(mediaPath, hasVideo);
+
+  useLayoutEffect(() => {
+    notifyLiquidGlassSync();
+    notifyLiquidGlassAnimation(180);
+    return () => {
+      queueMicrotask(() => {
+        notifyLiquidGlassSync();
+        notifyLiquidGlassAnimation(180);
+      });
+    };
+  }, [controlBarStyle, chapters.length, showThumbnails]);
 
   const { thumbnails, markThumbnailFailed } = useChapterThumbnails({
     listRef,

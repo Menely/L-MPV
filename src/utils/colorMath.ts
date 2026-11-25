@@ -75,6 +75,12 @@ export function shiftLightness(hex: string, delta: number): string {
   return fromOklch(oldL + delta, oldC, h);
 }
 
+/** Приводит цвет к целевой перцептивной светлоте и коэффициенту насыщенности в OKLCH. */
+export function transformOklch(hex: string, targetL: number, chromaFactor = 1.0): string {
+  const [, oldC, h] = toOklch(hex);
+  return fromOklch(targetL, oldC * chromaFactor, h);
+}
+
 function fromOklch(lightness: number, chroma: number, h: number): string {
   const L = Math.max(0, Math.min(1, lightness));
   const C = Math.min(Math.max(0, chroma), maxGamutChroma(L, h));

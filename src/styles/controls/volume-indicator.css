@@ -136,7 +136,7 @@ html.no-animations .volume-feedback__mark {
 
 .volume-feedback-osd {
   position: fixed;
-  top: 48px;
+  top: calc(var(--titlebar-height, 30px) + 10px);
   left: 24px;
   z-index: var(--z-float);
   display: inline-flex;

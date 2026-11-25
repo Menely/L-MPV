@@ -14,8 +14,9 @@
 .navigation-popover button > span { min-width: 0; overflow-wrap: anywhere; flex: 1; }
 .navigation-popover button > svg { flex-shrink: 0; }
 .navigation-popover button:hover:not(:disabled) { background: var(--hover-veil-float); border-color: var(--border-pill-hover); }
-.navigation-popover button[aria-selected="true"] { color: var(--text-primary); background: transparent; }
-.navigation-popover button[aria-selected="true"]:hover { background: var(--hover-veil-float); }
+.navigation-popover button[aria-selected="true"] { color: var(--accent-text); font-weight: 600; background: transparent; }
+.navigation-popover button[aria-selected="true"] > svg { color: var(--accent-text); }
+.navigation-popover button[aria-selected="true"]:hover { background: var(--hover-veil-float); color: var(--accent-text); }
 .navigation-popover button:focus-visible, .navigation-popover input:focus-visible { outline: 2px solid var(--accent-text); outline-offset: -2px; }
 .navigation-popover button:disabled { opacity: .4; cursor: default; }
 .navigation-popover button[data-destructive] { color: var(--error-text, #f48787); }

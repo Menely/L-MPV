@@ -14,6 +14,7 @@ import {
   saveGlowIntensity,
   getCustomColors,
   saveCustomColors,
+  PLAYER_THEMES,
   PlayerThemeId,
   getSavedPlayerTheme,
   savePlayerTheme,
@@ -61,6 +62,18 @@ import {
   saveControlBarStyle,
 } from "./controlBarStyleUtils";
 import {
+  DEFAULT_GLASS_BLUR,
+  DEFAULT_GLASS_TINT,
+  getGlassBlur,
+  getGlassTint,
+  getPlayerTheme,
+  saveGlassBlur,
+  saveGlassTint,
+  setPlayerTheme,
+  type GlassTintId,
+  type PlayerTheme,
+} from "../features/liquidGlass/preferences";
+import {
   type UtilityButtonId,
   getSavedUtilityCards,
   saveUtilityCards,
@@ -79,8 +92,16 @@ import {
 import { getUserPresetsCache, setUserPresetsCache, userPresetsCacheRevision } from "./userPresetsCache";
 
 export interface SettingsPresetData {
+  /** Режим оформления интерфейса плеера (L-MPV или Liquid Glass) */
+  playerInterfaceTheme?: PlayerTheme;
   /** Тема оформления плеера (расцветка фона и поверхностей) */
   playerTheme?: PlayerThemeId | string;
+  /** Стиль панели управления в теме Liquid Glass */
+  liquidGlassStyle?: ControlBarStyle;
+  /** Интенсивность размытия Liquid Glass (0 - 100) */
+  liquidGlassBlur?: number;
+  /** Оттенок стекла в Liquid Glass ("transparent" или ID темы плеера) */
+  liquidGlassTint?: GlassTintId;
   /** Стиль окна настроек (модальное окно или боковая панель) */
   settingsStyle?: UiSettingsStyle;
   /** Язык интерфейса (ru или en) */
@@ -179,6 +200,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     createdAt: 1700000000000,
     isBuiltIn: true,
     data: {
+      playerInterfaceTheme: "lmpv",
       playerTheme: "graphite",
       uiFont: "inter",
       accentColor: "#7fc7ff",
@@ -232,6 +254,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     createdAt: 1700000000001,
     isBuiltIn: true,
     data: {
+      playerInterfaceTheme: "lmpv",
       playerTheme: "indigo",
       uiFont: "outfit",
       accentColor: "#f9a8d4",
@@ -285,6 +308,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     createdAt: 1700000000002,
     isBuiltIn: true,
     data: {
+      playerInterfaceTheme: "lmpv",
       playerTheme: "oled",
       uiFont: "jakarta",
       accentColor: "#e8a236",
@@ -338,6 +362,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     createdAt: 1700000000003,
     isBuiltIn: true,
     data: {
+      playerInterfaceTheme: "lmpv",
       playerTheme: "slate",
       uiFont: "inter",
       accentColor: "#c3c8d0",
@@ -391,6 +416,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
     createdAt: 1700000000004,
     isBuiltIn: true,
     data: {
+      playerInterfaceTheme: "lmpv",
       playerTheme: "pine",
       uiFont: "manrope",
       accentColor: "#a7f3d0",
@@ -427,6 +453,118 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       visualizer: {
         enabled: true,
         placement: "toolbar",
+        mode: "waveform",
+        theme: "accent",
+        height: 22,
+      },
+      saveTracksToVideoDir: true,
+      hotloadEnabled: false,
+      skipOpeningSeconds: 90,
+      seekStepSeconds: 10,
+    },
+  },
+  {
+    id: "builtin_liquid_glass",
+    name: "Жидкое стекло",
+    description: "Кристально прозрачное стекло Liquid Glass, капсулы с преломлением и мягкий небесный акцент",
+    createdAt: 1700000000005,
+    isBuiltIn: true,
+    data: {
+      playerInterfaceTheme: "glass",
+      liquidGlassStyle: "capsule",
+      liquidGlassBlur: 90,
+      liquidGlassTint: "transparent",
+      uiFont: "inter",
+      accentColor: "#7fc7ff",
+      glowIntensity: "soft",
+      uiOpacity: 0.92,
+      controlBarStyle: "capsule",
+      uiRadius: "pill",
+      settingsStyle: "modal",
+      uiScale: { mode: "auto" },
+      timePosition: "timeline_right",
+      timeFormat: "elapsed_total",
+      heatmap: { ...DEFAULT_HEATMAP_CONFIG, enabled: false },
+      animationsEnabled: true,
+      showTrackNames: true,
+      visibleButtons: {
+        repeat: false,
+        shuffle: false,
+        alwaysOnTop: true,
+        info: false,
+        mediaInfo: false,
+        visualizer: false,
+        screenshot: true,
+        playlist: true,
+        fullscreen: true,
+        skipOpening: true,
+        speed: false,
+        seekButtons: true,
+      },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
+      ambient: {
+        mode: "off",
+        blur_radius: 35,
+      },
+      visualizer: {
+        enabled: false,
+        placement: "off",
+        mode: "waveform",
+        theme: "accent",
+        height: 22,
+      },
+      saveTracksToVideoDir: true,
+      hotloadEnabled: false,
+      skipOpeningSeconds: 90,
+      seekStepSeconds: 10,
+    },
+  },
+  {
+    id: "builtin_sapphire_glass",
+    name: "Сапфировый кристалл",
+    description: "Сапфировое тонированное стекло Liquid Glass, парящая классика и ледяной бирюзовый акцент",
+    createdAt: 1700000000006,
+    isBuiltIn: true,
+    data: {
+      playerInterfaceTheme: "glass",
+      liquidGlassStyle: "modern",
+      liquidGlassBlur: 85,
+      liquidGlassTint: "sapphire",
+      uiFont: "jakarta",
+      accentColor: "#5eead4",
+      glowIntensity: "soft",
+      uiOpacity: 0.92,
+      controlBarStyle: "modern",
+      uiRadius: "default",
+      settingsStyle: "modal",
+      uiScale: { mode: "auto" },
+      timePosition: "timeline_right",
+      timeFormat: "elapsed_total",
+      heatmap: { ...DEFAULT_HEATMAP_CONFIG, enabled: false },
+      animationsEnabled: true,
+      showTrackNames: true,
+      visibleButtons: {
+        repeat: false,
+        shuffle: false,
+        alwaysOnTop: true,
+        info: false,
+        mediaInfo: true,
+        visualizer: false,
+        screenshot: true,
+        playlist: true,
+        fullscreen: true,
+        skipOpening: true,
+        speed: false,
+        seekButtons: true,
+      },
+      utilityButtonCards: BUILTIN_DEFAULT_CARDS.map((card) => [...card]),
+      ambient: {
+        mode: "off",
+        blur_radius: 35,
+      },
+      visualizer: {
+        enabled: false,
+        placement: "off",
         mode: "waveform",
         theme: "accent",
         height: 22,
@@ -498,6 +636,11 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
   const uiScale = getSavedUiScale();
   const uiFont = getSavedUiFont();
   const playerTheme = getSavedPlayerTheme();
+  const playerInterfaceTheme = getPlayerTheme();
+  const lmpvControlBarStyle = getSavedControlBarStyle("lmpv");
+  const liquidGlassStyle = getSavedControlBarStyle("glass");
+  const liquidGlassBlur = getGlassBlur();
+  const liquidGlassTint = getGlassTint();
 
   return {
     id: `preset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -505,13 +648,17 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
     createdAt: Date.now(),
     isBuiltIn: false,
     data: {
+       playerInterfaceTheme,
        playerTheme,
+       liquidGlassStyle,
+       liquidGlassBlur,
+       liquidGlassTint,
        settingsStyle: getSavedUiSettingsStyle(),
        language: getEffectiveLocale(),
        uiFont,
       timePosition: getSavedTimePosition(),
       timeFormat: getSavedTimeFormat(),
-      controlBarStyle: getSavedControlBarStyle(),
+      controlBarStyle: playerInterfaceTheme === "glass" ? liquidGlassStyle : lmpvControlBarStyle,
       accentColor,
       glowIntensity,
       uiOpacity,
@@ -546,7 +693,27 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
     window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: ambient }));
   }
 
-  // 0. Тема оформления плеера (расцветка фона и поверхностей)
+  // 0. Главный режим интерфейса (L-MPV или Liquid Glass) и параметры стекла
+  const targetInterfaceTheme: PlayerTheme =
+    data.playerInterfaceTheme === "glass" || data.playerInterfaceTheme === "lmpv"
+      ? data.playerInterfaceTheme
+      : getPlayerTheme();
+  if (data.playerInterfaceTheme === "glass" || data.playerInterfaceTheme === "lmpv") {
+    setPlayerTheme(data.playerInterfaceTheme);
+    window.dispatchEvent(
+      new CustomEvent("l-mpv-player-theme-changed", {
+        detail: data.playerInterfaceTheme,
+      }),
+    );
+  }
+  if (typeof data.liquidGlassBlur === "number") {
+    saveGlassBlur(data.liquidGlassBlur);
+  }
+  if (data.liquidGlassTint) {
+    saveGlassTint(data.liquidGlassTint);
+  }
+
+  // 0.1. Тема оформления плеера (расцветка фона и поверхностей L-MPV)
   if (data.playerTheme) {
     savePlayerTheme(data.playerTheme);
   }
@@ -608,10 +775,27 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
     saveTimeFormat(data.timeFormat);
   }
 
-  // 3.6 Стиль панели управления (парящий остров или пристыкованная плашка)
-  if (data.controlBarStyle) {
-    saveControlBarStyle(data.controlBarStyle);
-    window.dispatchEvent(new CustomEvent("l-mpv-control-bar-style-changed", { detail: data.controlBarStyle }));
+  // 3.6 Стиль панели управления (раздельно для L-MPV и Liquid Glass)
+  if (data.liquidGlassStyle) {
+    saveControlBarStyle(data.liquidGlassStyle, "glass");
+  }
+  if (targetInterfaceTheme === "glass") {
+    const activeGlassStyle = data.liquidGlassStyle || data.controlBarStyle;
+    if (activeGlassStyle) {
+      saveControlBarStyle(activeGlassStyle, "glass");
+      window.dispatchEvent(
+        new CustomEvent("l-mpv-control-bar-style-changed", {
+          detail: activeGlassStyle,
+        }),
+      );
+    }
+  } else if (data.controlBarStyle) {
+    saveControlBarStyle(data.controlBarStyle, "lmpv");
+    window.dispatchEvent(
+      new CustomEvent("l-mpv-control-bar-style-changed", {
+        detail: data.controlBarStyle,
+      }),
+    );
   }
 
   if (data.settingsStyle === "modal" || data.settingsStyle === "sidebar") {
@@ -895,7 +1079,22 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
         createdAt: Date.now(),
         isBuiltIn: false,
         data: {
+          playerInterfaceTheme:
+            d.playerInterfaceTheme === "lmpv" || d.playerInterfaceTheme === "glass"
+              ? d.playerInterfaceTheme
+              : undefined,
           playerTheme: d.playerTheme || "graphite",
+          liquidGlassStyle: d.liquidGlassStyle === "floating" ? "modern"
+            : ["capsule", "modern", "docked"].includes(d.liquidGlassStyle) ? d.liquidGlassStyle : undefined,
+          liquidGlassBlur:
+            typeof d.liquidGlassBlur === "number" && Number.isFinite(d.liquidGlassBlur)
+              ? Math.max(0, Math.min(100, Math.round(d.liquidGlassBlur)))
+              : undefined,
+          liquidGlassTint:
+            d.liquidGlassTint === "transparent" ||
+            (typeof d.liquidGlassTint === "string" && d.liquidGlassTint in PLAYER_THEMES)
+              ? (d.liquidGlassTint as GlassTintId)
+              : undefined,
           uiFont: typeof d.uiFont === "string" && d.uiFont.trim() ? d.uiFont : undefined,
           controlBarStyle: d.controlBarStyle === "floating" ? "modern"
             : ["capsule", "modern", "docked"].includes(d.controlBarStyle) ? d.controlBarStyle : undefined,
@@ -975,10 +1174,30 @@ export function isSettingsMatchingPreset(
 ): boolean {
   if (!current || !preset) return false;
 
-  // 1. Тема плеера
-  const curTheme = current.playerTheme || "graphite";
-  const preTheme = preset.playerTheme || "graphite";
-  if (curTheme !== preTheme) return false;
+  // 0. Режим интерфейса (L-MPV / Liquid Glass)
+  if (preset.playerInterfaceTheme) {
+    if ((current.playerInterfaceTheme || "lmpv") !== preset.playerInterfaceTheme) {
+      return false;
+    }
+  }
+  const effectiveInterfaceTheme: PlayerTheme =
+    preset.playerInterfaceTheme || current.playerInterfaceTheme || "lmpv";
+
+  // 1. Цвет плеера (L-MPV) или оттенок и размытие Liquid Glass
+  if (effectiveInterfaceTheme === "glass") {
+    if (typeof preset.liquidGlassBlur === "number") {
+      const curBlur = Math.round(Number(current.liquidGlassBlur ?? DEFAULT_GLASS_BLUR));
+      if (curBlur !== Math.round(preset.liquidGlassBlur)) return false;
+    }
+    if (preset.liquidGlassTint) {
+      const curTint = current.liquidGlassTint || DEFAULT_GLASS_TINT;
+      if (curTint !== preset.liquidGlassTint) return false;
+    }
+  } else {
+    const curTheme = current.playerTheme || "graphite";
+    const preTheme = preset.playerTheme || "graphite";
+    if (curTheme !== preTheme) return false;
+  }
 
   // 2. Шрифт интерфейса
   const curFont = current.uiFont || "inter";
@@ -995,7 +1214,20 @@ export function isSettingsMatchingPreset(
 
   // Compare only explicit options: older presets do not constrain missing fields.
   const normalizeStyle = (value: string | undefined) => value === "floating" ? "modern" : value || "modern";
-  if (preset.controlBarStyle && normalizeStyle(current.controlBarStyle) !== normalizeStyle(preset.controlBarStyle)) return false;
+  if (effectiveInterfaceTheme === "glass") {
+    const preGlassStyle = preset.liquidGlassStyle || preset.controlBarStyle;
+    if (
+      preGlassStyle &&
+      normalizeStyle(current.liquidGlassStyle || current.controlBarStyle) !== normalizeStyle(preGlassStyle)
+    ) {
+      return false;
+    }
+  } else if (
+    preset.controlBarStyle &&
+    normalizeStyle(current.controlBarStyle) !== normalizeStyle(preset.controlBarStyle)
+  ) {
+    return false;
+  }
   if (preset.timePosition && (current.timePosition || "timeline_right") !== preset.timePosition) return false;
   if (preset.timeFormat && (current.timeFormat || "elapsed_total") !== preset.timeFormat) return false;
 
@@ -1009,10 +1241,12 @@ export function isSettingsMatchingPreset(
   const preGlow = preset.glowIntensity || "soft";
   if (curGlow !== preGlow) return false;
 
-  // 5. Прозрачность UI
-  const curOpacity = Math.round(Number(current.uiOpacity ?? 0.88) * 100);
-  const preOpacity = Math.round(Number(preset.uiOpacity ?? 0.88) * 100);
-  if (curOpacity !== preOpacity) return false;
+  // 5. Прозрачность UI (применяется в классическом режиме L-MPV)
+  if (effectiveInterfaceTheme !== "glass") {
+    const curOpacity = Math.round(Number(current.uiOpacity ?? 0.88) * 100);
+    const preOpacity = Math.round(Number(preset.uiOpacity ?? 0.88) * 100);
+    if (curOpacity !== preOpacity) return false;
+  }
 
   // 6. Скругление углов
   const curRadiusLevel = typeof current.uiRadius === "string" ? current.uiRadius : current.uiRadius?.level || "default";
@@ -1053,11 +1287,6 @@ export function isSettingsMatchingPreset(
     if (JSON.stringify(current.utilityButtonCards) !== JSON.stringify(preset.utilityButtonCards)) {
       return false;
     }
-  }
-
-  // 10.1 Стиль панели управления
-  if (preset.controlBarStyle && current.controlBarStyle) {
-    if (current.controlBarStyle !== preset.controlBarStyle) return false;
   }
 
   // 10.2 Положение и формат времени

@@ -1,6 +1,7 @@
 import {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useCallback,
   useMemo,
@@ -25,6 +26,10 @@ import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils"
 import { useTranslation } from "../../i18n/LanguageContext";
 import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
 import { MotionSurface } from "../motion/MotionSurface";
+import {
+  notifyLiquidGlassAnimation,
+  notifyLiquidGlassSync,
+} from "../../features/liquidGlass/LiquidGlassSync";
 import {
   getSavedControlBarStyle,
   type ControlBarStyle,
@@ -150,6 +155,32 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     () => setIsOpaque(!isOpaque),
     [isOpaque, setIsOpaque]
   );
+
+  useLayoutEffect(() => {
+    notifyLiquidGlassSync();
+    if (isAutoAdapting) {
+      notifyLiquidGlassAnimation(260);
+    }
+  }, [
+    modalWidth,
+    offsetX,
+    viewMode,
+    controlBarStyle,
+    isOpaque,
+    isAutoAdapting,
+    subTracks.length,
+  ]);
+
+  useLayoutEffect(() => {
+    notifyLiquidGlassSync();
+    notifyLiquidGlassAnimation(180);
+    return () => {
+      queueMicrotask(() => {
+        notifyLiquidGlassSync();
+        notifyLiquidGlassAnimation(180);
+      });
+    };
+  }, []);
 
   // ── Базовые UI-состояния ───────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
