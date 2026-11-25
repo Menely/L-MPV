@@ -54,6 +54,7 @@ import {
   getGlassBlur,
   getGlassRefraction,
   getGlassTint,
+  getGlassTintShaderParams,
   getPlayerTheme,
   saveGlassBlur,
   saveGlassRefraction,
@@ -344,8 +345,20 @@ export function applyAllVisualSettings(): void {
   // Анимации — единый источник правды (класс + data-атрибут + localStorage)
   applyAnimationsFlagToDom();
 
-  // Тема
+  // Тема оформления окна и оттенок Liquid Glass (применяем сразу до первого рендера React)
   applyPlayerTheme(getSavedPlayerTheme());
+  const root = document.documentElement;
+  if (getPlayerTheme() === "glass") {
+    root.setAttribute("data-interface-theme", "glass");
+    root.style.setProperty(
+      "--glass-tint-rgb",
+      getGlassTintShaderParams(getGlassTint()).fallbackRgb,
+    );
+  } else {
+    root.removeAttribute("data-interface-theme");
+    root.removeAttribute("data-liquid-glass-active");
+    root.style.removeProperty("--glass-tint-rgb");
+  }
 
   // Радиусы
   const curRadius = getSavedUiRadius();

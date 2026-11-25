@@ -568,6 +568,16 @@
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
+/* Отключение градиентного затемнения при скролле */
+.mediainfo-standalone [data-scroll-fade],
+.mediainfo-floating-window [data-scroll-fade],
+.mediainfo-standalone__body,
+.mediainfo-floating-window__body,
+.mediainfo-standalone__tabs-list {
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+
 /* Drag and Drop оверлей в капсульном режиме */
 .mediainfo-standalone--capsule .mediainfo-standalone__drag-overlay {
   border-radius: var(--radius-controls, 16px) !important;

@@ -23,3 +23,14 @@
 @media (forced-colors: active) {
   [data-scroll-fade] { mask-image: none; }
 }
+
+/* Окно MediaInfo не использует градиентные маски затемнения при прокрутке */
+:where(
+  .mediainfo-standalone,
+  .mediainfo-floating-window,
+  .media-info-overlay,
+  .media-info-modal
+) :is([data-scroll-fade], .mediainfo-standalone__body, .mediainfo-floating-window__body, .mediainfo-standalone__tabs-list, .media-info__body) {
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}

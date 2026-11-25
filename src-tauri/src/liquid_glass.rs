@@ -1,15 +1,20 @@
-use crate::commands::{types::escape_mpv_path, PlayerState};
+use crate::commands::{get_app_dir, types::escape_mpv_path, PlayerState};
 use serde_json::{json, Value};
 use std::{
+    fs,
     path::{Path, PathBuf},
-    sync::Mutex,
-    time::{Instant, SystemTime, UNIX_EPOCH},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
+    time::Instant,
 };
 use tauri::State;
 
 const SCRIPT: &str = "lmpv_liquid_glass";
 const READY: &str = "user-data/lmpv-liquid-glass-ready";
 const SUPPORTED: &str = "user-data/lmpv-liquid-glass-supported";
+const HASH_FILE: &str = ".assets-hash";
 const SUPPORTED_REFRESH_MS: u128 = 80;
 const ASSETS: &[(&str, &str)] = &[
     (
@@ -23,9 +28,16 @@ const ASSETS: &[(&str, &str)] = &[
     ),
 ];
 
+/// Флаг повторной проверки кэша Liquid Glass после ручной очистки кэша пользователем.
+static NEEDS_ASSETS_VERIFY: AtomicBool = AtomicBool::new(false);
+
+/// Сигнализирует модулю Liquid Glass о том, что файлы в `data/cache/liquid_glass` могли быть удалены.
+pub fn mark_assets_stale() {
+    NEEDS_ASSETS_VERIFY.store(true, Ordering::Release);
+}
+
 /// Состояние встроенного Lua-модуля и GLSL-шейдера Liquid Glass.
 pub struct LiquidGlassState {
-    directory: Option<PathBuf>,
     ready: bool,
     supported: bool,
     last_supported_check: Option<Instant>,
@@ -36,45 +48,108 @@ pub struct LiquidGlassState {
 #[derive(Default)]
 pub struct LiquidGlass(Mutex<Option<LiquidGlassState>>);
 
-fn clean(directory: &Path) {
-    for (name, _) in ASSETS {
-        let _ = std::fs::remove_file(directory.join(name));
+/// Вычисляет суммарный BLAKE3-хэш всех встроенных файлов Liquid Glass для валидации кэша.
+fn compute_assets_hash() -> String {
+    let mut hasher = blake3::Hasher::new();
+    for (name, contents) in ASSETS {
+        hasher.update(name.as_bytes());
+        hasher.update(&[0]);
+        hasher.update(contents.as_bytes());
+        hasher.update(&[0]);
     }
-    let _ = std::fs::remove_dir(directory);
+    hasher.finalize().to_hex().to_string()
 }
 
-impl Drop for LiquidGlass {
-    fn drop(&mut self) {
-        if let Ok(Some(state)) = self.0.get_mut() {
-            if let Some(directory) = state.directory.as_ref() {
-                clean(directory);
-            }
+/// Возвращает путь к постоянному портативному кэшу ассетов Liquid Glass внутри `data/cache/liquid_glass`.
+fn portable_cache_dir() -> Result<PathBuf, String> {
+    Ok(get_app_dir()?.join("data").join("cache").join("liquid_glass"))
+}
+
+/// Проверяет актуальность кэша Liquid Glass в заданном каталоге и записывает только отсутствующие
+/// или изменившиеся файлы. Стабильный путь позволяет `libplacebo` повторно использовать
+/// скомпилированный кэш шейдеров из `data/cache/shaders`.
+fn ensure_assets_cached_in(directory: &Path) -> Result<(), String> {
+    fs::create_dir_all(directory).map_err(|error| error.to_string())?;
+
+    let expected_hash = compute_assets_hash();
+    let hash_path = directory.join(HASH_FILE);
+    let saved_hash = fs::read_to_string(&hash_path).unwrap_or_default();
+    let all_present = ASSETS.iter().all(|(name, contents)| {
+        let path = directory.join(name);
+        fs::metadata(&path)
+            .map(|meta| meta.is_file() && meta.len() == contents.len() as u64)
+            .unwrap_or(false)
+    });
+
+    if all_present && saved_hash.trim() == expected_hash {
+        NEEDS_ASSETS_VERIFY.store(false, Ordering::Release);
+        return Ok(());
+    }
+
+    // Удаляем маркер хэша до перезаписи, чтобы неполный кэш не считался валидным после сбоя.
+    let _ = fs::remove_file(&hash_path);
+    for (name, contents) in ASSETS {
+        let target = directory.join(name);
+        let temp = directory.join(format!("{name}.tmp"));
+        if let Err(error) = fs::write(&temp, contents) {
+            let _ = fs::remove_file(&temp);
+            return Err(error.to_string());
+        }
+        if let Err(error) = fs::rename(&temp, &target) {
+            let _ = fs::remove_file(&temp);
+            return Err(error.to_string());
         }
     }
+    fs::write(&hash_path, expected_hash.as_bytes()).map_err(|error| error.to_string())?;
+    NEEDS_ASSETS_VERIFY.store(false, Ordering::Release);
+    Ok(())
+}
+
+fn ensure_assets_cached() -> Result<PathBuf, String> {
+    let directory = portable_cache_dir()?;
+    ensure_assets_cached_in(&directory)?;
+    Ok(directory)
 }
 
 fn install(player: &PlayerState) -> Result<PathBuf, String> {
-    let stamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|error| error.to_string())?
-        .as_nanos();
-    let directory = std::env::temp_dir().join(format!("lmpv-glass-{}-{stamp}", std::process::id()));
-    std::fs::create_dir(&directory).map_err(|error| error.to_string())?;
-    let result = (|| {
-        for (name, contents) in ASSETS {
-            std::fs::write(directory.join(name), contents).map_err(|error| error.to_string())?;
-        }
-        let path = directory.join(format!("{SCRIPT}.lua"));
-        player.mpv.command(&format!(
-            "load-script \"{}\"",
-            escape_mpv_path(&path.to_string_lossy())
-        ))
-    })();
-    if let Err(error) = result {
-        clean(&directory);
-        return Err(error);
-    }
+    let directory = ensure_assets_cached()?;
+    let path = directory.join(format!("{SCRIPT}.lua"));
+    player.mpv.command(&format!(
+        "load-script \"{}\"",
+        escape_mpv_path(&path.to_string_lossy())
+    ))?;
     Ok(directory)
+}
+
+/// Предзагружает Lua-контроллер и регистрирует шейдер Liquid Glass при старте плеера,
+/// чтобы при открытии видео не тратить время на копирование и холодную инициализацию.
+pub fn prewarm_liquid_glass(
+    player: &PlayerState,
+    glass: &LiquidGlass,
+    use_display_sync: bool,
+) {
+    let Ok(mut guard) = glass.0.lock() else {
+        eprintln!("[LiquidGlass] Не удалось заблокировать состояние для предзагрузки");
+        return;
+    };
+    if guard.is_some() {
+        return;
+    }
+    match install(player) {
+        Ok(_) => {
+            let ready = player.mpv.get_property_string(READY).is_ok();
+            *guard = Some(LiquidGlassState {
+                ready,
+                supported: false,
+                last_supported_check: None,
+                display_sync_active: Some(use_display_sync),
+            });
+            println!("[LiquidGlass] Кэш проверен и скрипт предзагружен");
+        }
+        Err(error) => {
+            eprintln!("[LiquidGlass] Ошибка предзагрузки кэша Liquid Glass: {error}");
+        }
+    }
 }
 
 /// Передаёт геометрию стеклянных поверхностей и параметры размытия в Lua-скрипт mpv.
@@ -90,16 +165,20 @@ pub async fn configure_liquid_glass(
         .and_then(|v| v.as_bool())
         == Some(true);
 
+    if is_active_request && NEEDS_ASSETS_VERIFY.load(Ordering::Acquire) {
+        let _ = ensure_assets_cached();
+    }
+
     let is_ready = {
         let mut guard = glass.0.lock().map_err(|error| error.to_string())?;
         if guard.is_none() {
             if !is_active_request {
                 return Ok(json!({ "ready": true, "supported": false }));
             }
-            let directory = install(&player)?;
+            install(&player)?;
+            let ready = player.mpv.get_property_string(READY).is_ok();
             *guard = Some(LiquidGlassState {
-                directory: Some(directory),
-                ready: false,
+                ready,
                 supported: false,
                 last_supported_check: None,
                 display_sync_active: None,
@@ -211,4 +290,32 @@ pub async fn configure_liquid_glass(
     };
 
     Ok(json!({ "ready": true, "supported": supported }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn portable_assets_cache_writes_and_validates_hash() {
+        let dir = std::env::temp_dir().join(format!("lmpv-glass-cache-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+
+        ensure_assets_cached_in(&dir).expect("Первичная запись кэша Liquid Glass");
+        assert!(dir.join(HASH_FILE).is_file());
+        for (name, contents) in ASSETS {
+            let saved = fs::read_to_string(dir.join(name)).expect("Файл ассета должен существовать");
+            assert_eq!(saved, *contents);
+        }
+
+        // Повторный вызов при неизменённом хэше и наличии файлов должен сразу проходить без перезаписи.
+        ensure_assets_cached_in(&dir).expect("Повторная валидация кэша Liquid Glass");
+
+        // При повреждении одного из файлов кэш обязан восстановиться.
+        fs::remove_file(dir.join("glass.lua")).unwrap();
+        ensure_assets_cached_in(&dir).expect("Восстановление удалённого файла кэша Liquid Glass");
+        assert!(dir.join("glass.lua").is_file());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

@@ -6,6 +6,7 @@ import {
   getGlassRefraction,
   getGlassTint,
   getGlassTintShaderParams,
+  getPlayerTheme,
   subscribePlayerTheme,
 } from "./preferences";
 
@@ -399,18 +400,34 @@ function collectTopBlur(appContainer: HTMLElement | null): TopBlurRect | null {
  */
 export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPath = "" }: Props) {
   const animateUntilRef = useRef(0);
+  const wasActiveRef = useRef(false);
 
   useEffect(() => {
     const root = document.documentElement;
     if (!enabled) {
-      root.removeAttribute("data-interface-theme");
       root.removeAttribute("data-liquid-glass-active");
-      root.style.removeProperty("--glass-tint-rgb");
-      dispatchGlassConfig({ active: false, blur: 0, viewportH: 0, surfaces: [] }, () => {});
+      if (getPlayerTheme() === "glass") {
+        root.setAttribute("data-interface-theme", "glass");
+        root.style.setProperty(
+          "--glass-tint-rgb",
+          getGlassTintShaderParams(getGlassTint()).fallbackRgb,
+        );
+      } else {
+        root.removeAttribute("data-interface-theme");
+        root.style.removeProperty("--glass-tint-rgb");
+      }
+      if (wasActiveRef.current) {
+        wasActiveRef.current = false;
+        dispatchGlassConfig({ active: false, blur: 0, viewportH: 0, surfaces: [] }, () => {});
+      }
       return;
     }
 
+    wasActiveRef.current = true;
     root.setAttribute("data-interface-theme", "glass");
+    if (root.getAttribute("data-liquid-glass-active") !== "true") {
+      root.setAttribute("data-liquid-glass-active", "pending");
+    }
     let disposed = false;
     let rafId = 0;
     let retryTimer = 0;
@@ -450,19 +467,20 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
             retryTimer = window.setTimeout(() => {
               syncNow();
               scheduleFrame(120);
-            }, 24);
+            }, 30);
           } else {
             root.setAttribute("data-liquid-glass-active", res.supported ? "true" : "false");
-            if (!res.supported && unsupportedRetries < 60) {
+            if (!res.supported && unsupportedRetries < 36) {
               // При старте видео mpv создаёт gpu-next и video-out-params асинхронно;
-              // продолжаем частый опрос через setTimeout (не зависит от паузы rAF), чтобы стекло включалось мгновенно.
+              // используем мягкий шаг опроса без шторма блокировок мьютекса mpv.
               unsupportedRetries += 1;
               lastSignature = "";
               window.clearTimeout(retryTimer);
+              const delayMs = unsupportedRetries <= 6 ? 30 : 80;
               retryTimer = window.setTimeout(() => {
                 syncNow();
                 scheduleFrame(100);
-              }, 32);
+              }, delayMs);
             } else if (res.supported) {
               unsupportedRetries = 0;
             }
@@ -644,7 +662,6 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       resizeObserver.disconnect();
       mutationObserver.disconnect();
       unsubscribeTheme();
-      root.style.removeProperty("--glass-tint-rgb");
       window.removeEventListener("l-mpv-glass-tint-changed", handleSettings);
       if (appContainer) {
         appContainer.removeEventListener("scroll", handleScroll, { capture: true });
@@ -670,13 +687,13 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       window.removeEventListener("l-mpv-visible-buttons-changed", handleSettings);
       window.removeEventListener("l-mpv-settings-changed", handleSettings);
     };
-  }, [enabled, videoReady, mediaPath]);
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) return;
     notifyLiquidGlassSync();
     notifyLiquidGlassAnimation(ANIMATION_TRACK_MS);
-  }, [enabled, visible]);
+  }, [enabled, visible, videoReady, mediaPath]);
 
   return null;
 }

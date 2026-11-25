@@ -4,8 +4,16 @@ import { formatCacheSize, formatCachePath, type CacheUsage } from "../lib/cacheU
 import { CacheUsageRing } from "./CacheUsageRing";
 
 const colors: Record<string, string> = {
-  thumbnails: "var(--accent)", waveforms: "#49b8ad", subtitles: "#bd9ce8",
-  shaders: "#e0ad60", icc: "#e18b9e", other: "#8e9ba9", browser: "#649ee0",
+  thumbnails: "#f97316",
+  waveforms: "#10b981",
+  subtitles: "#a855f7",
+  shaders: "#eab308",
+  icc: "#ec4899",
+  liquid_glass: "#06b6d4",
+  watch_later: "#84cc16",
+  ebu128: "#f43f5e",
+  browser: "#3b82f6",
+  other: "#94a3b8",
 };
 export function CacheUsageChart({ rows, busy, locale, labels, actions, onClear, onCopyPath }: {
   rows: CacheUsage[]; busy: boolean; locale: string; labels: Record<string, string>;

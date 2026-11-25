@@ -3,9 +3,7 @@ const SCROLLPORTS = [
   ".chapters-list", ".cmenu-editor__list", ".cmenu-editor__available-list",
   ".context-menu", ".context-menu__group", ".context-menu__submenu--solid",
   ".controls-overflow", ".explorer-panel__entries", ".navigation-popover",
-  ".media-info-overlay", ".media-info__body", ".media-info__stream-list",
-  ".mediainfo-floating-window__body", ".mediainfo-standalone__body",
-  ".mediainfo-standalone__tabs-list", ".modal__body", ".version-picker-list",
+  ".modal__body", ".version-picker-list",
   ".player-appearance__details", ".player-appearance__selector",
   ".playlist-drawer__content", ".saved-playlists__entries", ".side-panel__list",
   ".settings-tabs", ".settings-card__scroll-container", ".settings-side-panel__nav",
@@ -19,8 +17,8 @@ const ATTRIBUTE = "data-scroll-fade";
 const isScrollable = (overflow: string) => overflow === "auto" || overflow === "scroll";
 
 function updateEdges(element: HTMLElement) {
-  // Окно обновления не должно иметь затемнений краев при скролле
-  if (element.closest(".update-modal-capsule, .update-modal-card, .update-modal-container, .update-card__notes-wrap, .update-modal-notes-wrap")) {
+  // Окно обновления и окно MediaInfo не должны иметь затемнений краев при скролле
+  if (element.closest(".update-modal-capsule, .update-modal-card, .update-modal-container, .update-card__notes-wrap, .update-modal-notes-wrap, .mediainfo-standalone, .mediainfo-floating-window, .media-info-overlay, .media-info-modal")) {
     element.removeAttribute(ATTRIBUTE);
     return;
   }

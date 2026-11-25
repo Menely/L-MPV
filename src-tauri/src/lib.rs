@@ -149,6 +149,7 @@ pub fn run() {
         }));
     }
 
+    let initial_glass_theme = settings.ui.player_interface_theme.as_deref() == Some("glass");
     let resume_exe_dir = exe_dir.clone();
     builder
         .plugin(startup_runtime::player_plugin(exe_dir, settings, cli_initial))
@@ -384,6 +385,14 @@ pub fn run() {
                 height: 720.0,
             }));
 
+            // Явно устанавливаем иконку главного окна до привязки mpv и до показа окна,
+            // чтобы Windows Shell гарантированно получил HICON без гонки с D3D11/WebView2.
+            if let Some(icon) = app.default_window_icon().cloned() {
+                if let Err(err) = window.set_icon(icon) {
+                    eprintln!("[L-MPV] Не удалось установить иконку главного окна: {err}");
+                }
+            }
+
 
             #[cfg(target_os = "windows")]
             {
@@ -426,6 +435,11 @@ pub fn run() {
             }
 
             let cli = parse_cli_args(std::env::args());
+            if initial_glass_theme && !cli.open_mediainfo {
+                let state = app.state::<PlayerState>();
+                let glass_state = app.state::<liquid_glass::LiquidGlass>();
+                liquid_glass::prewarm_liquid_glass(&state, &glass_state, true);
+            }
             if cli.open_mediainfo {
                 let target_path = cli.file_path.as_deref().unwrap_or("");
                 let app_handle = app.handle().clone();

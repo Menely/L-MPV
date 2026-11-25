@@ -454,6 +454,19 @@ impl MpvManager {
                 &icc_cache_path,
             );
 
+            // Портативный каталог сохранения состояния просмотра (watch-later)
+            let watch_later_dir = cache_dir.join("watch_later");
+            let _ = std::fs::create_dir_all(&watch_later_dir);
+            let watch_later_path = watch_later_dir
+                .to_string_lossy()
+                .replace('\\', "/");
+            Self::set_option(
+                &api,
+                handle,
+                "watch-later-directory",
+                &watch_later_path,
+            );
+
             // Настройка логирования MPV в отдельный файл (сохраняет только ошибки)
             let log_file = portable_dir
                 .join("logs")

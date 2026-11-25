@@ -449,6 +449,7 @@ function App() {
       try {
         await getCurrentWindow().show();
         isWindowRevealedRef.current = true;
+        window.dispatchEvent(new Event("l-mpv-window-revealed"));
       } catch { return; }
     }
     if (isWindowRevealedRef.current && hasMediaRef.current && !isStandaloneModeRef.current) {
@@ -475,13 +476,13 @@ function App() {
     try {
       const appWindow = getCurrentWindow();
       if (w> 0 && h> 0) {
-        const isFs = await appWindow.isFullscreen();
-        const isMax = await appWindow.isMaximized();
+        const [isFs, isMax, scaleFactor] = await Promise.all([
+          appWindow.isFullscreen(),
+          appWindow.isMaximized(),
+          appWindow.scaleFactor(),
+        ]);
         if (!isFs && !isMax) {
           const videoAspect = w / h;
-          
-          // Получаем масштаб экрана для перевода видео в логические пиксели
-          const scaleFactor = await appWindow.scaleFactor();
           let targetWidth = w / scaleFactor;
           let targetHeight = h / scaleFactor;
           

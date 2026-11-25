@@ -147,9 +147,9 @@ pub fn write_panic_report(logs_dir: &Path, location: &str, payload: &str) {
     if let Some(parent) = logs_dir.parent() {
         if !parent.as_os_str().is_empty() {
             candidate_paths.push(parent.join("fallback_error.log"));
+            candidate_paths.push(parent.join("data").join("fallback_error.log"));
         }
     }
-    candidate_paths.push(std::env::temp_dir().join("l-mpv_fallback_error.log"));
 
     for path in candidate_paths {
         if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&path) {

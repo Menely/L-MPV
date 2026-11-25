@@ -593,14 +593,14 @@
 //!HOOK OUTPUT
 //!BIND HOOKED
 //!SAVE MZG_A
-//!WIDTH HOOKED.w 320 * HOOKED.h /
-//!HEIGHT 320
+//!WIDTH HOOKED.w 220 * HOOKED.h /
+//!HEIGHT 220
 //!WHEN mzg_on 0.5 lg_capture > *
 //!DESC [ModernZ] glass: downscale
-// Фиксированная высота 320 строк исключает блочную рябь на крупных экранах
+// Фиксированная высота 220 строк даёт глубокое гладкое размытие без блочной ряби на любых экранах
 vec4 hook() {
-    // box filter over the source texels under this one, two by two with bilinear taps
-    int n = clamp(int(ceil(HOOKED_size.y / 720.0)), 1, 3);
+    // box filter over the source texels under this one with bilinear taps
+    int n = clamp(int(ceil(HOOKED_size.y / 540.0)), 2, 4);
     vec4 sum = vec4(0.0);
     for (int y = 0; y < n; y++) {
         for (int x = 0; x < n; x++) {
@@ -620,10 +620,10 @@ vec4 hook() {
 //!DESC [ModernZ] glass: horizontal blur
 vec4 hook() {
     // Variable-radius 11-tap separable Gaussian:
-    // Шаг ограничен <= 1.22 для сплошного перекрытия без интерференционной гребенки.
+    // Шаг ограничен <= 1.32 для сплошного перекрытия без интерференционной гребенки.
     const float w[6] = float[](0.13304, 0.23238, 0.13539, 0.05118, 0.01254, 0.00199);
     const float o[6] = float[](0.0, 1.4584, 3.4040, 5.3518, 7.3029, 9.2582);
-    float blur_scale = mix(0.05, 1.22, clamp(lg_blur, 0.0, 1.0));
+    float blur_scale = mix(0.05, 1.32, clamp(lg_blur, 0.0, 1.0));
     float step_x = MZG_A_pt.x * blur_scale;
     vec4 c = MZG_A_tex(MZG_A_pos) * w[0];
     for (int i = 1; i < 6; i++) {
@@ -643,7 +643,7 @@ vec4 hook() {
 vec4 hook() {
     const float w[6] = float[](0.13304, 0.23238, 0.13539, 0.05118, 0.01254, 0.00199);
     const float o[6] = float[](0.0, 1.4584, 3.4040, 5.3518, 7.3029, 9.2582);
-    float blur_scale = mix(0.05, 1.22, clamp(lg_blur, 0.0, 1.0));
+    float blur_scale = mix(0.05, 1.32, clamp(lg_blur, 0.0, 1.0));
     float step_y = MZG_B_pt.y * blur_scale;
     vec4 c = MZG_B_tex(MZG_B_pos) * w[0];
     for (int i = 1; i < 6; i++) {
@@ -790,7 +790,7 @@ vec3 mzg_sample_glass(
     float frost_blend = clamp(frost_val, 0.0, 1.0);
     float raw_bevel_atten = mix(1.0 - 0.88 * bevel_smooth, 1.0 - 0.72 * bevel_smooth, frost_blend);
     float bevel_atten = mix(1.0, raw_bevel_atten, refract_factor);
-    float spread = user_blur * (1.20 + 0.65 * frost_blend) * bevel_atten;
+    float spread = user_blur * (1.28 + 0.95 * frost_blend) * bevel_atten;
     vec2 s1 = vec2(1.0, 0.0) * spread * MZG_C_pt;
     vec2 s2 = vec2(0.0, 1.0) * spread * MZG_C_pt;
     vec2 s3 = vec2(0.7071, 0.7071) * spread * MZG_C_pt;
@@ -812,9 +812,9 @@ vec3 mzg_sample_glass(
         MZG_C_tex(q + s3).rgb + MZG_C_tex(q - s3).rgb +
         MZG_C_tex(q + s4).rgb + MZG_C_tex(q - s4).rgb
     ) * 0.125;
-    vec3 ring_g = mix(inner_ring, outer_ring, 0.55);
+    vec3 ring_g = mix(inner_ring, outer_ring, 0.58);
 
-    float ring_weight = clamp(user_blur * (0.72 + 0.18 * frost_blend) * bevel_atten, 0.0, 0.86);
+    float ring_weight = clamp(user_blur * (0.74 + 0.22 * frost_blend) * bevel_atten, 0.0, 0.92);
     vec3 base_glass = mix(blur_center, blur_edge, 0.38 * bevel_smooth);
     vec3 blur_g = mix(base_glass, ring_g, ring_weight);
 
@@ -827,19 +827,35 @@ vec3 mzg_sample_glass(
     float l = dot(g, luma);
     g = clamp(mix(vec3(l), g, 1.36), 0.0, 1.0);
 
+    // Сбалансированное лёгкое приглушение только по-настоящему светлых участков (без потемнения на средних/тёмных сценах)
     float under = dot(blur_g, luma);
-    g = g * (1.0 - mzg_tone * 0.34 * smoothstep(0.38, 1.0, under)) + mzg_tone * 0.03 * (1.0 - under);
+    float bright_norm = smoothstep(0.34, 0.96, under);
+    float bright_damp = mzg_tone * mix(0.22, 0.30, frost_blend) * bright_norm;
+    g = g * (1.0 - bright_damp) + mzg_tone * 0.025 * (1.0 - under);
     if (is_nested > 0.5) {
-        g = clamp(g * 1.04 + vec3(0.025), 0.0, 1.0);
+        g *= mix(0.96, 0.87, bright_norm);
     }
 
     if (tint_a > 0.005) {
-        vec3 glass_filter = mix(vec3(1.0), clamp(tint_rgb * 1.65 + vec3(0.18), 0.0, 1.0), 0.66 * tint_a);
+        vec3 tint_filter_target = clamp(tint_rgb * 1.62 + vec3(0.16), 0.0, 1.0);
+        float filter_strength = clamp(
+            mix(0.56, 0.70, bright_norm) * tint_a * mix(1.0, 1.06, is_nested),
+            0.0,
+            0.80
+        );
+        vec3 glass_filter = mix(vec3(1.0), tint_filter_target, filter_strength);
         g *= glass_filter;
-        float pigment_base = mix(0.135, 0.085, smoothstep(0.05, 0.70, under)) * mix(1.0, 1.15, is_nested);
+        float pigment_base = mix(0.13, 0.095, smoothstep(0.05, 0.75, under)) * mix(1.0, 1.14, is_nested);
         float bevel_protect = 1.0 - 0.50 * bevel_smooth;
         float crystal_scatter = tint_a * pigment_base * bevel_protect;
         g = mix(g, tint_rgb, crystal_scatter);
+    } else {
+        // Для бесцветного режима (transparent): невесомая дымка (<= 16%) только при высокой яркости фона
+        float neutral_smoke = (
+            0.10 * bright_norm * (0.40 + 0.60 * frost_blend) +
+            0.06 * is_nested * mix(0.25, 1.0, bright_norm)
+        ) * (1.0 - 0.50 * bevel_smooth);
+        g = mix(g, vec3(0.12, 0.14, 0.17), clamp(neutral_smoke, 0.0, 0.16));
     }
 
     // Непрерывный контур границы (пик на -0.75 px, чтобы сглаживание внешнего края не обрезало линию на углах)

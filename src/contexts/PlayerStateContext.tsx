@@ -1028,6 +1028,15 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
   // ─── Интеграция с Taskbar Windows с фильтрацией шага ───
   const lastTaskbarRef = useRef<{ discrete: number; paused: boolean }>({ discrete: -1, paused: false });
+  const [taskbarRevealTick, setTaskbarRevealTick] = useState(0);
+  useEffect(() => {
+    const handleRevealed = () => {
+      lastTaskbarRef.current = { discrete: -1, paused: false };
+      setTaskbarRevealTick((t) => t + 1);
+    };
+    window.addEventListener("l-mpv-window-revealed", handleRevealed);
+    return () => window.removeEventListener("l-mpv-window-revealed", handleRevealed);
+  }, []);
   useEffect(() => {
     const curPos = progress.position;
     const curDur = progress.duration;
@@ -1039,13 +1048,11 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
         lastTaskbarRef.current = { discrete, paused: isPaused };
         invoke("update_taskbar_progress", { progress: prog, paused: isPaused }).catch(() => {});
       }
-    } else {
-      if (lastTaskbarRef.current.discrete !== 0 || !lastTaskbarRef.current.paused) {
-        lastTaskbarRef.current = { discrete: 0, paused: true };
-        invoke("update_taskbar_progress", { progress: 0.0, paused: true }).catch(() => {});
-      }
+    } else if (lastTaskbarRef.current.discrete > 0) {
+      lastTaskbarRef.current = { discrete: 0, paused: true };
+      invoke("update_taskbar_progress", { progress: 0.0, paused: true }).catch(() => {});
     }
-  }, [progress.position, progress.duration, mediaInfo?.paused]);
+  }, [progress.position, progress.duration, mediaInfo?.paused, taskbarRevealTick]);
 
   // ─── Автосохранение истории просмотров с передачей duration ───
   useEffect(() => {
