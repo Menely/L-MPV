@@ -23,7 +23,8 @@ local function refresh()
         config.dpr,
         config.blur,
         config.topBlur,
-        config.tint
+        config.tint,
+        config.refraction
     )
 end
 
@@ -37,6 +38,7 @@ mp.register_script_message("config", function(json)
     config = {
         active = true,
         blur = math.max(0, math.min(100, tonumber(parsed.blur) or 90)),
+        refraction = math.max(0, math.min(10, tonumber(parsed.refraction) or 5)),
         viewportW = tonumber(parsed.viewportW) or 0,
         viewportH = tonumber(parsed.viewportH) or 0,
         dpr = tonumber(parsed.dpr) or 1,

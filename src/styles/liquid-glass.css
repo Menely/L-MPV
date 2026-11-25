@@ -1,10 +1,35 @@
 /* ─── Тема Liquid Glass (гибрид: GLSL-стекло в mpv + адаптированные акценты L-MPV) ─── */
 
+/* Полное удаление затеняющих теней (box-shadow) во всех стилях темы Liquid Glass */
+html[data-interface-theme="glass"],
+html[data-interface-theme="glass"][data-glow="off"] {
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-card: none;
+  --shadow-card-hover: none;
+  --shadow-card-active: none;
+  --shadow-pill: none;
+  --shadow-pill-hover: none;
+  --shadow-elevated: none;
+  --shadow-modal: none;
+  --shadow-glow: none;
+  --btn-glow: none;
+  --selection-shadow: none;
+  --hover-icon-glow: none;
+  --timeline-glow: none;
+  --thumb-glow: none;
+  --active-icon-glow: none;
+  --play-icon-glow: none;
+}
+
 html[data-interface-theme="glass"] .titlebar,
 html[data-interface-theme="glass"] .player-controls-wrapper,
 html[data-interface-theme="glass"] .context-menu,
 html[data-interface-theme="glass"] .context-menu__submenu,
 html[data-interface-theme="glass"] .media-info-overlay,
+html[data-interface-theme="glass"] .mediainfo-floating-window,
+html[data-interface-theme="glass"] .mediainfo-standalone,
 html[data-interface-theme="glass"] .chapters-modal-card,
 html[data-interface-theme="glass"] .subtitles-search-card,
 html[data-interface-theme="glass"] .playlist-drawer,
@@ -15,7 +40,24 @@ html[data-interface-theme="glass"] .volume-feedback-osd,
 html[data-interface-theme="glass"] .update-toast,
 html[data-interface-theme="glass"] .update-modal-card,
 html[data-interface-theme="glass"] .update-modal-capsule,
+html[data-interface-theme="glass"] .modal--settings,
+html[data-interface-theme="glass"] .settings-side-panel,
+html[data-interface-theme="glass"] .color-picker-modal,
+html[data-interface-theme="glass"] .confirm-dialog,
 html[data-interface-theme="glass"] .preset-toast {
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-card: none;
+  --shadow-card-hover: none;
+  --shadow-card-active: none;
+  --shadow-pill: none;
+  --shadow-pill-hover: none;
+  --shadow-elevated: none;
+  --shadow-modal: none;
+  --shadow-glow: none;
+  --btn-glow: none;
+  --selection-shadow: none;
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.86);
   --text-muted: rgba(255, 255, 255, 0.66);
@@ -41,10 +83,184 @@ html[data-interface-theme="glass"] .preset-toast {
   --hover-icon-glow: none;
 }
 
+/* В Liquid Glass убраны все тени под окнами, карточками, поповерами и элементами во всех стилях */
+html[data-interface-theme="glass"] .modal__header {
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+html[data-interface-theme="glass"] :is(
+  .player-controls,
+  .player-controls:hover,
+  .player-controls--modern,
+  .player-controls--modern:hover,
+  .player-controls--docked,
+  .controls-island,
+  .controls-island--time,
+  .controls-islands-row,
+  .controls-islands-row .controls-island,
+  .time-display--floating-center,
+  .time-display--floating-center:hover,
+  .time-display--titlebar,
+  .time-display--titlebar:hover,
+  .timeline-preview-card,
+  .timeline-preview-card--with-frame,
+  .controls-overflow,
+  .waveform-activity-strip__badge,
+  .waveform-activity-strip__status,
+  .track-popover,
+  .track-popover--capsule .track-popover__heading,
+  .track-popover--capsule .track-popover__header-actions,
+  .track-popover--capsule .track-popover__disable-sub-card,
+  .track-popover--capsule .track-popover__list-surface,
+  .context-menu,
+  .context-menu__submenu--solid,
+  .context-menu__group,
+  .playlist-drawer,
+  .playlist-drawer--capsule .playlist-drawer__header-left,
+  .playlist-drawer--capsule .playlist-drawer__header-actions,
+  .playlist-drawer--capsule .playlist-drawer__search,
+  .playlist-drawer--capsule .playlist-drawer__list-surface,
+  .playlist-drawer--capsule .navigation-panel__tabs,
+  .playlist-drawer--capsule .explorer-panel__toolbar,
+  .playlist-drawer--capsule .saved-playlists__source,
+  .playlist-drawer--capsule .saved-playlists__editor,
+  .playlist-drawer--capsule .saved-playlists__info,
+  .navigation-popover,
+  .side-panel,
+  .file-drag-preview,
+  .modal,
+  .modal--settings,
+  .modal--settings-capsule .settings-card,
+  .settings-side-panel,
+  .settings-side-panel--capsule .settings-card,
+  .chapters-modal-card,
+  .chapters-modal-card--capsule .chapters-modal-header-left,
+  .chapters-modal-card--capsule .chapters-modal-header-actions,
+  .chapters-modal-card--capsule .chapters-list,
+  .subtitles-search-card,
+  .subtitles-search-card--capsule .subtitles-card,
+  .subtitles-search-card--capsule .subtitles-card--follow-btn,
+  .subtitles-search-card--capsule .subtitles-search-card__no-tracks,
+  .subtitles-search-card--capsule .subtitles-search-card__bar,
+  .subtitles-search-card--capsule .subtitles-search-card__list-surface,
+  .subtitles-search-card--capsule .subtitles-search-card__track-picker-menu,
+  .media-info-overlay,
+  .media-info-overlay--capsule .media-info__header-left,
+  .media-info-overlay--capsule .media-info__tabs,
+  .media-info-overlay--capsule .media-info__header-actions,
+  .media-info-overlay--capsule .media-info__section,
+  .mediainfo-floating-window,
+  .mediainfo-floating-window--capsule :is(.mediainfo-floating-window__header-left, .mediainfo-floating-window__actions, .mediainfo-floating-window__search-bar, .mediainfo-standalone__tabs-bar, .mediainfo-floating-window__body),
+  .mediainfo-standalone--capsule :is(.mediainfo-standalone__titlebar-left, .mediainfo-standalone__window-controls, .mediainfo-standalone__search-wrapper, .mediainfo-standalone__actions, .mediainfo-standalone__tabs-bar, .mediainfo-standalone__body),
+  .mediainfo-section__collapse-trigger,
+  .mediainfo-section__collapse-trigger:hover,
+  .update-modal-card,
+  .update-modal-capsule .update-card,
+  .version-picker-popover,
+  .update-toast,
+  .update-toast--capsule .update-toast__island,
+  .color-picker-modal,
+  .color-picker-modal--capsule .color-picker-card,
+  .confirm-dialog,
+  .preset-toast,
+  .glass-hud-pill,
+  .frame-osd,
+  .volume-feedback-osd,
+  .glass-panel,
+  .glass-section,
+  .glass-tile,
+  .glass-tile--clickable:hover,
+  .option-card,
+  .theme-card,
+  .color-column-card,
+  .settings-preview-card,
+  .settings-accordion,
+  .settings-accordion:has(> .settings-accordion__header:hover),
+  .settings-accordion--open,
+  .settings-accordion--open:has(> .settings-accordion__header:hover),
+  .presets-creator,
+  .preset-card,
+  .preset-card:hover,
+  .preset-card--active,
+  .preset-tag__color-dot,
+  .preset-action-btn,
+  .cmenu-editor__header,
+  .cmenu-editor__current,
+  .cmenu-editor__available,
+  .cmenu-entry,
+  .cmenu-entry:hover,
+  .cmenu-entry--overlay,
+  .control-buttons-builder__canvas,
+  .control-buttons-builder__card,
+  .control-buttons-builder__card--over,
+  .control-buttons-builder__chip--dragging,
+  .kbd-chip,
+  .visual-bar-preview__floating-island,
+  .settings-preview-card__mini-player,
+  .btn,
+  .settings-action-btn,
+  .ui-reset-btn,
+  .hotkey-reset-btn,
+  .ui-option-btn,
+  .ui-option-btn--selected,
+  .compact-segment-btn,
+  .compact-segment-btn--active,
+  .ui-font-choice,
+  .ui-font-choice--active,
+  .visual-bar-card,
+  .visual-bar-card--active,
+  .settings-window-choice.visual-bar-card--active,
+  .ambient-choice,
+  .ambient-choice--active,
+  .viz-power-btn,
+  .viz-power-btn--active,
+  .player-appearance__style[aria-pressed="true"],
+  .settings-tab-btn--active,
+  .settings-side-panel__nav-btn--active,
+  .chapter-item--active,
+  .side-panel__item--active,
+  .preset-action-btn--apply:hover,
+  .preset-action-btn--applied,
+  .hotkey-chip,
+  .model-hotkey-btn,
+  .color-circle,
+  .color-circle--palette,
+  .color-circle--active,
+  .color-circle--windows,
+  .color-circle--transparent,
+  .color-circle--add,
+  .color-circle--add:hover,
+  .color-circle__remove-btn,
+  .color-picker-swatch-btn,
+  .color-picker-swatch-btn--active,
+  .color-picker-wheel-wrap,
+  .color-picker-range::-webkit-slider-thumb,
+  .ui-premium-slider::-webkit-slider-thumb,
+  .ui-premium-slider:hover::-webkit-slider-thumb,
+  .ui-premium-slider:active::-webkit-slider-thumb,
+  .ui-premium-slider::-moz-range-thumb,
+  .ui-premium-slider:hover::-moz-range-thumb,
+  .ui-premium-slider:active::-moz-range-thumb,
+  .volume-feedback-osd__bar-fill--boost,
+  .playlist-item__progress-fill,
+  .playlist-item__progress-fill--watched,
+  .subtitles-search-card__resize-handle::after,
+  .playlist-drawer__resize-handle::after
+) {
+  box-shadow: none !important;
+}
+
+html[data-interface-theme="glass"] :is(.update-modal-card, .update-modal-capsule) :is(img, kbd) {
+  box-shadow: none !important;
+}
+
 /* В Liquid Glass иконки не имеют паразитного свечения и bitmap-фильтров (исключает белые/серые ореолы) */
 html[data-interface-theme="glass"] .player-controls-wrapper .control-btn svg,
 html[data-interface-theme="glass"] .player-controls-wrapper .control-btn:hover svg,
-html[data-interface-theme="glass"] .titlebar__btn:not(.titlebar__btn--close):hover svg {
+html[data-interface-theme="glass"] .titlebar__btn:not(.titlebar__btn--close):hover svg,
+html[data-interface-theme="glass"] .settings-accordion--open .settings-accordion__icon,
+html[data-interface-theme="glass"] .settings-accordion--open .settings-accordion__chevron {
   filter: none !important;
 }
 
@@ -231,6 +447,10 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-toas
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-toast--capsule .update-toast__island,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-card,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-capsule .update-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .modal--settings:not(.modal--settings-capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .modal--settings-capsule .settings-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .settings-side-panel:not(.settings-side-panel--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .settings-side-panel--capsule .settings-card,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer:not(.playlist-drawer--capsule),
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer:not(.playlist-drawer--capsule)::before,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-left,
@@ -283,6 +503,10 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-dr
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .explorer-panel__toolbar,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-card,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-capsule .update-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .modal--settings:not(.modal--settings-capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .modal--settings-capsule .settings-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .settings-side-panel:not(.settings-side-panel--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .settings-side-panel--capsule .settings-card,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island {
   transition: none !important;
 }
@@ -329,6 +553,10 @@ html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .updat
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .update-toast--capsule .update-toast__island,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .update-modal-card,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .update-modal-capsule .update-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .modal--settings:not(.modal--settings-capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .modal--settings-capsule .settings-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .settings-side-panel:not(.settings-side-panel--capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .settings-side-panel--capsule .settings-card,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer:not(.playlist-drawer--capsule),
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer:not(.playlist-drawer--capsule)::before,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__header-left,
@@ -344,20 +572,23 @@ html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playl
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .saved-playlists__info {
   background: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.72) !important;
   border-color: rgba(255, 255, 255, 0.16) !important;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: none !important;
   backdrop-filter: blur(22px) saturate(160%) !important;
   -webkit-backdrop-filter: blur(22px) saturate(160%) !important;
 }
 
-/* Выпадающие меню внутри Плейлиста/Проводника и Поиска по субтитрам открываются поверх HTML-карточек (поиска, списка),
-   поэтому используют собственное плотное дымчатое стекло WebView без смешивания текста под ними */
+/* Выпадающие меню внутри Плейлиста/Проводника, Поиска по субтитрам и окна поверх настроек (ColorPickerModal / ConfirmDialog)
+   открываются поверх HTML-карточек, поэтому используют собственное дымчатое стекло WebView с размытием без смешивания текста под ними */
 html[data-interface-theme="glass"] .navigation-popover,
 html[data-interface-theme="glass"] .subtitles-search-card .subtitles-search-card__track-picker-menu,
 html[data-interface-theme="glass"] .update-modal-card .version-picker-popover,
-html[data-interface-theme="glass"] .update-modal-capsule .version-picker-popover {
-  background: rgba(var(--glass-tint-rgb, 16, 19, 26), 0.86) !important;
+html[data-interface-theme="glass"] .update-modal-capsule .version-picker-popover,
+html[data-interface-theme="glass"] .color-picker-modal:not(.color-picker-modal--capsule),
+html[data-interface-theme="glass"] .color-picker-modal--capsule .color-picker-card,
+html[data-interface-theme="glass"] .confirm-dialog {
+  background: rgba(var(--glass-tint-rgb, 16, 19, 26), 0.78) !important;
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+  box-shadow: none !important;
   backdrop-filter: blur(28px) saturate(160%) !important;
   -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
 }
@@ -819,4 +1050,332 @@ html[data-interface-theme="glass"] .time-display--titlebar:hover {
 /* Превью карточек выбора стиля в настройках при теме Liquid Glass */
 .player-appearance--glass .visual-bar-preview__progress {
   background: var(--accent, #ffffff);
+}
+
+/* ─── Окна настроек (SettingsModal и SettingsPanel), вложенные карточки, списки и ColorPickerModal ─── */
+html[data-interface-theme="glass"] .modal-overlay.settings-modal-overlay {
+  background: rgba(0, 0, 0, 0.30);
+}
+
+html[data-interface-theme="glass"] .modal-overlay.color-picker-overlay,
+html[data-interface-theme="glass"] .confirm-overlay {
+  background: rgba(0, 0, 0, 0.44);
+}
+
+/* Единая система стеклянных слоёв глубины [data-surface-depth="0..4"] внутри настроек:
+   внешний каркас рисуется GLSL-шейдером, а все внутренние секции, аккордеоны и списки
+   остаются полупрозрачными матовыми CSS-слоями без тяжёлых чёрных подложек и теней. */
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel, .color-picker-modal, .confirm-dialog) {
+  --surface-fill-0: rgba(255, 255, 255, 0.045);
+  --surface-fill-hover-0: rgba(255, 255, 255, 0.085);
+  --surface-fill-1: rgba(255, 255, 255, 0.06);
+  --surface-fill-hover-1: rgba(255, 255, 255, 0.10);
+  --surface-fill-2: rgba(255, 255, 255, 0.08);
+  --surface-fill-hover-2: rgba(255, 255, 255, 0.13);
+  --surface-fill-3: rgba(255, 255, 255, 0.10);
+  --surface-fill-hover-3: rgba(255, 255, 255, 0.15);
+  --surface-fill-4: rgba(255, 255, 255, 0.12);
+  --surface-fill-hover-4: rgba(255, 255, 255, 0.17);
+  --surface-card: var(--surface-fill-1);
+  --surface-card-hover: var(--surface-fill-hover-1);
+  --surface-card-selected: var(--surface-accent-subtle);
+  --surface-card-selected-hover: var(--surface-accent-hover);
+  --surface-child: var(--surface-fill-2);
+  --surface-level-2: var(--surface-fill-1);
+  --surface-level-3: var(--surface-fill-2);
+  --surface-level-3-hover: var(--surface-fill-hover-2);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-subtle: rgba(255, 255, 255, 0.09);
+  --border-default: rgba(255, 255, 255, 0.14);
+  --border-hover: rgba(255, 255, 255, 0.24);
+  --bg-pill: rgba(255, 255, 255, 0.08);
+  --bg-elevated: rgba(var(--glass-tint-rgb, 16, 19, 26), 0.88);
+  --shadow-card: none;
+  --shadow-card-hover: none;
+  color: #ffffff;
+}
+
+/* Шапка, панель вкладок и футер в классических/модерн режимах без чёрных полос */
+html[data-interface-theme="glass"] .modal--settings .modal__header,
+html[data-interface-theme="glass"] .color-picker-modal--modern .modal__header,
+html[data-interface-theme="glass"] .color-picker-modal--docked .modal__header,
+html[data-interface-theme="glass"] .settings-side-panel__nav {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-interface-theme="glass"] .modal--settings .settings-tabs {
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-interface-theme="glass"] .modal--settings .settings-footer,
+html[data-interface-theme="glass"] .settings-side-panel .settings-footer,
+html[data-interface-theme="glass"] .color-picker-modal__footer {
+  background: rgba(255, 255, 255, 0.03);
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-interface-theme="glass"] .settings-side-panel__nav-sep {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Вкладки настроек (модалка и панель) с акцентами L-MPV */
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .settings-tab-btn,
+html[data-interface-theme="glass"] .settings-side-panel__nav-btn {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .settings-tab-btn:hover,
+html[data-interface-theme="glass"] .settings-side-panel__nav-btn:hover {
+  background: var(--hover-veil-float);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .settings-tab-btn--active,
+html[data-interface-theme="glass"] .settings-side-panel__nav-btn--active {
+  background: var(--surface-accent-subtle) !important;
+  border-color: var(--selection-frame) !important;
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .settings-tab-btn--active:hover,
+html[data-interface-theme="glass"] .settings-side-panel__nav-btn--active:hover {
+  background: var(--surface-accent-hover) !important;
+  color: var(--accent-text) !important;
+}
+
+/* Кнопки футера настроек */
+html[data-interface-theme="glass"] .settings-footer__btn--check,
+html[data-interface-theme="glass"] .settings-footer__status {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+html[data-interface-theme="glass"] .settings-footer__btn--check:hover {
+  background: var(--hover-veil-float);
+  border-color: var(--border-pill-hover);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .settings-footer__btn--version {
+  background: var(--surface-accent-subtle);
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .settings-footer__btn--version:hover {
+  background: var(--surface-accent-hover);
+  border-color: var(--border-pill-hover);
+}
+
+html[data-interface-theme="glass"] .settings-footer__btn--update {
+  background: var(--surface-accent-subtle);
+  border-color: var(--border-pill-hover);
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .settings-footer__btn--update:hover {
+  background: var(--surface-accent-hover);
+  color: #ffffff;
+}
+
+/* Аккордеоны и вложенные карточки секций: прозрачные стеклянные слои без теней */
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .settings-accordion {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .settings-accordion:has(> .settings-accordion__header:hover),
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .settings-accordion--open:has(> .settings-accordion__header:hover) {
+  border-color: var(--border-pill-hover);
+  box-shadow: none;
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .settings-accordion--open {
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .settings-accordion__header:hover {
+  background: var(--hover-veil-float);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .settings-accordion--open .settings-accordion__header {
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom-color: rgba(255, 255, 255, 0.10);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .settings-accordion__body {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) :is(
+  .glass-section,
+  .glass-tile,
+  .option-card,
+  .theme-card,
+  .color-column-card,
+  .settings-preview-card,
+  .preset-card,
+  .player-appearance,
+  .player-appearance-window,
+  .control-buttons-preview,
+  .cmenu-editor__header,
+  .cmenu-editor__current,
+  .cmenu-editor__available,
+  .cmenu-entry:not(.cmenu-entry--overlay):not(.cmenu-entry--divider)
+) {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) :is(
+  .glass-tile--clickable,
+  .preset-card,
+  .cmenu-entry:not(.cmenu-entry--overlay):not(.cmenu-entry--divider)
+):hover:not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)),
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .cmenu-available-item:hover {
+  background: var(--hover-veil-float);
+  border-color: var(--border-pill-hover);
+  box-shadow: none;
+}
+
+/* Поля ввода и выпадающие списки внутри настроек (без внутренних полей ColorPicker, чтобы не дублировать рамку) */
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel, .color-picker-modal) :is(
+  input[type="text"]:not(.color-picker-hex-field),
+  input[type="number"]:not(.color-picker-rgb-field),
+  input[type="search"],
+  textarea,
+  select,
+  .presets-creator__input,
+  .preset-card__rename-input,
+  .color-picker-hex-input-box,
+  .color-picker-rgb-channel
+) {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel, .color-picker-modal) :is(
+  input[type="text"]:not(.color-picker-hex-field),
+  input[type="number"]:not(.color-picker-rgb-field),
+  input[type="search"],
+  textarea,
+  select,
+  .presets-creator__input,
+  .preset-card__rename-input,
+  .color-picker-hex-input-box:focus-within,
+  .color-picker-rgb-channel:focus-within
+):focus,
+html[data-interface-theme="glass"] .color-picker-modal .color-picker-hex-input-box:focus-within,
+html[data-interface-theme="glass"] .color-picker-modal .color-picker-rgb-channel:focus-within {
+  border-color: var(--border-pill-hover) !important;
+  background: rgba(255, 255, 255, 0.11) !important;
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) select option {
+  background: #16181f;
+  color: #ffffff;
+}
+
+/* Редактор контекстного меню, конструктор кнопок и портальные клоны при перетаскивании (рендерятся в document.body) */
+html[data-interface-theme="glass"] .cmenu-entry--overlay,
+html[data-interface-theme="glass"] .control-buttons-builder__chip--dragging {
+  background: rgba(var(--glass-tint-rgb, 16, 19, 26), 0.88) !important;
+  border-color: var(--border-pill-hover) !important;
+  color: #ffffff !important;
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+}
+
+html[data-interface-theme="glass"] .control-buttons-builder__chip--dragging {
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .cmenu-editor__col-header,
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .color-column-card__header {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .preset-tag,
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .preset-card__badge-builtin,
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .preset-action-btn--icon {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .preset-tag:hover,
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .preset-action-btn--icon:hover {
+  background: var(--hover-veil-float);
+  border-color: var(--border-pill-hover);
+}
+
+/* Конструктор кнопок панели управления в настройках */
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .control-buttons-builder__canvas {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .control-buttons-builder__card {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+
+/* Палитра выбора цвета (ColorPickerModal) и диалог подтверждения поверх стекла */
+html[data-interface-theme="glass"] .color-picker-modal .color-picker-values-card {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+html[data-interface-theme="glass"] .color-picker-modal .color-picker-hex-field,
+html[data-interface-theme="glass"] .color-picker-modal .color-picker-rgb-field {
+  background: transparent !important;
+  border: none !important;
+  color: #ffffff !important;
+}
+
+html[data-interface-theme="glass"] .color-picker-modal .color-picker-copy-btn:hover {
+  background: var(--action-hover-veil);
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .color-picker-modal .color-picker-action-btn.settings-action-btn--secondary,
+html[data-interface-theme="glass"] .confirm-dialog .confirm-dialog__btn--cancel {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.90);
+}
+
+html[data-interface-theme="glass"] .color-picker-modal .color-picker-action-btn.settings-action-btn--secondary:hover:not(:disabled),
+html[data-interface-theme="glass"] .confirm-dialog .confirm-dialog__btn--cancel:hover {
+  background: var(--hover-veil-float);
+  border-color: var(--border-pill-hover);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .color-picker-modal .color-picker-action-btn.settings-action-btn--primary {
+  background: var(--surface-accent-subtle);
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.32);
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .color-picker-modal .color-picker-action-btn.settings-action-btn--primary:hover:not(:disabled) {
+  background: var(--surface-accent-hover);
+  border-color: var(--border-pill-hover);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .color-picker-swatch-btn--active {
+  box-shadow: none !important;
+  border-color: #ffffff !important;
+}
+
+html[data-interface-theme="glass"] .player-appearance__details {
+  border-left-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-interface-theme="glass"] .player-appearance__style[data-glass-classic-preview] .visual-bar-preview__progress {
+  background: #ffffff;
 }

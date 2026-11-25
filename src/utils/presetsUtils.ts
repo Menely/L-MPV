@@ -63,11 +63,15 @@ import {
 } from "./controlBarStyleUtils";
 import {
   DEFAULT_GLASS_BLUR,
+  DEFAULT_GLASS_REFRACTION,
   DEFAULT_GLASS_TINT,
+  MAX_GLASS_REFRACTION,
   getGlassBlur,
+  getGlassRefraction,
   getGlassTint,
   getPlayerTheme,
   saveGlassBlur,
+  saveGlassRefraction,
   saveGlassTint,
   setPlayerTheme,
   type GlassTintId,
@@ -100,6 +104,8 @@ export interface SettingsPresetData {
   liquidGlassStyle?: ControlBarStyle;
   /** Интенсивность размытия Liquid Glass (0 - 100) */
   liquidGlassBlur?: number;
+  /** Степень оптического преломления Liquid Glass (0 - 10) */
+  liquidGlassRefraction?: number;
   /** Оттенок стекла в Liquid Glass ("transparent" или ID темы плеера) */
   liquidGlassTint?: GlassTintId;
   /** Стиль окна настроек (модальное окно или боковая панель) */
@@ -473,6 +479,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       playerInterfaceTheme: "glass",
       liquidGlassStyle: "capsule",
       liquidGlassBlur: 90,
+      liquidGlassRefraction: DEFAULT_GLASS_REFRACTION,
       liquidGlassTint: "transparent",
       uiFont: "inter",
       accentColor: "#7fc7ff",
@@ -529,6 +536,7 @@ export const BUILT_IN_PRESETS: SettingsPreset[] = [
       playerInterfaceTheme: "glass",
       liquidGlassStyle: "modern",
       liquidGlassBlur: 85,
+      liquidGlassRefraction: DEFAULT_GLASS_REFRACTION,
       liquidGlassTint: "sapphire",
       uiFont: "jakarta",
       accentColor: "#5eead4",
@@ -640,6 +648,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
   const lmpvControlBarStyle = getSavedControlBarStyle("lmpv");
   const liquidGlassStyle = getSavedControlBarStyle("glass");
   const liquidGlassBlur = getGlassBlur();
+  const liquidGlassRefraction = getGlassRefraction();
   const liquidGlassTint = getGlassTint();
 
   return {
@@ -652,6 +661,7 @@ export async function captureCurrentSettings(name: string): Promise<SettingsPres
        playerTheme,
        liquidGlassStyle,
        liquidGlassBlur,
+       liquidGlassRefraction,
        liquidGlassTint,
        settingsStyle: getSavedUiSettingsStyle(),
        language: getEffectiveLocale(),
@@ -708,6 +718,9 @@ export async function applySettingsPreset(preset: SettingsPreset): Promise<void>
   }
   if (typeof data.liquidGlassBlur === "number") {
     saveGlassBlur(data.liquidGlassBlur);
+  }
+  if (typeof data.liquidGlassRefraction === "number") {
+    saveGlassRefraction(data.liquidGlassRefraction);
   }
   if (data.liquidGlassTint) {
     saveGlassTint(data.liquidGlassTint);
@@ -1090,6 +1103,10 @@ export function parseImportedPresets(jsonString: string): SettingsPreset[] {
             typeof d.liquidGlassBlur === "number" && Number.isFinite(d.liquidGlassBlur)
               ? Math.max(0, Math.min(100, Math.round(d.liquidGlassBlur)))
               : undefined,
+          liquidGlassRefraction:
+            typeof d.liquidGlassRefraction === "number" && Number.isFinite(d.liquidGlassRefraction)
+              ? Math.max(0, Math.min(MAX_GLASS_REFRACTION, Math.round(d.liquidGlassRefraction)))
+              : undefined,
           liquidGlassTint:
             d.liquidGlassTint === "transparent" ||
             (typeof d.liquidGlassTint === "string" && d.liquidGlassTint in PLAYER_THEMES)
@@ -1188,6 +1205,12 @@ export function isSettingsMatchingPreset(
     if (typeof preset.liquidGlassBlur === "number") {
       const curBlur = Math.round(Number(current.liquidGlassBlur ?? DEFAULT_GLASS_BLUR));
       if (curBlur !== Math.round(preset.liquidGlassBlur)) return false;
+    }
+    if (typeof preset.liquidGlassRefraction === "number") {
+      const curRefraction = Math.round(
+        Number(current.liquidGlassRefraction ?? DEFAULT_GLASS_REFRACTION),
+      );
+      if (curRefraction !== Math.round(preset.liquidGlassRefraction)) return false;
     }
     if (preset.liquidGlassTint) {
       const curTint = current.liquidGlassTint || DEFAULT_GLASS_TINT;

@@ -2,6 +2,7 @@ import { SettingsUpdateAction } from "./components/SettingsUpdateAction";
 import { MotionSurface } from "../motion/MotionSurface";
 import { SelectionRail } from "../motion/SelectionRail";
 import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
+import { notifyLiquidGlassAnimation } from "../../features/liquidGlass/LiquidGlassSync";
 import { applyAmbientPreview, saveAmbientSettings } from "../../utils/ambientPreviewQueue";
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -519,6 +520,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   }, []);
 
   const toggleSection = useCallback((id: string) => {
+    notifyLiquidGlassAnimation(280);
     setOpenSections((prev) => {
       if (prev[id]) {
         return {};

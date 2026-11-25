@@ -1,7 +1,6 @@
 import { AnimatePresence } from "motion/react";
 import { SettingsIcon } from "./SettingsIcon";
 import { ColorSwatch, ColorSwatchGrid } from "./ColorSwatch";
-import { optionResetBtnStyle } from "./optionCardStyles";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import React, { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -246,21 +245,26 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
             </span>
           </div>
           <div className="player-themes-header__right">
+            {(() => {
+              const isDefaultTheme = activePlayerSelection === defaultPlayerSelection;
+              return (
+                <button
+                  type="button"
+                  onClick={() => handleSelectTheme(defaultPlayerSelection)}
+                  className="ui-reset-btn"
+                  data-reset-hidden={isDefaultTheme}
+                  disabled={isDefaultTheme}
+                  tabIndex={isDefaultTheme ? -1 : 0}
+                  title={dict.settings.appearance.colorScheme.resetTheme}
+                  aria-label={dict.settings.appearance.colorScheme.resetTheme}
+                >
+                  <RotateCcw size={16} />
+                </button>
+              );
+            })()}
             <span className="t-label-accent">
               {activeThemeLabel}
             </span>
-            {activePlayerSelection !== defaultPlayerSelection && (
-              <button
-                type="button"
-                onClick={() => handleSelectTheme(defaultPlayerSelection)}
-                className="btn btn--secondary btn--sm"
-                title={dict.settings.appearance.colorScheme.resetTheme}
-                aria-label={dict.settings.appearance.colorScheme.resetTheme}
-                style={optionResetBtnStyle}
-              >
-                <RotateCcw size={11} />
-              </button>
-            )}
           </div>
         </div>
 

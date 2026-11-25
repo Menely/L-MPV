@@ -13,7 +13,6 @@ import {
 import { AccordionSection } from "../components/AccordionSection";
 import {
   optionCardStyle,
-  optionResetBtnStyle,
   optionBtnStyle,
   optionBtnClassName,
   optionBlockHeaderStyle,
@@ -112,27 +111,33 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                     <span style={optionBlockTitleTextStyle}>{dict.settings.appearance.visualizer.palette}</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {(() => {
+                      const isDefaultVizTheme =
+                        visualizerConfig.theme === DEFAULT_VISUALIZER_CONFIG.theme;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateVisualizer({
+                              theme: DEFAULT_VISUALIZER_CONFIG.theme,
+                            })
+                          }
+                          className="ui-reset-btn"
+                          data-reset-hidden={isDefaultVizTheme}
+                          disabled={isDefaultVizTheme}
+                          tabIndex={isDefaultVizTheme ? -1 : 0}
+                          title={dict.settings.appearance.colorScheme.resetTheme}
+                          aria-label={dict.settings.appearance.colorScheme.resetTheme}
+                        >
+                          <RotateCcw size={16} />
+                        </button>
+                      );
+                    })()}
                     <span style={optionValueBadgeStyle}>
                       {dict.settings.appearance.visualizer.themes[visualizerConfig.theme]?.label ||
                         THEME_ITEMS.find((t) => t.id === visualizerConfig.theme)?.label ||
                         "Тема плеера"}
                     </span>
-                    {visualizerConfig.theme !== DEFAULT_VISUALIZER_CONFIG.theme && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateVisualizer({
-                            theme: DEFAULT_VISUALIZER_CONFIG.theme,
-                          })
-                        }
-                        className="btn btn--secondary btn--sm"
-                        style={optionResetBtnStyle}
-                        title={dict.settings.appearance.colorScheme.resetTheme}
-                        aria-label="Сбросить палитру спектра"
-                      >
-                        <RotateCcw size={11} />
-                      </button>
-                    )}
                   </div>
                 </div>
                 <div className="player-themes-selector" style={{ padding: "var(--space-2) 2px" }}>
@@ -305,19 +310,12 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                     <button
                       type="button"
                       onClick={() => updateVisualizer({ height: hDef })}
-                      className="btn btn--secondary btn--sm"
-                      style={{
-                        ...optionResetBtnStyle,
-                        opacity: isDefault ? 0 : 1,
-                        visibility: isDefault ? "hidden" : "visible",
-                        pointerEvents: isDefault ? "none" : "auto",
-                        transform: isDefault ? "scale(0.85)" : "scale(1)",
-                        transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                      }}
-
+                      className="ui-reset-btn"
+                      data-reset-hidden={isDefault}
+                      disabled={isDefault}
                       tabIndex={isDefault ? -1 : 0}
-                      >
-                      <RotateCcw size={11} />
+                    >
+                      <RotateCcw size={16} />
                     </button>
                   </div>
                 </div>

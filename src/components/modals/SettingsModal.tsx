@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useIsPresent } from "motion/react";
 import { MotionSurface } from "../motion/MotionSurface";
 import { SelectionRail } from "../motion/SelectionRail";
+import { notifyLiquidGlassAnimation } from "../../features/liquidGlass/LiquidGlassSync";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -189,7 +190,10 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const handleTabChange = useCallback((next: SettingsTabId) => {
     if (next === "presets") preloadPresetsSettings();
     if (next === "upscaling") preloadUpscaleSettings();
-    if (beginSwitch(next)) setActiveTab(next);
+    if (beginSwitch(next)) {
+      notifyLiquidGlassAnimation(340);
+      setActiveTab(next);
+    }
   }, [beginSwitch]);
 
   const isPresent = useIsPresent();
@@ -419,6 +423,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   }, [bodyRef]);
 
   const toggleSection = useCallback((id: string) => {
+    notifyLiquidGlassAnimation(280);
     setOpenSections((prev) => {
       if (prev[id]) {
         return {};

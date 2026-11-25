@@ -285,6 +285,11 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>🎨 Interface, themes and custom fonts</b></summary>
 
+- **Innovative "Liquid Glass" Optical Theme:**
+  - **Hardware GPU 3D Refraction (`vo=gpu-next`):** Unique hybrid pipeline refracting and blurring the native video surface beneath WebView2 windows via a custom `//!HOOK OUTPUT` GLSL shader in `libplacebo`.
+  - **Physical Lens Optics & Fine Control:** Snell's law refraction ($IOR = 1.52$), smooth analytical softplus normals, sub-bit dithering (`IGN`), adjustable glass blur (`0–100%`), and refraction level control (`0–10` scale, where `0` disables refraction for flat frosted glass and `5` is the default standard).
+  - **Crystal Pigmentation:** Beer–Lambert law optical absorption tinting the glass body to any of L-MPV's 15 themes with crystal light scattering.
+  - **Full Ecosystem Glass Coverage:** Liquid Glass powers the control bar (all 3 styles), chapter cards, track popovers, context menu, playlist drawer, file explorer, MediaInfo overlay and standalone window, update modal and toast, Settings center, and Color Picker.
 - **Translucent Panels:**
   - **Interface Opacity (10..100%):** Precise opacity control for control bars, dialogs, and popovers while preserving text contrast and legibility.
   - **Borders and shadows:** Panel borders and shadows distinguish interface surfaces.
@@ -342,6 +347,9 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Three Distinct Player Styles:**
   - **Capsule**: Modular interface built from independent floating cards:
     - *Independent Functional Islands*: Dedicated cards for streams (audio + subtitles), volume slider, playback controls, utilities, and fullscreen toggle;
+    - *Volume Island Alignment*: Strictly centered volume speaker icon and percentage readout with compact padding, preventing offset on 3-digit volume levels (up to 150%);
+    - *Standalone Speed Pop-up Island*: When the speed button is hidden in settings, changing speed surfaces an independent floating card next to volume with a speedometer icon and multiplier badge;
+    - *Speed HUD OSD*: Top-left HUD overlay with a vector speedometer icon and multiplier badge upon any speed change across all themes and styles;
     - *Floating Timeline & Time Card*: Seekbar and time badge float independently with soft backlighting; clicking the time card cycles time formats;
     - *Centered Playback Controls*: Play/pause and seek buttons stay strictly locked to the center of the window regardless of track label lengths;
     - *Multi-Tier Adaptive Layout*: Flexible island stations with overflow guards (`min-width: 0`), volume slider sizing (`flex-shrink: 0`), automatic switching of track buttons to clean 32×32 px icon-only mode when scaling down (`≤ 1080px`), and compact scaling of the toolbar audio visualizer, to fit controls into narrower windows.
@@ -502,7 +510,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Interactive Stream Filter Tabs (Quick Filter):** Filter tracks (*"All"*, *"General"*, *"Video"*, *"Audio"*, *"Subtitles"*, *"Chapters"*) with informative stream count badges and 6px rounded pills matching the design system.
 - **Collapsible Stream Accordions:** Collapse or expand individual streams or all at once ("Expand/Collapse All"), with auto-expansion during `Ctrl+F` search.
 - **Native Drag-and-Drop:** Drop any media file straight into the open MediaInfo window with a translucent overlay (`FileUp`) for analysis.
-- **Compact overlay (`I`):** Three tabs — Summary, Rendering and Tracks — selected by clicking or pressing `1` / `2` / `3`. Rendering shows process/system CPU and RAM, GPU and VRAM information, decoder, color, display refresh rate and A/V sync. Metric availability depends on the system and file; GPU utilization is not measured. The GPU shown is the adapter with the most dedicated memory and may differ from the one used for playback; VRAM usage is for the L-MPV process, not the whole system. Tracks lets you select audio and subtitles, disable the active track by clicking it again, and jump to chapters. The Summary video bitrate graph is smoothed, may fall back to metadata; it is not a raw packet measurement.
+- **Compact overlay (`I`):** Three tabs — Summary, Rendering and Tracks — selected by clicking or pressing `1` / `2` / `3`. Rendering shows process/system CPU and RAM, high-precision GPU and VRAM metrics (dynamic DXGI polling identifying the active L-MPV rendering adapter, supporting discrete dGPUs and integrated iGPUs/APUs by aggregating local and shared non-local memory), decoder, color, display refresh rate and A/V sync. Metric availability depends on the system and file; GPU utilization is not measured. Tracks lets you select audio and subtitles, disable the active track by clicking it again, and jump to chapters. The Summary video bitrate graph is smoothed, may fall back to metadata; it is not a raw packet measurement.
 - **Productivity Features:** Property search with highlighting (`Ctrl+F`), export to `.txt`, copy to clipboard, and bilingual interface (EN/RU). Action buttons feature clean minimalist vector icons without redundant borders or text.
 
 </details>

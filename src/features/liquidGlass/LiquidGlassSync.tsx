@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { CLOSE_BUFFER_MS, T_PANEL_MS } from "../../utils/animationUtils";
 import {
   getGlassBlur,
+  getGlassRefraction,
   getGlassTint,
   getGlassTintShaderParams,
   subscribePlayerTheme,
@@ -176,6 +177,25 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
   };
 
   let capsuleRow: Element | null = null;
+
+  // Приоритет верхних модальных окон (модальное окно обновления и модалка настроек) —
+  // гарантирует выделение слотов при открытии поверх других стеклянных панелей.
+  root.querySelectorAll(".update-modal-card").forEach((modal) => {
+    push(modal, 1);
+  });
+  root.querySelectorAll(".update-modal-capsule").forEach((modal) => {
+    modal.querySelectorAll(".update-card").forEach((card) => push(card, 1));
+  });
+
+  root.querySelectorAll(".modal--settings").forEach((modal) => {
+    if (!(modal instanceof HTMLElement)) return;
+    if (modal.classList.contains("modal--settings-capsule")) {
+      modal.querySelectorAll(".settings-card").forEach((card) => push(card, 1));
+    } else {
+      push(modal, 1);
+    }
+  });
+
   const wrapper = root.querySelector<HTMLElement>(".player-controls-wrapper");
   if (wrapper) {
     const wrapperStyle = getComputedStyle(wrapper);
@@ -327,12 +347,14 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
     }
   });
 
-  // Модальное окно обновления и версий (.update-modal-card / .update-modal-capsule)
-  root.querySelectorAll(".update-modal-card").forEach((modal) => {
-    push(modal, 1);
-  });
-  root.querySelectorAll(".update-modal-capsule").forEach((modal) => {
-    modal.querySelectorAll(".update-card").forEach((card) => push(card, 1));
+  // Боковая панель настроек (.settings-side-panel)
+  root.querySelectorAll(".settings-side-panel").forEach((panel) => {
+    if (!(panel instanceof HTMLElement)) return;
+    if (panel.classList.contains("settings-side-panel--capsule")) {
+      panel.querySelectorAll(".settings-card").forEach((card) => push(card, 1));
+    } else {
+      push(panel, 1);
+    }
   });
 
   // Вложенные островки Капсулы (кроме визуализатора) рисуются вторым стеклянным слоем (f=2)
@@ -409,6 +431,7 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       const options = {
         active: true,
         blur: getGlassBlur(),
+        refraction: getGlassRefraction(),
         viewportW: Math.max(1, window.innerWidth),
         viewportH: Math.max(1, window.innerHeight),
         dpr: Number((window.devicePixelRatio || 1).toFixed(4)),
@@ -600,8 +623,11 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
     window.addEventListener("resize", handleResize);
     window.addEventListener("l-mpv-ui-scale-changed", handleSettings);
     window.addEventListener("l-mpv-ui-radius-changed", handleSettings);
+    window.addEventListener("l-mpv-ui-font-changed", handleSettings);
     window.addEventListener("l-mpv-timeline-layout-changed", handleSettings);
     window.addEventListener("l-mpv-control-bar-style-changed", handleSettings);
+    window.addEventListener("l-mpv-visible-buttons-changed", handleSettings);
+    window.addEventListener("l-mpv-settings-changed", handleSettings);
 
     syncNow();
     scheduleFrame(ANIMATION_TRACK_MS);
@@ -638,8 +664,11 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("l-mpv-ui-scale-changed", handleSettings);
       window.removeEventListener("l-mpv-ui-radius-changed", handleSettings);
+      window.removeEventListener("l-mpv-ui-font-changed", handleSettings);
       window.removeEventListener("l-mpv-timeline-layout-changed", handleSettings);
       window.removeEventListener("l-mpv-control-bar-style-changed", handleSettings);
+      window.removeEventListener("l-mpv-visible-buttons-changed", handleSettings);
+      window.removeEventListener("l-mpv-settings-changed", handleSettings);
     };
   }, [enabled, videoReady, mediaPath]);
 

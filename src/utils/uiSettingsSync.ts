@@ -52,9 +52,11 @@ import {
 } from "./controlBarStyleUtils";
 import {
   getGlassBlur,
+  getGlassRefraction,
   getGlassTint,
   getPlayerTheme,
   saveGlassBlur,
+  saveGlassRefraction,
   saveGlassTint,
   setPlayerTheme,
   type GlassTintId,
@@ -115,6 +117,7 @@ export interface UiSettings {
   player_interface_theme?: string;
   liquid_glass_control_bar_style?: string;
   liquid_glass_blur?: number;
+  liquid_glass_refraction?: number;
   liquid_glass_tint?: string;
   time_position?: string;
   time_format?: string;
@@ -281,6 +284,7 @@ export function collectCurrentUiSettings(): UiSettings {
     player_interface_theme: getPlayerTheme(),
     liquid_glass_control_bar_style: getSavedControlBarStyle("glass"),
     liquid_glass_blur: getGlassBlur(),
+    liquid_glass_refraction: getGlassRefraction(),
     liquid_glass_tint: getGlassTint(),
     time_position: getSavedTimePosition(),
     time_format: getSavedTimeFormat(),
@@ -414,6 +418,10 @@ function applyUiSettingsSnapshot(ui: UiSettings): boolean {
   }
   if (typeof ui.liquid_glass_blur === "number" && Number.isFinite(ui.liquid_glass_blur)) {
     saveGlassBlur(ui.liquid_glass_blur);
+    restored = true;
+  }
+  if (typeof ui.liquid_glass_refraction === "number" && Number.isFinite(ui.liquid_glass_refraction)) {
+    saveGlassRefraction(ui.liquid_glass_refraction);
     restored = true;
   }
   if (typeof ui.liquid_glass_tint === "string" && ui.liquid_glass_tint) {

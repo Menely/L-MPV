@@ -5,7 +5,7 @@ import { SelectionRail } from "../../motion/SelectionRail";
 import { TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
 import { TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
 import { DEFAULT_UI_OPACITY } from "../../../utils/uiThemeUtils";
-import { GlassBlurSetting } from "../../../features/liquidGlass/ClassicAppearance";
+import { GlassBlurSetting, GlassRefractionSetting } from "../../../features/liquidGlass/ClassicAppearance";
 import type { PlayerTheme } from "../../../features/liquidGlass/preferences";
 import { AppearanceSetting } from "./AppearanceSetting";
 import type { PlayerAppearanceProps } from "./appearanceTypes";
@@ -24,7 +24,12 @@ export function PlayerStyleDetails(props: PlayerAppearanceProps & { theme?: Play
   };
   const percentage = Math.round((uiOpacity - 0.1) / 0.9 * 100);
   return (<>
-    {theme === "glass" ? <GlassBlurSetting /> : (
+    {theme === "glass" ? (
+      <>
+        <GlassBlurSetting />
+        <GlassRefractionSetting />
+      </>
+    ) : (
       <AppearanceSetting title={labels.opacityLabel} icon={<SlidersHorizontal size={16} />}
         resetTitle={labels.reset88} changed={opacityChanged} onReset={() => changeOpacity(DEFAULT_UI_OPACITY)}>
         <div className="player-appearance__opacity">

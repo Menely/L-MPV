@@ -15,6 +15,12 @@
 //!TYPE DYNAMIC float
 0.9
 
+//!PARAM lg_refraction
+//!TYPE DYNAMIC float
+//!MINIMUM 0.0
+//!MAXIMUM 2.5
+1.0
+
 //!PARAM mzg_on
 //!TYPE DYNAMIC int
 //!MINIMUM 0
@@ -766,26 +772,31 @@ vec3 mzg_sample_glass(
     float refract_length = (dome_h + length_mul * thickness) / max(-refract_vec.z, 0.20);
     float blur_lens_boost = 1.0 + 0.35 * user_blur * bevel_smooth;
     float disp_gain = mix(0.55, 0.52, is_nested);
-    vec2 disp_vec = refract_vec.xy * refract_length * (disp_gain * mzg_lens * blur_lens_boost);
+    float refract_scale = clamp(lg_refraction, 0.0, 2.5);
+    float refract_factor = clamp(refract_scale, 0.0, 1.0);
+    vec2 disp_vec = refract_vec.xy * refract_length * (disp_gain * mzg_lens * refract_scale * blur_lens_boost);
 
     vec2 q = clamp((p + disp_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
 
     // Призматическая хроматическая дисперсия вдоль преломлённого луча на кромке фаски
-    vec2 chroma_vec = disp_vec * (mix(0.080, 0.070, is_nested) * bevel_smooth);
+    float chroma_damp = 1.0 / max(1.0, sqrt(refract_scale));
+    vec2 chroma_vec = disp_vec * (mix(0.080, 0.070, is_nested) * bevel_smooth * chroma_damp);
     vec2 qR = clamp((p + disp_vec + chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
     vec2 qB = clamp((p + disp_vec - chroma_vec) / HOOKED_size, vec2(0.0), vec2(1.0));
 
     // Двухкольцевое сглаженное ядро: на преломляющей фаске шаг кольца сжимается (bevel_atten),
     // чтобы живое преломление оставалось чистым и без волнистой ряби, а внутри сохранялся плотный фрост.
+    // При нулевом преломлении размытие равномерно заполняет всю карточку до самой кромки.
     float frost_blend = clamp(frost_val, 0.0, 1.0);
-    float bevel_atten = mix(1.0 - 0.88 * bevel_smooth, 1.0 - 0.72 * bevel_smooth, frost_blend);
+    float raw_bevel_atten = mix(1.0 - 0.88 * bevel_smooth, 1.0 - 0.72 * bevel_smooth, frost_blend);
+    float bevel_atten = mix(1.0, raw_bevel_atten, refract_factor);
     float spread = user_blur * (1.20 + 0.65 * frost_blend) * bevel_atten;
     vec2 s1 = vec2(1.0, 0.0) * spread * MZG_C_pt;
     vec2 s2 = vec2(0.0, 1.0) * spread * MZG_C_pt;
     vec2 s3 = vec2(0.7071, 0.7071) * spread * MZG_C_pt;
     vec2 s4 = vec2(-0.7071, 0.7071) * spread * MZG_C_pt;
 
-    vec2 rim_streak = n * (bevel_smooth * 0.90 * user_blur) * MZG_C_pt;
+    vec2 rim_streak = n * (bevel_smooth * 0.90 * user_blur * refract_factor) * MZG_C_pt;
     vec3 blur_center = vec3(MZG_C_tex(qR).r, MZG_C_tex(q).g, MZG_C_tex(qB).b);
     vec3 blur_edge = 0.5 * (
         vec3(MZG_C_tex(qR + rim_streak).r, MZG_C_tex(q + rim_streak).g, MZG_C_tex(qB + rim_streak).b) +
@@ -843,7 +854,7 @@ vec3 mzg_sample_glass(
         ? mix(vec3(1.0), clamp(tint_rgb * 1.50 + vec3(0.35), 0.0, 1.0), 0.35 * tint_a)
         : vec3(1.0);
     float rim_gain = mix(0.22, 0.15, is_nested);
-    float sheen_gain = mix(0.045, 0.035, is_nested);
+    float sheen_gain = mix(0.045, 0.035, is_nested) * clamp(refract_scale, 0.0, 1.4);
     g += mzg_lens * lit * bright_guard * rim_tint * (rim_gain * rim_line + sheen_gain * (n_cos2 * bevel_smooth));
 
     return g;

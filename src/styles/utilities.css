@@ -27,11 +27,71 @@
 .col-gap-5     { gap: var(--space-5); }
 
 .block-head    {
-  height: 22px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-4);
+}
+
+/* ── Кнопка сброса («По умолчанию»): голая иконка без фона и рамки ── */
+.ui-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border-radius: var(--radius-control);
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 0;
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+  transition:
+    background-color var(--t-fast) var(--ease-smooth),
+    color var(--t-fast) var(--ease-smooth),
+    opacity var(--t-fast) var(--ease-smooth),
+    transform var(--t-fast) var(--ease-smooth),
+    visibility var(--t-fast) var(--ease-smooth);
+}
+
+.ui-reset-btn > svg {
+  display: block;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.ui-reset-btn:hover:not(:disabled) {
+  background: var(--action-hover-veil);
+  border-color: transparent;
+  color: var(--accent-text);
+}
+
+.ui-reset-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.ui-reset-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.ui-reset-btn[data-reset-hidden="true"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: scale(0.85);
 }
 .option-row    {
   display: flex;

@@ -24,6 +24,7 @@ import {
   Keyboard,
   Globe,
   Droplets,
+  Aperture,
 } from "lucide-react";
 import {
   SettingsPreset,
@@ -656,14 +657,26 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
           </div>
         )}
 
-        {/* 6. Размытие Liquid Glass или прозрачность UI L-MPV */}
+        {/* 6. Размытие и преломление Liquid Glass или прозрачность UI L-MPV */}
         {isGlassPreset ? (
-          typeof data.liquidGlassBlur === "number" && (
-            <div className="preset-tag" title={dict.settings.presets.glassBlurTitle}>
-              <Droplets size={12} />
-              <span>{dict.settings.presets.glassBlurLabel(Math.round(data.liquidGlassBlur))}</span>
-            </div>
-          )
+          <>
+            {typeof data.liquidGlassBlur === "number" && (
+              <div className="preset-tag" title={dict.settings.presets.glassBlurTitle}>
+                <Droplets size={12} />
+                <span>{dict.settings.presets.glassBlurLabel(Math.round(data.liquidGlassBlur))}</span>
+              </div>
+            )}
+            {typeof data.liquidGlassRefraction === "number" && (
+              <div className="preset-tag" title={dict.settings.presets.glassRefractionTitle}>
+                <Aperture size={12} />
+                <span>
+                  {dict.settings.presets.glassRefractionLabel(
+                    Math.round(data.liquidGlassRefraction),
+                  )}
+                </span>
+              </div>
+            )}
+          </>
         ) : (
           typeof data.uiOpacity === "number" &&
           data.uiOpacity < 1 && (

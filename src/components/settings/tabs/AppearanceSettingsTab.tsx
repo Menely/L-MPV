@@ -691,19 +691,13 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           <button
                             type="button"
                             onClick={() => updateAmbient({ blur_radius: bDef }, true)}
-                            className="btn btn--secondary btn--sm"
-                            style={{
-                              ...optionResetBtnStyle,
-                              opacity: isDefault ? 0 : 1,
-                              visibility: isDefault ? "hidden" : "visible",
-                              pointerEvents: isDefault ? "none" : "auto",
-                              transform: isDefault ? "scale(0.85)" : "scale(1)",
-                              transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                            }}
-
+                            className="ui-reset-btn"
+                            data-reset-hidden={isDefault}
+                            disabled={isDefault}
                             tabIndex={isDefault ? -1 : 0}
-                            >
-                            <RotateCcw size={11} />
+                            aria-label={dict.settings.appearance.colorScheme.resetTheme}
+                          >
+                            <RotateCcw size={16} />
                           </button>
                         </div>
                       </div>

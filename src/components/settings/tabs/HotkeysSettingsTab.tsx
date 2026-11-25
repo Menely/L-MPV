@@ -666,25 +666,19 @@ export function HotkeysSettingsTab({
                       </div>
 
                       <button
-                        className="hotkey-reset-btn"
+                        type="button"
+                        className="ui-reset-btn hotkey-reset-btn"
                         onClick={() => {
                           const updated = resetSingleHotkey(item.id, customHotkeys);
                           setCustomHotkeys(updated);
                         }}
                         style={{
-                          padding: "var(--space-5)",
-                          background: "var(--surface-level-2)",
-                          border: "1px solid rgba(255, 255, 255, 0.04)",
-                          borderRadius: "var(--radius-md)",
-                          color: "var(--text-muted)",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                          transition: "background-color 0.15s ease, color 0.15s ease",
+                          width: 28,
+                          height: 28,
+                          minWidth: 28,
+                          minHeight: 28,
                         }}
-                        >
+                      >
                         <RotateCcw size={16} />
                       </button>
                     </div>

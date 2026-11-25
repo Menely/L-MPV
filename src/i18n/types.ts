@@ -456,6 +456,9 @@ export interface TranslationDict {
       interfaceTheme: string;
       glassBlur: string;
       resetGlassBlur: string;
+      glassRefraction: string;
+      resetGlassRefraction: string;
+      glassRefractionValue: (level: number) => string;
       classicStyleDesc: string;
       panelPlacement: string;
       panelFloating: string;
@@ -619,6 +622,8 @@ export interface TranslationDict {
       glassTintLabel: (name: string) => string;
       glassBlurTitle: string;
       glassBlurLabel: (percent: number) => string;
+      glassRefractionTitle: string;
+      glassRefractionLabel: (level: number) => string;
       controlBarStyleTitle: (name: string) => string;
       accentTitle: (color: string) => string;
       neonTitle: string;

@@ -88,7 +88,7 @@ export const optionSectionDescStyle: React.CSSProperties = {  fontSize: "var(--f
 
 /** Строка-заголовок блока: фиксированная высота, иконка+титул слева, значение справа. */
 export const optionBlockHeaderStyle: React.CSSProperties = {
-  height: 22,
+  height: 24,
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",

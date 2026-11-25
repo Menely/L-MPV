@@ -966,7 +966,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  min-height: 20px;
+  min-height: 24px;
   min-width: 0;
 }
 
@@ -1496,9 +1496,9 @@ html.no-animations .color-circle--palette { will-change: auto; }
 /* ─── Сворачиваемые секции (Аккордеон) ────────────────── */
 .hotkey-reset-btn:hover:not(:disabled),
 .hotkey-reset-btn:focus-visible {
-  background: var(--hover-veil) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border-pill-hover) !important;
+  background: var(--action-hover-veil) !important;
+  color: var(--accent-text) !important;
+  border-color: transparent !important;
 }
 
 .settings-accordion {

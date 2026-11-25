@@ -21,7 +21,7 @@ local type = type
 
 ---@class GlassMaterial
 ---@field clear fun()
----@field update fun(dimensions: table|nil, surfaces: GlassSurfaceRect[]|nil, viewport_w: number|nil, viewport_h: number|nil, dpr: number|nil, blur: number|nil, top_blur: table|nil, tint: table|nil): boolean
+---@field update fun(dimensions: table|nil, surfaces: GlassSurfaceRect[]|nil, viewport_w: number|nil, viewport_h: number|nil, dpr: number|nil, blur: number|nil, top_blur: table|nil, tint: table|nil, refraction: number|nil): boolean
 ---@field shutdown fun()
 
 local Glass = {}
@@ -110,8 +110,9 @@ function Glass.new(directory)
     ---@param blur number|nil
     ---@param top_blur table|nil
     ---@param tint table|nil
+    ---@param refraction number|nil
     ---@return boolean
-    function material.update(dimensions, surfaces, viewport_w, viewport_h, dpr, blur, top_blur, tint)
+    function material.update(dimensions, surfaces, viewport_w, viewport_h, dpr, blur, top_blur, tint, refraction)
         local supported = is_supported()
         mp.set_property_native(SUPPORTED, supported)
 
@@ -137,8 +138,13 @@ function Glass.new(directory)
         local in_sync = (math_abs(raw_sx - base_dpr) / base_dpr < 0.04)
             and (math_abs(raw_sy - base_dpr) / base_dpr < 0.04)
         local sy = in_sync and raw_sy or base_dpr
+        local ref_deg = math_max(0, math_min(10, tonumber(refraction) or 5))
+        local ref_scale = ref_deg <= 5
+            and (ref_deg * 0.2)
+            or (1.0 + (ref_deg - 5) * 0.24)
         local parts = {
             string_format("lg_blur=%.2f", math_max(0, math_min(100, blur or 90)) / 100),
+            string_format("lg_refraction=%.3f", ref_scale),
             "mzg_lens=1",
             "mzg_on=1",
             "mzg_shadow=1",
@@ -146,7 +152,7 @@ function Glass.new(directory)
             "mzg_tone=1",
             string_format("mzg_unit=%.6f", sy / vh),
         }
-        local n_parts = 7
+        local n_parts = 8
 
         local overlaps = false
         for slot = 0, MAX_SLOTS - 1 do

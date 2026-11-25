@@ -149,18 +149,12 @@
   gap: var(--space-5);
 }
 .player-appearance__opacity input { min-width: 0; flex: 1; }
-.player-appearance__opacity output { min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
+.player-appearance__opacity output { min-width: 5ch; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 .player-appearance [hidden] { display: none; }
 
 .player-appearance__reset {
-  width: var(--size-action-compact);
-  height: var(--size-action-compact);
-  padding: 0;
   flex-shrink: 0;
-  border-radius: var(--radius-control);
-  transition: opacity var(--t-fast) var(--ease-smooth);
 }
-.player-appearance__reset[data-reset-hidden="true"] { opacity: 0; visibility: hidden; pointer-events: none; }
 
 /* Selected buttons retain their geometry but never paint an outline. */
 .player-appearance .compact-segment-btn[aria-pressed="true"] {
