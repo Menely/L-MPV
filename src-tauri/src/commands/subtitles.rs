@@ -507,7 +507,7 @@ pub(crate) fn parse_ass(
 // ─── Дисковый кэш субтитров (LRU до 20 файлов) ──────────────
 
 /// Максимальное количество файлов кэша субтитров на диске (FIFO/LRU ротация).
-pub const MAX_SUBTITLE_CACHE_FILES: usize = 20;
+pub const MAX_SUBTITLE_CACHE_FILES: usize = 500;
 
 /// Генерация 32-значного детерминированного hex-ключа для файла субтитров/видео.
 pub fn generate_subtitles_cache_key(
@@ -876,7 +876,7 @@ mod tests {
     }
 
     #[test]
-    fn test_subtitles_cache_pruning_limit_20() {
+    fn test_subtitles_cache_pruning_limit() {
         let temp_dir = std::env::temp_dir().join(format!("l_mpv_sub_test_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
         let _ = std::fs::create_dir_all(&temp_dir);
 
@@ -889,7 +889,7 @@ mod tests {
             let _ = std::fs::File::open(&file_path).and_then(|f| f.set_modified(past));
         }
 
-        prune_subtitles_cache(&temp_dir, MAX_SUBTITLE_CACHE_FILES);
+        prune_subtitles_cache(&temp_dir, 20);
 
         let count = std::fs::read_dir(&temp_dir)
             .unwrap()
@@ -899,5 +899,6 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&temp_dir);
         assert_eq!(count, 20);
+        assert_eq!(MAX_SUBTITLE_CACHE_FILES, 500);
     }
 }

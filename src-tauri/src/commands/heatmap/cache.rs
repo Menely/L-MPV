@@ -4,7 +4,7 @@
 //! - Вычисление детерминированного BLAKE3-хэша файла, дорожки и режима (`calculate_file_cache_key`);
 //! - Разрешение путей к файлам кэша в `data/cache/waveforms/`;
 //! - Атомарную запись через уникальные временные файлы `.tmp` с защитой поколений (`save_cache_atomically`);
-//! - Автоматическую LRU-ротацию кэша по лимиту 200 файлов / 50 МБ (`prune_waveform_cache`).
+//! - Автоматическую LRU-ротацию кэша по лимиту 500 файлов / 150 МБ (`prune_waveform_cache`).
 
 use super::manager::HeatmapTaskManager;
 use std::path::{Path, PathBuf};
@@ -19,10 +19,10 @@ const AUDIO_CACHE_VERSION: &str = "v9-audio-detail";
 const VIDEO_CACHE_VERSION: &str = "v8-video-duration";
 
 /// Максимальное количество файлов в дисковом кэше тепловых карт.
-const MAX_WAVEFORM_CACHE_FILES: usize = 200;
+const MAX_WAVEFORM_CACHE_FILES: usize = 500;
 
-/// Максимальный суммарный объём дискового кэша тепловых карт (50 МБ).
-const MAX_WAVEFORM_CACHE_BYTES: u64 = 50 * 1024 * 1024;
+/// Максимальный суммарный объём дискового кэша тепловых карт (150 МБ).
+const MAX_WAVEFORM_CACHE_BYTES: u64 = 150 * 1024 * 1024;
 
 /// Атомарный счётчик для генерации уникальных имён временных файлов кэша.
 static TMP_FILE_NONCE: AtomicU64 = AtomicU64::new(0);

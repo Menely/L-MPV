@@ -1,5 +1,6 @@
 import { Copy, Trash2 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
+import { useState } from "react";
 import { formatCacheSize, formatCachePath, type CacheUsage } from "../lib/cacheUsage";
 import { CacheUsageRing } from "./CacheUsageRing";
 
@@ -20,15 +21,27 @@ export function CacheUsageChart({ rows, busy, locale, labels, actions, onClear, 
   actions: ReactNode; onClear: (category: string) => void;
   onCopyPath: (path: string) => void;
 }) {
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const total = rows.reduce((sum, row) => sum + row.bytes, 0);
   const loading = !rows.length;
   const display = loading ? Object.keys(colors).map(id => ({ id, bytes: 0, files: 0, path: "" })) : rows;
-  const slices = rows.map(row => ({ ...row, color: colors[row.id] ?? colors.other }));
+  const slices = rows.map(row => ({
+    ...row,
+    color: colors[row.id] ?? colors.other,
+    name: labels[row.id] ?? row.id,
+    formattedSize: loading ? "—" : formatCacheSize(row.bytes, locale),
+  }));
   const number = new Intl.NumberFormat(locale);
   return <div className="system-cache-overview" aria-busy={busy}>
     <div className="system-cache-summary">
-      <CacheUsageRing slices={slices} total={total} label={labels.total}
-        value={loading ? "—" : formatCacheSize(total, locale)} />
+      <CacheUsageRing
+        slices={slices}
+        total={total}
+        label={labels.total}
+        value={loading ? "—" : formatCacheSize(total, locale)}
+        hoveredId={hoveredId}
+        onHoverSlice={setHoveredId}
+      />
       <div className="system-cache-tools">{actions}</div>
     </div>
     <table className="system-cache-list" aria-label={labels.title}>
@@ -39,8 +52,14 @@ export function CacheUsageChart({ rows, busy, locale, labels, actions, onClear, 
         const path = formatCachePath(row.path);
         const parts = path.match(/^(.*[\\/])([^\\/]+)$/);
         const name = labels[row.id] ?? row.id;
-        return <tr key={row.id} className="system-cache-row"
-        style={{ "--cache-color": colors[row.id] ?? colors.other } as CSSProperties}>
+        const isHovered = hoveredId === row.id;
+        return <tr
+          key={row.id}
+          className={`system-cache-row ${isHovered ? "system-cache-row--hovered" : ""}`}
+          onMouseEnter={() => setHoveredId(row.id)}
+          onMouseLeave={() => setHoveredId(null)}
+          style={{ "--cache-color": colors[row.id] ?? colors.other } as CSSProperties}
+        >
         <th scope="row"><span className="system-cache-name"><i aria-hidden="true" /><span>{name}</span></span>
           <button type="button" className="system-cache-path" title={path} disabled={!path}
             aria-label={`${labels.copyPath}: ${path}`} onClick={() => onCopyPath(path)}>
