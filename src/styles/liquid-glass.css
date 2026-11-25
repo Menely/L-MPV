@@ -13,6 +13,8 @@ html[data-interface-theme="glass"] .glass-hud-pill,
 html[data-interface-theme="glass"] .frame-osd,
 html[data-interface-theme="glass"] .volume-feedback-osd,
 html[data-interface-theme="glass"] .update-toast,
+html[data-interface-theme="glass"] .update-modal-card,
+html[data-interface-theme="glass"] .update-modal-capsule,
 html[data-interface-theme="glass"] .preset-toast {
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.86);
@@ -227,6 +229,8 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .frame-osd,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .volume-feedback-osd,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-toast:not(.update-toast--capsule),
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-toast--capsule .update-toast__island,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-capsule .update-card,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer:not(.playlist-drawer--capsule),
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer:not(.playlist-drawer--capsule)::before,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-left,
@@ -277,6 +281,8 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-dr
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-actions,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__search,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .explorer-panel__toolbar,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-capsule .update-card,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island {
   transition: none !important;
 }
@@ -321,6 +327,8 @@ html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .frame
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .volume-feedback-osd,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .update-toast:not(.update-toast--capsule),
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .update-toast--capsule .update-toast__island,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .update-modal-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .update-modal-capsule .update-card,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer:not(.playlist-drawer--capsule),
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer:not(.playlist-drawer--capsule)::before,
 html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__header-left,
@@ -344,7 +352,9 @@ html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playl
 /* Выпадающие меню внутри Плейлиста/Проводника и Поиска по субтитрам открываются поверх HTML-карточек (поиска, списка),
    поэтому используют собственное плотное дымчатое стекло WebView без смешивания текста под ними */
 html[data-interface-theme="glass"] .navigation-popover,
-html[data-interface-theme="glass"] .subtitles-search-card .subtitles-search-card__track-picker-menu {
+html[data-interface-theme="glass"] .subtitles-search-card .subtitles-search-card__track-picker-menu,
+html[data-interface-theme="glass"] .update-modal-card .version-picker-popover,
+html[data-interface-theme="glass"] .update-modal-capsule .version-picker-popover {
   background: rgba(var(--glass-tint-rgb, 16, 19, 26), 0.86) !important;
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
@@ -607,6 +617,85 @@ html[data-interface-theme="glass"] .subtitles-search-card :is(
   background: var(--action-hover-veil) !important;
   color: var(--accent-text) !important;
   opacity: 1 !important;
+}
+
+/* ─── Окно обновления и всплывающий тост обновления (UpdateModal / UpdateToast) ─── */
+html[data-interface-theme="glass"] .modal-overlay.update-modal-overlay {
+  background: rgba(0, 0, 0, 0.34);
+}
+
+html[data-interface-theme="glass"] .update-modal-card,
+html[data-interface-theme="glass"] .update-modal-capsule {
+  --text-secondary: rgba(255, 255, 255, 0.86);
+  --text-muted: rgba(255, 255, 255, 0.66);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .update-modal-card .update-modal-heading,
+html[data-interface-theme="glass"] .update-modal-card .update-modal-footer {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+html[data-interface-theme="glass"] .update-modal-card .update-modal-notes-wrap,
+html[data-interface-theme="glass"] .update-modal-capsule .update-card__notes-wrap {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+html[data-interface-theme="glass"] .update-modal-card .update-modal-btn--secondary:hover:not(:disabled),
+html[data-interface-theme="glass"] .update-modal-capsule .update-card__btn--secondary:hover {
+  background: var(--hover-veil-float) !important;
+  border-color: var(--border-pill-hover) !important;
+  color: #ffffff !important;
+}
+
+html[data-interface-theme="glass"] .update-modal-capsule .update-card__btn--secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+html[data-interface-theme="glass"] .update-modal-card .update-modal-btn--primary:hover:not(:disabled),
+html[data-interface-theme="glass"] .update-modal-capsule .update-card__btn--primary:hover,
+html[data-interface-theme="glass"] .update-modal-capsule .update-card__btn--downgrade:hover {
+  background: var(--surface-accent-hover) !important;
+  border-color: var(--border-pill-hover) !important;
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__icon {
+  background: var(--surface-accent-subtle);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__btn--secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__btn--secondary:hover {
+  background: var(--hover-veil-float);
+  border-color: var(--border-pill-hover);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__btn--primary {
+  background: var(--surface-accent-subtle);
+  border-color: transparent;
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__btn--primary:hover {
+  background: var(--surface-accent-hover);
+  border-color: var(--border-pill-hover);
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__progress-track {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 /* ─── Анимации появления и исчезновения только через прозрачность (fade-only) ─── */

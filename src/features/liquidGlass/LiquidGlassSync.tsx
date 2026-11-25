@@ -327,6 +327,14 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
     }
   });
 
+  // Модальное окно обновления и версий (.update-modal-card / .update-modal-capsule)
+  root.querySelectorAll(".update-modal-card").forEach((modal) => {
+    push(modal, 1);
+  });
+  root.querySelectorAll(".update-modal-capsule").forEach((modal) => {
+    modal.querySelectorAll(".update-card").forEach((card) => push(card, 1));
+  });
+
   // Вложенные островки Капсулы (кроме визуализатора) рисуются вторым стеклянным слоем (f=2)
   // после основных окон, чтобы модальные окна и поповеры всегда имели приоритет слотов.
   if (capsuleRow) {

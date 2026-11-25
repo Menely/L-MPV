@@ -1401,6 +1401,7 @@ export const en: TranslationDict = {
   },
   osd: {
     timeFormat: (label: string) => `Time: ${label}`,
+    speed: (value: string) => `Speed: ${value}`,
     frameSaved: "Frame saved",
     frameError: "Error saving frame",
     frameCopied: "Frame copied to clipboard",

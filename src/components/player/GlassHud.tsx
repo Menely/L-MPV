@@ -1,8 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Volume2,
   Subtitles,
-  Zap,
   Camera,
   Sparkles,
   AlertCircle,
@@ -15,6 +14,11 @@ import {
   Film,
   Sun,
 } from "lucide-react";
+import { SpeedIcon } from "./controls/SpeedIcon";
+import {
+  type ControlBarStyle,
+  getSavedControlBarStyle,
+} from "../../utils/controlBarStyleUtils";
 
 /**
  * Пропсы для компонента футуристичного Glass HUD в левом верхнем углу.
@@ -70,7 +74,7 @@ function getHudIcon(text: string, isError: boolean): React.ReactNode {
     lower.includes("speed") ||
     /^\d+(\.\d+)?x$/.test(lower.trim())
   ) {
-    return <Zap size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    return <SpeedIcon size={18} className="glass-hud__icon glass-hud__icon--accent" />;
   }
   if (
     lower.includes("скриншот") ||
@@ -147,13 +151,33 @@ export const GlassHud: React.FC<GlassHudProps> = ({
   isOsdClosing,
   isOsdError,
 }) => {
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
+    getSavedControlBarStyle()
+  );
+
+  useEffect(() => {
+    const syncStyle = () => setControlBarStyle(getSavedControlBarStyle());
+    window.addEventListener("l-mpv-settings-changed", syncStyle);
+    window.addEventListener("l-mpv-control-bar-style-changed", syncStyle);
+    window.addEventListener("l-mpv-player-theme-changed", syncStyle);
+    window.addEventListener("storage", syncStyle);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", syncStyle);
+      window.removeEventListener("l-mpv-control-bar-style-changed", syncStyle);
+      window.removeEventListener("l-mpv-player-theme-changed", syncStyle);
+      window.removeEventListener("storage", syncStyle);
+    };
+  }, []);
+
   if (!osdText) return null;
 
   const isMultiline = osdText.includes("\n");
 
   return (
     <div
-      className={`glass-hud-pill ${isMultiline ? "glass-hud-pill--multiline" : ""} ${
+      className={`glass-hud-pill glass-hud-pill--${controlBarStyle} ${
+        isMultiline ? "glass-hud-pill--multiline" : ""
+      } ${
         isOsdError ? "glass-hud-pill--error" : ""
       } ${isOsdClosing ? "glass-hud-pill--closing" : ""}`}
       role={isOsdError ? "alert" : "status"}

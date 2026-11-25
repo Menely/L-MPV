@@ -65,6 +65,7 @@ import {
   loadExternalAudioTrack,
   loadExternalSubtitleTrack,
 } from "../../utils/externalTrackLoader";
+import { formatSpeedValue } from "./controls/SpeedPopover";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */
@@ -517,10 +518,11 @@ export function ContextMenu({
     try {
       await invoke("set_speed", { speed });
       setCurrentSpeed(speed);
+      showOsd(dict.osd.speed(formatSpeedValue(speed)));
     } catch (e) {
       console.error("Ошибка установки скорости воспроизведения:", e);
     }
-  }, []);
+  }, [dict.osd]);
 
   const handleSetFrameMode = useCallback(async (mode: "stretch" | "fit" | "fill") => {
     try {

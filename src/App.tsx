@@ -24,6 +24,7 @@ import "./index.css";
 import { Titlebar } from "./components/player/Titlebar";
 import { FileDragPreview } from "./components/player/FileDragPreview";
 import { PlayerControls } from "./components/player/PlayerControls";
+import { formatSpeedValue } from "./components/player/controls/SpeedPopover";
 import { LiquidGlassSync } from "./features/liquidGlass/LiquidGlassSync";
 import { getPlayerTheme, subscribePlayerTheme } from "./features/liquidGlass/preferences";
 import { ContextMenu } from "./components/player/ContextMenu";
@@ -931,16 +932,19 @@ function App() {
         if (curMediaInfo) {
           const newSpeed = Math.min(4.0, (curMediaInfo.speed || 1.0) + 0.25);
           invoke("set_speed", { speed: newSpeed }).catch(console.error);
+          triggerOsd(dict.osd.speed(formatSpeedValue(newSpeed)), 1400);
         }
         break;
       case "speedDown":
         if (curMediaInfo) {
           const newSpeed = Math.max(0.25, (curMediaInfo.speed || 1.0) - 0.25);
           invoke("set_speed", { speed: newSpeed }).catch(console.error);
+          triggerOsd(dict.osd.speed(formatSpeedValue(newSpeed)), 1400);
         }
         break;
       case "speedReset":
         invoke("set_speed", { speed: 1.0 }).catch(console.error);
+        triggerOsd(dict.osd.speed(formatSpeedValue(1.0)), 1400);
         break;
       case "toggleShuffle":
         invoke("toggle_shuffle").catch(console.error);

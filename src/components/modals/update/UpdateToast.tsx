@@ -38,9 +38,13 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   useEffect(() => {
     const syncStyle = () => setControlBarStyle(getSavedControlBarStyle());
     window.addEventListener("l-mpv-settings-changed", syncStyle);
+    window.addEventListener("l-mpv-control-bar-style-changed", syncStyle);
+    window.addEventListener("l-mpv-player-theme-changed", syncStyle);
     window.addEventListener("storage", syncStyle);
     return () => {
       window.removeEventListener("l-mpv-settings-changed", syncStyle);
+      window.removeEventListener("l-mpv-control-bar-style-changed", syncStyle);
+      window.removeEventListener("l-mpv-player-theme-changed", syncStyle);
       window.removeEventListener("storage", syncStyle);
     };
   }, []);
@@ -90,7 +94,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
       <div className="update-toast__icon">
         <AppLogoIcon
           size={16}
-          color={isCapsule ? "var(--accent-text)" : "var(--on-accent)"}
+          color="var(--accent-text)"
         />
       </div>
       <div className="update-toast__title-text">
@@ -225,7 +229,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   }
 
   return (
-    <MotionSurface kind="popover" className="update-toast">
+    <MotionSurface kind="popover" className={`update-toast update-toast--${controlBarStyle}`}>
       <div className="update-toast__header">
         {headerInfoContent}
         {closeButton}

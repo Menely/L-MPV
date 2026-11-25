@@ -17,6 +17,7 @@ import {
   ControlBarStyle,
   getSavedControlBarStyle,
 } from "../../utils/controlBarStyleUtils";
+import { notifyLiquidGlassAnimation } from "../../features/liquidGlass/LiquidGlassSync";
 import type { AppUpdaterController } from "../../hooks/useAppUpdater";
 import {
   AppLogoIcon,
@@ -69,12 +70,20 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   useEffect(() => {
     const syncStyle = () => setControlBarStyle(getSavedControlBarStyle());
     window.addEventListener("l-mpv-settings-changed", syncStyle);
+    window.addEventListener("l-mpv-control-bar-style-changed", syncStyle);
+    window.addEventListener("l-mpv-player-theme-changed", syncStyle);
     window.addEventListener("storage", syncStyle);
     return () => {
       window.removeEventListener("l-mpv-settings-changed", syncStyle);
+      window.removeEventListener("l-mpv-control-bar-style-changed", syncStyle);
+      window.removeEventListener("l-mpv-player-theme-changed", syncStyle);
       window.removeEventListener("storage", syncStyle);
     };
   }, []);
+
+  useEffect(() => {
+    notifyLiquidGlassAnimation(360);
+  }, [isExpanded, controlBarStyle]);
 
   const currentVersion = normalizeVersion(updateInfo.current_version);
   const targetVersion = normalizeVersion(selectedRelease.latest_version);
@@ -278,14 +287,13 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   return (
     <MotionSurface
       kind="backdrop"
-      className="modal-overlay"
+      className="modal-overlay update-modal-overlay"
       onClick={handleClose}
       style={{
         zIndex: "var(--z-modal)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0, 0, 0, 0.65)",
       }}
     >
       {!isCapsule ? (
@@ -303,11 +311,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             maxHeight: "min(92vh, calc(100dvh / var(--ui-scale, 1) - 24px))",
             display: "flex",
             flexDirection: "column",
-            borderRadius: "var(--radius-surface)",
-            background: "var(--bg-glass, var(--bg-modal-solid))",
-            border: "1px solid var(--border)",
-            backdropFilter: "blur(16px)",
-            boxShadow: "none",
             overflow: "hidden",
             color: "var(--text, #fff)",
             transition:
@@ -439,16 +442,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                 </button>
               </div>
               <div
-                  className="custom-scrollbar"
+                className="custom-scrollbar update-modal-notes-wrap"
                 style={{
-                  flex: 1,
-                  minHeight: 0,
-                  overflowY: "auto",
-                  background: "var(--surface-level-2)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "min(var(--radius-md, 12px), var(--radius-surface))",
                   padding: isExpanded ? "14px 18px" : "12px 14px",
-                  transition: "padding 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth)",
                 }}
               >
                 <MarkdownRenderer content={selectedRelease.release_notes} />

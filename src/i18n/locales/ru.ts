@@ -1411,6 +1411,7 @@ export const ru: TranslationDict = {
   },
   osd: {
     timeFormat: (label: string) => `Время: ${label}`,
+    speed: (value: string) => `Скорость: ${value}`,
     frameSaved: "Кадр сохранён",
     frameError: "Ошибка сохранения кадра",
     frameCopied: "Кадр скопирован в буфер обмена",

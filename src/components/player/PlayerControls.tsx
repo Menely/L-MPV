@@ -964,11 +964,11 @@ export function PlayerControls({
   const handleSetSpeed = useCallback(async (newSpeed: number) => {
     try {
       await invoke("set_speed", { speed: newSpeed });
-      showOsd(formatSpeedValue(newSpeed));
+      showOsd(dict.osd.speed(formatSpeedValue(newSpeed)));
     } catch (e) {
       console.error("Ошибка при установке скорости воспроизведения:", e);
     }
-  }, []);
+  }, [dict.osd]);
 
   const handleSpeedButtonClick = useCallback(
     (e: React.MouseEvent) => {
@@ -1221,10 +1221,21 @@ export function PlayerControls({
   };
 
   const renderUtilityIslands = (toolbarRightTimeNode?: React.ReactNode) => {
+    // Если кнопка скорости не закреплена в настройках, но временно отображается (скорость != 1.0x
+    // или открыто меню скорости), в стиле «Капсула» она выносится в самостоятельную карточку,
+    // а не подмешивается внутрь общей карточки утилит.
+    const isAutoStandaloneSpeed = visibleButtons.speed !== true && isSpeedButtonShown();
+    const speedCardNode = isAutoStandaloneSpeed ? (
+      <div key="utility-island-auto-speed" className="controls-island controls-island--speed">
+        {renderSpeedButtonContent()}
+      </div>
+    ) : null;
+
     const activeCards = utilityCards
       .map((cardIds, cardIdx) => ({
         cardIdx,
         items: cardIds
+          .filter((id) => !(isAutoStandaloneSpeed && id === "speed"))
           .map((id) => ({ id, node: renderUtilityButtonById(id) }))
           .filter((item): item is { id: UtilityButtonId; node: React.ReactNode } => item.node !== null),
       }))
@@ -1232,16 +1243,19 @@ export function PlayerControls({
 
     if (activeCards.length === 0) {
       return (
-        <div
-          className={
-            toolbarRightTimeNode
-              ? "controls-island controls-island--utilities"
-              : "controls-island controls-island--fullscreen controls-island--single-icon controls-island--more-only"
-          }
-        >
-          {toolbarRightTimeNode}
-          {renderMoreButton()}
-        </div>
+        <>
+          {speedCardNode}
+          <div
+            className={
+              toolbarRightTimeNode
+                ? "controls-island controls-island--utilities"
+                : "controls-island controls-island--fullscreen controls-island--single-icon controls-island--more-only"
+            }
+          >
+            {toolbarRightTimeNode}
+            {renderMoreButton()}
+          </div>
+        </>
       );
     }
 
@@ -1253,9 +1267,12 @@ export function PlayerControls({
 
     return (
       <>
+        {speedCardNode}
         {activeCards.map((card, idx) => {
           const hasTime = Boolean(toolbarRightTimeNode) && idx === timeCardIdx;
           const hasMore = idx === moreCardIdx;
+          const isStandaloneSpeedCard =
+            card.items.length === 1 && !hasTime && !hasMore && card.items[0].id === "speed";
           const isSingleIcon =
             card.items.length === 1 &&
             !hasTime &&
@@ -1277,7 +1294,9 @@ export function PlayerControls({
 
           const islandClass = isSingleIcon
             ? "controls-island controls-island--fullscreen controls-island--single-icon"
-            : "controls-island controls-island--utilities";
+            : isStandaloneSpeedCard
+              ? "controls-island controls-island--speed"
+              : "controls-island controls-island--utilities";
 
           const responsiveClass = allLowPriority
             ? "controls-island--only-low"

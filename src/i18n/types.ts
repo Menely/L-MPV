@@ -1221,6 +1221,7 @@ export interface TranslationDict {
   // ─── OSD / Тосты / системные нотификации ──────────────────────
   osd: {
     timeFormat: (label: string) => string;
+    speed: (value: string) => string;
     frameSaved: string;
     frameError: string;
     frameCopied: string;

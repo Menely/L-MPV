@@ -1283,7 +1283,43 @@ html.no-animations .color-circle--palette { will-change: auto; }
   border-color: var(--accent, #60a5fa);
 }
 
-/* ─── Кнопки диалога обновления в классическом режиме (Модерн, Прикрепленный) ─── */
+/* ─── Кнопки и стеклянные стили диалога обновления в классическом и современном режимах ─── */
+.modal-overlay.update-modal-overlay {
+  background: rgba(0, 0, 0, 0.56);
+}
+
+.update-modal-card {
+  background: var(--bg-glass, var(--bg-modal-solid));
+  border: 1px solid var(--border-pill, var(--border));
+  border-radius: var(--radius-surface, 16px);
+  box-shadow: var(--shadow-modal);
+  backdrop-filter: blur(26px) saturate(165%);
+  -webkit-backdrop-filter: blur(26px) saturate(165%);
+}
+
+.update-modal-card.update-modal--docked {
+  border-color: var(--border);
+  border-radius: min(var(--radius-surface, 16px), 12px);
+  box-shadow: var(--shadow-modal), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+
+.update-modal-card.update-modal--modern {
+  background: var(--bg-pill, var(--bg-glass));
+  border-color: var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-modal), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.update-modal-notes-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--surface-level-2, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border);
+  border-radius: min(var(--radius-md, 12px), var(--radius-surface));
+  transition: padding 0.3s ease, border-radius var(--t-spring) var(--ease-spring-smooth);
+}
+
 .update-modal-btn {
   height: 32px;
   box-sizing: border-box;
@@ -2715,15 +2751,16 @@ html.no-animations .color-circle--palette { will-change: auto; }
 }
 
 .update-modal-capsule .update-card {
-  background: var(--bg-glass, var(--bg-modal-solid, #11141c));
+  background: var(--bg-pill, var(--bg-glass, var(--bg-modal-solid, #11141c)));
   /* Нейтральная рамка: --border-pill тонирован акцентом, из-за чего окно
      обновления выглядело «обведённым» без наведения. Акцент приходит
      на hover и в выделенных элементах, а не в рамке контейнера. */
   border: 1px solid var(--border);
   border-radius: var(--radius-controls, var(--radius-lg, 16px));
-  box-shadow: var(--shadow-elevated, 0 8px 32px rgba(0, 0, 0, 0.35));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-elevated, 0 8px 32px rgba(0, 0, 0, 0.35)),
+              inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(26px) saturate(165%);
+  -webkit-backdrop-filter: blur(26px) saturate(165%);
   box-sizing: border-box;
 }
 
