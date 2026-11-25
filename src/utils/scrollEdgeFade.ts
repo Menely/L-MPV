@@ -10,7 +10,7 @@ const SCROLLPORTS = [
   ".playlist-drawer__content", ".saved-playlists__entries", ".side-panel__list",
   ".settings-tabs", ".settings-card__scroll-container", ".settings-side-panel__nav",
   ".settings-side-panel__scroll", ".system-settings__log",
-  ".subtitles-search-card__list", ".track-popover__list", ".update-card__notes-wrap",
+  ".subtitles-search-card__list", ".track-popover__list",
   '[style*="overflow: auto"]', '[style*="overflow-y: auto"]', '[style*="overflow-x: auto"]',
   '[style*="overflow: scroll"]', '[style*="overflow-y: scroll"]', '[style*="overflow-x: scroll"]',
 ].join(", ");
@@ -19,6 +19,12 @@ const ATTRIBUTE = "data-scroll-fade";
 const isScrollable = (overflow: string) => overflow === "auto" || overflow === "scroll";
 
 function updateEdges(element: HTMLElement) {
+  // Окно обновления не должно иметь затемнений краев при скролле
+  if (element.closest(".update-modal-capsule, .update-modal-card, .update-modal-container, .update-card__notes-wrap, .update-modal-notes-wrap")) {
+    element.removeAttribute(ATTRIBUTE);
+    return;
+  }
+
   const { clientWidth, clientHeight } = element;
   const edges: string[] = [];
   if (clientWidth && clientHeight) {

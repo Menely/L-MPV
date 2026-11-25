@@ -1110,13 +1110,13 @@ html.no-animations .color-circle--palette { will-change: auto; }
 .settings-footer__icons {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
 .settings-footer__icon-btn {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   background: transparent;
   border: none;
   padding: 0;
@@ -2986,6 +2986,17 @@ html.no-animations .color-circle--palette { will-change: auto; }
   border-radius: var(--radius-md);
   padding: 12px 14px;
   position: relative;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+
+/* Полное отключение затемнения краев скролла для модального окна обновления */
+.update-modal-capsule .update-card__notes-wrap,
+.update-modal-card .update-modal-notes-wrap,
+.update-modal-container [data-scroll-fade],
+.update-modal-capsule [data-scroll-fade] {
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
 }
 
 .update-modal-capsule .update-card__notes-wrap::-webkit-scrollbar {
