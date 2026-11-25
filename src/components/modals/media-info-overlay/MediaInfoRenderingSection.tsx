@@ -52,7 +52,7 @@ export const MediaInfoRenderingSection: React.FC<MediaInfoRenderingSectionProps>
   const vramText =
     stats && stats.vram_total_bytes > 0
       ? stats.vram_used_bytes > 0
-        ? `${formatBytes(stats.vram_used_bytes)} / ${formatBytes(
+        ? `L-MPV: ${formatBytes(stats.vram_used_bytes)} / ${formatBytes(
             stats.vram_total_bytes
           )}`
         : formatBytes(stats.vram_total_bytes)

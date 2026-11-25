@@ -829,7 +829,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             className="settings-footer__icon-btn hover-bright"
             title={dict.settings.integration.githubTooltip}
           >
-            <GithubIcon size={22} />
+            <GithubIcon size={18} />
           </button>
 
           <button
@@ -838,7 +838,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
             className="settings-footer__icon-btn hover-bright"
             title={dict.settings.integration.telegramTooltip}
           >
-            <TelegramIcon size={22} />
+            <TelegramIcon size={18} />
           </button>
         </div>
 
@@ -862,7 +862,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           onShowUpdate={foundUpdate && onShowUpdate ? () => onShowUpdate(foundUpdate) : undefined}
         />
       </div>
-      <span style={{ fontSize: "var(--fs-xs)" }}>{dict.settings.integration.portableEdition}</span>
+      <span className="settings-footer__edition">{dict.settings.integration.portableEdition}</span>
     </>
   );
 

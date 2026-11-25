@@ -949,7 +949,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
             className="settings-footer__icon-btn hover-bright"
             title={dict.settings.integration.githubTooltip}
           >
-            <GithubIcon size={22} />
+            <GithubIcon size={18} />
           </button>
 
           <button
@@ -958,7 +958,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
             className="settings-footer__icon-btn hover-bright"
             title={dict.settings.integration.telegramTooltip}
           >
-            <TelegramIcon size={22} />
+            <TelegramIcon size={18} />
           </button>
         </div>
 

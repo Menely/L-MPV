@@ -268,78 +268,100 @@ mod win_hardware {
         }
     }
 
-    static CACHED_GPU_META: std::sync::OnceLock<(String, u64, u32)> = std::sync::OnceLock::new();
-
     /// Считывание данных о видеоадаптере и видеопамяти VRAM через DXGI.
+    ///
+    /// Опрашивает видеоадаптеры в системе и определяет активный GPU, используемый L-MPV.
+    /// Суммирует как выделенную локальную видеопамять (LOCAL), так и разделяемую
+    /// системную память (NON_LOCAL), что гарантирует корректность показаний как
+    /// для дискретных видеокарт, так и для встроенных GPU (iGPU / APU).
     pub fn sample_vram() -> (String, u64, u64) {
         use windows::core::ComInterface;
         use windows::Win32::Graphics::Dxgi::{
             CreateDXGIFactory1, IDXGIAdapter3, IDXGIFactory1, DXGI_ADAPTER_DESC1,
             DXGI_ADAPTER_FLAG_SOFTWARE, DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
-            DXGI_QUERY_VIDEO_MEMORY_INFO,
+            DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, DXGI_QUERY_VIDEO_MEMORY_INFO,
         };
 
         unsafe {
             if let Ok(factory) = CreateDXGIFactory1::<IDXGIFactory1>() {
-                let (name, total, adapter_idx) = CACHED_GPU_META
-                    .get_or_init(|| {
-                        let mut best_name = String::new();
-                        let mut best_total = 0u64;
-                        let mut best_idx = 0u32;
+                let mut best_fallback_name = "Direct3D 11 Video".to_string();
+                let mut best_fallback_total = 0u64;
 
-                        let mut i = 0;
-                        while let Ok(adapter) = factory.EnumAdapters1(i) {
-                            let mut desc = DXGI_ADAPTER_DESC1::default();
-                            if adapter.GetDesc1(&mut desc).is_ok() {
-                                let is_software =
-                                    (desc.Flags & (DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32)) != 0;
-                                if !is_software {
-                                    let name_len = desc
-                                        .Description
-                                        .iter()
-                                        .position(|&c| c == 0)
-                                        .unwrap_or(desc.Description.len());
-                                    let candidate_name =
-                                        String::from_utf16_lossy(&desc.Description[..name_len])
-                                            .trim()
-                                            .to_string();
-                                    let candidate_total = desc.DedicatedVideoMemory as u64;
+                let mut active_gpu: Option<(String, u64, u64)> = None;
 
-                                    if candidate_total > best_total || best_name.is_empty() {
-                                        best_name = candidate_name;
-                                        best_total = candidate_total;
-                                        best_idx = i;
+                let mut i = 0;
+                while let Ok(adapter) = factory.EnumAdapters1(i) {
+                    let mut desc = DXGI_ADAPTER_DESC1::default();
+                    if adapter.GetDesc1(&mut desc).is_ok() {
+                        let is_software =
+                            (desc.Flags & (DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32)) != 0;
+                        if !is_software {
+                            let name_len = desc
+                                .Description
+                                .iter()
+                                .position(|&c| c == 0)
+                                .unwrap_or(desc.Description.len());
+                            let candidate_name =
+                                String::from_utf16_lossy(&desc.Description[..name_len])
+                                    .trim()
+                                    .to_string();
+
+                            // Для дискретных видеокарт берётся DedicatedVideoMemory;
+                            // для встроенных GPU (iGPU), где выделенная память равна 0 или 128 МБ,
+                            // берётся доступная общая видеопамять SharedSystemMemory.
+                            let candidate_total = if desc.DedicatedVideoMemory > 0 {
+                                desc.DedicatedVideoMemory as u64
+                            } else {
+                                desc.SharedSystemMemory as u64
+                            };
+
+                            if candidate_total > best_fallback_total || best_fallback_name == "Direct3D 11 Video" {
+                                best_fallback_name = candidate_name.clone();
+                                best_fallback_total = candidate_total;
+                            }
+
+                            // Проверяем текущее использование видеопамяти процессом L-MPV
+                            if let Ok(adapter3) = adapter.cast::<IDXGIAdapter3>() {
+                                let mut local_info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
+                                let mut non_local_info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
+
+                                let has_local = adapter3
+                                    .QueryVideoMemoryInfo(
+                                        0,
+                                        DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
+                                        &mut local_info,
+                                    )
+                                    .is_ok();
+                                let has_non_local = adapter3
+                                    .QueryVideoMemoryInfo(
+                                        0,
+                                        DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL,
+                                        &mut non_local_info,
+                                    )
+                                    .is_ok();
+
+                                if has_local || has_non_local {
+                                    let current_used = local_info
+                                        .CurrentUsage
+                                        .saturating_add(non_local_info.CurrentUsage);
+
+                                    // Если на этом адаптере процесс L-MPV уже выделил видеопамять,
+                                    // фиксируем его как гарантированно активный GPU рендеринга.
+                                    if current_used > 0 && active_gpu.is_none() {
+                                        active_gpu = Some((candidate_name, current_used, candidate_total));
                                     }
                                 }
                             }
-                            i += 1;
-                        }
-
-                        if best_name.is_empty() {
-                            best_name = "Direct3D 11 Video".to_string();
-                        }
-                        (best_name, best_total, best_idx)
-                    })
-                    .clone();
-
-                let mut current_used = 0u64;
-                if let Ok(adapter) = factory.EnumAdapters1(adapter_idx) {
-                    if let Ok(adapter3) = adapter.cast::<IDXGIAdapter3>() {
-                        let mut mem_info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
-                        if adapter3
-                            .QueryVideoMemoryInfo(
-                                0,
-                                DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
-                                &mut mem_info,
-                            )
-                            .is_ok()
-                        {
-                            current_used = mem_info.CurrentUsage;
                         }
                     }
+                    i += 1;
                 }
 
-                return (name, current_used, total);
+                if let Some(active) = active_gpu {
+                    return active;
+                }
+
+                return (best_fallback_name, 0, best_fallback_total);
             }
         }
 
