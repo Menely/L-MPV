@@ -255,7 +255,6 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
                   data-reset-hidden={isDefaultTheme}
                   disabled={isDefaultTheme}
                   tabIndex={isDefaultTheme ? -1 : 0}
-                  title={dict.settings.appearance.colorScheme.resetTheme}
                   aria-label={dict.settings.appearance.colorScheme.resetTheme}
                 >
                   <RotateCcw size={16} />

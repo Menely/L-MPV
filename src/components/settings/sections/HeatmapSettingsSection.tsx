@@ -470,10 +470,6 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
         {/* ── Интерактивный живой предпросмотр рельефа ── */}
         <div
           className="option-card"
-          title={
-            dict.settings.appearance.heatmap?.sectionDesc ||
-            "Наведите курсор на полосу рельефа для интерактивного предпросмотра"
-          }
           style={{
             ...optionCardStyle,
             padding: "9px 14px",
@@ -494,31 +490,42 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             </span>
           </div>
 
+          {/* Фиксированный контейнер предпросмотра: гарантирует стабильность высоты карточки и всего списка настроек */}
           <div
-            onMouseMove={handlePreviewMouseMove}
-            onMouseLeave={handlePreviewMouseLeave}
             style={{
               width: "100%",
-              // Keep the drawable area equal to the player; account for the frame.
-              height: config.height + 2,
-              borderRadius: "var(--radius-sm, 6px)",
-              background: "var(--surface-level-2)",
-              border: "1px solid rgba(255, 255, 255, 0.06)",
-              overflow: "hidden",
-              position: "relative",
-              cursor: "crosshair",
-              opacity: config.enabled ? 1 : 0.45,
-              transition: "opacity var(--t-fast) var(--ease-smooth)",
+              height: 48,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <canvas
-              ref={canvasRef}
+            <div
+              onMouseMove={handlePreviewMouseMove}
+              onMouseLeave={handlePreviewMouseLeave}
               style={{
                 width: "100%",
-                height: "100%",
-                display: "block",
+                // Полоса рельефа масштабируется по высоте согласно настройке в пределах свободного места
+                height: config.height + 2,
+                borderRadius: "var(--radius-sm, 6px)",
+                background: "var(--surface-level-2)",
+                border: "1px solid rgba(255, 255, 255, 0.06)",
+                overflow: "hidden",
+                position: "relative",
+                cursor: "crosshair",
+                opacity: config.enabled ? 1 : 0.45,
+                transition: "opacity var(--t-fast) var(--ease-smooth)",
               }}
-            />
+            >
+              <canvas
+                ref={canvasRef}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "block",
+                }}
+              />
+            </div>
           </div>
         </div>
 

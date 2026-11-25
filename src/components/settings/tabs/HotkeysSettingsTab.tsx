@@ -397,7 +397,6 @@ export function HotkeysSettingsTab({
           {dict.settings.hotkeys.helpText}
         </span>
         <button
-          title={dict.settings.hotkeys.btnReset}
           aria-label={dict.settings.hotkeys.btnReset}
           onClick={() => {
             resetCustomHotkeys();
@@ -584,7 +583,7 @@ export function HotkeysSettingsTab({
                                     setCustomHotkeys(updated);
                                     saveCustomHotkeys(updated);
                                   }}
-                                  title={dict.settings.hotkeys.btnRemove}
+                                  aria-label={dict.settings.hotkeys.btnRemove}
                                   style={{
                                     padding: "4px 6px",
                                     background: "rgba(255, 50, 50, 0.15)",
@@ -668,6 +667,7 @@ export function HotkeysSettingsTab({
                       <button
                         type="button"
                         className="ui-reset-btn hotkey-reset-btn"
+                        aria-label={dict.settings.hotkeys.btnReset}
                         onClick={() => {
                           const updated = resetSingleHotkey(item.id, customHotkeys);
                           setCustomHotkeys(updated);

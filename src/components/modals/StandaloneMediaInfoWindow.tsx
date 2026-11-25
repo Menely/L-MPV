@@ -550,7 +550,6 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
               <button
                 type="button"
                 className="mediainfo-standalone__btn-icon"
-                title={useRussian ? "Очистить поиск" : "Clear search"}
                 aria-label={useRussian ? "Очистить поиск" : "Clear search"}
                 onClick={() => setSearchQuery("")}
               >

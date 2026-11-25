@@ -126,7 +126,6 @@ export const VisualizerSettingsSection: React.FC<VisualizerSettingsSectionProps>
                           data-reset-hidden={isDefaultVizTheme}
                           disabled={isDefaultVizTheme}
                           tabIndex={isDefaultVizTheme ? -1 : 0}
-                          title={dict.settings.appearance.colorScheme.resetTheme}
                           aria-label={dict.settings.appearance.colorScheme.resetTheme}
                         >
                           <RotateCcw size={16} />

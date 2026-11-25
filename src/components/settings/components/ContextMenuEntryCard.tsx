@@ -131,7 +131,7 @@ export const SortableCard = memo(function SortableCard({
           onPointerDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
           onClick={handleRemove}
-          title={dict.settings.contextMenuConfig.btnRemoveDivider}
+          aria-label={dict.settings.contextMenuConfig.btnRemoveDivider}
           >
           <X size={12} />
         </button>
@@ -183,7 +183,7 @@ export const SortableCard = memo(function SortableCard({
         onPointerDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
         onClick={handleRemove}
-        title={dict.settings.contextMenuConfig.btnRemoveItem}
+        aria-label={dict.settings.contextMenuConfig.btnRemoveItem}
         >
         <X size={12} />
       </button>

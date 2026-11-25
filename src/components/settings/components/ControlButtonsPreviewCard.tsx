@@ -224,7 +224,6 @@ const DroppableUtilityCard = memo(function DroppableUtilityCard({
         <button
           type="button"
           className="control-buttons-builder__card-remove"
-          title={removeTitle}
           aria-label={removeTitle}
           onClick={() => onRemove(card.key)}
         >
@@ -636,7 +635,6 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             disabled={isDefault}
             tabIndex={isDefault ? -1 : 0}
             onClick={handleReset}
-            title={cbText.resetOrder}
             aria-label={cbText.resetOrder}
           >
             <RotateCcw size={16} />

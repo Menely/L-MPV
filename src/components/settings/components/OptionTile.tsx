@@ -104,7 +104,6 @@ export function OptionBlock({
               onClick={onReset}
               disabled={disabled || !showReset}
               tabIndex={disabled || !showReset ? -1 : 0}
-              title={resetTitle}
               aria-label={resetTitle}
             >
               <RotateCcw size={16} />
@@ -189,7 +188,6 @@ export function OptionToggleRow({
           onClick={onReset}
           disabled={disabled || !showReset}
           tabIndex={disabled || !showReset ? -1 : 0}
-          title={resetTitle}
           aria-label={resetTitle}
         >
           <RotateCcw size={16} />
